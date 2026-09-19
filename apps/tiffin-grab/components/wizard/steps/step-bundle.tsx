@@ -55,7 +55,7 @@ export function StepBundle({
         if (tierMeals.length === 0) return null;
         return (
           <section key={tier}>
-            <h3 className="text-primary mb-3 text-xs font-semibold tracking-[2.5px] uppercase">{tier}</h3>
+            <h3 className="text-primary mb-3 text-[13px] font-semibold tracking-[0.02em] capitalize">{tier}</h3>
             <div className="grid gap-3.5 sm:grid-cols-2">
               {tierMeals.map((m) => {
                 const active = selections.mealSizeId === m.publicId;
@@ -64,14 +64,14 @@ export function StepBundle({
                     key={m.publicId}
                     role="button"
                     onClick={() => set({ mealSizeId: m.publicId })}
-                    className={`border-foreground hover-lift cursor-pointer rounded-2xl border-[1.5px] p-4.5 transition-[transform,box-shadow,background-color] active:scale-[0.99] ${active ? "ring-primary ring-2" : "hover:bg-accent"}`}
+                    className={`border-border hover-lift cursor-pointer rounded-2xl border p-4.5 transition-[transform,box-shadow,background-color] active:scale-[0.99] ${active ? "ring-primary ring-2" : "hover:bg-accent"}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-bold">{m.name}</span>
                       <MealSizePrice meal={m} />
                     </div>
                     {m.description ? <p className="text-muted-foreground mt-1 text-sm text-pretty">{m.description}</p> : null}
-                    <div className="border-foreground mt-2 border-t-[1.5px] border-dashed pt-2">
+                    <div className="border-border mt-2 border-t border-dashed pt-2">
                       <MealSizeItems items={m.items} categoryLabels={catalog.categoryLabels} />
                     </div>
                     {active && (
@@ -92,7 +92,7 @@ export function StepBundle({
 
       {eligibleAddons.length > 0 && (
         <section>
-          <h3 className="text-primary mb-3 text-xs font-semibold tracking-[2.5px] uppercase">Add-ons</h3>
+          <h3 className="text-primary mb-3 text-[13px] font-semibold tracking-[0.02em]">Add-ons</h3>
           <div className="space-y-2">
             {eligibleAddons.map((addon) => {
               const qty = qtyFor(addon.key);
@@ -100,7 +100,7 @@ export function StepBundle({
               return (
                 <div
                   key={addon.key}
-                  className={`border-foreground flex min-h-11 items-center justify-between gap-3 rounded-xl border-[1.5px] px-4 py-2 transition-colors ${active ? "bg-primary/10" : ""}`}
+                  className={`border-border flex min-h-11 items-center justify-between gap-3 rounded-xl border px-4 py-2 transition-colors ${active ? "bg-primary/10" : ""}`}
                 >
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">{addon.name}</span>
@@ -112,7 +112,7 @@ export function StepBundle({
                         type="button"
                         aria-label={`Remove one ${addon.name}`}
                         onClick={() => setQty(addon.key, qty - 1)}
-                        className="border-foreground hover-lift flex size-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] transition-transform active:scale-[0.92]"
+                        className="border-border hover-lift flex size-11 cursor-pointer items-center justify-center rounded-full border transition-transform active:scale-[0.92]"
                       >
                         <MinusIcon className="size-3.5" />
                       </button>
@@ -122,7 +122,7 @@ export function StepBundle({
                         aria-label={`Add one more ${addon.name}`}
                         disabled={qty >= addon.maxQty}
                         onClick={() => setQty(addon.key, qty + 1)}
-                        className="border-foreground hover-lift flex size-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] transition-transform active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-40"
+                        className="border-border hover-lift flex size-11 cursor-pointer items-center justify-center rounded-full border transition-transform active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <PlusIcon className="size-3.5" />
                       </button>
@@ -131,7 +131,7 @@ export function StepBundle({
                     <button
                       type="button"
                       onClick={() => setQty(addon.key, 1)}
-                      className="border-foreground hover-lift flex min-h-9 cursor-pointer items-center gap-1 rounded-full border-[1.5px] px-3 py-1.5 text-sm font-medium transition-[transform,box-shadow,background-color] active:scale-[0.96] hover:bg-accent"
+                      className="border-border hover-lift flex min-h-9 cursor-pointer items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-[transform,box-shadow,background-color] active:scale-[0.96] hover:bg-accent"
                     >
                       <PlusIcon className="size-3.5" /> Add
                     </button>

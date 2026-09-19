@@ -4,9 +4,9 @@ import { Separator } from "@foundry/ui/separator";
 export function Invoice({ result }: { result: PricingResult | null }) {
   if (!result) return <p className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">Select a meal to see pricing.</p>;
   return (
-    <div className="border-foreground rounded-2xl border-[1.5px] p-5 text-sm shadow-[6px_6px_0_var(--primary)]">
-      <div className="border-foreground mb-3 flex items-baseline justify-between border-b-[1.5px] border-dashed pb-2.5">
-        <span className="text-xs font-bold tracking-[2px] uppercase">Your tiffin receipt</span>
+    <div className="bg-card border-border rounded-[20px] border p-5 text-sm">
+      <div className="border-border mb-3 flex items-baseline justify-between border-b pb-2.5">
+        <span className="text-[13px] font-semibold">Your tiffin receipt</span>
         <span className="text-base">🧾</span>
       </div>
       <ul className="space-y-1.5">
@@ -21,12 +21,12 @@ export function Invoice({ result }: { result: PricingResult | null }) {
           </li>
         ))}
       </ul>
-      <Separator className="border-foreground my-3 border-dashed" />
+      <Separator className="my-3" />
       {/* Receipt order: subtotal, then tax on the discounted base, then total.
           Tax used to print above the subtotal, which read as if it were part of
           the line items rather than applied to them. */}
       <div className="flex justify-between gap-2 text-muted-foreground">
-        <span>{result.tiffinCount} tiffins × ${result.perTiffinPrice.toFixed(2)}</span><span className="nums">${result.subtotal.toFixed(2)}</span>
+        <span>{result.tiffinCount} {result.tiffinCount === 1 ? "tiffin" : "tiffins"} × ${result.perTiffinPrice.toFixed(2)}</span><span className="nums">${result.subtotal.toFixed(2)}</span>
       </div>
       {(result.taxLines ?? []).length > 0 ? (
         <div className="mt-1 space-y-1">

@@ -5,7 +5,6 @@ import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "../selections";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Label } from "@foundry/ui/label";
-import { Invoice } from "../invoice";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
@@ -115,7 +114,7 @@ export function StepDuration({
         ) : null}
       </div>
       <div>
-        <Label className="text-primary text-xs font-semibold tracking-[2.5px] uppercase">Commitment duration</Label>
+        <Label className="text-primary text-[13px] font-semibold tracking-[0.02em]">Commitment duration</Label>
         <RadioGroup
           className="mt-3 flex flex-wrap gap-2.5"
           value={String(selections.durationWeeks)}
@@ -127,7 +126,7 @@ export function StepDuration({
               <label
                 key={d.weeks}
                 htmlFor={`d${d.weeks}`}
-                className={`border-foreground flex h-[54px] cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-5 text-sm font-semibold transition-colors ${active ? "bg-primary text-primary-foreground" : ""}`}
+                className={`border-border flex h-[54px] cursor-pointer items-center gap-2 rounded-full border px-5 text-sm font-semibold transition-colors ${active ? "bg-primary text-primary-foreground" : ""}`}
               >
                 <RadioGroupItem id={`d${d.weeks}`} value={String(d.weeks)} className={active ? "border-primary-foreground text-primary-foreground" : ""} />
                 {d.weeks}wk
@@ -136,7 +135,6 @@ export function StepDuration({
           })}
         </RadioGroup>
       </div>
-      <Invoice result={result} />
     </div>
   );
 }

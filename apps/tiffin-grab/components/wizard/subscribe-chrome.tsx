@@ -20,7 +20,7 @@ export function SubscribeChrome({
 }) {
   const router = useRouter();
   return (
-    <div className="bg-background/95 sticky top-0 z-30 -mx-4 relative mb-4 flex items-center justify-between border-b-[1.5px] border-foreground px-4 py-2.5 backdrop-blur sm:-mx-0 sm:px-0">
+    <div className="bg-background/80 sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between border-b px-4 py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] backdrop-blur-xl backdrop-saturate-150 sm:mx-0 sm:px-0 sm:pt-2">
       <Button
         type="button"
         variant="ghost"
@@ -32,7 +32,7 @@ export function SubscribeChrome({
         {backLabel}
       </Button>
       {stepTag && (
-        <span className="absolute left-1/2 -translate-x-1/2 text-xs font-semibold tracking-[2.5px] text-muted-foreground uppercase">
+        <span className="absolute left-1/2 -translate-x-1/2 text-[15px] font-semibold tracking-[-0.01em]">
           {stepTag}
         </span>
       )}
@@ -42,7 +42,7 @@ export function SubscribeChrome({
         size="icon-sm"
         asChild
         aria-label="Close"
-        className="size-11 rounded-full border-[1.5px] border-foreground"
+        className="size-11 rounded-full bg-muted"
       >
         <Link href={closeHref}>
           <XIcon />

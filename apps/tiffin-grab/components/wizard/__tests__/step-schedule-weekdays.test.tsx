@@ -44,8 +44,9 @@ describe("StepSchedule", () => {
 
   it("previews trips on the carrying delivery day", () => {
     render(<StepSchedule catalog={catalog} selections={sel(["mon", "tue", "thu"])} set={vi.fn()} />);
-    expect(screen.getByText("Mon: 2 tiffins (Mon, Tue)")).toBeDefined();
-    expect(screen.getByText("Wed: 1 tiffin (Thu)")).toBeDefined();
+    const rows = screen.getAllByRole("listitem").map((r) => r.textContent);
+    expect(rows).toContain("Mon2 tiffinsfor Mon, Tue");
+    expect(rows).toContain("Wed1 tiffinfor Thu");
   });
 
   it("errors and blocks below min", () => {

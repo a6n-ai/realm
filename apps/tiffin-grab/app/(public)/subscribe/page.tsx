@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
@@ -11,6 +12,15 @@ import { couponsService } from "@/lib/services/coupons.service";
 import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existing-subscriptions";
 
 export const dynamic = "force-dynamic";
+
+// Paint under the notch (the sticky header and bottom bar pad back with env()) and match the browser chrome to the page.
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FBF4E7" },
+    { media: "(prefers-color-scheme: dark)", color: "#14201A" },
+  ],
+};
 
 export default async function SubscribePage() {
   const session = await getSession();

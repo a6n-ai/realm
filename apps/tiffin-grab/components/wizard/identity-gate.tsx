@@ -22,7 +22,7 @@ import { CodeOtp } from "@foundry/auth-ui";
 // Styled to match the subscribe wizard's own brutalist-ticket look (bordered
 // card, pill buttons, glow CTA) rather than generic shadcn defaults — see
 // components/wizard/steps/step-bundle.tsx and components/checkout/checkout.tsx
-// for the same border-[1.5px] border-foreground / rounded-full vocabulary.
+// for the same border border-border / rounded-full vocabulary.
 //
 // States: "email" (asking) -> "revealed" (render children, no match or
 // guest chose to continue) -> "matched" (soft prompt) -> "otp" (inline
@@ -90,7 +90,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
   if (state === "revealed") return <>{children}</>;
 
   return (
-    <div className="border-foreground rounded-2xl border-[1.5px] p-4.5 sm:p-6">
+    <div className="border-border rounded-2xl border p-4.5 sm:p-6">
       {state === "email" && (
         <Form {...emailForm}>
           <form onSubmit={emailForm.handleSubmit(submitEmail)} className="flex flex-col gap-4">
@@ -111,7 +111,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
                       type="email"
                       autoComplete="email"
                       placeholder="you@example.com"
-                      className="border-foreground h-13 rounded-2xl border-[1.5px] px-4"
+                      className="border-border h-13 rounded-2xl border px-4"
                       {...field}
                     />
                   </FormControl>
@@ -149,7 +149,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
           <Button
             type="button"
             variant="outline"
-            className="border-foreground h-14 w-full rounded-full border-[1.5px]"
+            className="border-border h-14 w-full rounded-full border"
             onClick={sendCode}
             disabled={sending}
           >
