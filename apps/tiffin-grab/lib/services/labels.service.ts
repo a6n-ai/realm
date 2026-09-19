@@ -2,12 +2,24 @@
 // date, with the customer's phone/name/plan and up to 7 item/qty columns matching the physical
 // containers used to pack a box. Reuses resolveDeliveryMeal (the same "what a subscriber
 // receives" resolver the customer calendar uses) rather than re-deriving meal picks.
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { parsePhoneNumberWithError } from "libphonenumber-js";
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { db } from "@/db/client";
-import { deliveries, mealSizes, menuWeeks, orders, plans, users } from "@/db/schema";
+import {
+  deliveries,
+  deliveryCategorySwaps,
+  dishCategories,
+  mealSizeItems,
+  mealSizes,
+  menuWeeks,
+  orders,
+  plans,
+  users,
+} from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { packingItemLabel } from "@/lib/menu/packing-item-label";
+import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
 import { resolveDeliveryMeal } from "@/lib/menu/resolve-delivery-meal";
 import { dishCategoriesService } from "./dish-categories.service";
 
@@ -70,13 +82,53 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
     .limit(1);
   const dayOfWeek = weekdayKey(parseIsoDateUtc(dateIso));
 
+  const [sizeItems, tuRows, swapRows] = await Promise.all([
+    db
+      .select({
+        mealSizeId: mealSizeItems.mealSizeId,
+        category: mealSizeItems.category,
+        tuAmount: mealSizeItems.tuAmount,
+        sortOrder: mealSizeItems.sortOrder,
+      })
+      .from(mealSizeItems)
+      .where(inArray(mealSizeItems.mealSizeId, [...new Set(rows.map((r) => r.mealSizeId))])),
+    db
+      .select({
+        key: dishCategories.key,
+        tuUnitType: dishCategories.tuUnitType,
+        tuUnitSize: dishCategories.tuUnitSize,
+        tuUnitLabel: dishCategories.tuUnitLabel,
+      })
+      .from(dishCategories),
+    db
+      .select({
+        deliveryId: deliveryCategorySwaps.deliveryId,
+        fromCategory: deliveryCategorySwaps.fromCategory,
+        toCategory: deliveryCategorySwaps.toCategory,
+        qtyFrom: deliveryCategorySwaps.qtyFrom,
+        qtyTo: deliveryCategorySwaps.qtyTo,
+      })
+      .from(deliveryCategorySwaps)
+      .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.deliveryId)))
+      .orderBy(asc(deliveryCategorySwaps.id)),
+  ]);
+  const tuByKey = new Map(
+    tuRows.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]),
+  );
+
   const out: PackingLabelRow[] = [];
   for (const row of rows) {
     // Sum resolved category quantities across every person on the order onto one row; dish
     // names are taken from person 1's picks (an order's persons can technically pick different
     // dishes, but a packing label needs one name per line — this is the documented assumption).
+    // Count-slot names include the summed qty ("Roti 8"), so format after the person loop.
     const qtyByCategory = new Map<string, number>();
-    const nameByCategory = new Map<string, string>();
+    const picksByCategory = new Map<string, { name: string }[]>();
+    const portions = portionsByCategory(
+      sizeItems.filter((i) => i.mealSizeId === row.mealSizeId),
+      tuByKey,
+      swapRows.filter((s) => s.deliveryId === row.deliveryId),
+    );
     if (week) {
       for (let person = 1; person <= row.persons; person++) {
         const resolved = await resolveDeliveryMeal(
@@ -88,9 +140,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
         );
         for (const cat of resolved) {
           qtyByCategory.set(cat.category, (qtyByCategory.get(cat.category) ?? 0) + cat.quantity);
-          if (!nameByCategory.has(cat.category)) {
-            nameByCategory.set(cat.category, cat.picks.map((p) => p.name).join(", "));
-          }
+          if (!picksByCategory.has(cat.category)) picksByCategory.set(cat.category, cat.picks);
         }
       }
     }
@@ -99,7 +149,14 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
       .filter(([, qty]) => qty > 0)
       .sort(([a], [b]) => (sortOrder.get(a) ?? 0) - (sortOrder.get(b) ?? 0))
       .slice(0, ITEM_SLOTS)
-      .map(([category, qty]) => ({ name: nameByCategory.get(category) ?? category, qty }));
+      .map(([category, qty]) => {
+        const picks = picksByCategory.get(category) ?? [];
+        const pickPortions = picks.map((_, i) => portionForPick(portions, category, i + 1));
+        return {
+          name: packingItemLabel(picks, pickPortions, qty, tuByKey.get(category)?.tuUnitType),
+          qty,
+        };
+      });
 
     out.push({
       deliveryPublicId: row.deliveryPublicId,

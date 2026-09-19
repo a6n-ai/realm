@@ -8,7 +8,7 @@ const row: PackingLabelRow = {
   firstName: "Aafreen",
   planName: "Non-Veg Tiffin",
   mealSizeName: "Maharaja Thali",
-  items: [{ name: "Chicken Curry", qty: 1 }, { name: "Jeera Rice", qty: 1 }],
+  items: [{ name: "Chicken Curry 12oz", qty: 1 }, { name: "Jeera Rice 1", qty: 1 }],
 };
 
 describe("labelRowToExcelRecord", () => {
@@ -18,6 +18,6 @@ describe("labelRowToExcelRecord", () => {
 
     const record = labelRowToExcelRecord(row);
     expect(record["Meal Size"]).toBe("Maharaja Thali");
-    expect(record["1st item(12oz)"]).toBe("Chicken Curry");
+    expect(record["1st item(12oz)"]).toBe("Chicken Curry 12oz");
   });
 });
