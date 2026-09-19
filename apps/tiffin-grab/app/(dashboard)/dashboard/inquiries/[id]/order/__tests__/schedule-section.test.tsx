@@ -10,7 +10,7 @@ const frequencies = [
   { key: "5", name: "Weekdays", weekdays: ["mon", "tue", "wed", "thu", "fri"] as never },
 ];
 const setup = (eatingDays: string[], over = {}) => {
-  const p = { onFrequencyChange: vi.fn(), onToggleDay: vi.fn() };
+  const p = { onFrequencyChange: vi.fn(), onToggleDay: vi.fn(), onCountChange: vi.fn() };
   render(<ScheduleSection frequencies={frequencies} frequencyKey="mwf" eatingDays={eatingDays as never} bounds={{ min: 2, max: 3 }} {...p} {...over} />);
   return p;
 };
@@ -32,5 +32,12 @@ describe("ScheduleSection", () => {
   it("shows hint below min", () => {
     setup(["mon"]);
     expect(screen.getByRole("alert").textContent).toMatch(/between 2 and 3/);
+  });
+
+  it("count control spans min..max and reports the pick", () => {
+    const p = setup(["mon", "wed"]);
+    expect(screen.getAllByRole("radio").filter((r) => /^\d$/.test(r.textContent ?? "")).map((r) => r.textContent)).toEqual(["2", "3"]);
+    fireEvent.click(screen.getByRole("radio", { name: "3" }));
+    expect(p.onCountChange).toHaveBeenCalledWith(3);
   });
 });

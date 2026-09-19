@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
-import { defaultEatingDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { defaultEatingDays, planWeek, resizeEatingDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -52,6 +52,7 @@ export function StepSchedule({
   const trips = row ? planWeek(deliveryDays, eating) : null;
   const error = row && eating.length >= bounds.min ? scheduleError(catalog, selections) : null;
   const atMax = eating.length >= bounds.max;
+  const counts = Array.from({ length: Math.max(0, bounds.max - bounds.min + 1) }, (_, i) => bounds.min + i);
   const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
 
   return (
@@ -93,6 +94,17 @@ export function StepSchedule({
               </button>
             );
           })}
+        </div>
+      </section>
+
+      <section aria-labelledby="sched-count">
+        <h2 id="sched-count" className={H}>How many tiffins a week?</h2>
+        <div role="radiogroup" aria-labelledby="sched-count" className="mt-3 flex gap-1.5 sm:gap-2">
+          {counts.map((n) => (
+            <button key={n} type="button" role="radio" aria-checked={n === eating.length} onClick={() => setEating(resizeEatingDays(deliveryDays, eating, n))} className={pill(n === eating.length)}>
+              {n}
+            </button>
+          ))}
         </div>
       </section>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clubbedQuantities, defaultEatingDays, planWeek, customFrequencyKey, orderDeliveryDays, type DayOfWeek } from "../delivery-days";
+import { clubbedQuantities, defaultEatingDays, resizeEatingDays, planWeek, customFrequencyKey, orderDeliveryDays, type DayOfWeek } from "../delivery-days";
 
 describe("orderDeliveryDays", () => {
   it("5_day → mon..fri", () => {
@@ -94,5 +94,19 @@ describe("defaultEatingDays", () => {
   it("mirrors the delivery days in week order, clipped to max", () => {
     expect(defaultEatingDays(["fri", "mon", "wed"], 7)).toEqual(["mon", "wed", "fri"]);
     expect(defaultEatingDays(["mon", "tue", "wed", "thu", "fri"], 3)).toEqual(["mon", "tue", "wed"]);
+  });
+});
+
+describe("resizeEatingDays", () => {
+  const mwf: DayOfWeek[] = ["mon", "wed", "fri"];
+  it("trims the latest days first", () => {
+    expect(resizeEatingDays(mwf, mwf, 2)).toEqual(["mon", "wed"]);
+  });
+  it("adds delivery days first, then remaining days in week order", () => {
+    expect(resizeEatingDays(mwf, ["mon", "wed"], 3)).toEqual(["mon", "wed", "fri"]);
+    expect(resizeEatingDays(mwf, ["mon", "wed"], 4)).toEqual(["mon", "tue", "wed", "fri"]);
+  });
+  it("is a no-op at the same size", () => {
+    expect(resizeEatingDays(mwf, ["tue", "sat"], 2)).toEqual(["tue", "sat"]);
   });
 });

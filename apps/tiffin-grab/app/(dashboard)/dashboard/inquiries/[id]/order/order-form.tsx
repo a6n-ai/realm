@@ -24,7 +24,7 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
-import { defaultEatingDays, eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { defaultEatingDays, eatingDaysError, resizeEatingDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
 import { ScheduleSection } from "./schedule-section";
@@ -363,6 +363,7 @@ export function OrderForm({
               }}
               eatingDays={eatingDays}
               onToggleDay={toggleEating}
+              onCountChange={(n) => form.setValue("eatingDays", resizeEatingDays(deliveryDays, eatingDays, n), { shouldDirty: true, shouldValidate: true })}
               bounds={bounds}
             />
           </fieldset>

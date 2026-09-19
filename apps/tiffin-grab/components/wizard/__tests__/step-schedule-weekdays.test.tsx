@@ -74,4 +74,14 @@ describe("StepSchedule", () => {
     fireEvent.click(screen.getByText("5_day"));
     expect(set).not.toHaveBeenCalledWith(expect.objectContaining({ eatingDays: expect.anything() }));
   });
+
+  it("count control lists min..max and resizes the days", () => {
+    const set = vi.fn();
+    render(<StepSchedule catalog={catalog} selections={sel(["mon", "wed", "fri"])} set={set} />);
+    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(["2", "3", "4", "5"]);
+    fireEvent.click(screen.getByRole("radio", { name: "2" }));
+    expect(set).toHaveBeenCalledWith({ eatingDays: ["mon", "wed"], includeSaturday: false, includeSunday: false });
+    fireEvent.click(screen.getByRole("radio", { name: "4" }));
+    expect(set).toHaveBeenCalledWith({ eatingDays: ["mon", "tue", "wed", "fri"], includeSaturday: false, includeSunday: false });
+  });
 });

@@ -66,6 +66,17 @@ export function defaultEatingDays(deliveryDays: DayOfWeek[], max: number): DayOf
   return WEEK_ORDER.filter((d) => deliveryDays.includes(d)).slice(0, max);
 }
 
+/** Resize an eating-day pick to exactly n days: trim the latest week days, or add
+ * the frequency's delivery days first, then the rest in week order. */
+export function resizeEatingDays(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[], n: number): DayOfWeek[] {
+  const have = new Set(eatingDays);
+  const kept = WEEK_ORDER.filter((d) => have.has(d));
+  if (n <= kept.length) return kept.slice(0, Math.max(0, n));
+  const pool = [...WEEK_ORDER.filter((d) => deliveryDays.includes(d)), ...WEEK_ORDER].filter((d) => !have.has(d));
+  const added = [...new Set(pool)].slice(0, n - kept.length);
+  return WEEK_ORDER.filter((d) => have.has(d) || added.includes(d));
+}
+
 export function orderDeliveryDays(o: {
   frequencyKey: string;
   weekdays?: DayOfWeek[] | null;

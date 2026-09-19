@@ -18,12 +18,13 @@ interface Props {
   onFrequencyChange: (key: string) => void;
   eatingDays: DayOfWeek[];
   onToggleDay: (day: DayOfWeek) => void;
+  onCountChange: (n: number) => void;
   bounds: { min: number; max: number };
 }
 
 const press = "transition-[transform,opacity] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100";
 
-export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, eatingDays, onToggleDay, bounds }: Props) {
+export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, eatingDays, onToggleDay, onCountChange, bounds }: Props) {
   const deliveryDays = frequencies.find((f) => f.key === frequencyKey)?.weekdays ?? [];
   const enough = eatingDays.length >= bounds.min;
   const error = enough ? eatingDaysError(deliveryDays, eatingDays, bounds) : null;
@@ -54,6 +55,24 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <div role="radiogroup" aria-label="Tiffins a week" className="space-y-2">
+        <p className="text-sm font-medium text-foreground">How many tiffins a week? <span className="text-destructive">*</span></p>
+        <div className="flex gap-1.5">
+          {Array.from({ length: Math.max(0, bounds.max - bounds.min + 1) }, (_, i) => bounds.min + i).map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={n === eatingDays.length}
+              onClick={() => onCountChange(n)}
+              className={cn("min-h-[44px] min-w-0 flex-1 rounded-lg border text-sm font-medium", press, n === eatingDays.length ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background text-foreground hover:bg-muted/50")}
+            >
+              {n}
+            </button>
+          ))}
         </div>
       </div>
 
