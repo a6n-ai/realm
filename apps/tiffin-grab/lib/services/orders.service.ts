@@ -1443,11 +1443,16 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
 
     const [freqRow] = await db
-      .select({ key: deliveryFrequencies.key })
+      .select()
       .from(deliveryFrequencies)
       .where(eq(deliveryFrequencies.id, order.frequencyId))
       .limit(1);
     if (!freqRow) throw new NotFoundError("Delivery frequency not found for this order");
+    // The catalog only loads active frequencies; an order created on a since-retired one
+    // must still reprice against its own row.
+    const pricingSnapshot = snapshot.frequencies.some((f) => f.key === freqRow.key)
+      ? snapshot
+      : { ...snapshot, frequencies: [...snapshot.frequencies, freqRow] };
 
     const priorMethodId = (order.pricingSnapshot as OrderPricingSnapshot | null)?.paymentMethodId ?? "simulated";
     let methodTaxes: { name: string; ratePct: number }[] = [];
@@ -1470,7 +1475,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       durationWeeks: order.durationWeeks,
       startDate: order.startDate,
     };
-    const pricingCatalog = buildPricingCatalog(snapshot, selections);
+    const pricingCatalog = buildPricingCatalog(pricingSnapshot, selections);
     const pricing = priceSubscription(selections, pricingCatalog, [], taxes);
     const newSnapshot: OrderPricingSnapshot = {
       ...pricing,
