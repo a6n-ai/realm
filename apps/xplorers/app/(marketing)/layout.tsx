@@ -7,6 +7,11 @@ import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import "@/app/marketing.css";
 
+// Layout reads app.timezone. Docker CI has no Postgres, so prerendering any
+// marketing page (/, /cancellation, …) crashes with ECONNREFUSED — same wall
+// HomeBoard hit. Puchkaman's marketing layout is force-dynamic for the same reason.
+export const dynamic = "force-dynamic";
+
 const display = Familjen_Grotesk({
   subsets: ["latin"],
   weight: "700",
