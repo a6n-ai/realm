@@ -9,3 +9,11 @@ export function isIanaTimeZone(tz: string): boolean {
     return false;
   }
 }
+
+export function formatAppWhen(ms: number, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-SG", {
+    timeZone,
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(ms));
+}

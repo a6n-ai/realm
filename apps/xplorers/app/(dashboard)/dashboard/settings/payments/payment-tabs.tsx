@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCardIcon, ScrollTextIcon, type LucideIcon } from "lucide-react";
+import { CreditCardIcon, type LucideIcon } from "lucide-react";
 import { RoutedTabNav } from "@foundry/design-system";
 import { PAYMENT_PROVIDERS, findPaymentProvider } from "@foundry/payments/providers";
 
@@ -9,18 +9,11 @@ function methodIcon(id: string): LucideIcon {
 }
 
 export function PaymentTabs() {
-  const tabs = [
-    ...PAYMENT_PROVIDERS.map((p) => ({
-      href: `/dashboard/settings/payments/${p.id}`,
-      label: p.label,
-      icon: methodIcon(p.id),
-    })),
-    {
-      href: "/dashboard/settings/payments/ledger",
-      label: "Ledger",
-      icon: ScrollTextIcon,
-    },
-  ];
+  const tabs = PAYMENT_PROVIDERS.map((p) => ({
+    href: `/dashboard/settings/payments/${p.id}`,
+    label: p.label,
+    icon: methodIcon(p.id),
+  }));
 
   return <RoutedTabNav tabs={tabs} ariaLabel="Payment methods" />;
 }

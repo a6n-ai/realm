@@ -31,7 +31,7 @@ export function PluginsCatalog({ statuses }: { statuses: Record<string, PluginCa
     <IntegrationPluginCard
       icon={<meta.icon className="size-5" />}
       label={meta.label}
-      description="Turn on booking payments. Method tabs and the ledger stay visible either way."
+      description="Turn on booking payments. Configure methods under Settings → Payment."
       statusLabel={status.installed ? (status.statusLabel ?? "Active") : null}
     >
       {!status.installed ? (

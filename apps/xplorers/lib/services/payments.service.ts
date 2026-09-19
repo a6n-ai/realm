@@ -10,7 +10,7 @@ import {
   type PaymentMethodConfig,
 } from "@foundry/payments";
 import { PAYMENTS_PLUGIN_ID } from "@foundry/payments/plugin";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { bookings, payments, studioSessionOccurrences, users } from "@/db/schema";
 import { getAppClock, getIntegrationsConfig, getPaymentConfig } from "./app-settings.service";
@@ -38,6 +38,19 @@ export function quoteBooking(
   const { taxTotal } = computeTax(subtotal, method.taxes);
   return { subtotal, taxTotal, total: round2(subtotal + taxTotal) };
 }
+
+export type PaymentListRow = {
+  publicId: string;
+  createdAt: number;
+  status: PaymentRow["status"];
+  method: string;
+  amount: string;
+  currency: string;
+  reference: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  bookingPublicId: string;
+};
 
 class PaymentsService extends SessionUpdatableService<typeof payments> {
   protected sensitive = true;
@@ -157,6 +170,27 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
       .innerJoin(studioSessionOccurrences, eq(studioSessionOccurrences.id, bookings.occurrenceId))
       .where(eq(studioSessionOccurrences.publicId, occurrencePublicId));
     return rows.map((r) => ({ ...r.payment, bookingPublicId: r.bookingPublicId, seats: r.seats }));
+  }
+
+  async listRecent(limit = 50): Promise<PaymentListRow[]> {
+    return db
+      .select({
+        publicId: payments.publicId,
+        createdAt: payments.createdAt,
+        status: payments.status,
+        method: payments.method,
+        amount: payments.amount,
+        currency: payments.currency,
+        reference: payments.reference,
+        customerName: users.name,
+        customerEmail: users.email,
+        bookingPublicId: bookings.publicId,
+      })
+      .from(payments)
+      .innerJoin(users, eq(users.id, payments.userId))
+      .innerJoin(bookings, eq(bookings.id, payments.bookingId))
+      .orderBy(desc(payments.createdAt))
+      .limit(limit);
   }
 }
 

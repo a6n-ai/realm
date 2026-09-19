@@ -19,8 +19,8 @@ export default async function PaymentsSettingsLayout({ children }: { children: R
         title="Payment"
         subtitle={
           active
-            ? "Enable a method and families can pay for a booking. Ledger is always here."
-            : "Activate Payments under Integrations to collect booking fees. Tabs stay available either way."
+            ? "Enable a method and families can pay for a booking."
+            : "Activate Payments under Integrations to collect booking fees. Method tabs stay available either way."
         }
       />
       <PaymentTabs />

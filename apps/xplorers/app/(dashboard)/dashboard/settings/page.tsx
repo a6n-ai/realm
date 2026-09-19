@@ -3,7 +3,6 @@ import {
   ArrowRightIcon,
   CreditCardIcon,
   PuzzleIcon,
-  ScrollTextIcon,
   SettingsIcon,
   UsersIcon,
   type LucideIcon,
@@ -50,13 +49,6 @@ export default async function SettingsPage() {
       description: "e-Transfer, cash, and manual rails. Enable the ones you use.",
       icon: CreditCardIcon,
       href: "/dashboard/settings/payments",
-    },
-    {
-      key: "ledger",
-      label: "Ledger",
-      description: "Append-only money entries for confirmed payments.",
-      icon: ScrollTextIcon,
-      href: "/dashboard/settings/payments/ledger",
     },
   ];
 

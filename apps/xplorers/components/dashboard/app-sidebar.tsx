@@ -4,8 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDaysIcon,
+  CreditCardIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  ScrollTextIcon,
   SettingsIcon,
   ShapesIcon,
   UserIcon,
@@ -52,6 +54,10 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
     { title: "Classes", href: "/dashboard/classes", icon: ShapesIcon, permission: "studioSession:read" },
     { title: "Sessions", href: "/dashboard/sessions", icon: CalendarDaysIcon, permission: "studioSession:read" },
   ].filter(allow);
+  const finance: NavItem[] = [
+    { title: "Payments", href: "/dashboard/finance/payments", icon: CreditCardIcon, permission: "settings:write" },
+    { title: "Ledger", href: "/dashboard/finance/ledger", icon: ScrollTextIcon, permission: "settings:write" },
+  ].filter(allow);
   const admin: NavItem[] = [
     { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:write" },
     { title: "Account", href: "/dashboard/account", icon: UserIcon },
@@ -60,6 +66,7 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
   return [
     { label: "Overview", items: overview },
     { label: "Studio", items: studio },
+    { label: "Finance", items: finance },
     { label: "Administration", items: admin },
   ].filter((s) => s.items.length > 0);
 }

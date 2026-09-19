@@ -12,8 +12,11 @@ describe("member reaches its intended surfaces", () => {
   it("admin sees Settings; member does not", () => {
     expect(grantedKeys(Role.ADMIN)).toContain("settings:write");
     expect(navTitles(Role.ADMIN)).toContain("Settings");
+    expect(navTitles(Role.ADMIN)).toEqual(expect.arrayContaining(["Payments", "Ledger"]));
     expect(grantedKeys(Role.MEMBER)).not.toContain("settings:write");
     expect(navTitles(Role.MEMBER)).not.toContain("Settings");
+    expect(navTitles(Role.MEMBER)).not.toContain("Payments");
+    expect(navTitles(Role.MEMBER)).not.toContain("Ledger");
   });
   it("member may read settings", () => {
     expect(roleCan(Role.MEMBER, { settings: ["read"] })).toBe(true);
