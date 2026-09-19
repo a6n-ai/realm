@@ -1,0 +1,65 @@
+"use client";
+
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { PlusIcon } from "lucide-react";
+import { toast } from "sonner";
+import { IntegrationPluginCard, IntegrationPluginCardSkeleton } from "@foundry/crm";
+import { Button } from "@foundry/ui/button";
+import { PAYMENT_PROVIDERS } from "@foundry/payments/providers";
+import { installPaymentPlugin } from "./actions";
+
+export function ProviderCatalog({ installedIds }: { installedIds: string[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+
+  const install = (id: string, label: string) =>
+    start(async () => {
+      try {
+        await installPaymentPlugin(id);
+        toast.success(`${label} installed`);
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not install provider");
+      }
+    });
+
+  const available = PAYMENT_PROVIDERS.filter((p) => !installedIds.includes(p.id));
+  if (available.length === 0) {
+    return <p className="text-muted-foreground text-sm">All payment providers are installed.</p>;
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {available.map((provider) => (
+        <IntegrationPluginCard
+          key={provider.id}
+          icon={<provider.icon className="size-5" />}
+          label={provider.label}
+          description={provider.description}
+        >
+          <Button
+            type="button"
+            size="sm"
+            className="gap-1.5 self-start"
+            disabled={pending}
+            onClick={() => install(provider.id, provider.label)}
+          >
+            <PlusIcon className="size-3.5" />
+            Add provider
+          </Button>
+        </IntegrationPluginCard>
+      ))}
+    </div>
+  );
+}
+
+export function ProviderCatalogSkeleton() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {PAYMENT_PROVIDERS.map((p) => (
+        <IntegrationPluginCardSkeleton key={p.id} />
+      ))}
+    </div>
+  );
+}

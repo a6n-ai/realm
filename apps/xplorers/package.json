@@ -19,6 +19,7 @@
     "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm",
     "@foundry/database": "github:a6n-ai/foundry#path:packages/database",
     "@foundry/design-system": "github:a6n-ai/foundry#path:packages/design-system",
+    "@foundry/payments": "github:a6n-ai/foundry#path:packages/payments",
     "@foundry/realtime": "github:a6n-ai/foundry#path:packages/realtime",
     "@foundry/routes": "github:a6n-ai/foundry#path:packages/routes",
     "@foundry/storage": "github:a6n-ai/foundry#path:packages/storage",

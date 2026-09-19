@@ -25,14 +25,14 @@ export async function createBookingAction(_prev: BookState, formData: FormData):
   const seats = raw == null || String(raw).trim() === "" ? 1 : Number(raw);
 
   try {
-    await bookingsService.createForUser(auth.user.id, occurrencePublicId, seats);
+    const booking = await bookingsService.createForUser(auth.user.id, occurrencePublicId, seats);
+    revalidatePath("/whats-on");
+    revalidatePath("/");
+    revalidatePath("/me");
+    if (booking.paymentPublicId) redirect(`/me/pay/${booking.paymentPublicId}`);
+    redirect("/me");
   } catch (err) {
     if (err instanceof ValidationError) return { error: err.message };
     throw err;
   }
-
-  revalidatePath("/whats-on");
-  revalidatePath("/");
-  revalidatePath("/me");
-  redirect("/me");
 }

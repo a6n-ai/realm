@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
     "@foundry/auth-ui",
     "@foundry/email",
     "@foundry/storage",
+    "@foundry/payments",
     "@relay/email",
   ],
   turbopack: { root: monorepoRoot },

@@ -1,6 +1,6 @@
 import { updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, date, index, integer, pgEnum, pgTable, smallint, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, index, integer, numeric, pgEnum, pgTable, smallint, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 
 export const SESSION_CATEGORIES = [
@@ -37,6 +37,8 @@ export const studioSessions = pgTable(
     audience: text("audience"),
     capacity: integer("capacity").notNull(),
     priceDisplay: text("price_display"),
+    /** Server-side price in major units. Never trust a client-submitted total. */
+    priceAmount: numeric("price_amount", { precision: 10, scale: 2 }).notNull().default("0"),
     location: text("location"),
     attendanceMode: sessionAttendance("attendance_mode").notNull().default("either"),
     published: boolean("published").notNull().default(false),
@@ -85,8 +87,8 @@ export const bookings = pgTable(
     index("bookings_session_status_idx").on(t.sessionId, t.status),
     index("bookings_occurrence_status_idx").on(t.occurrenceId, t.status),
     index("bookings_user_idx").on(t.userId),
-    uniqueIndex("bookings_occurrence_user_confirmed_idx")
+    uniqueIndex("bookings_occurrence_user_open_idx")
       .on(t.occurrenceId, t.userId)
-      .where(sql`${t.status} = 'confirmed'`),
+      .where(sql`${t.status} IN ('confirmed', 'pending')`),
   ],
 );

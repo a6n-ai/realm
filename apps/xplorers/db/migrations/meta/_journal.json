@@ -36,6 +36,13 @@
       "when": 1774000004000,
       "tag": "0004_session_photos",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774000005000,
+      "tag": "0005_payments_ledger",
+      "breakpoints": true
     }
   ]
 }

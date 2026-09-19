@@ -8,7 +8,9 @@ import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { formatClassClock, formatSessionDay } from "@/lib/sessions/format";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
+import { paymentsService } from "@/lib/services/payments.service";
 import { SessionRowActions } from "../session-row-actions";
+import { PaymentReviewButtons } from "../payment-review-buttons";
 
 export default async function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission({ studioSession: ["read"] } as never);
@@ -21,6 +23,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   const row = await studioSessionsService.readOccurrence(id, timeZone).catch(() => null);
   if (!row || row.archived) notFound();
   const canWrite = session?.user ? roleCan(session.user.role, { studioSession: ["update"] } as never) : false;
+  const payRows = await paymentsService.listForOccurrence(row.publicId);
 
   return (
     <PageShell>
@@ -71,6 +74,25 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           <Link href={`/dashboard/sessions/new?class=${row.classPublicId}`}>Schedule another day</Link>
         </Button>
       </SectionCard>
+      {payRows.length > 0 ? (
+        <SectionCard title="Payments">
+          <ul className="divide-border divide-y text-sm">
+            {payRows.map((pay) => (
+              <li key={pay.publicId} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">
+                    {pay.currency} {pay.amount} · {pay.method}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {pay.bookingPublicId} · {pay.seats} seat{pay.seats === 1 ? "" : "s"} · {pay.status}
+                  </p>
+                </div>
+                {canWrite ? <PaymentReviewButtons publicId={pay.publicId} status={pay.status} /> : null}
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      ) : null}
     </PageShell>
   );
 }

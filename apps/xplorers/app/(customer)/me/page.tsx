@@ -50,7 +50,14 @@ export default async function CustomerHomePage() {
                     {booking.seats} {booking.seats === 1 ? "seat" : "seats"}
                   </p>
                 </div>
-                <Badge variant={booking.status === "confirmed" ? "default" : "outline"}>{booking.status}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={booking.status === "confirmed" ? "default" : "outline"}>{booking.status}</Badge>
+                  {booking.status === "pending" && booking.paymentPublicId ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/me/pay/${booking.paymentPublicId}`}>Pay</Link>
+                    </Button>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

@@ -9,7 +9,6 @@ import {
   SettingsIcon,
   ShapesIcon,
   UserIcon,
-  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
@@ -54,8 +53,8 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
     { title: "Sessions", href: "/dashboard/sessions", icon: CalendarDaysIcon, permission: "studioSession:read" },
   ].filter(allow);
   const admin: NavItem[] = [
-    { title: "Users", href: "/dashboard/settings/users", icon: UsersIcon, permission: "user:list" },
-    { title: "Account", href: "/dashboard/account", icon: SettingsIcon },
+    { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:write" },
+    { title: "Account", href: "/dashboard/account", icon: UserIcon },
   ].filter(allow);
 
   return [

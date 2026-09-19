@@ -15,6 +15,8 @@ import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { AppBrand } from "@/components/dashboard/app-brand";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { ModeToggle } from "@/components/mode-toggle";
+import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { getAppClock } from "@/lib/services/app-settings.service";
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 
 export const dynamic = "force-dynamic";
@@ -36,32 +38,35 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   const granted = grantedKeys(session.user.role);
   const memberOrganizations = await getMemberOrganizations(session);
+  const { timezone } = await getAppClock();
 
   return (
     <div className="crm-app">
-      <TooltipProvider>
-        <CrmShell
-          hideSidebarOnMobile
-          brand={<AppBrand href="/dashboard" />}
-          sidebar={
-            <AppSidebar
-              user={{ email: session.user.email, name: u.name ?? null, role: session.user.role }}
-              granted={granted}
-            />
-          }
-          breadcrumbs={<AppBreadcrumbs />}
-          actions={
-            <>
-              <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
-              <ModeToggle />
-            </>
-          }
-          bottomNav={<AppBottomNav granted={granted} />}
-        >
-          {children}
-        </CrmShell>
-        <Toaster position="top-right" />
-      </TooltipProvider>
+      <TimezoneProvider tz={timezone}>
+        <TooltipProvider>
+          <CrmShell
+            hideSidebarOnMobile
+            brand={<AppBrand href="/dashboard" />}
+            sidebar={
+              <AppSidebar
+                user={{ email: session.user.email, name: u.name ?? null, role: session.user.role }}
+                granted={granted}
+              />
+            }
+            breadcrumbs={<AppBreadcrumbs />}
+            actions={
+              <>
+                <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
+                <ModeToggle />
+              </>
+            }
+            bottomNav={<AppBottomNav granted={granted} />}
+          >
+            {children}
+          </CrmShell>
+          <Toaster position="top-right" />
+        </TooltipProvider>
+      </TimezoneProvider>
     </div>
   );
 }

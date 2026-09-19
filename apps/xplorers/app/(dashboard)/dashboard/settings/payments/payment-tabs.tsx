@@ -1,0 +1,37 @@
+"use client";
+
+import Link from "next/link";
+import { CreditCardIcon, PlusIcon, type LucideIcon } from "lucide-react";
+import { Button } from "@foundry/ui/button";
+import { RoutedTabNav } from "@foundry/design-system";
+import { PAYMENT_PROVIDERS, findPaymentProvider } from "@foundry/payments/providers";
+
+export type PaymentTab = { id: string; label: string };
+
+function methodIcon(id: string): LucideIcon {
+  return findPaymentProvider(id)?.icon ?? CreditCardIcon;
+}
+
+export function PaymentTabs({ methods }: { methods: PaymentTab[] }) {
+  if (methods.length === 0) return null;
+  const tabs = methods.map((m) => ({
+    href: `/dashboard/settings/payments/${m.id}`,
+    label: m.label,
+    icon: methodIcon(m.id),
+  }));
+  const hasMoreToAdd = methods.length < PAYMENT_PROVIDERS.length;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <RoutedTabNav tabs={tabs} ariaLabel="Payment methods" />
+      {hasMoreToAdd ? (
+        <Button asChild variant="outline" size="sm" className="gap-1.5">
+          <Link href="/dashboard/settings/payments/add" prefetch={false}>
+            <PlusIcon className="size-3.5" />
+            Add provider
+          </Link>
+        </Button>
+      ) : null}
+    </div>
+  );
+}

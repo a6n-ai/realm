@@ -2,9 +2,9 @@ import { ValidationError } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@foundry/database";
-import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { app, bookings, studioSessionOccurrences, studioSessions } from "@/db/schema";
+import { bookings, studioSessionOccurrences, studioSessions } from "@/db/schema";
 import { ATTENDANCE_MODES, SESSION_CATEGORIES, type AttendanceMode, type SessionCategory } from "@/db/schema/studio";
 import type { SortState } from "@/lib/list/sort";
 import { monthGrid } from "@/lib/sessions/calendar";
@@ -18,7 +18,8 @@ import {
   parseDay,
 } from "@/lib/sessions/schedule";
 import { dayKey } from "@/lib/sessions/timezone";
-import { remainingSeats, isPubliclyListed } from "./booking-policy";
+import { getAppClock } from "./app-settings.service";
+import { remainingSeats, isPubliclyListed, RESERVED_BOOKING_STATUSES } from "./booking-policy";
 import { currentUserId, SessionUpdatableService } from "./session-service";
 import { studioSessionsRepository, type StudioSessionRow } from "./studio-sessions.repository";
 
@@ -80,7 +81,7 @@ const confirmedAgg = db
     seats: sql<number>`coalesce(sum(${bookings.seats}), 0)`.as("seats"),
   })
   .from(bookings)
-  .where(eq(bookings.status, "confirmed"))
+  .where(inArray(bookings.status, [...RESERVED_BOOKING_STATUSES]))
   .groupBy(bookings.occurrenceId)
   .as("confirmed_seats");
 
@@ -278,7 +279,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     const [booked] = await db
       .select({ id: bookings.id })
       .from(bookings)
-      .where(and(eq(bookings.occurrenceId, occurrence.id), eq(bookings.status, "confirmed")))
+      .where(and(eq(bookings.occurrenceId, occurrence.id), inArray(bookings.status, [...RESERVED_BOOKING_STATUSES])))
       .limit(1);
     if (booked) throw new ValidationError(`Keep ${occurrence.occursOn}; that day already has bookings.`);
     await db.delete(studioSessionOccurrences).where(eq(studioSessionOccurrences.id, occurrence.id));
@@ -323,8 +324,8 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
   }
 
   async timezone(): Promise<string> {
-    const [row] = await db.select({ timezone: app.timezone }).from(app).limit(1);
-    return row?.timezone ?? "Asia/Singapore";
+    const { timezone } = await getAppClock();
+    return timezone;
   }
 }
 
@@ -467,6 +468,7 @@ function normalizeClassWrite(input: Record<string, unknown>, timeZone?: string):
     audience: emptyToNull(input.audience),
     capacity,
     priceDisplay: emptyToNull(input.priceDisplay),
+    priceAmount: parsePriceAmount(input.priceAmount),
     location: emptyToNull(input.location),
     attendanceMode,
     published: input.published === true || input.published === "on" || input.published === "true",
@@ -477,6 +479,13 @@ function normalizeClassWrite(input: Record<string, unknown>, timeZone?: string):
 }
 
 export { normalizeClassWrite };
+
+function parsePriceAmount(value: unknown): string {
+  if (value == null || value === "") return "0.00";
+  const n = typeof value === "number" ? value : Number(String(value).trim());
+  if (!Number.isFinite(n) || n < 0) throw new ValidationError("Price must be zero or more.");
+  return (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
+}
 
 function toDate(value: unknown): Date {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;

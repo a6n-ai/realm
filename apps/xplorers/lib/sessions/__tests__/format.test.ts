@@ -19,6 +19,7 @@ function session(over: Partial<PublicSession> & Pick<PublicSession, "startsAt" |
     audience: "Age 6+",
     capacity: 8,
     priceDisplay: "$35",
+    priceAmount: "35.00",
     location: "Bench 01",
     attendanceMode: "drop_off",
     published: true,

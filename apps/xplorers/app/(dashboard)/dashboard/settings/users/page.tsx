@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { and, inList } from "@foundry/commons/model/condition";
-import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@foundry/design-system";
+import { PageHeader, SectionCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { UsersIcon } from "lucide-react";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/guards";
@@ -20,7 +20,7 @@ const USER_SORT_COLUMNS = ["name", "email", "role", "status"] as const satisfies
 
 export default function UsersSettingsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <PageShell>
+    <>
       <PageHeader
         icon={UsersIcon}
         title="Users"
@@ -32,7 +32,7 @@ export default function UsersSettingsPage({ searchParams }: { searchParams: Sear
           <UsersData searchParams={searchParams} />
         </Suspense>
       </SectionCard>
-    </PageShell>
+    </>
   );
 }
 

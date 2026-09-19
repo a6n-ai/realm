@@ -4,3 +4,4 @@ export * from "./audit";
 export * from "./files";
 export * from "./organizations";
 export * from "./studio";
+export * from "./payments";

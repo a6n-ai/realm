@@ -18,9 +18,10 @@ export type ClassFormValues = {
   startsAt: string;
   endsAt: string;
   audience: string;
-  capacity: number;
-  priceDisplay: string;
-  location: string;
+    capacity: number;
+    priceDisplay: string;
+    priceAmount: string;
+    location: string;
   attendanceMode: string;
   published: boolean;
   photos: string[];
@@ -35,6 +36,7 @@ const empty: ClassFormValues = {
   audience: "",
   capacity: 8,
   priceDisplay: "",
+  priceAmount: "0",
   location: "",
   attendanceMode: "either",
   published: false,
@@ -141,25 +143,38 @@ export function ClassForm({
       </div>
       <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
         <div className="grid gap-2">
+          <Label htmlFor="priceAmount">Price</Label>
+          <Input
+            id="priceAmount"
+            name="priceAmount"
+            type="number"
+            min={0}
+            step="0.01"
+            defaultValue={initial.priceAmount}
+            disabled={readOnly}
+          />
+          <p className="text-muted-foreground text-xs">Charged per seat in the studio currency. Zero means free.</p>
+        </div>
+        <div className="grid gap-2">
           <Label htmlFor="priceDisplay">Price display</Label>
           <Input
             id="priceDisplay"
             name="priceDisplay"
             defaultValue={initial.priceDisplay}
             disabled={readOnly}
-            placeholder="$35"
+            placeholder="$35 / hr"
           />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="location">Location / bench</Label>
-          <Input
-            id="location"
-            name="location"
-            defaultValue={initial.location}
-            disabled={readOnly}
-            placeholder="Bench 01"
-          />
-        </div>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="location">Location / bench</Label>
+        <Input
+          id="location"
+          name="location"
+          defaultValue={initial.location}
+          disabled={readOnly}
+          placeholder="Bench 01"
+        />
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="published" defaultChecked={initial.published} disabled={readOnly} className="size-4" />

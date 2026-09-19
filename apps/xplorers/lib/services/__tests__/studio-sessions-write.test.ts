@@ -55,7 +55,19 @@ describe("normalizeClassWrite", () => {
     expect(record.published).toBe(false);
     expect(record.weekdays).toEqual([]);
     expect(record.photos).toEqual([]);
-    expect(record.alsoOn).toBeUndefined();
+    expect(
+      normalizeClassWrite(
+        {
+          title: "Kids Club",
+          category: "kids",
+          startsAt: "16:00",
+          endsAt: "17:30",
+          capacity: 8,
+          priceAmount: "35.5",
+        },
+        "Asia/Singapore",
+      ).priceAmount,
+    ).toBe("35.50");
   });
 
   it("rejects a class clock that wraps past midnight", () => {

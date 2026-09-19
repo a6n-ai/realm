@@ -63,6 +63,7 @@ export default async function EditClassPage({
             audience: row.audience ?? "",
             capacity: row.capacity,
             priceDisplay: row.priceDisplay ?? "",
+            priceAmount: row.priceAmount,
             location: row.location ?? "",
             attendanceMode: row.attendanceMode,
             published: row.published,

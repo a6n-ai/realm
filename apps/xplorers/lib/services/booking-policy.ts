@@ -1,7 +1,9 @@
 import { ValidationError } from "@foundry/commons";
 
-export function remainingSeats(capacity: number, confirmedSeats: number): number {
-  return Math.max(0, capacity - confirmedSeats);
+export const RESERVED_BOOKING_STATUSES = ["pending", "confirmed"] as const;
+
+export function remainingSeats(capacity: number, reservedSeats: number): number {
+  return Math.max(0, capacity - reservedSeats);
 }
 
 export function isPubliclyListed(

@@ -20,6 +20,7 @@ function formFields(formData: FormData) {
     audience: String(formData.get("audience") ?? ""),
     capacity: Number(formData.get("capacity")),
     priceDisplay: String(formData.get("priceDisplay") ?? ""),
+    priceAmount: String(formData.get("priceAmount") ?? "0"),
     location: String(formData.get("location") ?? ""),
     attendanceMode: String(formData.get("attendanceMode") ?? "either"),
     published: formData.get("published") === "on",
