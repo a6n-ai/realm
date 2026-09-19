@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { ArrowLeftIcon, XIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 
@@ -11,12 +12,15 @@ export function SubscribeChrome({
   onBack,
   backLabel = "Back",
   stepTag,
+  trailing,
 }: {
   closeHref: string;
   onBack?: () => void;
   backLabel?: string;
   /** Centered uppercase step label shown in the sticky bar, e.g. "BASELINE". */
   stepTag?: string;
+  /** Sits left of Close (e.g. the running-total chip). */
+  trailing?: ReactNode;
 }) {
   const router = useRouter();
   return (
@@ -32,10 +36,12 @@ export function SubscribeChrome({
         {backLabel}
       </Button>
       {stepTag && (
-        <span className="absolute left-1/2 -translate-x-1/2 text-[15px] font-semibold tracking-[-0.01em]">
+        <span className="absolute left-1/2 hidden sm:block -translate-x-1/2 text-[15px] font-semibold tracking-[-0.01em]">
           {stepTag}
         </span>
       )}
+      <div className="flex items-center gap-2">
+      {trailing}
       <Button
         type="button"
         variant="ghost"
@@ -48,6 +54,7 @@ export function SubscribeChrome({
           <XIcon />
         </Link>
       </Button>
+      </div>
     </div>
   );
 }

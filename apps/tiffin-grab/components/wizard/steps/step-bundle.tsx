@@ -55,7 +55,7 @@ export function StepBundle({
         if (tierMeals.length === 0) return null;
         return (
           <section key={tier}>
-            <h3 className="text-primary mb-3 text-[13px] font-semibold tracking-[0.02em] capitalize">{tier}</h3>
+            <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em] capitalize">{tier}</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {tierMeals.map((m) => {
                 const active = selections.mealSizeId === m.publicId;
@@ -92,7 +92,7 @@ export function StepBundle({
 
       {eligibleAddons.length > 0 && (
         <section>
-          <h3 className="text-primary mb-3 text-[13px] font-semibold tracking-[0.02em]">Add-ons</h3>
+          <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">Add-ons</h3>
           <div className="space-y-2">
             {eligibleAddons.map((addon) => {
               const qty = qtyFor(addon.key);
@@ -131,7 +131,7 @@ export function StepBundle({
                     <button
                       type="button"
                       onClick={() => setQty(addon.key, 1)}
-                      className="border-border hover-lift flex min-h-9 cursor-pointer items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-[transform,box-shadow,background-color] active:scale-[0.96] hover:bg-accent"
+                      className="border-border hover-lift flex min-h-11 cursor-pointer items-center gap-1 rounded-full border px-4 py-1.5 text-sm font-medium transition-[transform,box-shadow,background-color] active:scale-[0.96] hover:bg-accent"
                     >
                       <PlusIcon className="size-3.5" /> Add
                     </button>

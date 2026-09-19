@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Country } from "react-phone-number-input";
@@ -18,17 +18,22 @@ import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
 import { WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
-import { Invoice } from "@/components/wizard/invoice";
+import { OrderSummary } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { AddressFields } from "@foundry/ui/address-fields";
-import { Card } from "@/components/ds";
 import { cn } from "@foundry/ui/cn";
 import { Check, Coins, MapPin, ShieldCheck, Tag } from "lucide-react";
 import { Stepper } from "@/components/stepper";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
+
+const PILL = "h-12 rounded-full px-6 text-[15px] font-semibold transition-transform duration-100 active:scale-[0.97] motion-reduce:active:scale-100";
+const PANEL = "bg-card border-border rounded-[20px] border p-5 sm:p-6";
+// The shared @foundry/ui inputs are h-8; scope a 44px touch height over every field
+// (name, phone + country button, address, card, coupon, coins) so they all match.
+const FIELDS = "[&_input]:h-11 [&_input]:rounded-xl [&_button[role=combobox]]:h-11 [&_button[role=combobox]]:rounded-xl [&_[data-slot=popover-trigger]]:h-11";
 
 const CHECKOUT_STEPS = ["Address & contact", "Payment"] as const;
 
@@ -233,11 +238,18 @@ export function Checkout({
 
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;
+  const step1Reason = !contact.fullName.trim() ? "Enter your full name to continue."
+    : !phoneValid ? "Add your phone number to continue."
+    : !emailValid ? "Add your email to continue."
+    : !contact.postalCode ? "Enter your postal code to continue."
+    : zone != null && !zone.served ? "We don't deliver to this postal code yet. Join the waitlist above."
+    : null;
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
   const realPayments = paymentMethods.length > 0;
+  const actionReason = step === 1 ? step1Reason : realPayments && !paymentMethodId ? "Choose a payment method to confirm." : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-28 md:pb-8">
       <SubscribeChrome
         closeHref={closeHref}
         onBack={() => (step > 1 ? setStep(1) : router.push(origin === "renew" ? "/me/renew" : "/subscribe"))}
@@ -249,18 +261,18 @@ export function Checkout({
         <Stepper steps={CHECKOUT_STEPS} currentIndex={step - 1} />
 
         {step === 1 && (
-          <Card variant="glow" className="p-5 sm:p-6">
+          <div className={`${PANEL} ${FIELDS}`}>
             <section className="space-y-5">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-balance">Address &amp; contact</h2>
                 <p className="mt-0.5 text-sm text-muted-foreground">Where should we deliver your tiffins?</p>
               </div>
               <div className="grid gap-4">
-                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
+                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" autoCapitalize="words" enterKeyHint="next" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="phone">Phone</Label>
-                  <PhoneInput id="phone" autoComplete="tel" value={contact.phone} onChange={(v) => set({ phone: v ?? "" })} defaultCountry={defaultCountry} />
-                  {contact.phone.trim() && !phoneValid && <p className="text-xs text-destructive">Enter a valid phone number</p>}
+                  <PhoneInput id="phone" autoComplete="tel" inputMode="tel" value={contact.phone} onChange={(v) => set({ phone: v ?? "" })} defaultCountry={defaultCountry} />
+                  {contact.phone.trim() && !phoneValid && <p role="alert" className="text-[13px] text-destructive">Enter a valid phone number</p>}
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="email">Email</Label>
@@ -268,6 +280,9 @@ export function Checkout({
                     id="email"
                     type="email"
                     autoComplete="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     className={lockContact ? "bg-muted/50 text-muted-foreground" : undefined}
                     value={contact.email}
                     readOnly={lockContact}
@@ -279,7 +294,7 @@ export function Checkout({
                       Renewals use your account email. <Link href="/dashboard/account/contact" className="underline">Change it in Account</Link>.
                     </p>
                   ) : contact.email.trim() && !emailValid ? (
-                    <p className="text-xs text-destructive">Enter a valid email</p>
+                    <p role="alert" className="text-[13px] text-destructive">Enter a valid email</p>
                   ) : null}
                 </div>
                 {lockContact ? (
@@ -290,6 +305,9 @@ export function Checkout({
                 <AddressFields
                   preset="delivery"
                   idPrefix="checkout"
+                  // The shared postal cell wraps postalSlot in sm:col-span-2, which makes its own
+                  // one-column grid grow a second column and puts the label beside the input.
+                  className="sm:[&_div:has(>[data-postal-slot])]:col-span-1"
                   // On a renewal the address lines are locked; delivery instructions are a
                   // per-order note and stay editable in their own field below.
                   fields={lockContact
@@ -301,17 +319,17 @@ export function Checkout({
                   resolveUrl="/api/address/resolve"
                   onPostalBlur={checkPostal}
                   postalSlot={
-                    <>
-                      <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={checkPostal}>Check delivery area</Button>
+                    <div data-postal-slot className="grid gap-2">
+                      <Button type="button" variant="outline" className={`${PILL} h-11 w-full px-5`} onClick={checkPostal}>Check delivery area</Button>
                       {zone?.served && (
                         <StatusBanner tone="success" icon={<MapPin className="mt-0.5 size-4 shrink-0" />}>
                           Served — {zone.name}, delivery {zone.slotWindow}.
                         </StatusBanner>
                       )}
                       {zone && !zone.served && !waitlisted && (
-                        <div className={`space-y-2 rounded-lg p-3 ${toneClasses("warning").bg}`}>
-                          <p className={`text-sm ${toneClasses("warning").text}`}>Not in your area yet.</p>
-                          <Button type="button" variant="outline" disabled={!contact.fullName || !phoneValid || !emailValid} onClick={joinWaitlist}>Join waitlist</Button>
+                        <div className={`space-y-2 rounded-2xl p-3 ${toneClasses("warning").bg}`}>
+                          <p className={`text-sm ${toneClasses("warning").text}`}>We don&apos;t deliver here yet.{!contact.fullName || !phoneValid || !emailValid ? " Fill in your name, phone and email above to join the waitlist." : ""}</p>
+                          <Button type="button" variant="outline" className={`${PILL} h-11`} disabled={!contact.fullName || !phoneValid || !emailValid} onClick={joinWaitlist}>Join waitlist</Button>
                         </div>
                       )}
                       {waitlisted && (
@@ -319,7 +337,7 @@ export function Checkout({
                           You&apos;re on the waitlist — we&apos;ll email you when we reach your area.
                         </StatusBanner>
                       )}
-                    </>
+                    </div>
                   }
                 />
                 {lockContact ? (
@@ -332,17 +350,13 @@ export function Checkout({
                   />
                 ) : null}
               </div>
-              <Button size="lg" className="hover-lift h-14 w-full rounded-full px-8 shadow-[0_12px_30px_-6px_var(--color-primary)] sm:w-auto" disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode || (zone != null && !zone.served)} onClick={() => {
-                setStep(2);
-                // The address is final now — re-price so tax reflects its province.
-                void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined).catch(() => undefined);
-              }}>Continue to payment</Button>
             </section>
-          </Card>
+          </div>
         )}
 
+
         {step === 2 && (
-          <Card variant="glow" className="p-5 sm:p-6">
+          <div className={`${PANEL} ${FIELDS}`}>
             <section className="space-y-5">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-balance">Payment</h2>
@@ -366,10 +380,11 @@ export function Checkout({
                       <button
                         key={m.id}
                         type="button"
+                        aria-pressed={selected}
                         onClick={() => selectMethod(m.id)}
                         className={cn(
-                          "border-border rounded-2xl border p-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                          selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+                          "flex min-h-14 flex-col justify-center rounded-[20px] border-2 p-4 text-left transition-[transform,background-color,border-color] duration-100 outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] motion-reduce:active:scale-100",
+                          selected ? "border-primary bg-primary/10" : "border-border bg-card",
                         )}
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -388,44 +403,34 @@ export function Checkout({
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" className="nums" placeholder="4242 4242 4242 4242" /></div>
+                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" autoComplete="cc-number" className="nums" placeholder="4242 4242 4242 4242" /></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" className="nums" placeholder="12/29" /></div>
-                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" className="nums" placeholder="123" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" inputMode="numeric" autoComplete="cc-exp" className="nums" placeholder="12/29" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" inputMode="numeric" autoComplete="cc-csc" className="nums" placeholder="123" /></div>
                   </div>
                 </div>
               )}
 
               {selectedMethod && (
-                <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+                <p className="rounded-2xl bg-muted/50 p-3 text-[13px] text-muted-foreground">
                   Your plan is reserved now. Deliveries start after we confirm payment
                   {selectedMethod.id === "etransfer" ? " (usually within one business day of your e-Transfer)" : ""}.
                   Need to shift days? Use Deliveries to move them ahead.
                 </p>
               )}
 
-              <div className="flex gap-2">
-                <Button variant="outline" className="h-14 rounded-full px-6" onClick={() => setStep(1)}>Back</Button>
-                <Button
-                  size="lg"
-                  className="hover-lift h-14 flex-1 rounded-full px-8 shadow-[0_12px_30px_-6px_var(--color-primary)] sm:flex-none"
-                  disabled={submitting || (realPayments && !paymentMethodId)}
-                  onClick={confirm}
-                >
-                  {submitting ? "Confirming…" : origin === "renew" ? "Confirm renewal" : "Confirm Subscription"}
-                </Button>
-              </div>
             </section>
-          </Card>
+          </div>
         )}
+
       </div>
 
-      <aside className="space-y-3 md:sticky md:top-6">
-        <Card variant="glow" className="border-border space-y-3 rounded-2xl border p-4 shadow-sm">
-          <h3 className="text-sm font-semibold">Order summary</h3>
-          <Invoice result={result} />
+      <aside id="order-summary" className={`scroll-mt-20 md:sticky md:top-24 ${FIELDS}`}>
+        <div className={`${PANEL} space-y-3 p-4 sm:p-4`}>
+          <h2 className="text-sm font-semibold">Order summary</h2>
+          <OrderSummary selections={selections} result={result} editHref={origin === "renew" ? "/me/renew" : "/subscribe"}>
           {applied.length > 0 && (
-            <ul className="grid gap-1.5 rounded-lg bg-muted/50 p-3 text-xs">
+            <ul className="grid gap-1.5 rounded-2xl bg-muted/50 p-3 text-xs">
               {applied.map((c) => (
                 <li key={c.code} className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5">
@@ -449,20 +454,22 @@ export function Checkout({
                 onChange={(e) => { setCouponCode(e.target.value); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
                 placeholder="e.g. SAVE10"
                 autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
               />
-              <Button type="button" variant="outline" onClick={applyCoupon} disabled={couponState.status === "checking"}>
+              <Button type="button" variant="outline" className={`${PILL} h-11 px-4`} onClick={applyCoupon} disabled={couponState.status === "checking"}>
                 {couponState.status === "checking" ? "Checking…" : "Apply"}
               </Button>
             </div>
-            {couponState.status === "applied" && <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400">{couponState.message}</p>}
-            {couponState.status === "error" && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-500">{couponState.message}</p>}
+            {couponState.status === "applied" && <p className="mt-1.5 text-[13px] text-emerald-700 dark:text-emerald-400">{couponState.message}</p>}
+            {couponState.status === "error" && <p className="mt-1.5 text-[13px] text-amber-700 dark:text-amber-400" role="alert">{couponState.message}</p>}
           </div>
           {coinBalance == null ? (
-            <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+            <p className="rounded-2xl bg-muted/50 p-3 text-xs text-muted-foreground">
               <Link href="/login" className="underline">Sign in</Link> to pay with your coins.
             </p>
           ) : (
-            <div className="rounded-lg bg-muted/50 p-3">
+            <div className="rounded-2xl bg-muted/50 p-3">
               <Label htmlFor="coins" className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Coins className="size-3.5" /> Use coins ({coinBalance} available)
               </Label>
@@ -476,22 +483,58 @@ export function Checkout({
                 <Input
                   id="coins"
                   inputMode="numeric"
+                  autoComplete="off"
                   value={coinsInput}
                   onChange={(e) => { setCoinsInput(e.target.value); if (coinsState.status !== "idle") setCoinsState({ status: "idle" }); }}
                   placeholder="e.g. 50"
                 />
-                <Button type="button" variant="outline" onClick={applyCoins} disabled={coinsState.status === "checking"}>
+                <Button type="button" variant="outline" className={`${PILL} h-11 px-4`} onClick={applyCoins} disabled={coinsState.status === "checking"}>
                   {coinsState.status === "checking" ? "Checking…" : "Apply"}
                 </Button>
               </div>
-              {coinsState.status === "applied" && <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400">{coinsState.message}</p>}
-              {coinsState.status === "error" && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-500">{coinsState.message}</p>}
+              {coinsState.status === "applied" && <p className="mt-1.5 text-[13px] text-emerald-700 dark:text-emerald-400">{coinsState.message}</p>}
+              {coinsState.status === "error" && <p className="mt-1.5 text-[13px] text-amber-700 dark:text-amber-400" role="alert">{coinsState.message}</p>}
             </div>
           )}
           {zone?.served && <p className="text-xs text-muted-foreground">Delivery window: {zone.slotWindow}</p>}
-        </Card>
+          </OrderSummary>
+          <ActionBar reason={actionReason} total={result?.total}>
+            {step === 1 ? (
+              <Button size="lg" className={`${PILL} flex-1 md:w-full`} disabled={step1Reason != null} onClick={() => {
+                setStep(2);
+                // The address is final now — re-price so tax reflects its province.
+                void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined).catch(() => undefined);
+              }}>Continue to payment</Button>
+            ) : (
+              <Button
+                size="lg"
+                className={`${PILL} flex-1 md:w-full`}
+                disabled={submitting || (realPayments && !paymentMethodId)}
+                onClick={confirm}
+              >
+                {submitting ? "Confirming…" : origin === "renew" ? "Confirm renewal" : "Confirm Subscription"}
+              </Button>
+            )}
+          </ActionBar>
+        </div>
       </aside>
     </div>
+    </div>
+  );
+}
+
+function ActionBar({ reason, total, children }: { reason: string | null; total?: number; children: ReactNode }) {
+  return (
+    <div className="bg-background/80 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:space-y-2 max-md:border-t max-md:px-4 max-md:pt-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] max-md:backdrop-blur-xl md:space-y-2 md:bg-transparent">
+      {reason && <p role="status" className="text-[13px] text-muted-foreground">{reason}</p>}
+      <div className="flex items-center gap-2 md:block">
+        {total != null && (
+          <a href="#order-summary" className="bg-primary/15 flex h-12 shrink-0 flex-col justify-center rounded-full px-4 text-[13px] leading-tight font-semibold tabular-nums md:hidden">
+            <span className="text-muted-foreground text-[11px] font-medium">Total</span>${total.toFixed(2)}
+          </a>
+        )}
+        {children}
+      </div>
     </div>
   );
 }

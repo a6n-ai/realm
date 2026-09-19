@@ -105,14 +105,12 @@ export function StepSchedule({
                   const untouched = eating.join() === defaultEatingDays(deliveryDays, bounds.max).join();
                   if (untouched) setEating(defaultEatingDays(f.weekdays as DayOfWeek[], bounds.max));
                 }}
-                className={`flex min-h-24 cursor-pointer flex-col items-start gap-3 rounded-[20px] border-2 p-4 text-left transition-[transform,background-color,border-color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`}
+                className={`flex min-h-24 cursor-pointer flex-col items-start justify-between gap-3 rounded-[20px] border-2 p-4 text-left transition-[transform,background-color,border-color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`}
               >
-                <span>
-                  <span className="block text-[28px] leading-none font-bold tracking-[-0.03em]">{f.weekdays?.length} days</span>
+                <span className="flex w-full items-center justify-between gap-2">
+                  <span className="text-[28px] leading-none font-bold tracking-[-0.03em]">{f.weekdays?.length} days</span>
                   <span className="sr-only">{f.name}</span>
-                  <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {save > 0 && <span aria-label={`Save ${save}%`} className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">Save {save}%</span>}
-                  </span>
+                  {save > 0 && <span aria-label={`Save ${save}%`} className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">Save {save}%</span>}
                 </span>
                 <span className="flex flex-wrap gap-1.5">
                   {(f.weekdays as DayOfWeek[]).map((d) => (

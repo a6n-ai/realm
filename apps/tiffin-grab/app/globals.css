@@ -372,9 +372,6 @@ body:has(.crm-app) .font-pixel-circle {
 @media (prefers-reduced-transparency: reduce) {
   .wizard-bar { background: var(--background); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
-@media (min-width: 640px) {
-  .wizard-bar { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
-}
 
 /* Mobile-native basics: no grey tap flash (controls carry their own :active state), no double-tap-zoom delay,
    and 16px inputs so iOS Safari doesn't zoom the page on focus. */

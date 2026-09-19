@@ -114,7 +114,7 @@ describe("wizard current-plan soft hints", () => {
       />,
     );
     expect(screen.getByText(/This renewal can start on or after/i)).toBeInTheDocument();
-    expect(screen.getByText(/Jan 15/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Jan 15/).length).toBeGreaterThan(0);
     expect(document.querySelector('input[type="date"]')).toBeNull();
     // Custom date-picker trigger, not a native input — its accessible name
     // comes from the associated <label for> ("Start date"), per HTML

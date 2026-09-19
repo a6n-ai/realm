@@ -57,7 +57,7 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
           transition={spring}
           className="overflow-hidden"
         >
-          <div className={`mb-6 flex items-start gap-3 rounded-[20px] border p-4 transition-colors duration-300 ${applied ? "border-emerald-500/40 bg-emerald-500/10" : "border-primary/30 bg-primary/10"}`}>
+          <div className={`mb-5 flex items-center gap-2 rounded-2xl border-2 py-2 pr-1 pl-3 transition-colors duration-300 ${applied ? "border-emerald-500/40 bg-emerald-500/10" : "border-primary/30 bg-primary/10"}`}>
             <AnimatePresence initial={false} mode="wait">
               <motion.div
                 key={view.state}
@@ -65,29 +65,28 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: reduce ? 0.1 : 0.18 }}
-                className="flex min-w-0 flex-1 items-start gap-3"
+                className="flex min-w-0 flex-1 items-center gap-2.5"
               >
-                <div className="min-w-0 flex-1">
-                  <p className={`flex items-center gap-1.5 text-[13px] font-semibold tracking-[0.02em] ${applied ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`}>
-                    {applied && <CheckCircle2Icon aria-hidden className="size-4 shrink-0" />}
-                    {applied ? copy.appliedTitle : copy.title}
-                  </p>
-                  <p className="mt-1 text-[15px] leading-snug text-pretty">{applied ? copy.appliedBody(view.label, view.pct) : copy.body(view.label, view.pct)}</p>
-                  <button
-                    type="button"
-                    onClick={applied ? revert : apply}
-                    className={`mt-3 h-11 cursor-pointer rounded-full px-5 text-sm font-semibold transition-[transform,background-color,color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 ${applied ? "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950" : "bg-primary text-primary-foreground"}`}
-                  >
-                    {applied ? "Undo" : "Use this"}
-                  </button>
-                </div>
+                {applied && <CheckCircle2Icon aria-hidden className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                <p className="min-w-0 flex-1 text-[13px] leading-snug text-pretty sm:truncate sm:text-sm">
+                  <span className={`font-semibold ${applied ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"}`}>{applied ? copy.appliedTitle : copy.title}</span>
+                  <span className="text-muted-foreground"> · </span>
+                  {applied ? copy.appliedBody(view.label, view.pct) : copy.body(view.label, view.pct)}
+                </p>
+                <button
+                  type="button"
+                  onClick={applied ? revert : apply}
+                  className={`relative h-9 shrink-0 cursor-pointer rounded-full px-4 text-[13px] font-semibold transition-[transform,background-color,color] duration-100 before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] active:scale-[0.97] motion-reduce:active:scale-100 ${applied ? "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950" : "bg-primary text-primary-foreground"}`}
+                >
+                  {applied ? "Undo" : "Use this"}
+                </button>
               </motion.div>
             </AnimatePresence>
             <button
               type="button"
               aria-label="Dismiss best deal"
               onClick={() => setDismissed(true)}
-              className="text-muted-foreground -m-2 flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform duration-100 active:scale-[0.9] motion-reduce:active:scale-100"
+              className="text-muted-foreground flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform duration-100 active:scale-[0.9] motion-reduce:active:scale-100"
             >
               <XIcon className="size-4" />
             </button>

@@ -23,29 +23,31 @@ export function StepBaseline({
           pick a plan for the new subscription.
         </CurrentPlanHint>
       ) : null}
-      <div className="border-t border-border">
+      <div className="grid gap-3 sm:grid-cols-2">
         {selectablePlans(catalog).map((p) => {
           const selected = selections.planKey === p.key;
           return (
             <button
               key={p.key}
               type="button"
+              aria-pressed={selected}
               onClick={() => {
                 // Dish selection happens per-delivery after subscribing, not here —
                 // mealSlots just mirrors the plan's full category set so pricing's
                 // "at least one category" guard is satisfied.
                 set({ planKey: p.key, mealSizeId: "", mealSlots: p.offeredSlots ?? [] });
               }}
-              className={`hover-lift outline-none focus-visible:ring-3 focus-visible:ring-ring/50 flex w-full flex-wrap items-center justify-between gap-4 border-b border-border px-2 py-6 text-left transition-[padding] hover:pl-6 ${selected ? "bg-primary/5" : ""}`}
+              className={`flex min-h-24 w-full cursor-pointer items-center justify-between gap-4 rounded-[20px] border-2 p-4 text-left outline-none transition-[transform,background-color,border-color] duration-100 focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] motion-reduce:active:scale-100 ${selected ? "border-primary bg-primary/10" : "border-border bg-card"}`}
             >
-              <span className="text-[clamp(22px,3.6vw,34px)] font-bold tracking-[-1px] leading-none">{p.name}</span>
-              <span className="flex items-center gap-5">
-                <span className="max-w-[320px] text-sm text-muted-foreground">{p.description}</span>
-                <span
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-full border border-border text-base ${selected ? "bg-primary text-primary-foreground" : ""}`}
-                >
-                  {selected ? <Check className="size-4" /> : "→"}
-                </span>
+              <span className="flex min-w-0 flex-col gap-1.5">
+                <span className="text-[22px] leading-tight font-bold tracking-[-0.03em]">{p.name}</span>
+                <span className="text-muted-foreground text-sm text-pretty">{p.description}</span>
+              </span>
+              <span
+                aria-hidden
+                className={`flex size-11 shrink-0 items-center justify-center rounded-full border-2 text-base ${selected ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}
+              >
+                {selected ? <Check className="size-4" /> : "→"}
               </span>
             </button>
           );
