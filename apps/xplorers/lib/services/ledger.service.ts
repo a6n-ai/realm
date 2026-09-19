@@ -1,7 +1,7 @@
 import { BaseRepository } from "@foundry/database";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { ledgerEntries } from "@/db/schema";
+import { ledgerEntries, users } from "@/db/schema";
 import { SessionBaseService } from "./session-service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -19,6 +19,18 @@ export type LedgerRecordInput = {
   currency: string;
   memo?: string | null;
   providerEventId?: string | null;
+};
+
+export type LedgerListRow = {
+  publicId: string;
+  createdAt: number;
+  direction: LedgerDirection;
+  type: LedgerEntryType;
+  amount: string;
+  currency: string;
+  memo: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
 };
 
 class LedgerService extends SessionBaseService<typeof ledgerEntries> {
@@ -48,6 +60,26 @@ class LedgerService extends SessionBaseService<typeof ledgerEntries> {
 
   async delete(): Promise<number> {
     throw new Error("ledger_entries is append-only");
+  }
+
+  async listRecent(limit = 50): Promise<LedgerListRow[]> {
+    const rows = await db
+      .select({
+        publicId: ledgerEntries.publicId,
+        createdAt: ledgerEntries.createdAt,
+        direction: ledgerEntries.direction,
+        type: ledgerEntries.type,
+        amount: ledgerEntries.amount,
+        currency: ledgerEntries.currency,
+        memo: ledgerEntries.memo,
+        customerName: users.name,
+        customerEmail: users.email,
+      })
+      .from(ledgerEntries)
+      .innerJoin(users, eq(users.id, ledgerEntries.userId))
+      .orderBy(desc(ledgerEntries.createdAt))
+      .limit(limit);
+    return rows;
   }
 }
 

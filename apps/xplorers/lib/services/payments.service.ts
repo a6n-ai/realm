@@ -45,9 +45,7 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
   async paymentsInstalled(): Promise<boolean> {
     const cfg = await getIntegrationsConfig();
     const flag = cfg[PAYMENTS_PLUGIN_ID] as { installed?: boolean } | undefined;
-    if (flag) return Boolean(flag.installed);
-    const paymentsCfg = await getPaymentConfig();
-    return paymentsCfg.methods.length > 0;
+    return Boolean(flag?.installed);
   }
 
   async enabledRails(): Promise<PaymentMethodConfig[]> {

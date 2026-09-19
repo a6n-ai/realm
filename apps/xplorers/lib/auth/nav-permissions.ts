@@ -3,7 +3,7 @@ import { roleCan } from "./guards";
 
 const NAV_PERMISSIONS: Array<[string, Record<string, string[]>]> = [
   ["settings:read", { settings: ["read"] }],
-  // Settings hub (and Payment after the plugin is installed) calls requireAdmin().
+  // Settings hub (Payment, Ledger, Integrations) calls requireAdmin().
   // Admin has settings:write; member only has settings:read — so this key is the
   // nav gate. Do not reuse settings:read or members see a link that 403s.
   ["settings:write", { settings: ["write"] }],

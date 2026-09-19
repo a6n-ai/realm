@@ -30,30 +30,15 @@ export function PaymentsForm({
   const patch = (id: string, p: Partial<PaymentMethodConfig>) =>
     setMethods((ms) => ms.map((m) => (m.id === id ? { ...m, ...p } : m)));
 
-  const removeMethod = (id: string) => {
-    const next = methods.filter((m) => m.id !== id);
-    setMethods(next);
-    start(async () => {
-      setError(null);
-      try {
-        await savePaymentConfig({
-          methods: next,
-          defaultMethodId: initial.defaultMethodId === id ? undefined : initial.defaultMethodId,
-        });
-        router.push(next[0] ? `/dashboard/settings/payments/${next[0].id}` : "/dashboard/settings/payments");
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Remove failed");
-        setMethods(methods);
-      }
-    });
-  };
-
   const save = () =>
     start(async () => {
       setError(null);
       try {
-        await savePaymentConfig({ methods, defaultMethodId: initial.defaultMethodId });
+        const res = await savePaymentConfig({ methods, defaultMethodId: initial.defaultMethodId });
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Save failed");
@@ -61,26 +46,19 @@ export function PaymentsForm({
     });
 
   if (!method) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        This payment method is not installed.{" "}
-        <Link href="/dashboard/settings/payments" className="underline">
-          Add a provider
-        </Link>
-      </p>
-    );
+    return <p className="text-muted-foreground text-sm">This payment method is not in the catalog.</p>;
   }
 
   return (
     <div className="space-y-5">
-      <MethodCard method={method} onPatch={(p) => patch(method.id, p)} onRemove={() => removeMethod(method.id)} />
+      <MethodCard method={method} onPatch={(p) => patch(method.id, p)} />
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <Button onClick={save} disabled={pending} className="h-10 gap-2">
           <SaveIcon className="size-4" />
           Save {method.label}
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link href="/dashboard/settings/integrations">Manage plugins</Link>
+          <Link href="/dashboard/settings/integrations">Activate plugin</Link>
         </Button>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
       </div>
@@ -91,12 +69,11 @@ export function PaymentsForm({
 function MethodCard({
   method,
   onPatch,
-  onRemove,
 }: {
   method: PaymentMethodConfig;
   onPatch: (p: Partial<PaymentMethodConfig>) => void;
-  onRemove: () => void;
 }) {
+  const needsPayee = method.id === "etransfer";
   return (
     <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
       <div className="flex items-center justify-between gap-3">
@@ -105,37 +82,33 @@ function MethodCard({
           <span className="font-semibold">{method.label}</span>
           <span className="text-muted-foreground text-xs tracking-wider uppercase">{method.id}</span>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-destructive hover:text-destructive"
-          onClick={onRemove}
-          aria-label={`Remove ${method.label}`}
-        >
-          <Trash2Icon className="size-4" />
-        </Button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label className="text-muted-foreground text-xs">Customer-facing label</Label>
           <Input value={method.label} onChange={(e) => onPatch({ label: e.target.value })} className="h-10" />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-muted-foreground text-xs">Payee handle (e-Transfer email / phone)</Label>
-          <Input
-            value={method.payeeHandle ?? ""}
-            placeholder="pay@studio.sg"
-            onChange={(e) => onPatch({ payeeHandle: e.target.value })}
-            className="h-10"
-          />
-        </div>
+        {needsPayee ? (
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-muted-foreground text-xs">Payee handle (e-Transfer email / phone)</Label>
+            <Input
+              value={method.payeeHandle ?? ""}
+              placeholder="pay@studio.sg"
+              onChange={(e) => onPatch({ payeeHandle: e.target.value })}
+              className="h-10"
+            />
+          </div>
+        ) : null}
       </div>
       <div className="flex flex-col gap-1.5">
         <Label className="text-muted-foreground text-xs">Instructions shown to the family</Label>
         <Textarea
           value={method.instructions ?? ""}
-          placeholder="Send an Interac e-Transfer to the email above and include your booking reference."
+          placeholder={
+            method.id === "cash"
+              ? "Staff will collect cash at the session. Bring exact change if you can."
+              : "Send an Interac e-Transfer to the email above and include your booking reference."
+          }
           onChange={(e) => onPatch({ instructions: e.target.value })}
           rows={2}
         />

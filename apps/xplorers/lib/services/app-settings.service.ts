@@ -1,5 +1,6 @@
 import { ValidationError } from "@foundry/commons";
 import { parsePaymentConfig, type PaymentConfig } from "@foundry/payments";
+import { PAYMENT_PROVIDERS } from "@foundry/payments/providers";
 import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
 import { app } from "@/db/schema";
@@ -50,6 +51,17 @@ export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (!row) throw new ValidationError("App settings are not initialized.");
   await appSettingsEntity.update(row.publicId, { paymentConfig: parsed });
+}
+
+/** Catalog methods (e-Transfer, cash, manual) always exist as tabs. Enablement is per-method. */
+export async function ensurePaymentCatalog(): Promise<PaymentConfig> {
+  const cfg = await getPaymentConfig();
+  const have = new Set(cfg.methods.map((m) => m.id));
+  const missing = PAYMENT_PROVIDERS.filter((p) => !have.has(p.id)).map((p) => p.seed());
+  if (missing.length === 0) return cfg;
+  const next = { ...cfg, methods: [...cfg.methods, ...missing] };
+  await setPaymentConfig(next);
+  return next;
 }
 
 export async function getIntegrationsConfig(): Promise<Record<string, unknown>> {

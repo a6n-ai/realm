@@ -13,7 +13,7 @@ export default async function IntegrationsPage() {
       <PageHeader
         icon={PuzzleIcon}
         title="Integrations"
-        subtitle="Install Payments to accept booking fees. Other providers can plug in later."
+        subtitle="Activate Payments to collect booking fees. Method tabs and the ledger are always in Settings."
       />
       <Suspense fallback={<PluginsCatalogSkeleton />}>
         <PluginsCatalogLoader />

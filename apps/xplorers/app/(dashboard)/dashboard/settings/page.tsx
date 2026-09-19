@@ -3,14 +3,13 @@ import {
   ArrowRightIcon,
   CreditCardIcon,
   PuzzleIcon,
+  ScrollTextIcon,
   SettingsIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
-import { PAYMENTS_PLUGIN_ID } from "@foundry/payments/plugin";
 import { Card, CardContent, CardHeader, PageHeader } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
-import { PLUGINS } from "@/lib/plugins.server";
 
 type SettingsSection = {
   key: string;
@@ -22,7 +21,6 @@ type SettingsSection = {
 
 export default async function SettingsPage() {
   await requireAdmin();
-  const paymentsStatus = await PLUGINS.find((p) => p.id === PAYMENTS_PLUGIN_ID)?.status();
 
   const sections: SettingsSection[] = [
     {
@@ -42,21 +40,25 @@ export default async function SettingsPage() {
     {
       key: "integrations",
       label: "Integrations",
-      description: "Install plugins. Payments is the only one for now — other providers later.",
+      description: "Activate Payments to collect booking fees.",
       icon: PuzzleIcon,
       href: "/dashboard/settings/integrations",
     },
-  ];
-
-  if (paymentsStatus?.installed) {
-    sections.push({
+    {
       key: "payments",
       label: "Payment",
-      description: "Configure installed payment providers — taxes, payee, and enablement.",
+      description: "e-Transfer, cash, and manual rails. Enable the ones you use.",
       icon: CreditCardIcon,
       href: "/dashboard/settings/payments",
-    });
-  }
+    },
+    {
+      key: "ledger",
+      label: "Ledger",
+      description: "Append-only money entries for confirmed payments.",
+      icon: ScrollTextIcon,
+      href: "/dashboard/settings/payments/ledger",
+    },
+  ];
 
   return (
     <>
