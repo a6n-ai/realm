@@ -9,6 +9,7 @@ import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, DEFAULT_SIZE, PAGE_SIZES, ResponsiveDialog, type Column } from "@/components/ds";
+import { ListCard, ListCardRow } from "./list-card";
 import { removeStopsAction } from "./actions";
 import type { PushPreview } from "@/lib/services/optimoroute/push";
 
@@ -17,8 +18,6 @@ const COLUMNS: readonly Column<"select" | "stop" | "status">[] = [
   { key: "stop", label: "Order / driver" },
   { key: "status", label: "" },
 ];
-
-const RECAP_COLUMNS: readonly Column<"order">[] = [{ key: "order", label: "Order" }];
 
 function stalePagination(sp: URLSearchParams) {
   const page = Math.max(0, Number.parseInt(sp.get("page") ?? "0", 10) || 0);
@@ -127,7 +126,9 @@ export function RemoveControl({
             </TableCell>
             <TableCell>
               <label htmlFor={`rm-${s.orderNo}`} className="block cursor-pointer">
-                <span className="block font-mono text-xs">{s.orderNo}</span>
+                {/* orderNo is a display name for legacy (pre-dlv_xxx) foreign stops, not a
+                    code — monospacing it here read as a rendering bug, not an identifier. */}
+                <span className="block text-sm font-medium">{s.orderNo}</span>
                 <span className="text-muted-foreground block text-xs">
                   {/* A foreign stop's address is another business's customer's home —
                       never render it here, whether or not this stop turns out to be ours. */}
@@ -192,15 +193,11 @@ export function RemoveControl({
               </span>
             </p>
           ) : null}
-          <DataTable
-            columns={RECAP_COLUMNS}
-            rows={[...selected].map((orderNo) => ({ orderNo }))}
-            rowKey={(r) => r.orderNo}
-            serial={false}
-            emptyIcon={TrashIcon}
-            emptyMessage="Nothing selected."
-            renderRow={(r) => <TableCell className="font-mono text-xs">{r.orderNo}</TableCell>}
-          />
+          <ListCard>
+            {[...selected].map((orderNo) => (
+              <ListCardRow key={orderNo} primary={orderNo} />
+            ))}
+          </ListCard>
         </div>
       </ResponsiveDialog>
     </div>

@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { CheckCircle2Icon, HelpCircleIcon, SearchXIcon } from "lucide-react";
+import { CheckCircle2Icon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { Card, DataTable, DEFAULT_SIZE, PAGE_SIZES, type Column } from "@/components/ds";
+import { ListCard, ListCardRow } from "./list-card";
 import { pullCompletionsAction } from "./actions";
 import type { PullCompletionsResult } from "@/lib/services/optimoroute/completions";
 
@@ -17,20 +18,9 @@ const OUTCOME_COLUMNS: readonly Column<"customer" | "status" | "action">[] = [
   { key: "action", label: "Outcome" },
 ];
 
-const UNMATCHED_COLUMNS: readonly Column<"customer">[] = [
-  { key: "customer", label: "Customer" },
-];
-
-const AMBIGUOUS_COLUMNS: readonly Column<"delivery" | "candidates">[] = [
-  { key: "delivery", label: "Delivery" },
-  { key: "candidates", label: "OptimoRoute stops sharing this phone", align: "right" },
-];
-
-// DataTable's search (`q`) and pagination (`page`/`size`) are singleton URL params —
-// two DataTables on the same page fighting over them would page/filter each other.
-// Only the outcomes table (the one that actually gets large) owns them; the smaller
-// unmatched/ambiguous lists render as plain DataTables — same visual/column styling,
-// no URL-state search or paging, since they rarely exceed a screenful.
+// A page reads as one surface when it has exactly one real table — the outcomes list
+// below owns DataTable's page-singleton `q`/`page`/`size` params. Unmatched/ambiguous
+// are exceptions to review, not a browsable dataset, so they render as ListCard rows.
 function outcomesPagination(sp: URLSearchParams) {
   const page = Math.max(0, Number.parseInt(sp.get("page") ?? "0", 10) || 0);
   const rawSize = Number.parseInt(sp.get("size") ?? String(DEFAULT_SIZE), 10);
@@ -122,47 +112,28 @@ export function CompletionsView({ date }: { date: string }) {
           />
 
           {completions.unmatched.length > 0 ? (
-            <Card variant="flat" className="space-y-3 p-4">
-              <p className="text-sm font-medium">Not found on OptimoRoute</p>
-              <DataTable
-                columns={UNMATCHED_COLUMNS}
-                rows={completions.unmatched}
-                rowKey={(u) => u.deliveryPublicId}
-                serial={false}
-                emptyIcon={SearchXIcon}
-                emptyMessage="Nothing unmatched."
-                renderRow={(u) => (
-                  <TableCell className="font-medium">
-                    {u.customerName}
-                    <span className="text-muted-foreground block text-xs font-normal">
-                      No OptimoRoute stop found for this date
-                    </span>
-                  </TableCell>
-                )}
-              />
-            </Card>
+            <ListCard title="Not found on OptimoRoute">
+              {completions.unmatched.map((u) => (
+                <ListCardRow
+                  key={u.deliveryPublicId}
+                  primary={u.customerName}
+                  secondary="No OptimoRoute stop found for this date"
+                />
+              ))}
+            </ListCard>
           ) : null}
 
           {completions.ambiguous.length > 0 ? (
-            <Card variant="flat" className="space-y-3 p-4">
-              <p className="text-sm font-medium">Needs manual review</p>
-              <DataTable
-                columns={AMBIGUOUS_COLUMNS}
-                rows={completions.ambiguous}
-                rowKey={(a) => a.deliveryPublicId}
-                serial={false}
-                emptyIcon={HelpCircleIcon}
-                emptyMessage="Nothing needs review."
-                renderRow={(a) => (
-                  <>
-                    <TableCell className="font-mono text-xs">{a.deliveryPublicId}</TableCell>
-                    <TableCell className="text-muted-foreground text-right text-xs">
-                      {a.candidateCount} — resolve manually
-                    </TableCell>
-                  </>
-                )}
-              />
-            </Card>
+            <ListCard title="Needs manual review">
+              {completions.ambiguous.map((a) => (
+                <ListCardRow
+                  key={a.deliveryPublicId}
+                  primary={a.deliveryPublicId}
+                  secondary="Multiple OptimoRoute stops share this phone"
+                  trailing={`${a.candidateCount} stops`}
+                />
+              ))}
+            </ListCard>
           ) : null}
         </div>
       ) : (
