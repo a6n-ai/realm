@@ -37,6 +37,20 @@ export const tiffinBounds = (catalog: ClientCatalogSnapshot) => ({
 });
 
 /** Null when the schedule step is complete and valid; shared by the step and the wizard's Continue gate. */
+/** What the customer still needs to do before the current step's button works; null = good to go. */
+export function nextBlockedReason(step: number, catalog: ClientCatalogSnapshot, s: WizardSelections): string | null {
+  if (step === 0) return s.planKey == null ? "Choose a baseline plan to continue." : null;
+  if (step === 1) return s.mealSizeId === "" ? "Pick a meal size to continue." : null;
+  if (step === 2) {
+    const err = scheduleError(catalog, s);
+    if (err) return err.endsWith(".") ? err : `${err}.`;
+    return null;
+  }
+  if (s.mealSizeId === "") return "Pick a meal size on the Bundle step to continue.";
+  if (!s.startDate) return "Choose a start date to continue.";
+  return null;
+}
+
 export function scheduleError(catalog: ClientCatalogSnapshot, s: WizardSelections): string | null {
   const row = selectableFrequencies(catalog).find((f) => f.key === s.frequencyKey);
   if (!row) return "Choose a delivery frequency";

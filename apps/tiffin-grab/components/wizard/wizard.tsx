@@ -9,7 +9,7 @@ import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@foundry/ui/button";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
-import { initialSelections, scheduleError, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { initialSelections, nextBlockedReason, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -63,11 +63,8 @@ export function Wizard({
     return () => { active = false; };
   }, [selections]);
 
-  const canNext =
-    (step === 0 && selections.planKey != null) ||
-    (step === 1 && selections.mealSizeId !== "") ||
-    (step === 2 && scheduleError(catalog, selections) === null) ||
-    step === 3;
+  const blocked = nextBlockedReason(step, catalog, selections);
+  const canNext = blocked === null;
 
   const deploy = () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
@@ -168,6 +165,7 @@ export function Wizard({
       </AnimatePresence>
 
       <div className="wizard-bar fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3 sm:static sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        {blocked ? <p role="status" className="text-muted-foreground mx-auto mb-2 max-w-3xl text-center text-[13px] sm:text-right">{blocked}</p> : null}
         <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           {result ? (
             <button
@@ -185,7 +183,7 @@ export function Wizard({
             {step < 3 ? (
               <Button type="button" className={`${IOS_BUTTON} flex-1 sm:h-10 sm:min-h-10 sm:w-auto`} disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Next</Button>
             ) : (
-              <Button type="button" className={`${IOS_BUTTON} flex-1 sm:h-10 sm:min-h-10 sm:w-auto`} disabled={!selections.mealSizeId || !selections.startDate} onClick={deploy}>
+              <Button type="button" className={`${IOS_BUTTON} flex-1 sm:h-10 sm:min-h-10 sm:w-auto`} disabled={!canNext} onClick={deploy}>
                 Continue to checkout
               </Button>
             )}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
@@ -6,7 +6,7 @@ import type { WizardSelections } from "../selections";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Label } from "@foundry/ui/label";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
-import { savePct } from "@/lib/pricing/discounts";
+import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
 
@@ -39,6 +39,22 @@ export function StepDuration({
   const tomorrow = nextWeekday(new Date()).toISOString().slice(0, 10);
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const overlapBound = minStartDate != null && minDate === minStartDate;
+  // First day on/after minDate that the plan actually delivers on.
+  const earliest = (() => {
+    const d = parseIsoDateUtc(minDate);
+    for (let i = 0; i < 14; i++, d.setUTCDate(d.getUTCDate() + 1)) {
+      if (allowed.includes(weekdayKey(d))) return d.toISOString().slice(0, 10);
+    }
+    return minDate;
+  })();
+  const savings = useMemo(() => durationSavings(catalog, selections), [catalog, selections]);
+  // Pre-select the earliest selectable date; a stale or now-invalid pick is replaced too.
+  useEffect(() => {
+    const cur = selections.startDate;
+    const valid = cur && cur >= minDate && allowed.includes(weekdayKey(parseIsoDateUtc(cur)));
+    if (!valid) set({ startDate: earliest });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [earliest, selections.startDate, plan?.key]);
   const dayLabel: Record<string, string> = {
     mon: "Mon",
     tue: "Tue",
@@ -104,7 +120,7 @@ export function StepDuration({
           allowedDays={allowed}
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          Deliveries start on a weekday ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {minDate}.
+          Deliveries start on a weekday ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {earliest}.
         </p>
         {startDateError && <p className="mt-1 text-xs text-destructive">{startDateError}</p>}
         {sameWeekConflict && !startDateError ? (
@@ -123,7 +139,7 @@ export function StepDuration({
         >
           {catalog.durations.map((d) => {
             const active = selections.durationWeeks === d.weeks;
-            const save = savePct(catalog.discounts, "duration", d.publicId, d.weeks, catalog.maxDiscountPct);
+            const save = savings[d.weeks] ?? 0;
             return (
               <label
                 key={d.weeks}

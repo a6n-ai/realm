@@ -24,6 +24,25 @@ const price = (snapshot: ClientCatalogSnapshot, s: PricingSelections) => {
   }
 };
 
+/** Per-tiffin saving of each plan length vs the shortest one (same delivery type, eating days and meal),
+ * as whole percents — includes configured discounts and the small-order price uplift dropping away. */
+export function durationSavings(snapshot: ClientCatalogSnapshot, selections: PricingSelections): Record<number, number> {
+  const weeks = snapshot.durations.map((d) => d.weeks).sort((a, b) => a - b);
+  const perTiffin = (w: number) => {
+    const p = price(snapshot, { ...selections, durationWeeks: w });
+    return p && p.units > 0 ? p.total / p.units : null;
+  };
+  const base = weeks.length ? perTiffin(weeks[0]) : null;
+  const out: Record<number, number> = {};
+  if (!base) return out;
+  for (const w of weeks.slice(1)) {
+    const per = perTiffin(w);
+    const pct = per == null ? 0 : Math.round((1 - per / base) * 100);
+    if (pct >= 1) out[w] = pct;
+  }
+  return out;
+}
+
 type Alt = Parameters<typeof rankDeals<DealPayload>>[1][number];
 
 function options(snapshot: ClientCatalogSnapshot, selections: PricingSelections, vary?: "frequency" | "duration") {
