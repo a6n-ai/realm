@@ -3,12 +3,16 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { DownloadIcon, SendIcon } from "lucide-react";
+import { DownloadIcon, SendIcon, TriangleAlertIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
+import { TableCell } from "@foundry/ui/table";
+import { DataTable, type Column } from "@/components/ds";
 import { pullRoutesAction, pushDayAction } from "./actions";
 import type { PushResult } from "@/lib/services/optimoroute/push";
 import type { PullResult } from "@/lib/services/optimoroute/pull";
+
+const FAILED_COLUMNS: readonly Column<"customer">[] = [{ key: "customer", label: "Customer" }];
 
 export function PushControl({ date, stops }: { date: string; stops: number }) {
   const router = useRouter();
@@ -85,16 +89,20 @@ export function PushControl({ date, stops }: { date: string; stops: number }) {
             ) : null}
           </div>
           {result.failed > 0 ? (
-            <ul className="space-y-1 text-xs">
-              {result.outcomes
-                .filter((o) => !o.ok)
-                .map((o) => (
-                  <li key={o.orderNo}>
-                    <span className="font-medium">{o.customerName}</span>
-                    <span className="text-muted-foreground"> — {o.message}</span>
-                  </li>
-                ))}
-            </ul>
+            <DataTable
+              columns={FAILED_COLUMNS}
+              rows={result.outcomes.filter((o) => !o.ok)}
+              rowKey={(o) => o.orderNo}
+              serial={false}
+              emptyIcon={TriangleAlertIcon}
+              emptyMessage="Nothing failed."
+              renderRow={(o) => (
+                <TableCell className="font-medium">
+                  {o.customerName}
+                  <span className="text-muted-foreground block text-xs font-normal">{o.message}</span>
+                </TableCell>
+              )}
+            />
           ) : null}
         </div>
       ) : null}

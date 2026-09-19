@@ -18,6 +18,8 @@ const COLUMNS: readonly Column<"select" | "stop" | "status">[] = [
   { key: "status", label: "" },
 ];
 
+const RECAP_COLUMNS: readonly Column<"order">[] = [{ key: "order", label: "Order" }];
+
 function stalePagination(sp: URLSearchParams) {
   const page = Math.max(0, Number.parseInt(sp.get("page") ?? "0", 10) || 0);
   const rawSize = Number.parseInt(sp.get("size") ?? String(DEFAULT_SIZE), 10);
@@ -190,13 +192,15 @@ export function RemoveControl({
               </span>
             </p>
           ) : null}
-          <ul className="max-h-56 space-y-1 overflow-y-auto text-xs">
-            {[...selected].map((orderNo) => (
-              <li key={orderNo} className="font-mono">
-                {orderNo}
-              </li>
-            ))}
-          </ul>
+          <DataTable
+            columns={RECAP_COLUMNS}
+            rows={[...selected].map((orderNo) => ({ orderNo }))}
+            rowKey={(r) => r.orderNo}
+            serial={false}
+            emptyIcon={TrashIcon}
+            emptyMessage="Nothing selected."
+            renderRow={(r) => <TableCell className="font-mono text-xs">{r.orderNo}</TableCell>}
+          />
         </div>
       </ResponsiveDialog>
     </div>

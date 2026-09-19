@@ -52,6 +52,8 @@ export const HOME_MENU_DAY_COLUMNS: { label: string; days: DayOfWeek[] }[] = [
   { label: "Sun", days: ["sun"] },
 ];
 
+type DayColumn = { label: string; days: DayOfWeek[] };
+
 // A merged display column (Weekends) draws from two stored days, and the usual case is
 // that both hold the same dishes — so list each name once. Without this, splitting the
 // weekend into real sat/sun rows would print every weekend dish twice.
@@ -60,25 +62,47 @@ function uniqueByName(items: PosterItem[]): { name: string }[] {
   return items.flatMap((i) => (seen.has(i.dishName) ? [] : (seen.add(i.dishName), [{ name: i.dishName }])));
 }
 
-// Diet indicator colour. Egg dishes are stored as `nonveg` but get a distinct
-// yellow dot, detected by name (no separate enum value).
-export function buildPosterColumns(slots: MealSlot[], items: PosterItem[]): RenderedColumn[] {
+function groupsForColumn(
+  slots: MealSlot[],
+  items: PosterItem[],
+  col: DayColumn,
+  emptyDays: "flat-placeholder" | "omit",
+): RenderedGroup[] {
+  const inCol = items.filter((i) => col.days.includes(i.dayOfWeek));
+  const order = (a: PosterItem, b: PosterItem) =>
+    col.days.indexOf(a.dayOfWeek) - col.days.indexOf(b.dayOfWeek) || a.position - b.position;
   const flat = slots.length <= 1;
-  return DAY_COLUMNS.map((col) => {
-    const inCol = items.filter((i) => col.days.includes(i.dayOfWeek));
-    const order = (a: PosterItem, b: PosterItem) =>
-      col.days.indexOf(a.dayOfWeek) - col.days.indexOf(b.dayOfWeek) || a.position - b.position;
-    if (flat) {
-      return { label: col.label, groups: [{ slotLabel: null, dishes: uniqueByName([...inCol].sort(order)) }] };
-    }
-    // A category with nothing on it that day is omitted entirely, not rendered as an
-    // empty row. The public menu should read as what IS being served — an admin leaving
-    // Protein blank on a Tuesday is not information a customer needs, and a column of
-    // "—" placeholders made a half-built week look broken rather than simply shorter.
-    const groups: RenderedGroup[] = slots.flatMap((s) => {
-      const dishes = uniqueByName(inCol.filter((i) => i.slot === s.key).sort(order));
-      return dishes.length ? [{ slotLabel: s.label, dishes }] : [];
-    });
-    return { label: col.label, groups };
+  if (flat) {
+    if (emptyDays === "omit" && inCol.length === 0) return [];
+    return [{ slotLabel: null, dishes: uniqueByName([...inCol].sort(order)) }];
+  }
+  // A category with nothing on it that day is omitted entirely, not rendered as an
+  // empty row. The public menu should read as what IS being served — an admin leaving
+  // Protein blank on a Tuesday is not information a customer needs, and a column of
+  // "—" placeholders made a half-built week look broken rather than simply shorter.
+  return slots.flatMap((s) => {
+    const dishes = uniqueByName(inCol.filter((i) => i.slot === s.key).sort(order));
+    return dishes.length ? [{ slotLabel: s.label, dishes }] : [];
   });
+}
+
+export function buildPosterColumns(slots: MealSlot[], items: PosterItem[]): RenderedColumn[] {
+  return DAY_COLUMNS.map((col) => ({
+    label: col.label,
+    groups: groupsForColumn(slots, items, col, "flat-placeholder"),
+  }));
+}
+
+/** Admin list + customer home: one column per weekday, empty days as no groups. */
+export function buildHomeMenuColumns(slots: MealSlot[], items: PosterItem[]): RenderedColumn[] {
+  return HOME_MENU_DAY_COLUMNS.map((col) => ({
+    label: col.label,
+    groups: groupsForColumn(slots, items, col, "omit"),
+  }));
+}
+
+/** `weekStart` and other date-only ISO strings are UTC calendar dates. */
+export function isoToDayOfWeek(iso: string): DayOfWeek {
+  const jsDay = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  return DAYS[(jsDay + 6) % 7];
 }

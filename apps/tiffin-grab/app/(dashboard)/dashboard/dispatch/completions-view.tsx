@@ -1,24 +1,46 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { CheckCircle2Icon } from "lucide-react";
+import { CheckCircle2Icon, HelpCircleIcon, SearchXIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
-import { Card, DataTable, type Column } from "@/components/ds";
+import { Card, DataTable, DEFAULT_SIZE, PAGE_SIZES, type Column } from "@/components/ds";
 import { pullCompletionsAction } from "./actions";
 import type { PullCompletionsResult } from "@/lib/services/optimoroute/completions";
 
-const COLUMNS: readonly Column<"customer" | "status" | "action">[] = [
+const OUTCOME_COLUMNS: readonly Column<"customer" | "status" | "action">[] = [
   { key: "customer", label: "Customer" },
   { key: "status", label: "OptimoRoute status" },
   { key: "action", label: "Outcome" },
 ];
 
+const UNMATCHED_COLUMNS: readonly Column<"customer">[] = [
+  { key: "customer", label: "Customer" },
+];
+
+const AMBIGUOUS_COLUMNS: readonly Column<"delivery" | "candidates">[] = [
+  { key: "delivery", label: "Delivery" },
+  { key: "candidates", label: "OptimoRoute stops sharing this phone", align: "right" },
+];
+
+// DataTable's search (`q`) and pagination (`page`/`size`) are singleton URL params —
+// two DataTables on the same page fighting over them would page/filter each other.
+// Only the outcomes table (the one that actually gets large) owns them; the smaller
+// unmatched/ambiguous lists render as plain DataTables — same visual/column styling,
+// no URL-state search or paging, since they rarely exceed a screenful.
+function outcomesPagination(sp: URLSearchParams) {
+  const page = Math.max(0, Number.parseInt(sp.get("page") ?? "0", 10) || 0);
+  const rawSize = Number.parseInt(sp.get("size") ?? String(DEFAULT_SIZE), 10);
+  const size = (PAGE_SIZES as readonly number[]).includes(rawSize) ? rawSize : DEFAULT_SIZE;
+  return { page, size };
+}
+
 export function CompletionsView({ date }: { date: string }) {
   const router = useRouter();
+  const params = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [completions, setCompletions] = useState<PullCompletionsResult | null>(null);
 
@@ -53,7 +75,7 @@ export function CompletionsView({ date }: { date: string }) {
       </div>
 
       {completions ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">
               Confirmed {completions.outcomes.filter((o) => o.action === "confirmed").length}
@@ -76,10 +98,11 @@ export function CompletionsView({ date }: { date: string }) {
           </div>
 
           <DataTable
-            columns={COLUMNS}
+            columns={OUTCOME_COLUMNS}
             rows={completions.outcomes}
             rowKey={(o) => o.deliveryPublicId}
             serial={false}
+            pagination={outcomesPagination(params)}
             search={{ placeholder: "Search customer…", keys: ["customerName"] }}
             emptyIcon={CheckCircle2Icon}
             emptyMessage="Nothing to act on for this date yet."
@@ -99,33 +122,46 @@ export function CompletionsView({ date }: { date: string }) {
           />
 
           {completions.unmatched.length > 0 ? (
-            <Card variant="flat" className="space-y-2 p-4">
+            <Card variant="flat" className="space-y-3 p-4">
               <p className="text-sm font-medium">Not found on OptimoRoute</p>
-              <ul className="space-y-1 text-xs">
-                {completions.unmatched.map((u) => (
-                  <li key={u.deliveryPublicId}>
-                    <span className="font-medium">{u.customerName}</span>
-                    <span className="text-muted-foreground"> — no OptimoRoute stop found for this date</span>
-                  </li>
-                ))}
-              </ul>
+              <DataTable
+                columns={UNMATCHED_COLUMNS}
+                rows={completions.unmatched}
+                rowKey={(u) => u.deliveryPublicId}
+                serial={false}
+                emptyIcon={SearchXIcon}
+                emptyMessage="Nothing unmatched."
+                renderRow={(u) => (
+                  <TableCell className="font-medium">
+                    {u.customerName}
+                    <span className="text-muted-foreground block text-xs font-normal">
+                      No OptimoRoute stop found for this date
+                    </span>
+                  </TableCell>
+                )}
+              />
             </Card>
           ) : null}
 
           {completions.ambiguous.length > 0 ? (
-            <Card variant="flat" className="space-y-2 p-4">
+            <Card variant="flat" className="space-y-3 p-4">
               <p className="text-sm font-medium">Needs manual review</p>
-              <ul className="space-y-1 text-xs">
-                {completions.ambiguous.map((a) => (
-                  <li key={a.deliveryPublicId}>
-                    <span className="font-medium">{a.deliveryPublicId}</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      — {a.candidateCount} OptimoRoute stops share this phone for this date, resolve manually
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <DataTable
+                columns={AMBIGUOUS_COLUMNS}
+                rows={completions.ambiguous}
+                rowKey={(a) => a.deliveryPublicId}
+                serial={false}
+                emptyIcon={HelpCircleIcon}
+                emptyMessage="Nothing needs review."
+                renderRow={(a) => (
+                  <>
+                    <TableCell className="font-mono text-xs">{a.deliveryPublicId}</TableCell>
+                    <TableCell className="text-muted-foreground text-right text-xs">
+                      {a.candidateCount} — resolve manually
+                    </TableCell>
+                  </>
+                )}
+              />
             </Card>
           ) : null}
         </div>

@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
-import { parseIsoDateUtc } from "@foundry/commons";
+import { Pencil } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { buildPosterColumns, type PosterItem } from "@/lib/menu/poster";
+import { cn } from "@foundry/ui/cn";
+import { buildHomeMenuColumns, DAYS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
-import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
+import { formatEpoch, formatMenuWeekRange } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
+
+type WeekStatus = "draft" | "ready" | "released";
 
 type WeekMenu = {
   publicId: string;
@@ -22,128 +23,154 @@ type WeekMenu = {
   items: PosterItem[];
 };
 
-function weekRange(weekStart: string): string {
-  const end = parseIsoDateUtc(weekStart);
-  end.setUTCDate(end.getUTCDate() + 6);
-  const endIso = end.toISOString().slice(0, 10);
-  return `${formatDateOnly(weekStart, { mode: "short" })} – ${formatDateOnly(endIso, { mode: "short" })}`;
+function highlightLabel(highlight: "current" | "upcoming"): string {
+  switch (highlight) {
+    case "current":
+      return "This week";
+    case "upcoming":
+      return "Upcoming";
+    default: {
+      const _never: never = highlight;
+      return _never;
+    }
+  }
+}
+
+function statusMeta(status: string): { label: string; variant: "default" | "secondary" | "outline" } {
+  const value = status as WeekStatus;
+  switch (value) {
+    case "released":
+      return { label: "Released", variant: "default" };
+    case "ready":
+      return { label: "Ready", variant: "outline" };
+    case "draft":
+      return { label: "Draft", variant: "secondary" };
+    default: {
+      const _never: never = value;
+      return { label: status, variant: "secondary" };
+    }
+  }
 }
 
 export function MenuHistoryCard({
-  week, accent, highlight = null,
-}: { week: WeekMenu; accent: string; highlight?: "current" | "upcoming" | null }) {
+  week, accent, highlight = null, todayKey,
+}: {
+  week: WeekMenu;
+  accent: string;
+  highlight?: "current" | "upcoming" | null;
+  todayKey?: DayOfWeek;
+}) {
   const tz = useTimezone();
-  const columns = buildPosterColumns(week.slots, week.items);
-  const [day, setDay] = useState(0);
-  const col = columns[day];
-  const cycle = (dir: number) => setDay((d) => (d + dir + columns.length) % columns.length);
-
-  // Outer glow in the plan accent marks the live ("current") and next ("upcoming") weeks.
-  const glowStyle = highlight ? { boxShadow: `0 0 0 2px ${accent}66, 0 0 22px ${accent}40` } : undefined;
+  const columns = buildHomeMenuColumns(week.slots, week.items);
+  const status = statusMeta(week.status);
 
   return (
-    <div className="flex flex-col rounded-2xl border bg-card p-5 shadow-sm" style={glowStyle}>
-      <div className="flex items-start justify-between gap-3">
+    <article
+      className="overflow-hidden rounded-xl border bg-card"
+      style={highlight ? { borderLeftWidth: 3, borderLeftColor: accent } : undefined}
+    >
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3 sm:px-5">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-base font-semibold tracking-tight" style={{ color: accent }}>
-              {weekRange(week.weekStart)}
-            </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold tracking-tight tabular-nums">
+              {formatMenuWeekRange(week.weekStart)}
+            </h3>
             {highlight ? (
-              <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={{ backgroundColor: `${accent}22`, color: accent }}>
-                {highlight === "current" ? "This week" : "Upcoming"}
+              <span
+                className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                style={{ backgroundColor: `${accent}18`, color: accent }}
+              >
+                {highlightLabel(highlight)}
               </span>
             ) : null}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-            {week.itemCount} dishes
-            {week.releasedAt ? ` · released ${formatEpoch(week.releasedAt, { mode: "date", timeZone: tz })}` : ""}
+            {week.itemCount} {week.itemCount === 1 ? "dish" : "dishes"}
+            {week.releasedAt
+              ? ` · Released ${formatEpoch(week.releasedAt, { mode: "date", timeZone: tz })}`
+              : ""}
           </p>
         </div>
-        <Badge variant={week.status === "released" ? "default" : "secondary"} className="shrink-0 capitalize">
-          {week.status}
-        </Badge>
-      </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant={status.variant}>{status.label}</Badge>
+          <Button asChild size="sm" variant="outline" className="gap-1.5">
+            <Link href={`/dashboard/menus/${week.publicId}`}>
+              <Pencil className="size-3.5" />
+              Edit week
+            </Link>
+          </Button>
+        </div>
+      </header>
 
-      <div className="mt-4 flex items-center justify-between gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-10 transition-transform active:scale-[0.96]"
-          onClick={() => cycle(-1)}
-          aria-label="Previous day"
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        <span className="text-sm font-medium">{col?.label}</span>
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-10 transition-transform active:scale-[0.96]"
-          onClick={() => cycle(1)}
-          aria-label="Next day"
-        >
-          <ChevronRight className="size-4" />
-        </Button>
-      </div>
-
-      <div key={day} className="mt-3 min-h-24 space-y-2 rounded-lg bg-muted/40 p-3 animate-in fade-in-0 duration-200">
-        {col?.groups.every((g) => g.dishes.length === 0) ? (
-          <p className="text-sm text-muted-foreground">No dishes set for this day.</p>
-        ) : (
-          col?.groups.map((g, gi) => (
-            <div key={g.slotLabel ?? gi} className="space-y-1">
-              {g.slotLabel ? <p className="text-xs font-medium text-muted-foreground">{g.slotLabel}</p> : null}
-              {g.dishes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">—</p>
-              ) : (
-                g.dishes.map((d, i) => (
-                  <div key={`${d.name}-${i}`} className="flex items-center gap-2 text-sm">
-                    <span className="text-pretty">{d.name}</span>
-                  </div>
-                ))
+      <div className="flex snap-x snap-mandatory overflow-x-auto md:grid md:snap-none md:grid-cols-7 md:overflow-visible">
+        {columns.map((col, index) => {
+          const isToday = highlight === "current" && todayKey === DAYS[index];
+          const empty = col.groups.every((g) => g.dishes.length === 0);
+          return (
+            <section
+              key={col.label}
+              aria-label={col.label}
+              aria-current={isToday ? "date" : undefined}
+              className={cn(
+                "min-w-[8.5rem] snap-start px-3 py-3 md:min-w-0",
+                index < columns.length - 1 && "border-r",
+                isToday && "bg-primary/[0.04]",
               )}
-            </div>
-          ))
-        )}
+            >
+              <p
+                className={cn(
+                  "border-b pb-1.5 text-[11px] font-semibold tracking-wide",
+                  isToday ? "border-primary/40 text-foreground" : "border-border text-muted-foreground",
+                )}
+              >
+                {col.label}
+              </p>
+              {empty ? null : (
+                <div className="mt-2.5 space-y-3">
+                  {col.groups.map((g, gi) => (
+                    <div key={g.slotLabel ?? gi} className="space-y-0.5">
+                      {g.slotLabel ? (
+                        <p className="text-[11px] font-medium text-muted-foreground">{g.slotLabel}</p>
+                      ) : null}
+                      {g.dishes.map((d, i) => (
+                        <p key={`${d.name}-${i}`} className="text-sm leading-snug text-pretty">
+                          {d.name}
+                        </p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
-
-      <Button asChild variant="ghost" size="sm" className="mt-3 w-fit gap-1.5 transition-transform active:scale-[0.96]">
-        <Link href={`/dashboard/menus/${week.publicId}`}>
-          <Pencil className="size-3.5" />
-          Edit week
-        </Link>
-      </Button>
-    </div>
+    </article>
   );
 }
 
-// Exact loading twin: same card wrapper, header row, day-nav row, body block and
-// edit-button footer as MenuHistoryCard, with grey blocks where content goes.
 export function MenuHistoryCardSkeleton() {
   return (
-    <div className="flex flex-col rounded-2xl border bg-card p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1.5">
-          <Skeleton className="h-5 w-32" />
+    <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="flex items-start justify-between gap-3 border-b px-4 py-3 sm:px-5">
+        <div className="space-y-1.5">
+          <Skeleton className="h-5 w-36" />
           <Skeleton className="h-3 w-24" />
         </div>
-        <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-5 w-16 rounded-full" />
+          <Skeleton className="h-8 w-24" />
+        </div>
       </div>
-
-      <div className="mt-4 flex items-center justify-between gap-2">
-        <Skeleton className="size-10 rounded-md" />
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="size-10 rounded-md" />
+      <div className="flex md:grid md:grid-cols-7">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className={cn("min-w-[8.5rem] space-y-2 px-3 py-3 md:min-w-0", i < 6 && "border-r")}>
+            <Skeleton className="h-3 w-8" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+        ))}
       </div>
-
-      <div className="mt-3 min-h-24 space-y-2 rounded-lg bg-muted/40 p-3">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-4 w-36" />
-      </div>
-
-      <Skeleton className="mt-3 h-8 w-24" />
     </div>
   );
-};
+}

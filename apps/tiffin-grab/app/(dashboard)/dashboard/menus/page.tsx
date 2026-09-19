@@ -4,6 +4,7 @@ import { CalendarIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
 import { getAppSettings, getMealTypes } from "@/lib/services/app-settings.service";
+import { isoToDayOfWeek } from "@/lib/menu/poster";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuHistoryCard, MenuHistoryCardSkeleton } from "./menu-history-card";
 import { NewWeekCard } from "./new-week-card";
@@ -16,20 +17,22 @@ import { NewWeekCard } from "./new-week-card";
 export default function MenusPage() {
   return (
     <PageShell>
-      <PageHeader icon={CalendarIcon} title="Weekly Menus" />
+      <PageHeader
+        icon={CalendarIcon}
+        title="Weekly Menus"
+        subtitle="Monday-to-Sunday kitchen boards. Start a week, then fill and release it."
+      />
       <Suspense
         fallback={
           <>
-            <SectionCard title="Start a week">
+            <SectionCard title="New week">
               <div className="h-16" />
             </SectionCard>
-            <SectionCard title="Menus">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <MenuHistoryCardSkeleton key={i} />
-                ))}
-              </div>
-            </SectionCard>
+            <div className="space-y-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <MenuHistoryCardSkeleton key={i} />
+              ))}
+            </div>
           </>
         }
       >
@@ -69,26 +72,25 @@ async function MenusData() {
 
   return (
     <>
-      <SectionCard title="Start a week">
+      <SectionCard title="New week" subtitle="Weeks start on Monday. Dates that already have a menu are skipped.">
         <NewWeekCard takenWeekStarts={weeks.map((w) => w.weekStart)} />
       </SectionCard>
 
-      <SectionCard title="Menus">
-        {weeks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No menus yet — pick a Monday above to start one.</p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {weeks.map((w) => (
-              <MenuHistoryCard
-                key={w.publicId}
-                week={w}
-                accent={mealTypes.tiffin.accent}
-                highlight={w.publicId === currentId ? "current" : w.publicId === upcomingId ? "upcoming" : null}
-              />
-            ))}
-          </div>
-        )}
-      </SectionCard>
+      {weeks.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No menus yet — pick a Monday above to start one.</p>
+      ) : (
+        <div className="space-y-4">
+          {weeks.map((w) => (
+            <MenuHistoryCard
+              key={w.publicId}
+              week={w}
+              accent={mealTypes.tiffin.accent}
+              highlight={w.publicId === currentId ? "current" : w.publicId === upcomingId ? "upcoming" : null}
+              todayKey={w.publicId === currentId ? isoToDayOfWeek(today) : undefined}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 }
