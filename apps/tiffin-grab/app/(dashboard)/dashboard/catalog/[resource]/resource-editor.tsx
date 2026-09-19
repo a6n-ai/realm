@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  ArchiveIcon, CheckIcon, EyeOffIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon, Trash2Icon,
+  ArchiveIcon, CheckIcon, EyeOffIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon, Trash2Icon,
 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,8 @@ import type { SortState } from "@/lib/list/sort";
 import {
   RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type FieldType, type ResourceDef,
 } from "../resource-config";
+import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
+import type { DiscountDto, DiscountKind } from "../discounts/build-rows";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
 
 type Row = Record<string, unknown> & { publicId: string };
@@ -237,6 +239,9 @@ function FieldControl({
           <FormLabel>
             {f.label}
             {f.optional ? <span className="text-muted-foreground font-normal"> optional</span> : null}
+            {f.key === "discountValue" ? (
+              <a href="/dashboard/catalog/discounts" className="text-primary ml-2 text-xs font-normal hover:underline">See all discounts</a>
+            ) : null}
           </FormLabel>
           {f.help ? <p className="text-muted-foreground text-xs">{f.help}</p> : null}
           {f.type === "select" ? (
@@ -576,8 +581,15 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
   return <span>{String(value)}</span>;
 }
 
+// Frequencies / duration rows get an "Add discount" action that reuses the central DiscountDialog.
+export interface DiscountCtx {
+  kind: DiscountKind;
+  options: DiscountDialogOptions;
+  byTarget: Record<string, DiscountDto>;
+}
+
 export function ResourceEditor({
-  resource, rows, dynamicOptions, sort, spec, total, page, size, categoriesByPlan,
+  discountCtx, resource, rows, dynamicOptions, sort, spec, total, page, size, categoriesByPlan,
 }: {
   resource: string;
   rows: Row[];
@@ -585,6 +597,7 @@ export function ResourceEditor({
   sort: SortState<string>;
   // Slots per plan, so the composition editor can scope to the selected plan.
   categoriesByPlan?: Record<string, { value: string; label: string }[]>;
+  discountCtx?: DiscountCtx;
   // Same server-side facet framework the orders and inquiries lists use.
   spec: FacetDef[];
   total: number;
@@ -596,6 +609,7 @@ export function ResourceEditor({
   const [editing, setEditing] = useState<{ id: string; row: Row | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [discountDlg, setDiscountDlg] = useState<{ discount?: DiscountDto; target: string } | null>(null);
 
   const cols = visibleCols(def);
   const first = cols[0];
@@ -651,6 +665,15 @@ export function ResourceEditor({
             <>
               <TableCell className="font-medium">
                 <span className="text-balance">{String(row[first.key] ?? row.publicId)}</span>
+                {discountCtx && discountCtx.byTarget[row.publicId] ? (
+                  <button
+                    type="button"
+                    className="bg-ok/10 text-ok ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
+                    onClick={() => setDiscountDlg({ discount: discountCtx.byTarget[row.publicId], target: row.publicId })}
+                  >
+                    Save {discountCtx.byTarget[row.publicId].percent}%
+                  </button>
+                ) : null}
                 {def.keyed ? <span className="text-muted-foreground/70 block text-xs font-normal">{String(row.key ?? "")}</span> : null}
               </TableCell>
               {rest.map((f) => (
@@ -665,6 +688,11 @@ export function ResourceEditor({
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
+                  {discountCtx ? (
+                    <Button size="sm" variant="ghost" onClick={() => setDiscountDlg({ discount: discountCtx.byTarget[row.publicId], target: row.publicId })} disabled={busy}>
+                      <TicketPercentIcon className="size-3.5" /> {discountCtx.byTarget[row.publicId] ? "Discount" : "Add discount"}
+                    </Button>
+                  ) : null}
                   <Button size="sm" variant="ghost" onClick={() => setEditing({ id: row.publicId, row })} disabled={busy}>
                     <PencilIcon className="size-3.5" /> Edit
                   </Button>
@@ -685,6 +713,16 @@ export function ResourceEditor({
       />
 
       <ListPagination page={page} size={size} total={total} />
+
+      {discountCtx ? (
+        <DiscountDialog
+          open={discountDlg != null}
+          onOpenChange={(o) => !o && setDiscountDlg(null)}
+          discount={discountDlg?.discount}
+          prefill={{ kind: discountCtx.kind, targetPublicId: discountDlg?.target, lockTarget: true }}
+          options={discountCtx.options}
+        />
+      ) : null}
 
       {editing ? (
         <EditorDialog

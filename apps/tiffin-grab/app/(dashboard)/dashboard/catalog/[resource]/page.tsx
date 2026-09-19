@@ -15,7 +15,8 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "../resource-config";
-import { ResourceEditor, ResourceEditorSkeleton } from "./resource-editor";
+import { ResourceEditor, ResourceEditorSkeleton, type DiscountCtx } from "./resource-editor";
+import { loadDiscountData } from "../discounts/load";
 
 const TABLES: Record<string, PgTable> = {
   dishes,
@@ -296,8 +297,18 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     for (const dto of rows) dto.addonCategoryIds = addonCatByRow.get(dto.publicId) ?? [];
   }
 
+  let discountCtx: DiscountCtx | undefined;
+  if (resource === "delivery-frequencies" || resource === "duration-packages") {
+    const { freqs, durs, dtos } = await loadDiscountData();
+    const kind = resource === "delivery-frequencies" ? "delivery" : "duration";
+    const byTarget: DiscountCtx["byTarget"] = {};
+    for (const d of dtos) if (d.kind === kind && d.targetPublicId && !byTarget[d.targetPublicId]) byTarget[d.targetPublicId] = d;
+    discountCtx = { kind, options: { frequencies: freqs, durations: durs }, byTarget };
+  }
+
   return (
     <ResourceEditor
+      discountCtx={discountCtx}
       resource={resource}
       rows={rows}
       dynamicOptions={dynamicOptions}
