@@ -47,7 +47,7 @@ export function priceSubscription(
   // frequency, not a caller-supplied adjustment like a coupon, so it's
   // computed here rather than expected from every priceSubscription caller.
   const cadenceDiscount: PricingLine[] =
-    !selections.eatingDays && catalog.frequency.courierDiscountPct > 0
+    catalog.frequency.courierDiscountPct > 0
       ? [{ label: `Delivery schedule discount (${catalog.frequency.courierDiscountPct}%)`, amount: round2(tiffinSubtotal * (catalog.frequency.courierDiscountPct / 100)) }]
       : [];
   const allAdjustments = [...adjustments, ...cadenceDiscount];

@@ -17,14 +17,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
 
-  // A customer-picked weekday set not yet backed by a delivery_frequencies row
-  // (createOrder upserts it at checkout — see ensureCustomFrequencyRow) still
-  // needs to price during the live wizard preview, so a virtual frequency
-  // stands in for it here rather than failing every reprice() call until the
-  // row exists.
-  const frequency =
-    snapshot.frequencies.find((f) => f.key === selections.frequencyKey) ??
-    (selections.customWeekdays?.length ? { key: selections.frequencyKey, daysPerWeek: selections.customWeekdays.length, courierDiscountPct: 0 } : undefined);
+  const frequency = snapshot.frequencies.find((f) => f.key === selections.frequencyKey);
   if (!frequency) throw new ValidationError("Invalid frequency");
 
   if (!snapshot.durations.some((d) => d.weeks === selections.durationWeeks)) {

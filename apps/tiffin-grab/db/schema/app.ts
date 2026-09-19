@@ -16,7 +16,7 @@ export const app = pgTable("app", {
   defaultMaxPauseStretchDays: integer("default_max_pause_stretch_days"),
   // Bounds on how many eating days (= tiffins per week) a customer may pick,
   // independent of the delivery frequency.
-  minTiffinsPerWeek: integer("min_tiffins_per_week").notNull().default(2),
+  minTiffinsPerWeek: integer("min_tiffins_per_week").notNull().default(3),
   maxTiffinsPerWeek: integer("max_tiffins_per_week").notNull().default(7),
   currency: text("currency").notNull().default("INR"),
   // ISO 3166-1 alpha-2 country the phone-number inputs default to. NULL = derive

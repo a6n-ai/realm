@@ -20,8 +20,8 @@ import { cutoffMsFor } from "@foundry/commons";
 import { db } from "./client";
 import { deliveries, deliveryFrequencies, orderActivities, orders } from "./schema";
 import { getAppSettings } from "../lib/services/app-settings.service";
-import { orderDeliveryDays } from "../lib/menu/delivery-days";
-import { buildBoundedDeliveryRows } from "./migrate-wordpress-customers";
+import { orderDeliveryDays, type DayOfWeek } from "../lib/menu/delivery-days";
+import { buildBoundedDeliveryRows, tripsFor } from "./migrate-wordpress-customers";
 
 const MIGRATION_TAG = "Migrated from WordPress export";
 
@@ -64,14 +64,12 @@ async function main() {
       continue;
     }
 
-    const deliveryDays = orderDeliveryDays({
-      frequencyKey,
-      includeSaturday: order.includeSaturday,
-      includeSunday: order.includeSunday,
-    });
+    // Orders imported before eating days existed derive them from the frequency + weekend flags.
+    const eatingDays = (order.eatingDays as DayOfWeek[] | null)
+      ?? orderDeliveryDays({ frequencyKey, includeSaturday: order.includeSaturday, includeSunday: order.includeSunday });
     const rows = buildBoundedDeliveryRows({
       startDate: todayIso,
-      deliveryDays,
+      trips: tripsFor(frequencyKey, eatingDays),
       persons: order.persons,
       targetTiffinCount: order.tiffinCount,
     });

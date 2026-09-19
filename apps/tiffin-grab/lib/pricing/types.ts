@@ -7,12 +7,6 @@ export interface PricingSelections {
   // Matched against delivery_frequencies.key — not a closed enum: any active
   // catalog row (including generated custom-weekday-pattern rows) is valid.
   frequencyKey: string;
-  // Set only when frequencyKey doesn't match an existing catalog row yet (a
-  // customer-picked day combination that isn't one of the admin's reference
-  // patterns) — createOrder upserts a matching delivery_frequencies row keyed
-  // the same way customFrequencyKey() derives it, then resolves normally.
-  // Omitted/undefined for every existing catalog frequencyKey.
-  customWeekdays?: DayOfWeek[];
   // Weekdays the customer eats. When set, tiffins/week = eatingDays.length and the
   // frequency only decides delivery days; unset keeps the legacy frequency+weekend maths.
   eatingDays?: DayOfWeek[];

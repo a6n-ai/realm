@@ -4,16 +4,6 @@ const FIVE_DAY: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
 const MWF: DayOfWeek[] = ["mon", "wed", "fri"];
 const WEEK_ORDER: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
-/** Deterministic delivery_frequencies.key for an arbitrary weekday set — the
- * same pattern always resolves to the same catalog row, regardless of the
- * order the days were picked/typed in. Shared by the legacy-import script and
- * the live wizard/createOrder path so a customer's custom picker and an
- * imported legacy pattern never fork into two different keys for the same
- * set of days. */
-export function customFrequencyKey(weekdays: DayOfWeek[]): string {
-  return `custom_${[...weekdays].sort((a, b) => WEEK_ORDER.indexOf(a) - WEEK_ORDER.indexOf(b)).join("_")}`;
-}
-
 /** For a weekday set with fewer than 7 selected days, how many tiffins each
  * delivery day carries: itself plus every non-selected day up to (not
  * including) the next selected day, cyclic across the week boundary. Sum
@@ -64,17 +54,6 @@ export function eatingDaysError(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek
 /** Starting eating days for a frequency: eat on the days it delivers (clipped to the max). */
 export function defaultEatingDays(deliveryDays: DayOfWeek[], max: number): DayOfWeek[] {
   return WEEK_ORDER.filter((d) => deliveryDays.includes(d)).slice(0, max);
-}
-
-/** Resize an eating-day pick to exactly n days: trim the latest week days, or add
- * the frequency's delivery days first, then the rest in week order. */
-export function resizeEatingDays(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[], n: number): DayOfWeek[] {
-  const have = new Set(eatingDays);
-  const kept = WEEK_ORDER.filter((d) => have.has(d));
-  if (n <= kept.length) return kept.slice(0, Math.max(0, n));
-  const pool = [...WEEK_ORDER.filter((d) => deliveryDays.includes(d)), ...WEEK_ORDER].filter((d) => !have.has(d));
-  const added = [...new Set(pool)].slice(0, n - kept.length);
-  return WEEK_ORDER.filter((d) => have.has(d) || added.includes(d));
 }
 
 export function orderDeliveryDays(o: {

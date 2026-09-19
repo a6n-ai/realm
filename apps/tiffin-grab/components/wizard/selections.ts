@@ -32,7 +32,7 @@ export const DEFAULT_EATING_DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fr
 export const selectableFrequencies = (catalog: ClientCatalogSnapshot) => catalog.frequencies.filter((f) => f.weekdays?.length);
 
 export const tiffinBounds = (catalog: ClientCatalogSnapshot) => ({
-  min: catalog.minTiffinsPerWeek ?? 2,
+  min: catalog.minTiffinsPerWeek ?? 3,
   max: catalog.maxTiffinsPerWeek ?? 7,
 });
 

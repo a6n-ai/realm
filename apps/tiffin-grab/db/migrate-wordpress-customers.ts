@@ -21,8 +21,7 @@ import { createOrder } from "../lib/services/orders.service";
 import { loadCatalogSnapshot } from "../lib/catalog/load";
 import { getAppSettings } from "../lib/services/app-settings.service";
 import { subscriptionDeliveryDates, type DayOfWeek } from "../lib/menu/delivery-dates";
-import { customFrequencyKey, orderDeliveryDays } from "../lib/menu/delivery-days";
-import { ensureCustomFrequencyRow } from "../lib/services/delivery-frequencies.service";
+import { orderDeliveryDays, planWeek } from "../lib/menu/delivery-days";
 import { normalisePhone } from "../lib/services/optimoroute/push";
 
 const MIGRATION_TAG = "Migrated from WordPress export";
@@ -64,12 +63,11 @@ export type MigrationRecord = {
   postalCode: string;
   planKey: "veg" | "non-veg";
   productText: string;
-  frequencyKey: string;
-  // Set only for a pattern that isn't the two built-in shapes ("5_day"/"mwf") —
-  // orderDeliveryDays() reads this directly, and applyOne() upserts a matching
-  // delivery_frequencies row (keyed the same way) before createOrder runs, so
-  // the two hardcoded keys never need a catalog row of their own.
-  weekdays: DayOfWeek[] | null;
+  // Delivery frequency: "mwf" for the exact Mon/Wed/Fri phrase, "5_day" for everything else
+  // (legacy customers on a custom weekday pick were always delivered on the 5-day route).
+  frequencyKey: "5_day" | "mwf";
+  // Weekdays the customer eats, incl. sat/sun from the weekend flags. Stored on the order.
+  eatingDays: DayOfWeek[];
   includeSaturday: boolean;
   includeSunday: boolean;
   persons: number;
@@ -109,28 +107,31 @@ function stripWeekendSuffix(text: string): string {
   return text.replace(/\s*-\s*(saturday|sunday)\b/gi, "").trim();
 }
 
-function parsePreferredDays(raw: string): { frequencyKey: string; weekdays: DayOfWeek[] | null; includeSaturday: boolean; includeSunday: boolean } {
+function parsePreferredDays(raw: string): { frequencyKey: "5_day" | "mwf"; eatingDays: DayOfWeek[]; includeSaturday: boolean; includeSunday: boolean } {
   const text = (raw ?? "").trim();
   const includeSaturday = /saturday/i.test(text);
   const includeSunday = /sunday/i.test(text);
   const corePhrase = stripWeekendSuffix(text).toLowerCase();
+  const withWeekend = (core: DayOfWeek[]): DayOfWeek[] =>
+    WEEK_ORDER.filter((d) => core.includes(d) || (d === "sat" && includeSaturday) || (d === "sun" && includeSunday));
+  const FIVE: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
 
   if (text === "" || corePhrase === PHRASE_5_DAY) {
     // Blank (genuinely unrecognized — the 6 orders with a literally empty
     // "Preferred Days" column are recovered upstream from
     // tiffin_count_history's delivery_days sub-array before mapRow ever sees
     // them, not guessed here) or the standard full-week phrase.
-    return { frequencyKey: "5_day", weekdays: null, includeSaturday, includeSunday };
+    return { frequencyKey: "5_day", eatingDays: withWeekend(FIVE), includeSaturday, includeSunday };
   }
   if (corePhrase === PHRASE_MWF) {
-    return { frequencyKey: "mwf", weekdays: null, includeSaturday, includeSunday };
+    return { frequencyKey: "mwf", eatingDays: withWeekend(["mon", "wed", "fri"]), includeSaturday, includeSunday };
   }
   const core = WEEKDAY_NAMES.filter((t) => new RegExp(`\\b${t.name}\\b`, "i").test(text)).map((t) => t.day);
-  if (core.length === 0 || sameDaySet(core, ["mon", "tue", "wed", "thu", "fri"])) {
-    return { frequencyKey: "5_day", weekdays: null, includeSaturday, includeSunday };
+  if (core.length === 0 || sameDaySet(core, FIVE)) {
+    return { frequencyKey: "5_day", eatingDays: withWeekend(FIVE), includeSaturday, includeSunday };
   }
-  const sorted = [...core].sort((a, b) => WEEK_ORDER.indexOf(a) - WEEK_ORDER.indexOf(b));
-  return { frequencyKey: customFrequencyKey(sorted), weekdays: sorted, includeSaturday, includeSunday };
+  // Any other pick is the customer's eating days on the 5-day route; no per-pattern frequency row.
+  return { frequencyKey: "5_day", eatingDays: withWeekend(core), includeSaturday, includeSunday };
 }
 
 function planKeyFor(row: ExportRow): "veg" | "non-veg" {
@@ -157,7 +158,7 @@ function hasVegConflict(row: ExportRow): boolean {
 }
 
 export function mapRow(row: ExportRow): MigrationRecord {
-  const { frequencyKey, weekdays, includeSaturday, includeSunday } = parsePreferredDays(row["Preferred Days"]);
+  const { frequencyKey, eatingDays, includeSaturday, includeSunday } = parsePreferredDays(row["Preferred Days"]);
   return {
     fullName: (row.Customer ?? "").trim(),
     // Excel export prefixes phone-like columns with a stray leading "'" to
@@ -171,7 +172,7 @@ export function mapRow(row: ExportRow): MigrationRecord {
     planKey: planKeyFor(row),
     productText: (row.Products ?? "").trim(),
     frequencyKey,
-    weekdays,
+    eatingDays,
     includeSaturday,
     includeSunday,
     persons: Number(row.Quantity) || 1,
@@ -277,45 +278,33 @@ function matchMealSize(productText: string, planKey: "veg" | "non-veg", mealSize
 // stops once cumulative tiffinUnits reaches a target instead of after a fixed
 // week count — see plan file for why materializeDeliveries can't be reused) ----------
 
-const WEEKEND = new Set(["sat", "sun"]);
-
-function isoDaysBefore(dateIso: string, n: number): string {
-  const d = new Date(`${dateIso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
+/** The delivery trips (day + tiffins carried) for an order: its frequency's delivery days
+ * carry the eating days, exactly as materializeDeliveries does for new orders. */
+export function tripsFor(frequencyKey: string, eatingDays: DayOfWeek[]): { day: DayOfWeek; units: number }[] {
+  const deliveryDays = orderDeliveryDays({ frequencyKey, includeSaturday: false, includeSunday: false });
+  const trips = planWeek(deliveryDays, eatingDays);
+  if (!trips?.length) throw new Error(`No delivery trips for ${frequencyKey} with eating days ${eatingDays.join("/")}`);
+  return trips;
 }
 
 export function buildBoundedDeliveryRows(input: {
   startDate: string;
-  deliveryDays: DayOfWeek[];
+  trips: { day: DayOfWeek; units: number }[];
   persons: number;
   targetTiffinCount: number;
 }): { deliveryDate: string; tiffinUnits: number }[] {
-  const minUnitsPerWeek = input.deliveryDays.filter((d) => !WEEKEND.has(d)).length * input.persons;
-  const weeksNeeded = Math.ceil(input.targetTiffinCount / Math.max(1, minUnitsPerWeek)) + 3;
+  const unitsByDay = new Map(input.trips.map((t) => [t.day, t.units * input.persons]));
+  const perWeek = [...unitsByDay.values()].reduce((n, u) => n + u, 0);
+  const weeksNeeded = Math.ceil(input.targetTiffinCount / Math.max(1, perWeek)) + 3;
 
   const dates = subscriptionDeliveryDates({
     startDate: input.startDate,
     durationWeeks: weeksNeeded,
-    deliveryDays: input.deliveryDays,
+    deliveryDays: input.trips.map((t) => t.day),
   });
 
   type Row = { deliveryDate: string; tiffinUnits: number };
-  const rows: Row[] = [];
-  const rowByDate = new Map<string, Row>();
-  for (const d of dates) {
-    if (d.dayOfWeek === "sat" || d.dayOfWeek === "sun") {
-      const fridayIso = isoDaysBefore(d.dateIso, d.dayOfWeek === "sat" ? 1 : 2);
-      const friday = rowByDate.get(fridayIso);
-      if (friday) {
-        friday.tiffinUnits += input.persons;
-        continue;
-      }
-    }
-    const newRow: Row = { deliveryDate: d.dateIso, tiffinUnits: input.persons };
-    rows.push(newRow);
-    rowByDate.set(d.dateIso, newRow);
-  }
+  const rows: Row[] = dates.map((d) => ({ deliveryDate: d.dateIso, tiffinUnits: unitsByDay.get(d.dayOfWeek)! }));
 
   // Truncate at the row that first reaches the target. A bundled Friday
   // (base + weekend add-on, >1 tiffinUnits) can land exactly on that
@@ -380,15 +369,9 @@ export async function planMigration(): Promise<{ results: PlanResult[]; totalRaw
     try {
       const { mealSize, isCustomFallback } = matchMealSize(record.productText, record.planKey, snapshot.mealSizes);
       const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
-      const deliveryDays = orderDeliveryDays({
-        frequencyKey: record.frequencyKey,
-        weekdays: record.weekdays,
-        includeSaturday: record.includeSaturday,
-        includeSunday: record.includeSunday,
-      });
       const rows = buildBoundedDeliveryRows({
         startDate,
-        deliveryDays,
+        trips: tripsFor(record.frequencyKey, record.eatingDays),
         persons: record.persons,
         targetTiffinCount: record.tiffinCount,
       });
@@ -472,8 +455,6 @@ async function applyOne(record: MigrationRecord, mealSize: CatalogMealSize): Pro
     return { ok: false, reason: "already migrated (idempotent skip)" };
   }
 
-  if (record.weekdays) await ensureCustomFrequencyRow(record.weekdays);
-
   const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
   const { publicId } = await createOrder({
     planKey: record.planKey,
@@ -502,21 +483,15 @@ async function applyOne(record: MigrationRecord, mealSize: CatalogMealSize): Pro
   if (!order) throw new Error(`order ${publicId} vanished after createOrder`);
 
   const { timezone, cutoffHour } = await getAppSettings();
-  const deliveryDays = orderDeliveryDays({
-    frequencyKey: record.frequencyKey,
-    weekdays: record.weekdays,
-    includeSaturday: record.includeSaturday,
-    includeSunday: record.includeSunday,
-  });
   const rows = buildBoundedDeliveryRows({
     startDate,
-    deliveryDays,
+    trips: tripsFor(record.frequencyKey, record.eatingDays),
     persons: record.persons,
     targetTiffinCount: record.tiffinCount,
   });
 
   await db.transaction(async (tx) => {
-    await tx.update(orders).set({ status: "active", tiffinCount: record.tiffinCount }).where(eq(orders.id, order.id));
+    await tx.update(orders).set({ status: "active", tiffinCount: record.tiffinCount, eatingDays: record.eatingDays }).where(eq(orders.id, order.id));
     // createOrder already materialized its own default delivery calendar (durationWeeks: 1)
     // on insert above — replace it with the bounded schedule computed from the migrated
     // customer's real remaining balance, rather than colliding on deliveries_order_date_unique.

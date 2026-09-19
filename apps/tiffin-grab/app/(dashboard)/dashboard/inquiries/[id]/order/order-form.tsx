@@ -24,7 +24,7 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
-import { defaultEatingDays, eatingDaysError, resizeEatingDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { defaultEatingDays, eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
 import { ScheduleSection } from "./schedule-section";
@@ -36,7 +36,7 @@ const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 1
 type Catalog = {
   plans: { key: string; name: string }[];
   mealSizes: { id: string; name: string; diet: string }[];
-  frequencies: { key: string; name: string; weekdays?: string[] | null }[];
+  frequencies: { key: string; name: string; weekdays?: string[] | null; courierDiscountPct?: number }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];
@@ -116,10 +116,12 @@ export function OrderForm({
   const email = form.watch("email");
 
   const deliveryFrequencies = catalog.frequencies.filter((f) => f.weekdays?.length);
-  const bounds = { min: catalog.minTiffinsPerWeek ?? 2, max: catalog.maxTiffinsPerWeek ?? 7 };
+  const bounds = { min: catalog.minTiffinsPerWeek ?? 3, max: catalog.maxTiffinsPerWeek ?? 7 };
   const deliveryDays = (deliveryFrequencies.find((f) => f.key === frequencyKey)?.weekdays ?? []) as DayOfWeek[];
   const toggleEating = (d: DayOfWeek) => {
-    const next = eatingDays.includes(d) ? eatingDays.filter((x) => x !== d) : eatingDays.length < bounds.max ? [...eatingDays, d] : eatingDays;
+    const next = eatingDays.includes(d)
+      ? (eatingDays.length > bounds.min ? eatingDays.filter((x) => x !== d) : eatingDays)
+      : eatingDays.length < bounds.max ? [...eatingDays, d] : eatingDays;
     form.setValue("eatingDays", (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).filter((x) => next.includes(x)), { shouldDirty: true, shouldValidate: true });
   };
 
@@ -351,7 +353,7 @@ export function OrderForm({
 
           <fieldset disabled={submitting}>
             <ScheduleSection
-              frequencies={deliveryFrequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays as DayOfWeek[] }))}
+              frequencies={deliveryFrequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays as DayOfWeek[], courierDiscountPct: f.courierDiscountPct }))}
               frequencyKey={frequencyKey}
               onFrequencyChange={(key) => {
                 // Only follow the new frequency while eating days are still the previous one's default.
@@ -363,7 +365,6 @@ export function OrderForm({
               }}
               eatingDays={eatingDays}
               onToggleDay={toggleEating}
-              onCountChange={(n) => form.setValue("eatingDays", resizeEatingDays(deliveryDays, eatingDays, n), { shouldDirty: true, shouldValidate: true })}
               bounds={bounds}
             />
           </fieldset>

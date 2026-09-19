@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
-import { defaultEatingDays, planWeek, resizeEatingDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { defaultEatingDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -45,14 +45,15 @@ export function StepSchedule({
   }, [row, frequencies.length]);
 
   const toggle = (day: DayOfWeek) => {
-    if (eating.includes(day)) setEating(eating.filter((d) => d !== day));
-    else if (eating.length < bounds.max) setEating([...eating, day]);
+    if (eating.includes(day)) {
+      if (eating.length > bounds.min) setEating(eating.filter((d) => d !== day));
+    } else if (eating.length < bounds.max) setEating([...eating, day]);
   };
 
   const trips = row ? planWeek(deliveryDays, eating) : null;
   const error = row && eating.length >= bounds.min ? scheduleError(catalog, selections) : null;
   const atMax = eating.length >= bounds.max;
-  const counts = Array.from({ length: Math.max(0, bounds.max - bounds.min + 1) }, (_, i) => bounds.min + i);
+  const atMin = eating.length <= bounds.min;
   const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
 
   return (
@@ -64,8 +65,30 @@ export function StepSchedule({
         </CurrentPlanHint>
       ) : null}
 
+      <section aria-labelledby="sched-eating">
+        <h2 id="sched-eating" className={H}>Which days do you eat?</h2>
+        <div className="mt-3 flex gap-1.5 sm:gap-2">
+          {WEEK_DAYS.map((day) => {
+            const on = eating.includes(day);
+            return (
+              <button key={day} type="button" aria-pressed={on} disabled={on ? atMin : atMax} onClick={() => toggle(day)} className={pill(on)}>
+                {LABEL[day]}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-4 flex items-baseline justify-between gap-3" aria-live="polite">
+          <span className="leading-none">
+            <span className="text-primary text-[28px] font-bold tracking-[-0.03em] tabular-nums">{eating.length}</span>
+            <span className="text-muted-foreground ml-1 text-sm font-medium">{eating.length === 1 ? "tiffin" : "tiffins"} a week</span>
+          </span>
+          <span className={`text-[13px] ${eating.length < bounds.min ? "text-destructive font-medium" : "text-muted-foreground"}`}>Pick {bounds.min} to {bounds.max} days</span>
+        </p>
+        {error ? <p role="alert" className="text-destructive mt-2 text-sm text-pretty">{error}</p> : null}
+      </section>
+
       <section aria-labelledby="sched-delivery">
-        <h2 id="sched-delivery" className={H}>How often should we deliver?</h2>
+        <h2 id="sched-delivery" className={H}>How should we deliver?</h2>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {frequencies.map((f) => {
             const active = f.key === selections.frequencyKey;
@@ -85,6 +108,7 @@ export function StepSchedule({
                 <span>
                   <span className="block text-[28px] leading-none font-bold tracking-[-0.03em]">{f.weekdays?.length} days</span>
                   <span className="sr-only">{f.name}</span>
+                  {f.courierDiscountPct > 0 && <span aria-label={`Save ${f.courierDiscountPct}%`} className="mt-2 inline-block rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">{f.courierDiscountPct}% off</span>}
                 </span>
                 <span className="flex flex-wrap gap-1.5">
                   {(f.weekdays as DayOfWeek[]).map((d) => (
@@ -97,33 +121,6 @@ export function StepSchedule({
         </div>
       </section>
 
-      <section aria-labelledby="sched-count">
-        <h2 id="sched-count" className={H}>How many tiffins a week?</h2>
-        <div role="radiogroup" aria-labelledby="sched-count" className="mt-3 flex gap-1.5 sm:gap-2">
-          {counts.map((n) => (
-            <button key={n} type="button" role="radio" aria-checked={n === eating.length} onClick={() => setEating(resizeEatingDays(deliveryDays, eating, n))} className={pill(n === eating.length)}>
-              {n}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section aria-labelledby="sched-eating">
-        <h2 id="sched-eating" className={H}>Which days do you eat?</h2>
-        <div className="mt-3 flex gap-1.5 sm:gap-2">
-          {WEEK_DAYS.map((day) => {
-            const on = eating.includes(day);
-            return (
-              <button key={day} type="button" aria-pressed={on} disabled={!on && atMax} onClick={() => toggle(day)} className={pill(on)}>
-                {LABEL[day]}
-              </button>
-            );
-          })}
-        </div>
-        <p className={`mt-2 text-[13px] ${eating.length < bounds.min ? "text-destructive font-medium" : "text-muted-foreground"}`}>Pick {bounds.min} to {bounds.max} days.</p>
-        {error ? <p role="alert" className="text-destructive mt-2 text-sm text-pretty">{error}</p> : null}
-      </section>
-
       <section aria-labelledby="sched-preview" className="bg-card border-border rounded-[20px] border p-5">
         <div className="flex items-end justify-between gap-3">
           <h2 id="sched-preview" className={H}>How your tiffins arrive</h2>
@@ -133,8 +130,12 @@ export function StepSchedule({
           </p>
         </div>
         {trips ? (
-          <ul aria-label="Delivery preview" className="mt-4 divide-y">
-            <AnimatePresence initial={false}>
+          <ul
+            aria-label="Delivery preview"
+            className="mt-4 grid grid-cols-2 gap-3 sm:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]"
+            style={{ "--cols": Math.max(1, trips.length) } as React.CSSProperties}
+          >
+            <AnimatePresence initial={false} mode="popLayout">
               {trips.map((t) => (
                 <motion.li
                   key={t.day}
@@ -143,14 +144,14 @@ export function StepSchedule({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: reduce ? 0 : -8 }}
                   transition={spring}
-                  className="flex items-center gap-4 py-3"
+                  className="bg-muted/50 border-border flex min-h-[104px] min-w-0 flex-col gap-2 rounded-2xl border p-3.5"
                 >
-                  <span className="bg-primary/10 text-primary flex size-12 shrink-0 items-center justify-center rounded-2xl text-[15px] font-bold">{LABEL[t.day]}</span>
-                  <span>
-                    <span className="block text-[17px] font-semibold tracking-[-0.022em]">{plural(t.units, "tiffin", "tiffins")}</span>
-                    <span className="text-muted-foreground block text-[13px]">
-                      for {eating.filter((e) => planWeek(deliveryDays, [e])?.[0]?.day === t.day).map((e) => LABEL[e]).join(", ")}
-                    </span>
+                  <span className="text-[22px] leading-none font-bold tracking-[-0.03em]">{LABEL[t.day]}</span>
+                  <span className="text-primary text-[15px] font-semibold">{plural(t.units, "tiffin", "tiffins")}</span>
+                  <span className="mt-auto flex flex-wrap gap-1">
+                    {t.days.map((e) => (
+                      <span key={e} className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[11px] font-semibold">{LABEL[e]}</span>
+                    ))}
                   </span>
                 </motion.li>
               ))}

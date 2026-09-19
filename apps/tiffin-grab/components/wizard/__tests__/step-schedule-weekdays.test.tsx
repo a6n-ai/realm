@@ -23,6 +23,18 @@ const sel = (eatingDays: string[], frequencyKey = "mwf"): WizardSelections => ({
 const pill = (label: string) => screen.getByRole("button", { name: label }) as HTMLButtonElement;
 
 describe("StepSchedule", () => {
+  it("shows the live tiffin count next to the day pills (no separate count list)", () => {
+    render(<StepSchedule catalog={catalog} selections={sel(["mon", "wed", "fri"])} set={vi.fn()} />);
+    expect(screen.queryByText("How many tiffins a week?")).toBeNull();
+    expect(screen.getAllByText("tiffins a week").length).toBeGreaterThan(0);
+  });
+
+  it("shows a savings pill only for discounted frequencies", () => {
+    const c = { ...catalog, frequencies: [{ ...freq("mwf", ["mon", "wed", "fri"]), courierDiscountPct: 10 }, freq("5_day", ["mon", "tue", "wed", "thu", "fri"])] } as unknown as ClientCatalogSnapshot;
+    render(<StepSchedule catalog={c} selections={sel(["mon", "tue"])} set={vi.fn()} />);
+    expect(screen.getAllByLabelText("Save 10%")).toHaveLength(1);
+  });
+
   it("offers only frequencies with delivery days", () => {
     render(<StepSchedule catalog={catalog} selections={sel(["mon", "tue"])} set={vi.fn()} />);
     expect(screen.queryByText("legacy")).toBeNull();
@@ -45,8 +57,8 @@ describe("StepSchedule", () => {
   it("previews trips on the carrying delivery day", () => {
     render(<StepSchedule catalog={catalog} selections={sel(["mon", "tue", "thu"])} set={vi.fn()} />);
     const rows = screen.getAllByRole("listitem").map((r) => r.textContent);
-    expect(rows).toContain("Mon2 tiffinsfor Mon, Tue");
-    expect(rows).toContain("Wed1 tiffinfor Thu");
+    expect(rows).toContain("Mon2 tiffinsMonTue");
+    expect(rows).toContain("Wed1 tiffinThu");
   });
 
   it("errors and blocks below min", () => {
@@ -73,15 +85,5 @@ describe("StepSchedule", () => {
     render(<StepSchedule catalog={catalog} selections={sel(["tue", "thu"])} set={set} />);
     fireEvent.click(screen.getByText("5_day"));
     expect(set).not.toHaveBeenCalledWith(expect.objectContaining({ eatingDays: expect.anything() }));
-  });
-
-  it("count control lists min..max and resizes the days", () => {
-    const set = vi.fn();
-    render(<StepSchedule catalog={catalog} selections={sel(["mon", "wed", "fri"])} set={set} />);
-    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(["2", "3", "4", "5"]);
-    fireEvent.click(screen.getByRole("radio", { name: "2" }));
-    expect(set).toHaveBeenCalledWith({ eatingDays: ["mon", "wed"], includeSaturday: false, includeSunday: false });
-    fireEvent.click(screen.getByRole("radio", { name: "4" }));
-    expect(set).toHaveBeenCalledWith({ eatingDays: ["mon", "tue", "wed", "fri"], includeSaturday: false, includeSunday: false });
   });
 });

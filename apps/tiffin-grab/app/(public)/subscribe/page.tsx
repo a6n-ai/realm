@@ -36,7 +36,7 @@ export default async function SubscribePage() {
   const [catalog, coupons] = await Promise.all([loadCatalogSnapshot(orgId), couponsService.listAvailable()]);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-4 sm:py-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-4 sm:py-10">
       <header className="space-y-1 pb-2">
         <h1 className="text-2xl font-bold tracking-[-0.03em] text-balance sm:text-4xl">
           Build your <span className="text-primary italic">tiffin.</span>

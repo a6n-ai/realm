@@ -10,6 +10,7 @@ export interface FieldDef {
   optionsSource?: "weekdays" | "categories" | "plans" | "addon-categories";
   optionLabels?: Record<string, string>;
   unit?: string;
+  help?: string;
   optional?: boolean;
   readOnlyOnEdit?: boolean;
   // Edited in the dialog but kept out of the list table to keep it scannable.
@@ -267,6 +268,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
       { key: "weekdays", label: "Delivery days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
+      { key: "courierDiscountPct", label: "Discount", type: "number", unit: "%", optional: true, help: "Shown on the delivery card and taken off the tiffin subtotal for new orders" },
     ],
   },
   "duration-packages": {

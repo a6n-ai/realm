@@ -16,7 +16,7 @@ export default async function CheckoutPage() {
   const prefill = userId != null ? ((await getContactOnFile(userId)) ?? undefined) : undefined;
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-4 sm:py-10">
+    <main className="mx-auto w-full max-w-4xl px-4 py-4 sm:py-10">
       <Checkout defaultCountry={defaultCountry} closeHref={closeHref} prefill={prefill} />
     </main>
   );

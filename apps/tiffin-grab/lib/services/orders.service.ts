@@ -31,7 +31,6 @@ import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
-import { ensureCustomFrequencyRow } from "./delivery-frequencies.service";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { reservedEndDatesExclusive } from "./order-window";
@@ -203,7 +202,7 @@ export async function createOrder(
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string }> {
   const { actorId = null, ownerUserId = null, orgId = null } = opts;
-  let snapshot = await loadCatalogSnapshot(orgId);
+  const snapshot = await loadCatalogSnapshot(orgId);
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
@@ -219,17 +218,8 @@ export async function createOrder(
   const mealSlots = Object.keys(categoryCounts);
   if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
   validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
-  let frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
-  if (!frequency) {
-    // Not one of the two built-in shapes or an existing admin cadence — must be
-    // a customer-picked custom weekday set. Upsert its catalog row, then reload
-    // (buildPricingCatalog/orderDeliveryDays both read off the full snapshot).
-    if (!input.selections.customWeekdays?.length) throw new ValidationError("Invalid delivery frequency");
-    await ensureCustomFrequencyRow(input.selections.customWeekdays);
-    snapshot = await loadCatalogSnapshot(orgId);
-    frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
-    if (!frequency) throw new ValidationError("Invalid delivery frequency");
-  }
+  const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
+  if (!frequency) throw new ValidationError("Invalid delivery frequency");
   if (input.selections.eatingDays) {
     const { minTiffinsPerWeek, maxTiffinsPerWeek } = await getAppSettings();
     const err = eatingDaysError(

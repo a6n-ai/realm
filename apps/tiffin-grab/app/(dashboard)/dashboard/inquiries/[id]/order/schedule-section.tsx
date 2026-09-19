@@ -10,6 +10,7 @@ export interface ScheduleFrequency {
   key: string;
   name: string;
   weekdays: DayOfWeek[];
+  courierDiscountPct?: number;
 }
 
 interface Props {
@@ -18,13 +19,12 @@ interface Props {
   onFrequencyChange: (key: string) => void;
   eatingDays: DayOfWeek[];
   onToggleDay: (day: DayOfWeek) => void;
-  onCountChange: (n: number) => void;
   bounds: { min: number; max: number };
 }
 
 const press = "transition-[transform,opacity] duration-150 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100";
 
-export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, eatingDays, onToggleDay, onCountChange, bounds }: Props) {
+export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, eatingDays, onToggleDay, bounds }: Props) {
   const deliveryDays = frequencies.find((f) => f.key === frequencyKey)?.weekdays ?? [];
   const enough = eatingDays.length >= bounds.min;
   const error = enough ? eatingDaysError(deliveryDays, eatingDays, bounds) : null;
@@ -46,7 +46,7 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
                 onClick={() => onFrequencyChange(f.key)}
                 className={cn("min-h-[44px] rounded-lg border p-3 text-left", press, on ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-input bg-background hover:bg-muted/50")}
               >
-                <span className="block text-sm font-medium text-foreground">{f.name}</span>
+                <span className="flex items-center justify-between gap-2 text-sm font-medium text-foreground">{f.name}{!!f.courierDiscountPct && <span aria-label={`Save ${f.courierDiscountPct}%`} className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">{f.courierDiscountPct}% off</span>}</span>
                 <span className="mt-1.5 flex flex-wrap gap-1">
                   {f.weekdays.map((d) => (
                     <span key={d} className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{label(d)}</span>
@@ -55,24 +55,6 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
               </button>
             );
           })}
-        </div>
-      </div>
-
-      <div role="radiogroup" aria-label="Tiffins a week" className="space-y-2">
-        <p className="text-sm font-medium text-foreground">How many tiffins a week? <span className="text-destructive">*</span></p>
-        <div className="flex gap-1.5">
-          {Array.from({ length: Math.max(0, bounds.max - bounds.min + 1) }, (_, i) => bounds.min + i).map((n) => (
-            <button
-              key={n}
-              type="button"
-              role="radio"
-              aria-checked={n === eatingDays.length}
-              onClick={() => onCountChange(n)}
-              className={cn("min-h-[44px] min-w-0 flex-1 rounded-lg border text-sm font-medium", press, n === eatingDays.length ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background text-foreground hover:bg-muted/50")}
-            >
-              {n}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -86,7 +68,7 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
                 key={d}
                 type="button"
                 aria-pressed={on}
-                disabled={!on && eatingDays.length >= bounds.max}
+                disabled={on ? eatingDays.length <= bounds.min : eatingDays.length >= bounds.max}
                 onClick={() => onToggleDay(d)}
                 className={cn("min-h-[44px] min-w-0 rounded-lg border text-sm font-medium disabled:opacity-40", press, on ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background text-foreground hover:bg-muted/50")}
               >

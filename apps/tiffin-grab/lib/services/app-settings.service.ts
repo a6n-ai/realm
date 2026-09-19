@@ -17,7 +17,7 @@ import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
 import type { LeadAssignmentConfig } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 
-const DEFAULTS = { timezone: "America/Toronto", cutoffHour: 18, currency: "INR", minTiffinsPerWeek: 2, maxTiffinsPerWeek: 7 } as const;
+const DEFAULTS = { timezone: "America/Toronto", cutoffHour: 18, currency: "INR", minTiffinsPerWeek: 3, maxTiffinsPerWeek: 7 } as const;
 const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "creator", perSource: {}, cursor: {} };
 // Default discount governance: every kind honored, rep daily allowance OFF until
 // an admin opts in and sets ceilings. Mirrors the leadAssignment default shape.

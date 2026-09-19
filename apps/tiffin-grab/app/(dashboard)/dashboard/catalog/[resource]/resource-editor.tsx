@@ -235,6 +235,7 @@ function FieldControl({
             {f.label}
             {f.optional ? <span className="text-muted-foreground font-normal"> optional</span> : null}
           </FormLabel>
+          {f.help ? <p className="text-muted-foreground text-xs">{f.help}</p> : null}
           {f.type === "select" ? (
             <Select value={(field.value as string) ?? ""} onValueChange={field.onChange}>
               <FormControl><SelectTrigger><SelectValue placeholder={`Select ${f.label.toLowerCase()}`} /></SelectTrigger></FormControl>
