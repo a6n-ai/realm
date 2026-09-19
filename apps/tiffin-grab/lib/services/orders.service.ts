@@ -47,6 +47,7 @@ import {
   reverseCoinAward,
 } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
+import { eatingDaysError, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "./app-settings.service";
 
 const log = createLogger("orders.service");
@@ -228,6 +229,15 @@ export async function createOrder(
     snapshot = await loadCatalogSnapshot(orgId);
     frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
     if (!frequency) throw new ValidationError("Invalid delivery frequency");
+  }
+  if (input.selections.eatingDays) {
+    const { minTiffinsPerWeek, maxTiffinsPerWeek } = await getAppSettings();
+    const err = eatingDaysError(
+      orderDeliveryDays({ frequencyKey: frequency.key, weekdays: frequency.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false }),
+      input.selections.eatingDays,
+      { min: minTiffinsPerWeek, max: maxTiffinsPerWeek },
+    );
+    if (err) throw new ValidationError(err);
   }
   const pricingCatalog = buildPricingCatalog(snapshot, input.selections);
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
@@ -507,8 +517,10 @@ export async function createOrder(
         persons: input.selections.persons,
         mealSlots,
         categoryCounts,
-        includeSaturday: input.selections.includeSaturday,
-        includeSunday: input.selections.includeSunday,
+        eatingDays: input.selections.eatingDays ?? null,
+        // Legacy readers (meal grids, posters) still key off these flags, so mirror the eating days.
+        includeSaturday: input.selections.eatingDays ? input.selections.eatingDays.includes("sat") : input.selections.includeSaturday,
+        includeSunday: input.selections.eatingDays ? input.selections.eatingDays.includes("sun") : input.selections.includeSunday,
         durationWeeks: input.selections.durationWeeks,
         startDate: input.selections.startDate,
         tiffinCount: pricing.tiffinCount,
@@ -1450,6 +1462,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const selections: PricingSelections = {
       mealSizeId: mealSize.publicId,
       frequencyKey: freqRow.key,
+      eatingDays: (order.eatingDays as DayOfWeek[] | null) ?? undefined,
       persons: order.persons,
       mealSlots,
       includeSaturday: order.includeSaturday,

@@ -302,12 +302,12 @@ UPDATE meal_sizes ms SET components = COALESCE((
 ), '[]'::json)::jsonb;
 
 -- ============ DELIVERY FREQUENCIES ============
-INSERT INTO delivery_frequencies (public_id, created_at, updated_at, key, name, days_per_week, courier_discount_pct)
+INSERT INTO delivery_frequencies (public_id, created_at, updated_at, key, name, days_per_week, courier_discount_pct, weekdays)
 VALUES ('frq_5_day', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, '5_day',
-        '5 Days/Wk (Mon–Fri)', 5, 0),
+        '5 Days/Wk (Mon–Fri)', 5, 0, ARRAY['mon','tue','wed','thu','fri']),
        ('frq_mwf', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'mwf',
-        '3 Days/Wk Alternate (MWF)', 3, 10)
-ON CONFLICT (key) DO NOTHING;
+        '3 Days/Wk Alternate (MWF)', 3, 10, ARRAY['mon','wed','fri'])
+ON CONFLICT (key) DO UPDATE SET weekdays = EXCLUDED.weekdays;
 
 -- ============ DURATION PACKAGES ============
 INSERT INTO duration_packages (public_id, created_at, updated_at, weeks, discount_pct)

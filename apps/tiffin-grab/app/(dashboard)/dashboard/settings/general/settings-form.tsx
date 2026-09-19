@@ -42,10 +42,11 @@ function toNullableInt(v: string): number | null {
 
 export function SettingsForm({
   timezone, cutoffHour, currency, defaultCountry, autoCountry,
-  defaultMaxPauses, defaultMaxPauseDaysTotal, defaultMaxPauseStretchDays,
+  defaultMaxPauses, defaultMaxPauseDaysTotal, defaultMaxPauseStretchDays, minTiffinsPerWeek, maxTiffinsPerWeek,
 }: {
   timezone: string; cutoffHour: number; currency: string; defaultCountry: string | null; autoCountry: string;
   defaultMaxPauses: number | null; defaultMaxPauseDaysTotal: number | null; defaultMaxPauseStretchDays: number | null;
+  minTiffinsPerWeek: number; maxTiffinsPerWeek: number;
 }) {
   const router = useRouter();
   const [tz, setTz] = useState(timezone);
@@ -55,6 +56,8 @@ export function SettingsForm({
   const [maxPauses, setMaxPauses] = useState(defaultMaxPauses == null ? "" : String(defaultMaxPauses));
   const [maxPauseDaysTotal, setMaxPauseDaysTotal] = useState(defaultMaxPauseDaysTotal == null ? "" : String(defaultMaxPauseDaysTotal));
   const [maxPauseStretchDays, setMaxPauseStretchDays] = useState(defaultMaxPauseStretchDays == null ? "" : String(defaultMaxPauseStretchDays));
+  const [minTpw, setMinTpw] = useState(String(minTiffinsPerWeek));
+  const [maxTpw, setMaxTpw] = useState(String(maxTiffinsPerWeek));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -75,6 +78,8 @@ export function SettingsForm({
           defaultMaxPauses: toNullableInt(maxPauses),
           defaultMaxPauseDaysTotal: toNullableInt(maxPauseDaysTotal),
           defaultMaxPauseStretchDays: toNullableInt(maxPauseStretchDays),
+          minTiffinsPerWeek: parseInt(minTpw, 10),
+          maxTiffinsPerWeek: parseInt(maxTpw, 10),
         });
         router.refresh();
       } catch (e) {
@@ -132,6 +137,16 @@ export function SettingsForm({
         <Label>{PAUSE_FIELDS[2].label}</Label>
         <Input type="number" min={0} step={1} value={maxPauseStretchDays} onChange={(e) => setMaxPauseStretchDays(e.target.value)} placeholder="Unlimited" />
         <p className="text-muted-foreground mt-1 text-xs">{PAUSE_FIELDS[2].hint}</p>
+      </div>
+      <div>
+        <Label>Min tiffins per week</Label>
+        <Input type="number" min={1} max={7} step={1} value={minTpw} onChange={(e) => setMinTpw(e.target.value)} />
+        <p className="text-muted-foreground mt-1 text-xs">Fewest eating days a customer can pick per week (1–7).</p>
+      </div>
+      <div>
+        <Label>Max tiffins per week</Label>
+        <Input type="number" min={1} max={7} step={1} value={maxTpw} onChange={(e) => setMaxTpw(e.target.value)} />
+        <p className="text-muted-foreground mt-1 text-xs">Most eating days a customer can pick per week (1–7).</p>
       </div>
       <Button onClick={save} disabled={pending} className="w-fit">Save</Button>
     </div>

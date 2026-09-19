@@ -13,7 +13,6 @@ import {
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { Switch } from "@foundry/ui/switch";
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
@@ -25,6 +24,7 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
+import { eatingDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
 import { PostalCombobox } from "../../../_leads/postal-combobox";
@@ -35,7 +35,9 @@ const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 1
 type Catalog = {
   plans: { key: string; name: string }[];
   mealSizes: { id: string; name: string; diet: string }[];
-  frequencies: { key: string; name: string }[];
+  frequencies: { key: string; name: string; weekdays?: string[] | null }[];
+  minTiffinsPerWeek?: number;
+  maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];
 };
 
@@ -80,7 +82,8 @@ export function OrderForm({
     defaultValues: {
       planKey: "",
       mealSizeId: "",
-      frequencyKey: "5_day",
+      frequencyKey: catalog.frequencies.find((f) => f.weekdays?.length)?.key ?? "",
+      eatingDays: ["mon", "tue", "wed", "thu", "fri"].slice(0, catalog.maxTiffinsPerWeek ?? 7) as DayOfWeek[],
       persons: 1,
       mealSlots: defaultSlots,
       includeSaturday: false,
@@ -101,16 +104,25 @@ export function OrderForm({
   const planKey = form.watch("planKey");
   const mealSizeId = form.watch("mealSizeId");
   const frequencyKey = form.watch("frequencyKey");
+  const eatingDays = form.watch("eatingDays") as DayOfWeek[];
   const persons = form.watch("persons");
   const mealSlots = form.watch("mealSlots");
-  const includeSaturday = form.watch("includeSaturday");
-  const includeSunday = form.watch("includeSunday");
   const durationWeeks = form.watch("durationWeeks");
   const startDate = form.watch("startDate");
   const addressLine = form.watch("addressLine");
   const city = form.watch("city");
   const postalCode = form.watch("postalCode");
   const email = form.watch("email");
+
+  const deliveryFrequencies = catalog.frequencies.filter((f) => f.weekdays?.length);
+  const bounds = { min: catalog.minTiffinsPerWeek ?? 2, max: catalog.maxTiffinsPerWeek ?? 7 };
+  const deliveryDays = (deliveryFrequencies.find((f) => f.key === frequencyKey)?.weekdays ?? []) as DayOfWeek[];
+  const eatingError = eatingDays.length >= bounds.min ? eatingDaysError(deliveryDays, eatingDays, bounds) : null;
+  const trips = planWeek(deliveryDays, eatingDays);
+  const toggleEating = (d: DayOfWeek) => {
+    const next = eatingDays.includes(d) ? eatingDays.filter((x) => x !== d) : eatingDays.length < bounds.max ? [...eatingDays, d] : eatingDays;
+    form.setValue("eatingDays", (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).filter((x) => next.includes(x)), { shouldDirty: true, shouldValidate: true });
+  };
 
   const mealsForPlan = catalog.mealSizes.filter((m) => !planKey || m.diet === planKey);
   const realPayments = paymentMethods.length > 0;
@@ -144,10 +156,11 @@ export function OrderForm({
     selections: {
       mealSizeId: v.mealSizeId,
       frequencyKey: v.frequencyKey,
+      eatingDays: v.eatingDays,
       persons: v.persons,
       mealSlots: v.mealSlots,
-      includeSaturday: v.includeSaturday,
-      includeSunday: v.includeSunday,
+      includeSaturday: v.eatingDays.includes("sat"),
+      includeSunday: v.eatingDays.includes("sun"),
       durationWeeks: v.durationWeeks,
       startDate: v.startDate,
     },
@@ -185,10 +198,11 @@ export function OrderForm({
         planKey,
         mealSizeId,
         frequencyKey,
+        eatingDays,
         persons: Number(persons),
         mealSlots,
-        includeSaturday,
-        includeSunday,
+        includeSaturday: eatingDays.includes("sat"),
+        includeSunday: eatingDays.includes("sun"),
         durationWeeks: Number(durationWeeks),
         startDate,
         email: email ?? "",
@@ -207,7 +221,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -216,6 +230,11 @@ export function OrderForm({
 
   const onSubmit = form.handleSubmit(async (v) => {
     setError(null);
+    const err = eatingDaysError(deliveryDays, v.eatingDays, bounds);
+    if (err) {
+      setError(err);
+      return;
+    }
     if (realPayments && !paymentMethodId) {
       setError("Choose a payment method");
       return;
@@ -298,9 +317,9 @@ export function OrderForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Frequency <span className="text-destructive">*</span></FormLabel>
-                    <Select value={field.value} onValueChange={(v) => field.onChange(v as "5_day" | "mwf")}>
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>{catalog.frequencies.map((f) => <SelectItem key={f.key} value={f.key}>{f.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{deliveryFrequencies.map((f) => <SelectItem key={f.key} value={f.key}>{f.name} ({f.weekdays!.join(", ")})</SelectItem>)}</SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
@@ -345,12 +364,19 @@ export function OrderForm({
             </div>
           </fieldset>
 
-          <fieldset className="space-y-3" disabled={submitting}>
-            <legend className="text-sm font-medium text-foreground mb-1">Meal Options</legend>
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-sm"><Switch checked={includeSaturday} onCheckedChange={(c) => form.setValue("includeSaturday", c)} /> Saturday</label>
-              <label className="flex items-center gap-2 text-sm"><Switch checked={includeSunday} onCheckedChange={(c) => form.setValue("includeSunday", c)} /> Sunday</label>
+          <fieldset className="space-y-2" disabled={submitting}>
+            <legend className="text-sm font-medium text-foreground mb-1">Eating days <span className="text-destructive">*</span></legend>
+            <div className="flex flex-wrap gap-2">
+              {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((d) => {
+                const on = eatingDays.includes(d);
+                return (
+                  <Button key={d} type="button" size="sm" variant={on ? "default" : "outline"} aria-pressed={on} disabled={!on && eatingDays.length >= bounds.max} onClick={() => toggleEating(d)} className="capitalize">{d}</Button>
+                );
+              })}
             </div>
+            <p className="text-muted-foreground text-xs">{eatingDays.length} tiffins a week (pick {bounds.min}-{bounds.max})</p>
+            {eatingError || eatingDays.length < bounds.min ? <p role="alert" className="text-destructive text-xs">{eatingError ?? `Pick between ${bounds.min} and ${bounds.max} eating days a week`}</p> : null}
+            {trips ? <p className="text-muted-foreground text-xs">{trips.map((t) => `${t.day}: ${t.units}`).join(" · ")}</p> : null}
           </fieldset>
 
           <fieldset className="space-y-3" disabled={submitting}>

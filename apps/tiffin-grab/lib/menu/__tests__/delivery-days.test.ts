@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clubbedQuantities, customFrequencyKey, orderDeliveryDays, type DayOfWeek } from "../delivery-days";
+import { clubbedQuantities, planWeek, customFrequencyKey, orderDeliveryDays, type DayOfWeek } from "../delivery-days";
 
 describe("orderDeliveryDays", () => {
   it("5_day → mon..fri", () => {
@@ -51,5 +51,38 @@ describe("clubbedQuantities", () => {
       const sum = Object.values(clubbedQuantities(p)).reduce((a, b) => a + b, 0);
       expect(sum).toBe(7);
     }
+  });
+});
+
+describe("planWeek", () => {
+  const MWF: DayOfWeek[] = ["mon", "wed", "fri"];
+  const FIVE: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
+  const ALL: DayOfWeek[] = [...FIVE, "sat", "sun"];
+  const trips = (d: DayOfWeek[], e: DayOfWeek[]) => planWeek(d, e)?.map((t) => `${t.day}:${t.units}`);
+
+  it("MWF carries eating days on the nearest earlier delivery", () => {
+    expect(trips(MWF, FIVE)).toEqual(["mon:2", "wed:2", "fri:1"]);
+    expect(trips(MWF, ["tue", "thu", "sat"])).toEqual(["mon:1", "wed:1", "fri:1"]);
+    expect(trips(MWF, ALL)).toEqual(["mon:2", "wed:2", "fri:3"]);
+  });
+  it("skips delivery days with nothing to carry", () => {
+    expect(trips(MWF, ["mon", "tue", "wed", "thu"])).toEqual(["mon:2", "wed:2"]);
+    expect(trips(MWF, ["sat", "sun"])).toEqual(["fri:2"]);
+  });
+  it("5-day carries weekends on Friday", () => {
+    expect(trips(FIVE, FIVE)).toEqual(["mon:1", "tue:1", "wed:1", "thu:1", "fri:1"]);
+    expect(trips(FIVE, ALL)).toEqual(["mon:1", "tue:1", "wed:1", "thu:1", "fri:3"]);
+    expect(trips(FIVE, ["mon", "wed", "sat"])).toEqual(["mon:1", "wed:1", "fri:1"]);
+  });
+  it("works for admin-defined 6/7-day delivery sets", () => {
+    expect(trips([...FIVE, "sat"], ALL)).toEqual(["mon:1", "tue:1", "wed:1", "thu:1", "fri:1", "sat:2"]);
+    expect(trips(ALL, ["mon", "wed", "fri"])).toEqual(["mon:1", "wed:1", "fri:1"]);
+  });
+  it("returns null when an eating day precedes the first delivery day", () => {
+    expect(planWeek(["tue", "wed", "thu", "fri", "sat"], ["mon"])).toBeNull();
+  });
+  it("conserves tiffins", () => {
+    const t = planWeek(MWF, ALL)!;
+    expect(t.reduce((n, x) => n + x.units, 0)).toBe(7);
   });
 });

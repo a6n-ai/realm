@@ -33,6 +33,10 @@ export const orders = pgTable("orders", {
   mealSlots: text("meal_slots").array().notNull().default(["lunch"]),
   // Snapshot of per-category counts from the chosen meal size at checkout (immutable).
   categoryCounts: jsonb("category_counts").$type<Record<string, number>>().notNull().default({}),
+  // Weekdays the customer eats ("mon".."sun", may include sat/sun). Null on orders
+  // created before delivery days and eating days were split — those still derive
+  // their days from the frequency row + include_saturday/include_sunday.
+  eatingDays: text("eating_days").array(),
   includeSaturday: boolean("include_saturday").notNull().default(false),
   includeSunday: boolean("include_sunday").notNull().default(false),
   durationWeeks: integer("duration_weeks").notNull(),

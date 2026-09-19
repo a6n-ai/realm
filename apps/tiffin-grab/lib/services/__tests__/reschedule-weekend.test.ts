@@ -29,13 +29,13 @@ afterEach(async () => {
   if (userIds.length) await db.delete(users).where(inArray(users.id, userIds));
 });
 
-async function makeOrder(includeWeekend: boolean) {
+async function makeOrder(includeWeekend: boolean, frequencyKey = "5_day") {
   const snap = await loadCatalogSnapshot();
   const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
       mealSizeId: snap.mealSizes[0].publicId,
-      frequencyKey: "5_day",
+      frequencyKey,
       persons: 1,
       mealSlots: ["lunch"],
       includeSaturday: includeWeekend,
@@ -91,5 +91,24 @@ describe("rescheduleDelivery rejects weekend targets", () => {
       .rejects.toThrow(WEEKEND_MESSAGE);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, delivery.id));
     expect(row.status).toBe("scheduled"); // untouched — rejected before any mutation
+  });
+});
+
+function farFutureIso(dow: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + 21);
+  while (d.getUTCDay() !== dow) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+describe("rescheduleDelivery for eatingDays orders", () => {
+  it("allows only the frequency's delivery days, never weekends", async () => {
+    const order = await makeOrder(false, "mwf");
+    await db.update(orders).set({ eatingDays: ["mon", "wed", "fri", "sat", "sun"] }).where(eq(orders.id, order.id));
+    const delivery = await firstDeliveryOf(order);
+    await expect(rescheduleDelivery(delivery.publicId, farFutureIso(2), null)).rejects.toThrow("That day isn't on your plan");
+    await expect(rescheduleDelivery(delivery.publicId, farFutureWeekendIso("sat"), null)).rejects.toThrow(WEEKEND_MESSAGE);
+    await expect(rescheduleDelivery(delivery.publicId, farFutureWeekendIso("sun"), null)).rejects.toThrow(WEEKEND_MESSAGE);
+    await expect(rescheduleDelivery(delivery.publicId, farFutureIso(3), null)).resolves.toBeUndefined();
   });
 });

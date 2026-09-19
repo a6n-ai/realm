@@ -13,6 +13,9 @@ export interface PricingSelections {
   // the same way customFrequencyKey() derives it, then resolves normally.
   // Omitted/undefined for every existing catalog frequencyKey.
   customWeekdays?: DayOfWeek[];
+  // Weekdays the customer eats. When set, tiffins/week = eatingDays.length and the
+  // frequency only decides delivery days; unset keeps the legacy frequency+weekend maths.
+  eatingDays?: DayOfWeek[];
   persons: number;
   mealSlots: string[];
   includeSaturday: boolean;

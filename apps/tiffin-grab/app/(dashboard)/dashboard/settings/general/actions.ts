@@ -16,6 +16,8 @@ export async function saveAppSettings(input: {
   defaultMaxPauses: number | null;
   defaultMaxPauseDaysTotal: number | null;
   defaultMaxPauseStretchDays: number | null;
+  minTiffinsPerWeek: number;
+  maxTiffinsPerWeek: number;
 }) {
   await requireAdmin();
   if (!input.timezone) throw new ValidationError("Timezone is required");
@@ -34,6 +36,9 @@ export async function saveAppSettings(input: {
     ["Default max pause stretch days", input.defaultMaxPauseStretchDays],
   ] as const) {
     if (v !== null && (!Number.isInteger(v) || v < 0)) throw new ValidationError(`${label} must be a non-negative integer or blank`);
+  }
+  if (![input.minTiffinsPerWeek, input.maxTiffinsPerWeek].every((n) => Number.isInteger(n) && n >= 1 && n <= 7) || input.minTiffinsPerWeek > input.maxTiffinsPerWeek) {
+    throw new ValidationError("Tiffins per week must be 1–7 and min cannot exceed max");
   }
   await setAppSettings(input as Parameters<typeof setAppSettings>[0]);
   revalidatePath("/dashboard/settings/general");

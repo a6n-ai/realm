@@ -35,6 +35,32 @@ export function clubbedQuantities(weekdays: DayOfWeek[]): Record<DayOfWeek, numb
   return result;
 }
 
+/** One week's delivery trips: every eating day rides the nearest delivery day at
+ * or before it, and delivery days with nothing to carry are dropped. Returns
+ * null when an eating day falls before the week's first delivery day (nothing
+ * earlier in the plan could carry it) — callers reject that selection. */
+export function planWeek(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[]): { day: DayOfWeek; units: number }[] | null {
+  const idx = (d: DayOfWeek) => WEEK_ORDER.indexOf(d);
+  const deliveries = [...deliveryDays].sort((a, b) => idx(a) - idx(b));
+  const units = new Map<DayOfWeek, number>();
+  for (const eat of eatingDays) {
+    const carrier = deliveries.filter((d) => idx(d) <= idx(eat)).pop();
+    if (!carrier) return null;
+    units.set(carrier, (units.get(carrier) ?? 0) + 1);
+  }
+  return deliveries.filter((d) => units.has(d)).map((day) => ({ day, units: units.get(day)! }));
+}
+
+/** Shared by the wizard and createOrder: null when the eating-day pick is valid for
+ * this delivery frequency, otherwise the message to show. */
+export function eatingDaysError(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[], bounds: { min: number; max: number }): string | null {
+  if (new Set(eatingDays).size !== eatingDays.length || eatingDays.some((d) => !WEEK_ORDER.includes(d))) return "Invalid eating days";
+  if (eatingDays.length < bounds.min || eatingDays.length > bounds.max) {
+    return `Pick between ${bounds.min} and ${bounds.max} eating days a week`;
+  }
+  return planWeek(deliveryDays, eatingDays) ? null : "An eating day falls before this plan's first delivery day";
+}
+
 export function orderDeliveryDays(o: {
   frequencyKey: string;
   weekdays?: DayOfWeek[] | null;

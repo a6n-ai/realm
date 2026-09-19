@@ -12,10 +12,11 @@ export function priceSubscription(
 ): PricingResult {
   assertValidTiers(catalog.tiers);
 
-  const deliveryDays =
-    catalog.frequency.daysPerWeek +
-    (selections.includeSaturday ? 1 : 0) +
-    (selections.includeSunday ? 1 : 0);
+  const deliveryDays = selections.eatingDays
+    ? selections.eatingDays.length
+    : catalog.frequency.daysPerWeek +
+      (selections.includeSaturday ? 1 : 0) +
+      (selections.includeSunday ? 1 : 0);
 
   // Slot-agnostic: one tiffin per delivery day per person, regardless of slot count.
   const tiffinCount = deliveryDays * selections.durationWeeks * selections.persons;
@@ -46,7 +47,7 @@ export function priceSubscription(
   // frequency, not a caller-supplied adjustment like a coupon, so it's
   // computed here rather than expected from every priceSubscription caller.
   const cadenceDiscount: PricingLine[] =
-    catalog.frequency.courierDiscountPct > 0
+    !selections.eatingDays && catalog.frequency.courierDiscountPct > 0
       ? [{ label: `Delivery schedule discount (${catalog.frequency.courierDiscountPct}%)`, amount: round2(tiffinSubtotal * (catalog.frequency.courierDiscountPct / 100)) }]
       : [];
   const allAdjustments = [...adjustments, ...cadenceDiscount];

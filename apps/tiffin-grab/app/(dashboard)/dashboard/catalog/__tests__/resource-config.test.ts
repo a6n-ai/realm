@@ -135,3 +135,10 @@ describe("rowToForm", () => {
     expect(out.description).toBe("");
   });
 });
+
+describe("delivery-frequencies derives daysPerWeek from weekdays", () => {
+  it("overrides a conflicting daysPerWeek", () => {
+    const out = RESOURCES["delivery-frequencies"].schema.parse({ key: "x", name: "X", daysPerWeek: "5", weekdays: ["mon", "wed", "fri"] }) as { daysPerWeek: number };
+    expect(out.daysPerWeek).toBe(3);
+  });
+});

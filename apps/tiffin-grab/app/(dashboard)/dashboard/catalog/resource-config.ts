@@ -111,14 +111,15 @@ const mealSizesSchema = z.object({
 
 const deliveryFrequenciesSchema = z.object({
   key, name,
-  daysPerWeek: reqNum(z.coerce.number().int().min(1).max(7)),
+  daysPerWeek: reqNum(z.coerce.number().int().min(1).max(7).optional()),
   courierDiscountPct: reqNum(z.coerce.number().int().min(0).max(100).default(0)),
   // Null for the two legacy hardcoded shapes (5_day/mwf) — orderDeliveryDays()
   // keeps its own fallback for those. Every other row needs this set so the
   // catalog is the single source of truth for which days it actually means.
   weekdays: z.array(z.enum(WEEKDAY_OPTIONS as [string, ...string[]])).nullable().optional(),
   active,
-});
+}).transform((v) => ({ ...v, daysPerWeek: v.weekdays?.length ? v.weekdays.length : v.daysPerWeek }))
+  .refine((v) => v.daysPerWeek != null, { message: "Pick at least one delivery day", path: ["weekdays"] });
 
 const durationPackagesSchema = z.object({
   weeks: reqNum(z.coerce.number().int().positive()),
@@ -261,13 +262,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
     ],
   },
   "delivery-frequencies": {
-    key: "delivery-frequencies", label: "Delivery frequencies", singular: "delivery frequency", keyed: true, schema: deliveryFrequenciesSchema,
+    key: "delivery-frequencies", label: "Delivery frequencies", singular: "delivery frequency", keyed: true, schema: deliveryFrequenciesSchema as unknown as z.ZodObject,
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
-      { key: "daysPerWeek", label: "Days / week", type: "number" },
-      { key: "courierDiscountPct", label: "Courier discount", type: "number", unit: "%" },
-      { key: "weekdays", label: "Delivery days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS, optional: true },
+      { key: "weekdays", label: "Delivery days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
     ],
   },
   "duration-packages": {

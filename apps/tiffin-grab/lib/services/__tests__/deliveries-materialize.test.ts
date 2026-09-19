@@ -27,6 +27,7 @@ async function makeOrder(opts: {
   frequencyKey: string;
   includeSaturday?: boolean;
   includeSunday?: boolean;
+  eatingDays?: ("mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun")[];
 }) {
   const snap = await loadCatalogSnapshot();
   const { publicId } = await createOrder({
@@ -38,6 +39,7 @@ async function makeOrder(opts: {
       mealSlots: ["lunch"],
       includeSaturday: opts.includeSaturday ?? false,
       includeSunday: opts.includeSunday ?? false,
+      eatingDays: opts.eatingDays,
       durationWeeks: opts.durationWeeks,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
@@ -201,5 +203,14 @@ describe("activate() wiring (integration)", () => {
     expect(after.status).toBe("waitlisted");
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
     expect(rows.length).toBe(0);
+  });
+
+  it("eating days ride the nearest earlier delivery day (MWF, 7 eating days)", async () => {
+    const o = await makeOrder({ durationWeeks: 2, persons: 1, frequencyKey: "mwf", eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] });
+    expect(o.tiffinCount).toBe(14);
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows).toHaveLength(6);
+    expect(rows.reduce((n, r) => n + r.tiffinUnits, 0)).toBe(14);
+    expect(rows.map((r) => r.tiffinUnits).sort()).toEqual([2, 2, 2, 2, 3, 3]);
   });
 });

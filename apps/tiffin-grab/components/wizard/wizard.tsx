@@ -7,7 +7,7 @@ import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@foundry/ui/button";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
-import { initialSelections, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { initialSelections, scheduleError, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -63,7 +63,7 @@ export function Wizard({
   const canNext =
     (step === 0 && selections.planKey != null) ||
     (step === 1 && selections.mealSizeId !== "") ||
-    step === 2 ||
+    (step === 2 && scheduleError(catalog, selections) === null) ||
     step === 3;
 
   const deploy = () => {

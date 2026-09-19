@@ -5,7 +5,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryZones, orderActivities, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
-import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { matchZone } from "@/lib/catalog/postal";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
@@ -86,46 +86,64 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
     .from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
   if (!freq) throw new ValidationError("Delivery frequency not found");
 
-  const deliveryDays = orderDeliveryDays({
-    frequencyKey: freq.key,
-    weekdays: freq.weekdays as DayOfWeek[] | null,
-    includeSaturday: order.includeSaturday,
-    includeSunday: order.includeSunday,
-  });
-
-  // orderDeliveryDays hardcodes 3 weekdays for "mwf" and 5 otherwise, independent of the
-  // frequency row. If an admin edits daysPerWeek, pricing's tiffinCount and the row count
-  // silently diverge — refuse to create a subscription whose rows contradict its price.
-  const baseDays = deliveryDays.filter((d) => !WEEKEND.has(d)).length;
-  if (baseDays !== freq.daysPerWeek) {
-    throw new ValidationError(
-      `Frequency "${freq.key}" declares ${freq.daysPerWeek} days/week but resolves to ${baseDays}`,
-    );
-  }
-
-  const dates = subscriptionDeliveryDates({
-    startDate: order.startDate,
-    durationWeeks: order.durationWeeks,
-    deliveryDays,
-  });
-
   type Row = { deliveryDate: string; tiffinUnits: number };
   const rows: Row[] = [];
-  const rowByDate = new Map<string, Row>();
-  for (const d of dates) {
-    if (d.dayOfWeek === "sat" || d.dayOfWeek === "sun") {
-      const fridayIso = isoDaysBefore(d.dateIso, d.dayOfWeek === "sat" ? 1 : 2);
-      const friday = rowByDate.get(fridayIso);
-      if (friday) {
-        friday.tiffinUnits += order.persons;
-        continue;
-      }
-      // Shouldn't happen (Friday is always a base day) — don't drop a real customer's
-      // tiffin over it, just give the weekend day its own row instead of merging.
+
+  if (order.eatingDays?.length) {
+    // Delivery days come from the frequency row alone; eating days (weekends included)
+    // ride the nearest earlier delivery, so a trip's tiffinUnits is its carried days.
+    const week = planWeek(
+      orderDeliveryDays({ frequencyKey: freq.key, weekdays: freq.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false }),
+      order.eatingDays as DayOfWeek[],
+    );
+    if (!week) throw new ValidationError("An eating day falls before the first delivery day of this frequency");
+    const unitsByDay = new Map(week.map((t) => [t.day, t.units]));
+    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays: week.map((t) => t.day) });
+    for (const d of dates) rows.push({ deliveryDate: d.dateIso, tiffinUnits: unitsByDay.get(d.dayOfWeek)! * order.persons });
+    const total = rows.reduce((n, r) => n + r.tiffinUnits, 0);
+    if (total !== order.tiffinCount) {
+      throw new ValidationError(`Delivery plan carries ${total} tiffins but the order is priced for ${order.tiffinCount}`);
     }
-    const newRow: Row = { deliveryDate: d.dateIso, tiffinUnits: order.persons };
-    rows.push(newRow);
-    rowByDate.set(d.dateIso, newRow);
+  } else {
+    const deliveryDays = orderDeliveryDays({
+      frequencyKey: freq.key,
+      weekdays: freq.weekdays as DayOfWeek[] | null,
+      includeSaturday: order.includeSaturday,
+      includeSunday: order.includeSunday,
+    });
+
+    // orderDeliveryDays hardcodes 3 weekdays for "mwf" and 5 otherwise, independent of the
+    // frequency row. If an admin edits daysPerWeek, pricing's tiffinCount and the row count
+    // silently diverge — refuse to create a subscription whose rows contradict its price.
+    const baseDays = deliveryDays.filter((d) => !WEEKEND.has(d)).length;
+    if (baseDays !== freq.daysPerWeek) {
+      throw new ValidationError(
+        `Frequency "${freq.key}" declares ${freq.daysPerWeek} days/week but resolves to ${baseDays}`,
+      );
+    }
+
+    const dates = subscriptionDeliveryDates({
+      startDate: order.startDate,
+      durationWeeks: order.durationWeeks,
+      deliveryDays,
+    });
+
+    const rowByDate = new Map<string, Row>();
+    for (const d of dates) {
+      if (d.dayOfWeek === "sat" || d.dayOfWeek === "sun") {
+        const fridayIso = isoDaysBefore(d.dateIso, d.dayOfWeek === "sat" ? 1 : 2);
+        const friday = rowByDate.get(fridayIso);
+        if (friday) {
+          friday.tiffinUnits += order.persons;
+          continue;
+        }
+        // Shouldn't happen (Friday is always a base day) — don't drop a real customer's
+        // tiffin over it, just give the weekend day its own row instead of merging.
+      }
+      const newRow: Row = { deliveryDate: d.dateIso, tiffinUnits: order.persons };
+      rows.push(newRow);
+      rowByDate.set(d.dateIso, newRow);
+    }
   }
 
   const { timezone, cutoffHour } = await getAppSettings();
@@ -523,7 +541,7 @@ export async function scheduleFromPool(
     if (!order || order.status === "cancelled" || order.status === "completed") {
       throw new ValidationError("This subscription can no longer be scheduled");
     }
-    if (order.pooledTiffinCount < order.persons) throw new ValidationError("No tiffins left to schedule");
+    if (order.pooledTiffinCount < (order.eatingDays?.length ? 1 : order.persons)) throw new ValidationError("No tiffins left to schedule");
 
     const [{ max }] = await tx.select({ max: sql<string | null>`max(${deliveries.deliveryDate})` })
       .from(deliveries).where(eq(deliveries.orderId, orderId));
@@ -534,8 +552,8 @@ export async function scheduleFromPool(
     const deliveryDays = new Set(orderDeliveryDays({
       frequencyKey: freq!.key,
       weekdays: freq!.weekdays as DayOfWeek[] | null,
-      includeSaturday: order.includeSaturday,
-      includeSunday: order.includeSunday,
+      includeSaturday: !order.eatingDays?.length && order.includeSaturday,
+      includeSunday: !order.eatingDays?.length && order.includeSunday,
     }));
     assertNotWeekendTarget(dateIso);
     if (!deliveryDays.has(weekdayKey(parseIsoDateUtc(dateIso)))) {
@@ -556,6 +574,9 @@ export async function scheduleFromPool(
       .orderBy(asc(deliveries.deliveryDate))
       .limit(1);
 
+    // Pooled units are the missed rows' tiffinUnits, which can be below `persons` for
+    // eatingDays orders; a make-up row is worth min(pooled, persons) and drains the same.
+    const units = Math.min(order.pooledTiffinCount, order.persons);
     const { timezone, cutoffHour } = await getAppSettings();
     const [inserted] = await tx.insert(deliveries).values({
       orderId,
@@ -567,11 +588,11 @@ export async function scheduleFromPool(
       // single weekday. (Redeeming a >persons pooled debt, e.g. a bundled Friday's miss, just
       // takes more than one scheduleFromPool call — the persons-per-call check above already
       // handles that correctly without this row needing to know it.)
-      tiffinUnits: order.persons,
+      tiffinUnits: units,
     }).returning({ id: deliveries.id, publicId: deliveries.publicId });
 
     await tx.update(orders)
-      .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} - ${order.persons}` })
+      .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} - ${units}` })
       .where(eq(orders.id, orderId));
 
     await tx.insert(orderActivities).values({
@@ -626,8 +647,8 @@ export async function rescheduleDelivery(
     const deliveryDays = new Set(orderDeliveryDays({
       frequencyKey: freq!.key,
       weekdays: freq!.weekdays as DayOfWeek[] | null,
-      includeSaturday: order.includeSaturday,
-      includeSunday: order.includeSunday,
+      includeSaturday: !order.eatingDays?.length && order.includeSaturday,
+      includeSunday: !order.eatingDays?.length && order.includeSunday,
     }));
     assertNotWeekendTarget(newDateIso);
     if (!deliveryDays.has(weekdayKey(parseIsoDateUtc(newDateIso)))) {

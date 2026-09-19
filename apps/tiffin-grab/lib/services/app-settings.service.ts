@@ -17,7 +17,7 @@ import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
 import type { LeadAssignmentConfig } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 
-const DEFAULTS = { timezone: "America/Toronto", cutoffHour: 18, currency: "INR" } as const;
+const DEFAULTS = { timezone: "America/Toronto", cutoffHour: 18, currency: "INR", minTiffinsPerWeek: 2, maxTiffinsPerWeek: 7 } as const;
 const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "creator", perSource: {}, cursor: {} };
 // Default discount governance: every kind honored, rep daily allowance OFF until
 // an admin opts in and sets ceilings. Mirrors the leadAssignment default shape.
@@ -52,7 +52,7 @@ const appSettingsEntity = new AppSettingsService(
   new UpdatableRepository(db, app, app.publicId, app.id),
 );
 
-export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: number; currency: string; defaultCountry: CountryCode }> {
+export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: number; currency: string; defaultCountry: CountryCode; minTiffinsPerWeek: number; maxTiffinsPerWeek: number }> {
   return settingsCache.getOrSet("settings", async () => {
     const [row] = await db.select().from(app).limit(1);
     const timezone = row?.timezone ?? DEFAULTS.timezone;
@@ -60,6 +60,8 @@ export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: 
       timezone,
       cutoffHour: row?.cutoffHour ?? DEFAULTS.cutoffHour,
       currency: row?.currency ?? DEFAULTS.currency,
+      minTiffinsPerWeek: row?.minTiffinsPerWeek ?? DEFAULTS.minTiffinsPerWeek,
+      maxTiffinsPerWeek: row?.maxTiffinsPerWeek ?? DEFAULTS.maxTiffinsPerWeek,
       // Explicit admin setting wins; NULL falls back to the timezone-derived country.
       defaultCountry: (row?.defaultCountry as CountryCode | null) ?? tzToDefaultCountry(timezone),
     };
@@ -74,7 +76,15 @@ export async function setAppSettings(input: {
   defaultMaxPauses?: number | null;
   defaultMaxPauseDaysTotal?: number | null;
   defaultMaxPauseStretchDays?: number | null;
+  minTiffinsPerWeek?: number;
+  maxTiffinsPerWeek?: number;
 }): Promise<void> {
+  const [row0] = await db.select({ min: app.minTiffinsPerWeek, max: app.maxTiffinsPerWeek }).from(app).limit(1);
+  const min = input.minTiffinsPerWeek ?? row0?.min ?? DEFAULTS.minTiffinsPerWeek;
+  const max = input.maxTiffinsPerWeek ?? row0?.max ?? DEFAULTS.maxTiffinsPerWeek;
+  if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 7 || min > max) {
+    throw new ValidationError("Tiffins per week must be whole numbers with 1 ≤ min ≤ max ≤ 7");
+  }
   const [row] = await db.select({ publicId: app.publicId, currency: app.currency }).from(app).limit(1);
   // currency is optional here (the general settings form may not send it yet);
   // preserve the existing value, falling back to the default.
@@ -83,6 +93,8 @@ export async function setAppSettings(input: {
     cutoffHour: input.cutoffHour,
     currency: input.currency ?? row?.currency ?? DEFAULTS.currency,
     // undefined = leave unchanged; null = clear (unlimited / timezone fallback).
+    minTiffinsPerWeek: min,
+    maxTiffinsPerWeek: max,
     ...(input.defaultCountry !== undefined ? { defaultCountry: input.defaultCountry } : {}),
     ...(input.defaultMaxPauses !== undefined ? { defaultMaxPauses: input.defaultMaxPauses } : {}),
     ...(input.defaultMaxPauseDaysTotal !== undefined ? { defaultMaxPauseDaysTotal: input.defaultMaxPauseDaysTotal } : {}),

@@ -1,60 +1,14 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import type { WizardSelections } from "../selections";
+import { DEFAULT_EATING_DAYS, WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
 import { Label } from "@foundry/ui/label";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
-import { clubbedQuantities, customFrequencyKey, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 
-// Deliveries run Mon-Fri only. Weekend tiffins still exist as *quantity* clubbed
-// onto a weekday (see clubbedQuantities); what's removed is the ability to pick
-// Sat/Sun as a delivery DAY. orderDeliveryDays was already called with
-// includeSaturday/includeSunday false, so the weekend was never in the derived
-// plan — the picker just used to offer it anyway.
-const WEEKDAY_ORDER = ["mon", "tue", "wed", "thu", "fri"] as const satisfies readonly DayOfWeek[];
-/** The days a customer may pick — a strict subset of DayOfWeek, so the label map
- * is exhaustive over exactly these and adding a day here is a compile error
- * until it is labelled. */
-type SelectableDay = (typeof WEEKDAY_ORDER)[number];
-const WEEKDAY_LABEL: Record<SelectableDay, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri" };
-const MAX_DELIVERY_DAYS = WEEKDAY_ORDER.length;
-
+const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-/** Drop any weekend day a catalog row or stored selection still carries. */
-function weekdaysOnly(days: DayOfWeek[]): SelectableDay[] {
-  return days.filter((d): d is SelectableDay => (WEEKDAY_ORDER as readonly DayOfWeek[]).includes(d));
-}
-
-function sameDaySet(a: DayOfWeek[], b: DayOfWeek[]): boolean {
-  return a.length === b.length && [...a].sort().join(",") === [...b].sort().join(",");
-}
-
-function sorted(days: SelectableDay[]): SelectableDay[] {
-  return [...days].sort((a, b) => WEEKDAY_ORDER.indexOf(a) - WEEKDAY_ORDER.indexOf(b));
-}
-
-/** The weekday set implied by the current selections — an explicit custom
- * pick, or whatever the matched (or hardcoded 5_day/mwf) catalog row implies. */
-function currentWeekdays(catalog: ClientCatalogSnapshot, selections: WizardSelections): SelectableDay[] {
-  if (selections.customWeekdays?.length) return sorted(weekdaysOnly(selections.customWeekdays));
-  const row = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
-  return sorted(weekdaysOnly(orderDeliveryDays({
-    frequencyKey: selections.frequencyKey,
-    weekdays: (row?.weekdays as DayOfWeek[] | null) ?? null,
-    includeSaturday: false,
-    includeSunday: false,
-  })));
-}
-
-/** An active catalog row whose weekday set exactly matches — this is the only
- * thing that earns a discount; a same-count-but-different-days custom pick
- * never does. */
-function matchingRow(catalog: ClientCatalogSnapshot, weekdays: SelectableDay[]) {
-  return catalog.frequencies.find((f) => {
-    const rowDays = (f.weekdays as DayOfWeek[] | null) ?? (f.key === "mwf" ? ["mon", "wed", "fri"] : f.key === "5_day" ? ["mon", "tue", "wed", "thu", "fri"] : null);
-    return rowDays && sameDaySet(rowDays as DayOfWeek[], weekdays);
-  });
-}
+const pill = (on: boolean) =>
+  `border-foreground flex h-11 min-w-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] px-4 text-sm font-semibold transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${on ? "bg-primary text-primary-foreground" : ""}`;
 
 export function StepSchedule({
   catalog,
@@ -67,86 +21,34 @@ export function StepSchedule({
   set: (patch: Partial<WizardSelections>) => void;
   currentPlan?: CurrentPlanSummary | null;
 }) {
-  const [notice, setNotice] = useState<{ text: string; tone: "info" | "error" } | null>(null);
-  // The order days were picked, so a tap at the cap replaces the day chosen
-  // longest ago. Held locally because the wizard only stores the SET of days.
-  const [pickOrder, setPickOrder] = useState<SelectableDay[]>([]);
-  // Every count deliverable Mon-Fri is offered, not just the ones an admin has a
-  // catalog row for: a count without a row is priced as a custom pattern, and
-  // deriving this list from the catalog alone would hide counts (and could leave
-  // the current selection — the 1-day default — with nothing highlighted).
-  // Counts above 5 are impossible now that a delivery is one day.
-  const tiffinCounts = Array.from({ length: MAX_DELIVERY_DAYS }, (_, i) => i + 1);
-  const weekdays = currentWeekdays(catalog, selections);
-  const tiffinCount = weekdays.length;
-  // Reconciled each render rather than synced in an effect: the selection can
-  // change from outside this component (tiffin count, restored session), and a
-  // stale queue would swap out a day that is no longer selected.
-  const queue = [
-    ...pickOrder.filter((d) => weekdays.includes(d)),
-    ...weekdays.filter((d) => !pickOrder.includes(d)),
-  ];
-  const match = matchingRow(catalog, weekdays);
-  const quantities = clubbedQuantities(weekdays);
+  const frequencies = selectableFrequencies(catalog);
+  const bounds = tiffinBounds(catalog);
+  const row = frequencies.find((f) => f.key === selections.frequencyKey);
+  const deliveryDays = (row?.weekdays ?? []) as DayOfWeek[];
+  const eating = selections.eatingDays ?? [];
 
-  const pickCount = (count: number) => {
-    setNotice(null);
-    setPickOrder([]);
-    // Default to the first admin pattern at this count so switching counts lands
-    // on a real (possibly discounted) cadence — but only if that pattern is
-    // deliverable Mon-Fri. A row that includes Sat/Sun is skipped, otherwise the
-    // picker would show fewer active days than the tiffin count it just set.
-    const defaultRow = catalog.frequencies.find((f) => {
-      if (f.daysPerWeek !== count) return false;
-      const rowDays = (f.weekdays as DayOfWeek[] | null) ?? null;
-      return !rowDays || weekdaysOnly(rowDays).length === rowDays.length;
-    });
-    if (defaultRow) {
-      set({ frequencyKey: defaultRow.key, customWeekdays: undefined });
-    } else {
-      const days = WEEKDAY_ORDER.slice(0, count);
-      set({ frequencyKey: customFrequencyKey(days), customWeekdays: days });
-    }
+  const setEating = (days: DayOfWeek[]) => {
+    const sorted = WEEK_DAYS.filter((d) => days.includes(d));
+    set({ eatingDays: sorted, includeSaturday: sorted.includes("sat"), includeSunday: sorted.includes("sun") });
   };
 
-  const commit = (next: SelectableDay[], order: SelectableDay[]) => {
-    setPickOrder(order);
-    const row = matchingRow(catalog, next);
-    if (row) set({ frequencyKey: row.key, customWeekdays: undefined });
-    else set({ frequencyKey: customFrequencyKey(next), customWeekdays: next });
+  // Initial selections are static, so pick the first real frequency and clip the default week once the catalog is known.
+  useEffect(() => {
+    if (row || !frequencies[0]) return;
+    const days = (selections.eatingDays?.length ? selections.eatingDays : DEFAULT_EATING_DAYS).slice(0, bounds.max);
+    set({ frequencyKey: frequencies[0].key });
+    setEating(days);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row, frequencies.length]);
+
+  const toggle = (day: DayOfWeek) => {
+    if (eating.includes(day)) setEating(eating.filter((d) => d !== day));
+    else if (eating.length < bounds.max) setEating([...eating, day]);
   };
 
-  const toggleDay = (day: SelectableDay) => {
-    if (weekdays.includes(day)) {
-      // Never let the picker collapse to zero days — a customer must always
-      // have at least one delivery day to remove-toggle down to.
-      if (weekdays.length <= 1) {
-        setNotice({ text: "You need at least one delivery day.", tone: "error" });
-        return;
-      }
-      setNotice(null);
-      commit(weekdays.filter((d) => d !== day), queue.filter((d) => d !== day));
-      return;
-    }
-
-    if (weekdays.length < tiffinCount) {
-      setNotice(null);
-      commit(sorted([...weekdays, day]), [...queue, day]);
-      return;
-    }
-
-    // At the cap, tapping a new day MOVES the delivery rather than refusing:
-    // the day count must equal tiffins/week, and the customer is re-arranging
-    // days the wizard picked for them. The day chosen longest ago gives way,
-    // and the swap is announced so nothing changes silently.
-    const oldest = queue[0];
-    if (!oldest) return;
-    setNotice({
-      text: `Moved ${WEEKDAY_LABEL[oldest]} to ${WEEKDAY_LABEL[day]} — ${plural(tiffinCount, "tiffin", "tiffins")} a week means ${plural(tiffinCount, "delivery day", "delivery days")}.`,
-      tone: "info",
-    });
-    commit(sorted([...weekdays.filter((d) => d !== oldest), day]), [...queue.filter((d) => d !== oldest), day]);
-  };
+  const trips = row ? planWeek(deliveryDays, eating) : null;
+  const error = row && eating.length >= bounds.min ? scheduleError(catalog, selections) : null;
+  const atMax = eating.length >= bounds.max;
 
   return (
     <div className="space-y-6">
@@ -158,76 +60,54 @@ export function StepSchedule({
       ) : null}
 
       <div>
-        <Label className="text-primary text-xs font-semibold tracking-[2.5px] uppercase">Tiffins per week</Label>
-        <div className="mt-3 flex flex-wrap gap-3">
-          {tiffinCounts.map((count) => {
-            const active = tiffinCount === count;
+        <Label className="text-primary text-xs font-semibold tracking-[2.5px] uppercase">Delivery days</Label>
+        <div className="mt-3 grid gap-2">
+          {frequencies.map((f) => {
+            const active = f.key === selections.frequencyKey;
             return (
               <button
-                key={count}
+                key={f.key}
                 type="button"
-                onClick={() => pickCount(count)}
-                className={`border-foreground flex h-[54px] min-w-[54px] cursor-pointer items-center justify-center rounded-full border-[1.5px] px-5 text-lg font-semibold tabular-nums transition-transform active:scale-[0.97] ${active ? "bg-primary text-primary-foreground" : ""}`}
+                aria-pressed={active}
+                onClick={() => set({ frequencyKey: f.key })}
+                className={`border-foreground/20 flex min-h-[54px] cursor-pointer flex-col items-start rounded-2xl border-[1.5px] px-4 py-2 text-left transition-transform active:scale-[0.99] ${active ? "bg-primary text-primary-foreground" : ""}`}
               >
-                {count}
+                <span className="font-semibold">{f.name}</span>
+                <span className="text-sm opacity-80">{(f.weekdays as DayOfWeek[]).map((d) => LABEL[d]).join(", ")}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-primary text-xs font-semibold tracking-[2.5px] uppercase">Eating days</Label>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {WEEK_DAYS.map((day) => {
+            const on = eating.includes(day);
+            return (
+              <button key={day} type="button" aria-pressed={on} disabled={!on && atMax} onClick={() => toggle(day)} className={pill(on)}>
+                {LABEL[day]}
               </button>
             );
           })}
         </div>
         <p className="text-muted-foreground mt-2 text-sm">
-          {tiffinCount} {tiffinCount === 1 ? "tiffin" : "tiffins"} → {tiffinCount} {tiffinCount === 1 ? "delivery" : "deliveries"}/week
+          {plural(eating.length, "tiffin", "tiffins")} a week (pick {bounds.min}-{bounds.max})
         </p>
-      </div>
 
-      <div>
-        <Label className="text-primary text-xs font-semibold tracking-[2.5px] uppercase">Delivery days</Label>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {WEEKDAY_ORDER.map((day) => {
-            const active = weekdays.includes(day);
-            return (
-              <button
-                key={day}
-                type="button"
-                onClick={() => toggleDay(day)}
-                aria-pressed={active}
-                className={`border-foreground flex h-11 min-w-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] px-4 text-sm font-semibold transition-transform active:scale-[0.97] ${active ? "bg-primary text-primary-foreground" : ""}`}
-              >
-                {WEEKDAY_LABEL[day]}
-              </button>
-            );
-          })}
-        </div>
-
-        {notice ? (
-          <p role="status" className={`mt-2 text-sm text-pretty ${notice.tone === "error" ? "text-destructive" : "text-muted-foreground"}`}>
-            {notice.text}
-          </p>
+        {error ? (
+          <p role="alert" className="text-destructive mt-2 text-sm text-pretty">{error}</p>
         ) : null}
 
-        <div className="mt-3 min-h-[44px] rounded-2xl border-[1.5px] border-foreground/10 bg-muted/30 px-4 py-3 text-sm transition-colors">
-          {match && match.courierDiscountPct > 0 ? (
-            <p className="text-primary font-medium">
-              Eligible for {match.courierDiscountPct}% off — matches our {match.name} plan.
-            </p>
-          ) : match ? (
-            <p className="text-foreground/80">Standard schedule — no clubbing needed, one tiffin per delivery.</p>
-          ) : (
-            <p className="text-foreground/80">Custom schedule — standard pricing, tiffins clubbed onto your chosen days.</p>
-          )}
-        </div>
-
-        {tiffinCount < MAX_DELIVERY_DAYS ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {WEEKDAY_ORDER.map((day) => (
-              <div
-                key={day}
-                className={`flex h-9 min-w-9 items-center justify-center rounded-full text-xs font-semibold tabular-nums ${weekdays.includes(day) ? "bg-primary/15 text-primary" : "text-muted-foreground/50"}`}
-                title={WEEKDAY_LABEL[day]}
-              >
-                {weekdays.includes(day) ? quantities[day] : "–"}
-              </div>
+        {trips ? (
+          <ul aria-label="Delivery preview" className="mt-3 space-y-1 rounded-2xl border-[1.5px] border-foreground/10 bg-muted/30 px-4 py-3 text-sm">
+            {trips.map((t) => (
+              <li key={t.day}>
+                {LABEL[t.day]}: {plural(t.units, "tiffin", "tiffins")} ({eating.filter((e) => planWeek(deliveryDays, [e])?.[0]?.day === t.day).map((e) => LABEL[e]).join(", ")})
+              </li>
             ))}
-          </div>
+          </ul>
         ) : null}
       </div>
     </div>

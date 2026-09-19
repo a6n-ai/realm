@@ -236,6 +236,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       pooled: orders.pooledTiffinCount,
       includeSaturday: orders.includeSaturday,
       includeSunday: orders.includeSunday,
+      eatingDays: orders.eatingDays,
       frequencyKey: deliveryFrequencies.key,
       weekdays: deliveryFrequencies.weekdays,
     })
@@ -281,8 +282,8 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
   const deliveryWeekdays = orderDeliveryDays({
     frequencyKey: order.frequencyKey,
     weekdays: order.weekdays as DayOfWeek[] | null,
-    includeSaturday: order.includeSaturday,
-    includeSunday: order.includeSunday,
+    includeSaturday: !order.eatingDays?.length && order.includeSaturday,
+    includeSunday: !order.eatingDays?.length && order.includeSunday,
   });
 
   return {

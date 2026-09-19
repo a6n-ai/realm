@@ -5,6 +5,7 @@ import { sharedCache } from "@/lib/cache";
 import { deliveryFrequencies, deliveryZones, dishCategories, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import type { CatalogSnapshot } from "./types";
 
 // Global, user-agnostic, rarely-changing catalog data hit by many RSC pages and
@@ -30,7 +31,7 @@ function scopedTo(column: AnyPgColumn, orgId: string | null | undefined): SQL | 
 }
 
 async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnapshot> {
-  const [planRows, mealRows, itemRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots, categoryRows, addonsByCategory] = await Promise.all([
+  const [planRows, mealRows, itemRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots, categoryRows, addonsByCategory, settings] = await Promise.all([
     db.select().from(plans).where(and(eq(plans.active, true), scopedTo(plans.organizationId, orgId))),
     db.select().from(mealSizes).where(and(eq(mealSizes.active, true), scopedTo(mealSizes.organizationId, orgId))),
     db.select().from(mealSizeItems).orderBy(mealSizeItems.sortOrder),
@@ -42,6 +43,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     dishCategoriesService.forPlanType("healthy"),
     db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories),
     dishCategoriesService.addonsByDishCategory(),
+    getAppSettings(),
   ]);
   const slotKeys = { tiffin: tiffinSlots.map((s) => s.key), healthy: healthySlots.map((s) => s.key) };
   const tuByCategory = new Map(categoryRows.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]));
@@ -80,5 +82,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     tiers: tierRows.map((t) => ({ minQty: t.minQty, maxQty: t.maxQty, upliftPct: Number(t.upliftPct) })),
     categoryLabels,
     addonsByCategory: Object.fromEntries(addonsByCategory),
+    minTiffinsPerWeek: settings.minTiffinsPerWeek,
+    maxTiffinsPerWeek: settings.maxTiffinsPerWeek,
   };
 }

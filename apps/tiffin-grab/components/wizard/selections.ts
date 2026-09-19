@@ -1,6 +1,6 @@
 import type { PricingSelections } from "@/lib/pricing";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { customFrequencyKey, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 export interface WizardSelections extends PricingSelections {
   planKey: string | null;
@@ -25,14 +25,23 @@ export type WizardOrigin = "subscribe" | "renew";
  */
 export const FIXED_PERSONS = 1;
 
-/**
- * A new subscription starts at one tiffin — and therefore one delivery day — a
- * week. StepSchedule upgrades this to the matching catalog row (which may carry
- * a courier discount) as soon as it has the catalog; the custom key is only the
- * catalogue-free starting point, since initialSelections is a static value.
- */
-export const DEFAULT_WEEKDAYS: DayOfWeek[] = ["mon"];
-export const DEFAULT_FREQUENCY_KEY = customFrequencyKey(DEFAULT_WEEKDAYS);
+export const WEEK_DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+export const DEFAULT_EATING_DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
+
+/** Frequencies a customer may pick: active rows (already filtered upstream) that define delivery days. */
+export const selectableFrequencies = (catalog: ClientCatalogSnapshot) => catalog.frequencies.filter((f) => f.weekdays?.length);
+
+export const tiffinBounds = (catalog: ClientCatalogSnapshot) => ({
+  min: catalog.minTiffinsPerWeek ?? 2,
+  max: catalog.maxTiffinsPerWeek ?? 7,
+});
+
+/** Null when the schedule step is complete and valid; shared by the step and the wizard's Continue gate. */
+export function scheduleError(catalog: ClientCatalogSnapshot, s: WizardSelections): string | null {
+  const row = selectableFrequencies(catalog).find((f) => f.key === s.frequencyKey);
+  if (!row) return "Choose a delivery frequency";
+  return eatingDaysError(row.weekdays as DayOfWeek[], s.eatingDays ?? [], tiffinBounds(catalog));
+}
 
 // Validates against the live catalog rather than a hardcoded plan list — a
 // plan set only ever grows (admin adds a diet/plan), so any fixed union here
@@ -44,8 +53,8 @@ function asPlanKey(catalog: ClientCatalogSnapshot, key: string | null | undefine
 export const initialSelections: WizardSelections = {
   planKey: null,
   mealSizeId: "",
-  frequencyKey: DEFAULT_FREQUENCY_KEY,
-  customWeekdays: DEFAULT_WEEKDAYS,
+  frequencyKey: "",
+  eatingDays: DEFAULT_EATING_DAYS,
   persons: 1,
   // Dish selection now happens per-delivery after subscribing; mealSlots is
   // populated from the chosen plan's categories (see StepBaseline) purely to
@@ -85,8 +94,8 @@ export function selectionsFromPriorOrder(
     // Not carried over from the prior order: the controls for these are gone, so
     // restoring 2 persons or a Saturday would silently change the quote with
     // nothing on screen to explain it, and no way for the customer to undo it.
-    frequencyKey: DEFAULT_FREQUENCY_KEY,
-    customWeekdays: DEFAULT_WEEKDAYS,
+    frequencyKey: "",
+    eatingDays: DEFAULT_EATING_DAYS,
     persons: FIXED_PERSONS,
     mealSlots: plan?.offeredSlots ?? [],
     includeSaturday: false,

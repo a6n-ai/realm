@@ -71,6 +71,14 @@ describe("priceSubscription (per-tiffin)", () => {
     expect(r.total).toBe(54);
   });
 
+  it("prices by eating days, ignoring frequency days and the cadence discount", () => {
+    // MWF delivery, eating Mon-Sun: 7/wk × 2 wk = 14 tiffins at the 10% tier ($11).
+    const r = priceSubscription(sel({ frequencyKey: "mwf", durationWeeks: 2, eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }), catalog(10, "mwf", 10));
+    expect(r.tiffinCount).toBe(14);
+    expect(r.adjustments).toEqual([]);
+    expect(r.subtotal).toBe(154);
+  });
+
   it("adds no adjustment when the cadence has no discount", () => {
     const r = priceSubscription(sel(), catalog(10, "5_day", 0));
     expect(r.adjustments).toEqual([]);

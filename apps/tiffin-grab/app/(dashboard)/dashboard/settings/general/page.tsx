@@ -32,6 +32,8 @@ async function SettingsData() {
       currency={settings.currency}
       defaultCountry={rawCountry}
       autoCountry={settings.defaultCountry}
+      minTiffinsPerWeek={settings.minTiffinsPerWeek}
+      maxTiffinsPerWeek={settings.maxTiffinsPerWeek}
       {...pauseDefaults}
     />
   );
