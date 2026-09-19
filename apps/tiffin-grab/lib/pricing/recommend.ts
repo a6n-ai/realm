@@ -49,18 +49,21 @@ export interface DealPayload {
   durationWeeks: number;
   tiffinCount: number;
   total: number;
+  includes: { name: string; percent: number }[];
+  tierMinQty: number;
+  tierChanged: boolean;
 }
 
 const price = (snapshot: ClientCatalogSnapshot, s: PricingSelections) => {
   try {
     const r = priceSubscription(s, buildPricingCatalog(snapshot as never, s));
-    return { total: r.total, units: r.tiffinCount };
+    return { total: r.total, units: r.tiffinCount, adjustments: r.adjustments, tierMinQty: r.tier.minQty };
   } catch {
     return null;
   }
 };
 
-export function recommendDeals({ snapshot, selections, cap = 1 }: { snapshot: ClientCatalogSnapshot; selections: PricingSelections; cap?: number }): Deal<DealPayload>[] {
+export function recommendDeals({ snapshot, selections, cap = 1, vary }: { snapshot: ClientCatalogSnapshot; selections: PricingSelections; cap?: number; vary?: "frequency" | "duration" }): Deal<DealPayload>[] {
   const eating = (selections.eatingDays ?? []) as DayOfWeek[];
   const current = price(snapshot, selections);
   if (!current) return [];
@@ -68,16 +71,22 @@ export function recommendDeals({ snapshot, selections, cap = 1 }: { snapshot: Cl
   for (const f of snapshot.frequencies) {
     if (!f.weekdays?.length) continue;
     if (planWeek(f.weekdays as DayOfWeek[], eating) === null) continue;
+    if (vary === "duration" && f.key !== selections.frequencyKey) continue;
     for (const d of snapshot.durations) {
+      if (vary === "frequency" && d.weeks !== selections.durationWeeks) continue;
       if (f.key === selections.frequencyKey && d.weeks === selections.durationWeeks) continue;
       const p = price(snapshot, { ...selections, frequencyKey: f.key, durationWeeks: d.weeks });
       if (!p) continue;
+      const includes = p.adjustments.flatMap((a) => {
+        const rule = snapshot.discounts?.find((x) => x.key === a.discountKey);
+        return rule ? [{ name: rule.name, percent: rule.percent }] : [];
+      });
       alternatives.push({
         id: `${f.key}:${d.weeks}`,
-        label: `${d.weeks} weeks on ${f.weekdays.length}-day delivery`,
+        label: vary === "frequency" ? `${f.weekdays.length}-day delivery` : vary === "duration" ? `${d.weeks} weeks` : `${d.weeks} weeks on ${f.weekdays.length}-day delivery`,
         total: p.total,
         units: p.units,
-        payload: { frequencyKey: f.key, durationWeeks: d.weeks, tiffinCount: p.units, total: p.total },
+        payload: { frequencyKey: f.key, durationWeeks: d.weeks, tiffinCount: p.units, total: p.total, includes, tierMinQty: p.tierMinQty, tierChanged: p.tierMinQty !== current.tierMinQty },
       });
     }
   }

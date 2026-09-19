@@ -56,6 +56,21 @@ describe("recommendDeals", () => {
   });
 });
 
+describe("recommendDeals vary", () => {
+  const s = snapshot({ discounts: [d("dl", "delivery", { targetPublicId: "frq_3", percent: 10 })] });
+  it("frequency never changes weeks", () => {
+    const deals = recommendDeals({ snapshot: s, selections: sel({ durationWeeks: 8 }), vary: "frequency", cap: 9 });
+    expect(deals.length).toBeGreaterThan(0);
+    expect(deals.every((x) => x.payload.durationWeeks === 8)).toBe(true);
+    expect(deals[0].payload.includes).toEqual([{ name: "dl", percent: 10 }]);
+  });
+  it("duration never changes frequency", () => {
+    const deals = recommendDeals({ snapshot: s, selections: sel(), vary: "duration", cap: 9 });
+    expect(deals.length).toBeGreaterThan(0);
+    expect(deals.every((x) => x.payload.frequencyKey === "5_day")).toBe(true);
+  });
+});
+
 describe("rankDeals", () => {
   const alt = (id: string, total: number, units: number) => ({ id, label: id, total, units, payload: null });
   it("ranks by per-unit and applies minSavingPct / empty current", () => {
