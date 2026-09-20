@@ -3,9 +3,7 @@ import { redirect } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
 import { parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
-import { myActiveSubscriptions } from "@/lib/services/customer-deliveries.service";
-import { menuService } from "@/lib/services/menu.service";
-import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
+import { browsePublishedWeek } from "@/lib/menu/browse-published-week";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PageShell, PageHeader } from "@/components/ds";
 import { ThisWeekMenuSection, ThisWeekMenuSectionSkeleton } from "@/components/customer/home/this-week-menu-section";
@@ -21,13 +19,13 @@ export default async function MenuPage() {
       <PageHeader
         icon={UtensilsCrossedIcon}
         title="Menu"
-        subtitle="See this week's dishes — tap a photo for details."
+        subtitle="Browse what's released — tap a dish for details."
       />
 
       {MENU_SECTIONS.map((section) =>
         section.key === "menu" ? (
           <Suspense key={section.key} fallback={<ThisWeekMenuSectionSkeleton />}>
-            <MenuSectionData userId={userId} />
+            <MenuSectionData />
           </Suspense>
         ) : (
           <Suspense key={section.key} fallback={<PlansCtaSectionSkeleton />}>
@@ -39,18 +37,20 @@ export default async function MenuPage() {
   );
 }
 
-async function MenuSectionData({ userId }: { userId: bigint }) {
-  const subs = await myActiveSubscriptions(userId);
-  const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
+async function MenuSectionData() {
   const { timezone } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();
-  const thisMonday = thisWeekStartIso(now, timezone);
-  // Exact this Monday only — same getReleasedWeek gate Deliveries uses (no cross-week fallback).
-  const week = await menuService.getPublishedWeek(thisMonday);
+  const browsed = await browsePublishedWeek(now, timezone);
   // Computed once, server-side, in the app's own timezone — passed down as a plain prop
   // so the client component never has to read the clock itself (which would risk a
   // server/client hydration mismatch on the highlighted "today" column).
   const todayKey = weekdayKey(parseIsoDateUtc(zonedDateIso(now, timezone)));
-  return <ThisWeekMenuSection week={week} todayKey={todayKey} />;
+  return (
+    <ThisWeekMenuSection
+      week={browsed.week}
+      scope={browsed.scope ?? "this"}
+      todayKey={browsed.scope === "this" ? todayKey : undefined}
+    />
+  );
 }

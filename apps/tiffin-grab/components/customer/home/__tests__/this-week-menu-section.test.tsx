@@ -18,13 +18,13 @@ const week = {
   planType: "tiffin",
   theme: { accent: "#f60", titlePrefix: "Tiffin" },
   weekStart: "2026-07-13",
-  slots: [],
+  slots: [{ key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 1 }],
   items: [
     {
       dayOfWeek: "mon",
       slot: "sabzi",
       position: 0,
-      dishName: "Paneer",
+      dishName: "Paneer Butter Masala",
       image: null,
       dishPublicId: "dsh_1",
     },
@@ -51,35 +51,44 @@ afterEach(cleanup);
 describe("ThisWeekMenuSection", () => {
   it("renders the week's dishes and opens the modal on tap", () => {
     render(<ThisWeekMenuSection week={week} />);
-    expect(screen.getByText(/Week of Jul 13 – Jul 19/)).toBeInTheDocument();
-    expect(screen.getByText("Paneer")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Paneer"));
-    // modal shows the dish name again (in a dialog title) — at least 2 nodes now
-    expect(screen.getAllByText("Paneer").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Jul 13 – Jul 19/)).toBeInTheDocument();
+    expect(screen.getByText("Paneer Butter Masala")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Paneer Butter Masala"));
+    expect(screen.getAllByText("Paneer Butter Masala").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders the empty state when week is null", () => {
     render(<ThisWeekMenuSection week={null} />);
-    expect(screen.getByText(/menu drops soon/i)).toBeInTheDocument();
+    expect(screen.getByText(/No menu released yet/i)).toBeInTheDocument();
   });
 
-  it("shows all seven day columns including Sat and Sun", () => {
+  it("shows all seven day names including Sat and Sun", () => {
     render(<ThisWeekMenuSection week={week} />);
-    for (const label of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
+    for (const label of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
 
   it("renders no placeholder under empty days", () => {
     const { container } = render(<ThisWeekMenuSection week={week} />);
-    // Tue has no dishes — only the day label, no dish button or dash placeholder.
-    expect(screen.queryByRole("button", { name: /tue/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /tuesday/i })).not.toBeInTheDocument();
     expect(container.textContent).not.toMatch(/—/);
   });
 
-  it("shows weekend dishes under Sat column", () => {
+  it("shows weekend dishes under Saturday", () => {
     render(<ThisWeekMenuSection week={weekWithWeekend} />);
     expect(screen.getByText("Weekend Biryani")).toBeInTheDocument();
-    expect(screen.getByText("Sat")).toBeInTheDocument();
+    expect(screen.getByText("Saturday")).toBeInTheDocument();
+  });
+
+  it("labels an upcoming released week as next week", () => {
+    render(<ThisWeekMenuSection week={week} scope="next" />);
+    expect(screen.getByText("Next week's menu")).toBeInTheDocument();
+  });
+
+  it("does not truncate a long dish name in the card", () => {
+    render(<ThisWeekMenuSection week={week} />);
+    const name = screen.getByText("Paneer Butter Masala");
+    expect(name.className).not.toMatch(/truncate/);
   });
 });

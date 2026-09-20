@@ -2,9 +2,9 @@
 // components can import the shared order/labels without crossing the RSC value
 // boundary.
 //
-// Menu IA (food-app style): this week's dishes → slim plan CTA. The full dish
+// Menu IA (food-app style): released week's dishes → slim plan CTA. The full dish
 // gallery ("All dishes") was dropped — plans/meal-sizes live on Subscribe, and
-// this week's menu is already the answer to "what's cooking".
+// this page answers "what's cooking" for the current or next released week.
 
 export type MenuSectionKey = "menu" | "plansCta";
 

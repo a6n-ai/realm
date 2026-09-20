@@ -5,8 +5,14 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { cn } from "@foundry/ui/cn";
 import { SectionCard } from "@/components/ds";
 import { Reveal, Pressable, LottieEmptyState } from "@/components/motion";
-import { formatMenuWeekRange } from "@/lib/format/datetime";
-import { HOME_MENU_DAY_COLUMNS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
+import { formatDateOnly, formatMenuWeekRange } from "@/lib/format/datetime";
+import { parseIsoDateUtc } from "@foundry/commons";
+import {
+  DAY_LABELS,
+  HOME_MENU_DAY_COLUMNS,
+  type DayOfWeek,
+  type PosterItem,
+} from "@/lib/menu/poster";
 import type { menuService } from "@/lib/services/menu.service";
 import { DishImage } from "./dish-image";
 import { DishModal } from "./dish-modal";
@@ -26,65 +32,98 @@ function buildDaysOnMenuMap(items: PosterItem[]): Map<string, string[]> {
   return map;
 }
 
-export function ThisWeekMenuSection({ week, todayKey }: { week: Week; todayKey?: DayOfWeek }) {
-  const [selected, setSelected] = useState<PosterItem | null>(null);
+function dateIsoOnWeek(weekStart: string, day: DayOfWeek): string {
+  const offset = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 }[day];
+  const d = parseIsoDateUtc(weekStart);
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+}
 
+export function ThisWeekMenuSection({
+  week,
+  todayKey,
+  scope = "this",
+}: {
+  week: Week;
+  todayKey?: DayOfWeek;
+  scope?: "this" | "next";
+}) {
+  const [selected, setSelected] = useState<PosterItem | null>(null);
   const daysOnMenu = useMemo(() => buildDaysOnMenuMap(week?.items ?? []), [week]);
+  const slotLabel = useMemo(() => {
+    const map = new Map((week?.slots ?? []).map((s) => [s.key, s.label]));
+    return (slot: string) => map.get(slot) ?? slot;
+  }, [week]);
+
+  const title = scope === "next" ? "Next week's menu" : "This week's menu";
 
   if (!week) {
     return (
-      <SectionCard title="This week's menu" subtitle="Published dishes for the current week.">
+      <SectionCard title="This week's menu" subtitle="Released dishes you can browse — picking happens on Deliveries.">
         <LottieEmptyState
           animation="empty-box"
-          title="This week's menu drops soon"
-          body="Check back — fresh meals are on the way."
+          title="No menu released yet"
+          body="When kitchen publishes a week, it shows up here."
         />
       </SectionCard>
     );
   }
 
-  const columns = HOME_MENU_DAY_COLUMNS.map((col) => ({
-    label: col.label,
-    isToday: todayKey != null && col.days.includes(todayKey),
-    items: week.items
-      .filter((i) => col.days.includes(i.dayOfWeek))
-      .sort((a, b) => a.position - b.position),
-  }));
+  const columns = HOME_MENU_DAY_COLUMNS.map((col) => {
+    const day = col.days[0]!;
+    return {
+      day,
+      label: DAY_LABELS[day],
+      dateLabel: formatDateOnly(dateIsoOnWeek(week.weekStart, day), { mode: "short" }),
+      isToday: todayKey != null && col.days.includes(todayKey),
+      items: week.items
+        .filter((i) => col.days.includes(i.dayOfWeek))
+        .sort((a, b) => a.position - b.position),
+    };
+  });
 
   return (
-    <SectionCard title="This week's menu" subtitle={`Week of ${formatMenuWeekRange(week.weekStart)}`}>
-      <Reveal.Group className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:grid md:grid-cols-7 md:gap-3 md:overflow-visible md:pb-0">
+    <SectionCard title={title} subtitle={`${formatMenuWeekRange(week.weekStart)} · tap a dish for details`}>
+      <Reveal.Group className="space-y-7">
         {columns.map((col) => (
-          <Reveal
-            key={col.label}
-            className={cn(
-              "flex w-[6.75rem] shrink-0 flex-col gap-1.5 rounded-lg p-1.5 sm:w-28 md:w-auto md:min-w-0 md:shrink",
-              col.isToday && "bg-primary/[0.06]",
-            )}
-          >
-            <p
-              className={cn(
-                "border-b pb-1 text-[11px] font-bold tracking-wide uppercase",
-                col.isToday ? "text-primary border-primary/40" : "text-primary/80 border-primary/15",
-              )}
-            >
-              {col.label}
-            </p>
-            {col.items.map((item) => (
-              <Pressable
-                key={`${item.dayOfWeek}-${item.slot}-${item.position}`}
-                type="button"
-                aria-label={item.dishName}
-                title={item.dishName}
-                onClick={() => setSelected(item)}
-                className="flex flex-col gap-1 rounded-md text-left transition-transform active:scale-[0.96]"
+          <Reveal key={col.day} className="min-w-0">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <h3
+                className={cn(
+                  "text-base font-semibold tracking-tight",
+                  col.isToday ? "text-primary" : "text-foreground",
+                )}
               >
-                <div className="border-border relative aspect-[4/3] w-full overflow-hidden rounded-md border">
-                  <DishImage image={item.image ?? null} name={item.dishName} category={item.slot} sizes="112px" />
-                </div>
-                <span className="block truncate text-[11px] font-medium leading-tight">{item.dishName}</span>
-              </Pressable>
-            ))}
+                {col.label}
+                {col.isToday ? <span className="text-primary ml-2 text-xs font-medium">Today</span> : null}
+              </h3>
+              <p className="text-muted-foreground text-xs">{col.dateLabel}</p>
+            </div>
+            {col.items.length === 0 ? null : (
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {col.items.map((item) => (
+                  <li key={`${item.dayOfWeek}-${item.slot}-${item.position}`}>
+                    <Pressable
+                      type="button"
+                      aria-label={item.dishName}
+                      onClick={() => setSelected(item)}
+                      className="w-full rounded-2xl text-left"
+                    >
+                      <div className="border-border relative aspect-[4/3] w-full overflow-hidden rounded-2xl border">
+                        <DishImage
+                          image={item.image ?? null}
+                          name={item.dishName}
+                          category={item.slot}
+                          sizes="(max-width: 640px) 45vw, 220px"
+                        />
+                      </div>
+                      <p className="mt-2 text-sm font-medium leading-snug">{item.dishName}</p>
+                      <p className="text-muted-foreground text-xs capitalize">{slotLabel(item.slot)}</p>
+                    </Pressable>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Reveal>
         ))}
       </Reveal.Group>
@@ -94,7 +133,6 @@ export function ThisWeekMenuSection({ week, todayKey }: { week: Week; todayKey?:
           name: selected?.dishName ?? "",
           description: null,
           image: selected?.image ?? null,
-          // The weekly poster carries menu items, not dishes, so no tags here.
           planTags: [],
         }}
         daysOnMenu={selected?.dishPublicId ? daysOnMenu.get(selected.dishPublicId) : undefined}
@@ -107,17 +145,17 @@ export function ThisWeekMenuSection({ week, todayKey }: { week: Week; todayKey?:
   );
 }
 
-// Named skeleton twin — a Server Component cannot dot into this "use client"
-// module's export (the /dashboard/orders bug).
 export function ThisWeekMenuSectionSkeleton() {
   return (
-    <SectionCard title="This week's menu" subtitle="Published dishes for the current week.">
-      <div className="flex gap-3 overflow-x-auto pb-1">
-        {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="flex w-[6.75rem] shrink-0 flex-col gap-1.5">
-            <Skeleton className="h-3 w-10" />
-            <Skeleton className="aspect-[4/3] w-full rounded-md" />
-            <Skeleton className="h-3 w-16" />
+    <SectionCard title="This week's menu" subtitle="Released dishes you can browse.">
+      <div className="space-y-7">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="space-y-3">
+            <Skeleton className="h-4 w-24" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Skeleton className="aspect-[4/3] rounded-2xl" />
+              <Skeleton className="aspect-[4/3] rounded-2xl" />
+            </div>
           </div>
         ))}
       </div>
