@@ -141,9 +141,13 @@ describe("getKitchenPackingSheet", () => {
     expect(items).toMatch(/OZ ×/);
     expect(items).toMatch(/Kali Dal/);
     expect(items).toMatch(/Jeera Rice/);
-    // Non-selectable roti: one Item cell with × 8 from categoryCounts.
-    expect(items).toMatch(/Roti — .+× 8/);
-    expect(sheet.summary.find((s) => s.dish.includes("Roti"))?.totalQuantity).toBe(8);
+    // Non-selectable roti: one Item cell with total converted amount (e.g. "8 roti × 1"),
+    // never N columns of "portion × 1".
+    expect(items).toMatch(/Roti — \d+(\.\d+)? roti × 1/);
+    expect(items).not.toMatch(/portion/);
+    expect(sheet.rows[0]?.items.filter((c) => /Roti/.test(c))).toHaveLength(1);
+    expect(sheet.summary.find((s) => s.dish.includes("Roti"))?.portion).toMatch(/\d+(\.\d+)? roti/);
+    expect(sheet.summary.find((s) => s.dish.includes("Roti"))?.totalQuantity).toBe(1);
     expect(sheet.summary.some((s) => s.dish.includes("Kali Dal") && s.totalQuantity >= 1)).toBe(true);
   });
 

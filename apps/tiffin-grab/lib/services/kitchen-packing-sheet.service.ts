@@ -19,7 +19,8 @@ import {
   formatItemCell,
   type PackingItemLine,
 } from "@/lib/menu/packing-requirement";
-import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
+import { formatTuHuman } from "@/lib/menu/format-tu";
+import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
 import { resolveDeliveryMeal } from "@/lib/menu/resolve-delivery-meal";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { menuService } from "@/lib/services/menu.service";
@@ -165,18 +166,33 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
         for (const cat of ordered) {
           if (cat.picks.length === 0) continue;
           if (!cat.selectable) {
+            // Non-selectable (roti/rice/…): one pick name, quantity = slot count. Do NOT loop
+            // portionForPick(i) — meal_size may have one TU line for the whole count (or N
+            // lines); missing indices used to invent "portion" and explode Item columns.
             const pick = cat.picks[0]!;
+            const mealItems = sizeItems.filter((i) => i.mealSizeId === row.mealSizeId);
+            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity);
+            const converter = tuByKey.get(cat.category);
+            const portion =
+              converter && tuTotal > 0
+                ? formatTuHuman(converter, tuTotal)
+                : (portionForPick(portions, cat.category, 1) ?? "").trim();
+            if (!portion) continue;
             const slotKey = `${cat.category}:fixed`;
-            for (let i = 1; i <= cat.quantity; i++) {
-              const portion = (portionForPick(portions, cat.category, i) ?? "").trim() || "portion";
-              addOrBumpLine(lineBySlot, slotKey, pick.name, portion, 1, categorySort.get(cat.category) ?? 0);
-              addDishPortion(dayDishTotals, pick.name, portion, 1);
-            }
+            addOrBumpLine(
+              lineBySlot,
+              slotKey,
+              pick.name,
+              portion,
+              1,
+              categorySort.get(cat.category) ?? 0,
+            );
+            addDishPortion(dayDishTotals, pick.name, portion, 1);
           } else {
             cat.picks.forEach((pick, i) => {
               const pickIndex = i + 1;
-              const portion =
-                (portionForPick(portions, cat.category, pickIndex) ?? "").trim() || "portion";
+              const portion = (portionForPick(portions, cat.category, pickIndex) ?? "").trim();
+              if (!portion) return;
               const slotKey = `${cat.category}:${pickIndex}`;
               addOrBumpLine(
                 lineBySlot,
@@ -245,11 +261,16 @@ function addOrBumpLine(
     hit.quantity += qty;
     return;
   }
+  // Prefer merging any existing line with the same name+portion (persons stacking) before
+  // creating a sibling — avoids duplicate Item columns for the same packing line.
+  for (const line of into.values()) {
+    if (line.name === name && line.portion === portion) {
+      line.quantity += qty;
+      return;
+    }
+  }
   if (hit) {
-    // Same slot, different dish/portion across persons — keep first name, bump qty only when
-    // portion matches; otherwise append a sibling key.
-    const sibling = `${slotKey}:${into.size}`;
-    into.set(sibling, { name, portion, quantity: qty, sort: sort + 0.01 });
+    into.set(`${slotKey}:${into.size}`, { name, portion, quantity: qty, sort: sort + 0.01 });
     return;
   }
   into.set(slotKey, { name, portion, quantity: qty, sort });
