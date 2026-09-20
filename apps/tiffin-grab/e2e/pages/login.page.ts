@@ -11,9 +11,8 @@ export class LoginPage {
 
   async switchToPassword() {
     const switchBtn = this.page.getByRole("button", { name: /sign in with a password instead/i });
-    if (await switchBtn.isVisible().catch(() => false)) {
-      await switchBtn.click();
-    }
+    await expect(switchBtn.or(this.password()).first()).toBeVisible();
+    if (await switchBtn.isVisible()) await switchBtn.click();
   }
 
   email(): Locator {
@@ -21,7 +20,7 @@ export class LoginPage {
   }
 
   password(): Locator {
-    return this.page.getByLabel(/^password$/i);
+    return this.page.locator('input[autocomplete="current-password"]');
   }
 
   submit(): Locator {
