@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
+import { ClockIcon, Loader2Icon, UploadIcon, XIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
@@ -42,10 +42,25 @@ export function ClaimPayment({
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const claimable =
-    ctx.status === "awaiting_payment" ||
-    ctx.status === "rejected" ||
-    ctx.status === "pending_verification";
+  const claimable = ctx.status === "awaiting_payment" || ctx.status === "rejected";
+
+  if (ctx.status === "pending_verification") {
+    return (
+      <div className="flex items-start gap-3 text-left">
+        <span className="bg-primary/15 text-primary mt-0.5 grid size-9 shrink-0 place-items-center rounded-full">
+          <ClockIcon className="size-5" />
+        </span>
+        <div className="space-y-1">
+          <p className="font-semibold">Payment under review</p>
+          <p className="text-muted-foreground text-sm">
+            We&apos;ve received your {ctx.methodLabel} details for{" "}
+            <span className="text-foreground font-medium tabular-nums">{formatDollars(ctx.amount, currency)}</span>.
+            Your plan starts as soon as we confirm it. Nothing else is needed from you.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!claimable) {
     return null;
@@ -85,7 +100,11 @@ export function ClaimPayment({
           form.set("proof", file);
           form.set("proof_thumb", thumb, thumb.name);
         }
-        await claimPaymentAction(ctx.paymentPublicId, form);
+        const res = await claimPaymentAction(ctx.paymentPublicId, form);
+        if ("error" in res) {
+          setError(res.error);
+          return;
+        }
         toast("Payment submitted — we'll confirm it shortly");
         onDone?.();
         router.refresh();
@@ -105,7 +124,7 @@ export function ClaimPayment({
       </div>
 
       {(ctx.payeeHandle || ctx.instructions) && (
-        <div className="rounded-lg bg-muted/50 space-y-1 p-3 text-sm">
+        <div className="rounded-lg bg-muted/50 space-y-1 p-4 text-sm">
           {ctx.payeeHandle && (
             <p>
               Send to: <span className="font-medium">{ctx.payeeHandle}</span>
@@ -121,12 +140,6 @@ export function ClaimPayment({
       {ctx.rejectNote && (
         <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
           Previous claim rejected: {ctx.rejectNote}. Please re-submit.
-        </p>
-      )}
-
-      {ctx.status === "pending_verification" && (
-        <p className="text-muted-foreground text-sm">
-          Already submitted — you can update your reference or screenshot below.
         </p>
       )}
 

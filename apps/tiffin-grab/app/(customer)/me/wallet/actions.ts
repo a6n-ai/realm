@@ -10,6 +10,7 @@ import {
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
 import { currentUserId } from "@/lib/services/session-service";
+import { runAction, type ActionResult } from "../action-result";
 
 async function assertCanClaimPayment(paymentPublicId: string): Promise<ClaimPaymentContext> {
   const ctx = await getClaimPaymentContext(paymentPublicId);
@@ -18,7 +19,11 @@ async function assertCanClaimPayment(paymentPublicId: string): Promise<ClaimPaym
   return ctx;
 }
 
-export async function claimPaymentAction(paymentPublicId: string, form: FormData): Promise<void> {
+export async function claimPaymentAction(paymentPublicId: string, form: FormData): Promise<ActionResult> {
+  return runAction(() => claimPaymentUnsafe(paymentPublicId, form));
+}
+
+async function claimPaymentUnsafe(paymentPublicId: string, form: FormData) {
   await assertCanClaimPayment(paymentPublicId);
   const reference = String(form.get("reference") ?? "").trim() || null;
   const proof = await uploadPaymentProof(

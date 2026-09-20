@@ -3,7 +3,7 @@ import { createLogger } from "@foundry/commons/logger";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@foundry/database";
-import { canClaim, canVerify, enabledMethods, findMethod } from "@foundry/payments";
+import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -824,7 +824,7 @@ export async function abandonPendingOrder(orderId: bigint): Promise<boolean> {
 
 // Customer (or staff-on-behalf) marks a manual payment as sent. Requires a transfer
 // reference and/or a proof image; requireProof on the method config forces the photo.
-// awaiting_payment | rejected → pending_verification.
+// awaiting_payment | rejected → pending_verification. A pending claim is locked.
 // Callers MUST authorize (assertCanManageOrder) before invoking — kept out of this
 // function to avoid an orders ↔ customer-deliveries import cycle.
 export async function claimPayment(
@@ -835,16 +835,8 @@ export async function claimPayment(
   const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
   if (!pay) throw new NotFoundError("Payment not found");
 
-  // awaiting_payment | rejected (fresh claim) or pending_verification (customer correcting).
-  if (
-    pay.status !== "awaiting_payment" &&
-    pay.status !== "rejected" &&
-    pay.status !== "pending_verification"
-  ) {
-    throw new ValidationError(`Payment cannot be claimed from status ${pay.status}`);
-  }
-  // Shared predicate covers the fresh-claim cases; pending_verification is a re-submit.
-  if (pay.status !== "pending_verification" && !canClaim(pay.status)) {
+  // Once claimed the payment is in staff hands: no re-submit until they approve or reject it.
+  if (pay.status !== "awaiting_payment" && pay.status !== "rejected") {
     throw new ValidationError(`Payment cannot be claimed from status ${pay.status}`);
   }
 

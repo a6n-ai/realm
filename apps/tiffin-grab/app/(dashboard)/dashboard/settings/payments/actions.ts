@@ -5,14 +5,19 @@ import { ValidationError } from "@foundry/commons";
 import { paymentConfigSchema, type PaymentConfig } from "@foundry/payments";
 import { findPaymentProvider } from "@foundry/payments/providers";
 import { requireAdmin } from "@/lib/auth/guards";
+import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import { getPaymentConfig, setPaymentConfig } from "@/lib/services/app-settings.service";
 
+// Expected failures are RETURNED (runAction): thrown errors are redacted to "Minified React error #441" in prod.
 // Saves the whole payment config in one shot (the blob is small). Beyond the schema shape,
 // enforce app-level rules the shared schema can't know: unique method ids and a payee handle
 // on any enabled manual method (otherwise customers get instructions with no destination).
-export async function savePaymentConfig(cfg: PaymentConfig) {
+export async function savePaymentConfig(cfg: PaymentConfig): Promise<ActionResult> {
   await requireAdmin();
+  return runAction(() => savePaymentConfigUnsafe(cfg));
+}
 
+async function savePaymentConfigUnsafe(cfg: PaymentConfig) {
   const parsed = paymentConfigSchema.safeParse(cfg);
   if (!parsed.success) throw new ValidationError("Invalid payment configuration");
 
@@ -34,9 +39,12 @@ export async function savePaymentConfig(cfg: PaymentConfig) {
 }
 
 /** Install a catalog payment plugin (adds its method stub to payment_config). */
-export async function installPaymentPlugin(pluginId: string) {
+export async function installPaymentPlugin(pluginId: string): Promise<ActionResult> {
   await requireAdmin();
-  const plugin = findPaymentProvider(pluginId);
+  return runAction(() => installPaymentPluginUnsafe(pluginId));
+}
+
+async function installPaymentPluginUnsafe(pluginId: string) {  const plugin = findPaymentProvider(pluginId);
   if (!plugin) throw new ValidationError("Unknown payment plugin");
 
   const cfg = await getPaymentConfig();
@@ -49,9 +57,12 @@ export async function installPaymentPlugin(pluginId: string) {
 }
 
 /** Uninstall a payment plugin and drop its method config. */
-export async function uninstallPaymentPlugin(pluginId: string) {
+export async function uninstallPaymentPlugin(pluginId: string): Promise<ActionResult> {
   await requireAdmin();
-  const plugin = findPaymentProvider(pluginId);
+  return runAction(() => uninstallPaymentPluginUnsafe(pluginId));
+}
+
+async function uninstallPaymentPluginUnsafe(pluginId: string) {  const plugin = findPaymentProvider(pluginId);
   if (!plugin) throw new ValidationError("Unknown payment plugin");
 
   const cfg = await getPaymentConfig();

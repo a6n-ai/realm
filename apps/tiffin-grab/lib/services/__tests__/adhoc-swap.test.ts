@@ -6,7 +6,7 @@ import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryCategorySwaps, ledgerEntries, mealSizeItems, mealSizes, orders, payments, users } = await import("@/db/schema");
+const { deliveries, deliveryCategorySwaps, dishCategories, ledgerEntries, mealSizeItems, mealSizes, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { applyDeliverySwap } = await import("../category-swaps.service");
@@ -134,19 +134,25 @@ describe("applyDeliverySwap", () => {
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
     const from = size.items[0].category;
-    // A real, enabled category that belongs only to other plans (e.g. healthy's protein).
-    const onPlan = new Set((await dishCategoriesService.forPlan(size.planId)).map((c) => c.key));
-    const enabled = await dishCategoriesService.enabledCategories();
-    const off = enabled.find((c) => !onPlan.has(c.key));
-    if (!off) throw new Error("Every enabled category is on this plan — need a different fixture");
-    await allowPair(from, off.key);
+    // The seeded catalog attaches every enabled category to every plan, so the test owns an
+    // enabled category with no plan membership rather than hunting for one.
+    const OFF_PLAN_KEY = "zz_off_plan_fixture";
+    await db.delete(dishCategories).where(eq(dishCategories.key, OFF_PLAN_KEY));
+    await db.insert(dishCategories).values({ key: OFF_PLAN_KEY, label: "Off-plan fixture", enabled: true });
+    await invalidateCatalogSnapshot();
+    try {
+      await allowPair(from, OFF_PLAN_KEY);
 
-    const { publicId } = await createOrder(orderInput(size.publicId, planKey));
-    const order = await fetchOrder(publicId);
-    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
+      const { publicId } = await createOrder(orderInput(size.publicId, planKey));
+      const order = await fetchOrder(publicId);
+      const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
 
-    await expect(applyDeliverySwap(delivery.publicId, from, off.key, 1, null))
-      .rejects.toThrow(/must be part of this plan/i);
+      await expect(applyDeliverySwap(delivery.publicId, from, OFF_PLAN_KEY, 1, null))
+        .rejects.toThrow(/must be part of this plan/i);
+    } finally {
+      for (const id of createdPairIds.splice(0)) await dishCategoriesService.removeSwapPair(id).catch(() => {});
+      await db.delete(dishCategories).where(eq(dishCategories.key, OFF_PLAN_KEY));
+    }
   });
 
   it("allows swapping a category with itself as a net-zero no-op", async () => {

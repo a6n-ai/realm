@@ -125,8 +125,8 @@ describe("order lifecycle (integration)", () => {
   // onto the customer's real plan afterward without another migration pass.
   it("changeMealSize swaps plan/mealSize, recomputes price server-side, and logs the change", async () => {
     const snap = await loadCatalogSnapshot();
-    const from = snap.mealSizes.find((m) => m.key === "sabzi_only_veg")!;
-    const to = snap.mealSizes.find((m) => m.key === "new_plan_veg")!;
+    const from = snap.mealSizes.find((m) => m.key === "sabzi_only_regular_veg")!;
+    const to = snap.mealSizes.find((m) => m.key === "item4_regular_veg")!;
     const id = await makeOrder("active", from.publicId);
     const [before] = await db.select().from(orders).where(eq(orders.publicId, id));
 
@@ -146,7 +146,7 @@ describe("order lifecycle (integration)", () => {
 
   it("changeMealSize rejects a cancelled order", async () => {
     const snap = await loadCatalogSnapshot();
-    const to = snap.mealSizes.find((m) => m.key === "new_plan_veg")!;
+    const to = snap.mealSizes.find((m) => m.key === "item4_regular_veg")!;
     const id = await makeOrder("active");
     await svc.cancelOrder(id);
     await expect(svc.changeMealSize(id, to.publicId)).rejects.toBeInstanceOf(ValidationError);

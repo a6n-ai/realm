@@ -16,12 +16,12 @@ import { assertCanManageOrder, type Subscription } from "@/lib/services/customer
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
+import { redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
 import { db } from "@/db/client";
 import { orders, plans, mealSizes } from "@/db/schema";
-import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
-import { redeliverTrip } from "@/lib/services/deliveries.service";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
 
 export async function activate(orderId: string) {
   await requireStaff();
@@ -41,19 +41,23 @@ export async function changePlan(orderId: string, mealSizePublicId: string) {
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 
-export async function verifyPaymentAction(orderId: string, paymentPublicId: string) {
+export async function verifyPaymentAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
   await requireStaff();
   const session = await getSession();
-  await verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null });
+  const res = await runAction(() => verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null }));
   revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidatePath("/dashboard/payments", "layout");
   revalidatePath("/me/wallet");
+  return res;
 }
 
-export async function rejectPaymentAction(orderId: string, paymentPublicId: string, note: string) {
+export async function rejectPaymentAction(orderId: string, paymentPublicId: string, note: string): Promise<ActionResult> {
   await requireStaff();
-  await rejectPayment(paymentPublicId, note, await currentUserId());
+  const res = await runAction(async () => rejectPayment(paymentPublicId, note, await currentUserId()));
   revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidatePath("/dashboard/payments", "layout");
   revalidatePath("/me/wallet");
+  return res;
 }
 
 /** Manual "redo the push" for one delivery — the fix when a scheduled push went wrong. */
@@ -69,6 +73,17 @@ export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPu
   await requireStaff();
   await removeOneDelivery(deliveryPublicId, date, await currentUserId());
   revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+/** Driver could not deliver: moves the whole trip to the next delivery day (merging there); the pool is untouched. */
+export async function redeliverTripAction(orderId: string, deliveryPublicId: string): Promise<ActionResult> {
+  await requireStaff();
+  const res = await runAction(async () => {
+    const { targetDate } = await redeliverTrip(deliveryPublicId, await currentUserId());
+    return `Re-delivering on ${targetDate}`;
+  });
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  return res;
 }
 
 export async function fetchOrderDeliveriesMonth(orderPublicId: string, monthKey: string) {
@@ -128,15 +143,4 @@ export async function fetchOrderDeliveriesMonth(orderPublicId: string, monthKey:
 
   const bundle = await loadOrderDeliveriesBundle(orderRow.userId, subscription, from, until);
   return { ...bundle, monthKey: parsedMonth, today };
-}
-
-/** Driver could not deliver: moves the whole trip to the next delivery day (merging there); the pool is untouched. */
-export async function redeliverTripAction(orderId: string, deliveryPublicId: string): Promise<ActionResult> {
-  await requireStaff();
-  const res = await runAction(async () => {
-    const { targetDate } = await redeliverTrip(deliveryPublicId, await currentUserId());
-    return `Re-delivering on ${targetDate}`;
-  });
-  revalidatePath(`/dashboard/orders/${orderId}`);
-  return res;
 }

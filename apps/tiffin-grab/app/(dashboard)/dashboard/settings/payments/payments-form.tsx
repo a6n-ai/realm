@@ -37,11 +37,16 @@ export function PaymentsForm({
     start(async () => {
       setError(null);
       try {
-        await savePaymentConfig({
+        const res = await savePaymentConfig({
           methods: next,
           defaultMethodId:
             initial.defaultMethodId === id ? undefined : initial.defaultMethodId,
         });
+        if ("error" in res) {
+          setError(res.error);
+          setMethods(methods);
+          return;
+        }
         router.push(
           next[0] ? `/dashboard/settings/payments/${next[0].id}` : "/dashboard/settings/payments",
         );
@@ -57,10 +62,14 @@ export function PaymentsForm({
     start(async () => {
       setError(null);
       try {
-        await savePaymentConfig({
+        const res = await savePaymentConfig({
           methods,
           defaultMethodId: initial.defaultMethodId,
         });
+        if ("error" in res) {
+          setError(res.error);
+          return;
+        }
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Save failed");

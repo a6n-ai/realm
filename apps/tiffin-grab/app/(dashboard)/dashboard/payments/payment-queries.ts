@@ -1,0 +1,75 @@
+import { asc, desc, eq, ilike, inArray, or, sql, and, type SQL } from "drizzle-orm";
+import { db } from "@/db/client";
+import { orders, payments, users } from "@/db/schema";
+import { parseSort, type SortState } from "@/lib/list/sort";
+import {
+  PAYMENT_METHOD_OPTIONS,
+  PAYMENT_SORT_KEYS,
+  PAYMENT_STATUS_OPTIONS,
+  type PaymentRow,
+  type PaymentSortKey,
+} from "./payment-facets";
+
+const SORT_COL = {
+  time: payments.createdAt,
+  customer: users.email,
+  order: orders.publicId,
+  method: payments.method,
+  status: payments.status,
+  amount: payments.amount,
+} as const;
+
+type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string };
+
+const csv = (v: string | undefined, allowed: readonly { value: string }[]) =>
+  (v ?? "")
+    .split(",")
+    .filter((x) => allowed.some((a) => a.value === x));
+
+/** Newest first by default, capped: an ops queue, not a report. `where` pins a tab's own rule. */
+export async function listPayments(
+  sp: Sp,
+  opts: { where?: SQL } = {},
+): Promise<{ rows: PaymentRow[]; sort: SortState<PaymentSortKey> }> {
+  const sort = parseSort(sp, PAYMENT_SORT_KEYS, { column: "time", dir: "desc" });
+  const q = sp.q?.trim();
+  const statuses = csv(sp.status, PAYMENT_STATUS_OPTIONS);
+  const methods = csv(sp.method, PAYMENT_METHOD_OPTIONS);
+
+  const where = and(
+    opts.where,
+    statuses.length ? inArray(payments.status, statuses as never[]) : undefined,
+    methods.length ? inArray(payments.method, methods as never[]) : undefined,
+    q
+      ? or(
+          ilike(orders.publicId, `%${q}%`),
+          ilike(users.email, `%${q}%`),
+          ilike(payments.reference, `%${q}%`),
+          sql`${payments.method}::text ilike ${`%${q}%`}`,
+        )
+      : undefined,
+  );
+
+  const col = SORT_COL[sort.column];
+  const rows = await db
+    .select({
+      publicId: payments.publicId,
+      createdAt: payments.createdAt,
+      status: payments.status,
+      method: payments.method,
+      amount: payments.amount,
+      reference: payments.reference,
+      proof: payments.proof,
+      note: payments.note,
+      email: users.email,
+      orderPublicId: orders.publicId,
+    })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .leftJoin(users, eq(users.id, orders.userId))
+    .where(where)
+    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+    .limit(100);
+
+  return { rows: rows.map(({ proof, ...r }) => ({ ...r, proofThumb: proof?.thumbUrl ?? null })), sort };
+}

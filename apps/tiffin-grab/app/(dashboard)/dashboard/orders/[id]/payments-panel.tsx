@@ -172,7 +172,11 @@ function PaymentRow({
   function verify() {
     start(async () => {
       try {
-        await verifyPaymentAction(orderId, payment.publicId);
+        const res = await verifyPaymentAction(orderId, payment.publicId);
+        if ("error" in res) {
+          toast.error(res.error);
+          return;
+        }
         toast("Payment verified");
         router.refresh();
       } catch (e) {
@@ -188,7 +192,11 @@ function PaymentRow({
     }
     start(async () => {
       try {
-        await rejectPaymentAction(orderId, payment.publicId, rejectNote.trim());
+        const res = await rejectPaymentAction(orderId, payment.publicId, rejectNote.trim());
+        if ("error" in res) {
+          toast.error(res.error);
+          return;
+        }
         setShowReject(false);
         setRejectNote("");
         toast("Payment rejected");

@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
-import { NotFoundError, nextWeekday, weekdayKey } from "@foundry/commons";
+import { nextWeekday, weekdayKey } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
@@ -126,6 +126,7 @@ describe("(customer)/me/meals pickMyDish (integration)", () => {
     const { week, dish, dayOfWeek } = await seedMenu(bDelivery.deliveryDate);
 
     actAs(a.publicId);
+    // Customer actions return expected failures instead of throwing (redacted in prod).
     await expect(
       pickMyDish({
         orderId: bOrder.publicId,
@@ -136,7 +137,7 @@ describe("(customer)/me/meals pickMyDish (integration)", () => {
         pickIndex: 1,
         dishId: dish.publicId,
       }),
-    ).rejects.toBeInstanceOf(NotFoundError);
+    ).resolves.toEqual({ error: "Subscription not found" });
 
     const rows = await db.select().from(mealSelections).where(eq(mealSelections.orderId, bOrder.id));
     expect(rows.length).toBe(0);

@@ -31,6 +31,12 @@ export const ADMIN_SIDEBAR_ROUTES: AdminRoute[] = [
     finalPath: /\/dashboard\/wallet\//,
   },
   {
+    id: "payments",
+    path: "/dashboard/payments",
+    heading: /Payments/i,
+    finalPath: /\/dashboard\/payments\//,
+  },
+  {
     id: "discounts",
     path: "/dashboard/discounts",
     heading: /Discount|Coupon|Log|Kind|Allowance/i,
@@ -81,6 +87,10 @@ export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
   { id: "wallet-ledger", path: "/dashboard/wallet/ledger", heading: /Wallet/i },
   { id: "wallet-payouts", path: "/dashboard/wallet/payouts", heading: /Wallet/i },
   { id: "wallet-coin-rate", path: "/dashboard/wallet/coin-rate", heading: /Wallet/i },
+  { id: "payments-requests", path: "/dashboard/payments/requests", heading: /Payments/i },
+  { id: "payments-all", path: "/dashboard/payments/all", heading: /Payments/i },
+  { id: "payments-ledger", path: "/dashboard/payments/ledger", heading: /Payments/i },
+  { id: "payments-logs", path: "/dashboard/payments/logs", heading: /Payments/i },
   { id: "discount-logs", path: "/dashboard/discounts/logs", heading: /Discounts/i },
   { id: "discount-coupons", path: "/dashboard/discounts/coupons", heading: /Discounts/i },
   { id: "discount-kinds", path: "/dashboard/discounts/kinds", heading: /Discounts/i },

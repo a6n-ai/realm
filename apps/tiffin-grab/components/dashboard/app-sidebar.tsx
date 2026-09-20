@@ -15,6 +15,7 @@ import {
   LockIcon,
   LogOutIcon,
   TruckIcon,
+  WalletCardsIcon,
   type LucideIcon,
   PackageIcon,
   PaletteIcon,
@@ -91,6 +92,7 @@ export const SECTIONS: NavSection[] = [
   {
     label: "Finance",
     items: [
+      { title: "Payments", href: "/dashboard/payments", icon: WalletCardsIcon, roles: ["admin"] },
       { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon, roles: ["admin"] },
       { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon, roles: ["admin"] },
     ],

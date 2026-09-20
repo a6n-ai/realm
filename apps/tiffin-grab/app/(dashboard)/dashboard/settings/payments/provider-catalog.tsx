@@ -33,7 +33,11 @@ export function ProviderCatalog({
   const install = (id: string, label: string) =>
     start(async () => {
       try {
-        await installPaymentPlugin(id);
+        const res = await installPaymentPlugin(id);
+        if ("error" in res) {
+          toast.error(res.error);
+          return;
+        }
         toast.success(`${label} installed`);
         router.refresh();
       } catch (e) {

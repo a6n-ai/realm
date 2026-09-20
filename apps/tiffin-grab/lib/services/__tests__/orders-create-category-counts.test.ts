@@ -56,7 +56,7 @@ describe("createOrder snapshots category_counts from the meal size (integration)
   it("Maharaja Veg order snapshots a distinct, richer category_counts", async () => {
     const order = await makeOrder("maharaja_veg", "+16475550122");
     expect(order.categoryCounts).toEqual({
-      sabzi: 1,
+      sabzi: 2,
       daal: 1,
       salad: 1,
       raita: 1,

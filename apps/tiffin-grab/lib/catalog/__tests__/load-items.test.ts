@@ -4,7 +4,7 @@ import { mealSizes } from "@/db/schema";
 import { loadCatalogSnapshot } from "../load";
 
 describe("loadCatalogSnapshot items + trial", () => {
-  it("populates structured items[] and trial for every meal size", async () => {
+  it("populates structured items[] and a boolean trial flag for every meal size", async () => {
     const seeded = await db.select().from(mealSizes).limit(1);
     if (!seeded[0]) return; // skip against an unseeded DB
 
@@ -12,10 +12,8 @@ describe("loadCatalogSnapshot items + trial", () => {
 
     expect(snap.mealSizes.length).toBeGreaterThanOrEqual(17);
 
-    const trialVeg = snap.mealSizes.find((m) => m.key === "trial_veg");
-    const trialNonveg = snap.mealSizes.find((m) => m.key === "trial_nonveg");
-    expect(trialVeg?.trial).toBe(true);
-    expect(trialNonveg?.trial).toBe(true);
+    // seed.sql: the sheet has no trial meal, so the flag must load as a real boolean.
+    for (const m of snap.mealSizes) expect(typeof m.trial).toBe("boolean");
 
     for (const m of snap.mealSizes) {
       expect(m.items.length).toBeGreaterThan(0);
