@@ -14,6 +14,7 @@ const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function TiffinTile({
   date, status, dishName, dishImage: _dishImage, extraCount: _extraCount = 0,
+  coverCount = 1,
   isToday = false, selected = false, variant = "month", onClick,
 }: {
   date: string;
@@ -21,6 +22,7 @@ export function TiffinTile({
   dishName: string | null;
   dishImage: FileDetail | null;
   extraCount?: number;
+  coverCount?: number;
   isToday?: boolean;
   selected?: boolean;
   variant?: "month" | "week";
@@ -32,6 +34,7 @@ export function TiffinTile({
   const weekday = WEEKDAY_SHORT[local.getDay()];
   const delivered = status === "locked";
   const off = status === "off";
+  const multiDay = coverCount > 1;
 
   const tapAnimation = reduce ? undefined : { scale: 0.96 };
 
@@ -51,6 +54,11 @@ export function TiffinTile({
   );
 
   const underlineVisible = status !== "off";
+  const multiBadge = multiDay ? (
+    <span className="bg-muted text-muted-foreground absolute -top-0.5 right-0 rounded px-0.5 text-[8px] font-semibold leading-tight tabular-nums">
+      {coverCount} days
+    </span>
+  ) : null;
 
   if (variant === "week") {
     return (
@@ -59,7 +67,7 @@ export function TiffinTile({
         onClick={onClick}
         whileTap={tapAnimation}
         transition={{ type: "spring", duration: 0.3, bounce: 0 }}
-        aria-label={`${weekday} ${dayNum}${isToday ? ", today" : ""}${statusName ? `, ${statusName}` : ""}${dishName ? `, ${dishName}` : ""}`}
+        aria-label={`${weekday} ${dayNum}${isToday ? ", today" : ""}${statusName ? `, ${statusName}` : ""}${multiDay ? `, ${coverCount} days` : ""}${dishName ? `, ${dishName}` : ""}`}
         aria-pressed={selected}
         className={cn(
           "group relative flex min-h-11 w-14 shrink-0 snap-center touch-manipulation flex-col items-center gap-0.5 px-1 py-1.5 text-center transition-colors",
@@ -67,6 +75,7 @@ export function TiffinTile({
           off && !selected && "opacity-50",
         )}
       >
+        {multiBadge}
         <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           {weekday}
         </span>
@@ -93,7 +102,7 @@ export function TiffinTile({
       disabled={off}
       whileTap={tapAnimation}
       transition={{ type: "spring", duration: 0.3, bounce: 0 }}
-      aria-label={`${dayNum}${isToday ? ", today" : ""}${statusName ? `, ${statusName}` : ""}${dishName ? `, ${dishName}` : ""}`}
+      aria-label={`${dayNum}${isToday ? ", today" : ""}${statusName ? `, ${statusName}` : ""}${multiDay ? `, ${coverCount} days` : ""}${dishName ? `, ${dishName}` : ""}`}
       aria-pressed={selected}
       className={cn(
         // Selection is a ring + number fill so the status mark stays the legend color.
@@ -103,6 +112,7 @@ export function TiffinTile({
         off && !selected && "cursor-default opacity-40",
       )}
     >
+      {multiBadge}
       <span className={dateCircleClass}>{dayNum}</span>
       {underlineVisible ? (
         <DayStatusMark status={status} />

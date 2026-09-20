@@ -1,27 +1,15 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { inArray, eq } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { db } from "@/db/client";
-import { deliveryCategorySwaps, mealSizeItems } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
 import {
   myActiveSubscriptions,
-  myCalendar,
-  myDeliveries,
-  myDeliveryMeal,
-  myPausePanel,
   myPrimarySubscription,
-  myTiffinCounts,
   myWaitlistedSubscriptions,
-  makeupSourceIdsForOrder,
 } from "@/lib/services/customer-deliveries.service";
-import { effectiveAddress } from "@/lib/services/deliveries.service";
-import { monthFetchRange, parseMonthParam, type CalendarCell } from "./calendar-constants";
+import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
+import { monthFetchRange, parseMonthParam } from "./calendar-constants";
 import { DeliveryCalendar, DeliveryCalendarSkeleton } from "./delivery-calendar";
 
 type SearchParams = Promise<{ month?: string; sub?: string }>;
@@ -71,81 +59,21 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const selected =
     (subParam ? subscriptions.find((s) => s.publicId === subParam) : null) ?? primary;
 
-  const [rawDeliveries, pausePanel, calendarDays, tiffinCounts, makeupSources, catalog] = await Promise.all([
-    myDeliveries(userId, from, until),
-    myPausePanel(userId, selected.publicId),
-    myCalendar(userId, selected.publicId, { from, until }),
-    myTiffinCounts(userId, selected.publicId),
-    makeupSourceIdsForOrder(selected.publicId),
-    loadCatalogSnapshot(),
-  ]);
-
-  const calendarCells: Record<string, CalendarCell[]> = {
-    [selected.publicId]: calendarDays,
-  };
-
-  // Independent of each other and of the first Promise.all's results (both only
-  // need `selected`, already resolved) — fetched together instead of sequentially.
-  const [categoryRows, mealSizeCategoryRows] = await Promise.all([
-    dishCategoriesService.forPlanType(selected.planType),
-    // Eligibility is global now (category_swap_pairs) — restricted here to categories
-    // this meal size actually offers, so the picker can't propose a pair it doesn't serve.
-    db.select({ category: mealSizeItems.category }).from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, selected.mealSizeId)),
-  ]);
-  const categoryLabels: Record<string, string> = {};
-  for (const r of categoryRows) categoryLabels[r.key] = r.label;
-  const categoryPortions = categoryPortionsForMealSize(catalog.mealSizes, selected.mealSizeId);
-
-  const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
-
-  const mealSizeCategories = [...new Set(mealSizeCategoryRows.map((r) => r.category))];
-  const swapPairs = await dishCategoriesService.swapPairsForMealSize(selected.mealSizeId);
-
-  // One batched query for every delivery's applied swaps, not one per delivery inside
-  // the Promise.all below — same batch-then-filter shape resolveDeliveryMealsForWeek uses.
-  const allAppliedSwaps = selectedDeliveries.length === 0 ? [] : await db
-    .select({
-      publicId: deliveryCategorySwaps.publicId,
-      deliveryId: deliveryCategorySwaps.deliveryId,
-      fromCategory: deliveryCategorySwaps.fromCategory,
-      toCategory: deliveryCategorySwaps.toCategory,
-      qtyFrom: deliveryCategorySwaps.qtyFrom,
-      qtyTo: deliveryCategorySwaps.qtyTo,
-    })
-    .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id)));
-
-  const deliveries = await Promise.all(
-    selectedDeliveries.map(async (d) => {
-      const meal = await myDeliveryMeal(d);
-      const hasAddressOverride = d.addressLine !== null;
-      const address = effectiveAddress(d, selected);
-      return {
-        ...d,
-        meal,
-        address,
-        hasAddressOverride,
-        hasMakeupScheduled: makeupSources.has(d.id.toString()),
-        swapPairs,
-        mealSizeCategories,
-        appliedSwaps: allAppliedSwaps.filter((s) => s.deliveryId === d.id),
-      };
-    }),
-  );
+  const bundle = await loadOrderDeliveriesBundle(userId, selected, from, until);
 
   return (
     <DeliveryCalendar
       subscriptions={subscriptions}
       selectedPublicId={selected.publicId}
-      deliveries={deliveries}
-      pausePanels={{ [selected.publicId]: pausePanel }}
-      calendarCells={calendarCells}
-      categoryLabels={categoryLabels}
-      categoryPortions={categoryPortions}
+      deliveries={bundle.deliveries}
+      pausePanels={bundle.pausePanels}
+      calendarCells={bundle.calendarCells}
+      categoryLabels={bundle.categoryLabels}
+      categoryPortions={bundle.categoryPortions}
       monthKey={monthKey}
       waitlisted={waitlisted}
       today={today}
-      tiffinCounts={tiffinCounts}
+      tiffinCounts={bundle.tiffinCounts}
     />
   );
 }

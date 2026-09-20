@@ -41,6 +41,12 @@ export function CalendarLegend({ className }: { className?: string }) {
           {item.label}
         </li>
       ))}
+      <li className="inline-flex shrink-0 items-center gap-1.5">
+        <span className="bg-muted text-muted-foreground rounded px-1 text-[9px] font-semibold tabular-nums" aria-hidden>
+          2 days
+        </span>
+        Multi-day trip
+      </li>
     </ul>
   );
 }

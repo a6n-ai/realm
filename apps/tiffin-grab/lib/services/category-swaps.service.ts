@@ -27,6 +27,8 @@ export async function applyDeliverySwap(
   toCategory: string,
   fromPicks: number,
   actorId: bigint | null,
+  /** Eating day this swap applies to; defaults to the trip's delivery_date. */
+  forDate?: string,
 ): Promise<void> {
   if (!Number.isInteger(fromPicks) || fromPicks <= 0) throw new ValidationError("Pick count must be a positive whole number");
 
@@ -37,6 +39,11 @@ export async function applyDeliverySwap(
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot swap on a ${row.status} delivery`);
+
+    const eatingDate = forDate ?? row.deliveryDate;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(eatingDate)) {
+      throw new ValidationError("Swap date must be ISO YYYY-MM-DD");
+    }
 
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order) throw new ValidationError("Order not found");
@@ -54,13 +61,13 @@ export async function applyDeliverySwap(
     if (!quantities.ok) throw new ValidationError(quantities.reason);
     const qtyTo = quantities.qtyTo;
 
-    // Stack-aware bound check: fold every swap already applied to this delivery before
-    // checking whether fromCategory has enough left to give up — a customer can stack
-    // several different swaps on one day, but never past what's actually there.
-    const existing = await tx.select({
+    // Stack-aware bound check: only swaps for this eating day count toward the stack.
+    const existingAll = await tx.select({
       fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo,
+      forDate: deliveryCategorySwaps.forDate,
     }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id));
+    const existing = existingAll.filter((s) => (s.forDate ?? row.deliveryDate) === eatingDate);
     const check = validateSwapStack(order.categoryCounts ?? {}, existing, { fromCategory, toCategory, qtyFrom: fromPicks, qtyTo });
     if (!check.ok) throw new ValidationError(check.reason);
 
@@ -88,10 +95,11 @@ export async function applyDeliverySwap(
     // can't retroactively change a swap a customer already applied.
     await tx.insert(deliveryCategorySwaps).values({
       deliveryId: row.id, fromCategory, toCategory, qtyFrom: fromPicks, qtyTo,
+      forDate: eatingDate,
     });
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "category_swap_applied",
-      note: `${fromPicks} ${fromCategory} → ${qtyTo} ${toCategory}`,
+      note: `${fromPicks} ${fromCategory} → ${qtyTo} ${toCategory} (eat ${eatingDate})`,
       createdBy: actorId,
     });
   });

@@ -3,6 +3,7 @@ import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
+import { coveredDates } from "@/lib/menu/coverage";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import {
@@ -286,7 +287,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     weekdays: order.weekdays as DayOfWeek[] | null,
     includeSaturday: !order.eatingDays?.length && order.includeSaturday,
     includeSunday: !order.eatingDays?.length && order.includeSunday,
-  });
+  }).filter((d) => d !== "sat" && d !== "sun");
 
   return {
     total: order.tiffinCount,
@@ -513,6 +514,8 @@ export type CalendarDay = {
   menuWeekId: string | null;
   meal: ResolvedMeal | null;
   options: MealOption[];
+  /** Eating days this trip carries (covers_dates length); 1 for legacy single-day rows. */
+  coverCount?: number;
 };
 
 // Day-cell aggregator for the customer calendar (this week + next week). Composed entirely from
@@ -564,6 +567,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
         menuWeekId: null,
         meal: null,
         options: [],
+        coverCount: coveredDates(row).length,
       });
       continue;
     }
@@ -605,6 +609,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       menuWeekId: week.publicId,
       meal,
       options,
+      coverCount: coveredDates(row).length,
     });
   }
   return out;

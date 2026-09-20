@@ -7,25 +7,24 @@ import { AppError } from "@foundry/commons";
  *
  * These must be RETURNED, never thrown: this Next.js build redacts any error
  * thrown across the Server Action boundary to a generic, message-less
- * "Minified React error #441" in production builds — see
- * node_modules/next/dist/docs/01-app/01-getting-started/10-error-handling.md
- * ("model expected errors as return values"; throwing is reserved for
- * uncaught/unexpected bugs, which SHOULD stay opaque to the client). Dev mode
- * shows the real message either way, which is why this was invisible until
- * someone tested a production build.
+ * "Minified React error #441" in production builds.
  */
-export type ActionResult = { ok: true; message?: string } | { error: string };
+export type ActionResult<T extends Record<string, unknown> = Record<string, never>> =
+  | ({ ok: true; message?: string } & T)
+  | { error: string };
 
 /**
- * Runs `fn`, converting an expected `AppError` (ValidationError, NotFoundError,
- * ...) into `{ error }` so its message survives to the client in production.
- * Anything else still throws — a real bug should still hit Next's normal
- * uncaught-exception handling, not be silently swallowed as a toast.
+ * Runs `fn`, converting an expected `AppError` into `{ error }`. Success may
+ * return void, a message string, or an object merged onto `{ ok: true }`.
  */
-export async function runAction(fn: () => Promise<void | string>): Promise<ActionResult> {
+export async function runAction<T extends Record<string, unknown> = Record<string, never>>(
+  fn: () => Promise<void | string | T>,
+): Promise<ActionResult<T>> {
   try {
-    const message = await fn();
-    return message ? { ok: true, message } : { ok: true };
+    const result = await fn();
+    if (result == null) return { ok: true } as ActionResult<T>;
+    if (typeof result === "string") return { ok: true, message: result } as ActionResult<T>;
+    return { ok: true, ...result } as ActionResult<T>;
   } catch (e) {
     if (e instanceof AppError) return { error: e.message };
     throw e;

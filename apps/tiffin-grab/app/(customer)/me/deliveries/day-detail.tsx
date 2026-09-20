@@ -64,10 +64,15 @@ import {
 import { VacationDateField } from "./vacation-date-field";
 import { isPoolScheduleDateEligible, isRescheduleTargetDateEligible } from "./pool-date-eligibility";
 import { ActionCard, ActionGrid, DELIVERY_SHEET_DIRECTION } from "./action-card";
+import {
+  formatEatDayCarryPreview,
+  previewEatDayCarry,
+} from "@/lib/menu/carry-trip";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
 
 type Address = DeliveryAddressValues;
 type SwapPair = { fromCategory: string; toCategory: string };
-type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; forDate?: string | null };
 type DeliveryCardData = CustomerDelivery & {
   meal: DeliveryCardMeal;
   address: Address;
@@ -76,6 +81,7 @@ type DeliveryCardData = CustomerDelivery & {
   swapPairs: SwapPair[];
   mealSizeCategories: string[];
   appliedSwaps: AppliedSwap[];
+  eatingDays?: import("@/lib/services/trip-eating-days.service").TripEatingDay[];
 };
 type HoldDeliveryOption = {
   publicId: string;
@@ -106,12 +112,114 @@ function isRescheduleTargetOccupied(delivery: DeliveryCardData | undefined): boo
   return delivery.status === "scheduled";
 }
 
-// There is no physical Saturday/Sunday delivery — a weekend add-on always ships bundled onto
-// that week's Friday row (materializeDeliveries), so a reschedule/schedule-from-pool target
-// picker must never offer one as a literal destination date. Mirrors the server-side
-// assertNotWeekendTarget guard (lib/services/deliveries.service.ts) — this is the UX half
-// (grey the days out before the customer picks one), that's the authoritative half.
-const WEEKDAYS_ONLY = ["mon", "tue", "wed", "thu", "fri"] as const;
+// Eat-day reschedule: picker is the day the customer wants to eat. Weekends and
+// off-pattern days snap to the carrying trip (server + shared preview helper).
+function RescheduleDialog({
+  deliveryPublicId,
+  today,
+  sourceDateIso,
+  deliveryWeekdays,
+  onSaved,
+}: {
+  deliveryPublicId: string;
+  today: string;
+  sourceDateIso?: string;
+  deliveryWeekdays: DayOfWeek[];
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState("");
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const preview = date && deliveryWeekdays.length
+    ? previewEatDayCarry(date, deliveryWeekdays)
+    : null;
+
+  function reset() {
+    setDate("");
+    setError(null);
+  }
+
+  function submit() {
+    if (!date) return;
+    setError(null);
+    start(async () => {
+      const result = await rescheduleMyDelivery(deliveryPublicId, date);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setOpen(false);
+      reset();
+      onSaved();
+      const carried = "carriedOn" in result ? result.carriedOn : null;
+      toast.success(
+        carried && carried !== date
+          ? `Food for ${date} will arrive with your ${carried} delivery`
+          : "Delivery rescheduled",
+      );
+    });
+  }
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) reset();
+      }}
+      direction={DELIVERY_SHEET_DIRECTION}
+      trigger={
+        <ActionCard
+          layout="tile"
+          icon={CalendarClockIcon}
+          title="Reschedule"
+          description={
+            sourceDateIso
+              ? "Move this hold day"
+              : "Pick the day you want to eat"
+          }
+        />
+      }
+      title="Reschedule — day you want to eat"
+      footer={
+        <DialogFooterRow>
+          <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
+          <Button className={IOS_BUTTON} disabled={!date || pending} onClick={submit}>{pending ? "Saving…" : "Confirm"}</Button>
+        </DialogFooterRow>
+      }
+    >
+      <div className="space-y-4 px-4 pb-4">
+        <p className="text-muted-foreground text-sm">
+          {sourceDateIso
+            ? `Move your ${formatDateOnly(sourceDateIso, { mode: "short" })} hold. Pick the day you want to eat — weekends and off-pattern days ship with the nearest earlier delivery.`
+            : "Pick the day you want to eat. We deliver on your plan’s delivery days only — Tue food rides Monday, weekends ride Friday."}
+        </p>
+        <VacationDateField
+          id={`reschedule-${deliveryPublicId}`}
+          label="Day you want to eat"
+          value={date}
+          onChange={setDate}
+          today={today}
+          minDate={today}
+        />
+        {preview ? (
+          <div className="bg-muted/50 text-foreground space-y-1 rounded-xl border px-3 py-2 text-sm" aria-live="polite">
+            <p>{formatEatDayCarryPreview(preview)}</p>
+            {/*
+              TODO(you): show the carrying trip's cutoff under the preview.
+              Spec: "Show the cutoff of the carrying trip."
+              Hint: preview.carriedOn + app cutoffHour + timezone → cutoffMsFor from @foundry/commons,
+              then formatEpoch. Trade-off: fetch cutoffHour once (settings) vs hard-code a default.
+            */}
+          </div>
+        ) : null}
+        {error && <p className="text-bad text-xs">{error}</p>}
+      </div>
+    </ResponsiveDialog>
+  );
+}
 
 function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
   deliveryPublicId: string;
@@ -203,95 +311,6 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
           // onResolve needed: autocomplete is gated on resolveUrl alone.
           resolveUrl="/api/address/resolve"
         />
-      </div>
-    </ResponsiveDialog>
-  );
-}
-
-function RescheduleDialog({
-  deliveryPublicId,
-  today,
-  sourceDateIso,
-  onSaved,
-}: {
-  deliveryPublicId: string;
-  today: string;
-  sourceDateIso?: string;
-  onSaved: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [date, setDate] = useState("");
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  function reset() {
-    setDate("");
-    setError(null);
-  }
-
-  function submit() {
-    if (!date) return;
-    setError(null);
-    start(async () => {
-      const result = await rescheduleMyDelivery(deliveryPublicId, date);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setOpen(false);
-      reset();
-      onSaved();
-      toast.success("Delivery rescheduled");
-    });
-  }
-
-  return (
-    <ResponsiveDialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) reset();
-      }}
-      direction={DELIVERY_SHEET_DIRECTION}
-      trigger={
-        <ActionCard
-          layout="tile"
-          icon={CalendarClockIcon}
-          title="Reschedule"
-          description={
-            sourceDateIso
-              ? "Move this hold day"
-              : "Pick another day"
-          }
-        />
-      }
-      title="Reschedule delivery"
-      footer={
-        <DialogFooterRow>
-          <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
-          <Button className={IOS_BUTTON} disabled={!date || pending} onClick={submit}>{pending ? "Saving…" : "Confirm"}</Button>
-        </DialogFooterRow>
-      }
-    >
-      <div className="space-y-4 px-4 pb-4">
-        <p className="text-muted-foreground text-sm">
-          {sourceDateIso
-            ? `Move your ${formatDateOnly(sourceDateIso, { mode: "short" })} hold day to another delivery day, or tap a date on the calendar and use “Reschedule hold day here”.`
-            : "Pick another day for this tiffin. This day is held and used on the date you choose."}
-        </p>
-        <VacationDateField
-          id={`reschedule-${deliveryPublicId}`}
-          label="New delivery day"
-          value={date}
-          onChange={setDate}
-          today={today}
-          minDate={today}
-          allowedDays={WEEKDAYS_ONLY}
-        />
-        <p className="text-muted-foreground text-xs">
-          We don’t deliver on weekends — a Saturday or Sunday tiffin ships with that week’s Friday delivery instead.
-        </p>
-        {error && <p className="text-bad text-xs">{error}</p>}
       </div>
     </ResponsiveDialog>
   );
@@ -437,10 +456,13 @@ function SwapSection({
   delivery,
   categoryLabels,
   onChanged,
+  forDate,
 }: {
   delivery: DeliveryCardData;
   categoryLabels: Record<string, string>;
   onChanged: () => void;
+  /** Eating day this menu selection applies to. */
+  forDate: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -453,6 +475,10 @@ function SwapSection({
 
   if (delivery.swapPairs.length === 0) return null;
 
+  const daySwaps = delivery.appliedSwaps.filter(
+    (s) => (s.forDate ?? delivery.deliveryDate) === forDate,
+  );
+
   function selectFrom(next: string) {
     setFrom(next);
     const firstTo = delivery.swapPairs.find((p) => p.fromCategory === next)?.toCategory;
@@ -461,7 +487,7 @@ function SwapSection({
 
   const picksNum = Number(picks);
   const validPicks = Number.isInteger(picksNum) && picksNum > 0;
-  const applied = delivery.appliedSwaps.length;
+  const applied = daySwaps.length;
 
   function run(fn: () => Promise<ActionResult>, successMsg: string) {
     startTransition(async () => {
@@ -478,10 +504,10 @@ function SwapSection({
   function apply() {
     if (!to || !validPicks) return;
     run(async () => {
-      const result = await applyMyDeliverySwap(delivery.publicId, from, to, picksNum);
+      const result = await applyMyDeliverySwap(delivery.publicId, from, to, picksNum, forDate);
       if (!("error" in result)) setOpen(false);
       return result;
-    }, "Swap applied");
+    }, "Menu selection applied");
   }
 
   return (
@@ -493,40 +519,40 @@ function SwapSection({
         <ActionCard
           layout="tile"
           icon={ArrowLeftRightIcon}
-          title="Swap"
-          aria-label="Swap items"
+          title="Menu selection"
+          aria-label="Menu selection"
           description={
             applied > 0
-              ? `${applied} swap${applied === 1 ? "" : "s"} on this day`
+              ? `${applied} change${applied === 1 ? "" : "s"} on this day`
               : "Trade an item"
           }
         />
       }
-      title="Swap items"
+      title="Menu selection"
       footer={
         <Button
           className={IOS_BUTTON}
           disabled={pending || !to || !validPicks}
           onClick={apply}
         >
-          {pending ? "Saving…" : "Apply swap"}
+          {pending ? "Saving…" : "Apply"}
         </Button>
       }
     >
       <div className="space-y-4 px-4 pb-4">
         <p className="text-muted-foreground text-sm">
-          Trade a category on this tiffin for another eligible one. Applied swaps can be removed below.
+          Trade a category on this meal for another eligible one. Changes can be removed below.
         </p>
         {applied > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            {delivery.appliedSwaps.map((s) => (
+            {daySwaps.map((s) => (
               <span key={s.publicId} className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
                 {s.qtyFrom} {label(s.fromCategory)} → {s.qtyTo} {label(s.toCategory)}
                 <Button
                   variant="ghost"
                   className="h-11 px-2 text-sm underline"
                   disabled={pending}
-                  onClick={() => run(() => removeMyDeliverySwap(delivery.publicId, s.publicId), "Swap removed")}
+                  onClick={() => run(() => removeMyDeliverySwap(delivery.publicId, s.publicId), "Selection removed")}
                 >
                   Remove
                 </Button>
@@ -575,14 +601,19 @@ function DeliveryDayActions({
   delivery,
   locked,
   today,
+  deliveryWeekdays,
   categoryLabels,
   onChanged,
+  /** When false, Swap moves onto per-eating-day meal cards (split panel). */
+  includeSwap = true,
 }: {
   delivery: DeliveryCardData;
   locked: boolean;
   today: string;
+  deliveryWeekdays: DayOfWeek[];
   categoryLabels: Record<string, string>;
   onChanged: () => void;
+  includeSwap?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -622,7 +653,7 @@ function DeliveryDayActions({
     delivery.pooledAt == null &&
     !delivery.hasMakeupScheduled;
   const showAddress = !locked && delivery.status === "scheduled";
-  const showSwap = !locked && delivery.status === "scheduled";
+  const showSwap = includeSwap && !locked && delivery.status === "scheduled";
 
   if (!showReschedule && !showUnskip && !showAddress && !showSwap) return null;
 
@@ -643,6 +674,7 @@ function DeliveryDayActions({
           deliveryPublicId={delivery.publicId}
           today={today}
           sourceDateIso={isHoldOriginal ? delivery.deliveryDate : undefined}
+          deliveryWeekdays={deliveryWeekdays}
           onSaved={onChanged}
         />
       )}
@@ -665,7 +697,12 @@ function DeliveryDayActions({
         />
       )}
       {showSwap && (
-        <SwapSection delivery={delivery} categoryLabels={categoryLabels} onChanged={onChanged} />
+        <SwapSection
+          delivery={delivery}
+          categoryLabels={categoryLabels}
+          onChanged={onChanged}
+          forDate={delivery.deliveryDate}
+        />
       )}
       {!showUnskip && delivery.status === "skipped" && (delivery.pooledAt != null || delivery.hasMakeupScheduled) && (
         <p className="text-muted-foreground col-span-2 px-1 text-xs">
@@ -710,14 +747,29 @@ export function DayDetail({
   const kind: "cell" | "unreleased" | "off" = cell ? "cell" : delivery ? "unreleased" : "off";
   const status: DayStatus = cell ? calendarDayStatus(cell) : "off";
   const chips = delivery ? mealChips(delivery.meal) : [];
-  // A "cell" kind day can still have its menu unreleased: myCalendar resolves a cell for the day
-  // (it's in the plan's delivery pattern) but the week's menu itself hasn't gone out yet, so
-  // options is empty. Distinct from kind === "unreleased" (no cell at all) — same underlying
-  // cause, but a different customer-facing moment, so it gets its own copy and never attempts
-  // MealDayPicker (which would otherwise silently render nothing via its own options.length guard).
   const released = kind === "cell" && !!cell?.menuWeekId && (cell?.options.length ?? 0) > 0;
   const menuNotReleased = kind === "cell" && status !== "locked" && !released;
   const showSummary = variant === "full";
+  const deliveryWeekdays = (tiffinCounts?.deliveryWeekdays ?? []) as DayOfWeek[];
+
+  // Eating-day cards from the month read model; fall back to the trip date alone.
+  const eatingDays = delivery?.eatingDays?.length
+    ? delivery.eatingDays
+    : delivery
+      ? [{
+          eatingDate: delivery.deliveryDate,
+          weekday: weekdayKey(new Date(`${delivery.deliveryDate}T00:00:00Z`)) as DayOfWeek,
+          menuWeekReleased: released,
+          menuWeekId: cell?.menuWeekId ?? null,
+          picks: cell?.meal ?? null,
+          options: cell?.options ?? [],
+          appliedSwaps: (delivery.appliedSwaps ?? []).map((s) => ({
+            ...s,
+            forDate: s.forDate ?? null,
+          })),
+        }]
+      : [];
+  const multiMeal = eatingDays.length > 1;
 
   return (
     <div className="space-y-3">
@@ -731,17 +783,16 @@ export function DayDetail({
         >
           <div className="flex items-center justify-between gap-2">
             <p className="font-medium">{formatDateOnly(dateIso, { mode: "weekday" })}</p>
-            {/* No status pill for "unreleased" — its body copy ("Menu not published yet") already
-                says everything; a "Locked"/"Sealed" pill next to it would be contradictory. */}
             {kind !== "unreleased" && (
               <span className="text-muted-foreground text-xs">
                 {calendarLegendLabel(status) ?? "Not scheduled"}
+                {multiMeal ? ` · ${eatingDays.length} days` : ""}
               </span>
             )}
           </div>
           {kind === "unreleased" && <p className="mt-1 text-muted-foreground text-xs">{menuNotPublishedCopy(dateIso)}</p>}
           {kind === "cell" && menuNotReleased && <p className="mt-1 text-muted-foreground text-xs">{menuNotReleasedCopy(dateIso)}</p>}
-          {kind === "cell" && !menuNotReleased && delivery && (
+          {kind === "cell" && !menuNotReleased && delivery && !multiMeal && (
             chips.length === 0 ? (
               <p className="mt-1 text-muted-foreground text-xs">Nothing scheduled</p>
             ) : (
@@ -761,6 +812,28 @@ export function DayDetail({
         </div>
       )}
 
+      {(planActions || (kind === "cell" && delivery)) && (
+        <div className="space-y-2">
+          {multiMeal && (
+            <p className="text-muted-foreground px-1 text-xs font-medium uppercase tracking-wide">Delivery</p>
+          )}
+          <ActionGrid>
+            {planActions}
+            {kind === "cell" && delivery && (
+              <DeliveryDayActions
+                delivery={delivery}
+                locked={status === "locked"}
+                today={today}
+                deliveryWeekdays={deliveryWeekdays}
+                categoryLabels={categoryLabels}
+                onChanged={onChanged}
+                includeSwap={false}
+              />
+            )}
+          </ActionGrid>
+        </div>
+      )}
+
       {status === "locked" ? (
         delivery ? (
           <CutoffBanner
@@ -768,33 +841,85 @@ export function DayDetail({
             lockedLabel="This day's meal is locked."
           />
         ) : null
-      ) : kind === "cell" && cell && released ? (
-        <MealDayPicker
-          cell={cell}
-          orderPublicId={orderPublicId}
-          categoryLabels={categoryLabels}
-          // Fold this day's swaps in (daal -> sabzi = 2 sabzi pickers, no daal picker) — the
-          // same counts resolveDeliveryMeal and setSelection use. Base counts empty = unknown,
-          // so folding would only produce bare deltas; leave those to the picker's fallback.
-          categoryCounts={delivery && Object.keys(categoryCounts).length > 0 ? applySwapsToCounts(categoryCounts, delivery.appliedSwaps) : categoryCounts}
-          onChanged={onChanged}
-        />
-      ) : null}
-
-      {(planActions || (kind === "cell" && delivery)) && (
-        <ActionGrid>
-          {planActions}
-          {kind === "cell" && delivery && (
-            <DeliveryDayActions
-              delivery={delivery}
-              locked={status === "locked"}
-              today={today}
-              categoryLabels={categoryLabels}
-              onChanged={onChanged}
-            />
+      ) : delivery && kind === "cell" ? (
+        <div className="space-y-3">
+          {multiMeal && (
+            <p className="text-muted-foreground px-1 text-xs font-medium uppercase tracking-wide">
+              Meals in this delivery
+            </p>
           )}
-        </ActionGrid>
-      )}
+          {eatingDays.map((eat) => {
+            const eatCell: CalendarCell = {
+              date: eat.eatingDate,
+              status: delivery.status as CalendarCell["status"],
+              locked: delivery.cutoffAt <= Date.now(),
+              isMakeup: delivery.isMakeup,
+              menuWeekId: eat.menuWeekId,
+              meal: eat.picks,
+              options: eat.options,
+              coverCount: 1,
+            };
+            const eatReleased = eat.menuWeekReleased && eat.options.length > 0;
+            const daySwaps = eat.appliedSwaps;
+            const eatCounts =
+              Object.keys(categoryCounts).length > 0
+                ? applySwapsToCounts(categoryCounts, daySwaps)
+                : categoryCounts;
+            const cardChrome = multiMeal;
+
+            return (
+              <div
+                key={eat.eatingDate}
+                className={cn(cardChrome && "space-y-2 rounded-xl border bg-card p-3")}
+              >
+                {cardChrome && (
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      {formatDateOnly(eat.eatingDate, { mode: "weekday" })}
+                    </p>
+                    <p className="text-muted-foreground text-[11px]">
+                      Locks {formatEpoch(delivery.cutoffAt, { mode: "datetime", timeZone: tz })} with this delivery
+                    </p>
+                  </div>
+                )}
+                {!eat.menuWeekReleased ? (
+                  <p className="text-muted-foreground text-xs">Menu not released yet</p>
+                ) : !eatReleased ? (
+                  <p className="text-muted-foreground text-xs">{menuNotReleasedCopy(eat.eatingDate)}</p>
+                ) : (
+                  <MealDayPicker
+                    cell={eatCell}
+                    orderPublicId={orderPublicId}
+                    categoryLabels={categoryLabels}
+                    categoryCounts={eatCounts}
+                    onChanged={onChanged}
+                  />
+                )}
+                {delivery.status === "scheduled" && delivery.cutoffAt > Date.now() && (
+                  <ActionGrid>
+                    <SwapSection
+                      delivery={{
+                        ...delivery,
+                        appliedSwaps: daySwaps.map((s) => ({
+                          publicId: s.publicId,
+                          fromCategory: s.fromCategory,
+                          toCategory: s.toCategory,
+                          qtyFrom: s.qtyFrom,
+                          qtyTo: s.qtyTo,
+                          forDate: s.forDate,
+                        })),
+                      }}
+                      categoryLabels={categoryLabels}
+                      onChanged={onChanged}
+                      forDate={eat.eatingDate}
+                    />
+                  </ActionGrid>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       {kind === "off" && tiffinCounts && tiffinCounts.pooled > 0 && (
         <SchedulePoolDayAction

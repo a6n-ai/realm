@@ -35,7 +35,14 @@ function deliveriesHref(
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
 // AppliedSwap.publicId is the applied-swap row's own public id (used to remove it).
 export type SwapPair = { fromCategory: string; toCategory: string };
-export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+export type AppliedSwap = {
+  publicId: string;
+  fromCategory: string;
+  toCategory: string;
+  qtyFrom: number;
+  qtyTo: number;
+  forDate?: string | null;
+};
 
 export type DeliveryCardData = CustomerDelivery & {
   meal: DeliveryCardMeal;
@@ -47,6 +54,8 @@ export type DeliveryCardData = CustomerDelivery & {
   swapPairs: SwapPair[];
   mealSizeCategories: string[];
   appliedSwaps: AppliedSwap[];
+  /** Per eating-day cards for the split Delivery / Meals panel. */
+  eatingDays?: import("@/lib/services/trip-eating-days.service").TripEatingDay[];
 };
 
 export type PausePanel = Awaited<ReturnType<typeof myPausePanel>>;

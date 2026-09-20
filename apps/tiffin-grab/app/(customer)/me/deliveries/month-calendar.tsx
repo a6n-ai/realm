@@ -117,6 +117,7 @@ export function MonthCalendar({
               dishName={data.dishName}
               dishImage={data.dishImage}
               extraCount={data.extraCount}
+              coverCount={data.coverCount}
               isToday={isToday}
               selected={isSelected}
               onClick={() => onSelect(iso)}

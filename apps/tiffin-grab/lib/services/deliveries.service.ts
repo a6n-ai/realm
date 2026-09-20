@@ -8,6 +8,7 @@ import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { coveredDates, mergeCoverage, tripCoverage } from "@/lib/menu/coverage";
+import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { matchZone } from "@/lib/catalog/postal";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
 
@@ -24,24 +25,6 @@ function isoDaysBefore(dateIso: string, n: number): string {
   const d = parseIsoDateUtc(dateIso);
   d.setUTCDate(d.getUTCDate() - n);
   return d.toISOString().slice(0, 10);
-}
-
-/**
- * Rejects a customer-picked target date (reschedule / schedule-from-pool) that falls on a
- * weekend, even for an order with includeSaturday/includeSunday. materializeDeliveries never
- * gives Saturday/Sunday their own row — a weekend add-on bundles onto that week's Friday
- * (see its own docstring) — so a picker that let a customer land a delivery ON a literal
- * Saturday/Sunday date would create the one kind of row the rest of the system (OptimoRoute
- * push, labels, driver dispatch) assumes can never exist. Checked before the general
- * deliveryDays membership test so a weekend pick gets this specific explanation rather than
- * the generic "That day isn't on your plan".
- */
-function assertNotWeekendTarget(dateIso: string): void {
-  if (WEEKEND.has(weekdayKey(parseIsoDateUtc(dateIso)))) {
-    throw new ValidationError(
-      "We don't deliver on weekends — a Saturday or Sunday tiffin ships with the same week's Friday delivery instead. Pick a weekday.",
-    );
-  }
 }
 
 /**
@@ -543,20 +526,17 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
 }
 
 /**
- * Turn one pooled tiffin into a real delivery date the customer picked. The date must be strictly
- * after the order's current last delivery and land on a plan weekday. Creates a make-up row linked
- * to the oldest pooled miss lacking a make-up (so maybeComplete's debt anti-join clears), and
- * decrements orders.pooled_tiffin_count by `persons`.
- *
- * Serialized per order by a TRANSACTION-scoped advisory lock (see db/client.ts prepare:false note).
+ * Turn pooled tiffins into a real delivery. Customer picks the day they want to EAT; that
+ * snaps to the carrying trip (weekends → Friday). Creates or merges onto that trip — never
+ * a weekend delivery row.
  */
 export async function scheduleFromPool(
   orderPublicId: string,
-  dateIso: string,
+  eatingDateIso: string,
   actorId: bigint | null,
-): Promise<{ deliveryPublicId: string }> {
+): Promise<{ deliveryPublicId: string; carriedOn: string; merged: boolean }> {
   const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!isoDateRegex.test(dateIso)) throw new ValidationError("Schedule date must be ISO YYYY-MM-DD");
+  if (!isoDateRegex.test(eatingDateIso)) throw new ValidationError("Schedule date must be ISO YYYY-MM-DD");
 
   return db.transaction(async (tx) => {
     const orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
@@ -566,26 +546,30 @@ export async function scheduleFromPool(
     if (!order || order.status === "cancelled" || order.status === "completed") {
       throw new ValidationError("This subscription can no longer be scheduled");
     }
-    if (order.pooledTiffinCount < (order.eatingDays?.length ? 1 : order.persons)) throw new ValidationError("No tiffins left to schedule");
-
-    const [{ max }] = await tx.select({ max: sql<string | null>`max(${deliveries.deliveryDate})` })
-      .from(deliveries).where(eq(deliveries.orderId, orderId));
-    if (max && dateIso <= max) throw new ValidationError("Date must be after your last delivery");
+    if (order.pooledTiffinCount < (order.eatingDays?.length ? 1 : order.persons)) {
+      throw new ValidationError("No tiffins left to schedule");
+    }
 
     const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
       .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
-    const deliveryDays = new Set(orderDeliveryDays({
+    const deliveryWeekdays = orderDeliveryDays({
       frequencyKey: freq!.key,
       weekdays: freq!.weekdays as DayOfWeek[] | null,
       includeSaturday: !order.eatingDays?.length && order.includeSaturday,
       includeSunday: !order.eatingDays?.length && order.includeSunday,
-    }));
-    assertNotWeekendTarget(dateIso);
-    if (!deliveryDays.has(weekdayKey(parseIsoDateUtc(dateIso)))) {
-      throw new ValidationError("That day isn't on your plan");
-    }
+    }).filter((d) => d !== "sat" && d !== "sun");
+    const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
+    if (!carriedOn) throw new ValidationError("That day isn't on your plan");
 
-    // Oldest pooled miss without a make-up yet — links this new date back to what it makes up for.
+    const [{ max }] = await tx.select({ max: sql<string | null>`max(${deliveries.deliveryDate})` })
+      .from(deliveries).where(eq(deliveries.orderId, orderId));
+
+    const { timezone, cutoffHour } = await getAppSettings();
+    const today = zonedDateIso(Date.now(), timezone);
+    if (carriedOn < today) throw new ValidationError("Schedule date cannot be in the past");
+    const cutoff = cutoffMsFor(carriedOn, cutoffHour, timezone);
+    if (Date.now() > cutoff) throw new ValidationError("That day's cutoff has already passed");
+
     const [miss] = await tx.select({ id: deliveries.id })
       .from(deliveries)
       .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
@@ -600,21 +584,39 @@ export async function scheduleFromPool(
       .orderBy(asc(deliveries.deliveryDate))
       .limit(1);
 
-    // Pooled units are the missed rows' tiffinUnits, which can be below `persons` for
-    // eatingDays orders; a make-up row is worth min(pooled, persons) and drains the same.
     const units = Math.min(order.pooledTiffinCount, order.persons);
-    const { timezone, cutoffHour } = await getAppSettings();
+    const [occupant] = await tx.select().from(deliveries)
+      .where(and(eq(deliveries.orderId, orderId), eq(deliveries.deliveryDate, carriedOn))).limit(1);
+
+    // Merge onto an existing scheduled trip even when that trip is the plan's last
+    // delivery (e.g. Sat eat-day → Fri after Friday is already the last row).
+    if (occupant) {
+      if (occupant.status !== "scheduled") throw new ValidationError("You already have a delivery on that day");
+      const covers = mergeCoverage(coveredDates(occupant), [eatingDateIso]);
+      await tx.update(deliveries).set({
+        tiffinUnits: covers.length * Math.max(1, order.persons),
+        coversDates: covers,
+      }).where(eq(deliveries.id, occupant.id));
+      await tx.update(orders)
+        .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} - ${units}` })
+        .where(eq(orders.id, orderId));
+      await tx.insert(orderActivities).values({
+        orderId, deliveryId: occupant.id, type: "pool_scheduled", createdBy: actorId,
+        note: `Pool eat-day ${eatingDateIso} merged onto ${carriedOn}`,
+      });
+      return { deliveryPublicId: occupant.publicId, carriedOn, merged: true };
+    }
+
+    if (max && carriedOn <= max) throw new ValidationError("Date must be after your last delivery");
+
     const [inserted] = await tx.insert(deliveries).values({
       orderId,
-      deliveryDate: dateIso,
+      deliveryDate: carriedOn,
       status: "scheduled",
-      cutoffAt: cutoffMsFor(dateIso, cutoffHour, timezone),
+      cutoffAt: cutoff,
       makeupForDeliveryId: miss?.id ?? null,
-      // A plain make-up day, not itself a bundled Friday — worth persons, same as any other
-      // single weekday. (Redeeming a >persons pooled debt, e.g. a bundled Friday's miss, just
-      // takes more than one scheduleFromPool call — the persons-per-call check above already
-      // handles that correctly without this row needing to know it.)
       tiffinUnits: units,
+      coversDates: [eatingDateIso],
     }).returning({ id: deliveries.id, publicId: deliveries.publicId });
 
     await tx.update(orders)
@@ -623,8 +625,9 @@ export async function scheduleFromPool(
 
     await tx.insert(orderActivities).values({
       orderId, deliveryId: inserted.id, type: "pool_scheduled", createdBy: actorId,
+      note: `Pool eat-day ${eatingDateIso} on trip ${carriedOn}`,
     });
-    return { deliveryPublicId: inserted.publicId };
+    return { deliveryPublicId: inserted.publicId, carriedOn, merged: false };
   });
 }
 
@@ -650,57 +653,66 @@ async function orderDeliveryDaySet(tx: Tx, order: Order): Promise<Set<string>> {
 }
 
 /**
- * Moves a whole trip (units, covered days, swaps) onto `targetDate`. If a SCHEDULED trip already
- * sits there the two merge into it (units add, coverage unions, swaps keep their eating day) and
- * the source is stamped merged_into; otherwise a make-up row carrying the same coverage is
- * inserted. Caller holds the order lock, validated the date and set the source's status.
+ * Moves a whole trip (units, covered days, swaps) onto `targetDate` (a delivery weekday).
+ * `eatingDateIso` is the customer-picked eat day — ensured in covers_dates on the result.
+ * If a SCHEDULED trip already sits on targetDate the two merge (units add, coverage unions);
+ * otherwise a make-up row is inserted. Never creates weekend delivery rows.
  */
 async function moveTrip(
   tx: Tx,
   source: Delivery,
   targetDate: string,
   targetCutoff: number,
-): Promise<{ id: bigint; merged: boolean }> {
+  eatingDateIso: string,
+  persons: number,
+): Promise<{ id: bigint; merged: boolean; coversDates: string[] }> {
   const [target] = await tx.select().from(deliveries)
     .where(and(eq(deliveries.orderId, source.orderId), eq(deliveries.deliveryDate, targetDate))).limit(1);
 
   if (!target) {
+    const covers = mergeCoverage(coveredDates(source), [eatingDateIso]);
+    const units = covers.length * Math.max(1, persons);
     const [inserted] = await tx.insert(deliveries).values({
       orderId: source.orderId,
       deliveryDate: targetDate,
       status: "scheduled",
       cutoffAt: targetCutoff,
       makeupForDeliveryId: source.id,
-      // Same units as the row it replaces — a bundled Friday must not drop to a plain single day.
-      tiffinUnits: source.tiffinUnits,
-      coversDates: source.coversDates,
+      tiffinUnits: units,
+      coversDates: covers,
     }).returning({ id: deliveries.id });
-    // A legacy row's NULL for_date follows its date; an explicit-coverage trip keeps the day it was for.
-    await copyDeliverySwaps(tx, source.id, inserted.id, source.coversDates ? source.deliveryDate : undefined);
-    return { id: inserted.id, merged: false };
+    await copyDeliverySwaps(tx, source.id, inserted.id, source.coversDates ? source.deliveryDate : eatingDateIso);
+    return { id: inserted.id, merged: false, coversDates: covers };
   }
 
   if (target.status !== "scheduled") throw new ValidationError("You already have a delivery on that day");
   if (source.pooledAt != null) {
     throw new ValidationError("This delivery is in your remain pool — schedule it on a day instead");
   }
-  const covers = mergeCoverage(coveredDates(source), coveredDates(target));
+  const covers = mergeCoverage(mergeCoverage(coveredDates(source), coveredDates(target)), [eatingDateIso]);
+  const units = covers.length * Math.max(1, persons);
   await tx.update(deliveries).set({
-    tiffinUnits: target.tiffinUnits + source.tiffinUnits,
+    tiffinUnits: units,
     coversDates: covers,
   }).where(eq(deliveries.id, target.id));
   await copyDeliverySwaps(tx, source.id, target.id, source.deliveryDate);
   await tx.update(deliveries).set({ mergedIntoDeliveryId: target.id }).where(eq(deliveries.id, source.id));
-  return { id: target.id, merged: true };
+  return { id: target.id, merged: true, coversDates: covers };
 }
 
+/**
+ * Reschedule: customer picks the day they want to EAT (`eatingDateIso`). That date snaps to
+ * its carrying trip (nearest earlier-or-equal frequency weekday — weekends → Friday). All
+ * cutoff / past checks use the carrying trip. Existing trip on that date MERGES instead of
+ * rejecting. Never writes a Saturday/Sunday delivery row.
+ */
 export async function rescheduleDelivery(
   deliveryPublicId: string,
-  newDateIso: string,
+  eatingDateIso: string,
   actorId: bigint | null,
-): Promise<{ merged: boolean }> {
+): Promise<{ merged: boolean; carriedOn: string }> {
   const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!isoDateRegex.test(newDateIso)) throw new ValidationError("Reschedule date must be ISO YYYY-MM-DD");
+  if (!isoDateRegex.test(eatingDateIso)) throw new ValidationError("Reschedule date must be ISO YYYY-MM-DD");
 
   return db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
@@ -708,7 +720,6 @@ export async function rescheduleDelivery(
 
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertOriginal(row);
-    if (newDateIso === row.deliveryDate) throw new ValidationError("Pick a different day");
 
     const mutableStatuses = ["scheduled", "skipped", "paused"] as const;
     if (!mutableStatuses.includes(row.status as (typeof mutableStatuses)[number])) {
@@ -724,15 +735,19 @@ export async function rescheduleDelivery(
     }
 
     const deliveryDays = await orderDeliveryDaySet(tx, order);
-    assertNotWeekendTarget(newDateIso);
-    if (!deliveryDays.has(weekdayKey(parseIsoDateUtc(newDateIso)))) {
-      throw new ValidationError("That day isn't on your plan");
+    // Trip weekdays never include sat/sun — weekend food always rides Friday (one rule
+    // for legacy weekend add-ons and eating_days orders).
+    const deliveryWeekdays = [...deliveryDays].filter((d) => d !== "sat" && d !== "sun") as DayOfWeek[];
+    const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
+    if (!carriedOn) throw new ValidationError("That day isn't on your plan");
+    if (carriedOn === row.deliveryDate && coveredDates(row).includes(eatingDateIso)) {
+      throw new ValidationError("Pick a different day");
     }
 
     const { timezone, cutoffHour } = await getAppSettings();
     const today = zonedDateIso(Date.now(), timezone);
-    if (newDateIso < today) throw new ValidationError("Reschedule date cannot be in the past");
-    const newCutoff = cutoffMsFor(newDateIso, cutoffHour, timezone);
+    if (carriedOn < today) throw new ValidationError("Reschedule date cannot be in the past");
+    const newCutoff = cutoffMsFor(carriedOn, cutoffHour, timezone);
     if (Date.now() > newCutoff) throw new ValidationError("That day's cutoff has already passed");
 
     const [existingMakeup] = await tx.select({ id: deliveries.id }).from(deliveries)
@@ -746,26 +761,26 @@ export async function rescheduleDelivery(
       if (skipped.length === 0) throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
     }
 
-    const moved = await moveTrip(tx, row, newDateIso, newCutoff);
+    const moved = await moveTrip(tx, row, carriedOn, newCutoff, eatingDateIso, order.persons);
 
     if (moved.merged) {
       await tx.insert(orderActivities).values([
-        { orderId, deliveryId: row.id, type: row.status === "scheduled" ? "skipped" : "note", note: `Moved to ${newDateIso} (merged)`, createdBy: actorId },
-        { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Merged trip from ${row.deliveryDate} (covers ${coveredDates(row).join(", ")})`, createdBy: actorId },
+        { orderId, deliveryId: row.id, type: row.status === "scheduled" ? "skipped" : "note", note: `Moved eat-day ${eatingDateIso} onto ${carriedOn} (merged)`, createdBy: actorId },
+        { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Merged trip from ${row.deliveryDate}; covers ${moved.coversDates.join(", ")}`, createdBy: actorId },
       ]);
     } else {
       await tx.insert(orderActivities).values(
         row.status === "scheduled"
           ? [
-              { orderId, deliveryId: row.id, type: "skipped", note: `Rescheduled to ${newDateIso}`, createdBy: actorId },
-              { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate}`, createdBy: actorId },
+              { orderId, deliveryId: row.id, type: "skipped", note: `Rescheduled eat-day ${eatingDateIso} onto ${carriedOn}`, createdBy: actorId },
+              { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate} (eat ${eatingDateIso})`, createdBy: actorId },
             ]
           : [
-              { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate} (${row.status})`, createdBy: actorId },
+              { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate} (${row.status}, eat ${eatingDateIso})`, createdBy: actorId },
             ],
       );
     }
-    return { merged: moved.merged };
+    return { merged: moved.merged, carriedOn };
   });
 }
 
@@ -824,7 +839,7 @@ export async function redeliverTrip(
       .returning({ id: deliveries.id });
     if (skipped.length === 0) throw new ValidationError("Cannot re-deliver a delivery that is no longer scheduled");
 
-    const moved = await moveTrip(tx, row, targetDate, targetCutoff);
+    const moved = await moveTrip(tx, row, targetDate, targetCutoff, targetDate, order.persons);
     await tx.insert(orderActivities).values([
       { orderId, deliveryId: row.id, type: "skipped", note: `Re-delivered on ${targetDate} (driver could not deliver)`, createdBy: actorId },
       { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Re-delivery of ${row.deliveryDate}${moved.merged ? " (merged)" : ""}`, createdBy: actorId },

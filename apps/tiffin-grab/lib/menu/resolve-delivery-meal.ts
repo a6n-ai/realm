@@ -155,6 +155,11 @@ export async function resolveDeliveryMeal(
   // null is a defensive fallback (no delivery row = no swaps possible) — every
   // real caller has one.
   deliveryId: bigint | null,
+  /**
+   * When set, only swaps for this eating day apply. NULL forDate on a swap row
+   * means the trip's own delivery date (`tripDate`).
+   */
+  swapScope?: { eatingDate: string; tripDate: string },
 ): Promise<ResolvedCategory[]> {
   // forPlan, never forPlanType: buildMealsGrid decides which categories to render with
   // forPlan(order.planId), so resolving against the plan_type union made the two disagree —
@@ -173,11 +178,24 @@ export async function resolveDeliveryMeal(
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id), eq(mealSelections.dayOfWeek, dayOfWeek), eq(mealSelections.personIndex, person)));
 
-  const swaps: SwapRow[] = deliveryId == null ? [] : await db
-    .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo })
+  const swapRows = deliveryId == null ? [] : await db
+    .select({
+      fromCategory: deliveryCategorySwaps.fromCategory,
+      toCategory: deliveryCategorySwaps.toCategory,
+      qtyFrom: deliveryCategorySwaps.qtyFrom,
+      qtyTo: deliveryCategorySwaps.qtyTo,
+      forDate: deliveryCategorySwaps.forDate,
+    })
     .from(deliveryCategorySwaps)
     .where(eq(deliveryCategorySwaps.deliveryId, deliveryId))
     .orderBy(asc(deliveryCategorySwaps.id));
+
+  const scoped = swapScope == null
+    ? swapRows
+    : swapRows.filter((s) => (s.forDate ?? swapScope.tripDate) === swapScope.eatingDate);
+  const swaps: SwapRow[] = scoped.map(({ fromCategory, toCategory, qtyFrom, qtyTo }) => ({
+    fromCategory, toCategory, qtyFrom, qtyTo,
+  }));
 
   const { planDishIds, exclusiveDishIds, maxTuByCat } = await defaultPickContext(order);
   return resolveCategoriesForDay(

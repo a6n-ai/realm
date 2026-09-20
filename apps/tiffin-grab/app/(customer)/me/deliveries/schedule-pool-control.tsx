@@ -7,18 +7,19 @@ import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { TiffinCounts } from "@/lib/services/customer-deliveries.service";
+import {
+  formatEatDayCarryPreview,
+  previewEatDayCarry,
+} from "@/lib/menu/carry-trip";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { ActionCard, DELIVERY_SHEET_DIRECTION } from "./action-card";
 import { VacationDateField } from "./vacation-date-field";
 import { scheduleMyPooledTiffin } from "./actions";
-
-// No physical Saturday/Sunday delivery exists — a weekend add-on always bundles onto that
-// week's Friday row. Mirrors the server-side assertNotWeekendTarget guard.
-const WEEKDAYS_ONLY = ["mon", "tue", "wed", "thu", "fri"] as const;
+import { DialogFooterRow, IOS_BUTTON } from "@/components/customer/ios-button";
 
 /**
- * Lets a customer place a pooled tiffin on a real date. Only days strictly after the last delivery
- * that fall on a plan weekday are selectable; the server re-validates both. Schedules one tiffin
- * (persons servings) per confirm.
+ * Place a pooled tiffin by picking the day the customer wants to EAT. Weekends and
+ * off-pattern days snap to the carrying trip (same helper as reschedule).
  */
 export function SchedulePoolControl({
   orderPublicId,
@@ -36,6 +37,8 @@ export function SchedulePoolControl({
   const [error, setError] = useState<string | null>(null);
 
   const last = counts.lastDeliveryDate;
+  const weekdays = counts.deliveryWeekdays as DayOfWeek[];
+  const preview = date && weekdays.length ? previewEatDayCarry(date, weekdays) : null;
 
   function reset() {
     setDate("");
@@ -54,6 +57,9 @@ export function SchedulePoolControl({
       router.refresh();
       reset();
       setOpen(false);
+      const carried = "carriedOn" in result ? result.carriedOn : null;
+      // toast via router refresh only — dialog closes; optional success is fine silent
+      void carried;
     });
   }
 
@@ -69,43 +75,45 @@ export function SchedulePoolControl({
         <ActionCard
           icon={CalendarPlusIcon}
           title={counts.pooled > 1 ? `Schedule ${counts.pooled} tiffins` : "Schedule a tiffin"}
-          description="Place an unscheduled tiffin on a delivery day"
+          description="Pick the day you want to eat"
         />
       }
       title="Schedule a tiffin"
-      description="Place one of your unscheduled tiffins on a delivery day."
+      description="Place one of your unscheduled tiffins by the day you want to eat."
       footer={
-        <Button className="w-full" disabled={!date || pending} onClick={submit}>
-          <CalendarPlusIcon data-icon="inline-start" />
-          {pending ? "Scheduling…" : "Schedule delivery"}
-        </Button>
+        <DialogFooterRow>
+          <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button className={IOS_BUTTON} disabled={!date || pending} onClick={submit}>
+            <CalendarPlusIcon data-icon="inline-start" />
+            {pending ? "Scheduling…" : "Schedule"}
+          </Button>
+        </DialogFooterRow>
       }
     >
       <div className="space-y-4 px-4 pb-4">
         <p className="text-muted-foreground text-sm">
           You have <span className="text-foreground font-medium">{counts.pooled}</span> tiffin
-          {counts.pooled > 1 ? "s" : ""} to schedule. Pick a delivery day after
-          {last ? ` ${formatDateOnly(last, { mode: "short" })}` : " your last delivery"} — it must
-          fall on one of your plan&apos;s delivery days.
+          {counts.pooled > 1 ? "s" : ""} to schedule
+          {last ? ` after ${formatDateOnly(last, { mode: "short" })}` : ""}.
+          Weekends and off-pattern days ship with the nearest earlier delivery.
         </p>
         <VacationDateField
           id="schedule-pool-date"
-          label="Delivery day"
+          label="Day you want to eat"
           value={date}
           onChange={setDate}
           today={today}
-          minDate={last ?? today}
-          allowedDays={WEEKDAYS_ONLY}
+          minDate={today}
         />
-        <p className="text-muted-foreground text-xs">
-          We don’t deliver on weekends — a Saturday or Sunday tiffin ships with that week’s Friday delivery instead.
-        </p>
-        {date && (
-          <p className="text-muted-foreground text-sm">
-            A new delivery will be added on {formatDateOnly(date, { mode: "long" })}
-            {counts.persons > 1 ? ` for ${counts.persons} servings` : ""}.
+        {preview ? (
+          <p className="bg-muted/50 text-foreground rounded-xl border px-3 py-2 text-sm" aria-live="polite">
+            {formatEatDayCarryPreview(preview, {
+              targetAlreadyHasTrip: Boolean(last && preview.carriedOn <= last),
+            })}
           </p>
-        )}
+        ) : null}
         {error && <p className="text-bad text-xs">{error}</p>}
       </div>
     </ResponsiveDialog>
