@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { IDENTITY_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
@@ -55,6 +55,7 @@ describe("Checkout postal-served gate + waitlist", () => {
 
   it("blocks Continue and offers Join waitlist for an unserved postal, then confirms on submit", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
     render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);

@@ -35,6 +35,12 @@ export function writeIdentity(identity: StoredIdentity) {
 export function clearIdentity() {
   try { sessionStorage.removeItem(IDENTITY_KEY); } catch { /* nothing stored */ }
 }
+/** "Not you?": forget the person AND their in-progress plan, so the next visitor starts clean. */
+export function resetSession() {
+  try {
+    for (const k of [IDENTITY_KEY, WIZARD_STORAGE_KEY, WIZARD_STEP_KEY, WIZARD_ORIGIN_KEY]) sessionStorage.removeItem(k);
+  } catch { /* nothing stored */ }
+}
 
 /**
  * The subscribe wizard still sells one person per order and no separate

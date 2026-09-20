@@ -12,7 +12,7 @@ import { Button } from "@foundry/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { CodeOtp } from "@foundry/auth-ui";
-import { clearIdentity, readIdentity, writeIdentity } from "./selections";
+import { readIdentity, resetSession, writeIdentity } from "./selections";
 
 // Gates entry to the subscribe wizard: ask for an email, check it against
 // existing accounts, and offer a non-blocking sign-in on a match instead of
@@ -69,7 +69,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
   };
 
   function useDifferentEmail() {
-    clearIdentity();
+    resetSession();
     emailForm.reset({ email: "" });
     setState("email");
   }

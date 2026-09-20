@@ -18,7 +18,7 @@ import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, clearIdentity, readIdentity, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+import { WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, clearIdentity, readIdentity, resetSession, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button } from "@foundry/ui/button";
@@ -118,9 +118,21 @@ export function Checkout({
     return r;
   };
 
+  // A checkout without a known email must never exist: anyone arriving without one (direct visit, a stale tab, or
+  // Back after "Not you?") goes to the email step first. `replace` keeps the checkout out of the history.
+  useEffect(() => {
+    const guard = () => {
+      if (prefill == null && readIdentity()?.kind !== "guest") router.replace("/subscribe");
+    };
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) guard(); };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, [router, prefill]);
+
   useEffect(() => {
     const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
     if (!raw) { router.replace("/subscribe"); return; }
+    if (prefill == null && readIdentity()?.kind !== "guest") { router.replace("/subscribe"); return; }
     const s = JSON.parse(raw) as WizardSelections;
     // Seeding from sessionStorage, which is only readable on the client (post-mount).
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -252,8 +264,8 @@ export function Checkout({
   const lockContact = prefill != null;
   const emailReadOnly = lockContact || gateEmail != null;
   const useDifferentEmail = () => {
-    clearIdentity();
-    router.push("/subscribe");
+    resetSession();
+    router.replace("/subscribe");
   };
   const fromAccount = lockContact ? <span className="bg-muted text-muted-foreground ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium">From your account</span> : null;
   const meal = catalog?.mealSizes.find((m) => m.publicId === selections.mealSizeId);
@@ -340,34 +352,36 @@ export function Checkout({
                   idPrefix="checkout"
                   // The shared postal cell wraps postalSlot in sm:col-span-2, which makes its own
                   // one-column grid grow a second column and puts the label beside the input.
-                  className="sm:[&_div:has(>[data-postal-slot])]:col-span-1"
+                  className="[&_div:has(>div>[data-postal-slot])]:grid-cols-[minmax(0,1fr)_auto] [&_div:has(>div>[data-postal-slot])]:gap-x-2 sm:[&_div:has(>div>[data-postal-slot])]:col-span-2 [&_div:has(>div>[data-postal-slot])>label]:col-span-2 [&_div:has(>[data-postal-slot])]:col-span-1 [&_div:has(>[data-postal-slot])]:self-end sm:[&_div:has(>[data-postal-slot])]:col-span-1"
                   fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
                   values={contact}
                   onChange={set}
                   resolveUrl="/api/address/resolve"
                   onPostalBlur={checkPostal}
                   postalSlot={
-                    <div data-postal-slot className="grid gap-2">
-                      <Button type="button" variant="outline" className={`${PILL} h-11 w-full px-5`} onClick={checkPostal}>Check delivery area</Button>
-                      {zone?.served && (
-                        <StatusBanner tone="success" icon={<MapPin className="mt-0.5 size-4 shrink-0" />}>
-                          Served — {zone.name}, delivery {zone.slotWindow}.
-                        </StatusBanner>
-                      )}
-                      {zone && !zone.served && !waitlisted && (
-                        <div className={`space-y-2 rounded-2xl p-3 ${toneClasses("warning").bg}`}>
-                          <p className={`text-sm ${toneClasses("warning").text}`}>We don&apos;t deliver here yet.{!contact.fullName || !phoneValid || !emailValid ? " Fill in your name, phone and email above to join the waitlist." : ""}</p>
-                          <Button type="button" variant="outline" className={`${PILL} h-11`} disabled={!contact.fullName || !phoneValid || !emailValid} onClick={joinWaitlist}>Join waitlist</Button>
-                        </div>
-                      )}
-                      {waitlisted && (
-                        <StatusBanner tone="success" icon={<Check className="mt-0.5 size-4 shrink-0" />}>
-                          You&apos;re on the waitlist — we&apos;ll email you when we reach your area.
-                        </StatusBanner>
-                      )}
+                    <div data-postal-slot>
+                      <Button type="button" variant="outline" className={`${PILL} h-11 px-5 text-sm`} onClick={checkPostal}>Check area</Button>
                     </div>
                   }
                 />
+                <div className="grid gap-2 empty:hidden">
+                  {zone?.served && (
+                    <StatusBanner tone="success" icon={<MapPin className="mt-0.5 size-4 shrink-0" />}>
+                      Served — {zone.name}, delivery {zone.slotWindow}.
+                    </StatusBanner>
+                  )}
+                  {zone && !zone.served && !waitlisted && (
+                    <div className={`space-y-2 rounded-2xl p-3 ${toneClasses("warning").bg}`}>
+                      <p className={`text-sm ${toneClasses("warning").text}`}>We don&apos;t deliver here yet.{!contact.fullName || !phoneValid || !emailValid ? " Fill in your name, phone and email above to join the waitlist." : ""}</p>
+                      <Button type="button" variant="outline" className={`${PILL} h-11`} disabled={!contact.fullName || !phoneValid || !emailValid} onClick={joinWaitlist}>Join waitlist</Button>
+                    </div>
+                  )}
+                  {waitlisted && (
+                    <StatusBanner tone="success" icon={<Check className="mt-0.5 size-4 shrink-0" />}>
+                      You&apos;re on the waitlist — we&apos;ll email you when we reach your area.
+                    </StatusBanner>
+                  )}
+                </div>
               </div>
             </section>
           </div>

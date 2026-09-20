@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { IDENTITY_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
 
 // Guardrail (Spec-B): the visual revamp of the checkout MUST NOT alter any
@@ -72,6 +72,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
   it("gates Continue on fullName && phoneValid && emailValid && postalCode && zone-served", async () => {
     validatePostal.mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } });
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
     render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
@@ -89,6 +90,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
   it("shows the waitlist path for an unserved postal and blocks Continue", async () => {
     validatePostal.mockResolvedValue({ served: false });
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
     render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
@@ -118,6 +120,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
   it("shows the coupon error state for a rejected code", async () => {
     validatePostal.mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } });
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
     render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/coupon code/i);

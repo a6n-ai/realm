@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   WIZARD_ORIGIN_KEY,
@@ -80,17 +80,26 @@ describe("checkout contact locking", () => {
     expect(field(/postal code/i).disabled).toBe(false);
   });
 
-  it("leaves everything editable when there is no identity and no account", async () => {
+  it("sends a visitor with no known email back to the email step, replacing the checkout in history", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" />);
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith("/subscribe"));
+    expect(screen.queryByLabelText(/full name/i)).toBeNull();
+  });
 
-    await screen.findByLabelText(/full name/i);
-    expect(field(/^email$/i).readOnly).toBe(false);
-    expect(field(/postal code/i).disabled).toBe(false);
+  it("'Not you?' resets the whole session and replaces the checkout entry", async () => {
+    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem("tiffin.identity", JSON.stringify({ email: "guest@example.com", kind: "guest" }));
+    render(<Checkout defaultCountry="CA" />);
+    fireEvent.click(await screen.findByRole("button", { name: /not you\?/i }));
+    expect(mockRouter.replace).toHaveBeenCalledWith("/subscribe");
+    expect(sessionStorage.getItem("tiffin.identity")).toBeNull();
+    expect(sessionStorage.getItem(WIZARD_STORAGE_KEY)).toBeNull();
   });
 
   it("shows meal, baseline and delivery type in the summary", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify({ ...selections, frequencyKey: "f3" }));
+    sessionStorage.setItem("tiffin.identity", JSON.stringify({ email: "guest@example.com", kind: "guest" }));
     const catalog = {
       plans: [{ key: "veg", name: "Veg" }],
       mealSizes: [{ publicId: "msz_1", name: "Regular" }],
@@ -105,6 +114,7 @@ describe("checkout contact locking", () => {
 
   it("has one top Back (sm+) and one bottom Back (below sm) that share the handler label", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem("tiffin.identity", JSON.stringify({ email: "guest@example.com", kind: "guest" }));
     render(<Checkout defaultCountry="CA" />);
     await screen.findByLabelText(/full name/i);
     const backs = screen.getAllByRole("button", { name: "Edit plan" });

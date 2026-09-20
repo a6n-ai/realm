@@ -134,13 +134,42 @@ test.describe("subscribe -> checkout journey", () => {
 
   });
 
-  test("checkout: Not you returns to the email step", async ({ page }) => {
+  test("checkout: Not you resets everything and Back cannot return to the checkout", async ({ page }) => {
     await toDuration(page);
     await page.getByRole("button", { name: "Continue to checkout" }).click();
     await page.waitForURL(/\/checkout/, FIRST_LOAD);
     await page.getByRole("button", { name: /Not you\? Use a different email/ }).click();
+    await page.waitForURL(/\/subscribe/, FIRST_LOAD);
+    await expect(page.getByLabel("Email")).toBeVisible();
+
+    // The form is reset: after a fresh email the wizard starts at the first step, not the old plan.
+    await page.goBack();
+    await expect(page).not.toHaveURL(/\/checkout/);
+    await page.goto("/subscribe");
+    await page.getByLabel("Email").fill(email());
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("button", { name: /Non-Veg Plan/ })).toBeVisible(FIRST_LOAD);
+  });
+
+  test("a checkout with no known email is impossible: direct visits go to the email step", async ({ page }) => {
+    await page.goto("/checkout");
+    await page.waitForURL(/\/subscribe/, FIRST_LOAD);
     await expect(page.getByLabel("Email")).toBeVisible();
   });
+
+  test("checkout: Check area sits beside the postal code, not below it", async ({ page }) => {
+    await toDuration(page);
+    await page.getByRole("button", { name: "Continue to checkout" }).click();
+    await page.waitForURL(/\/checkout/, FIRST_LOAD);
+    const postal = page.getByLabel(/postal code/i);
+    const check = page.getByRole("button", { name: "Check area" });
+    await expect(check).toBeVisible();
+    const p = (await postal.boundingBox())!;
+    const c = (await check.boundingBox())!;
+    expect(c.x).toBeGreaterThan(p.x + p.width - 1);
+    expect(Math.abs(c.y + c.height - (p.y + p.height))).toBeLessThan(8);
+  });
+
 
   test.describe("phone width", () => {
     test.use({ viewport: { width: 390, height: 844 } });
