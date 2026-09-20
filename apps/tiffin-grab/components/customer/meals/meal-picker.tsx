@@ -117,6 +117,7 @@ export function MealPicker({
   menuWeekId,
   weekDates,
   timezone,
+  initialDate,
 }: {
   grid: GridCell[];
   categories: Category[];
@@ -124,6 +125,8 @@ export function MealPicker({
   menuWeekId: string;
   weekDates?: PickerWeekDate[];
   timezone?: string;
+  /** ?date= from the deliveries Pick sheet; ignored unless it is a day in this week. */
+  initialDate?: string;
 }) {
   const reduce = useReducedMotion();
   const [overrides, setOverrides] = useState<Map<string, string>>(new Map());
@@ -138,7 +141,7 @@ export function MealPicker({
     byDay.set(cell.dateIso, arr);
   }
   const days = [...byDay.keys()].sort();
-  const [selectedDay, setSelectedDay] = useState(() => days[0] ?? "");
+  const [selectedDay, setSelectedDay] = useState(() => (initialDate && days.includes(initialDate) ? initialDate : (days[0] ?? "")));
   const activeDay = days.includes(selectedDay) ? selectedDay : (days[0] ?? "");
   const dayOf = (iso: string) => byDay.get(iso)?.[0]?.day ?? "";
   const trips = buildTrips(days, byDay, weekDates);

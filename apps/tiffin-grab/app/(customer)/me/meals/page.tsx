@@ -16,18 +16,19 @@ import { MealPicker, MealPickerSkeleton } from "@/components/customer/meals/meal
 import { PageShell, PageHeader } from "@/components/ds";
 import { pickPrimaryActive } from "./pick-primary-active";
 
-export default function MyMealsPage() {
+export default function MyMealsPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   return (
     <PageShell>
       <PageHeader icon={UtensilsIcon} title="Meals" subtitle="Pick this week's meals before the cutoff." />
       <Suspense fallback={<MealPickerSkeleton />}>
-        <MyMealsData />
+        <MyMealsData searchParams={searchParams} />
       </Suspense>
     </PageShell>
   );
 }
 
-async function MyMealsData() {
+async function MyMealsData({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+  const { date } = await searchParams;
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
@@ -103,6 +104,7 @@ async function MyMealsData() {
         menuWeekId={result.releasedWeek.publicId}
         weekDates={result.weekDatesView}
         timezone={settings.timezone}
+        initialDate={date}
       />
     </div>
   );
