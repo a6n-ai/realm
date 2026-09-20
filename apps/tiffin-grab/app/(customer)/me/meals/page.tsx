@@ -42,8 +42,6 @@ async function MyMealsData() {
       persons: orders.persons,
       categoryCounts: orders.categoryCounts,
       mealSlots: orders.mealSlots,
-      includeSaturday: orders.includeSaturday,
-      includeSunday: orders.includeSunday,
       startDate: orders.startDate,
       durationWeeks: orders.durationWeeks,
       frequencyKey: deliveryFrequencies.key,

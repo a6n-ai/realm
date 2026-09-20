@@ -43,11 +43,8 @@ export type MealOrder = {
   persons: number;
   categoryCounts: Record<string, number>;
   mealSlots: string[];
-  includeSaturday: boolean;
-  includeSunday: boolean;
   startDate: string;
   durationWeeks: number;
-  frequencyKey: string;
 };
 
 export type MealsGridResult =
