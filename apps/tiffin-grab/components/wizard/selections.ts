@@ -13,6 +13,29 @@ export const WIZARD_STORAGE_KEY = "tiffin.wizard";
 export const WIZARD_ORIGIN_KEY = "tiffin.wizard.origin";
 export type WizardOrigin = "subscribe" | "renew";
 
+// Wizard step to reopen on when "Edit plan" comes back from checkout.
+export const WIZARD_STEP_KEY = "tiffin.wizard.step";
+
+// Who the visitor said they are at the identity gate, for this browser session
+// only. Lets checkout and "Edit plan" skip re-asking the email.
+export const IDENTITY_KEY = "tiffin.identity";
+export type StoredIdentity = { email: string; kind: "guest" | "member" };
+
+export function readIdentity(): StoredIdentity | null {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(IDENTITY_KEY) ?? "null") as Partial<StoredIdentity> | null;
+    return v && typeof v.email === "string" && v.email && (v.kind === "guest" || v.kind === "member") ? { email: v.email, kind: v.kind } : null;
+  } catch {
+    return null;
+  }
+}
+export function writeIdentity(identity: StoredIdentity) {
+  try { sessionStorage.setItem(IDENTITY_KEY, JSON.stringify(identity)); } catch { /* storage unavailable: gate just re-asks */ }
+}
+export function clearIdentity() {
+  try { sessionStorage.removeItem(IDENTITY_KEY); } catch { /* nothing stored */ }
+}
+
 /**
  * The subscribe wizard still sells one person per order and no separate
  * weekend delivery (weekend tiffins ship with Friday's delivery — see

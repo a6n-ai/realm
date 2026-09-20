@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Country } from "react-phone-number-input";
 import { PhoneInput } from "@foundry/ui/phone-input";
 import type { PricingResult } from "@/lib/pricing";
+import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import {
   reprice,
   validatePostal,
@@ -17,7 +18,7 @@ import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+import { WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, clearIdentity, readIdentity, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button } from "@foundry/ui/button";
@@ -62,10 +63,13 @@ export function Checkout({
   defaultCountry,
   closeHref = "/me",
   prefill,
+  catalog,
 }: {
   defaultCountry: Country;
   closeHref?: string;
+  /** Present only for a signed-in customer: their account's contact. */
   prefill?: Partial<Contact>;
+  catalog?: ClientCatalogSnapshot;
 }) {
   const router = useRouter();
   const [selections, setSelections] = useState<WizardSelections | null>(null);
@@ -88,6 +92,8 @@ export function Checkout({
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   // Where "Edit plan" sends the customer back to — the flow that actually wrote
   // WIZARD_STORAGE_KEY, not always the full wizard.
+  // The email captured at the identity gate; a guest is not asked for it again.
+  const [gateEmail, setGateEmail] = useState<string | null>(null);
   const [origin, setOrigin] = useState<WizardOrigin>("subscribe");
 
   const refreshPrice = async (
@@ -120,7 +126,14 @@ export function Checkout({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelections(s);
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
+    const identity = readIdentity();
+    if (identity?.kind === "guest" && prefill == null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setGateEmail(identity.email);
+      setContact((c) => ({ ...c, email: identity.email }));
+    }
     refreshPrice(s, undefined, null).catch(() => setResult(null));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const checkPostal = async () => {
@@ -213,6 +226,8 @@ export function Checkout({
         paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
       });
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
+      sessionStorage.removeItem(WIZARD_STEP_KEY);
+      clearIdentity();
       // Out-of-zone: server created a waitlist inquiry, not an order — show the
       // waitlist confirmation instead of routing to activation.
       if (res.waitlisted) {
@@ -230,14 +245,25 @@ export function Checkout({
 
   if (!selections) return null;
 
-  // A logged-in renewal keeps the email and address on file; they're changed from
-  // Account, not here. The server re-applies the on-file values regardless
-  // (confirmSubscription), so this is the visible half, not the guarantee.
-  // A first-time subscription (no prefill) is unaffected.
-  const lockContact = origin === "renew" && prefill != null;
+  // A signed-in customer's name and email are their account's, changed from Account
+  // and not here. confirmSubscription re-takes both from the session regardless, so
+  // this is the visible half, not the guarantee. Phone and address stay editable
+  // (this order only).
+  const lockContact = prefill != null;
+  const emailReadOnly = lockContact || gateEmail != null;
+  const useDifferentEmail = () => {
+    clearIdentity();
+    router.push("/subscribe");
+  };
+  const fromAccount = lockContact ? <span className="bg-muted text-muted-foreground ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium">From your account</span> : null;
+  const meal = catalog?.mealSizes.find((m) => m.publicId === selections.mealSizeId);
+  const freq = catalog?.frequencies.find((f) => f.key === selections.frequencyKey);
+  // The frequency name already spells out its days; the eating-day pills below show the chosen ones.
+  const deliveryType = freq?.name ?? null;
 
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;
+  const goBack = () => (step > 1 ? setStep(1) : router.push(origin === "renew" ? "/me/renew" : "/subscribe"));
   const step1Reason = !contact.fullName.trim() ? "Enter your full name to continue."
     : !phoneValid ? "Add your phone number to continue."
     : !emailValid ? "Add your email to continue."
@@ -252,7 +278,7 @@ export function Checkout({
     <div className="space-y-4 pb-28 md:pb-8">
       <SubscribeChrome
         closeHref={closeHref}
-        onBack={() => (step > 1 ? setStep(1) : router.push(origin === "renew" ? "/me/renew" : "/subscribe"))}
+        onBack={goBack}
         backLabel={step > 1 ? "Back" : "Edit plan"}
       />
       <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Checkout</h1>
@@ -268,9 +294,11 @@ export function Checkout({
                 <p className="mt-0.5 text-sm text-muted-foreground">Where should we deliver your tiffins?</p>
               </div>
               <div className="grid gap-4">
-                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" autoCapitalize="words" enterKeyHint="next" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
+                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" autoCapitalize="words" enterKeyHint="next" className={lockContact ? "bg-muted/50 text-muted-foreground" : undefined} readOnly={lockContact} value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} />
+                  {lockContact ? <p className="text-xs text-muted-foreground text-pretty"><Link href="/dashboard/account/profile" className="underline">Change your name in Account</Link>.</p> : null}
+                </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">Phone{fromAccount}</Label>
                   <PhoneInput id="phone" autoComplete="tel" inputMode="tel" value={contact.phone} onChange={(v) => set({ phone: v ?? "" })} defaultCountry={defaultCountry} />
                   {contact.phone.trim() && !phoneValid && <p role="alert" className="text-[13px] text-destructive">Enter a valid phone number</p>}
                 </div>
@@ -283,15 +311,19 @@ export function Checkout({
                     inputMode="email"
                     autoCapitalize="none"
                     spellCheck={false}
-                    className={lockContact ? "bg-muted/50 text-muted-foreground" : undefined}
+                    className={emailReadOnly ? "bg-muted/50 text-muted-foreground" : undefined}
                     value={contact.email}
-                    readOnly={lockContact}
-                    aria-describedby={lockContact ? "email-locked-hint" : undefined}
+                    readOnly={emailReadOnly}
+                    aria-describedby={emailReadOnly ? "email-locked-hint" : undefined}
                     onChange={(e) => set({ email: e.target.value })}
                   />
                   {lockContact ? (
                     <p id="email-locked-hint" className="text-xs text-muted-foreground text-pretty">
                       Renewals use your account email. <Link href="/dashboard/account/contact" className="underline">Change it in Account</Link>.
+                    </p>
+                  ) : gateEmail != null ? (
+                    <p id="email-locked-hint" className="text-xs text-muted-foreground text-pretty">
+                      <button type="button" onClick={useDifferentEmail} className="min-h-11 underline">Not you? Use a different email</button>
                     </p>
                   ) : contact.email.trim() && !emailValid ? (
                     <p role="alert" className="text-[13px] text-destructive">Enter a valid email</p>
@@ -299,7 +331,8 @@ export function Checkout({
                 </div>
                 {lockContact ? (
                   <p className="-mb-2 text-xs text-muted-foreground text-pretty">
-                    Renewals deliver to your saved address. <Link href="/dashboard/account/address" className="underline">Change it in Account</Link>.
+                    <span className="bg-muted rounded-full px-2 py-0.5 text-[11px] font-medium">From your account</span>{" "}
+                    Edit the address if this order goes elsewhere. Your saved address won&apos;t change; <Link href="/dashboard/account/address" className="underline">update it in Account</Link>.
                   </p>
                 ) : null}
                 <AddressFields
@@ -308,12 +341,7 @@ export function Checkout({
                   // The shared postal cell wraps postalSlot in sm:col-span-2, which makes its own
                   // one-column grid grow a second column and puts the label beside the input.
                   className="sm:[&_div:has(>[data-postal-slot])]:col-span-1"
-                  // On a renewal the address lines are locked; delivery instructions are a
-                  // per-order note and stay editable in their own field below.
-                  fields={lockContact
-                    ? ["addressLine", "addressUnit", "city", "postalCode"]
-                    : ["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
-                  disabled={lockContact}
+                  fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
                   values={contact}
                   onChange={set}
                   resolveUrl="/api/address/resolve"
@@ -340,15 +368,6 @@ export function Checkout({
                     </div>
                   }
                 />
-                {lockContact ? (
-                  <AddressFields
-                    preset="delivery"
-                    idPrefix="checkout-notes"
-                    fields={["deliveryInstructions"]}
-                    values={contact}
-                    onChange={set}
-                  />
-                ) : null}
               </div>
             </section>
           </div>
@@ -428,7 +447,7 @@ export function Checkout({
       <aside id="order-summary" className={`scroll-mt-20 md:sticky md:top-24 ${FIELDS}`}>
         <div className={`${PANEL} space-y-3 p-4 sm:p-4`}>
           <h2 className="text-sm font-semibold">Order summary</h2>
-          <OrderSummary selections={selections} result={result} editHref={origin === "renew" ? "/me/renew" : "/subscribe"}>
+          <OrderSummary selections={selections} result={result} mealName={meal?.name} baseline={catalog?.plans.find((p) => p.key === selections.planKey)?.name} deliveryType={deliveryType} editHref={origin === "renew" ? "/me/renew" : "/subscribe"}>
           {applied.length > 0 && (
             <ul className="grid gap-1.5 rounded-2xl bg-muted/50 p-3 text-xs">
               {applied.map((c) => (
@@ -498,7 +517,7 @@ export function Checkout({
           )}
           {zone?.served && <p className="text-xs text-muted-foreground">Delivery window: {zone.slotWindow}</p>}
           </OrderSummary>
-          <ActionBar reason={actionReason} total={result?.total}>
+          <ActionBar reason={actionReason} total={result?.total} backLabel={step > 1 ? "Back" : "Edit plan"} onBack={goBack}>
             {step === 1 ? (
               <Button size="lg" className={`${PILL} flex-1 md:w-full`} disabled={step1Reason != null} onClick={() => {
                 setStep(2);
@@ -523,11 +542,12 @@ export function Checkout({
   );
 }
 
-function ActionBar({ reason, total, children }: { reason: string | null; total?: number; children: ReactNode }) {
+function ActionBar({ reason, total, backLabel, onBack, children }: { reason: string | null; total?: number; backLabel: string; onBack: () => void; children: ReactNode }) {
   return (
     <div className="bg-background/80 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:space-y-2 max-md:border-t max-md:px-4 max-md:pt-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] max-md:backdrop-blur-xl md:space-y-2 md:bg-transparent">
       {reason && <p role="status" className="text-[13px] text-muted-foreground">{reason}</p>}
       <div className="flex items-center gap-2 md:block">
+        <Button type="button" variant="outline" className={`${PILL} w-24 shrink-0 px-3 sm:hidden`} onClick={onBack}>{backLabel}</Button>
         {total != null && (
           <a href="#order-summary" className="bg-primary/15 flex h-12 shrink-0 flex-col justify-center rounded-full px-4 text-[13px] leading-tight font-semibold tabular-nums md:hidden">
             <span className="text-muted-foreground text-[11px] font-medium">Total</span>${total.toFixed(2)}

@@ -26,6 +26,7 @@ import { IdentityGate } from "../identity-gate";
 
 afterEach(() => {
   cleanup();
+  sessionStorage.clear();
   checkExistingAccount.mockReset();
   sendVerificationOtp.mockReset();
   signInEmailOtp.mockReset();
@@ -34,9 +35,9 @@ afterEach(() => {
 });
 
 describe("IdentityGate", () => {
-  it("renders the email step before any check has run", () => {
+  it("renders the email step before any check has run", async () => {
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.queryByText("wizard here")).not.toBeInTheDocument();
   });
 
@@ -44,7 +45,7 @@ describe("IdentityGate", () => {
     checkExistingAccount.mockResolvedValue({ status: "new" });
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
-    await user.type(screen.getByLabelText(/email/i), "new@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "new@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => expect(screen.getByText("wizard here")).toBeInTheDocument());
     expect(checkExistingAccount).toHaveBeenCalledWith("new@person.com");
@@ -54,7 +55,7 @@ describe("IdentityGate", () => {
     checkExistingAccount.mockRejectedValue(new Error("db down"));
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
-    await user.type(screen.getByLabelText(/email/i), "new@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "new@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => expect(screen.getByText("wizard here")).toBeInTheDocument());
   });
@@ -63,7 +64,7 @@ describe("IdentityGate", () => {
     checkExistingAccount.mockResolvedValue({ status: "matched" });
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
-    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "existing@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /continue as guest/i })).toBeInTheDocument();
@@ -74,7 +75,7 @@ describe("IdentityGate", () => {
     checkExistingAccount.mockResolvedValue({ status: "matched" });
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
-    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "existing@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => screen.getByRole("button", { name: /continue as guest/i }));
     await user.click(screen.getByRole("button", { name: /continue as guest/i }));
@@ -88,7 +89,7 @@ describe("IdentityGate", () => {
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
 
-    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "existing@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
@@ -109,7 +110,7 @@ describe("IdentityGate", () => {
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
 
-    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "existing@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
@@ -129,7 +130,7 @@ describe("IdentityGate", () => {
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
 
-    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "existing@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
@@ -147,7 +148,7 @@ describe("IdentityGate", () => {
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
 
-    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "existing@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
@@ -169,7 +170,7 @@ describe("IdentityGate", () => {
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
 
-    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "existing@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
@@ -187,7 +188,7 @@ describe("IdentityGate", () => {
     const user = userEvent.setup();
     render(<IdentityGate><div>wizard here</div></IdentityGate>);
 
-    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.type(await screen.findByLabelText(/email/i), "existing@person.com");
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
@@ -198,5 +199,26 @@ describe("IdentityGate", () => {
 
     await waitFor(() => expect(screen.getByText(/couldn't sign you in/i)).toBeInTheDocument());
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("skips the email screen when an identity is stored", async () => {
+    sessionStorage.setItem("tiffin.identity", JSON.stringify({ email: "a@b.com", kind: "guest" }));
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+    await waitFor(() => expect(screen.getByText("wizard here")).toBeInTheDocument());
+    expect(checkExistingAccount).not.toHaveBeenCalled();
+  });
+
+  it("stores the identity after a new email and the reset link clears it", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "new" });
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+    await user.type(await screen.findByLabelText(/email/i), "new@person.com");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByText("wizard here"));
+    expect(JSON.parse(sessionStorage.getItem("tiffin.identity")!)).toEqual({ email: "new@person.com", kind: "guest" });
+    await user.click(screen.getByRole("button", { name: /use a different email/i }));
+    expect(sessionStorage.getItem("tiffin.identity")).toBeNull();
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(screen.queryByText("wizard here")).not.toBeInTheDocument();
   });
 });

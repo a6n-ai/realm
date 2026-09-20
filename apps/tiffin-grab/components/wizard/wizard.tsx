@@ -10,7 +10,7 @@ import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@foundry/ui/button";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
-import { initialSelections, nextBlockedReason, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { initialSelections, nextBlockedReason, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -44,7 +44,13 @@ export function Wizard({
   exitHref?: string;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState(0);
+  const [step, setStepState] = useState(0);
+  const setStep = (n: number | ((s: number) => number)) =>
+    setStepState((s) => {
+      const next = typeof n === "function" ? n(s) : n;
+      try { sessionStorage.setItem(WIZARD_STEP_KEY, String(next)); } catch { /* storage unavailable */ }
+      return next;
+    });
   const [selections, setSelections] = useState<WizardSelections>(initial);
   const [result, setResult] = useState<PricingResult | null>(null);
   const prevStep = useRef(0);
@@ -53,6 +59,27 @@ export function Wizard({
     if (prevStep.current !== step) window.scrollTo({ top: 0 });
     prevStep.current = step;
   }, [step]);
+
+  // "Edit plan" from checkout lands here again: restore what the customer had picked and the step they were on.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) !== origin) return;
+      const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as WizardSelections;
+      if (saved.planKey != null && !catalog.plans.some((p) => p.key === saved.planKey)) return;
+      const savedStep = Number(sessionStorage.getItem(WIZARD_STEP_KEY));
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setSelections({ ...initial, ...saved });
+      if (Number.isInteger(savedStep) && savedStep >= 0 && savedStep < STEPS.length) {
+        prevStep.current = savedStep;
+        setStepState(savedStep);
+      }
+      /* eslint-enable react-hooks/set-state-in-effect */
+    } catch { /* unreadable saved plan: start fresh */ }
+    // Mount-only restore.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (patch: Partial<WizardSelections>) => setSelections((s) => ({ ...s, ...patch }));
 
@@ -199,13 +226,14 @@ export function Wizard({
         )}
       </AnimatePresence>
 
-      <div className="wizard-bar fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3 sm:sticky sm:mt-6 sm:px-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+      <div className="wizard-bar fixed inset-x-0 bottom-0 z-[45] border-t px-4 pt-3 sm:sticky sm:mt-6 sm:px-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
         {blocked ? <p role="status" className="text-muted-foreground mx-auto mb-2 max-w-3xl text-center text-[13px] sm:text-right">{blocked}</p> : null}
-        <div className="mx-auto flex max-w-3xl sm:justify-end">
+        <div className="mx-auto flex max-w-3xl gap-2 sm:justify-end">
+          <Button type="button" variant="outline" className={`${IOS_BUTTON} w-24 shrink-0 sm:hidden`} onClick={goBack}>Back</Button>
           {step < 3 ? (
-            <Button type="button" className={`${IOS_BUTTON} w-full sm:h-10 sm:min-h-10 sm:w-auto sm:px-8`} disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Next</Button>
+            <Button type="button" className={`${IOS_BUTTON} flex-1 sm:h-10 sm:min-h-10 sm:w-auto sm:flex-none sm:px-8`} disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Next</Button>
           ) : (
-            <Button type="button" className={`${IOS_BUTTON} w-full sm:h-10 sm:min-h-10 sm:w-auto sm:px-8`} disabled={!canNext} onClick={deploy}>
+            <Button type="button" className={`${IOS_BUTTON} flex-1 sm:h-10 sm:min-h-10 sm:w-auto sm:flex-none sm:px-8`} disabled={!canNext} onClick={deploy}>
               Continue to checkout
             </Button>
           )}

@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { ArrowLeftIcon, XIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 
-/** Sticky top chrome for public subscribe/checkout — Back + Close so users aren't trapped. */
+/** Sticky top chrome for public subscribe/checkout — Back + Close so users aren't trapped. Back shows here from sm up; below sm it lives in the bottom action bar. */
 export function SubscribeChrome({
   closeHref,
   onBack,
@@ -29,7 +29,7 @@ export function SubscribeChrome({
         type="button"
         variant="ghost"
         size="sm"
-        className="-ml-2 h-11 font-semibold tracking-tight"
+        className="-ml-2 hidden h-11 font-semibold tracking-tight sm:inline-flex"
         onClick={() => (onBack ? onBack() : router.back())}
       >
         <ArrowLeftIcon data-icon="inline-start" />
@@ -40,7 +40,7 @@ export function SubscribeChrome({
           {stepTag}
         </span>
       )}
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-2">
       {trailing}
       <Button
         type="button"

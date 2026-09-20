@@ -62,7 +62,8 @@ export async function getContactOnFile(userId: bigint): Promise<ContactOnFile | 
     : { addressLine: profile.addressLine, addressUnit: profile.addressUnit, city: profile.city, postalCode: profile.postalCode };
 
   return {
-    fullName: lastOrder?.fullName ?? profile.name ?? "",
+    // Account name first: it is the name the session carries and confirmSubscription enforces.
+    fullName: profile.name || lastOrder?.fullName || "",
     email: profile.email ?? "",
     phone: profile.phone ?? "",
     addressLine: address.addressLine ?? "",

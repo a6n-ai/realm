@@ -24,12 +24,20 @@ export function OrderSummary({
   result,
   editHref,
   diet,
+  mealName,
+  baseline,
+  deliveryType,
   children,
 }: {
   selections: WizardSelections;
   result: PricingResult | null;
   editHref: string;
   diet?: string;
+  mealName?: string | null;
+  /** Plan/baseline name, e.g. Veg. */
+  baseline?: string | null;
+  /** e.g. "3-day delivery · Mon Wed Fri". */
+  deliveryType?: string | null;
   children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -43,7 +51,7 @@ export function OrderSummary({
       ? `${perWeek} tiffins a week × ${weeks} ${weeks === 1 ? "week" : "weeks"} = ${result.tiffinCount} tiffins`
       : `${result.tiffinCount} tiffins`
     : null;
-  const oneLine = [diet, perWeek > 0 ? `${perWeek}-day delivery` : null, qty ? `${result?.tiffinCount} tiffins` : null].filter(Boolean).join(" · ");
+  const oneLine = [mealName ?? diet, baseline, perWeek > 0 ? `${perWeek}-day delivery` : null, qty ? `${result?.tiffinCount} tiffins` : null].filter(Boolean).join(" · ");
 
   return (
     <div className="space-y-3">
@@ -62,7 +70,9 @@ export function OrderSummary({
           <ChevronDown className={`size-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
         <div className={`${open ? "block" : "hidden"} mt-2 space-y-2 text-[13px] md:mt-1 md:block`}>
-          {diet && <p className="font-medium">{diet}</p>}
+          {(mealName || diet) && <p className="text-[15px] font-semibold">{mealName ?? diet}</p>}
+          {baseline && <p className="text-muted-foreground">{baseline}</p>}
+          {deliveryType && <p className="text-muted-foreground">{deliveryType}</p>}
           {perWeek > 0 && (
             <div className="flex flex-wrap gap-1.5" aria-label="Eating days">
               {days.map((d) => (

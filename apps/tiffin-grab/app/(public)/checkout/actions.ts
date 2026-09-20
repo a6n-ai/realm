@@ -46,38 +46,34 @@ async function maybeSendAccountSetup(email: string | undefined | null): Promise<
 }
 
 /**
- * A renewal keeps the customer's email and delivery address on file — they change
- * those from Account, not mid-checkout. The read-only inputs in checkout are only
- * the visible half: the renewal flag and the submitted contact both arrive from
- * the client, so the on-file values are re-applied here.
- *
- * Dropping `renewal: true` from a request gains nothing: that is simply the
- * ordinary logged-in subscribe path, which has always accepted a typed address.
- * Name, phone and delivery instructions stay editable, per the spec.
+ * A signed-in customer's identity is their account's, never the request's: name
+ * and email are always re-taken from the session, so a crafted payload cannot
+ * place an order under someone else's contact. Phone, address and delivery
+ * instructions are accepted as entered (validated downstream by createOrder) and
+ * apply to this order only; nothing is written back to the profile. Guests are
+ * unchanged — they have no session to take identity from.
  */
-async function lockRenewalContact(input: ConfirmInput): Promise<CreateOrderInput["contact"]> {
-  if (!input.renewal) return input.contact;
-  const userId = await currentUserId();
-  if (userId == null) throw new ValidationError("Sign in to renew your plan.");
-  const onFile = await getContactOnFile(userId);
-  if (!onFile?.email || !onFile.addressLine || !onFile.postalCode) {
-    throw new ValidationError("We couldn't find your saved address. Update it from Account, then renew.");
+async function resolveContact(input: ConfirmInput): Promise<CreateOrderInput["contact"]> {
+  const session = await getSession();
+  const user = session?.user;
+  if (!user) {
+    if (input.renewal) throw new ValidationError("Sign in to renew your plan.");
+    return input.contact;
   }
-  return {
-    ...input.contact,
-    email: onFile.email,
-    addressLine: onFile.addressLine,
-    addressUnit: onFile.addressUnit,
-    city: onFile.city,
-    postalCode: onFile.postalCode,
-  };
+  const userId = await currentUserId();
+  const fullName = userId == null ? undefined : (await getContactOnFile(userId))?.fullName?.trim();
+  if (!user.email || !fullName) throw new ValidationError("Your account is missing a name or email. Update it from Account.");
+  if (!input.contact.addressLine?.trim() || !input.contact.postalCode?.trim()) {
+    throw new ValidationError("Enter your delivery address.");
+  }
+  return { ...input.contact, fullName, email: user.email };
 }
 
 export async function confirmSubscription(rawInput: ConfirmInput): Promise<ConfirmResult> {
-  // Resolve the locked contact FIRST: serviceability, geocoding and tax below
-  // must all run against the address the order will actually be placed with.
+  // Resolve the contact FIRST: serviceability, geocoding and tax below must all
+  // run against the identity and address the order will actually be placed with.
   const { renewal: _renewal, ...rest } = rawInput;
-  const input: CreateOrderInput = { ...rest, contact: await lockRenewalContact(rawInput) };
+  const input: CreateOrderInput = { ...rest, contact: await resolveContact(rawInput) };
 
   // Serviceability is the source of truth here, not on the client: the checkout
   // UI disables "Continue to payment" for a known out-of-zone postal, but that
