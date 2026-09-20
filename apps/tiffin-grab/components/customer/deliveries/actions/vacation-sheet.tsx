@@ -1,7 +1,6 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, DateStrip, Notice, Reason, Sheet, Toast, Toggle, type StripDay } from "@/components/customer/kit";
+import { Button, DateStrip, Notice, Reason, Sheet, Toggle, type StripDay } from "@/components/customer/kit";
 import { buildVacationPauseRequest } from "@/app/(customer)/me/deliveries/vacation-pause";
 import { pauseMySubscription, resumeMySubscription } from "@/app/(customer)/me/deliveries/actions";
 import { humanDate } from "@/lib/deliveries-view";
@@ -12,8 +11,7 @@ const span = (from: string, n: number) => Array.from({ length: n }, (_, i) => ad
 const label = "text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]";
 
 /** Not a trip action: never reads `trip`, so the shell may mount it with any placeholder trip. */
-export function VacationSheet({ plan, open, onDone }: ActionSheetProps) {
-  const router = useRouter();
+export function VacationSheet({ plan, open, onDone }: Omit<ActionSheetProps, "trip"> & { trip?: ActionSheetProps["trip"] }) {
   const [pending, start] = useTransition();
   const [start_, setStart] = useState<string | null>(null);
   const { limits, usage } = plan.pause;
@@ -22,7 +20,6 @@ export function VacationSheet({ plan, open, onDone }: ActionSheetProps) {
   const [withEnd, setWithEnd] = useState(endRequired);
   const [end, setEnd] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
   const onVacation = plan.sub.status === "paused" || !!plan.ctx.onVacation;
   const left = limits?.maxPauses == null ? null : Math.max(limits.maxPauses - (usage?.count ?? 0), 0);
 
@@ -48,8 +45,7 @@ export function VacationSheet({ plan, open, onDone }: ActionSheetProps) {
         ? await resumeMySubscription(plan.orderId)
         : await pauseMySubscription(plan.orderId, buildVacationPauseRequest(start_!, withEnd ? end! : ""));
       if ("error" in res) return setError(res.error);
-      router.refresh();
-      setDone(onVacation ? "Deliveries resumed." : "Vacation set.");
+      onDone(onVacation ? "Deliveries resumed." : "Vacation set.");
     });
 
   const cta = onVacation ? "Resume deliveries" : "Pause deliveries";
@@ -62,10 +58,9 @@ export function VacationSheet({ plan, open, onDone }: ActionSheetProps) {
         : `No end date: deliveries stay paused until you resume. Trips whose cutoff already passed still go out.`;
 
   return (
-    <>
-      <Sheet
-        open={open && !done}
-        onClose={onDone}
+    <Sheet
+        open={open}
+        onClose={() => onDone()}
         title={onVacation ? "Resume deliveries" : "Pause deliveries"}
         footer={
           <>
@@ -114,7 +109,5 @@ export function VacationSheet({ plan, open, onDone }: ActionSheetProps) {
           )}
         </div>
       </Sheet>
-      <Toast open={done !== null} onClose={onDone}>{done}</Toast>
-    </>
   );
 }

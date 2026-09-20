@@ -48,7 +48,7 @@ describe("DeliveriesView", () => {
     view();
     fireEvent.click(screen.getAllByRole("button", { name: /Pick meals/ })[0]!);
     expect(screen.getByRole("dialog", { name: "Pick meals" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open this week/ })).toHaveAttribute("href", "/me/meals?date=2026-09-23");
+    expect(screen.getByRole("link", { name: /Choose meals/ })).toHaveAttribute("href", "/me/meals?date=2026-09-23");
   });
   it("held trip: Resume is offered, Hold is not", () => {
     view("2026-09-25");

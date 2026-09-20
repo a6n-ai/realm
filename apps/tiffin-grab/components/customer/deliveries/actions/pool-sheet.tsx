@@ -12,7 +12,7 @@ export function PoolSheet(props: ActionSheetProps) {
   return (
     <Sheet
       open={open}
-      onClose={onDone}
+      onClose={() => onDone()}
       title="In your pool"
       footer={<Button variant="primary" size="lg" className="w-full" disabledReason={n < 1 ? "Nothing is waiting in your pool." : undefined} onClick={() => setNext(true)}>Schedule a make-up</Button>}
     >

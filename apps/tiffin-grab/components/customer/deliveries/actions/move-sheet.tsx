@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
-import { Button, DateStrip, Notice, Reason, Sheet, Toast } from "@/components/customer/kit";
+import { Button, DateStrip, Notice, Reason, Sheet } from "@/components/customer/kit";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import { moveOptions } from "@/lib/deliveries-view/move";
 import { formatCoversLabel } from "@/lib/menu/coverage";
@@ -15,7 +15,7 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const av = actionAvailability(trip, now, plan.ctx).move;
   const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today), [trip, plan, now]);
   const [picked, setPicked] = useState<string | null>(null);
-  const { pending, error, toast, run } = useCommit();
+  const { pending, error, run } = useCommit(onDone);
   const chosen = options.find((o) => o.date === picked);
   const held = trip.status === "hold";
   const day = humanDate(trip.date);
@@ -41,8 +41,7 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   );
 
   return (
-    <>
-      <Sheet open={open && toast === null} onClose={onDone} title={`Move ${day}`} footer={footer}>
+    <Sheet open={open} onClose={() => onDone()} title={`Move ${day}`} footer={footer}>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 pb-2">
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>
@@ -63,7 +62,5 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
           {error && <Notice tone="error">{error}</Notice>}
         </div>
       </Sheet>
-      <Toast open={toast !== null} onClose={onDone}>{toast}</Toast>
-    </>
   );
 }

@@ -15,7 +15,7 @@ export function PickSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   return (
     <Sheet
       open={open}
-      onClose={onDone}
+      onClose={() => onDone()}
       title="Pick meals"
       footer={
         reason ? undefined : (

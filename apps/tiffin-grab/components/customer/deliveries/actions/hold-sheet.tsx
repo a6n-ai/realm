@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { skipMyDelivery, unskipMyDelivery } from "@/app/(customer)/me/deliveries/actions";
-import { Button, Card, Notice, Reason, Sheet, Toast } from "@/components/customer/kit";
+import { Button, Card, Notice, Reason, Sheet } from "@/components/customer/kit";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
 import { formatMissedDays } from "@/lib/menu/coverage";
 import type { ActionSheetProps } from "./types";
@@ -13,7 +13,7 @@ export function HoldSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const resume = trip.status === "hold" || trip.status === "rescheduled";
   const [now] = useState(() => Date.now());
   const av = actionAvailability(trip, now, plan.ctx)[resume ? "resume" : "hold"];
-  const { pending, error, toast, run } = useCommit();
+  const { pending, error, run } = useCommit(onDone);
   const day = humanDate(trip.date);
   const until = formatCutoff(trip.cutoffAt, plan.ctx.timezone);
   const holdDays = plan.counts.holdDays;
@@ -32,13 +32,12 @@ export function HoldSheet({ trip, plan, open, onDone }: ActionSheetProps) {
       <Button variant="primary" size="lg" pending={pending} disabledReason={av.ok ? undefined : (av.why ?? undefined)} onClick={confirm}>
         {resume ? "Resume trip" : "Hold this trip"}
       </Button>
-      <Button variant="quiet" size="lg" onClick={onDone}>{resume ? "Keep it on hold" : "Keep delivery"}</Button>
+      <Button variant="quiet" size="lg" onClick={() => onDone()}>{resume ? "Keep it on hold" : "Keep delivery"}</Button>
     </div>
   );
 
   return (
-    <>
-      <Sheet open={open && toast === null} onClose={onDone} title={resume ? `Resume ${day}` : `Hold ${day}`} footer={footer}>
+    <Sheet open={open} onClose={() => onDone()} title={resume ? `Resume ${day}` : `Hold ${day}`} footer={footer}>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 pb-2">
           {!av.ok && <Notice>{av.why}</Notice>}
           <Card className="grid gap-2 p-4">
@@ -59,7 +58,5 @@ export function HoldSheet({ trip, plan, open, onDone }: ActionSheetProps) {
           {error && <Notice tone="error">{error}</Notice>}
         </div>
       </Sheet>
-      <Toast open={toast !== null} onClose={onDone}>{toast}</Toast>
-    </>
   );
 }

@@ -2,7 +2,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Card, DateStrip, MonthGrid, Notice, StatusDot, Toast, type DeliveryStatus, type StripDay } from "@/components/customer/kit";
 import { FONT } from "@/components/customer/kit/cn";
 import { actionAvailability, buildDayStatusMap, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
@@ -10,6 +10,7 @@ import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import { actionModel } from "./action-model";
 import { ActionBar, ActionRail } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
+import { VacationSheet } from "./actions/vacation-sheet";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader } from "./plan-header";
 import { TripDetail, TripRow, tiffins } from "./trip-parts";
@@ -85,7 +86,12 @@ export function DeliveriesView({ plan, subs, trips, now, monthKey, initialTrip }
     : { label: "Going away? Vacation", sub: vacAv?.ok === false ? "" : "Pause every trip for a date range", reason: vacAv?.ok === false ? (vacAv.why ?? undefined) : undefined };
 
   const stripDays: StripDay[] = trip ? weekOf(trip.date).map((iso) => ({ date: iso, status: statusOf(iso) })) : [];
-  const done = () => (setActive(null), router.refresh());
+  const closeToast = useCallback(() => setToast(null), []);
+  const changed = (message: string) => (setToast(message), router.refresh());
+  const done = (message?: string) => {
+    setActive(null);
+    if (message) changed(message);
+  };
 
   const monthNav = (
     <div className="mb-3 flex items-center justify-between">
@@ -100,7 +106,7 @@ export function DeliveriesView({ plan, subs, trips, now, monthKey, initialTrip }
   );
 
   return (
-    <div className={`${FONT} pb-[300px] md:pb-32 lg:pb-8`}>
+    <div className={`${FONT} pb-[240px] md:pb-32 lg:pb-8`}>
       <PlanHeader
         sub={sub}
         subs={subs}
@@ -174,8 +180,12 @@ export function DeliveriesView({ plan, subs, trips, now, monthKey, initialTrip }
         </>
       )}
 
-      {active && (trip ?? trips[0]) && <ActionSheet action={active} trip={(trip ?? trips[0])!} plan={plan} open onDone={done} />}
-      <Toast open={toast !== null} onClose={() => setToast(null)}>{toast}</Toast>
+      {active === "vacation" ? (
+        <VacationSheet plan={plan} open onDone={done} />
+      ) : (
+        active && trip && <ActionSheet action={active} trip={trip} plan={plan} open onDone={done} onChanged={changed} />
+      )}
+      <Toast open={toast !== null} onClose={closeToast}>{toast}</Toast>
     </div>
   );
 }

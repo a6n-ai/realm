@@ -75,43 +75,35 @@ export function ActionBar({ model, trip, tz, onAction, onGoTo }: Common) {
     <div
       className={cn(
         FONT,
-        "fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 pb-3 pt-3 backdrop-blur-xl md:bottom-0 md:pb-[calc(12px+env(safe-area-inset-bottom))] lg:hidden",
+        "fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 pb-2 pt-2 backdrop-blur-xl md:bottom-0 md:pb-[calc(12px+env(safe-area-inset-bottom))] lg:hidden",
       )}
     >
       {trip.status === "upcoming" && (
-        <p className="mb-2 text-[13px] text-[var(--muted-foreground,#6E6558)]">
+        <p className="mb-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
           Closes <b className="font-semibold text-[var(--foreground)]"><Countdown target={trip.cutoffAt} timeZone={tz} /></b>
         </p>
       )}
       {reason && <div role="status"><Reason className="mb-2">{reason}</Reason></div>}
       {model.closedReason && <Reason className="mb-2">{model.closedReason}</Reason>}
       {model.goTo && <Button className="w-full" onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
-      {primary && (
-        <Button
-          variant="primary"
-          size="lg"
-          className="mb-2 w-full"
-          onClick={() => fire(primary.key, primary.av)}
-          aria-disabled={!primary.av.ok || undefined}
-        >
-          {primary.label}
-        </Button>
-      )}
-      {model.primary === "vacation" && (
-        <Button variant="primary" size="lg" className="mb-2 w-full" onClick={() => onAction("vacation")}>Resume deliveries</Button>
-      )}
-      {model.bar.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
-          {model.bar.map((k) => {
-            const a = model.av[k];
-            return (
-              <Button key={k} className={cn("px-2", !a.ok && "opacity-45")} aria-disabled={!a.ok || undefined} onClick={() => fire(k, a)}>
-                {ACTION_LABEL[k].split(" ")[0]}
-              </Button>
-            );
-          })}
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        {primary && (
+          <Button variant="primary" size="lg" className="min-w-0 flex-1 px-3" onClick={() => fire(primary.key, primary.av)} aria-disabled={!primary.av.ok || undefined}>
+            {primary.label}
+          </Button>
+        )}
+        {model.primary === "vacation" && (
+          <Button variant="primary" size="lg" className="min-w-0 flex-1 px-3" onClick={() => onAction("vacation")}>Resume deliveries</Button>
+        )}
+        {model.bar.map((k) => {
+          const a = model.av[k];
+          return (
+            <Button key={k} size="lg" className={cn("shrink-0 px-4", !a.ok && "opacity-45")} aria-disabled={!a.ok || undefined} onClick={() => fire(k, a)}>
+              {ACTION_LABEL[k].split(" ")[0]}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 }

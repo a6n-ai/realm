@@ -1,3 +1,4 @@
+import type { SwapCategory } from "@/lib/menu/swap-rules";
 import type { CalendarDayInput, PlanContext, Trip } from "@/lib/deliveries-view";
 import type { CalendarDay, CustomerDelivery, Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 
@@ -17,6 +18,8 @@ export type PlanView = {
   days: CalendarDay[];
   categoryLabels: Record<string, string>;
   categoryPortions: Record<string, string>;
+  /** Per-category pick size, unit and cap for this meal size; with sub.categoryCounts it lets the swap sheet mirror the server rules. */
+  swapCategories: Record<string, SwapCategory>;
 };
 
 type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "pooledAt">;
@@ -28,7 +31,8 @@ export function toCalendarInputs(a: {
   categoryLabels: Record<string, string>;
 }): CalendarDayInput[] {
   const byDate = new Map(a.rows.map((r) => [r.deliveryDate, r]));
-  const mealsByDate = Object.fromEntries(a.days.map((d) => [d.date, d.meal]));
+  const mealsByDate: Record<string, CalendarDay["meal"]> = Object.fromEntries(a.days.map((d) => [d.date, d.meal]));
+  for (const d of a.days) Object.assign(mealsByDate, d.carriedMeals);
   const label = (k: string) => a.categoryLabels[k] ?? k;
   return a.days.map((d) => {
     const r = byDate.get(d.date);

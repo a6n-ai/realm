@@ -1,25 +1,23 @@
 "use client";
 import { ArrowLeftRight, X } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { applyMyDeliverySwap, removeMyDeliverySwap } from "@/app/(customer)/me/deliveries/actions";
-import { Button, Chip, Notice, Reason, Segmented, Sheet, Stepper, Toast, panelId } from "@/components/customer/kit";
+import { Button, Chip, Notice, Reason, Segmented, Sheet, Stepper, panelId } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
+import { applySwapsToCounts, capViolation, swapQuantities } from "@/lib/menu/swap-rules";
 import type { ActionSheetProps } from "./types";
 
 const PREFIX = "swap";
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 
-export function SwapSheet({ trip, plan, open, onDone }: ActionSheetProps) {
-  const router = useRouter();
+export function SwapSheet({ trip, plan, open, onDone, onChanged }: ActionSheetProps) {
   const days = trip.coversDates.length ? trip.coversDates : [trip.date];
   const [day, setDay] = useState(days[0]);
   const [pair, setPair] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [pending, setPending] = useState<"apply" | string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
 
   const av = actionAvailability(trip, Date.now(), plan.ctx).swap;
   const closed = Date.now() >= trip.cutoffAt;
@@ -31,15 +29,39 @@ export function SwapSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const pairs = [...new Map((eating?.swapPairs ?? []).map((p) => [`${p.fromCategory}>${p.toCategory}`, p])).values()];
   const applied = eating?.appliedSwaps ?? [];
   const chosen = pairs.find((p) => `${p.fromCategory}>${p.toCategory}` === pair) ?? null;
-  // ponytail: ceiling is the base pick count from the trip's own-date meal; the server folds applied swaps and has the last word.
-  const have = chosen ? (source?.meal?.find((m) => m.category === chosen.fromCategory)?.quantity ?? 9) : 1;
+  const cats = plan.swapCategories;
+  const from = chosen ? cats?.[chosen.fromCategory] : undefined;
+  const to = chosen ? cats?.[chosen.toCategory] : undefined;
+  // Mirrors applyDeliverySwap so the stepper only offers quantities the server accepts; the server still has the last word.
+  const options = useMemo(() => {
+    if (!chosen) return { qtys: [1], byQty: new Map<number, number>(), why: null as string | null };
+    if (!from || !to) {
+      const have = source?.meal?.find((m) => m.category === chosen.fromCategory)?.quantity ?? 9;
+      return { qtys: Array.from({ length: Math.max(1, have) }, (_, i) => i + 1), byQty: new Map<number, number>(), why: null };
+    }
+    const effective = applySwapsToCounts(plan.sub.categoryCounts ?? {}, applied);
+    const have = effective[from.key] ?? 0;
+    const byQty = new Map<number, number>();
+    let why: string | null = have < 1 ? `No ${label(from.key)} left to give up on this day.` : null;
+    for (let q = 1; q <= have; q++) {
+      const r = swapQuantities(from, to, q);
+      if (!r.ok) { why ??= r.reason; continue; }
+      const cap = capViolation(applySwapsToCounts(effective, [{ fromCategory: from.key, toCategory: to.key, qtyFrom: q, qtyTo: r.qtyTo }]), to);
+      if (cap) { why ??= cap; continue; }
+      byQty.set(q, r.qtyTo);
+    }
+    return { qtys: [...byQty.keys()], byQty, why };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosen, from, to, applied, plan.sub.categoryCounts, source]);
+  const stepTo = (n: number) => {
+    const q = options.qtys;
+    setQty(n > qty ? (q.find((x) => x > qty) ?? qty) : ([...q].reverse().find((x) => x < qty) ?? qty));
+  };
+  const usable = options.qtys.length > 0;
+  const shownQty = options.qtys.includes(qty) ? qty : (options.qtys[0] ?? 1);
+  const qtyTo = options.byQty.get(shownQty);
   const lockLine = trip.eatingDays.find((e) => e.date === day)?.locksWith;
 
-  const finish = (msg: string) => {
-    setToast(msg);
-    router.refresh();
-    onDone();
-  };
   const run = async (key: string, call: () => Promise<{ ok: true } | { error: string }>, msg: string) => {
     if (pending || !trip.deliveryId) return;
     setPending(key);
@@ -47,7 +69,7 @@ export function SwapSheet({ trip, plan, open, onDone }: ActionSheetProps) {
     try {
       const r = await call();
       if ("error" in r) setError(r.error);
-      else finish(msg);
+      else (setPair(null), setQty(1), onChanged ? onChanged(msg) : onDone(msg));
     } catch {
       setError("Couldn't reach the server. Try again.");
     } finally {
@@ -57,14 +79,14 @@ export function SwapSheet({ trip, plan, open, onDone }: ActionSheetProps) {
 
   const onApply = () => {
     if (!chosen) return;
-    return run("apply", () => applyMyDeliverySwap(trip.deliveryId!, chosen.fromCategory, chosen.toCategory, qty, day), `Swap applied to ${humanDate(day)}.`);
+    return run("apply", () => applyMyDeliverySwap(trip.deliveryId!, chosen.fromCategory, chosen.toCategory, shownQty, day), `Swap applied to ${humanDate(day)}.`);
   };
 
   return (
     <>
       <Sheet
         open={open}
-        onClose={onDone}
+        onClose={() => onDone()}
         title="Swap items"
         footer={
           <Button
@@ -72,7 +94,7 @@ export function SwapSheet({ trip, plan, open, onDone }: ActionSheetProps) {
             size="lg"
             className="w-full"
             pending={pending === "apply"}
-            disabled={!chosen || !!lockReason}
+            disabled={!chosen || !usable || !!lockReason}
             onClick={onApply}
           >
             Apply swap
@@ -144,9 +166,13 @@ export function SwapSheet({ trip, plan, open, onDone }: ActionSheetProps) {
                         {on && (
                           <div className="mt-2 flex items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
                             <p className="text-sm">
-                              Give up <b>{qty}</b> {label(p.fromCategory)} for {label(p.toCategory)}. We match the portion size for you.
+                              {usable && qtyTo != null
+                                ? <>Give up <b>{shownQty} {label(p.fromCategory)}</b>, get <b>{qtyTo} {label(p.toCategory)}</b>.</>
+                                : usable
+                                  ? <>Give up <b>{shownQty}</b> {label(p.fromCategory)} for {label(p.toCategory)}. We match the portion size for you.</>
+                                  : <>{options.why ?? "This swap isn't possible on this day."}</>}
                             </p>
-                            <Stepper label={`${label(p.fromCategory)} to give up`} value={qty} min={1} max={Math.max(1, have)} onChange={setQty} />
+                            {usable && <Stepper label={`${label(p.fromCategory)} to give up`} value={shownQty} min={options.qtys[0]!} max={options.qtys[options.qtys.length - 1]!} onChange={stepTo} />}
                           </div>
                         )}
                       </div>
@@ -159,9 +185,6 @@ export function SwapSheet({ trip, plan, open, onDone }: ActionSheetProps) {
           </div>
         </div>
       </Sheet>
-      <Toast open={toast !== null} onClose={() => setToast(null)}>
-        {toast}
-      </Toast>
     </>
   );
 }

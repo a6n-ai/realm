@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-or
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import {
@@ -538,6 +539,8 @@ export type CalendarDay = {
    * per-day or per-trip swap count, so this is always null until such a limit exists.
    */
   swapAllowance?: null;
+  /** Resolved meal per covered eating day other than the trip's own date (a carried day has no row of its own). */
+  carriedMeals?: Record<string, ResolvedMeal>;
 };
 
 // Day-cell aggregator for the customer calendar (this week + next week). Composed entirely from
@@ -609,6 +612,19 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     swapAllowance: null,
   });
 
+  const loadWeek = weekLoader();
+  const carriedFields = async (row: CustomerDelivery) => {
+    const carriedMeals: Record<string, ResolvedMeal> = {};
+    for (const date of coveredDates(row)) {
+      if (date === row.deliveryDate) continue;
+      const w = await loadWeek(date);
+      if (!w) continue;
+      const daySwaps = swapRows.filter((s) => s.deliveryId === row.id && swapAppliesTo(s.forDate, row.deliveryDate, date));
+      carriedMeals[date] = await resolveTripDay(order, w, date, 1, daySwaps);
+    }
+    return { carriedMeals };
+  };
+
   const out: CalendarDay[] = [];
   for (const row of rows) {
     const week = weekByStart.get(mondayOfIso(row.deliveryDate));
@@ -624,6 +640,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
         options: [],
         ...tripFields(row),
         ...swapFields(row),
+        ...(await carriedFields(row)),
       });
       continue;
     }
@@ -667,6 +684,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       options,
       ...tripFields(row),
       ...swapFields(row),
+      ...(await carriedFields(row)),
     });
   }
   return out;

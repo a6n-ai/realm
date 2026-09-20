@@ -19,6 +19,7 @@ beforeEach(() => {
   apply.mockReset().mockResolvedValue({ ok: true });
   remove.mockReset().mockResolvedValue({ ok: true });
   refresh.mockReset();
+  onChanged.mockReset();
 });
 afterEach(cleanup);
 
@@ -44,7 +45,8 @@ const plan = {
     ],
   }],
 } as unknown as PlanView;
-const swap = (t = trip(), onDone = vi.fn()) => (render(<SwapSheet trip={t} plan={plan} open onDone={onDone} />), onDone);
+const onChanged = vi.fn();
+const swap = (t = trip(), onDone = vi.fn()) => (render(<SwapSheet trip={t} plan={plan} open onDone={onDone} onChanged={onChanged} />), onDone);
 
 describe("SwapSheet", () => {
   it("shows a tab per covered eating day and pairs for the selected day", () => {
@@ -59,8 +61,8 @@ describe("SwapSheet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Rice → Roti" }));
     fireEvent.click(screen.getByRole("button", { name: "Apply swap" }));
     await waitFor(() => expect(apply).toHaveBeenCalledWith("dlv1", "rice", "roti", 1, tue));
-    await waitFor(() => expect(onDone).toHaveBeenCalled());
-    expect(refresh).toHaveBeenCalled();
+    await waitFor(() => expect(onChanged).toHaveBeenCalledWith("Swap applied to Tue, Sep 22."));
+    expect(onDone).not.toHaveBeenCalled();
   });
   it("stepper is clamped to what the meal has", () => {
     swap();
@@ -73,12 +75,28 @@ describe("SwapSheet", () => {
     return waitFor(() => expect(apply).toHaveBeenCalledWith("dlv1", "rice", "roti", 2, mon));
   });
   it("lists applied swaps of the selected day only and removes with forDate", async () => {
-    const onDone = swap();
+    swap();
     expect(screen.queryByText(/1 Rice → 4 Roti/)).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: /Tue/ }));
     fireEvent.click(screen.getByRole("button", { name: /Remove swap 1 Rice → 4 Roti/ }));
     await waitFor(() => expect(remove).toHaveBeenCalledWith("dlv1", "sw1", tue));
-    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    await waitFor(() => expect(onChanged).toHaveBeenCalledWith("Swap removed from Tue, Sep 22."));
+  });
+  it("mirrors server rules: previews the trade and clamps the stepper to what is left", () => {
+    const withRules = {
+      ...plan,
+      sub: { mealSizeName: "Large", categoryCounts: { rice: 2, roti: 4 } },
+      swapCategories: {
+        rice: { key: "rice", pickTu: 1, unitType: "count", unitLabel: "roti", maxPicksPerTiffin: null },
+        roti: { key: "roti", pickTu: 0.25, unitType: "count", unitLabel: "roti", maxPicksPerTiffin: null },
+      },
+    } as unknown as PlanView;
+    render(<SwapSheet trip={trip()} plan={withRules} open onDone={vi.fn()} onChanged={onChanged} />);
+    fireEvent.click(screen.getByRole("button", { name: "Rice → Roti" }));
+    expect(screen.getByText(/Give up/).textContent).toBe("Give up 1 Rice, get 4 Roti.");
+    fireEvent.click(screen.getByRole("button", { name: /Increase/ }));
+    expect(screen.getByText(/Give up/).textContent).toBe("Give up 2 Rice, get 8 Roti.");
+    expect(screen.getByRole("button", { name: /Increase/ })).toHaveAttribute("aria-disabled", "true");
   });
   it("keeps the sheet open and shows the server error", async () => {
     apply.mockResolvedValue({ error: "At most 1 Curry per tiffin" });

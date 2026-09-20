@@ -1,7 +1,6 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { Button, DateStrip, Notice, Reason, Sheet, Toast } from "@/components/customer/kit";
+import { Button, DateStrip, Notice, Reason, Sheet } from "@/components/customer/kit";
 import { scheduleMyPooledTiffin } from "@/app/(customer)/me/deliveries/actions";
 import { isPoolScheduleDateEligible } from "@/app/(customer)/me/deliveries/pool-date-eligibility";
 import { humanDate } from "@/lib/deliveries-view";
@@ -13,11 +12,9 @@ const dow = (iso: string) => DOW[new Date(`${iso}T00:00:00Z`).getUTCDay()]!;
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
 export function MakeupSheet({ plan, open, onDone }: ActionSheetProps) {
-  const router = useRouter();
   const [pending, start] = useTransition();
   const [date, setDate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
   const { counts, today } = plan;
   const units = Math.min(counts.pooled, counts.persons || 1);
 
@@ -36,16 +33,14 @@ export function MakeupSheet({ plan, open, onDone }: ActionSheetProps) {
       setError(null);
       const res = await scheduleMyPooledTiffin(plan.orderId, date!);
       if ("error" in res) return setError(res.error);
-      router.refresh();
-      setDone(`Make-up scheduled for ${humanDate(date!)}.`);
+      onDone(`Make-up scheduled for ${humanDate(date!)}.`);
     });
 
   const weekdays = counts.deliveryWeekdays.map((w) => w[0]!.toUpperCase() + w.slice(1)).join(", ");
   return (
-    <>
-      <Sheet
-        open={open && !done}
-        onClose={onDone}
+    <Sheet
+        open={open}
+        onClose={() => onDone()}
         title="Schedule a make-up"
         footer={
           <>
@@ -68,7 +63,5 @@ export function MakeupSheet({ plan, open, onDone }: ActionSheetProps) {
           </div>
         )}
       </Sheet>
-      <Toast open={done !== null} onClose={onDone}>{done}</Toast>
-    </>
   );
 }

@@ -47,8 +47,12 @@ describe("VacationSheet", () => {
     expect(screen.getByText(/stay paused until you resume/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Pause deliveries" }));
     await waitFor(() => expect(m.pause).toHaveBeenCalledWith("o", { from: "2026-09-21", until: "2026-09-21", indefinite: true }));
-    expect(m.refresh).toHaveBeenCalled();
-    await waitFor(() => expect(onDone).toHaveBeenCalled(), { timeout: 4000 });
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Vacation set."));
+  });
+
+  it("mounts without any trip", () => {
+    render(<VacationSheet plan={mk()} open onDone={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Pause deliveries" })).toBeInTheDocument();
   });
 
   it("with an end date shows the confirmation summary and sends the range", async () => {
@@ -137,8 +141,7 @@ describe("MakeupSheet", () => {
     fireEvent.click(cell(/Wednesday, October 7/));
     fireEvent.click(screen.getByRole("button", { name: "Schedule make-up" }));
     await waitFor(() => expect(m.schedule).toHaveBeenCalledWith("o", "2026-10-07"));
-    expect(m.refresh).toHaveBeenCalled();
-    await waitFor(() => expect(onDone).toHaveBeenCalled(), { timeout: 4000 });
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Make-up scheduled for Wed, Oct 7."));
   });
 
   it("shows the server error inline", async () => {

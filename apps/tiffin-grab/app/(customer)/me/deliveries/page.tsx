@@ -54,7 +54,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
 
   const sub = (subParam ? subs.find((s) => s.publicId === subParam) : null) ?? primary;
 
-  const [rows, days, counts, pause, makeupSources, catalog, categoryRows] = await Promise.all([
+  const [rows, days, counts, pause, makeupSources, catalog, categoryRows, swapCategories] = await Promise.all([
     myDeliveries(userId, from, until),
     myCalendar(userId, sub.publicId, { from, until }),
     myTiffinCounts(userId, sub.publicId),
@@ -62,6 +62,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     makeupSourceIdsForOrder(sub.publicId),
     loadCatalogSnapshot(),
     dishCategoriesService.forPlanType(sub.planType),
+    dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
 
@@ -78,6 +79,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     days,
     categoryLabels,
     categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
+    swapCategories: Object.fromEntries(swapCategories),
   };
 
   return (

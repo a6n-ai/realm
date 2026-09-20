@@ -38,9 +38,8 @@ describe("HoldSheet", () => {
     expect(screen.getByText(/2 tiffins won't be delivered/)).toBeInTheDocument();
     expect(screen.getByText(/Free until Wed 6:00 pm/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Hold this trip" }));
-    expect(await screen.findByText(/Held Wed, Sep 23.*Tue and Wed tiffins go to your pool/)).toBeInTheDocument();
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(expect.stringMatching(/Held Wed, Sep 23.*Tue and Wed tiffins go to your pool/)));
     expect(a.skip).toHaveBeenCalledWith("d1");
-    await waitFor(() => expect(onDone).toHaveBeenCalled(), { timeout: 4000 });
   });
   it("shows the server error and keeps the sheet open", async () => {
     a.skip.mockResolvedValue({ error: "Cutoff passed" });
@@ -51,10 +50,10 @@ describe("HoldSheet", () => {
   });
   it("held trip branches to Resume", async () => {
     a.unskip.mockResolvedValue({ ok: true });
-    mount(HoldSheet, trip({ status: "hold" }));
+    const onDone = mount(HoldSheet, trip({ status: "hold" }));
     expect(screen.getByRole("dialog", { name: "Resume Wed, Sep 23" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Resume trip" }));
-    expect(await screen.findByText(/Resumed Wed, Sep 23/)).toBeInTheDocument();
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(expect.stringMatching(/Resumed Wed, Sep 23/)));
     expect(a.unskip).toHaveBeenCalledWith("d1");
   });
   it("pooled hold cannot resume: reason shown, action not called", () => {
@@ -79,17 +78,16 @@ describe("MoveSheet", () => {
     expect(screen.getByText(/Your 2 tiffins will arrive on Mon, Sep 28/)).toBeInTheDocument();
     expect(screen.getByText(/can't be put back on hold/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
-    expect(await screen.findByText("Moved Wed, Sep 23 to Mon, Sep 28.")).toBeInTheDocument();
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
     expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28");
-    await waitFor(() => expect(onDone).toHaveBeenCalled(), { timeout: 4000 });
   });
   it("occupied day: merge preview with covered days", async () => {
     a.move.mockResolvedValue({ ok: true, message: "merged" });
-    mount(MoveSheet, trip());
+    const onDone = mount(MoveSheet, trip());
     fireEvent.click(screen.getByRole("button", { name: /Friday, September 25/ }));
     expect(screen.getByText(/already has a delivery. Both trips combine into one: 4 tiffins on Fri, Sep 25. Covers Tue \+ Wed \+ Thu \+ Fri/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Fri, Sep 25" }));
-    expect(await screen.findByText(/combined with that trip/)).toBeInTheDocument();
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(expect.stringMatching(/combined with that trip/)));
   });
   it("closed day is disabled with its reason on tap", () => {
     mount(MoveSheet, trip());
