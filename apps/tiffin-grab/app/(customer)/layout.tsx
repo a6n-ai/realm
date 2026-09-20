@@ -42,7 +42,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   const email = user.email ?? session.user.email ?? "";
 
   return (
-    <div className="crm-app">
+    <div className="crm-app customer-app">
       <TimezoneProvider tz={timezone}>
         <CrmShell
           chrome="glass"

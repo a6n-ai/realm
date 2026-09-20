@@ -148,6 +148,30 @@
   --accent-badge: #1D5C32;
   --accent-badge-hover: #256D3C;
   --accent-badge-foreground: #F7FBF5;
+  /* Customer status palette: always paired with a label + shape, never color alone. */
+  --s-delivered: #047857;
+  --s-delivered-fg: #047857;
+  --s-delivered-bg: #D1FAE5;
+  --s-upcoming: #0369A1;
+  --s-upcoming-fg: #0369A1;
+  --s-upcoming-bg: #E0F2FE;
+  --s-hold: #BE123C;
+  --s-hold-fg: #BE123C;
+  --s-hold-bg: #FFE4E6;
+  --s-vac: #8A5A00;
+  --s-vac-fg: #8A5A00;
+  --s-vac-bg: #FCEBC8;
+  --s-combined: #6E6558;
+  --s-combined-fg: #6E6558;
+  --s-combined-bg: #F1EEE5;
+  --s-locked: #3F3A33;
+  --s-locked-fg: #3F3A33;
+  --s-locked-bg: #E9E4D6;
+  --dur-press: 150ms;
+  --dur-toggle: 250ms;
+  --dur-toast: 250ms;
+  --dur-sheet: 400ms;
+
 }
 
 .dark {
@@ -200,6 +224,30 @@
   --accent-badge: #2E8B57;
   --accent-badge-hover: #3AA168;
   --accent-badge-foreground: #0E1712;
+  /* Customer status palette: always paired with a label + shape, never color alone. */
+  --s-delivered: #6EE7B7;
+  --s-delivered-fg: #6EE7B7;
+  --s-delivered-bg: #12382C;
+  --s-upcoming: #7DD3FC;
+  --s-upcoming-fg: #7DD3FC;
+  --s-upcoming-bg: #132F44;
+  --s-hold: #FDA4AF;
+  --s-hold-fg: #FDA4AF;
+  --s-hold-bg: #43202A;
+  --s-vac: #F5B942;
+  --s-vac-fg: #F5B942;
+  --s-vac-bg: #3F3016;
+  --s-combined: #A9AFA3;
+  --s-combined-fg: #A9AFA3;
+  --s-combined-bg: #223229;
+  --s-locked: #C9CDBF;
+  --s-locked-fg: #C9CDBF;
+  --s-locked-bg: #2A382F;
+  --dur-press: 150ms;
+  --dur-toggle: 250ms;
+  --dur-toast: 250ms;
+  --dur-sheet: 400ms;
+
 }
 
 @layer base {
@@ -238,6 +286,17 @@ body:has(.crm-app) {
 body:has(.crm-app) .font-sans,
 body:has(.crm-app) .font-heading {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Customer (/me) shell keeps the public Poppins face; dashboard/auth stay Geist.
+   Declared after the .crm-app rules so equal specificity resolves here. */
+.customer-app,
+body:has(.customer-app) {
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+body:has(.customer-app) .font-sans,
+body:has(.customer-app) .font-heading {
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* StatCard/StatBar hero numbers — Geist Pixel's circle-dot digit shapes.
