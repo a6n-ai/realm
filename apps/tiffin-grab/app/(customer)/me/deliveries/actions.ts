@@ -131,9 +131,10 @@ export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwap
 export async function rescheduleMyDelivery(deliveryPublicId: string, newDateIso: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
-    await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
+    const { merged } = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
     else revalidatePath("/me/deliveries");
+    return merged ? "merged" : "moved";
   });
 }
