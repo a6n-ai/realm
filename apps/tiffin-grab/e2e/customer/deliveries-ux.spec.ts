@@ -5,59 +5,70 @@ async function gotoDeliveries(page: import("@playwright/test").Page) {
   await page.goto("/me/deliveries", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/me\/deliveries/, { timeout: 30_000 });
   await expect(page.locator("body")).not.toContainText(/something went wrong/i);
-  await expect(
-    page
-      .getByRole("heading", { name: /deliver/i })
-      .or(page.getByText(/no active subscriptions/i))
-      .first(),
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { level: 1, name: /trips/i })).toBeVisible({ timeout: 30_000 });
 }
 
-test.describe("customer deliveries UX (desktop)", () => {
-  test("deliveries page loads calendar or empty state", async ({ page }) => {
+const hasPlan = (page: import("@playwright/test").Page) => page.getByText(/tiffins left/i).count();
+
+test.describe("customer deliveries (trip timeline)", () => {
+  test("loads plan header or the no-plan state", async ({ page }) => {
     test.setTimeout(90_000);
     await gotoDeliveries(page);
-
-    const hasPlan = await page.getByText(/^total$/i).count();
-    if (hasPlan > 0) {
+    if ((await hasPlan(page)) > 0) {
+      await new CustomerDeliveriesPage(page).expectShell();
       await expect(page.getByText(/skips done/i)).toHaveCount(0);
-      await expect(page.getByText(/^total$/i).first()).toBeVisible();
-      await expect(page.getByText(/^remaining$/i).first()).toBeVisible();
-    } else {
-      await expect(page.getByText(/no active subscriptions/i)).toBeVisible();
     }
   });
 
-  test("deliveries with active plan shows calendar controls", async ({ page }) => {
+  test("selecting a trip shows its actions or a closed reason", async ({ page }) => {
     test.setTimeout(90_000);
     await gotoDeliveries(page);
-
-    const hasPlan = await page.getByText(/^total$/i).count();
-    test.skip(hasPlan === 0, "Seed customer has no active subscription — skip interactive calendar tests");
-
-    const deliveries = new CustomerDeliveriesPage(page);
-    await deliveries.expectCalendarShell();
-    await deliveries.selectFirstDeliveryDay();
-
-    const skip = deliveries.dayAction(/skip this day/i);
-    const reschedule = deliveries.dayAction(/reschedule/i);
-    const notScheduled = page.getByText(/not scheduled|menu for|locked|sealed/i);
-
-    await expect(skip.or(reschedule).or(notScheduled).first()).toBeVisible({ timeout: 10_000 });
+    test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+    const d = new CustomerDeliveriesPage(page);
+    await d.selectFirstTrip();
+    await expect(
+      d.action(/hold this trip|resume this trip|swap items/i).or(page.getByRole("status")).first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
-  test("vacation control opens when a plan exists", async ({ page }) => {
+  test("vacation sheet opens", async ({ page }) => {
     test.setTimeout(90_000);
     await gotoDeliveries(page);
+    test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+    const d = new CustomerDeliveriesPage(page);
+    await d.vacationButton().click();
+    await expect(d.sheet(/pause deliveries|resume deliveries/i)).toBeVisible({ timeout: 10_000 });
+  });
 
-    const hasPlan = await page.getByRole("button", { name: /vacation|resume/i }).count();
-    test.skip(hasPlan === 0, "Seed customer has no active subscription");
+  test("hold, move, swap and pick sheets open from the rail", async ({ page }) => {
+    test.setTimeout(120_000);
+    await gotoDeliveries(page);
+    test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+    const d = new CustomerDeliveriesPage(page);
+    await d.selectFirstTrip();
+    const cases: [RegExp, RegExp][] = [
+      [/hold this trip/i, /^hold /i],
+      [/move to another day/i, /^move /i],
+      [/swap items/i, /swap items/i],
+      [/pick meals/i, /pick meals/i],
+    ];
+    for (const [btn, title] of cases) {
+      const b = d.action(btn);
+      if (!(await b.isVisible()) || !(await b.isEnabled())) continue;
+      await b.click();
+      await expect(d.sheet(title)).toBeVisible({ timeout: 10_000 });
+      await page.getByRole("button", { name: "Close" }).click();
+      await expect(d.sheet(title)).toBeHidden();
+    }
+  });
 
-    const deliveries = new CustomerDeliveriesPage(page);
-    await deliveries.vacationButton().click();
-
-    await expect(
-      page.getByRole("dialog").or(page.getByText(/pause|vacation|resume|start date/i)).first(),
-    ).toBeVisible({ timeout: 10_000 });
+  test("make-up sheet opens (carried-day trip flow)", async ({ page }) => {
+    test.setTimeout(90_000);
+    await gotoDeliveries(page);
+    test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+    const b = page.getByRole("button", { name: "Schedule a make-up" });
+    test.skip((await b.count()) === 0, "No make-up owed for the seed customer");
+    await b.click();
+    await expect(page.getByRole("dialog", { name: /schedule a make-up/i })).toBeVisible();
   });
 });

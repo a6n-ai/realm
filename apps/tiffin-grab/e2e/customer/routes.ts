@@ -9,7 +9,7 @@ export const CUSTOMER_ROUTES: CustomerRoute[] = [
   { id: "home", path: "/me", heading: /home|week|meal|subscription|tiffin|menu/i },
   { id: "menu", path: "/me/menu", heading: /menu/i },
   { id: "meals", path: "/me/meals", heading: /meal/i },
-  { id: "deliveries", path: "/me/deliveries", heading: /deliver/i },
+  { id: "deliveries", path: "/me/deliveries", heading: /trips/i },
   { id: "wallet", path: "/me/wallet", heading: /finance|wallet|coin|bill|transaction/i },
   { id: "wallet-coins", path: "/me/wallet?tab=coins", heading: /finance|wallet|coin|bill|transaction/i },
   { id: "account", path: "/me/account", heading: /account|profile|section/i },

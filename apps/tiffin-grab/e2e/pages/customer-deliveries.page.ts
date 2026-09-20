@@ -1,47 +1,36 @@
-import type { Page, Locator } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-/** Customer `/me/deliveries` calendar + day detail. */
+/** Customer `/me/deliveries`: plan header, trip timeline rows, action rail/bar and sheets. */
 export class CustomerDeliveriesPage {
   constructor(readonly page: Page) {}
 
   heading() {
-    return this.page.getByRole("heading", { level: 1 });
+    return this.page.getByRole("heading", { level: 1, name: /trips/i });
   }
 
-  stat(label: string | RegExp) {
-    return this.page.getByText(label);
+  tripRows() {
+    return this.page.getByRole("button", { pressed: true }).or(this.page.getByRole("button", { pressed: false })).filter({ has: this.page.locator("b") });
   }
 
   vacationButton() {
-    return this.page.getByRole("button", { name: /vacation|resume/i });
+    return this.page.getByRole("button", { name: /^(vacation|resume)$|resume deliveries/i }).first();
   }
 
-  calendarDay(iso: string) {
-    return this.page.locator(`[data-date="${iso}"]`);
+  action(name: string | RegExp) {
+    return this.page.getByRole("button", { name }).first();
   }
 
-  async expectCalendarShell() {
+  sheet(title: string | RegExp) {
+    return this.page.getByRole("dialog", { name: title });
+  }
+
+  async expectShell() {
     await expect(this.heading()).toBeVisible();
-    await expect(this.vacationButton()).toBeVisible();
-    await expect(this.page.getByText(/total|delivered|remaining/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(this.page.getByText(/tiffins left/i).first()).toBeVisible({ timeout: 15_000 });
   }
 
-  async selectFirstDeliveryDay() {
-    const scheduled = this.page.getByRole("button", { name: /scheduled|lunch|dinner|veg|non-veg/i }).first();
-    if (await scheduled.count()) {
-      await scheduled.click();
-      return;
-    }
-    const today = this.page.getByRole("button", { name: /today/i }).first();
-    if (await today.count()) {
-      await today.click();
-      return;
-    }
-    await this.page.locator("button[aria-pressed='true']").first().click();
-  }
-
-  dayAction(name: string | RegExp) {
-    return this.page.getByRole("button", { name });
+  async selectFirstTrip() {
+    await this.tripRows().first().click();
   }
 }
