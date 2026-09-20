@@ -20,6 +20,8 @@ import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/p
 import { db } from "@/db/client";
 import { orders, plans, mealSizes } from "@/db/schema";
 import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { redeliverTrip } from "@/lib/services/deliveries.service";
+import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 
 export async function activate(orderId: string) {
   await requireStaff();
@@ -126,4 +128,15 @@ export async function fetchOrderDeliveriesMonth(orderPublicId: string, monthKey:
 
   const bundle = await loadOrderDeliveriesBundle(orderRow.userId, subscription, from, until);
   return { ...bundle, monthKey: parsedMonth, today };
+}
+
+/** Driver could not deliver: moves the whole trip to the next delivery day (merging there); the pool is untouched. */
+export async function redeliverTripAction(orderId: string, deliveryPublicId: string): Promise<ActionResult> {
+  await requireStaff();
+  const res = await runAction(async () => {
+    const { targetDate } = await redeliverTrip(deliveryPublicId, await currentUserId());
+    return `Re-delivering on ${targetDate}`;
+  });
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  return res;
 }

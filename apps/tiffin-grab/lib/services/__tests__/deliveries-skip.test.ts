@@ -62,6 +62,23 @@ describe("skipDelivery / unskipDelivery (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
+  it("returns the missed dates (own date for a legacy row)", async () => {
+    const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9 });
+    expect(await skipDelivery(d.publicId, 1n)).toEqual({ missedDates: ["2030-01-07"] });
+  });
+
+  it("names every covered day of a trip in the skip result and activity", async () => {
+    const o = await makeOrder();
+    await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
+    const [d] = await db.insert(deliveries).values({
+      orderId: o.id, deliveryDate: "2030-01-07", status: "scheduled", cutoffAt: Date.now() + 1e9,
+      tiffinUnits: 2, coversDates: ["2030-01-07", "2030-01-08"],
+    }).returning();
+    expect(await skipDelivery(d.publicId, 1n)).toEqual({ missedDates: ["2030-01-07", "2030-01-08"] });
+    const [act] = await db.select().from(orderActivities).where(eq(orderActivities.deliveryId, d.id));
+    expect(act.note).toBe("Missed days: 2030-01-07, 2030-01-08");
+  });
+
   it("skips a future scheduled row", async () => {
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9 });
     await skipDelivery(d.publicId, 1n);

@@ -89,7 +89,7 @@ describe("OptimoRoute cleanup on skip/cancel", () => {
     await db.update(deliveries).set({ routeSyncedAt: 1000 }).where(eq(deliveries.id, d.id));
     failNext = true;
 
-    await expect(skipDelivery(d.publicId, 1n)).resolves.toBeUndefined();
+    await expect(skipDelivery(d.publicId, 1n)).resolves.toEqual({ missedDates: expect.any(Array) });
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.status).toBe("skipped");
   });

@@ -28,6 +28,7 @@ export async function reconcileAllDeliveries(): Promise<number> {
       inArray(deliveries.status, ["paused", "skipped"]),
       lte(deliveries.cutoffAt, Date.now()),
       isNull(deliveries.pooledAt), // not already pooled
+      isNull(deliveries.mergedIntoDeliveryId),
       isNull(existingMakeup.id), // legacy auto-make-up already covers this miss
     ));
 

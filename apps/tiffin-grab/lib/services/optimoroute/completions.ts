@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities } from "@/db/schema";
 import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-labels.service";
-import { skipDelivery } from "@/lib/services/deliveries.service";
+import { redeliverTrip, skipDelivery } from "@/lib/services/deliveries.service";
 import { getCompletionDetails, getOrderDetails, getRoutes, type OptimoStop } from "./client";
 import { normalisePhone } from "./push";
 
@@ -19,9 +19,12 @@ import { normalisePhone } from "./push";
 //   truth for billing. A late/missing sync must never make an already-delivered tiffin
 //   look undelivered.
 //
-//   "failed", or still not "success" once the cutoff has passed (a driver never got to it,
-//   or never closed it out) — both call the exact same skipDelivery() a dispatcher would
-//   use by hand, which flips the row to "skipped" and pools the tiffin for a make-up. Before
+//   "failed" — the driver could not deliver: redeliverTrip() moves the whole trip to the next
+//   delivery day (no pool change); with no next day it falls back to skipDelivery() below.
+//
+//   Still not "success" once the cutoff has passed (a driver never got to it, or never closed
+//   it out) — calls the exact same skipDelivery() a dispatcher would use by hand, which flips
+//   the row to "skipped" and pools the tiffin for a make-up. Before
 //   cutoff, "not success yet" just means the day isn't over — left alone, not a miss.
 //
 //   No matching OptimoRoute stop at all is NOT treated as a miss. That means the route was
@@ -158,7 +161,17 @@ export async function pullCompletions(
       // skipDelivery()'s cutoff lock exists to stop a customer self-service-cancelling
       // too late — it must not block this reconciliation, which by construction (the
       // cutoffPassed gate above) only ever runs once that cutoff has already passed.
-      await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
+      if (optimoStatus === "failed") {
+        // Our failure, not the customer's: re-deliver the whole trip rather than pooling it.
+        // No eligible next day -> fall back to the pool below.
+        try {
+          await redeliverTrip(row.delivery.publicId, actorId);
+        } catch {
+          await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
+        }
+      } else {
+        await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
+      }
       skipped = true;
     } catch (e) {
       // Already paused/cancelled/skipped by something else in the meantime — the

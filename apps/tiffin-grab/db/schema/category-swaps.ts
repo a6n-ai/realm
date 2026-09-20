@@ -1,5 +1,5 @@
 import { baseColumns } from "@foundry/database";
-import { bigint, index, integer, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, date, index, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveries } from "./deliveries";
 import { organization } from "./organizations";
 
@@ -22,6 +22,8 @@ export const deliveryCategorySwaps = pgTable("delivery_category_swaps", {
   toCategory: text("to_category").notNull(),
   qtyFrom: integer("qty_from").notNull(),
   qtyTo: integer("qty_to").notNull(),
+  // The eating day this swap applies to; NULL = the trip's own delivery date.
+  forDate: date("for_date"),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [

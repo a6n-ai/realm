@@ -29,6 +29,8 @@ export const inquiries = pgTable("inquiries", {
   planInterest: text("plan_interest"),
   mealSizeInterest: text("meal_size_interest"),
   personsInterest: integer("persons_interest"),
+  frequencyKeyInterest: text("frequency_key_interest"),
+  eatingDaysInterest: text("eating_days_interest").array(),
   postalCode: text("postal_code"),
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
   preferredStart: date("preferred_start"),

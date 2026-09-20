@@ -111,6 +111,18 @@ describe("scheduleFromPool (integration)", () => {
     expect(created.makeupForDeliveryId).toBe(first.id);
   });
 
+  it("never links a make-up to a merged source, only to a real pooled miss", async () => {
+    const o = await makeOrder();
+    await seedWeeks(o);
+    await setPool(o, 1);
+    const [a, b, c] = await rowsFor(o);
+    await db.update(deliveries).set({ status: "skipped", cutoffAt: Date.now() - 1, mergedIntoDeliveryId: c.id }).where(eq(deliveries.id, a.id));
+    await db.update(deliveries).set({ status: "skipped", cutoffAt: Date.now() - 1, pooledAt: Date.now() }).where(eq(deliveries.id, b.id));
+    const { deliveryPublicId } = await scheduleFromPool(o.publicId, "2030-01-21", 1n);
+    const [created] = await db.select().from(deliveries).where(eq(deliveries.publicId, deliveryPublicId));
+    expect(created.makeupForDeliveryId).toBe(b.id);
+  });
+
   it("eatingDays order: a make-up row is worth min(pooled, persons) and drains the pool by the same", async () => {
     const o = await makeOrder();
     await seedWeeks(o);

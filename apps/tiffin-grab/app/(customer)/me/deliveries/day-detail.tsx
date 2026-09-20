@@ -471,7 +471,7 @@ function SwapSection({
         return;
       }
       onChanged();
-      toast.success(successMsg);
+      toast.success(("message" in result && result.message) || successMsg);
     });
   }
 
@@ -594,7 +594,7 @@ function DeliveryDayActions({
         return;
       }
       onChanged();
-      toast.success(successMsg);
+      toast.success(("message" in result && result.message) || successMsg);
     });
   }
 

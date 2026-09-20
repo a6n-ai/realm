@@ -109,6 +109,6 @@ describe("rescheduleDelivery for eatingDays orders", () => {
     await expect(rescheduleDelivery(delivery.publicId, farFutureIso(2), null)).rejects.toThrow("That day isn't on your plan");
     await expect(rescheduleDelivery(delivery.publicId, farFutureWeekendIso("sat"), null)).rejects.toThrow(WEEKEND_MESSAGE);
     await expect(rescheduleDelivery(delivery.publicId, farFutureWeekendIso("sun"), null)).rejects.toThrow(WEEKEND_MESSAGE);
-    await expect(rescheduleDelivery(delivery.publicId, farFutureIso(3), null)).resolves.toBeUndefined();
+    await expect(rescheduleDelivery(delivery.publicId, farFutureIso(3), null)).resolves.toEqual({ merged: false });
   });
 });

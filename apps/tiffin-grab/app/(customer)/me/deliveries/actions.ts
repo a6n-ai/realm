@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
 import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
+import { formatMissedDays } from "@/lib/menu/coverage";
 import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { db } from "@/db/client";
@@ -33,10 +34,11 @@ async function orderPublicIdForDelivery(deliveryPublicId: string): Promise<strin
 export async function skipMyDelivery(deliveryPublicId: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
-    await skipDelivery(deliveryPublicId, await currentUserId());
+    const { missedDates } = await skipDelivery(deliveryPublicId, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
     else revalidatePath("/me/deliveries");
+    return `${formatMissedDays(missedDates)} tiffins will be added to your pool`;
   });
 }
 

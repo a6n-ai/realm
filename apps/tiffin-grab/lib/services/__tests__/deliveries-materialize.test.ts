@@ -213,4 +213,21 @@ describe("activate() wiring (integration)", () => {
     expect(rows.reduce((n, r) => n + r.tiffinUnits, 0)).toBe(14);
     expect(rows.map((r) => r.tiffinUnits).sort()).toEqual([2, 2, 2, 2, 3, 3]);
   });
+
+  it("legacy orders (no eating days) leave covers_dates NULL", async () => {
+    const o = await makeOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day" });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.coversDates === null)).toBe(true);
+  });
+
+  it("eating-days orders carry coverage with units == covered days x persons", async () => {
+    const o = await makeOrder({ durationWeeks: 1, persons: 2, frequencyKey: "mwf", eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    for (const r of rows) {
+      expect(r.coversDates).not.toBeNull();
+      expect(r.tiffinUnits).toBe(r.coversDates!.length * 2);
+      expect(r.coversDates).toContain(r.deliveryDate);
+    }
+  });
 });

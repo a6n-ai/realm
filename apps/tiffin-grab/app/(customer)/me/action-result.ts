@@ -14,7 +14,7 @@ import { AppError } from "@foundry/commons";
  * shows the real message either way, which is why this was invisible until
  * someone tested a production build.
  */
-export type ActionResult = { ok: true } | { error: string };
+export type ActionResult = { ok: true; message?: string } | { error: string };
 
 /**
  * Runs `fn`, converting an expected `AppError` (ValidationError, NotFoundError,
@@ -22,10 +22,10 @@ export type ActionResult = { ok: true } | { error: string };
  * Anything else still throws — a real bug should still hit Next's normal
  * uncaught-exception handling, not be silently swallowed as a toast.
  */
-export async function runAction(fn: () => Promise<void>): Promise<ActionResult> {
+export async function runAction(fn: () => Promise<void | string>): Promise<ActionResult> {
   try {
-    await fn();
-    return { ok: true };
+    const message = await fn();
+    return message ? { ok: true, message } : { ok: true };
   } catch (e) {
     if (e instanceof AppError) return { error: e.message };
     throw e;

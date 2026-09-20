@@ -22,6 +22,14 @@ export const deliveries = pgTable("deliveries", {
   // lib/services/tiffin-counts.ts sums this per row rather than assuming a flat persons
   // multiplier — that's what makes a bundled Friday count (and pool, on a miss) correctly.
   tiffinUnits: integer("tiffin_units").notNull().default(1),
+  // ISO dates (YYYY-MM-DD, sorted) of the eating days this trip carries, INCLUDING its own
+  // date. NULL = legacy row, covers only delivery_date. Invariant: tiffin_units = length * persons.
+  coversDates: text("covers_dates").array(),
+  // Set on a source row whose whole trip was merged into another scheduled trip (reschedule
+  // onto an occupied date, or re-delivery). Its tiffins live on the target now, so the row is
+  // settled: never pooled, not debt, not a hold day.
+  mergedIntoDeliveryId: bigint("merged_into_delivery_id", { mode: "bigint" })
+    .references((): AnyPgColumn => deliveries.id),
   // A missed original spawns at most one make-up, ever. NULLs are distinct in Postgres, so the
   // N originals coexist under this unique index.
   makeupForDeliveryId: bigint("makeup_for_delivery_id", { mode: "bigint" })

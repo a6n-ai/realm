@@ -253,6 +253,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       cutoffAt: deliveries.cutoffAt,
       makeupForDeliveryId: deliveries.makeupForDeliveryId,
       pooledAt: deliveries.pooledAt,
+      mergedIntoDeliveryId: deliveries.mergedIntoDeliveryId,
       deliveryDate: deliveries.deliveryDate,
       tiffinUnits: deliveries.tiffinUnits,
       optimoCompletionStatus: deliveries.optimoCompletionStatus,
@@ -271,6 +272,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       r.makeupForDeliveryId === null &&
       (r.status === "skipped" || r.status === "paused") &&
       r.pooledAt == null &&
+      r.mergedIntoDeliveryId === null &&
       !replaced.has(r.id.toString()),
   ).length;
 
