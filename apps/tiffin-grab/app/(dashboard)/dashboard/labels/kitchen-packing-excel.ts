@@ -3,7 +3,7 @@
 import type { KitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
 import { formatPortionUnit } from "@/lib/menu/packing-requirement";
 
-const FIXED_HEADERS = ["Delivery Date", "Customer", "Order ID"] as const;
+const FIXED_HEADERS = ["Delivery Date", "Customer", "Order ID", "Plan Name", "Meal Size"] as const;
 
 export function packingSheetAoA(sheet: KitchenPackingSheet): (string | number)[][] {
   const header = [...FIXED_HEADERS, ...sheet.dishColumns];
@@ -13,6 +13,8 @@ export function packingSheetAoA(sheet: KitchenPackingSheet): (string | number)[]
     r.deliveryDate,
     r.customerName,
     r.orderId,
+    r.planName,
+    r.mealSizeName,
     ...sheet.dishColumns.map((dish) => r.cells[dish] ?? "—"),
   ]);
   return [title, blank, header, ...rows];
@@ -40,7 +42,7 @@ export async function writeKitchenPackingWorkbook(
 
   // Header is row 3 (1-based) after title + blank — freeze that and enable filters.
   packing["!freeze"] = { xSplit: 0, ySplit: 3, topLeftCell: "A4", activePane: "bottomLeft", state: "frozen" };
-  const lastCol = 2 + sheet.dishColumns.length;
+  const lastCol = FIXED_HEADERS.length - 1 + sheet.dishColumns.length;
   const lastRow = 2 + sheet.rows.length;
   if (sheet.rows.length > 0) {
     packing["!autofilter"] = {
@@ -51,6 +53,8 @@ export async function writeKitchenPackingWorkbook(
     { wch: 14 },
     { wch: 22 },
     { wch: 16 },
+    { wch: 22 },
+    { wch: 22 },
     ...sheet.dishColumns.map(() => ({ wch: 18 })),
   ];
 

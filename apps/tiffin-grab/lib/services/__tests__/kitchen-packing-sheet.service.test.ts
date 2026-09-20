@@ -129,6 +129,8 @@ describe("getKitchenPackingSheet", () => {
     expect(sheet.rows[0]?.orderId).toBe(DEPLOYMENT);
     expect(sheet.rows[0]?.customerName).toBe("Ajay Tester");
     expect(sheet.rows[0]?.deliveryDate).toBe(MONDAY);
+    expect(sheet.rows[0]?.planName.toLowerCase()).toMatch(/non/);
+    expect(sheet.rows[0]?.mealSizeName.length).toBeGreaterThan(0);
 
     // Columns are whatever dishes resolved today — not fixed slot headers.
     expect(sheet.dishColumns.some((d) => d.includes("Chilli Chicken") || d.includes("Saag Paneer"))).toBe(

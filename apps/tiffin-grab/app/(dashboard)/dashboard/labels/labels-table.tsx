@@ -21,6 +21,8 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
             <TableHead className="whitespace-nowrap">Delivery Date</TableHead>
             <TableHead className="whitespace-nowrap">Customer</TableHead>
             <TableHead className="whitespace-nowrap">Order ID</TableHead>
+            <TableHead className="whitespace-nowrap">Plan Name</TableHead>
+            <TableHead className="whitespace-nowrap">Meal Size</TableHead>
             {sheet.dishColumns.map((dish) => (
               <TableHead key={dish} className="whitespace-nowrap">
                 {dish}
@@ -34,6 +36,8 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
               <TableCell className="whitespace-nowrap tabular-nums">{row.deliveryDate}</TableCell>
               <TableCell className="whitespace-nowrap">{row.customerName}</TableCell>
               <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>
               {sheet.dishColumns.map((dish) => (
                 <TableCell key={dish} className="whitespace-nowrap tabular-nums">
                   {row.cells[dish] ?? "—"}

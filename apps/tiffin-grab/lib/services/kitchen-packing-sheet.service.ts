@@ -9,6 +9,7 @@ import {
   deliveryCategorySwaps,
   dishCategories,
   mealSizeItems,
+  mealSizes,
   orders,
   plans,
 } from "@/db/schema";
@@ -27,6 +28,8 @@ export type KitchenPackingRow = {
   deliveryDate: string;
   customerName: string;
   orderId: string;
+  planName: string;
+  mealSizeName: string;
   /** dish name → kitchen cell text ("12 OZ × 1") or "—" */
   cells: Record<string, string>;
 };
@@ -57,10 +60,13 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       planId: orders.planId,
       mealSizeId: orders.mealSizeId,
       categoryCounts: orders.categoryCounts,
+      planName: plans.name,
+      mealSizeName: mealSizes.name,
     })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .where(
       and(
         eq(deliveries.deliveryDate, dateIso),
@@ -122,6 +128,8 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     deliveryPublicId: string;
     customerName: string;
     orderId: string;
+    planName: string;
+    mealSizeName: string;
     byDish: Map<string, Map<string, number>>;
   }[] = [];
 
@@ -172,6 +180,8 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       deliveryPublicId: row.deliveryPublicId,
       customerName: (row.fullName ?? "").trim() || "Customer",
       orderId: row.deploymentId,
+      planName: row.planName,
+      mealSizeName: row.mealSizeName,
       byDish,
     });
   }
@@ -193,6 +203,8 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
         deliveryDate: dateIso,
         customerName: r.customerName,
         orderId: r.orderId,
+        planName: r.planName,
+        mealSizeName: r.mealSizeName,
         cells,
       };
     })
