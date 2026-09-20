@@ -9,7 +9,7 @@ export function WaitlistCard({ sub }: { sub: WaitlistedSubscription }) {
       <Lottie src="/lottie/delivery-scooter.json" mode="loop" label={waitlisted ? "On the waitlist" : "Processing"} className="size-32" />
       <p className="text-base font-semibold">{waitlisted ? "You're on the waitlist" : "Processing your subscription…"}</p>
       <p className="text-muted-foreground text-sm">
-        {sub.planName} · {sub.mealSizeName} · {sub.daysPerWeek} days/week
+        {sub.planName} · {sub.mealSizeName} · {sub.daysPerWeek} delivery days/week
       </p>
       <p className="text-muted-foreground text-xs">
         {sub.postalCode}{waitlisted ? " — not served yet" : ""}

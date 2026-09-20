@@ -47,7 +47,7 @@ export function StepBundle({
       {currentPlan ? (
         <CurrentPlanHint>
           You&apos;re on <strong>{currentPlan.planName}</strong> · {currentPlan.mealSizeName} ·{" "}
-          {currentPlan.daysPerWeek} days/wk. Choose a meal size for the <strong>new</strong> plan.
+          {currentPlan.daysPerWeek} delivery days/wk. Choose a meal size for the <strong>new</strong> plan.
         </CurrentPlanHint>
       ) : null}
       {TIERS.map((tier) => {

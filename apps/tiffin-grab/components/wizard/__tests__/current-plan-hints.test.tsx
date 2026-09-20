@@ -83,7 +83,7 @@ describe("wizard current-plan soft hints", () => {
       <StepBundle catalog={catalog} selections={selections} set={vi.fn()} currentPlan={currentPlan} />,
     );
     expect(screen.getByText(/Maharaja Thali \(Veg\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/5 days\/wk/i)).toBeInTheDocument();
+    expect(screen.getByText(/5 delivery days\/wk/i)).toBeInTheDocument();
     expect(screen.getByText(/Choose a meal size for the/i)).toBeInTheDocument();
   });
 

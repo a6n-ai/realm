@@ -121,6 +121,8 @@ export function AddInquirySheet({
         planInterest: values.planInterest || undefined,
         mealSizeInterest: values.mealSizeInterest || undefined,
         personsInterest: values.personsInterest,
+        frequencyKeyInterest: values.frequencyKeyInterest || undefined,
+        eatingDaysInterest: values.eatingDaysInterest?.length ? values.eatingDaysInterest : undefined,
         postalCode: values.postalCode || undefined,
         preferredStart: values.preferredStart || undefined,
         quotedPrice: values.quotedPrice,
@@ -379,6 +381,8 @@ export function AddInquirySheet({
                           const v = form.watch("personsInterest");
                           return typeof v === "number" ? v : "";
                         })(),
+                        frequencyKeyInterest: String(form.watch("frequencyKeyInterest") ?? ""),
+                        eatingDaysInterest: form.watch("eatingDaysInterest") ?? [],
                         postalCode: String(form.watch("postalCode") ?? ""),
                         preferredStart: String(form.watch("preferredStart") ?? ""),
                         quotedPrice: (() => {
@@ -401,6 +405,12 @@ export function AddInquirySheet({
                             patch.personsInterest === "" ? undefined : patch.personsInterest,
                             { shouldDirty: true },
                           );
+                        }
+                        if (patch.frequencyKeyInterest !== undefined) {
+                          form.setValue("frequencyKeyInterest", patch.frequencyKeyInterest, { shouldDirty: true });
+                        }
+                        if (patch.eatingDaysInterest !== undefined) {
+                          form.setValue("eatingDaysInterest", patch.eatingDaysInterest as never, { shouldDirty: true });
                         }
                         if (patch.postalCode !== undefined) {
                           form.setValue("postalCode", patch.postalCode, { shouldDirty: true });

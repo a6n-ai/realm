@@ -342,6 +342,8 @@ export function NewCustomerSheet({
                       planInterest: order.planKey,
                       mealSizeInterest: order.selections.mealSizeId,
                       personsInterest: order.selections.persons,
+                      frequencyKeyInterest: order.selections.frequencyKey,
+                      eatingDaysInterest: order.selections.eatingDays,
                       postalCode: order.contact.postalCode,
                       preferredStart: order.selections.startDate,
                     },

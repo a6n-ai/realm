@@ -75,11 +75,13 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
       planInterest: inq.planInterest,
       mealSizeInterest: inq.mealSizeInterest,
       personsInterest: inq.personsInterest,
+      frequencyKeyInterest: inq.frequencyKeyInterest,
+      eatingDaysInterest: inq.eatingDaysInterest,
       preferredStart: inq.preferredStart,
       postalCode: inq.postalCode,
       quotedPrice: inq.quotedPrice,
     },
-    { plans: convertCatalog.plans, mealSizes: convertCatalog.mealSizes },
+    { plans: convertCatalog.plans, mealSizes: convertCatalog.mealSizes, frequencies: convertCatalog.frequencies },
   );
 
   let convertedOrderHref: string | undefined;
@@ -124,6 +126,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
           planInterest: inq.planInterest,
           mealSizeInterest: inq.mealSizeInterest,
           personsInterest: inq.personsInterest,
+          frequencyKeyInterest: inq.frequencyKeyInterest,
+          eatingDaysInterest: inq.eatingDaysInterest,
           preferredStart: inq.preferredStart,
           postalCode: inq.postalCode,
           quotedPrice: inq.quotedPrice,

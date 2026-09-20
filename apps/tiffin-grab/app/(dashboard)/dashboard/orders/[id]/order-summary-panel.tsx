@@ -5,6 +5,7 @@ import { OrderStatusBadge } from "@/components/ds";
 import { OrderPricingBreakdown } from "./order-pricing-breakdown";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
+import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderDetail } from "@/lib/services/orders.service";
 
 function isPricingSnapshot(value: unknown): value is OrderPricingSnapshot {
@@ -36,8 +37,15 @@ export function OrderSummaryPanel({
 }) {
   const snap = order.pricingSnapshot;
   const categoryEntries = Object.entries(order.categoryCounts).filter(([, qty]) => qty > 0);
-  const weekend =
-    [order.includeSaturday && "Sat", order.includeSunday && "Sun"].filter(Boolean).join(", ") || "None";
+  const cap = (d: string) => d[0].toUpperCase() + d.slice(1);
+  const eatingDays = order.eatingDays as DayOfWeek[] | null;
+  const deliveryDays = orderDeliveryDays({
+    frequencyKey: order.frequencyKey,
+    weekdays: order.frequencyWeekdays as DayOfWeek[] | null,
+    includeSaturday: eatingDays ? false : order.includeSaturday,
+    includeSunday: eatingDays ? false : order.includeSunday,
+  });
+  const trips = eatingDays ? planWeek(deliveryDays, eatingDays) : null;
 
   return (
     <div className="space-y-5">
@@ -59,11 +67,16 @@ export function OrderSummaryPanel({
           {order.mealSizeName ? ` · ${order.mealSizeName}` : ""}
         </DetailRow>
         <DetailRow label="Schedule">
-          Starts {order.startDate} · {order.durationWeeks} weeks · {order.frequencyKey} ·{" "}
-          {order.persons} person{order.persons === 1 ? "" : "s"}
+          Starts {order.startDate} · {order.durationWeeks} weeks · {order.persons} person{order.persons === 1 ? "" : "s"}
         </DetailRow>
         <DetailRow label="Meals">{order.mealSlots.join(", ")}</DetailRow>
-        <DetailRow label="Weekends">{weekend}</DetailRow>
+        <DetailRow label="Delivery days">{deliveryDays.map(cap).join(", ")}</DetailRow>
+        <DetailRow label="Eating days">{(eatingDays ?? deliveryDays).map(cap).join(", ")}</DetailRow>
+        {trips && (
+          <DetailRow label="Trips">
+            {trips.map((t) => `${cap(t.day)}${t.units > 1 ? ` (${t.days.map(cap).join(" + ")})` : ""}`).join(" · ")}
+          </DetailRow>
+        )}
         {categoryEntries.length > 0 && (
           <DetailRow label="Items">
             {categoryEntries

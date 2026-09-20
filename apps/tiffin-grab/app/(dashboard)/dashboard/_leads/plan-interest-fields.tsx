@@ -10,7 +10,11 @@ export type InterestCatalog = {
   plans: { key: string; name: string }[];
   /** `diet` is the plan key (same shape as OrderForm catalog). */
   mealSizes: { id: string; name: string; diet: string }[];
+  /** Delivery types (only those with weekdays are pickable). */
+  frequencies?: { key: string; name: string; weekdays?: string[] | null }[];
 };
+
+const EATING_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 /** Short pill label — Veg / Non-veg / Healthy from catalog plan names. */
 export function planPillLabel(name: string): string {
@@ -47,6 +51,8 @@ type InterestValues = {
   planInterest?: string;
   mealSizeInterest?: string;
   personsInterest?: number | "";
+  frequencyKeyInterest?: string;
+  eatingDaysInterest?: string[];
   postalCode?: string;
   preferredStart?: string;
   quotedPrice?: number | "";
@@ -175,6 +181,8 @@ export function PlanInterestFields({
   onChange: (patch: Partial<InterestValues>) => void;
 }) {
   const planKey = values.planInterest ?? "";
+  const deliveryTypes = (catalog.frequencies ?? []).filter((f) => f.weekdays?.length);
+  const eating = values.eatingDaysInterest ?? [];
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -192,6 +200,41 @@ export function PlanInterestFields({
         }}
         onMealChange={(id) => onChange({ mealSizeInterest: id })}
       />
+
+      {deliveryTypes.length > 0 && (
+        <PillRow
+          label="Delivery type"
+          options={deliveryTypes.map((f) => ({ value: f.key, label: f.name }))}
+          value={values.frequencyKeyInterest ?? ""}
+          onChange={(v) => onChange({ frequencyKeyInterest: v })}
+        />
+      )}
+      <FormItem className="grid gap-2 sm:col-span-2">
+        <FormLabel>Eating days</FormLabel>
+        <div role="group" aria-label="Eating days" className="flex flex-wrap gap-2">
+          {EATING_DAYS.map((d) => {
+            const on = eating.includes(d);
+            return (
+              <button
+                key={d}
+                type="button"
+                aria-pressed={on}
+                onClick={() =>
+                  onChange({ eatingDaysInterest: EATING_DAYS.filter((x) => (x === d ? !on : eating.includes(x))) })
+                }
+                className={cn(
+                  "min-h-11 rounded-full border px-3.5 py-2 text-sm font-medium capitalize transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]",
+                  on
+                    ? "border-primary/30 bg-primary/12 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {d}
+              </button>
+            );
+          })}
+        </div>
+      </FormItem>
 
       <FormItem className="grid gap-1.5">
         <FormLabel>Persons</FormLabel>

@@ -1073,6 +1073,8 @@ export type OrderDetail = typeof orders.$inferSelect & {
   planName: string;
   planKey: string;
   frequencyKey: string;
+  frequencyName: string;
+  frequencyWeekdays: string[] | null;
   mealSizeName: string;
   payments: OrderPaymentDetail[];
 };
@@ -1088,6 +1090,8 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
       planName: plans.name,
       planKey: plans.key,
       frequencyKey: deliveryFrequencies.key,
+      frequencyName: deliveryFrequencies.name,
+      frequencyWeekdays: deliveryFrequencies.weekdays,
       mealSizeName: mealSizes.name,
     })
     .from(orders)
@@ -1138,6 +1142,8 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
     planName: row.planName,
     planKey: row.planKey,
     frequencyKey: row.frequencyKey,
+    frequencyName: row.frequencyName,
+    frequencyWeekdays: row.frequencyWeekdays,
     mealSizeName: row.mealSizeName,
     payments: enriched,
   };

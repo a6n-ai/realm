@@ -44,7 +44,7 @@ function Group({ title, subs }: { title: string; subs: SubSummary[] }) {
           <Reveal key={s.publicId} className="flex items-center justify-between gap-3 py-2.5">
             <div className="min-w-0">
               <p className="truncate text-sm">
-                {s.planName} · {s.mealSizeName} · {s.daysPerWeek} days/wk
+                {s.planName} · {s.mealSizeName} · {s.daysPerWeek} delivery days/wk
               </p>
               {s.startDate ? (
                 <p className="text-muted-foreground text-xs tabular-nums">Starts {s.startDate}</p>

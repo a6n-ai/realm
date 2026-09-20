@@ -13,6 +13,8 @@ export const inquiryFormSchema = z.object({
   planInterest: z.string().optional(),
   mealSizeInterest: z.string().optional(),
   personsInterest: z.coerce.number().int().min(1).max(20).optional(),
+  frequencyKeyInterest: z.string().optional(),
+  eatingDaysInterest: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).optional(),
   postalCode: z.string().optional(),
   preferredStart: z.string().optional(),
   quotedPrice: z.coerce.number().nonnegative().optional(),

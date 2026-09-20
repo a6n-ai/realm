@@ -445,6 +445,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         planInterest: inquiries.planInterest,
         mealSizeInterest: inquiries.mealSizeInterest,
         personsInterest: inquiries.personsInterest,
+        frequencyKeyInterest: inquiries.frequencyKeyInterest,
+        eatingDaysInterest: inquiries.eatingDaysInterest,
         postalCode: inquiries.postalCode,
         preferredStart: inquiries.preferredStart,
         quotedPrice: inquiries.quotedPrice,
@@ -509,6 +511,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       planInterest?: string;
       mealSizeInterest?: string;
       personsInterest?: number;
+  frequencyKeyInterest?: string;
+  eatingDaysInterest?: string[];
       postalCode?: string;
       preferredStart?: string;
       quotedPrice?: number;

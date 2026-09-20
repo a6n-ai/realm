@@ -18,6 +18,8 @@ export async function getInquiryInterestForPrefill(publicId: string) {
     planInterest: inq.planInterest,
     mealSizeInterest: inq.mealSizeInterest,
     personsInterest: inq.personsInterest,
+    frequencyKeyInterest: inq.frequencyKeyInterest,
+    eatingDaysInterest: inq.eatingDaysInterest,
     preferredStart: inq.preferredStart,
     postalCode: inq.postalCode,
     quotedPrice: inq.quotedPrice,

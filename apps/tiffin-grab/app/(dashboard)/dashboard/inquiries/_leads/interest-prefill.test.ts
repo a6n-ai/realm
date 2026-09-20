@@ -44,4 +44,23 @@ describe("interestToPrefill", () => {
     expect(prefill.postalCode).toBe("400001");
     expect(unmatched).toContain("Quoted price: 4500.00");
   });
+
+  it("prefills delivery type and eating days from the inquiry", () => {
+    const { prefill, unmatched } = interestToPrefill(
+      { ...base, frequencyKeyInterest: "mwf", eatingDaysInterest: ["mon", "tue", "sat"] },
+      { ...catalog, frequencies: [{ key: "mwf" }] },
+    );
+    expect(prefill.frequencyKey).toBe("mwf");
+    expect(prefill.eatingDays).toEqual(["mon", "tue", "sat"]);
+    expect(unmatched).toEqual([]);
+  });
+
+  it("flags an unknown delivery type instead of prefilling it", () => {
+    const { prefill, unmatched } = interestToPrefill(
+      { ...base, frequencyKeyInterest: "gone" },
+      { ...catalog, frequencies: [{ key: "mwf" }] },
+    );
+    expect(prefill.frequencyKey).toBeUndefined();
+    expect(unmatched).toEqual(["Delivery type: gone"]);
+  });
 });

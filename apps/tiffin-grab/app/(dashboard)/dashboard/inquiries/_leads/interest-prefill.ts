@@ -3,11 +3,14 @@ import type { OrderFormInput } from "../[id]/order-schema";
 type PrefillCatalog = {
   plans: { key: string; name: string }[];
   mealSizes: { id: string; name: string }[];
+  frequencies?: { key: string }[];
 };
 type InterestInput = {
   planInterest: string | null;
   mealSizeInterest: string | null;
   personsInterest: number | null;
+  frequencyKeyInterest?: string | null;
+  eatingDaysInterest?: string[] | null;
   preferredStart: string | null;
   postalCode: string | null;
   quotedPrice: string | null;
@@ -41,6 +44,12 @@ export function interestToPrefill(
     else unmatched.push(`Meal size: ${inq.mealSizeInterest}`);
   }
   if (inq.personsInterest != null) prefill.persons = inq.personsInterest;
+  if (inq.frequencyKeyInterest) {
+    if (!catalog.frequencies || catalog.frequencies.some((f) => f.key === inq.frequencyKeyInterest)) {
+      prefill.frequencyKey = inq.frequencyKeyInterest;
+    } else unmatched.push(`Delivery type: ${inq.frequencyKeyInterest}`);
+  }
+  if (inq.eatingDaysInterest?.length) prefill.eatingDays = inq.eatingDaysInterest as OrderFormInput["eatingDays"];
   if (inq.preferredStart) prefill.startDate = inq.preferredStart;
   if (inq.postalCode) prefill.postalCode = inq.postalCode;
   if (inq.quotedPrice) unmatched.push(`Quoted price: ${inq.quotedPrice}`);

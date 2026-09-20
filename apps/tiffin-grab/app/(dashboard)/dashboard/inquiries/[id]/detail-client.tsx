@@ -30,6 +30,8 @@ type Interest = {
   planInterest: string | null;
   mealSizeInterest: string | null;
   personsInterest: number | null;
+  frequencyKeyInterest: string | null;
+  eatingDaysInterest: string[] | null;
   preferredStart: string | null;
   postalCode: string | null;
   quotedPrice: string | null;
@@ -113,6 +115,14 @@ export function InquiryDetailClient({
   if (planLabel) interestChips.push({ label: "Plan", value: planLabel });
   if (mealLabel) interestChips.push({ label: "Meal size", value: mealLabel });
   if (interest.personsInterest != null) interestChips.push({ label: "Persons", value: String(interest.personsInterest) });
+  const freqName = catalog.frequencies.find((f) => f.key === interest.frequencyKeyInterest)?.name ?? interest.frequencyKeyInterest;
+  if (freqName) interestChips.push({ label: "Delivery type", value: freqName });
+  if (interest.eatingDaysInterest?.length) {
+    interestChips.push({
+      label: "Eating days",
+      value: interest.eatingDaysInterest.map((d) => d[0].toUpperCase() + d.slice(1)).join(", "),
+    });
+  }
   if (interest.preferredStart) interestChips.push({ label: "Start", value: interest.preferredStart });
   if (interest.postalCode) interestChips.push({ label: "Postal", value: interest.postalCode });
   if (interest.quotedPrice) {

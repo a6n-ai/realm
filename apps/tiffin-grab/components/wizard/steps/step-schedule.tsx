@@ -62,7 +62,7 @@ export function StepSchedule({
     <div className="space-y-8">
       {currentPlan ? (
         <CurrentPlanHint>
-          Your current plan runs <strong>{currentPlan.daysPerWeek} days/wk</strong>. Set the
+          Your current plan runs <strong>{currentPlan.daysPerWeek} delivery days/wk</strong>. Set the
           schedule for this new subscription independently.
         </CurrentPlanHint>
       ) : null}

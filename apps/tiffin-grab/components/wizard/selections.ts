@@ -121,6 +121,7 @@ export function selectionsFromPriorOrder(
     includeSunday: boolean;
     durationWeeks: number;
     frequencyKey: string;
+    eatingDays?: string[] | null;
   } | null,
 ): WizardSelections {
   if (!prior) return initialSelections;
@@ -138,7 +139,7 @@ export function selectionsFromPriorOrder(
     // restoring 2 persons or a Saturday would silently change the quote with
     // nothing on screen to explain it, and no way for the customer to undo it.
     frequencyKey: "",
-    eatingDays: DEFAULT_EATING_DAYS,
+    eatingDays: (prior.eatingDays as DayOfWeek[] | null | undefined) ?? DEFAULT_EATING_DAYS,
     persons: FIXED_PERSONS,
     mealSlots: plan?.offeredSlots ?? [],
     includeSaturday: false,

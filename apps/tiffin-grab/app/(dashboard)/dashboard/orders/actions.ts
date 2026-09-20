@@ -11,6 +11,8 @@ type Interest = {
   planInterest?: string;
   mealSizeInterest?: string;
   personsInterest?: number;
+  frequencyKeyInterest?: string;
+  eatingDaysInterest?: string[];
   postalCode?: string;
   preferredStart?: string;
   quotedPrice?: number;
