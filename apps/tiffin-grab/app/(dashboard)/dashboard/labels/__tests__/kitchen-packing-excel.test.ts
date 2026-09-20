@@ -4,7 +4,7 @@ import { kitchenSummaryAoA, packingSheetAoA } from "../kitchen-packing-excel";
 
 const sheet: KitchenPackingSheet = {
   dateIso: "2026-10-23",
-  dishColumns: ["Alpha Dish", "Beta Side"],
+  itemHeaders: ["Item1", "Item2"],
   rows: [
     {
       deliveryPublicId: "d1",
@@ -13,7 +13,7 @@ const sheet: KitchenPackingSheet = {
       orderId: "SUB-1",
       planName: "Non-Veg Plan",
       mealSizeName: "Maharaja Thali",
-      cells: { "Alpha Dish": "12 OZ × 1", "Beta Side": "—" },
+      items: ["Alpha Dish — 12 OZ × 1", "—"],
     },
     {
       deliveryPublicId: "d2",
@@ -22,7 +22,7 @@ const sheet: KitchenPackingSheet = {
       orderId: "SUB-2",
       planName: "Pure Vegetarian Plan",
       mealSizeName: "5 Item Thali — Regular",
-      cells: { "Alpha Dish": "8 OZ × 1", "Beta Side": "4 roti × 1" },
+      items: ["Alpha Dish — 8 OZ × 1", "Beta Side — 4 roti × 1"],
     },
   ],
   summary: [
@@ -33,7 +33,7 @@ const sheet: KitchenPackingSheet = {
 };
 
 describe("packingSheetAoA", () => {
-  it("puts fixed columns first and dish names as dynamic headers — never hard-coded foods", () => {
+  it("uses Item1…ItemN headers with dish+portion in cells — never dish names as columns", () => {
     const aoa = packingSheetAoA(sheet);
     expect(aoa[0]?.[0]).toBe("DAILY KITCHEN PACKING SHEET");
     expect(aoa[2]).toEqual([
@@ -42,8 +42,8 @@ describe("packingSheetAoA", () => {
       "Order ID",
       "Plan Name",
       "Meal Size",
-      "Alpha Dish",
-      "Beta Side",
+      "Item1",
+      "Item2",
     ]);
     expect(aoa[3]).toEqual([
       "2026-10-23",
@@ -51,7 +51,7 @@ describe("packingSheetAoA", () => {
       "SUB-1",
       "Non-Veg Plan",
       "Maharaja Thali",
-      "12 OZ × 1",
+      "Alpha Dish — 12 OZ × 1",
       "—",
     ]);
   });

@@ -123,7 +123,7 @@ describe("getKitchenPackingSheet", () => {
   });
   afterAll(reset);
 
-  it("one order = one row with dynamic dish columns and OZ/pcs cells", async () => {
+  it("one order = one row with Item1…ItemN cells showing dish + converted OZ/pcs", async () => {
     const sheet = await getKitchenPackingSheet(MONDAY);
     expect(sheet.rows).toHaveLength(1);
     expect(sheet.rows[0]?.orderId).toBe(DEPLOYMENT);
@@ -132,33 +132,24 @@ describe("getKitchenPackingSheet", () => {
     expect(sheet.rows[0]?.planName.toLowerCase()).toMatch(/non/);
     expect(sheet.rows[0]?.mealSizeName.length).toBeGreaterThan(0);
 
-    // Columns are whatever dishes resolved today — not fixed slot headers.
-    expect(sheet.dishColumns.some((d) => d.includes("Chilli Chicken") || d.includes("Saag Paneer"))).toBe(
-      true,
-    );
-    expect(sheet.dishColumns.every((d) => !d.includes("1st item"))).toBe(true);
+    expect(sheet.itemHeaders[0]).toBe("Item1");
+    expect(sheet.itemHeaders.every((h) => /^Item\d+$/.test(h))).toBe(true);
+    expect(sheet.itemHeaders.length).toBe(sheet.rows[0]?.items.length);
 
-    const chickenCol = sheet.dishColumns.find((d) => d.includes("Chilli Chicken"));
-    const paneerCol = sheet.dishColumns.find((d) => d.includes("Saag Paneer"));
-    const dalCol = sheet.dishColumns.find((d) => d.includes("Kali Dal"));
-    const riceCol = sheet.dishColumns.find((d) => d.includes("Jeera Rice"));
-    expect(chickenCol && sheet.rows[0]?.cells[chickenCol]).toMatch(/OZ × 1/);
-    expect(paneerCol && sheet.rows[0]?.cells[paneerCol]).toMatch(/OZ × 1/);
-    expect(dalCol && sheet.rows[0]?.cells[dalCol]).toMatch(/OZ × 1/);
-    expect(riceCol && sheet.rows[0]?.cells[riceCol]).toMatch(/× 1/);
-
-    // Non-selectable roti: one dish name × categoryCounts slots (not picks.length === 1).
-    const rotiCol = sheet.dishColumns.find((d) => d.includes("Roti"));
-    expect(rotiCol).toBeTruthy();
-    expect(sheet.rows[0]?.cells[rotiCol!]).toMatch(/× 8/);
+    const items = sheet.rows[0]!.items.join(" | ");
+    expect(items).toMatch(/Chilli Chicken|Saag Paneer/);
+    expect(items).toMatch(/OZ ×/);
+    expect(items).toMatch(/Kali Dal/);
+    expect(items).toMatch(/Jeera Rice/);
+    // Non-selectable roti: one Item cell with × 8 from categoryCounts.
+    expect(items).toMatch(/Roti — .+× 8/);
     expect(sheet.summary.find((s) => s.dish.includes("Roti"))?.totalQuantity).toBe(8);
-
     expect(sheet.summary.some((s) => s.dish.includes("Kali Dal") && s.totalQuantity >= 1)).toBe(true);
   });
 
-  it("updates dish columns when the customer changes a pick", async () => {
+  it("updates item cells when the customer changes a pick", async () => {
     const before = await getKitchenPackingSheet(MONDAY);
-    expect(before.dishColumns.some((d) => d.includes("Chilli Chicken"))).toBe(true);
+    expect(before.rows[0]?.items.some((c) => c.includes("Chilli Chicken"))).toBe(true);
 
     const paneerPublicId = (
       await db.select({ publicId: dishes.publicId }).from(dishes).where(eq(dishes.name, `${DISH_PREFIX}Saag Paneer`))
@@ -174,9 +165,6 @@ describe("getKitchenPackingSheet", () => {
     });
 
     const after = await getKitchenPackingSheet(MONDAY);
-    const sabziCells = after.dishColumns
-      .filter((d) => d.includes("Paneer") || d.includes("Chicken"))
-      .map((d) => after.rows[0]?.cells[d]);
-    expect(sabziCells.some((c) => c && c !== "—")).toBe(true);
+    expect(after.rows[0]?.items.some((c) => c.includes("Saag Paneer"))).toBe(true);
   });
 });

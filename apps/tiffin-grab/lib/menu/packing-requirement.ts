@@ -4,6 +4,14 @@
 
 export type PortionQty = { portion: string; quantity: number };
 
+export type PackingItemLine = {
+  name: string;
+  portion: string;
+  quantity: number;
+  /** Stable pack order (category sort, then pick index). */
+  sort: number;
+};
+
 /** "12oz" → "12 OZ", "4 roti" → "4 roti" — portion/unit only, no quantity. */
 export function formatPortionUnit(portion: string): string {
   const trimmed = portion.trim();
@@ -22,18 +30,20 @@ export function formatPackingRequirement(portion: string, quantity: number): str
 
 /**
  * Kitchen UX choice: how to show N identical count-slots.
- *
- * Today callers may pass `{ portion: "1 roti", quantity: 8 }` → "1 roti × 8".
- * Some kitchens prefer a rolled total `{ portion: "8 roti", quantity: 1 }` → "8 roti × 1".
- *
- * Return `portions` unchanged to keep per-slot form, or roll count-units into a single total.
+ * Identity keeps "1 roti × 8"; roll-up would yield "8 roti × 1".
  */
 export function rollUpEqualPortions(portions: PortionQty[]): PortionQty[] {
-  // TODO: implement kitchen preference (identity vs roll-up). See formatDishCell caller.
   return portions;
 }
 
-/** One dish cell may carry several portion sizes (e.g. 12oz and 8oz of the same curry). */
+/** Item cell: dish name + converted portion×qty — "Chicken Curry — 12 OZ × 1". */
+export function formatItemCell(line: Pick<PackingItemLine, "name" | "portion" | "quantity">): string {
+  const req = formatPackingRequirement(line.portion, line.quantity);
+  if (!line.name.trim()) return req || "—";
+  return req ? `${line.name} — ${req}` : line.name;
+}
+
+/** @deprecated Prefer formatItemCell; kept for summary-style portion-only joins. */
 export function formatDishCell(portions: PortionQty[]): string {
   const parts = rollUpEqualPortions(
     portions.filter((p) => p.quantity > 0 && p.portion.trim()),
@@ -43,7 +53,7 @@ export function formatDishCell(portions: PortionQty[]): string {
   return parts.length > 0 ? parts.join("; ") : "—";
 }
 
-/** Merge pick counts keyed by dish → portion label. */
+/** Merge pick counts keyed by dish → portion label (Kitchen Summary). */
 export function addDishPortion(
   into: Map<string, Map<string, number>>,
   dish: string,

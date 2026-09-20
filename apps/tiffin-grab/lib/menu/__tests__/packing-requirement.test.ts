@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDishPortion,
   formatDishCell,
+  formatItemCell,
   formatPackingRequirement,
   formatPortionUnit,
 } from "../packing-requirement";
@@ -19,6 +20,15 @@ describe("formatPackingRequirement", () => {
     expect(formatPackingRequirement("12oz", 1)).toBe("12 OZ × 1");
     expect(formatPackingRequirement("8oz", 2)).toBe("8 OZ × 2");
     expect(formatPackingRequirement("4 roti", 1)).toBe("4 roti × 1");
+  });
+});
+
+describe("formatItemCell", () => {
+  it("puts dish name and converted portion in one cell", () => {
+    expect(formatItemCell({ name: "Chicken Curry", portion: "12oz", quantity: 1 })).toBe(
+      "Chicken Curry — 12 OZ × 1",
+    );
+    expect(formatItemCell({ name: "Roti", portion: "1 roti", quantity: 8 })).toBe("Roti — 1 roti × 8");
   });
 });
 

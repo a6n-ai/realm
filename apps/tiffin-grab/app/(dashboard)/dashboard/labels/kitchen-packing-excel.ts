@@ -1,12 +1,12 @@
 // Builds the DAILY KITCHEN PACKING SHEET workbook from a KitchenPackingSheet.
-// Dish columns come from the sheet data — never hard-coded here.
+// Item1…ItemN headers are positional — dish names live in the cells with converted OZ/pcs.
 import type { KitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
 import { formatPortionUnit } from "@/lib/menu/packing-requirement";
 
 const FIXED_HEADERS = ["Delivery Date", "Customer", "Order ID", "Plan Name", "Meal Size"] as const;
 
 export function packingSheetAoA(sheet: KitchenPackingSheet): (string | number)[][] {
-  const header = [...FIXED_HEADERS, ...sheet.dishColumns];
+  const header = [...FIXED_HEADERS, ...sheet.itemHeaders];
   const title = ["DAILY KITCHEN PACKING SHEET", `Delivery date: ${sheet.dateIso}`];
   const blank: string[] = [];
   const rows = sheet.rows.map((r) => [
@@ -15,7 +15,7 @@ export function packingSheetAoA(sheet: KitchenPackingSheet): (string | number)[]
     r.orderId,
     r.planName,
     r.mealSizeName,
-    ...sheet.dishColumns.map((dish) => r.cells[dish] ?? "—"),
+    ...sheet.itemHeaders.map((_, i) => r.items[i] ?? "—"),
   ]);
   return [title, blank, header, ...rows];
 }
@@ -40,9 +40,8 @@ export async function writeKitchenPackingWorkbook(
   const packing = XLSX.utils.aoa_to_sheet(packingSheetAoA(sheet));
   const summary = XLSX.utils.aoa_to_sheet(kitchenSummaryAoA(sheet));
 
-  // Header is row 3 (1-based) after title + blank — freeze that and enable filters.
   packing["!freeze"] = { xSplit: 0, ySplit: 3, topLeftCell: "A4", activePane: "bottomLeft", state: "frozen" };
-  const lastCol = FIXED_HEADERS.length - 1 + sheet.dishColumns.length;
+  const lastCol = FIXED_HEADERS.length - 1 + sheet.itemHeaders.length;
   const lastRow = 2 + sheet.rows.length;
   if (sheet.rows.length > 0) {
     packing["!autofilter"] = {
@@ -55,7 +54,7 @@ export async function writeKitchenPackingWorkbook(
     { wch: 16 },
     { wch: 22 },
     { wch: 22 },
-    ...sheet.dishColumns.map(() => ({ wch: 18 })),
+    ...sheet.itemHeaders.map(() => ({ wch: 28 })),
   ];
 
   summary["!freeze"] = { xSplit: 0, ySplit: 3, topLeftCell: "A4", activePane: "bottomLeft", state: "frozen" };

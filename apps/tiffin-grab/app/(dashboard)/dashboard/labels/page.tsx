@@ -66,7 +66,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
         cols={4}
         items={[
           { label: "Orders", value: packing.rows.length, hint: "one row per delivery" },
-          { label: "Dishes", value: packing.dishColumns.length },
+          { label: "Item slots", value: packing.itemHeaders.length },
           { label: "Containers", value: containers },
           { label: "Menu week", value: sheet.menuWeekPublicId ? sheet.weekStart : "not released" },
         ]}

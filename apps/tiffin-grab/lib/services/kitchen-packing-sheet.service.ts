@@ -1,6 +1,6 @@
-// Daily Kitchen Packing Sheet: one delivery = one row; dish columns are discovered from
-// that day's resolved orders (never hard-coded). Reuses resolveDeliveryMeal + portion
-// mapping so the sheet matches what the customer calendar shows.
+// Daily Kitchen Packing Sheet: one delivery = one row. Columns are Item1…ItemN (not dish
+// names). Each cell is "Dish — 12 OZ × 1" using existing TU → natural conversion via
+// portionForPick. Kitchen Summary still aggregates by dish + portion across the day.
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { db } from "@/db/client";
@@ -16,11 +16,12 @@ import {
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import {
   addDishPortion,
-  formatDishCell,
-  type PortionQty,
+  formatItemCell,
+  type PackingItemLine,
 } from "@/lib/menu/packing-requirement";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
 import { resolveDeliveryMeal } from "@/lib/menu/resolve-delivery-meal";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { menuService } from "@/lib/services/menu.service";
 
 export type KitchenPackingRow = {
@@ -30,8 +31,8 @@ export type KitchenPackingRow = {
   orderId: string;
   planName: string;
   mealSizeName: string;
-  /** dish name → kitchen cell text ("12 OZ × 1") or "—" */
-  cells: Record<string, string>;
+  /** Ordered packing lines — Excel Item1…ItemN cells. */
+  items: string[];
 };
 
 export type KitchenSummaryLine = {
@@ -42,8 +43,8 @@ export type KitchenSummaryLine = {
 
 export type KitchenPackingSheet = {
   dateIso: string;
-  /** Unique dish names present on this day's orders — Excel column headers. */
-  dishColumns: string[];
+  /** Item1…ItemN — count is max items on any order that day. */
+  itemHeaders: string[];
   rows: KitchenPackingRow[];
   summary: KitchenSummaryLine[];
 };
@@ -77,11 +78,13 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     .orderBy(asc(deliveries.id));
 
   if (deliveryRows.length === 0) {
-    return { dateIso, dishColumns: [], rows: [], summary: [] };
+    return { dateIso, itemHeaders: [], rows: [], summary: [] };
   }
 
+  const categories = await dishCategoriesService.forPlanType("tiffin");
+  const categorySort = new Map(categories.map((c) => [c.key, c.sortOrder]));
+
   const weekStart = mondayOfIso(dateIso);
-  // Exact released week only — same gate as customer calendar / daily labels.
   const week = await menuService.getReleasedWeek(weekStart);
   const dayOfWeek = weekdayKey(parseIsoDateUtc(dateIso));
 
@@ -130,11 +133,12 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     orderId: string;
     planName: string;
     mealSizeName: string;
-    byDish: Map<string, Map<string, number>>;
+    lines: PackingItemLine[];
   }[] = [];
 
   for (const row of deliveryRows) {
-    const byDish = new Map<string, Map<string, number>>();
+    // Slot key → line. Selectable picks keep pickIndex so sabzi 12oz and 8oz stay separate.
+    const lineBySlot = new Map<string, PackingItemLine>();
     const portions = portionsByCategory(
       sizeItems.filter((i) => i.mealSizeId === row.mealSizeId),
       tuByKey,
@@ -155,20 +159,33 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
           person,
           row.deliveryId,
         );
-        for (const cat of resolved) {
+        const ordered = [...resolved].sort(
+          (a, b) => (categorySort.get(a.category) ?? 0) - (categorySort.get(b.category) ?? 0),
+        );
+        for (const cat of ordered) {
           if (cat.picks.length === 0) continue;
-          // Non-selectable slots (roti/rice/…) resolve one dish name with quantity = slot
-          // count; selectable slots already expand to one pick per container.
           if (!cat.selectable) {
             const pick = cat.picks[0]!;
+            const slotKey = `${cat.category}:fixed`;
             for (let i = 1; i <= cat.quantity; i++) {
-              addDishPortion(byDish, pick.name, portionForPick(portions, cat.category, i), 1);
-              addDishPortion(dayDishTotals, pick.name, portionForPick(portions, cat.category, i), 1);
+              const portion = (portionForPick(portions, cat.category, i) ?? "").trim() || "portion";
+              addOrBumpLine(lineBySlot, slotKey, pick.name, portion, 1, categorySort.get(cat.category) ?? 0);
+              addDishPortion(dayDishTotals, pick.name, portion, 1);
             }
           } else {
             cat.picks.forEach((pick, i) => {
-              const portion = portionForPick(portions, cat.category, i + 1);
-              addDishPortion(byDish, pick.name, portion, 1);
+              const pickIndex = i + 1;
+              const portion =
+                (portionForPick(portions, cat.category, pickIndex) ?? "").trim() || "portion";
+              const slotKey = `${cat.category}:${pickIndex}`;
+              addOrBumpLine(
+                lineBySlot,
+                slotKey,
+                pick.name,
+                portion,
+                1,
+                (categorySort.get(cat.category) ?? 0) * 100 + pickIndex,
+              );
               addDishPortion(dayDishTotals, pick.name, portion, 1);
             });
           }
@@ -176,42 +193,34 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       }
     }
 
+    const lines = [...lineBySlot.values()].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
     rowAcc.push({
       deliveryPublicId: row.deliveryPublicId,
       customerName: (row.fullName ?? "").trim() || "Customer",
       orderId: row.deploymentId,
       planName: row.planName,
       mealSizeName: row.mealSizeName,
-      byDish,
+      lines,
     });
   }
 
-  const dishColumns = [...dayDishTotals.keys()].sort((a, b) => a.localeCompare(b));
+  const maxItems = rowAcc.reduce((n, r) => Math.max(n, r.lines.length), 0);
+  const itemHeaders = Array.from({ length: maxItems }, (_, i) => `Item${i + 1}`);
 
   const rows: KitchenPackingRow[] = rowAcc
-    .map((r) => {
-      const cells: Record<string, string> = {};
-      for (const dish of dishColumns) {
-        const byPortion = r.byDish.get(dish);
-        const portions: PortionQty[] = byPortion
-          ? [...byPortion.entries()].map(([portion, quantity]) => ({ portion, quantity }))
-          : [];
-        cells[dish] = formatDishCell(portions);
-      }
-      return {
-        deliveryPublicId: r.deliveryPublicId,
-        deliveryDate: dateIso,
-        customerName: r.customerName,
-        orderId: r.orderId,
-        planName: r.planName,
-        mealSizeName: r.mealSizeName,
-        cells,
-      };
-    })
+    .map((r) => ({
+      deliveryPublicId: r.deliveryPublicId,
+      deliveryDate: dateIso,
+      customerName: r.customerName,
+      orderId: r.orderId,
+      planName: r.planName,
+      mealSizeName: r.mealSizeName,
+      items: r.lines.map((line) => formatItemCell(line)),
+    }))
     .sort((a, b) => a.customerName.localeCompare(b.customerName));
 
   const summary: KitchenSummaryLine[] = [];
-  for (const dish of dishColumns) {
+  for (const dish of [...dayDishTotals.keys()].sort((a, b) => a.localeCompare(b))) {
     const byPortion = dayDishTotals.get(dish)!;
     for (const [portion, totalQuantity] of [...byPortion.entries()].sort((a, b) =>
       a[0].localeCompare(b[0]),
@@ -220,5 +229,28 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     }
   }
 
-  return { dateIso, dishColumns, rows, summary };
+  return { dateIso, itemHeaders, rows, summary };
+}
+
+function addOrBumpLine(
+  into: Map<string, PackingItemLine>,
+  slotKey: string,
+  name: string,
+  portion: string,
+  qty: number,
+  sort: number,
+): void {
+  const hit = into.get(slotKey);
+  if (hit && hit.portion === portion && hit.name === name) {
+    hit.quantity += qty;
+    return;
+  }
+  if (hit) {
+    // Same slot, different dish/portion across persons — keep first name, bump qty only when
+    // portion matches; otherwise append a sibling key.
+    const sibling = `${slotKey}:${into.size}`;
+    into.set(sibling, { name, portion, quantity: qty, sort: sort + 0.01 });
+    return;
+  }
+  into.set(slotKey, { name, portion, quantity: qty, sort });
 }
