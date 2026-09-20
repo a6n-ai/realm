@@ -82,6 +82,17 @@ test.describe("subscribe -> checkout journey", () => {
     await expect(page.getByRole("region", { name: "Tip for your delivery" })).toBeVisible();
   });
 
+  test("choosing a delivery type never changes the eating days or the tiffin count", async ({ page }) => {
+    await toSchedule(page);
+    await page.getByRole("button", { name: /3 days/ }).click();
+    await expect(page.getByRole("button", { name: /3 days/ })).toHaveAttribute("aria-pressed", "true");
+    for (const d of ["Mon", "Tue", "Wed", "Thu", "Fri"]) await expect(pill(page, d)).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText(/5\s*tiffins a week/).first()).toBeVisible();
+    await expect(chip(page)).toContainText("$54.00");
+    await page.getByRole("button", { name: /5 days/ }).click();
+    await expect(chip(page)).toContainText("$60.00");
+  });
+
   test("disabled Next explains what is missing on Baseline and Bundle", async ({ page }) => {
     await startWizard(page);
     await expect(next(page)).toBeDisabled();

@@ -51,11 +51,6 @@ export function eatingDaysError(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek
   return planWeek(deliveryDays, eatingDays) ? null : "An eating day falls before this plan's first delivery day";
 }
 
-/** Starting eating days for a frequency: eat on the days it delivers (clipped to the max). */
-export function defaultEatingDays(deliveryDays: DayOfWeek[], max: number): DayOfWeek[] {
-  return WEEK_ORDER.filter((d) => deliveryDays.includes(d)).slice(0, max);
-}
-
 export function orderDeliveryDays(o: {
   frequencyKey: string;
   weekdays?: DayOfWeek[] | null;

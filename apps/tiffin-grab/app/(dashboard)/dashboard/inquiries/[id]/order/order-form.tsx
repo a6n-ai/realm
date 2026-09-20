@@ -24,7 +24,8 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
-import { defaultEatingDays, eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
 import { ScheduleSection } from "./schedule-section";
@@ -84,7 +85,7 @@ export function OrderForm({
       planKey: "",
       mealSizeId: "",
       frequencyKey: catalog.frequencies.find((f) => f.weekdays?.length)?.key ?? "",
-      eatingDays: defaultEatingDays((catalog.frequencies.find((f) => f.weekdays?.length)?.weekdays ?? []) as DayOfWeek[], catalog.maxTiffinsPerWeek ?? 7),
+      eatingDays: DEFAULT_EATING_DAYS.slice(0, catalog.maxTiffinsPerWeek ?? 7),
       persons: 1,
       mealSlots: defaultSlots,
       includeSaturday: false,
@@ -355,14 +356,8 @@ export function OrderForm({
             <ScheduleSection
               frequencies={deliveryFrequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays as DayOfWeek[], savePct: f.savePct }))}
               frequencyKey={frequencyKey}
-              onFrequencyChange={(key) => {
-                // Only follow the new frequency while eating days are still the previous one's default.
-                const next = deliveryFrequencies.find((f) => f.key === key);
-                if (next && eatingDays.join() === defaultEatingDays(deliveryDays, bounds.max).join()) {
-                  form.setValue("eatingDays", defaultEatingDays(next.weekdays as DayOfWeek[], bounds.max), { shouldDirty: true, shouldValidate: true });
-                }
-                form.setValue("frequencyKey", key, { shouldDirty: true, shouldValidate: true });
-              }}
+              // Delivery type only: eating days stay as chosen, so the tiffin count never changes silently.
+              onFrequencyChange={(key) => form.setValue("frequencyKey", key, { shouldDirty: true, shouldValidate: true })}
               eatingDays={eatingDays}
               onToggleDay={toggleEating}
               bounds={bounds}

@@ -4,7 +4,7 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { savePct } from "@/lib/pricing/discounts";
-import { defaultEatingDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -37,11 +37,12 @@ export function StepSchedule({
     set({ eatingDays: sorted, includeSaturday: sorted.includes("sat"), includeSunday: sorted.includes("sun") });
   };
 
-  // Initial selections are static, so pick the first real frequency and clip the default week once the catalog is known.
+  // Initial selections are static, so pick the first real frequency once the catalog is known. Eating days start
+  // as Mon–Fri (clipped to the max) and are independent of the delivery type.
   useEffect(() => {
     if (row || !catalogFrequencies[0]) return;
     set({ frequencyKey: catalogFrequencies[0].key });
-    setEating(defaultEatingDays(catalogFrequencies[0].weekdays as DayOfWeek[], bounds.max));
+    if (eating.length > bounds.max) setEating(eating.slice(0, bounds.max));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row, frequencies.length]);
 
@@ -99,12 +100,8 @@ export function StepSchedule({
                 key={f.key}
                 type="button"
                 aria-pressed={active}
-                onClick={() => {
-                  set({ frequencyKey: f.key });
-                  // Only follow the new frequency while eating days are still the previous one's default.
-                  const untouched = eating.join() === defaultEatingDays(deliveryDays, bounds.max).join();
-                  if (untouched) setEating(defaultEatingDays(f.weekdays as DayOfWeek[], bounds.max));
-                }}
+                // Delivery type only: eating days are chosen first, so switching never changes how many tiffins they get.
+                onClick={() => set({ frequencyKey: f.key })}
                 className={`flex min-h-24 cursor-pointer flex-col items-start justify-between gap-3 rounded-[20px] border-2 p-4 text-left transition-[transform,background-color,border-color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`}
               >
                 <span className="flex w-full items-center justify-between gap-2">

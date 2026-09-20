@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clubbedQuantities, defaultEatingDays, planWeek, orderDeliveryDays, type DayOfWeek } from "../delivery-days";
+import { clubbedQuantities, planWeek, orderDeliveryDays, type DayOfWeek } from "../delivery-days";
 
 describe("orderDeliveryDays", () => {
   it("5_day → mon..fri", () => {
@@ -80,12 +80,5 @@ describe("planWeek", () => {
   it("conserves tiffins", () => {
     const t = planWeek(MWF, ALL)!;
     expect(t.reduce((n, x) => n + x.units, 0)).toBe(7);
-  });
-});
-
-describe("defaultEatingDays", () => {
-  it("mirrors the delivery days in week order, clipped to max", () => {
-    expect(defaultEatingDays(["fri", "mon", "wed"], 7)).toEqual(["mon", "wed", "fri"]);
-    expect(defaultEatingDays(["mon", "tue", "wed", "thu", "fri"], 3)).toEqual(["mon", "tue", "wed"]);
   });
 });
