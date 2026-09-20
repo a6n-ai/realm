@@ -17,7 +17,7 @@ vi.mock("motion/react", async () => {
   return { ...actual, useReducedMotion: () => reducedMotion };
 });
 
-import { Reveal } from "../reveal";
+import { Reveal, revealViewport } from "../reveal";
 
 beforeEach(() => { reducedMotion = false; });
 afterEach(cleanup);
@@ -37,6 +37,12 @@ describe("Reveal", () => {
     );
     expect(screen.getByText("one")).toBeInTheDocument();
     expect(screen.getByText("two")).toBeInTheDocument();
+  });
+
+  it("uses amount some so a taller-than-viewport group can still reveal", () => {
+    // IntersectionObserver's `amount` is a fraction of the TARGET. A week-long
+    // dish list is taller than the viewport, so 0.2 never intersects.
+    expect(revealViewport.amount).toBe("some");
   });
 
   it("renders a nested Reveal's children without its own viewport trigger (group drives it)", () => {

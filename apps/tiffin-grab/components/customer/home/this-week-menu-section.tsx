@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { cn } from "@foundry/ui/cn";
 import { SectionCard } from "@/components/ds";
-import { Reveal, Pressable, LottieEmptyState } from "@/components/motion";
+import { Pressable, LottieEmptyState } from "@/components/motion";
 import { formatDateOnly, formatMenuWeekRange } from "@/lib/format/datetime";
 import { parseIsoDateUtc } from "@foundry/commons";
 import {
@@ -84,9 +84,9 @@ export function ThisWeekMenuSection({
 
   return (
     <SectionCard title={title} subtitle={`${formatMenuWeekRange(week.weekStart)} · tap a dish for details`}>
-      <Reveal.Group className="space-y-7">
+      <div className="space-y-7">
         {columns.map((col) => (
-          <Reveal key={col.day} className="min-w-0">
+          <div key={col.day} className="min-w-0">
             <div className="mb-3 flex items-baseline justify-between gap-3">
               <h3
                 className={cn(
@@ -124,9 +124,9 @@ export function ThisWeekMenuSection({
                 ))}
               </ul>
             )}
-          </Reveal>
+          </div>
         ))}
-      </Reveal.Group>
+      </div>
 
       <DishModal
         dish={{

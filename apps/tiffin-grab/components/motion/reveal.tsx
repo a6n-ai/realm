@@ -21,6 +21,10 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: transitions.easeBase },
 };
 
+// "some" = any intersecting pixel. A 0.2–0.3 fraction never fires when the
+// target is taller than the viewport (a full week of dishes, a long wallet log).
+export const revealViewport = { once: true, amount: "some" } as const;
+
 export function Reveal({ children, className, delay = 0 }: RevealProps) {
   const reduce = useReducedMotion();
   const inGroup = useContext(RevealGroupContext);
@@ -38,7 +42,7 @@ export function Reveal({ children, className, delay = 0 }: RevealProps) {
       variants={itemVariants}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, amount: 0.3 }}
+      viewport={revealViewport}
       transition={{ ...transitions.easeBase, delay }}
     >
       {children}
@@ -55,7 +59,7 @@ Reveal.Group = function RevealGroup({ children, className }: { children: ReactNo
       variants={groupVariants}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={revealViewport}
     >
       <RevealGroupContext.Provider value={true}>{children}</RevealGroupContext.Provider>
     </motion.div>
