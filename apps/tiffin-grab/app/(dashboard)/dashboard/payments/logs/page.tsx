@@ -1,10 +1,11 @@
 import { Suspense } from "react";
-import { asc, desc, eq, ilike, inArray, and, or } from "drizzle-orm";
+import { asc, desc, eq, ilike, inArray, and, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { orderActivities, orders, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
+import { parseFilterState } from "@/components/ds";
 import { LOG_EVENT_OPTIONS, LOG_SORT_KEYS } from "../payment-facets";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
@@ -29,6 +30,19 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
   const actor = alias(users, "actor");
   const col = { time: orderActivities.createdAt, event: orderActivities.type, order: orders.publicId, by: actor.email }[sort.column];
 
+  const { page } = parseFilterState([], sp);
+  const where = and(
+    inArray(orderActivities.type, events.length ? (events as never[]) : ["payment_claimed", "payment_verified", "payment_rejected"]),
+    q ? or(ilike(orders.publicId, `%${q}%`), ilike(orderActivities.note, `%${q}%`), ilike(actor.email, `%${q}%`)) : undefined,
+  );
+
+  const [{ total }] = await db
+    .select({ total: sql<number>`cast(count(*) as int)` })
+    .from(orderActivities)
+    .innerJoin(orders, eq(orders.id, orderActivities.orderId))
+    .leftJoin(actor, eq(actor.id, orderActivities.createdBy))
+    .where(where);
+
   const rows = await db
     .select({
       publicId: orderActivities.publicId,
@@ -41,14 +55,10 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
     .from(orderActivities)
     .innerJoin(orders, eq(orders.id, orderActivities.orderId))
     .leftJoin(actor, eq(actor.id, orderActivities.createdBy))
-    .where(
-      and(
-        inArray(orderActivities.type, events.length ? (events as never[]) : ["payment_claimed", "payment_verified", "payment_rejected"]),
-        q ? or(ilike(orders.publicId, `%${q}%`), ilike(orderActivities.note, `%${q}%`), ilike(actor.email, `%${q}%`)) : undefined,
-      ),
-    )
+    .where(where)
     .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-    .limit(100);
+    .limit(page.size)
+    .offset(page.page * page.size);
 
-  return <LogsTable rows={rows} sort={sort} />;
+  return <LogsTable rows={rows} total={total} page={page.page} size={page.size} sort={sort} />;
 }

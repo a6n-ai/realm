@@ -19,8 +19,8 @@ export default function RequestsPage({ searchParams }: { searchParams: SearchPar
 // "Needs review" = the customer says they sent it; nothing settles until staff approve.
 async function RequestsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const { rows, sort } = await listPayments(await searchParams, {
+  const { rows, total, page, size, sort } = await listPayments(await searchParams, {
     where: and(eq(payments.status, "pending_verification"), eq(payments.method, "etransfer")),
   });
-  return <RequestsTable rows={rows} sort={sort} />;
+  return <RequestsTable rows={rows} total={total} page={page} size={size} sort={sort} />;
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ReceiptTextIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, type Column } from "@/components/ds";
+import { DataTable, ListPagination, type Column } from "@/components/ds";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
@@ -28,25 +28,42 @@ const SPEC: FacetDef[] = [
   { kind: "search", fields: [] },
 ];
 
-export function PaymentsTable({ rows, sort }: { rows: PaymentRow[]; sort: SortState<PaymentSortKey> }) {
+export function PaymentsTable({
+  rows,
+  total,
+  page,
+  size,
+  sort,
+}: {
+  rows: PaymentRow[];
+  total: number;
+  page: number;
+  size: number;
+  sort: SortState<PaymentSortKey>;
+}) {
   const tz = useTimezone();
   return (
+    <div className="space-y-4">
     <DataTable
       columns={COLUMNS}
       rows={rows}
       rowKey={(r) => r.publicId}
       sort={sort}
+      idAccessor={(r) => r.publicId}
+      idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
+      rowClassName={() => "group cursor-pointer"}
       filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
       emptyIcon={ReceiptTextIcon}
       emptyMessage="No payments yet."
+      emptySearchMessage="No payments match your search."
       renderRow={(r) => (
         <>
           <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
             {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
           </TableCell>
           <TableCell className="text-muted-foreground">{r.email ?? "-"}</TableCell>
-          <TableCell>
-            <Link href={`/dashboard/orders/${r.orderPublicId}`} className="hover:underline">
+          <TableCell className="font-medium">
+            <Link href={`/dashboard/orders/${r.orderPublicId}`} className="group-hover:underline">
               {r.orderPublicId}
             </Link>
           </TableCell>
@@ -58,9 +75,11 @@ export function PaymentsTable({ rows, sort }: { rows: PaymentRow[]; sort: SortSt
         </>
       )}
     />
+      <ListPagination page={page} size={size} total={total} />
+    </div>
   );
 }
 
 export function PaymentsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <DataTable.Skeleton columns={COLUMNS} hasId />;
 }

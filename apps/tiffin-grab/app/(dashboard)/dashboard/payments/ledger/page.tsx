@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { ledgerEntries, orders, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
+import { parseFilterState } from "@/components/ds";
 import { LEDGER_SORT_KEYS, LEDGER_TYPE_OPTIONS } from "../payment-facets";
 import { MoneyLedgerTable, MoneyLedgerTableSkeleton } from "./money-ledger-table";
 
@@ -32,6 +33,25 @@ async function MoneyLedgerData({ searchParams }: { searchParams: SearchParams })
   const sort = parseSort(sp, LEDGER_SORT_KEYS, { column: "time", dir: "desc" });
   const types = (sp.type ?? "").split(",").filter((t) => LEDGER_TYPE_OPTIONS.some((o) => o.value === t));
   const col = SORT_COL[sort.column];
+  const { page } = parseFilterState([], sp);
+  const where = and(
+    types.length ? inArray(ledgerEntries.type, types as never[]) : undefined,
+    q
+      ? or(
+          ilike(ledgerEntries.memo, `%${q}%`),
+          ilike(users.email, `%${q}%`),
+          ilike(orders.publicId, `%${q}%`),
+          sql`${ledgerEntries.type}::text ilike ${`%${q}%`}`,
+        )
+      : undefined,
+  );
+
+  const [{ total }] = await db
+    .select({ total: sql<number>`cast(count(*) as int)` })
+    .from(ledgerEntries)
+    .leftJoin(users, eq(users.id, ledgerEntries.userId))
+    .leftJoin(orders, eq(orders.id, ledgerEntries.orderId))
+    .where(where);
 
   const rows = await db
     .select({
@@ -47,21 +67,10 @@ async function MoneyLedgerData({ searchParams }: { searchParams: SearchParams })
     .from(ledgerEntries)
     .leftJoin(users, eq(users.id, ledgerEntries.userId))
     .leftJoin(orders, eq(orders.id, ledgerEntries.orderId))
-    .where(
-      and(
-        types.length ? inArray(ledgerEntries.type, types as never[]) : undefined,
-        q
-          ? or(
-              ilike(ledgerEntries.memo, `%${q}%`),
-              ilike(users.email, `%${q}%`),
-              ilike(orders.publicId, `%${q}%`),
-              sql`${ledgerEntries.type}::text ilike ${`%${q}%`}`,
-            )
-          : undefined,
-      ),
-    )
+    .where(where)
     .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-    .limit(100);
+    .limit(page.size)
+    .offset(page.page * page.size);
 
-  return <MoneyLedgerTable rows={rows} sort={sort} />;
+  return <MoneyLedgerTable rows={rows} total={total} page={page.page} size={page.size} sort={sort} />;
 }
