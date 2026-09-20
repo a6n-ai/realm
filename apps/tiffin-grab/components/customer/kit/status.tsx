@@ -13,7 +13,7 @@ export const STATUS_LABEL: Record<DeliveryStatus, string> = {
 export const STATUS_COLOR: Record<DeliveryStatus, string> = {
   delivered: "var(--s-delivered,#10b981)",
   upcoming: "var(--s-upcoming,#0ea5e9)",
-  vacation: "var(--s-vacation,#d98a00)",
+  vacation: "var(--s-vac,#d98a00)",
   hold: "var(--s-hold,#f43f5e)",
   combined: "var(--muted-foreground,#6E6558)",
 };
