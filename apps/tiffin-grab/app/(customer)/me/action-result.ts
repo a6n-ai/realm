@@ -16,14 +16,24 @@ export type ActionResult<T extends Record<string, unknown> = Record<string, neve
 /**
  * Runs `fn`, converting an expected `AppError` into `{ error }`. Success may
  * return void, a message string, or an object merged onto `{ ok: true }`.
+ *
+ * Overloads keep void/string callers as plain `ActionResult` — without them TS
+ * widens the payload to `Record<string, unknown>` and the success branch stops
+ * being assignable to the default `ActionResult` union (deploy typecheck fail).
  */
-export async function runAction<T extends Record<string, unknown> = Record<string, never>>(
+export async function runAction(
+  fn: () => Promise<void | string>,
+): Promise<ActionResult>;
+export async function runAction<T extends Record<string, unknown>>(
+  fn: () => Promise<T>,
+): Promise<ActionResult<T>>;
+export async function runAction<T extends Record<string, unknown>>(
   fn: () => Promise<void | string | T>,
-): Promise<ActionResult<T>> {
+): Promise<ActionResult | ActionResult<T>> {
   try {
     const result = await fn();
-    if (result == null) return { ok: true } as ActionResult<T>;
-    if (typeof result === "string") return { ok: true, message: result } as ActionResult<T>;
+    if (result == null) return { ok: true } as ActionResult;
+    if (typeof result === "string") return { ok: true, message: result } as ActionResult;
     return { ok: true, ...result } as ActionResult<T>;
   } catch (e) {
     if (e instanceof AppError) return { error: e.message };
