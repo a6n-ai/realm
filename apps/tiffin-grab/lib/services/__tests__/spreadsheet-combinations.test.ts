@@ -61,11 +61,11 @@ async function orderFor(mealSizeKey: string) {
       includeSaturday: false,
       includeSunday: false,
       durationWeeks: 1,
-      startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+      startDate: nextWeekday(new Date(Date.now() + 3 * 864e5)).toISOString().slice(0, 10),
     },
     contact: {
       email: `u${Math.random().toString(36).slice(2)}@test.invalid`,
-      fullName: "A B", phone: "+16475550199", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6",
+      fullName: "A B", phone: `+1647555${Math.floor(1000 + Math.random() * 9000)}`, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6",
     },
   });
   const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
