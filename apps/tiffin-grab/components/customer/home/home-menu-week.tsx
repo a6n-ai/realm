@@ -8,7 +8,6 @@ import { parseIsoDateUtc } from "@foundry/commons";
 import { formatDateOnly, formatMenuWeekRange } from "@/lib/format/datetime";
 import { DAY_LABELS, HOME_MENU_DAY_COLUMNS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { menuService } from "@/lib/services/menu.service";
-import { DishImage } from "./dish-image";
 import { DishModal } from "./dish-modal";
 
 type Week = Awaited<ReturnType<typeof menuService.getPublishedWeek>>;
@@ -65,22 +64,17 @@ export function HomeMenuWeek({ week, todayKey, scope = "this" }: { week: Week; t
                   </p>
                   <p className="text-muted-foreground text-xs">{formatDateOnly(dateIsoOnWeek(week.weekStart, day), { mode: "short" })}</p>
                 </div>
-                <ul className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+                <ul className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                   {items.map((item) => (
                     <li key={`${item.slot}-${item.position}`}>
                       <button
                         type="button"
                         aria-label={item.dishName}
+                        title={slotLabel(item.slot)}
                         onClick={() => setSelected(item)}
-                        className="group flex w-full flex-row items-center gap-2 text-left transition-transform active:scale-[0.97] motion-reduce:active:scale-100"
+                        className="bg-muted hover:bg-primary/10 min-h-9 rounded-full px-3 text-xs font-medium transition-transform active:scale-[0.96] motion-reduce:active:scale-100"
                       >
-                        <div className="relative w-full shrink-0 overflow-hidden rounded-xl border aspect-square w-11">
-                          <DishImage image={item.image ?? null} name={item.dishName} category={item.slot} sizes="160px" />
-                        </div>
-                        <span className="min-w-0">
-                          <span className="block text-xs leading-snug font-medium">{item.dishName}</span>
-                          <span className="text-muted-foreground block text-[11px] capitalize">{slotLabel(item.slot)}</span>
-                        </span>
+                        {item.dishName}
                       </button>
                     </li>
                   ))}

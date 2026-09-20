@@ -57,4 +57,20 @@ describe("MealPicker", () => {
     clickTab(screen.getByRole("tab", { name: /wed/i }));
     expect(screen.getAllByText(/locked/i).length).toBeGreaterThan(0);
   });
+
+  it("groups a carried day under its trip with a covers header and lock note", () => {
+    const g = [
+      { ...(grid as never as Record<string, unknown>[])[0], dateIso: "2026-07-14", day: "mon", locked: false },
+      { ...(grid as never as Record<string, unknown>[])[0], dateIso: "2026-07-15", day: "tue", locked: false, lockNote: "Locks with Monday's delivery" },
+    ] as never;
+    const weekDates = [
+      { dateIso: "2026-07-14", dayOfWeek: "mon", lockMs: Date.now() + 3_600_000, locked: false, carriedBy: null, lockNote: null },
+      { dateIso: "2026-07-15", dayOfWeek: "tue", lockMs: Date.now() + 3_600_000, locked: false, carriedBy: "2026-07-14", lockNote: "Locks with Monday's delivery" },
+    ] as never;
+    render(<MealPicker grid={g} categories={categories} orderPublicId="o" menuWeekId="m" weekDates={weekDates} timezone="America/Toronto" />);
+    expect(screen.getAllByText(/Delivered Mon/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/covers Mon \+ Tue/)).toBeInTheDocument();
+    clickTab(screen.getByRole("tab", { name: /tue/i }));
+    expect(screen.getByText("Locks with Monday's delivery")).toBeInTheDocument();
+  });
 });

@@ -209,8 +209,8 @@ export function MealPicker({
 
   const summary = (dateIso: string) =>
     (byDay.get(dateIso) ?? [])
-      .filter((c) => c.selectable && c.personIndex === 1)
-      .map((c) => c.dishes.find((d) => d.id === (overrides.get(cellKey(c)) ?? c.selectedDishId))?.name)
+      .filter((c) => c.personIndex === 1)
+      .map((c) => (c.dishes.find((d) => d.id === (overrides.get(cellKey(c)) ?? c.selectedDishId)) ?? c.dishes[0])?.name)
       .filter(Boolean)
       .join(", ");
 
@@ -240,7 +240,7 @@ export function MealPicker({
                     onClick={() => setSelectedDay(dateIso)}
                     className={cn(
                       "flex min-h-14 min-w-[4.5rem] flex-col items-center justify-center rounded-full border px-4 py-1.5 transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.96] motion-reduce:active:scale-100",
-                      "lg:min-h-[4.25rem] lg:w-full lg:flex-row lg:justify-start lg:gap-3 lg:rounded-2xl lg:px-4 lg:text-left",
+                      "lg:min-h-[4.25rem] lg:w-full lg:py-2.5 lg:flex-row lg:justify-start lg:gap-3 lg:rounded-2xl lg:px-4 lg:text-left",
                       active
                         ? "border-primary bg-primary text-primary-foreground shadow-[0_10px_24px_-8px_var(--color-primary)]"
                         : "bg-card hover:border-primary/50",
@@ -256,7 +256,7 @@ export function MealPicker({
                       </span>
                     </span>
                     {sum && (
-                      <span className={cn("hidden min-w-0 flex-1 truncate text-xs lg:block", active ? "text-primary-foreground/85" : "text-muted-foreground")}>
+                      <span className={cn("hidden min-w-0 flex-1 text-xs leading-snug lg:line-clamp-2", active ? "text-primary-foreground/85" : "text-muted-foreground")}>
                         {sum}
                       </span>
                     )}
