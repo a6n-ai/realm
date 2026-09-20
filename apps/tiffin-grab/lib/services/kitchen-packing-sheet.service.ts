@@ -2,7 +2,7 @@
 // names). Each cell is "Dish — 12 OZ × 1" using existing TU → natural conversion via
 // portionForPick. Kitchen Summary still aggregates by dish + portion across the day.
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
+import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import {
   deliveries,
@@ -13,20 +13,25 @@ import {
   orders,
   plans,
 } from "@/db/schema";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { coveredDates } from "@/lib/menu/coverage";
+import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import {
   addDishPortion,
   formatItemCell,
   type PackingItemLine,
 } from "@/lib/menu/packing-requirement";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
-import { resolveDeliveryMeal } from "@/lib/menu/resolve-delivery-meal";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { menuService } from "@/lib/services/menu.service";
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export type KitchenPackingRow = {
   deliveryPublicId: string;
   deliveryDate: string;
+  /** Eating day of this row; carried days get their own row on the trip's delivery date. */
+  forDate: string;
+  /** "For Tue" on trips carrying several eating days, else null. */
+  forLabel: string | null;
   customerName: string;
   orderId: string;
   planName: string;
@@ -54,6 +59,8 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     .select({
       deliveryId: deliveries.id,
       deliveryPublicId: deliveries.publicId,
+      deliveryDate: deliveries.deliveryDate,
+      coversDates: deliveries.coversDates,
       orderId: orders.id,
       deploymentId: orders.deploymentId,
       fullName: orders.fullName,
@@ -84,9 +91,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
   const categories = await dishCategoriesService.forPlanType("tiffin");
   const categorySort = new Map(categories.map((c) => [c.key, c.sortOrder]));
 
-  const weekStart = mondayOfIso(dateIso);
-  const week = await menuService.getReleasedWeek(weekStart);
-  const dayOfWeek = weekdayKey(parseIsoDateUtc(dateIso));
+  const loadWeek = weekLoader();
 
   const [sizeItems, tuRows, swapRows] = await Promise.all([
     db
@@ -109,6 +114,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     db
       .select({
         deliveryId: deliveryCategorySwaps.deliveryId,
+        forDate: deliveryCategorySwaps.forDate,
         fromCategory: deliveryCategorySwaps.fromCategory,
         toCategory: deliveryCategorySwaps.toCategory,
         qtyFrom: deliveryCategorySwaps.qtyFrom,
@@ -129,6 +135,8 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
   const dayDishTotals = new Map<string, Map<string, number>>();
   const rowAcc: {
     deliveryPublicId: string;
+    forDate: string;
+    forLabel: string | null;
     customerName: string;
     orderId: string;
     planName: string;
@@ -137,27 +145,25 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
   }[] = [];
 
   for (const row of deliveryRows) {
+    const covered = coveredDates({ deliveryDate: row.deliveryDate, coversDates: row.coversDates });
+    for (const forDate of covered) {
     // Slot key → line. Selectable picks keep pickIndex so sabzi 12oz and 8oz stay separate.
     const lineBySlot = new Map<string, PackingItemLine>();
     const portions = portionsByCategory(
       sizeItems.filter((i) => i.mealSizeId === row.mealSizeId),
       tuByKey,
-      swapRows.filter((s) => s.deliveryId === row.deliveryId),
+      swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate),
     );
 
+    const week = await loadWeek(forDate);
     if (week) {
       for (let person = 1; person <= row.persons; person++) {
-        const resolved = await resolveDeliveryMeal(
-          {
-            id: row.orderId,
-            planId: row.planId,
-            mealSizeId: row.mealSizeId,
-            categoryCounts: row.categoryCounts,
-          },
+        const resolved = await resolveTripDay(
+          { id: row.orderId, planId: row.planId, mealSizeId: row.mealSizeId, categoryCounts: row.categoryCounts },
           week,
-          dayOfWeek,
+          forDate,
           person,
-          row.deliveryId,
+          swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate),
         );
         const ordered = [...resolved].sort(
           (a, b) => (categorySort.get(a.category) ?? 0) - (categorySort.get(b.category) ?? 0),
@@ -196,12 +202,15 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     const lines = [...lineBySlot.values()].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
     rowAcc.push({
       deliveryPublicId: row.deliveryPublicId,
+      forDate,
+      forLabel: covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null,
       customerName: (row.fullName ?? "").trim() || "Customer",
       orderId: row.deploymentId,
       planName: row.planName,
       mealSizeName: row.mealSizeName,
       lines,
     });
+    }
   }
 
   const maxItems = rowAcc.reduce((n, r) => Math.max(n, r.lines.length), 0);
@@ -211,13 +220,15 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     .map((r) => ({
       deliveryPublicId: r.deliveryPublicId,
       deliveryDate: dateIso,
+      forDate: r.forDate,
+      forLabel: r.forLabel,
       customerName: r.customerName,
       orderId: r.orderId,
       planName: r.planName,
       mealSizeName: r.mealSizeName,
       items: r.lines.map((line) => formatItemCell(line)),
     }))
-    .sort((a, b) => a.customerName.localeCompare(b.customerName));
+    .sort((a, b) => a.customerName.localeCompare(b.customerName) || a.forDate.localeCompare(b.forDate));
 
   const summary: KitchenSummaryLine[] = [];
   for (const dish of [...dayDishTotals.keys()].sort((a, b) => a.localeCompare(b))) {

@@ -24,6 +24,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 12, fontWeight: "bold" },
   zone: { fontSize: 9 },
   meta: { fontSize: 7, color: "#555", marginBottom: 4 },
+  forTag: { fontSize: 11, fontWeight: "bold", marginBottom: 3 },
   line: { marginBottom: 1 },
   portion: { color: "#333" },
   note: { marginTop: 4, fontSize: 7, color: "#000" },
@@ -52,6 +53,7 @@ function LabelCell({ label, date }: { label: DeliveryLabel; date: string }) {
         {label.deploymentId} · {label.planName} · {label.mealSizeName}
         {label.persons > 1 ? ` · person ${label.personIndex}/${label.persons}` : ""}
       </Text>
+      {label.forLabel ? <Text style={styles.forTag}>{label.forLabel}</Text> : null}
       {label.lines.map((line, i) => (
         <Text key={`${line.category}-${i}`} style={styles.line}>
           • {line.dish}
@@ -79,7 +81,7 @@ export async function renderDailyLabelsPdf(sheet: DailyLabelSheet): Promise<Uint
           <View style={styles.grid}>
             {pageLabels.map((label) => (
               <LabelCell
-                key={`${label.deliveryPublicId}-${label.personIndex}`}
+                key={`${label.deliveryPublicId}-${label.personIndex}-${label.forDate}`}
                 label={label}
                 date={sheet.date}
               />

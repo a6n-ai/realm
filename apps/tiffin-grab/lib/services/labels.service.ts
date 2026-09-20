@@ -4,7 +4,7 @@
 // receives" resolver the customer calendar uses) rather than re-deriving meal picks.
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { parsePhoneNumberWithError } from "libphonenumber-js";
-import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
+import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import {
   deliveries,
@@ -12,22 +12,24 @@ import {
   dishCategories,
   mealSizeItems,
   mealSizes,
-  menuWeeks,
   orders,
   plans,
   users,
 } from "@/db/schema";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { coveredDates } from "@/lib/menu/coverage";
+import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { packingItemLabel } from "@/lib/menu/packing-item-label";
 import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
 import { tuToNatural } from "@/lib/menu/format-tu";
-import { resolveDeliveryMeal } from "@/lib/menu/resolve-delivery-meal";
 import { dishCategoriesService } from "./dish-categories.service";
 
 const ITEM_SLOTS = 7;
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export type PackingLabelRow = {
   deliveryPublicId: string;
+  forDate: string;
+  forLabel: string | null;
   customerPhone: string;
   firstName: string;
   planName: string;
@@ -50,6 +52,8 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
     .select({
       deliveryId: deliveries.id,
       deliveryPublicId: deliveries.publicId,
+      deliveryDate: deliveries.deliveryDate,
+      coversDates: deliveries.coversDates,
       orderId: orders.id,
       fullName: orders.fullName,
       persons: orders.persons,
@@ -75,13 +79,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
   const categories = await dishCategoriesService.forPlanType("tiffin");
   const sortOrder = new Map(categories.map((c) => [c.key, c.sortOrder]));
 
-  const weekStart = mondayOfIso(dateIso);
-  // menu_weeks has no planType column — one row is shared across all plan types
-  // (menu_weeks_week_unique indexes weekStart alone), so weekStart is already unique.
-  const [week] = await db.select({ id: menuWeeks.id, weekStart: menuWeeks.weekStart }).from(menuWeeks)
-    .where(eq(menuWeeks.weekStart, weekStart))
-    .limit(1);
-  const dayOfWeek = weekdayKey(parseIsoDateUtc(dateIso));
+  const loadWeek = weekLoader();
 
   const [sizeItems, tuRows, swapRows] = await Promise.all([
     db
@@ -104,6 +102,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
     db
       .select({
         deliveryId: deliveryCategorySwaps.deliveryId,
+        forDate: deliveryCategorySwaps.forDate,
         fromCategory: deliveryCategorySwaps.fromCategory,
         toCategory: deliveryCategorySwaps.toCategory,
         qtyFrom: deliveryCategorySwaps.qtyFrom,
@@ -119,6 +118,10 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
 
   const out: PackingLabelRow[] = [];
   for (const row of rows) {
+    const trip = { id: row.deliveryId, deliveryDate: row.deliveryDate };
+    const covered = coveredDates(row);
+    for (const forDate of covered) {
+    const daySwaps = swapsForDay(swapRows, trip, forDate);
     // Sum resolved category quantities across every person on the order onto one row; dish
     // names are taken from person 1's picks (an order's persons can technically pick different
     // dishes, but a packing label needs one name per line — this is the documented assumption).
@@ -128,16 +131,17 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
     const portions = portionsByCategory(
       sizeItems.filter((i) => i.mealSizeId === row.mealSizeId),
       tuByKey,
-      swapRows.filter((s) => s.deliveryId === row.deliveryId),
+      daySwaps,
     );
+    const week = await loadWeek(forDate);
     if (week) {
       for (let person = 1; person <= row.persons; person++) {
-        const resolved = await resolveDeliveryMeal(
+        const resolved = await resolveTripDay(
           { id: row.orderId, planId: row.planId, mealSizeId: row.mealSizeId, categoryCounts: row.categoryCounts },
           week,
-          dayOfWeek,
+          forDate,
           person,
-          row.deliveryId,
+          daySwaps,
         );
         for (const cat of resolved) {
           qtyByCategory.set(cat.category, (qtyByCategory.get(cat.category) ?? 0) + cat.quantity);
@@ -168,13 +172,16 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
 
     out.push({
       deliveryPublicId: row.deliveryPublicId,
+      forDate,
+      forLabel: covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null,
       customerPhone: formatCanadianPhone(row.userPhone),
       firstName: (row.fullName ?? "").trim().split(/\s+/)[0] ?? "",
       planName: row.planName,
       mealSizeName: row.mealSizeName,
       items,
     });
+    }
   }
 
-  return out.sort((a, b) => a.firstName.localeCompare(b.firstName));
+  return out.sort((a, b) => a.firstName.localeCompare(b.firstName) || a.forDate.localeCompare(b.forDate));
 }

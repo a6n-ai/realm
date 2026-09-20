@@ -73,7 +73,7 @@ export function LabelList({ labels }: { labels: DeliveryLabel[] }) {
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {labels.map((label) => (
         <Card
-          key={`${label.deliveryPublicId}-${label.personIndex}`}
+          key={`${label.deliveryPublicId}-${label.personIndex}-${label.forDate}`}
           variant="flat"
           className="space-y-2 p-3"
         >
@@ -83,6 +83,7 @@ export function LabelList({ labels }: { labels: DeliveryLabel[] }) {
               <p className="text-muted-foreground truncate text-xs">
                 {label.deploymentId} · {label.planName}
                 {label.persons > 1 ? ` · person ${label.personIndex}/${label.persons}` : ""}
+                {label.forLabel ? ` · ${label.forLabel}` : ""}
               </p>
             </div>
             <Badge variant="outline" className="shrink-0 text-[10px]">

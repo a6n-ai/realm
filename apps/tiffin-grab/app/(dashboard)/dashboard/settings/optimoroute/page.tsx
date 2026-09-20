@@ -3,6 +3,7 @@ import { Badge } from "@foundry/ui/badge";
 import { getOptimoRouteConfig, getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/ds";
+import { SendLoadToggle } from "./send-load-toggle";
 
 export default async function OptimoRouteSettingsPage() {
   await requireAdmin();
@@ -27,6 +28,8 @@ export default async function OptimoRouteSettingsPage() {
           </p>
         ) : null}
       </div>
+
+      <SendLoadToggle initial={cfg.sendLoad} />
 
       <div className="space-y-2">
         <h2 className="text-sm font-medium">Driver codes</h2>

@@ -8,6 +8,8 @@ const sheet: KitchenPackingSheet = {
   rows: [
     {
       deliveryPublicId: "d1",
+      forDate: "2030-01-07",
+      forLabel: null,
       deliveryDate: "2026-10-23",
       customerName: "Ada",
       orderId: "SUB-1",
@@ -17,6 +19,8 @@ const sheet: KitchenPackingSheet = {
     },
     {
       deliveryPublicId: "d2",
+      forDate: "2030-01-07",
+      forLabel: null,
       deliveryDate: "2026-10-23",
       customerName: "Ben",
       orderId: "SUB-2",

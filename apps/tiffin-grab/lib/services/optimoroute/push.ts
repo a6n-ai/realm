@@ -4,6 +4,7 @@ import { deliveries, orderActivities, orders, users } from "@/db/schema";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { getOptimoRouteConfig, looksUpstairs, stopDuration } from "./config";
+import { loadTripDetails } from "./trip-notes";
 import {
   createOrder,
   deleteOrder,
@@ -24,7 +25,12 @@ export type PlannedOrder = {
   city: string;
   postalCode: string;
   durationMins: number;
+  /** Customer delivery notes plus the coverage line and per-day dishes, as the driver sees them. */
   notes: string;
+  tiffinUnits: number;
+  coveredDates: string[];
+  /** "Covers Mon + Tue · 2 tiffins"; null on a plain single-day stop. */
+  coverage: string | null;
   phone: string | null;
   plan: string;
   payload: OptimoOrderPayload;
@@ -69,13 +75,19 @@ export function normalisePhone(phone: string | null | undefined): string {
  */
 export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> {
   const [rows, cfg] = await Promise.all([loadDayDeliveries(date), getOptimoRouteConfig()]);
+  const trips = await loadTripDetails(rows);
 
   return rows.map((row) => {
     const address = effectiveAddress(row.delivery, row.order);
-    const notes = row.customerNotes?.trim() ?? "";
+    const customerNotes = row.customerNotes?.trim() ?? "";
+    const trip = trips.get(row.delivery.id)!;
+    // Appended, never replacing: drivers still read the customer's own note first.
+    const notes = [customerNotes, trip.coverage, ...trip.dishLines].filter(Boolean).join("\n");
+    // Upstairs is a property of the customer's note, not of our appended coverage text.
     const durationMins = stopDuration(cfg.duration, {
       city: address.city,
-      upstairs: looksUpstairs(notes),
+      upstairs: looksUpstairs(customerNotes),
+      extraTiffins: trip.extraTiffins,
     });
     const phone = normalisePhone(row.customerPhone);
     // The summary a driver reads at the door without opening the tiffin.
@@ -90,6 +102,9 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
       postalCode: address.postalCode,
       durationMins,
       notes,
+      tiffinUnits: trip.units,
+      coveredDates: trip.covered,
+      coverage: trip.coverage,
       phone: phone || null,
       plan,
       payload: {
@@ -109,6 +124,9 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
         customField1: phone,
         customField2: address.fullName,
         customField4: plan,
+        // customField3 was unused; 1/2/4 must stay as they are (completions matching reads them).
+        ...(trip.coverage ? { customField3: trip.coverage } : {}),
+        ...(cfg.sendLoad ? { load1: trip.units } : {}),
       } satisfies OptimoOrderPayload,
     };
   });

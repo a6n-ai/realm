@@ -5,6 +5,7 @@ import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-lab
 import { redeliverTrip, skipDelivery } from "@/lib/services/deliveries.service";
 import { getCompletionDetails, getOrderDetails, getRoutes, type OptimoStop } from "./client";
 import { normalisePhone } from "./push";
+import { tripDetail } from "./trip-notes";
 
 // The half of the integration that turns a driver's real-world action into a real-world
 // tiffin count. Driven from OUR side (every scheduled delivery for the date), not
@@ -46,6 +47,11 @@ export type CompletionOutcome = {
   /** What we did about it — "confirmed" for a success, "skipped" for anything else after cutoff. */
   action: "confirmed" | "skipped" | "skip_failed";
   skipError?: string;
+  /** Tiffins on the stop and the days they cover, so a failed multi-day trip reads as such. */
+  tiffinUnits: number;
+  coverage: string | null;
+  /** Set when a failed stop's whole trip was re-delivered on the next delivery day instead of pooled. */
+  redelivered?: { targetDate: string; merged: boolean };
 };
 
 export type CompletionAmbiguous = {
@@ -119,6 +125,7 @@ export async function pullCompletions(
     const completion = completions.get(stop.id!);
     const optimoStatus = completion?.status ?? null;
     const isSuccess = optimoStatus === "success";
+    const trip = tripDetail(row);
     const cutoffPassed = row.delivery.cutoffAt <= now;
 
     if (!isSuccess && !cutoffPassed) {
@@ -149,6 +156,8 @@ export async function pullCompletions(
         customerName: row.order.fullName,
         optimoStatus,
         action: "confirmed",
+        tiffinUnits: trip.units,
+        coverage: trip.coverage,
       });
       continue;
     }
@@ -157,6 +166,7 @@ export async function pullCompletions(
     // stop that just never got closed out; either way, no tiffin went out.
     let skipError: string | undefined;
     let skipped = false;
+    let redelivered: { targetDate: string; merged: boolean } | undefined;
     try {
       // skipDelivery()'s cutoff lock exists to stop a customer self-service-cancelling
       // too late — it must not block this reconciliation, which by construction (the
@@ -165,7 +175,7 @@ export async function pullCompletions(
         // Our failure, not the customer's: re-deliver the whole trip rather than pooling it.
         // No eligible next day -> fall back to the pool below.
         try {
-          await redeliverTrip(row.delivery.publicId, actorId);
+          redelivered = await redeliverTrip(row.delivery.publicId, actorId);
         } catch {
           await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
         }
@@ -197,6 +207,9 @@ export async function pullCompletions(
       optimoStatus,
       action: skipped ? "skipped" : "skip_failed",
       skipError,
+      tiffinUnits: trip.units,
+      coverage: trip.coverage,
+      redelivered,
     });
   }
 

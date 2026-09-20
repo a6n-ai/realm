@@ -11,7 +11,7 @@ export function packingSheetAoA(sheet: KitchenPackingSheet): (string | number)[]
   const blank: string[] = [];
   const rows = sheet.rows.map((r) => [
     r.deliveryDate,
-    r.customerName,
+    r.forLabel ? `${r.customerName} · ${r.forLabel}` : r.customerName,
     r.orderId,
     r.planName,
     r.mealSizeName,

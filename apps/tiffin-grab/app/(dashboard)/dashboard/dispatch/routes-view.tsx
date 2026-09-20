@@ -5,9 +5,10 @@ import { TableCell } from "@foundry/ui/table";
 import { DataTable, type Column } from "@/components/ds";
 import type { PlannedOrder } from "@/lib/services/optimoroute/push";
 
-const PLANNED_COLUMNS: readonly Column<"customer" | "address" | "duration" | "notes">[] = [
+const PLANNED_COLUMNS: readonly Column<"customer" | "address" | "tiffins" | "duration" | "notes">[] = [
   { key: "customer", label: "Customer" },
   { key: "address", label: "Address" },
+  { key: "tiffins", label: "Tiffins", align: "right" },
   { key: "duration", label: "Stop mins", align: "right" },
   { key: "notes", label: "Notes" },
 ];
@@ -30,8 +31,9 @@ export function PlannedOrders({ rows }: { rows: PlannedOrder[] }) {
           <TableCell className="text-muted-foreground max-w-[280px] truncate text-xs">
             {r.address}
           </TableCell>
+          <TableCell className="text-right tabular-nums">{r.tiffinUnits}</TableCell>
           <TableCell className="text-right tabular-nums">{r.durationMins}</TableCell>
-          <TableCell className="text-muted-foreground max-w-[200px] truncate text-xs">
+          <TableCell className="text-muted-foreground max-w-[260px] whitespace-pre-line text-xs">
             {r.notes || "—"}
           </TableCell>
         </>
@@ -41,11 +43,11 @@ export function PlannedOrders({ rows }: { rows: PlannedOrder[] }) {
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-medium">{r.customerName}</p>
             <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-              {r.durationMins}m
+              {r.tiffinUnits} tiffin{r.tiffinUnits === 1 ? "" : "s"} · {r.durationMins}m
             </span>
           </div>
           <p className="text-muted-foreground text-xs">{r.address}</p>
-          {r.notes ? <p className="text-muted-foreground text-xs">{r.notes}</p> : null}
+          {r.notes ? <p className="text-muted-foreground whitespace-pre-line text-xs">{r.notes}</p> : null}
         </div>
       )}
     />

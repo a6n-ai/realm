@@ -5,7 +5,7 @@
 // re-deriving the pick → default fallback here would let the label disagree with what the
 // customer sees on their calendar, which is the one failure this must not have.
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { weekdayKey, parseIsoDateUtc } from "@foundry/commons";
+import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import {
   deliveries,
@@ -21,9 +21,9 @@ import {
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { menuService } from "@/lib/services/menu.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
-import { resolveDeliveryMeal } from "@/lib/menu/resolve-delivery-meal";
+import { coveredDates } from "@/lib/menu/coverage";
+import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
-import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 
 export type LabelLine = {
   category: string;
@@ -53,6 +53,10 @@ export type DeliveryLabel = {
   /** 1-based; an order for 2 people prints 2 labels, as the kitchen packs 2 tiffins. */
   personIndex: number;
   persons: number;
+  /** The eating day this label is for. Equals the sheet date unless the trip carries later days. */
+  forDate: string;
+  /** "For Tue" — only on trips carrying several eating days; null on single-day trips. */
+  forLabel: string | null;
   deliveryNotes: string | null;
   lines: LabelLine[];
 };
@@ -90,6 +94,7 @@ const EMPTY = (date: string, weekStart: string): DailyLabelSheet => ({
 });
 
 const UNZONED = "Unzoned";
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export type DayDeliveryRow = {
   delivery: typeof deliveries.$inferSelect;
@@ -131,7 +136,7 @@ export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow
 
 export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet> {
   const weekStart = mondayOfIso(dateIso);
-  const dayOfWeek = weekdayKey(parseIsoDateUtc(dateIso)) as DayOfWeek;
+  const loadWeek = weekLoader();
 
   // Exact-match released week, same gate as the customer calendar — never a fallback week,
   // or the kitchen packs a menu nobody was shown.
@@ -164,6 +169,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
       : await db
           .select({
             deliveryId: deliveryCategorySwaps.deliveryId,
+            forDate: deliveryCategorySwaps.forDate,
             fromCategory: deliveryCategorySwaps.fromCategory,
             toCategory: deliveryCategorySwaps.toCategory,
             qtyFrom: deliveryCategorySwaps.qtyFrom,
@@ -177,27 +183,30 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
   const categoriesByKey = new Map(
     categories.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]),
   );
-  // Per delivery, not per meal size: two orders on the same size differ once one
-  // of them has a swap applied.
-  const portionsByDelivery = new Map(
-    rows.map((r) => [
-      r.delivery.id,
-      portionsByCategory(
-        sizeItems.filter((i) => i.mealSizeId === r.order.mealSizeId),
-        categoriesByKey,
-        swapRows.filter((s) => s.deliveryId === r.delivery.id),
-      ),
-    ]),
-  );
+  // Per delivery and eating day, not per meal size: two orders on the same size differ once
+  // one of them has a swap applied, and a carried day only gets its own for_date swaps.
+  const portionsFor = (r: DayDeliveryRow, date: string) =>
+    portionsByCategory(
+      sizeItems.filter((i) => i.mealSizeId === r.order.mealSizeId),
+      categoriesByKey,
+      swapsForDay(swapRows, r.delivery, date),
+    );
 
   const labels: DeliveryLabel[] = [];
   for (const row of rows) {
     const { delivery, order } = row;
     const address = effectiveAddress(delivery, order);
-    const portions = portionsByDelivery.get(delivery.id) ?? new Map();
+    const covered = coveredDates(delivery);
 
+    // One label per covered date per person: the kitchen packs every carried meal for the
+    // trip's delivery date, each tagged with the day it is eaten.
+    for (const forDate of covered)
     for (let person = 1; person <= order.persons; person++) {
-      const resolved = await resolveDeliveryMeal(order, week, dayOfWeek, person, delivery.id);
+      const dayWeek = forDate === dateIso ? week : await loadWeek(forDate);
+      const portions = portionsFor(row, forDate);
+      const resolved = dayWeek
+        ? await resolveTripDay(order, dayWeek, forDate, person, swapsForDay(swapRows, delivery, forDate))
+        : [];
       const lines: LabelLine[] = [];
       for (const category of resolved) {
         category.picks.forEach((pick, i) => {
@@ -227,6 +236,8 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
         mealSizeName: row.mealSizeName,
         personIndex: person,
         persons: order.persons,
+        forDate,
+        forLabel: covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null,
         deliveryNotes: row.customerNotes?.trim() || null,
         lines,
       });
@@ -300,6 +311,7 @@ export function sortForPrinting(labels: DeliveryLabel[]): DeliveryLabel[] {
       routeGroupOf(a).localeCompare(routeGroupOf(b), undefined, { numeric: true }) ||
       (a.routeStop ?? Number.MAX_SAFE_INTEGER) - (b.routeStop ?? Number.MAX_SAFE_INTEGER) ||
       a.customerName.localeCompare(b.customerName) ||
-      a.personIndex - b.personIndex,
+      a.personIndex - b.personIndex ||
+      a.forDate.localeCompare(b.forDate),
   );
 }

@@ -32,9 +32,9 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
         </TableHeader>
         <TableBody>
           {sheet.rows.map((row) => (
-            <TableRow key={row.deliveryPublicId}>
+            <TableRow key={`${row.deliveryPublicId}-${row.forDate}`}>
               <TableCell className="whitespace-nowrap tabular-nums">{row.deliveryDate}</TableCell>
-              <TableCell className="whitespace-nowrap">{row.customerName}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.customerName}{row.forLabel ? ` · ${row.forLabel}` : ""}</TableCell>
               <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
               <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
               <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>

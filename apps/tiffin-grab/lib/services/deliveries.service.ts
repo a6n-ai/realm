@@ -250,6 +250,7 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
   if (from > until) throw new ValidationError("Pause start must be on or before pause end");
 
   let orderId: bigint;
+  let pausedRows: OptimoSyncedRow[] = [];
   const updatedCount = await db.transaction(async (tx) => {
     orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
@@ -264,9 +265,11 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
         lte(deliveries.deliveryDate, until),
         gt(deliveries.cutoffAt, Date.now()),
       ))
-      .returning({ id: deliveries.id });
+      .returning({ id: deliveries.id, publicId: deliveries.publicId, routeSyncedAt: deliveries.routeSyncedAt });
+    pausedRows = updated;
     return updated.length;
   });
+  await deleteFromOptimoRouteBestEffort(pausedRows);
   // reconcilePoolFromMisses opens its own transaction and takes its own advisory lock — must run
   // after this one commits, never nested inside it.
   await reconcilePoolFromMisses(orderId!);
@@ -702,7 +705,9 @@ export async function rescheduleDelivery(
   const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
   if (!isoDateRegex.test(newDateIso)) throw new ValidationError("Reschedule date must be ISO YYYY-MM-DD");
 
-  return db.transaction(async (tx) => {
+  let oldStop: OptimoSyncedRow | null = null;
+  let targetId: bigint;
+  const result = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
@@ -765,8 +770,31 @@ export async function rescheduleDelivery(
             ],
       );
     }
+    if (row.status === "scheduled") oldStop = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
+    targetId = moved.id;
     return { merged: moved.merged };
   });
+  if (oldStop) await deleteFromOptimoRouteBestEffort([oldStop]);
+  if (result.merged) await refreshStopBestEffort(targetId!);
+  return result;
+}
+
+/**
+ * A merge changes the target trip's units and covered days, so a stop already on OptimoRoute
+ * must be re-pushed. Best-effort like the delete: the DB change already committed. Only touches
+ * a stop we previously synced (routeSyncedAt set), never creates one for an unpushed day.
+ * Dynamic import: push.ts imports daily-labels.service, which imports this module.
+ */
+async function refreshStopBestEffort(deliveryId: bigint): Promise<void> {
+  try {
+    const [t] = await db.select({ publicId: deliveries.publicId, deliveryDate: deliveries.deliveryDate, routeSyncedAt: deliveries.routeSyncedAt, status: deliveries.status })
+      .from(deliveries).where(eq(deliveries.id, deliveryId)).limit(1);
+    if (!t || t.routeSyncedAt == null || t.status !== "scheduled") return;
+    const { pushOneDelivery } = await import("@/lib/services/optimoroute/push");
+    await pushOneDelivery(t.publicId, t.deliveryDate);
+  } catch (e) {
+    log.error({ err: e, deliveryId: String(deliveryId) }, "optimoroute refresh-after-merge failed");
+  }
 }
 
 async function moveTripPreflight(tx: Tx, orderId: bigint, date: string): Promise<Delivery | undefined> {
@@ -786,6 +814,7 @@ export async function redeliverTrip(
   actorId: bigint | null,
 ): Promise<{ targetDate: string; merged: boolean }> {
   let syncedRow: OptimoSyncedRow;
+  let targetId: bigint;
   const result = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
@@ -830,9 +859,11 @@ export async function redeliverTrip(
       { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Re-delivery of ${row.deliveryDate}${moved.merged ? " (merged)" : ""}`, createdBy: actorId },
     ]);
     syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
+    targetId = moved.id;
     return { targetDate, merged: moved.merged };
   });
   await deleteFromOptimoRouteBestEffort([syncedRow!]);
+  if (result.merged) await refreshStopBestEffort(targetId!);
   return result;
 }
 

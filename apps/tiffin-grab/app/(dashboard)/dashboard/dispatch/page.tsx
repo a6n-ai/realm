@@ -85,6 +85,13 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   }
 
   const scheduledCount = preview.create.length + preview.update.length;
+  const totalTiffins = dispatchRows.reduce((n, r) => n + r.tiffinUnits, 0);
+  const loadByDriver = new Map<string, number>();
+  for (const r of dispatchRows) {
+    if (!r.routeDriverSerial) continue;
+    const name = r.routeDriverName ?? r.routeDriverSerial;
+    loadByDriver.set(name, (loadByDriver.get(name) ?? 0) + r.tiffinUnits);
+  }
 
   return (
     <>
@@ -97,6 +104,10 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
         <Badge variant="secondary">{preview.update.length} to update</Badge>
         <Badge variant="outline">{preview.remove.length} stale</Badge>
         <Badge variant="outline">{scheduledCount} stop{scheduledCount === 1 ? "" : "s"}</Badge>
+        <Badge variant="outline">{totalTiffins} tiffin{totalTiffins === 1 ? "" : "s"}</Badge>
+        {[...loadByDriver.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })).map(([name, n]) => (
+          <Badge key={name} variant="secondary">{name}: {n} tiffin{n === 1 ? "" : "s"}</Badge>
+        ))}
       </div>
 
       {/* Actions above the table, matching the Stale/Completions tabs — a dispatcher

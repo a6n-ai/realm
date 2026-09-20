@@ -156,7 +156,17 @@ export function DispatchView({
         onRowClick={openHistory}
         renderRow={(r) => (
           <>
-            <TableCell className="font-medium">{r.customerName}</TableCell>
+            <TableCell className="font-medium">
+              {r.customerName}
+              <span className="text-muted-foreground block text-xs">
+                {r.coverage ?? `${r.tiffinUnits} tiffin${r.tiffinUnits === 1 ? "" : "s"}`}
+              </span>
+              {r.notes ? (
+                <span className="text-muted-foreground block max-w-[260px] whitespace-pre-line text-xs font-normal">
+                  {r.notes}
+                </span>
+              ) : null}
+            </TableCell>
             <TableCell onClick={(e) => e.stopPropagation()}>
               <Select
                 disabled={pending}
@@ -217,6 +227,10 @@ export function DispatchView({
                 {r.routeStopNumber ?? "—"}
               </span>
             </div>
+            <p className="text-muted-foreground text-xs">
+              {r.coverage ?? `${r.tiffinUnits} tiffin${r.tiffinUnits === 1 ? "" : "s"}`}
+            </p>
+            {r.notes ? <p className="text-muted-foreground whitespace-pre-line text-xs">{r.notes}</p> : null}
             <Select
               disabled={pending}
               value={driverBySerial[r.orderNo]}

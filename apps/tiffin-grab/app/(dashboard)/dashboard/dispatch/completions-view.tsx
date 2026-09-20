@@ -72,8 +72,8 @@ export function CompletionsView({ date }: { date: string }) {
             </Badge>
             {completions.outcomes.some((o) => o.action !== "confirmed") ? (
               <Badge variant="destructive">
-                Not delivered → skipped{" "}
-                {completions.outcomes.filter((o) => o.action === "skipped").length}
+                Not delivered{" "}
+                {completions.outcomes.filter((o) => o.action !== "confirmed").length}
               </Badge>
             ) : null}
             {completions.pendingCount > 0 ? (
@@ -98,12 +98,17 @@ export function CompletionsView({ date }: { date: string }) {
             emptyMessage="Nothing to act on for this date yet."
             renderRow={(o) => (
               <>
-                <TableCell className="font-medium">{o.customerName}</TableCell>
+                <TableCell className="font-medium">
+                  {o.customerName}
+                  {o.coverage ? <span className="text-muted-foreground block text-xs">{o.coverage}</span> : null}
+                </TableCell>
                 <TableCell className="text-muted-foreground text-xs">{o.optimoStatus ?? "—"}</TableCell>
                 <TableCell className="text-xs">
                   {o.action === "confirmed"
                     ? "Confirmed"
-                    : o.action === "skipped"
+                    : o.redelivered
+                      ? `Re-delivering all ${o.tiffinUnits} tiffin${o.tiffinUnits === 1 ? "" : "s"} on ${o.redelivered.targetDate}${o.redelivered.merged ? " (merged into that day's trip)" : ""}`
+                      : o.action === "skipped"
                       ? `Skipped (${o.optimoStatus === "failed" ? "OptimoRoute reported failed" : "no confirmation by cutoff"})`
                       : `Not skipped: ${o.skipError}`}
                 </TableCell>

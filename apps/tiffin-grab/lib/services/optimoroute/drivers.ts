@@ -2,6 +2,7 @@ import { isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
+import { loadTripDetails } from "./trip-notes";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 
 // OptimoRoute exposes no driver-roster endpoint — the only place a driver's
@@ -37,6 +38,13 @@ export async function listKnownDrivers(): Promise<KnownDriver[]> {
 export type DispatchRow = {
   orderNo: string;
   customerName: string;
+  /** Tiffins on this stop; a trip carrying several eating days is more than one per person. */
+  tiffinUnits: number;
+  coveredDates: string[];
+  /** "Covers Mon + Tue · 2 tiffins"; null on a plain single-day stop. */
+  coverage: string | null;
+  /** Customer delivery notes plus coverage and per-day dishes: what the driver gets. */
+  notes: string;
   routeDriverSerial: string | null;
   routeDriverName: string | null;
   routeStopNumber: number | null;
@@ -46,14 +54,22 @@ export type DispatchRow = {
 /** Same scheduled-deliveries read buildPlannedOrders uses, plus the driver fields the push preview doesn't need. */
 export async function buildDispatchRows(date: string): Promise<DispatchRow[]> {
   const rows = await loadDayDeliveries(date);
-  return rows.map((row) => ({
+  const trips = await loadTripDetails(rows);
+  return rows.map((row) => {
+    const trip = trips.get(row.delivery.id)!;
+    return {
     orderNo: row.delivery.publicId,
     customerName: effectiveAddress(row.delivery, row.order).fullName,
+    tiffinUnits: trip.units,
+    coveredDates: trip.covered,
+    coverage: trip.coverage,
+    notes: [row.customerNotes?.trim(), trip.coverage, ...trip.dishLines].filter(Boolean).join("\n"),
     routeDriverSerial: row.delivery.routeDriverSerial,
     routeDriverName: row.delivery.routeDriverName,
     routeStopNumber: row.delivery.routeStopNumber,
     routeSyncedAt: row.delivery.routeSyncedAt,
-  }));
+    };
+  });
 }
 
 export { assignDriver } from "./push";

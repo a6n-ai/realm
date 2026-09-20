@@ -226,4 +226,30 @@ describe("dailyLabelSheet (integration)", () => {
     expect(label.lines.map((l) => l.dish)).toEqual(expected);
     expect(paneerId).toBeDefined();
   });
+
+  it("prints one label per covered date, tagged, and counts every carried meal", async () => {
+    const tue = new Date(`${MONDAY}T00:00:00.000Z`);
+    tue.setUTCDate(tue.getUTCDate() + 1);
+    const TUESDAY = tue.toISOString().slice(0, 10);
+    const sabzi = await categoryIdFor("sabzi");
+    await db.insert(menuItems).values({
+      menuWeekId: week.id, dayOfWeek: "tue", categoryId: sabzi, dishId: (
+        await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.publicId, bhindiPublicId))
+      )[0].id, isDefault: true,
+    });
+    await db.update(deliveries).set({ coversDates: [MONDAY, TUESDAY], tiffinUnits: 2 }).where(eq(deliveries.orderId, order.id));
+
+    const sheet = await dailyLabelSheet(MONDAY);
+    expect(sheet.labels.map((l) => [l.forDate, l.forLabel])).toEqual([[MONDAY, "For Mon"], [TUESDAY, "For Tue"]]);
+    expect(sheet.labels[0].lines.map((l) => l.dish)).toEqual([`${DISH_PREFIX}Paneer`, `${DISH_PREFIX}Paneer`]);
+    expect(sheet.labels[1].lines.map((l) => l.dish)).toEqual([`${DISH_PREFIX}Bhindi`, `${DISH_PREFIX}Bhindi`]);
+    expect(sheet.counts.filter((c) => c.dish === `${DISH_PREFIX}Bhindi`).reduce((n, c) => n + c.count, 0)).toBe(2);
+    expect(sheet.counts.reduce((n, c) => n + c.count, 0)).toBe(4);
+  });
+
+  it("legacy rows (covers_dates null) get no day tag", async () => {
+    const [label] = (await dailyLabelSheet(MONDAY)).labels;
+    expect(label.forLabel).toBeNull();
+    expect(label.forDate).toBe(MONDAY);
+  });
 });

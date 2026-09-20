@@ -19,6 +19,8 @@ export const optimoRouteDurationSchema = z.object({
   slowCity: z.number().int().min(1).max(120).default(2),
   upstairs: z.number().int().min(1).max(120).default(5),
   slowCityUpstairs: z.number().int().min(1).max(120).default(7),
+  /** Minutes added per tiffin beyond one per person: a trip carrying several days is more to hand over. */
+  perExtraTiffin: z.number().int().min(0).max(30).default(1),
 });
 export type OptimoRouteDuration = z.infer<typeof optimoRouteDurationSchema>;
 
@@ -26,6 +28,11 @@ const DEFAULT_DURATION: OptimoRouteDuration = optimoRouteDurationSchema.parse({}
 
 export const optimoRouteConfigSchema = z.object({
   installed: z.boolean().default(false),
+  /**
+   * Send the tiffin count as load1. OFF until the owner confirms the (shared) OptimoRoute
+   * account has load/capacity enabled — an unexpected load field could change routing.
+   */
+  sendLoad: z.boolean().default(false),
   duration: optimoRouteDurationSchema.default(DEFAULT_DURATION),
   /**
    * Display code per driverSerial, e.g. { "driver-4": "D4" }. Optional: the labels fall
@@ -66,20 +73,25 @@ export function optimoRouteApiKey(env: NodeJS.ProcessEnv = process.env): string 
 /** Safe for the admin UI: says whether a key exists, never what it is. */
 export type OptimoRouteStatus = {
   installed: boolean;
+  sendLoad: boolean;
   hasApiKey: boolean;
   duration: OptimoRouteDuration;
 };
 
 export async function getOptimoRouteStatus(): Promise<OptimoRouteStatus> {
   const cfg = await getOptimoRouteConfig();
-  return { installed: cfg.installed, hasApiKey: optimoRouteApiKey() != null, duration: cfg.duration };
+  return { installed: cfg.installed, sendLoad: cfg.sendLoad, hasApiKey: optimoRouteApiKey() != null, duration: cfg.duration };
 }
 
 /** Minutes for one stop, from the city + whether the drop is upstairs. */
 export function stopDuration(
   d: OptimoRouteDuration,
-  input: { city: string | null; upstairs: boolean },
+  input: { city: string | null; upstairs: boolean; extraTiffins?: number },
 ): number {
+  return baseDuration(d, input) + Math.max(0, input.extraTiffins ?? 0) * d.perExtraTiffin;
+}
+
+function baseDuration(d: OptimoRouteDuration, input: { city: string | null; upstairs: boolean }): number {
   const slow = d.slowCities.includes((input.city ?? "").trim().toLowerCase());
   if (slow && input.upstairs) return d.slowCityUpstairs;
   if (slow) return d.slowCity;
