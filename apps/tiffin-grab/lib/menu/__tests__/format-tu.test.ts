@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formatTuHuman, mealChipLabel } from "../format-tu";
+import { formatTuHuman, mealChipLabel, tuToNatural } from "../format-tu";
+
+describe("tuToNatural", () => {
+  it("converts TU through the category's unit size", () => {
+    expect(tuToNatural({ tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }, 1.5)).toBe(12);
+    expect(tuToNatural({ tuUnitType: "count", tuUnitSize: 4, tuUnitLabel: "roti" }, 2)).toBe(8);
+    expect(tuToNatural({ tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "unit" }, 1)).toBe(1);
+  });
+});
 
 describe("formatTuHuman", () => {
   it("formats a weight category at fractional TU", () => {

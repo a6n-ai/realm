@@ -5,7 +5,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dailyLabelSheet } from "@/lib/services/daily-labels.service";
-import { getPackingLabels } from "@/lib/services/labels.service";
+import { getKitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
 import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { LabelDatePicker } from "./label-date-picker";
 import { LabelsExportButton } from "./labels-export-button";
@@ -23,7 +23,7 @@ export default function LabelsPage({ searchParams }: { searchParams: SearchParam
       <PageHeader
         icon={TagIcon}
         title="Daily labels"
-        subtitle="Container labels and kitchen counts for one delivery day."
+        subtitle="Kitchen packing sheet and container labels for one delivery day."
       />
       <Suspense fallback={<LabelsData.Skeleton />}>
         <LabelsData searchParams={searchParams} />
@@ -42,7 +42,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
   const today = zonedDateIso(Date.now(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
 
-  const [sheet, packingRows] = await Promise.all([dailyLabelSheet(date), getPackingLabels(date)]);
+  const [sheet, packing] = await Promise.all([dailyLabelSheet(date), getKitchenPackingSheet(date)]);
   const containers = sheet.counts.reduce((n, c) => n + c.count, 0);
 
   return (
@@ -51,7 +51,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <LabelDatePicker date={date} today={today} />
           <div className="flex gap-2">
-            <LabelsExportButton rows={packingRows} dateIso={date} />
+            <LabelsExportButton sheet={packing} dateIso={date} />
             <LabelsPrintButton
               dateIso={date}
               weekStart={sheet.weekStart}
@@ -65,15 +65,15 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
       <StatGrid
         cols={4}
         items={[
-          { label: "Labels", value: sheet.labels.length, hint: "one per tiffin" },
+          { label: "Orders", value: packing.rows.length, hint: "one row per delivery" },
+          { label: "Dishes", value: packing.dishColumns.length },
           { label: "Containers", value: containers },
-          { label: "Routes", value: sheet.byRoute.length },
           { label: "Menu week", value: sheet.menuWeekPublicId ? sheet.weekStart : "not released" },
         ]}
       />
 
       <SectionCard title="Packing sheet">
-        <LabelsTable rows={packingRows} />
+        <LabelsTable sheet={packing} />
       </SectionCard>
 
       {sheet.menuWeekPublicId == null ? (

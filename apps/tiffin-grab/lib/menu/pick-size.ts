@@ -88,3 +88,16 @@ export function portionForPick(
 ): string | null {
   return portions.get(category)?.[pickIndex - 1] ?? null;
 }
+
+/** Total TU for `pickCount` slots of a category (wraps the catalog lines when persons > 1). */
+export function sumTuForPicks(items: MealSizeItemRow[], category: string, pickCount: number): number {
+  const slots = items
+    .filter((i) => i.category === category)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  if (slots.length === 0 || pickCount <= 0) return 0;
+  let tu = 0;
+  for (let i = 0; i < pickCount; i++) {
+    tu += Number(slots[i % slots.length]!.tuAmount);
+  }
+  return tu;
+}

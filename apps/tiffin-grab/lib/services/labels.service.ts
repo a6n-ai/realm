@@ -19,7 +19,8 @@ import {
 } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { packingItemLabel } from "@/lib/menu/packing-item-label";
-import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
+import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
+import { tuToNatural } from "@/lib/menu/format-tu";
 import { resolveDeliveryMeal } from "@/lib/menu/resolve-delivery-meal";
 import { dishCategoriesService } from "./dish-categories.service";
 
@@ -31,7 +32,7 @@ export type PackingLabelRow = {
   firstName: string;
   planName: string;
   mealSizeName: string;
-  items: { name: string; qty: number }[]; // length <= ITEM_SLOTS, in category sortOrder
+  items: { name: string; qty: number }[]; // length <= ITEM_SLOTS; qty is converted (oz / pieces), not TU
 };
 
 /** National-format a stored E.164 number (e.g. "(416) 555-1234"); falls back to the raw value if it doesn't parse. */
@@ -149,11 +150,18 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
       .filter(([, qty]) => qty > 0)
       .sort(([a], [b]) => (sortOrder.get(a) ?? 0) - (sortOrder.get(b) ?? 0))
       .slice(0, ITEM_SLOTS)
-      .map(([category, qty]) => {
+      .map(([category, pickCount]) => {
         const picks = picksByCategory.get(category) ?? [];
         const pickPortions = picks.map((_, i) => portionForPick(portions, category, i + 1));
+        const converter = tuByKey.get(category);
+        const tuTotal = sumTuForPicks(
+          sizeItems.filter((i) => i.mealSizeId === row.mealSizeId),
+          category,
+          pickCount,
+        );
+        const qty = converter ? tuToNatural(converter, tuTotal) : pickCount;
         return {
-          name: packingItemLabel(picks, pickPortions, qty, tuByKey.get(category)?.tuUnitType),
+          name: packingItemLabel(picks, pickPortions, qty, converter?.tuUnitType),
           qty,
         };
       });

@@ -102,11 +102,11 @@ describe("getPackingLabels (customer pick + plan defaults)", () => {
     const rice = row.items.find((i) => i.name.includes("Jeera Rice"));
     const dal = row.items.find((i) => i.name.includes("Kali Dal"));
     const sabzi = row.items.find((i) => i.name.includes("Chicken") || i.name.includes("Paneer"));
-    expect(dal?.qty).toBe(1);
+    expect(dal?.qty).toBe(12);
     expect(dal?.name).toMatch(/Kali Dal \d+(\.\d+)?oz/);
     expect(rice?.qty).toBe(1);
     expect(rice?.name).toBe(`${DISH_PREFIX}Jeera Rice 1`);
-    expect(sabzi?.qty).toBe(2);
+    expect(sabzi?.qty).toBe(20);
     expect(sabzi?.name).toContain("Chilli Chicken");
     expect(sabzi?.name).toContain("Saag Paneer");
     expect(sabzi?.name).toMatch(/\d+(\.\d+)?oz/);

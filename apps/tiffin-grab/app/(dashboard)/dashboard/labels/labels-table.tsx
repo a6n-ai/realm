@@ -1,11 +1,9 @@
-import { Fragment } from "react";
 import { PackageOpenIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
-import type { PackingLabelRow } from "@/lib/services/labels.service";
-import { LABEL_COLUMNS } from "./label-columns";
+import type { KitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
 
-export function LabelsTable({ rows }: { rows: PackingLabelRow[] }) {
-  if (rows.length === 0) {
+export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
+  if (sheet.rows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-16 text-center">
         <PackageOpenIcon className="size-8 text-muted-foreground" />
@@ -20,23 +18,26 @@ export function LabelsTable({ rows }: { rows: PackingLabelRow[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            {LABEL_COLUMNS.map((c, i) => (
-              <TableHead key={i} className="whitespace-nowrap">{c.header}</TableHead>
+            <TableHead className="whitespace-nowrap">Delivery Date</TableHead>
+            <TableHead className="whitespace-nowrap">Customer</TableHead>
+            <TableHead className="whitespace-nowrap">Order ID</TableHead>
+            {sheet.dishColumns.map((dish) => (
+              <TableHead key={dish} className="whitespace-nowrap">
+                {dish}
+              </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row) => (
+          {sheet.rows.map((row) => (
             <TableRow key={row.deliveryPublicId}>
-              <TableCell className="whitespace-nowrap">{row.customerPhone}</TableCell>
-              <TableCell className="whitespace-nowrap">{row.firstName}</TableCell>
-              <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
-              <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>
-              {Array.from({ length: 7 }, (_, i) => row.items[i]).map((item, i) => (
-                <Fragment key={i}>
-                  <TableCell className="whitespace-nowrap">{item?.name ?? ""}</TableCell>
-                  <TableCell className="text-right tabular-nums">{item?.qty ?? ""}</TableCell>
-                </Fragment>
+              <TableCell className="whitespace-nowrap tabular-nums">{row.deliveryDate}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.customerName}</TableCell>
+              <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
+              {sheet.dishColumns.map((dish) => (
+                <TableCell key={dish} className="whitespace-nowrap tabular-nums">
+                  {row.cells[dish] ?? "—"}
+                </TableCell>
               ))}
             </TableRow>
           ))}

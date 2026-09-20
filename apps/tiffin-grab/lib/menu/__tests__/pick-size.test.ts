@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPortion, portionForPick, portionsByCategory } from "../pick-size";
+import { formatPortion, portionForPick, portionsByCategory, sumTuForPicks } from "../pick-size";
 import type { TuCategory } from "@/lib/menu/format-tu";
 
 const WEIGHT: TuCategory = { tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" };
@@ -52,6 +52,19 @@ describe("portionsByCategory", () => {
   it("yields null slots for lines with no TU, without shifting the others", () => {
     const portions = portionsByCategory([item("roti", null, 1), item("roti", "0.25", 2)], cats);
     expect(portions.get("roti")).toEqual([null, "1 roti"]);
+  });
+});
+
+describe("sumTuForPicks", () => {
+  it("sums catalog TU for N picks, wrapping when persons repeat the same slots", () => {
+    const roti = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => item("roti", "0.25", i));
+    expect(sumTuForPicks(roti, "roti", 8)).toBe(2);
+    expect(sumTuForPicks(roti, "roti", 16)).toBe(4);
+  });
+
+  it("sums mixed sabzi slots in sortOrder", () => {
+    const sabzi = [item("sabzi", "1.50", 0), item("sabzi", "1.00", 1)];
+    expect(sumTuForPicks(sabzi, "sabzi", 2)).toBe(2.5);
   });
 });
 
