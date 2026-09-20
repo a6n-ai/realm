@@ -65,8 +65,8 @@ function DishChips({ day }: { day: EatingDay }) {
   const dishes = day.dishSummary ? day.dishSummary.split(", ") : [];
   return (
     <div className="mt-2 flex flex-wrap gap-2">
-      {dishes.length ? dishes.map((x) => <Chip key={x} className="!bg-[var(--card)]">{x}</Chip>) : <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Default menu</span>}
-      {day.swaps.map((s) => <Chip key={s} tone="swap">{s}</Chip>)}
+      {dishes.length ? dishes.map((x, i) => <Chip key={`${i}-${x}`} className="!bg-[var(--card)]">{x}</Chip>) : <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Default menu</span>}
+      {day.swaps.map((s, i) => <Chip key={`${i}-${s}`} tone="swap">{s}</Chip>)}
     </div>
   );
 }

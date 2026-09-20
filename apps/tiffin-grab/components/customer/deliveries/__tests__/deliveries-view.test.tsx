@@ -70,6 +70,13 @@ describe("DeliveriesView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Schedule a make-up" }));
     expect(screen.getByRole("dialog", { name: "Schedule a make-up" })).toBeInTheDocument();
   });
+  it("merged trip with repeated dishes renders without duplicate-key warnings", () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const day = (date: string) => ({ date, dishSummary: "Bhindi Masala, Bhindi Masala", swaps: [], locksWith: null });
+    view("2026-09-23", [trip({ eatingDays: [day("2026-09-23"), day("2026-09-24")], units: 2 })]);
+    expect(err.mock.calls.filter((c) => String(c[0]).includes("same key"))).toEqual([]);
+    err.mockRestore();
+  });
   it("empty month shows a plain message", () => {
     view(null, []);
     expect(screen.getByText(/No deliveries in September/)).toBeInTheDocument();
