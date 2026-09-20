@@ -18,6 +18,7 @@ import { db } from "@/db/client";
 import { deliveryCategorySwaps, mealSizeItems, orderActivities, orders } from "@/db/schema";
 import { applySwapsToCounts, validateSwapStack } from "@/lib/menu/resolve-delivery-meal";
 import { capViolation, swapQuantities } from "@/lib/menu/swap-rules";
+import { coveredDates, swapAppliesTo } from "@/lib/menu/coverage";
 import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
 
@@ -27,6 +28,8 @@ export async function applyDeliverySwap(
   toCategory: string,
   fromPicks: number,
   actorId: bigint | null,
+  /** Eating day (ISO) the swap is for; must be one the trip covers. Omitted = the trip's own date. */
+  forDate?: string,
 ): Promise<void> {
   if (!Number.isInteger(fromPicks) || fromPicks <= 0) throw new ValidationError("Pick count must be a positive whole number");
 
@@ -37,6 +40,10 @@ export async function applyDeliverySwap(
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot swap on a ${row.status} delivery`);
+    const eatingDate = forDate ?? row.deliveryDate;
+    if (!coveredDates(row).includes(eatingDate)) throw new ValidationError("This delivery doesn't cover that day");
+    // NULL keeps legacy semantics (trip's own date) for the readers that resolve it.
+    const storedForDate = eatingDate === row.deliveryDate ? null : eatingDate;
 
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order) throw new ValidationError("Order not found");
@@ -59,8 +66,9 @@ export async function applyDeliverySwap(
     // several different swaps on one day, but never past what's actually there.
     const existing = await tx.select({
       fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
-      qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo,
-    }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id));
+      qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate,
+    }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id))
+      .then((rs) => rs.filter((r) => swapAppliesTo(r.forDate, row.deliveryDate, eatingDate)));
     const check = validateSwapStack(order.categoryCounts ?? {}, existing, { fromCategory, toCategory, qtyFrom: fromPicks, qtyTo });
     if (!check.ok) throw new ValidationError(check.reason);
 
@@ -87,7 +95,7 @@ export async function applyDeliverySwap(
     // meal_size_items after this, so a later admin edit to a category's tuAmount
     // can't retroactively change a swap a customer already applied.
     await tx.insert(deliveryCategorySwaps).values({
-      deliveryId: row.id, fromCategory, toCategory, qtyFrom: fromPicks, qtyTo,
+      deliveryId: row.id, fromCategory, toCategory, qtyFrom: fromPicks, qtyTo, forDate: storedForDate,
     });
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "category_swap_applied",
@@ -101,6 +109,7 @@ export async function removeDeliverySwap(
   deliveryPublicId: string,
   appliedSwapPublicId: string,
   actorId: bigint | null,
+  forDate?: string,
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
@@ -109,6 +118,12 @@ export async function removeDeliverySwap(
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot remove a swap on a ${row.status} delivery`);
 
+    if (forDate) {
+      if (!coveredDates(row).includes(forDate)) throw new ValidationError("This delivery doesn't cover that day");
+      const [swap] = await tx.select({ forDate: deliveryCategorySwaps.forDate }).from(deliveryCategorySwaps)
+        .where(and(eq(deliveryCategorySwaps.publicId, appliedSwapPublicId), eq(deliveryCategorySwaps.deliveryId, row.id))).limit(1);
+      if (swap && !swapAppliesTo(swap.forDate, row.deliveryDate, forDate)) throw new ValidationError("Swap not found on that day");
+    }
     const deleted = await tx.delete(deliveryCategorySwaps)
       .where(and(eq(deliveryCategorySwaps.publicId, appliedSwapPublicId), eq(deliveryCategorySwaps.deliveryId, row.id)))
       .returning({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory });

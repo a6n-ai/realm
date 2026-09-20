@@ -2,9 +2,9 @@ import { NotFoundError, Role, weekdayKey, zonedDateIso } from "@foundry/commons"
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
-import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
+import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import {
   resolveDeliveryMeal,
@@ -505,6 +505,15 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
 // "what a subscriber receives" (resolveCategoriesForDay), never a parallel type.
 export type ResolvedMeal = ResolvedCategory[];
 export type MealOption = { category: string; dishId: string; name: string; image: FileDetail | null };
+/** One category swap applied to one eating day of a trip. */
+export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+/** Per-eating-day swap state for a trip; a plain day has a single entry (its own date). */
+export type EatingDaySwaps = {
+  date: string;
+  appliedSwaps: AppliedSwap[];
+  /** Pairs the swap sheet may offer (already filtered to this meal size and plan); same for every day of the order. */
+  swapPairs: { fromCategory: string; toCategory: string }[];
+};
 export type CalendarDay = {
   date: string;
   status: "scheduled" | "paused" | "skipped" | "cancelled";
@@ -522,6 +531,13 @@ export type CalendarDay = {
   coversLabel?: string | null;
   /** Delivery date of the trip this row was merged into ("Combined into Wed's delivery"); null otherwise. */
   combinedInto?: string | null;
+  /** One entry per covered eating day, in date order. Swaps here apply only to that day; lock follows the trip's cutoff (`locked`). */
+  eatingDays?: EatingDaySwaps[];
+  /**
+   * Swap allowance summary. Config only has per-category caps (maxTuAmount / maxPicksPerTiffin), no
+   * per-day or per-trip swap count, so this is always null until such a limit exists.
+   */
+  swapAllowance?: null;
 };
 
 // Day-cell aggregator for the customer calendar (this week + next week). Composed entirely from
@@ -577,6 +593,22 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     };
   };
 
+  const swapPairs = await dishCategoriesService.swapPairsForMealSize(order.mealSizeId);
+  const swapRows = await db
+    .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
+    .from(deliveryCategorySwaps)
+    .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id)));
+  const swapFields = (row: CustomerDelivery) => ({
+    eatingDays: coveredDates(row).map((date): EatingDaySwaps => ({
+      date,
+      swapPairs,
+      appliedSwaps: swapRows
+        .filter((s) => s.deliveryId === row.id && swapAppliesTo(s.forDate, row.deliveryDate, date))
+        .map(({ publicId, fromCategory, toCategory, qtyFrom, qtyTo }) => ({ publicId, fromCategory, toCategory, qtyFrom, qtyTo })),
+    })),
+    swapAllowance: null,
+  });
+
   const out: CalendarDay[] = [];
   for (const row of rows) {
     const week = weekByStart.get(mondayOfIso(row.deliveryDate));
@@ -591,6 +623,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
         meal: null,
         options: [],
         ...tripFields(row),
+        ...swapFields(row),
       });
       continue;
     }
@@ -633,6 +666,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       meal,
       options,
       ...tripFields(row),
+      ...swapFields(row),
     });
   }
   return out;

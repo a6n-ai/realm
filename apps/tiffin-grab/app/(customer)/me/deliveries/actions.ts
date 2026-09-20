@@ -108,20 +108,20 @@ export async function scheduleMyPooledTiffin(orderPublicId: string, dateIso: str
 // Swap eligibility is global now (category_swap_pairs) — there's no per-meal-size
 // rule catalog to pick a rule id from, so the client sends the category pair and
 // how many picks of fromCategory to give up directly.
-export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory: string, toCategory: string, fromPicks: number): Promise<ActionResult> {
+export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory: string, toCategory: string, fromPicks: number, forDate?: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
-    await applyDeliverySwap(deliveryPublicId, fromCategory, toCategory, fromPicks, await currentUserId());
+    await applyDeliverySwap(deliveryPublicId, fromCategory, toCategory, fromPicks, await currentUserId(), forDate);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
     else revalidatePath("/me/deliveries");
   });
 }
 
-export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwapPublicId: string): Promise<ActionResult> {
+export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwapPublicId: string, forDate?: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
-    await removeDeliverySwap(deliveryPublicId, appliedSwapPublicId, await currentUserId());
+    await removeDeliverySwap(deliveryPublicId, appliedSwapPublicId, await currentUserId(), forDate);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
     else revalidatePath("/me/deliveries");
