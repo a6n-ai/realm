@@ -566,7 +566,7 @@ export async function scheduleFromPool(
     if (!order || order.status === "cancelled" || order.status === "completed") {
       throw new ValidationError("This subscription can no longer be scheduled");
     }
-    if (order.pooledTiffinCount < (order.eatingDays?.length ? 1 : order.persons)) throw new ValidationError("No tiffins left to schedule");
+    if (order.pooledTiffinCount < 1) throw new ValidationError("No tiffins left to schedule");
 
     const [{ max }] = await tx.select({ max: sql<string | null>`max(${deliveries.deliveryDate})` })
       .from(deliveries).where(eq(deliveries.orderId, orderId));
@@ -600,8 +600,8 @@ export async function scheduleFromPool(
       .orderBy(asc(deliveries.deliveryDate))
       .limit(1);
 
-    // Pooled units are the missed rows' tiffinUnits, which can be below `persons` for
-    // eatingDays orders; a make-up row is worth min(pooled, persons) and drains the same.
+    // One make-up day is worth persons tiffins, or whatever is left in the pool if that is less;
+    // the same number drains the pool. The gate above (>= 1) matches so no order is stuck with a remainder.
     const units = Math.min(order.pooledTiffinCount, order.persons);
     const { timezone, cutoffHour } = await getAppSettings();
     const [inserted] = await tx.insert(deliveries).values({

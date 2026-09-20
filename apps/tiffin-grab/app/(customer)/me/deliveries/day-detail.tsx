@@ -38,6 +38,7 @@ import { Input } from "@foundry/ui/input";
 import { AddressDisplay } from "@foundry/ui/address-display";
 import { AddressFields } from "@foundry/ui/address-fields";
 import { ResponsiveDialog } from "@/components/ds";
+import { fullDayName } from "@/lib/menu/coverage";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { CutoffBanner } from "@/components/customer/meals/cutoff-banner";
 import type { CalendarCell } from "./calendar-constants";
@@ -739,6 +740,16 @@ export function DayDetail({
               </span>
             )}
           </div>
+          {kind === "cell" && cell?.combinedInto && (
+            <p className="mt-1 text-muted-foreground text-xs">
+              Combined into {fullDayName(cell.combinedInto)}&apos;s delivery
+            </p>
+          )}
+          {kind === "cell" && cell && !cell.combinedInto && (cell.units ?? 0) > 1 && (
+            <p className="mt-1 text-muted-foreground text-xs">
+              {cell.coversLabel ? `${cell.coversLabel} · ` : ""}{cell.units} tiffins
+            </p>
+          )}
           {kind === "unreleased" && <p className="mt-1 text-muted-foreground text-xs">{menuNotPublishedCopy(dateIso)}</p>}
           {kind === "cell" && menuNotReleased && <p className="mt-1 text-muted-foreground text-xs">{menuNotReleasedCopy(dateIso)}</p>}
           {kind === "cell" && !menuNotReleased && delivery && (

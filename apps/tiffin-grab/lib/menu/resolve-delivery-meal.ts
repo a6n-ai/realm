@@ -9,6 +9,8 @@ import { dishIdsForPlan, exclusiveDishIdsForPlan } from "@/lib/menu/selections.s
 import { defaultMenuItem, maxTuPickIndex } from "@/lib/menu/default-pick";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
+import { swapAppliesTo } from "@/lib/menu/coverage";
+import { carryingTrips } from "@/lib/menu/trip-lookup";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -155,6 +157,9 @@ export async function resolveDeliveryMeal(
   // null is a defensive fallback (no delivery row = no swaps possible) — every
   // real caller has one.
   deliveryId: bigint | null,
+  // The eating date being resolved. Omit for the trip's own date; pass it for a carried day so
+  // that day's swaps (for_date) are used, not the trip's own-date ones.
+  options: { forDate?: string } = {},
 ): Promise<ResolvedCategory[]> {
   // forPlan, never forPlanType: buildMealsGrid decides which categories to render with
   // forPlan(order.planId), so resolving against the plan_type union made the two disagree —
@@ -173,11 +178,17 @@ export async function resolveDeliveryMeal(
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id), eq(mealSelections.dayOfWeek, dayOfWeek), eq(mealSelections.personIndex, person)));
 
-  const swaps: SwapRow[] = deliveryId == null ? [] : await db
-    .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo })
-    .from(deliveryCategorySwaps)
-    .where(eq(deliveryCategorySwaps.deliveryId, deliveryId))
-    .orderBy(asc(deliveryCategorySwaps.id));
+  let swaps: SwapRow[] = [];
+  if (deliveryId != null) {
+    const [trip] = await db.select({ deliveryDate: deliveries.deliveryDate }).from(deliveries).where(eq(deliveries.id, deliveryId)).limit(1);
+    const eatingDate = options.forDate ?? trip?.deliveryDate;
+    const rows = await db
+      .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
+      .from(deliveryCategorySwaps)
+      .where(eq(deliveryCategorySwaps.deliveryId, deliveryId))
+      .orderBy(asc(deliveryCategorySwaps.id));
+    swaps = trip && eatingDate ? rows.filter((r) => swapAppliesTo(r.forDate, trip.deliveryDate, eatingDate)) : rows;
+  }
 
   const { planDishIds, exclusiveDishIds, maxTuByCat } = await defaultPickContext(order);
   return resolveCategoriesForDay(
@@ -222,23 +233,27 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
   // day — same "one set of queries instead of one per (day, person)" shape this
   // function already uses for items/picks.
   const weekEnd = dateInWeek(week.weekStart, "sun");
-  const deliveryRows = await db
+  const carrying = await carryingTrips(order.id, week.weekStart, weekEnd);
+  // Fallback for a date no scheduled trip covers (paused/skipped row): its own row, as before.
+  const ownRows = await db
     .select({ id: deliveries.id, deliveryDate: deliveries.deliveryDate })
     .from(deliveries)
     .where(and(eq(deliveries.orderId, order.id), gte(deliveries.deliveryDate, week.weekStart), lte(deliveries.deliveryDate, weekEnd)));
-  const deliveryIdByDate = new Map(deliveryRows.map((d) => [d.deliveryDate, d.id]));
+  const tripIds = [...new Set([...carrying.values()].map((t) => t.id).concat(ownRows.map((r) => r.id)))];
 
-  const swapRows = deliveryRows.length === 0 ? [] : await db
-    .select({ deliveryId: deliveryCategorySwaps.deliveryId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo })
+  const swapRows = tripIds.length === 0 ? [] : await db
+    .select({ deliveryId: deliveryCategorySwaps.deliveryId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
     .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, deliveryRows.map((d) => d.id)))
+    .where(inArray(deliveryCategorySwaps.deliveryId, tripIds))
     .orderBy(asc(deliveryCategorySwaps.id));
+  const ownByDate = new Map(ownRows.map((d) => [d.deliveryDate, d]));
 
   const days = [...new Set(items.map((i) => i.dayOfWeek))] as DayOfWeek[];
   for (const day of days) {
     const dayItems = items.filter((i) => i.dayOfWeek === day);
-    const deliveryId = deliveryIdByDate.get(dateInWeek(week.weekStart, day));
-    const daySwaps = deliveryId == null ? [] : swapRows.filter((s) => s.deliveryId === deliveryId);
+    const date = dateInWeek(week.weekStart, day);
+    const trip = carrying.get(date) ?? ownByDate.get(date);
+    const daySwaps = trip == null ? [] : swapRows.filter((s) => s.deliveryId === trip.id && swapAppliesTo(s.forDate, trip.deliveryDate, date));
     const counts = applySwapsToCounts(baseCounts, daySwaps);
     for (let person = 1; person <= persons; person++) {
       const dayPersonPicks = picks.filter((p) => p.dayOfWeek === day && p.personIndex === person);

@@ -38,3 +38,20 @@ export function formatMissedDays(dates: string[]): string {
   const names = dates.map((d) => DAY_LABELS[parseIsoDateUtc(d).getUTCDay()]);
   return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
+
+/** A swap with NULL for_date belongs to the trip's own date. */
+export function swapAppliesTo(swapForDate: string | null, tripDate: string, eatingDate: string): boolean {
+  return (swapForDate ?? tripDate) === eatingDate;
+}
+
+/** "Covers Mon + Tue" for a trip carrying several eating days; null when it only carries its own day. */
+export function formatCoversLabel(dates: string[]): string | null {
+  if (dates.length < 2) return null;
+  return `Covers ${dates.map((d) => DAY_LABELS[parseIsoDateUtc(d).getUTCDay()]).join(" + ")}`;
+}
+
+const FULL_DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export function fullDayName(iso: string): string {
+  return FULL_DAY_NAMES[parseIsoDateUtc(iso).getUTCDay()]!;
+}

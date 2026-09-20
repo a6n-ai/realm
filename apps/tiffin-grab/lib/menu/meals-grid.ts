@@ -8,7 +8,8 @@ import { dishIdsForPlan } from "./selections.service";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { visibleDeliveries } from "@/lib/services/deliveries.service";
+import { carryingTrips } from "./trip-lookup";
+import { fullDayName } from "./coverage";
 
 export type GridCell = {
   day: DayOfWeek;
@@ -22,9 +23,10 @@ export type GridCell = {
   isDefaulted: boolean;
   dishes: { id: string; name: string; image: FileDetail | null }[];
   locked: boolean;
+  lockNote?: string | null;
 };
 
-export type WeekDateView = DeliveryDate & { lockMs: number; locked: boolean };
+export type WeekDateView = DeliveryDate & { lockMs: number; locked: boolean; carriedBy?: string | null; lockNote?: string | null };
 
 /** ISO date `days` after `iso` (UTC date math, no timezone). */
 function addDaysIso(iso: string, days: number): string {
@@ -95,7 +97,9 @@ export async function buildMealsGrid(
 
   const weekStart = releasedWeek.weekStart;
   const weekEnd = addDaysIso(weekStart, 6);
-  const rows = await visibleDeliveries(order.id, weekStart, weekEnd);
+  // One column per EATING date: a trip's carried days appear even though they have no row of their own.
+  const carrying = await carryingTrips(order.id, weekStart, weekEnd);
+  const rows = [...carrying.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
   if (rows.length === 0) return { empty: "no-dates" };
 
   const { items: allItems } = await menuService.weekWithItems(releasedWeek.publicId);
@@ -118,16 +122,21 @@ export async function buildMealsGrid(
 
   // Use each row's stored cutoffAt — never recomputed here. Missed-ness is decided once,
   // at materialization/reconciliation time, not re-derived at read time.
-  const weekDatesView: WeekDateView[] = rows.map((row) => ({
-    dateIso: row.deliveryDate,
-    dayOfWeek: weekdayKey(parseIsoDateUtc(row.deliveryDate)) as DayOfWeek,
-    weekStartIso: weekStart,
-    lockMs: row.cutoffAt,
-    locked: Date.now() > row.cutoffAt,
-  }));
+  const weekDatesView: WeekDateView[] = rows.map(([dateIso, trip]) => {
+    const carried = trip.deliveryDate !== dateIso;
+    return {
+      dateIso,
+      dayOfWeek: weekdayKey(parseIsoDateUtc(dateIso)) as DayOfWeek,
+      weekStartIso: weekStart,
+      lockMs: trip.cutoffAt,
+      locked: Date.now() > trip.cutoffAt,
+      carriedBy: carried ? trip.deliveryDate : null,
+      lockNote: carried ? `Locks with ${fullDayName(trip.deliveryDate)}'s delivery` : null,
+    };
+  });
 
   const grid: GridCell[] = [];
-  for (const { dateIso, dayOfWeek: day, locked } of weekDatesView) {
+  for (const { dateIso, dayOfWeek: day, locked, lockNote } of weekDatesView) {
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
     for (const cat of categories) {
       const slot = cat.key;
@@ -156,7 +165,7 @@ export async function buildMealsGrid(
           grid.push({
             day, dateIso, slot, personIndex: p, pickIndex: 1, selectable: false, quantity: repResolved.quantity,
             selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
-            dishes: pickDish ? [pickDish] : [], locked,
+            dishes: pickDish ? [pickDish] : [], locked, lockNote,
           });
           continue;
         }
@@ -166,7 +175,7 @@ export async function buildMealsGrid(
           grid.push({
             day, dateIso, slot, personIndex: p, pickIndex, selectable: true, quantity: 1,
             selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
-            dishes: slotDishes, locked,
+            dishes: slotDishes, locked, lockNote,
           });
         }
       }

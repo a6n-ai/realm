@@ -140,6 +140,9 @@ export function MealPicker({
             </span>
           )}
         </div>
+        {dayCells[0]?.lockNote && !dayLocked && (
+          <p className="text-muted-foreground mb-3 text-xs">{dayCells[0].lockNote}</p>
+        )}
         <div className="space-y-4">
           {categoryOrder.map((cat) => {
             const catCells = dayCells.filter((c) => c.slot === cat.key);

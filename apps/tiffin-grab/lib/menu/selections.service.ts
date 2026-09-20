@@ -10,7 +10,8 @@ import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { mealPickNote } from "@/lib/menu/meal-pick-note";
-import { visibleDeliveries } from "@/lib/services/deliveries.service";
+import { carryingTrips } from "@/lib/menu/trip-lookup";
+import { swapAppliesTo } from "@/lib/menu/coverage";
 import { type DayOfWeek } from "@/lib/menu/delivery-dates";
 
 type Order = typeof orders.$inferSelect;
@@ -78,15 +79,10 @@ export const selectionsService = {
 
     const deliveryDateIso = dateInWeek(menuWeek.weekStart, dayOfWeek);
 
-    // The `deliveries` row is the single source of truth for day-membership AND cutoff: a
-    // paused/skipped/cancelled delivery — or a date with no row at all — has no scheduled row here.
-    const [deliveryRow] = await db.select({ id: deliveries.id, cutoffAt: deliveries.cutoffAt }).from(deliveries)
-      .where(and(
-        eq(deliveries.orderId, order.id),
-        eq(deliveries.deliveryDate, deliveryDateIso),
-        eq(deliveries.status, "scheduled"),
-      ))
-      .limit(1);
+    // A scheduled trip that COVERS the date is the single source of truth for day-membership AND
+    // cutoff: a carried eating day (Tue on Monday's trip) has no row of its own but locks with the
+    // trip. Paused/skipped/merged rows, or a date nothing covers, are not part of the order.
+    const deliveryRow = (await carryingTrips(order.id, deliveryDateIso, deliveryDateIso)).get(deliveryDateIso);
     if (!deliveryRow) {
       throw new ValidationError("That day isn't part of your order");
     }
@@ -124,11 +120,12 @@ export const selectionsService = {
     // Swaps on this day change how many picks a category has (daal -> sabzi = 2 sabzi); the
     // picker renders those folded counts, so validate against the same thing.
     const swaps = await db
-      .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo })
+      .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
       .from(deliveryCategorySwaps)
       .where(eq(deliveryCategorySwaps.deliveryId, deliveryRow.id))
       .orderBy(asc(deliveryCategorySwaps.id));
-    const max = applySwapsToCounts(order.categoryCounts ?? {}, swaps)[slot] ?? 0;
+    const daySwaps = swaps.filter((s) => swapAppliesTo(s.forDate, deliveryRow.deliveryDate, deliveryDateIso));
+    const max = applySwapsToCounts(order.categoryCounts ?? {}, daySwaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
 
     // Read the outgoing dish BEFORE the upsert overwrites it. Without this the log could
@@ -178,24 +175,23 @@ export const selectionsService = {
   async applyToWeek(input: { order: Order; menuWeek: Week; slot: string; personIndex: number; pickIndex?: number; dishPublicId: string; actorId?: bigint | null }) {
     const { order, menuWeek, slot, personIndex, pickIndex, dishPublicId, actorId } = input;
 
-    // The `deliveries` table is the single source of truth for which dates exist in this week —
-    // the same source buildMealsGrid reads via visibleDeliveries. A make-up can land on a date
-    // outside durationWeeks × deliveryDays, so recomputing dates from the plan's schedule (as
-    // this used to do) silently drops make-up dates the grid still shows.
+    // Eating dates come from the trips that cover them (carried days included) — the same source
+    // buildMealsGrid reads. A make-up can land outside durationWeeks × deliveryDays, so dates are
+    // never recomputed from the plan's schedule.
     const weekEnd = dateInWeek(menuWeek.weekStart, "sun");
-    const rows = await visibleDeliveries(order.id, menuWeek.weekStart, weekEnd);
+    const eatingDates = [...(await carryingTrips(order.id, menuWeek.weekStart, weekEnd)).keys()].sort();
     const dateToDay = new Map<string, DayOfWeek>(DAY_KEYS.map((day) => [dateInWeek(menuWeek.weekStart, day), day]));
 
     let applied = 0;
     const skipped: { dateIso: string; reason: string }[] = [];
-    for (const row of rows) {
-      const dayOfWeek = dateToDay.get(row.deliveryDate);
-      if (!dayOfWeek) continue; // defensive: visibleDeliveries is already bounded to this week
+    for (const date of eatingDates) {
+      const dayOfWeek = dateToDay.get(date);
+      if (!dayOfWeek) continue; // defensive: carryingTrips is already bounded to this week
       try {
         await this.setSelection({ order, menuWeek, dayOfWeek, slot, personIndex, pickIndex, dishPublicId, actorId });
         applied += 1;
       } catch (e) {
-        skipped.push({ dateIso: row.deliveryDate, reason: e instanceof Error ? e.message : "Could not apply" });
+        skipped.push({ dateIso: date, reason: e instanceof Error ? e.message : "Could not apply" });
       }
     }
     return { applied, skipped };

@@ -17,8 +17,7 @@ const WEEKDAYS_ONLY = ["mon", "tue", "wed", "thu", "fri"] as const;
 
 /**
  * Lets a customer place a pooled tiffin on a real date. Only days strictly after the last delivery
- * that fall on a plan weekday are selectable; the server re-validates both. Schedules one tiffin
- * (persons servings) per confirm.
+ * that fall on a plan weekday are selectable; the server re-validates both. Each confirm schedules one delivery day of tiffins (up to persons).
  */
 export function SchedulePoolControl({
   orderPublicId,
@@ -84,7 +83,7 @@ export function SchedulePoolControl({
       <div className="space-y-4 px-4 pb-4">
         <p className="text-muted-foreground text-sm">
           You have <span className="text-foreground font-medium">{counts.pooled}</span> tiffin
-          {counts.pooled > 1 ? "s" : ""} to schedule. Pick a delivery day after
+          {counts.pooled > 1 ? "s" : ""} to schedule, {Math.min(counts.pooled, counts.persons)} per delivery day. Pick a delivery day after
           {last ? ` ${formatDateOnly(last, { mode: "short" })}` : " your last delivery"} — it must
           fall on one of your plan&apos;s delivery days.
         </p>
@@ -103,7 +102,7 @@ export function SchedulePoolControl({
         {date && (
           <p className="text-muted-foreground text-sm">
             A new delivery will be added on {formatDateOnly(date, { mode: "long" })}
-            {counts.persons > 1 ? ` for ${counts.persons} servings` : ""}.
+            {" "}carrying {Math.min(counts.pooled, counts.persons)} tiffin{Math.min(counts.pooled, counts.persons) > 1 ? "s" : ""}.
           </p>
         )}
         {error && <p className="text-bad text-xs">{error}</p>}

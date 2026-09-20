@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-or
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import {
   resolveDeliveryMeal,
@@ -513,6 +514,14 @@ export type CalendarDay = {
   menuWeekId: string | null;
   meal: ResolvedMeal | null;
   options: MealOption[];
+  /** Tiffins this trip carries (persons x covered days). */
+  units?: number;
+  /** Eating days the trip carries; a single entry for a plain day. */
+  covers?: string[];
+  /** "Covers Mon + Tue"; null for a plain day. */
+  coversLabel?: string | null;
+  /** Delivery date of the trip this row was merged into ("Combined into Wed's delivery"); null otherwise. */
+  combinedInto?: string | null;
 };
 
 // Day-cell aggregator for the customer calendar (this week + next week). Composed entirely from
@@ -551,6 +560,23 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   const resolvedByWeek = new Map<bigint, Awaited<ReturnType<typeof resolveDeliveryMealsForWeek>>>();
   const itemsByWeek = new Map<bigint, { dayOfWeek: string; slot: string; dishId: bigint; publicId: string; name: string; image: FileDetail | null }[]>();
 
+  // Merged-source rows carry no tiffins of their own — say where they went.
+  const mergeTargetIds = [...new Set(rows.flatMap((r) => (r.mergedIntoDeliveryId ? [r.mergedIntoDeliveryId] : [])))];
+  const mergeTargets = mergeTargetIds.length === 0 ? [] : await db
+    .select({ id: deliveries.id, deliveryDate: deliveries.deliveryDate })
+    .from(deliveries)
+    .where(inArray(deliveries.id, mergeTargetIds));
+  const targetDateById = new Map(mergeTargets.map((t) => [t.id, t.deliveryDate]));
+  const tripFields = (row: CustomerDelivery) => {
+    const covers = coveredDates(row);
+    return {
+      units: row.mergedIntoDeliveryId ? 0 : row.tiffinUnits,
+      covers,
+      coversLabel: row.mergedIntoDeliveryId ? null : formatCoversLabel(covers),
+      combinedInto: row.mergedIntoDeliveryId ? (targetDateById.get(row.mergedIntoDeliveryId) ?? null) : null,
+    };
+  };
+
   const out: CalendarDay[] = [];
   for (const row of rows) {
     const week = weekByStart.get(mondayOfIso(row.deliveryDate));
@@ -564,6 +590,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
         menuWeekId: null,
         meal: null,
         options: [],
+        ...tripFields(row),
       });
       continue;
     }
@@ -605,6 +632,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       menuWeekId: week.publicId,
       meal,
       options,
+      ...tripFields(row),
     });
   }
   return out;

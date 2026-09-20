@@ -24,3 +24,18 @@ describe("coverage", () => {
     expect(() => assertCoverageUnits({ coversDates: null, tiffinUnits: 3 }, 2)).not.toThrow();
   });
 });
+
+import { formatCoversLabel, fullDayName, swapAppliesTo } from "../coverage";
+
+describe("customer copy helpers", () => {
+  it("covers label only for multi-day trips", () => {
+    expect(formatCoversLabel(["2030-01-07", "2030-01-08"])).toBe("Covers Mon + Tue");
+    expect(formatCoversLabel(["2030-01-07"])).toBeNull();
+    expect(fullDayName("2030-01-08")).toBe("Tuesday");
+  });
+  it("NULL for_date means the trip's own date", () => {
+    expect(swapAppliesTo(null, "2030-01-07", "2030-01-07")).toBe(true);
+    expect(swapAppliesTo(null, "2030-01-07", "2030-01-08")).toBe(false);
+    expect(swapAppliesTo("2030-01-08", "2030-01-07", "2030-01-08")).toBe(true);
+  });
+});
