@@ -23,6 +23,7 @@ import { NextTripCard, NextTripCardSkeleton } from "@/components/customer/home/n
 import { QuickActions } from "@/components/customer/home/quick-actions";
 import { HomeMenuWeek, HomeMenuWeekSkeleton } from "@/components/customer/home/home-menu-week";
 import { browsePublishedWeek } from "@/lib/menu/browse-published-week";
+import { buildTrips } from "@/lib/deliveries-view";
 import { coveredDates } from "@/lib/menu/coverage";
 import { weekdayKey } from "@foundry/commons";
 import { PageShell, PageHeader } from "@/components/ds";
@@ -40,7 +41,8 @@ export default async function MePage() {
 
   const { timezone } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
+  const now = Date.now();
+  const today = zonedDateIso(now, timezone);
 
   return (
     <PageShell>
@@ -64,7 +66,7 @@ export default async function MePage() {
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20.5rem] lg:items-start lg:gap-6">
         <div className="flex w-full min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1">
           <Suspense fallback={<HomeWeekStripSkeleton />}>
-            <HomeWeekStripData userId={userId} today={today} />
+            <HomeWeekStripData userId={userId} today={today} now={now} timezone={timezone} />
           </Suspense>
           <Suspense fallback={<HomeMenuWeekSkeleton />}>
             <MenuWeekData today={today} timezone={timezone} />
@@ -83,9 +85,13 @@ export default async function MePage() {
 async function HomeWeekStripData({
   userId,
   today,
+  now,
+  timezone,
 }: {
   userId: bigint;
   today: string;
+  now: number;
+  timezone: string;
 }) {
   const untilDate = parseIsoDateUtc(today);
   untilDate.setUTCDate(untilDate.getUTCDate() + HOME_WEEK_DAYS);
@@ -94,8 +100,10 @@ async function HomeWeekStripData({
   const primary = await myPrimarySubscription(userId);
   if (!primary) return <HomeWeekStripEmpty />;
 
+  const { cutoffHour } = await getAppSettings();
   const days = await myCalendar(userId, primary.publicId, { from: today, until });
-  return <HomeWeekStrip cells={days} todayIso={today} mealSizeName={primary.mealSizeName} />;
+  const trips = buildTrips(days, now, { cutoffHour, timezone, pooled: 0, lastDeliveryDate: null, deliveryWeekdays: [] });
+  return <HomeWeekStrip trips={trips} todayIso={today} />;
 }
 
 async function SidebarData({
