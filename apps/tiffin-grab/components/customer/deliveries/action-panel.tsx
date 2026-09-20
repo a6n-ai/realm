@@ -1,7 +1,7 @@
 "use client";
 import { CalendarClock, CalendarDays, Palmtree, Pause, Play, Repeat2, Utensils, Wallet } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { ActionRow, Button, Countdown, Reason } from "@/components/customer/kit";
+import { ActionRow, Button, Reason } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
 import { humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { ACTION_LABEL, type actionModel } from "./action-model";
@@ -66,8 +66,8 @@ export function ActionRail({ model, onAction, onGoTo, vacation }: Pick<Common, "
   );
 }
 
-/** Mobile thumb-zone bar: closes-line, primary 52px, then up to three secondary actions. */
-export function ActionBar({ model, trip, tz, onAction, onGoTo }: Common) {
+/** Mobile thumb-zone bar: one row (primary + up to three secondary). The cutoff line lives in the trip hero so the bar stays short. */
+export function ActionBar({ model, onAction, onGoTo }: Common) {
   const [reason, setReason] = useState<string | null>(null);
   const fire = (k: TripAction, a: { ok: boolean; why: string | null }) => (a.ok ? (setReason(null), onAction(k)) : setReason(a.why));
   const primary = model.primary && model.primary !== "vacation" ? model.rows.find((r) => r.key === model.primary) : null;
@@ -78,17 +78,12 @@ export function ActionBar({ model, trip, tz, onAction, onGoTo }: Common) {
         "fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 pb-2 pt-2 backdrop-blur-xl md:bottom-0 md:pb-[calc(12px+env(safe-area-inset-bottom))] lg:hidden",
       )}
     >
-      {trip.status === "upcoming" && (
-        <p className="mb-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
-          Closes <b className="font-semibold text-[var(--foreground)]"><Countdown target={trip.cutoffAt} timeZone={tz} /></b>
-        </p>
-      )}
       {reason && <div role="status"><Reason className="mb-2">{reason}</Reason></div>}
       {model.closedReason && <Reason className="mb-2">{model.closedReason}</Reason>}
       {model.goTo && <Button className="w-full" onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
       <div className="flex items-center gap-2">
         {primary && (
-          <Button variant="primary" size="lg" className="min-w-0 flex-1 px-3" onClick={() => fire(primary.key, primary.av)} aria-disabled={!primary.av.ok || undefined}>
+          <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-3" onClick={() => fire(primary.key, primary.av)} aria-disabled={!primary.av.ok || undefined}>
             {primary.label}
           </Button>
         )}
@@ -98,7 +93,7 @@ export function ActionBar({ model, trip, tz, onAction, onGoTo }: Common) {
         {model.bar.map((k) => {
           const a = model.av[k];
           return (
-            <Button key={k} size="lg" className={cn("shrink-0 px-4", !a.ok && "opacity-45")} aria-disabled={!a.ok || undefined} onClick={() => fire(k, a)}>
+            <Button key={k} size="lg" className={cn("w-[72px] shrink-0 px-0", !a.ok && "opacity-45")} aria-disabled={!a.ok || undefined} onClick={() => fire(k, a)}>
               {ACTION_LABEL[k].split(" ")[0]}
             </Button>
           );

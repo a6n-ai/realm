@@ -26,8 +26,9 @@ export function SwapSheet({ trip, plan, open, onDone, onChanged }: ActionSheetPr
   const source = plan.days.find((d) => d.date === trip.date);
   const eating = source?.eatingDays?.find((e) => e.date === day);
   const label = (k: string) => plan.categoryLabels[k] ?? k;
-  const pairs = [...new Map((eating?.swapPairs ?? []).map((p) => [`${p.fromCategory}>${p.toCategory}`, p])).values()];
   const applied = eating?.appliedSwaps ?? [];
+  const left = plan.sub.categoryCounts ? applySwapsToCounts(plan.sub.categoryCounts, applied) : null;
+  const pairs = [...new Map((eating?.swapPairs ?? []).map((p) => [`${p.fromCategory}>${p.toCategory}`, p])).values()].filter((p) => !left || (left[p.fromCategory] ?? 0) >= 1);
   const chosen = pairs.find((p) => `${p.fromCategory}>${p.toCategory}` === pair) ?? null;
   const cats = plan.swapCategories;
   const from = chosen ? cats?.[chosen.fromCategory] : undefined;

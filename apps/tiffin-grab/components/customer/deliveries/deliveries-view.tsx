@@ -119,9 +119,9 @@ export function DeliveriesView({ plan, subs, trips, now, monthKey, initialTrip }
       />
 
       {ctx.pooled >= 1 && trip && (
-        <Card className="mb-4 flex flex-wrap items-center justify-between gap-3 border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]/40 px-5 py-4">
-          <p className="text-[15px] font-semibold">{tiffins(ctx.pooled)} {ctx.pooled === 1 ? "is" : "are"} waiting. <span className="font-normal text-[var(--muted-foreground,#6E6558)]">Add them after your last delivery.</span></p>
-          <button type="button" onClick={() => setActive("makeup")} className="min-h-11 rounded-full border-[1.5px] border-[var(--foreground)] px-5 text-[15px] font-semibold [touch-action:manipulation]">Schedule a make-up</button>
+        <Card className="mb-4 flex items-center justify-between gap-3 border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]/40 px-4 py-3 md:px-5 md:py-4">
+          <p className="text-[15px] font-semibold">{tiffins(ctx.pooled)} {ctx.pooled === 1 ? "is" : "are"} waiting<span className="hidden font-normal text-[var(--muted-foreground,#6E6558)] md:inline">. Add them after your last delivery.</span></p>
+          <button type="button" aria-label="Schedule a make-up" onClick={() => setActive("makeup")} className="min-h-11 shrink-0 rounded-full border-[1.5px] border-[var(--foreground)] px-4 text-[15px] font-semibold [touch-action:manipulation] md:px-5">Make-up<span className="hidden md:inline"> day</span></button>
         </Card>
       )}
 

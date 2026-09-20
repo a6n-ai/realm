@@ -31,7 +31,7 @@ export function PlanHeader({
   const left = counts.remaining;
   const hour = new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(2000, 0, 1, cutoffHour));
   return (
-    <header className="mb-6 lg:mb-8">
+    <header className="mb-4 lg:mb-8">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--primary)]">Deliveries</p>
@@ -44,7 +44,7 @@ export function PlanHeader({
           {onVacation ? "Resume" : "Vacation"}
         </Button>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&>*]:shrink-0 md:flex-wrap md:overflow-visible [&::-webkit-scrollbar]:hidden">
         <Pill tone="brand">{sub.mealSizeName}</Pill>
         <DietPill label={sub.tagLabel || sub.planName} color={sub.tagColor} />
         <Pill tone={onVacation ? "vac" : "ok"}>{onVacation ? "On vacation" : "Active"}</Pill>
