@@ -1,34 +1,33 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { inArray, eq } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { db } from "@/db/client";
-import { deliveryCategorySwaps, mealSizeItems } from "@/db/schema";
-import { currentUserId } from "@/lib/services/session-service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { DeliveriesSkeleton } from "@/components/customer/deliveries/deliveries-skeleton";
+import { DeliveriesView } from "@/components/customer/deliveries/deliveries-view";
+import { NoPlan } from "@/components/customer/deliveries/no-plan";
+import { buildPlanContext, pickDefaultTrip, toCalendarInputs, type PlanView } from "@/components/customer/deliveries/adapter";
+import { buildTrips } from "@/lib/deliveries-view";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { currentUserId } from "@/lib/services/session-service";
 import {
+  makeupSourceIdsForOrder,
   myActiveSubscriptions,
   myCalendar,
   myDeliveries,
-  myDeliveryMeal,
   myPausePanel,
   myPrimarySubscription,
   myTiffinCounts,
   myWaitlistedSubscriptions,
-  makeupSourceIdsForOrder,
 } from "@/lib/services/customer-deliveries.service";
-import { effectiveAddress } from "@/lib/services/deliveries.service";
-import { monthFetchRange, parseMonthParam, type CalendarCell } from "./calendar-constants";
-import { DeliveryCalendar, DeliveryCalendarSkeleton } from "./delivery-calendar";
+import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
 
-type SearchParams = Promise<{ month?: string; sub?: string }>;
+type SearchParams = Promise<{ month?: string; sub?: string; trip?: string }>;
 
 export default function MyDeliveriesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <Suspense fallback={<DeliveryCalendarSkeleton />}>
+    <Suspense fallback={<DeliveriesSkeleton />}>
       <MyDeliveriesData searchParams={searchParams} />
     </Suspense>
   );
@@ -38,114 +37,52 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
-  const { month: monthParam, sub: subParam } = await searchParams;
-
-  const { timezone } = await getAppSettings();
+  const { month: monthParam, sub: subParam, trip: tripParam } = await searchParams;
+  const { timezone, cutoffHour } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), timezone);
+  const now = Date.now();
+  const today = zonedDateIso(now, timezone);
   const monthKey = parseMonthParam(monthParam, today);
   const { from, until } = monthFetchRange(monthKey, today);
 
-  const [subscriptions, waitlisted, primary] = await Promise.all([
+  const [subs, waitlisted, primary] = await Promise.all([
     myActiveSubscriptions(userId),
     myWaitlistedSubscriptions(userId),
     myPrimarySubscription(userId),
   ]);
+  if (subs.length === 0 || !primary) return <NoPlan waitlisted={waitlisted} />;
 
-  if (subscriptions.length === 0 || !primary) {
-    return (
-      <DeliveryCalendar
-        subscriptions={[]}
-        deliveries={[]}
-        pausePanels={{}}
-        calendarCells={{}}
-        categoryLabels={{}}
-        categoryPortions={{}}
-        monthKey={monthKey}
-        waitlisted={waitlisted}
-        today={today}
-      />
-    );
-  }
+  const sub = (subParam ? subs.find((s) => s.publicId === subParam) : null) ?? primary;
 
-  const selected =
-    (subParam ? subscriptions.find((s) => s.publicId === subParam) : null) ?? primary;
-
-  const [rawDeliveries, pausePanel, calendarDays, tiffinCounts, makeupSources, catalog] = await Promise.all([
+  const [rows, days, counts, pause, makeupSources, catalog, categoryRows] = await Promise.all([
     myDeliveries(userId, from, until),
-    myPausePanel(userId, selected.publicId),
-    myCalendar(userId, selected.publicId, { from, until }),
-    myTiffinCounts(userId, selected.publicId),
-    makeupSourceIdsForOrder(selected.publicId),
+    myCalendar(userId, sub.publicId, { from, until }),
+    myTiffinCounts(userId, sub.publicId),
+    myPausePanel(userId, sub.publicId),
+    makeupSourceIdsForOrder(sub.publicId),
     loadCatalogSnapshot(),
+    dishCategoriesService.forPlanType(sub.planType),
   ]);
+  const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
 
-  const calendarCells: Record<string, CalendarCell[]> = {
-    [selected.publicId]: calendarDays,
+  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause });
+  const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels });
+  const trips = buildTrips(inputs, now, ctx);
+  const plan: PlanView = {
+    orderId: sub.publicId,
+    sub,
+    counts,
+    ctx,
+    pause,
+    today,
+    days,
+    categoryLabels,
+    categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
   };
 
-  // Independent of each other and of the first Promise.all's results (both only
-  // need `selected`, already resolved) — fetched together instead of sequentially.
-  const [categoryRows, mealSizeCategoryRows] = await Promise.all([
-    dishCategoriesService.forPlanType(selected.planType),
-    // Eligibility is global now (category_swap_pairs) — restricted here to categories
-    // this meal size actually offers, so the picker can't propose a pair it doesn't serve.
-    db.select({ category: mealSizeItems.category }).from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, selected.mealSizeId)),
-  ]);
-  const categoryLabels: Record<string, string> = {};
-  for (const r of categoryRows) categoryLabels[r.key] = r.label;
-  const categoryPortions = categoryPortionsForMealSize(catalog.mealSizes, selected.mealSizeId);
-
-  const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
-
-  const mealSizeCategories = [...new Set(mealSizeCategoryRows.map((r) => r.category))];
-  const swapPairs = await dishCategoriesService.swapPairsForMealSize(selected.mealSizeId);
-
-  // One batched query for every delivery's applied swaps, not one per delivery inside
-  // the Promise.all below — same batch-then-filter shape resolveDeliveryMealsForWeek uses.
-  const allAppliedSwaps = selectedDeliveries.length === 0 ? [] : await db
-    .select({
-      publicId: deliveryCategorySwaps.publicId,
-      deliveryId: deliveryCategorySwaps.deliveryId,
-      fromCategory: deliveryCategorySwaps.fromCategory,
-      toCategory: deliveryCategorySwaps.toCategory,
-      qtyFrom: deliveryCategorySwaps.qtyFrom,
-      qtyTo: deliveryCategorySwaps.qtyTo,
-    })
-    .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id)));
-
-  const deliveries = await Promise.all(
-    selectedDeliveries.map(async (d) => {
-      const meal = await myDeliveryMeal(d);
-      const hasAddressOverride = d.addressLine !== null;
-      const address = effectiveAddress(d, selected);
-      return {
-        ...d,
-        meal,
-        address,
-        hasAddressOverride,
-        hasMakeupScheduled: makeupSources.has(d.id.toString()),
-        swapPairs,
-        mealSizeCategories,
-        appliedSwaps: allAppliedSwaps.filter((s) => s.deliveryId === d.id),
-      };
-    }),
-  );
-
   return (
-    <DeliveryCalendar
-      subscriptions={subscriptions}
-      selectedPublicId={selected.publicId}
-      deliveries={deliveries}
-      pausePanels={{ [selected.publicId]: pausePanel }}
-      calendarCells={calendarCells}
-      categoryLabels={categoryLabels}
-      categoryPortions={categoryPortions}
-      monthKey={monthKey}
-      waitlisted={waitlisted}
-      today={today}
-      tiffinCounts={tiffinCounts}
-    />
+    <div className="mx-auto w-full max-w-[1280px]">
+      <DeliveriesView plan={plan} subs={subs} trips={trips} now={now} monthKey={monthKey} initialTrip={pickDefaultTrip(trips, tripParam)} />
+    </div>
   );
 }

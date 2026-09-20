@@ -149,6 +149,7 @@
   --accent-badge-hover: #256D3C;
   --accent-badge-foreground: #F7FBF5;
   /* Customer status palette: always paired with a label + shape, never color alone. */
+  --primary-wash: #FBE3D2;
   --s-delivered: #047857;
   --s-delivered-fg: #047857;
   --s-delivered-bg: #D1FAE5;
@@ -225,6 +226,7 @@
   --accent-badge-hover: #3AA168;
   --accent-badge-foreground: #0E1712;
   /* Customer status palette: always paired with a label + shape, never color alone. */
+  --primary-wash: #3A2A1C;
   --s-delivered: #6EE7B7;
   --s-delivered-fg: #6EE7B7;
   --s-delivered-bg: #12382C;

@@ -21,11 +21,12 @@ interface DateCellProps {
   onDisabledTap?: (reason: string) => void;
   tabIndex?: number;
   compact?: boolean;
+  className?: string;
   onKeyDown?: (e: KeyboardEvent<HTMLButtonElement>) => void;
   buttonRef?: (el: HTMLButtonElement | null) => void;
 }
 
-export function DateCell({ date, selected, disabledReason, status, onSelect, onDisabledTap, tabIndex, compact, onKeyDown, buttonRef }: DateCellProps) {
+export function DateCell({ date, selected, disabledReason, status, onSelect, onDisabledTap, tabIndex, compact, className, onKeyDown, buttonRef }: DateCellProps) {
   const d = parse(date);
   const label = LONG.format(d) + (status ? `, ${STATUS_LABEL[status]}` : "") + (disabledReason ? `, unavailable: ${disabledReason}` : "");
   return (
@@ -46,6 +47,7 @@ export function DateCell({ date, selected, disabledReason, status, onSelect, onD
         compact ? "size-11" : "h-[52px] min-w-11",
         selected ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "border-[var(--border)] bg-[var(--card)]",
         disabledReason && "opacity-35",
+        className,
       )}
     >
       {!compact && <span aria-hidden>{WD.format(d)}</span>}
@@ -68,17 +70,20 @@ interface StripProps {
   days: StripDay[];
   value: string | null;
   onChange: (date: string) => void;
+  /** Seven-day weeks: cells share the width instead of scrolling. */
+  fit?: boolean;
 }
 
-export function DateStrip({ label, days, value, onChange }: StripProps) {
+export function DateStrip({ label, days, value, onChange, fit }: StripProps) {
   const [reason, setReason] = useState<string | null>(null);
   return (
     <div>
-      <div role="group" aria-label={label} className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1">
+      <div role="group" aria-label={label} className={fit ? "grid grid-cols-7 gap-1.5" : "flex gap-2 overflow-x-auto overscroll-x-contain pb-1"}>
         {days.map((d) => (
           <DateCell
             key={d.date}
             {...d}
+            className={fit ? "w-full min-w-0" : undefined}
             selected={d.date === value}
             onSelect={(x) => (setReason(null), onChange(x))}
             onDisabledTap={setReason}

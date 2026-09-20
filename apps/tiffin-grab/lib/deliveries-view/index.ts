@@ -11,6 +11,7 @@ type MealLike = { label: string; picks: { name: string }[]; quantity: number }[]
 /** Structural subset of myCalendar's CalendarDay plus optional fields other work adds (cutoffAt, pooled, rescheduled, per-eating-day swaps/meals). */
 export type CalendarDayInput = {
   date: string;
+  deliveryId?: string;
   status: "scheduled" | "paused" | "skipped" | "cancelled";
   locked: boolean;
   isMakeup: boolean;
@@ -42,6 +43,7 @@ export type PlanContext = {
 export type EatingDay = { date: string; dishSummary: string | null; swaps: string[]; locksWith: string | null };
 export type Trip = {
   date: string;
+  deliveryId: string | null;
   units: number;
   coversDates: string[];
   coversLabel: string | null;
@@ -93,6 +95,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       const own = d.mealsByDate?.[d.date] ?? d.meal;
       return {
         date: d.date,
+        deliveryId: d.deliveryId ?? null,
         units: d.units ?? 1,
         coversDates: covers,
         coversLabel: d.coversLabel ?? formatCoversLabel(covers),
