@@ -43,7 +43,7 @@ export function CutoffBanner({
 
   if (!next) {
     return (
-      <div className="bg-muted text-muted-foreground flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm">
+      <div className="bg-muted text-muted-foreground flex items-center gap-2 rounded-full px-4 py-2.5 text-sm">
         <ClockIcon className="size-4 shrink-0" aria-hidden />
         {lockedLabel}
       </div>
@@ -55,7 +55,7 @@ export function CutoffBanner({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium",
+        "flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium",
         soon ? "bg-warn/15 text-warn" : "bg-primary/10 text-primary",
         soon && !reduce && "animate-pulse",
       )}

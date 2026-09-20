@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const pickMyDish = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: (...a: unknown[]) => pickMyDish(...a), applyMyDishToWeek: vi.fn() }));
+vi.mock("@/components/customer/home/dish-image", () => ({ DishImage: () => null }));
 vi.mock("@/components/motion", () => ({
   Reveal: Object.assign(({ children }: { children: React.ReactNode }) => <div>{children}</div>, { Group: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }),
   Pressable: ({ children, ...p }: { children: React.ReactNode } & Record<string, unknown>) => <button {...(p as object)}>{children}</button>,
@@ -28,6 +29,7 @@ function clickTab(el: HTMLElement) {
   fireEvent.click(el);
 }
 
+
 const grid = [
   { day: "tue", dateIso: "2026-07-15", slot: "sabzi", personIndex: 1, pickIndex: 1, selectable: true, quantity: 1, selectedDishId: "dsh_1", isDefaulted: false, locked: false,
     dishes: [ { id: "dsh_1", name: "Paneer", image: null }, { id: "dsh_2", name: "Aloo Gobi", image: null } ] },
@@ -43,8 +45,7 @@ describe("MealPicker", () => {
     render(<MealPicker grid={grid} categories={categories} orderPublicId="ord_1" menuWeekId="mnw_1" />);
     // The dish choice is a Select now — its options only exist in the DOM once
     // the trigger opens it, not as a directly-clickable list.
-    fireEvent.click(screen.getByRole("combobox"));
-    fireEvent.click(await screen.findByText("Aloo Gobi"));
+    fireEvent.click(await screen.findByRole("radio", { name: /Aloo Gobi/ }));
     expect(pickMyDish).toHaveBeenCalledWith(expect.objectContaining({ orderId: "ord_1", menuWeekId: "mnw_1", dayOfWeek: "tue", slot: "sabzi", personIndex: 1, dishId: "dsh_2" }));
   });
 
@@ -54,6 +55,6 @@ describe("MealPicker", () => {
     // picks visible at a time) — switch to Wednesday, the locked day in this fixture,
     // before asserting its read-only indicator shows.
     clickTab(screen.getByRole("tab", { name: /wed/i }));
-    expect(screen.getByText(/locked/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/locked/i).length).toBeGreaterThan(0);
   });
 });

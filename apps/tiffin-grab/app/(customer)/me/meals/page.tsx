@@ -91,7 +91,7 @@ async function MyMealsData() {
   return (
     <div className="space-y-4">
       {hasMultiple && planName && (
-        <p className="text-muted-foreground text-xs">
+        <p className="bg-muted text-muted-foreground w-fit rounded-full px-3 py-1 text-xs">
           Showing {planName} — more coming soon
         </p>
       )}
@@ -101,6 +101,8 @@ async function MyMealsData() {
         categories={result.categories}
         orderPublicId={activeOrder.publicId}
         menuWeekId={result.releasedWeek.publicId}
+        weekDates={result.weekDatesView}
+        timezone={settings.timezone}
       />
     </div>
   );

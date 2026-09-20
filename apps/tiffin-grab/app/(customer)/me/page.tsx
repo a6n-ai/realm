@@ -19,6 +19,12 @@ import {
   HomeWeekStripEmpty,
   HomeWeekStripSkeleton,
 } from "@/components/customer/home/home-week-strip";
+import { NextTripCard, NextTripCardSkeleton } from "@/components/customer/home/next-trip-card";
+import { QuickActions } from "@/components/customer/home/quick-actions";
+import { HomeMenuWeek, HomeMenuWeekSkeleton } from "@/components/customer/home/home-menu-week";
+import { browsePublishedWeek } from "@/lib/menu/browse-published-week";
+import { coveredDates } from "@/lib/menu/coverage";
+import { weekdayKey } from "@foundry/commons";
 import { PageShell, PageHeader } from "@/components/ds";
 import { formatDateOnly, calendarDaysBetween } from "@/lib/format/datetime";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -48,13 +54,23 @@ export default async function MePage() {
         <ReviewNudge />
       </Suspense>
 
-      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_20.5rem] lg:items-start lg:gap-10">
-        <div className="w-full min-w-0">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20.5rem] lg:gap-6">
+        <Suspense fallback={<NextTripCardSkeleton />}>
+          <NextTripData userId={userId} today={today} />
+        </Suspense>
+        <QuickActions />
+      </div>
+
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20.5rem] lg:items-start lg:gap-6">
+        <div className="flex w-full min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1">
           <Suspense fallback={<HomeWeekStripSkeleton />}>
             <HomeWeekStripData userId={userId} today={today} />
           </Suspense>
+          <Suspense fallback={<HomeMenuWeekSkeleton />}>
+            <MenuWeekData today={today} timezone={timezone} />
+          </Suspense>
         </div>
-        <div className="flex w-full min-w-0 flex-col gap-6">
+        <div className="flex w-full min-w-0 flex-col gap-6 max-lg:order-first lg:col-start-2 lg:row-start-1">
           <Suspense fallback={<SubscriptionSectionSkeleton />}>
             <SidebarData userId={userId} today={today} />
           </Suspense>
@@ -125,5 +141,32 @@ async function SidebarData({
       />
       <OrdersSection subs={subs} />
     </>
+  );
+}
+
+async function NextTripData({ userId, today }: { userId: bigint; today: string }) {
+  const primary = await myPrimarySubscription(userId);
+  const next = primary ? (await nextDeliveryByOrder(userId, today)).get(primary.publicId) : undefined;
+  const counts = primary ? await orderTiffinCounts(primary.publicId) : null;
+  return (
+    <NextTripCard
+      deliveryDate={next?.deliveryDate ?? null}
+      coveredDates={next ? coveredDates(next) : []}
+      today={today}
+      tiffinsLeft={counts?.remaining}
+    />
+  );
+}
+
+async function MenuWeekData({ today, timezone }: { today: string; timezone: string }) {
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const browsed = await browsePublishedWeek(Date.now(), timezone);
+  const todayKey = weekdayKey(parseIsoDateUtc(today));
+  return (
+    <HomeMenuWeek
+      week={browsed.week}
+      scope={browsed.scope ?? "this"}
+      todayKey={browsed.scope === "this" ? todayKey : undefined}
+    />
   );
 }

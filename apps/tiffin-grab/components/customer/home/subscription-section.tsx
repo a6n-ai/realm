@@ -5,7 +5,6 @@ import { PackageIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { EmptyState, SectionCard } from "@/components/ds";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
 import { MealInfoChips, PlanBox, PlanHeadingRow } from "@/components/customer/plan-box";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { Subscription, TiffinCounts, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
@@ -13,7 +12,7 @@ import { WaitlistCard } from "./waitlist-card";
 import { RenewalCountdown } from "./renewal-countdown";
 
 export type SubscriptionWithNext = Subscription & {
-  nextDelivery: { deliveryDate: string } | null;
+  nextDelivery: { deliveryDate: string; coversDates?: string[] | null } | null;
   daysUntilRenewal: number | null;
   tiffinCounts?: TiffinCounts | null;
 };
@@ -60,14 +59,14 @@ function SubscriptionCard({
         </p>
       )}
       <div className="flex flex-col gap-2.5">
-        <Button asChild className={IOS_BUTTON}>
+        <Button asChild className="hover-lift h-12 rounded-full shadow-[0_12px_30px_-6px_var(--color-primary)]">
           <Link href="/me/deliveries">Manage</Link>
         </Button>
         <div className="grid grid-cols-2 gap-2.5">
-          <Button asChild variant="secondary" className={IOS_BUTTON}>
+          <Button asChild variant="secondary" className="h-12 rounded-full">
             <Link href="/me/renew">Renew plan</Link>
           </Button>
-          <Button asChild variant="secondary" className={IOS_BUTTON}>
+          <Button asChild variant="secondary" className="h-12 rounded-full">
             <Link href="/me/deliveries">Vacation</Link>
           </Button>
         </div>
@@ -111,7 +110,7 @@ export function SubscriptionSection({
           icon={PackageIcon}
           message="No active subscriptions yet."
           action={
-            <Button asChild className={IOS_BUTTON}>
+            <Button asChild className="h-12 rounded-full">
               <Link href="/subscribe">Browse plans</Link>
             </Button>
           }
