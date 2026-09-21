@@ -475,7 +475,7 @@ export function Checkout({
                 autoComplete="off"
                 spellCheck={false}
               />
-              <Button pill variant="quiet" className="!min-h-11 !px-4" onClick={applyCoupon} disabled={couponState.status === "checking"}>
+              <Button pill variant="quiet" className="!min-h-[46px] !border-transparent !bg-[var(--muted)] !px-4 !text-base" onClick={applyCoupon} disabled={couponState.status === "checking"}>
                 {couponState.status === "checking" ? "Checking…" : "Apply"}
               </Button>
             </div>
@@ -506,7 +506,7 @@ export function Checkout({
                   onChange={(e) => { setCoinsInput(e.target.value); if (coinsState.status !== "idle") setCoinsState({ status: "idle" }); }}
                   placeholder="e.g. 50"
                 />
-                <Button pill variant="quiet" className="!min-h-11 !px-4" onClick={applyCoins} disabled={coinsState.status === "checking"}>
+                <Button pill variant="quiet" className="!min-h-[46px] !border-transparent !bg-[var(--muted)] !px-4 !text-base" onClick={applyCoins} disabled={coinsState.status === "checking"}>
                   {coinsState.status === "checking" ? "Checking…" : "Apply"}
                 </Button>
               </div>

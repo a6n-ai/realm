@@ -39,7 +39,7 @@ export function SubscribeChrome({
       )}
       <div className="ml-auto flex items-center gap-2">
       {trailing}
-      <IconButton href={closeHref} aria-label="Close">
+      <IconButton href={closeHref} aria-label="Close" className="!size-[42px]">
         <XIcon aria-hidden className="size-4" />
       </IconButton>
       </div>
