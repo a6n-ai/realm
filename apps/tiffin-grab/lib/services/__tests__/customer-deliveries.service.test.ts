@@ -18,6 +18,7 @@ const {
   myPausePanel,
   myPrimarySubscription,
   mySubscriptionWindows,
+  myAgendaDots,
 } = await import("../customer-deliveries.service");
 
 // Wide enough to bracket any real nextWeekday()-derived delivery date, regardless of "today".
@@ -129,6 +130,17 @@ describe("customer-deliveries.service (integration)", () => {
 
     const primary = await myPrimarySubscription(userA);
     expect(primary?.publicId).toBe(aOrder2.publicId);
+  });
+
+  it("myAgendaDots returns per-day (order, status) for every plan in one range read", async () => {
+    const o1 = await makeOrder(PHONE_A, "User A");
+    const o2 = await makeOrder(PHONE_A, "User A", 2);
+    const userA = await userIdByPhone(PHONE_A);
+    const dots = await myAgendaDots(userA, "2000-01-01", "2100-01-01");
+    const ids = new Set(Object.values(dots).flat().map((d) => d.orderId));
+    expect(ids).toEqual(new Set([o1.publicId, o2.publicId]));
+    expect(Object.keys(dots).every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))).toBe(true);
+    expect(await myAgendaDots(userA, "2100-01-01", "2100-02-01")).toEqual({});
   });
 
   it("mySubscriptionWindows gives each plan its first, last and next delivery date as ISO strings", async () => {

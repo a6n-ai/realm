@@ -166,6 +166,23 @@ export async function mySubscriptionWindows(userId: bigint, today: string): Prom
   return Object.fromEntries(rows.map((r) => [r.publicId, { first: String(r.first), last: String(r.last), next: r.next == null ? null : String(r.next) }]));
 }
 
+/** Light per-day agenda for the week strip: one query, no meals/menus. Merged sources are flagged, not dropped. */
+export async function myAgendaDots(
+  userId: bigint,
+  from: string,
+  until: string,
+): Promise<Record<string, { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; combined: boolean }[]>> {
+  const rows = await db
+    .select({ date: deliveries.deliveryDate, orderId: orders.publicId, status: deliveries.status, cutoffAt: deliveries.cutoffAt, merged: deliveries.mergedIntoDeliveryId })
+    .from(deliveries)
+    .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .where(and(eq(orders.userId, userId), inArray(deliveries.status, [...VISIBLE]), gte(deliveries.deliveryDate, from), lte(deliveries.deliveryDate, until)))
+    .orderBy(asc(deliveries.deliveryDate));
+  const out: Record<string, { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; combined: boolean }[]> = {};
+  for (const r of rows) (out[String(r.date)] ??= []).push({ orderId: r.orderId, status: r.status as "scheduled" | "paused" | "skipped", cutoffAt: Number(r.cutoffAt), combined: r.merged != null });
+  return out;
+}
+
 export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
   return (await myPrimarySubscription(userId)) != null;
 }

@@ -42,6 +42,8 @@ export type PlanContext = {
 
 export type EatingDay = { date: string; dishSummary: string | null; swaps: string[]; locksWith: string | null };
 export type Trip = {
+  /** Owning plan (order publicId); empty only in single-plan legacy callers. */
+  orderId: string;
   date: string;
   deliveryId: string | null;
   units: number;
@@ -77,7 +79,7 @@ function summarize(meal: MealLike | null | undefined): string | null {
   return names.length ? names.join(", ") : null;
 }
 
-export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanContext): Trip[] {
+export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanContext, orderId = ""): Trip[] {
   return days
     .map((d): Trip => {
       const cutoffAt = d.cutoffAt ?? cutoffMsFor(d.date, plan.cutoffHour, plan.timezone);
@@ -94,6 +96,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       else status = zonedDateIso(now, plan.timezone) >= d.date ? "delivered" : "cutoff-passed";
       const own = d.mealsByDate?.[d.date] ?? d.meal;
       return {
+        orderId,
         date: d.date,
         deliveryId: d.deliveryId ?? null,
         units: d.units ?? 1,
