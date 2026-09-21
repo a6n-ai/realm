@@ -13,7 +13,7 @@ export const CUSTOMER_ROUTES: CustomerRoute[] = [
   { id: "wallet", path: "/me/wallet", heading: /finance|wallet|coin|bill|transaction/i },
   { id: "wallet-coins", path: "/me/wallet?tab=coins", heading: /finance|wallet|coin|bill|transaction/i },
   { id: "account", path: "/me/account", heading: /qa customer|account|profile/i },
-  { id: "support", path: "/me/support", heading: /support|ticket/i },
+  { id: "support", path: "/me/support", heading: /support|ticket|help/i },
   { id: "support-new", path: "/me/support/new", heading: /support|ticket|new|create/i },
   { id: "profile", path: "/me/account?section=profile", heading: /your account|profile|security|address|dietary|delivery notes|notifications|phone/i },
   { id: "security", path: "/me/account?section=security", heading: /your account|profile|security|address|dietary|delivery notes|notifications|phone/i },
