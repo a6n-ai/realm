@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
 import { Button, DateStrip, Notice, Reason, Sheet } from "@/components/customer/kit";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
+import { weekdayShort } from "@/lib/deliveries-view/eating";
 import { moveOptions } from "@/lib/deliveries-view/move";
 import { formatCoversLabel } from "@/lib/menu/coverage";
 import type { ActionSheetProps } from "./types";
@@ -41,18 +42,18 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   );
 
   return (
-    <Sheet open={open} onClose={() => onDone()} title={`Move ${day}`} footer={footer}>
+    <Sheet open={open} onClose={() => onDone()} title={`Reschedule ${day}`} footer={footer}>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 pb-2">
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>
-              <DateStrip label="New delivery day" days={options} value={picked} onChange={setPicked} />
+              <DateStrip label="New day to eat" days={options} value={picked} onChange={setPicked} />
               {!chosen && <Reason>Choose a day to continue.</Reason>}
               {chosen?.merge ? (
                 <Notice>
                   {humanDate(chosen.date)} already has a delivery. Both trips combine into one: {tiffins(chosen.merge.units)} on {humanDate(chosen.date)}. {formatCoversLabel(chosen.merge.covers)}.
                 </Notice>
               ) : chosen && chosen.carriedOn !== chosen.date ? (
-                <Notice>We don&apos;t deliver on {humanDate(chosen.date)}. Your {tiffins(trip.units)} will arrive with the {humanDate(chosen.carriedOn)} delivery.</Notice>
+                <Notice>{humanDate(chosen.date)} will arrive {humanDate(chosen.carriedOn)} with {weekdayShort(chosen.carriedOn)}. We don&apos;t deliver on {weekdayShort(chosen.date)}s, so it rides on the earlier delivery.</Notice>
               ) : chosen ? (
                 <Notice>Your {tiffins(trip.units)} will arrive on {humanDate(chosen.date)}.</Notice>
               ) : null}

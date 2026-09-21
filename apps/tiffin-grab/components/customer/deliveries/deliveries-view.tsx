@@ -3,7 +3,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { buildEatingDays, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf, PLAN_COLORS, type Agenda } from "@/lib/deliveries-view/week";
 import type { SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import { actionModel } from "./action-model";
@@ -12,7 +13,7 @@ import { ActionSheet } from "./actions/registry";
 import { VacationSheet } from "./actions/vacation-sheet";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
-import { TripCard, TripRow, tiffins, type PlanTagInfo } from "./trip-parts";
+import { EatingCard, EatingRowButton, tiffins, type PlanTagInfo } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "hold", "resume", "move", "vacation", "makeup", "pool"];
@@ -38,7 +39,6 @@ interface Props {
 function PlanChip({ selected, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }) {
   return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "inline-flex min-h-11 shrink-0 items-center rounded-full border-[1.5px] px-4 text-sm font-semibold [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)] bg-[var(--card,#fff)]", className)} />;
 }
-const key = (t: { orderId: string; date: string }) => `${t.orderId}:${t.date}`;
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "hold" ? 1 : 2);
 
 export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastWeek, now, initialTrip, initialPlan, initialFilter, initialAction }: Props) {
@@ -65,16 +65,18 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
   const tz = plans[0]!.ctx.timezone;
 
   const inFilter = (t: { orderId: string }) => !filter || t.orderId === filter;
-  const merged = (t: Trip) => t.status === "combined-into" && trips.some((x) => x.orderId === t.orderId && x.date === t.mergedInto);
-  const visible = useMemo(() => trips.filter((t) => inFilter(t) && !merged(t)), [trips, filter]); // eslint-disable-line react-hooks/exhaustive-deps
-  const resolve = (t: Trip | undefined) => (t?.mergedInto ? trips.find((x) => x.orderId === t.orderId && x.date === t.mergedInto) ?? t : t);
+  const weekEnd = addDays(weekStart, 6);
+  const rows = useMemo(() => buildEatingDays(trips.filter(inFilter)).filter((r) => r.date >= weekStart && r.date <= weekEnd), [trips, filter, weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
+  const order = (id: string) => plans.findIndex((p) => p.orderId === id);
+  const shown = [...rows].sort((a, b) => a.date.localeCompare(b.date) || order(a.orderId) - order(b.orderId));
 
-  const onDay = sel.date ? visible.filter((t) => t.date === sel.date || t.coversDates.includes(sel.date!)) : [];
-  const picked =
-    resolve(onDay.find((t) => t.orderId === sel.orderId) ?? onDay.sort((a, b) => rank(a) - rank(b))[0]) ??
-    (sel.date && sel.date >= weekStart && sel.date <= addDays(weekStart, 6) ? null : [...visible].sort((a, b) => rank(a) - rank(b) || a.date.localeCompare(b.date))[0]);
-  const trip = picked ?? null;
-  const emptyDay = !trip && sel.date && sel.date >= weekStart && sel.date <= addDays(weekStart, 6) ? sel.date : null;
+  const onDay = sel.date ? shown.filter((r) => r.date === sel.date) : [];
+  const row: EatingRow | null =
+    onDay.find((r) => r.orderId === sel.orderId) ??
+    [...onDay].sort((a, b) => rank(a.trip) - rank(b.trip))[0] ??
+    (sel.date && sel.date >= weekStart && sel.date <= weekEnd ? null : [...shown].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
+  const trip = row?.trip ?? null;
+  const emptyDay = !row && sel.date && sel.date >= weekStart && sel.date <= weekEnd ? sel.date : null;
 
   const activePlan: PlanView = plansByOrder[trip?.orderId ?? filter ?? ""] ?? plans[0]!;
   const { ctx, sub } = activePlan;
@@ -82,9 +84,9 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
   const vacAv = trip ? actionAvailability(trip, now, ctx).vacation : null;
 
   const dots = useMemo(() => {
-    const out: Record<string, { orderId: string; status: DeliveryStatus }[]> = {};
+    const out: Record<string, { orderId: string; status: DeliveryStatus; truck: boolean }[]> = {};
     for (const [date, ds] of Object.entries(agenda)) {
-      const list = ds.filter(inFilter).map((d) => ({ orderId: d.orderId, status: dotStatus(d, now) }));
+      const list = ds.filter(inFilter).map((d) => ({ orderId: d.orderId, status: dotStatus(d, now), truck: d.truck }));
       if (list.length) out[date] = list;
     }
     return out;
@@ -98,25 +100,20 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
   };
   const goWeek = (monday: string, over: Record<string, string | null> = {}) =>
     startNav(() => router.replace(`/me${qs({ week: monday, trip: null, action: null, ...over })}`, { scroll: false }));
-  const select = (t: Pick<Trip, "date" | "orderId">) => {
+  const select = (t: { date: string; orderId: string | null }) => {
     setSel({ date: t.date, orderId: t.orderId });
     window.history.replaceState(null, "", qs({ trip: t.date, action: null }));
     if (window.innerWidth < 1024) window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const goTo = (date: string, orderId?: string) => {
     const mon = mondayOf(date);
-    if (mon === weekStart) return select({ date, orderId: orderId ?? sel.orderId ?? "" });
+    if (mon === weekStart) return select({ date, orderId: orderId ?? sel.orderId });
     setSel({ date, orderId: orderId ?? null });
     goWeek(mon, { trip: date });
   };
   const pickDay = (iso: string) => {
     if (mondayOf(iso) !== weekStart) return goTo(iso);
-    const t = resolve(visible.find((x) => x.date === iso) ?? visible.find((x) => x.coversDates.includes(iso)));
-    if (t) select(t);
-    else {
-      setSel({ date: iso, orderId: null });
-      window.history.replaceState(null, "", qs({ trip: iso, action: null }));
-    }
+    select({ date: iso, orderId: null });
   };
   const pickFilter = (id: string | null) => {
     setFilter(id);
@@ -133,11 +130,12 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
   const linkCls = "text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation]";
 
   const nextDates = Object.keys(agenda).filter((d) => agenda[d]!.some(inFilter)).sort();
-  const next = nextDates.find((d) => d > addDays(weekStart, 6)) ?? [...nextDates].reverse().find((d) => d < weekStart) ?? null;
+  const next = nextDates.find((d) => d > weekEnd) ?? [...nextDates].reverse().find((d) => d < weekStart) ?? null;
   const nextOrder = next ? agenda[next]!.find(inFilter)?.orderId : undefined;
   const nextPlan = nextOrder ? plansByOrder[nextOrder] : undefined;
-  const shown = [...visible].sort((a, b) => a.date.localeCompare(b.date) || plans.findIndex((p) => p.orderId === a.orderId) - plans.findIndex((p) => p.orderId === b.orderId));
-  const heldOnly = visible.length > 0 && visible.every((t) => t.status === "hold");
+  const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today && inFilter(d)).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate) || order(a.orderId) - order(b.orderId));
+  const nextTruck = upcoming.filter((d) => d.deliveryDate === upcoming[0]?.deliveryDate);
+  const heldOnly = shown.length > 0 && shown.every((r) => r.trip.status === "hold");
 
   const chips = multi && (
     <div role="group" aria-label="Filter by plan" className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap">
@@ -164,6 +162,25 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
       />
       {chips}
 
+      {nextTruck.length > 0 && (
+        <section aria-label="Next delivery" data-testid="next-delivery" className="mb-4 space-y-2">
+          {nextTruck.map((d) => (
+            <button
+              key={d.orderId}
+              type="button"
+              onClick={() => goTo(d.deliveryDate, d.orderId)}
+              className={cn(FOCUS, "flex min-h-14 w-full flex-col items-start rounded-2xl border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-4 py-3 text-left [touch-action:manipulation]")}
+            >
+              <span className="text-[15px] font-semibold">
+                Next delivery: {humanDate(d.deliveryDate)}, {tiffins(d.units)} ({d.covers.map(weekdayShort).join(" + ")})
+                {multi && plansByOrder[d.orderId] ? ` · ${plansByOrder[d.orderId]!.sub.mealSizeName}` : ""}
+              </span>
+              <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Changes close {formatCutoff(d.cutoffAt, tz)}</span>
+            </button>
+          ))}
+        </section>
+      )}
+
       <div className="mb-4">
         <WeekStrip
           firstWeek={mondayOf(today)}
@@ -187,9 +204,9 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
 
       <div className={navigating ? "opacity-60 transition-opacity" : undefined} aria-busy={navigating}>
         <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--muted-foreground,#6E6558)]">{weekTitle(weekStart)}</h2>
-        {shown.length === 0 ? (
+        {shown.length === 0 && !emptyDay ? (
           <Card className="space-y-3 p-6">
-            <p className="text-[15px] font-semibold">No deliveries this week{filter ? " on this plan" : ""}.</p>
+            <p className="text-[15px] font-semibold">Nothing to eat this week{filter ? " on this plan" : ""}.</p>
             {next ? (
               <>
                 <p className="text-sm text-[var(--muted-foreground,#6E6558)]">
@@ -205,13 +222,16 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
           <>
             <div className="grid gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
               <div className="space-y-0.5">
-                {shown.map((t) => <TripRow key={key(t)} trip={t} tz={tz} plan={tagOf(t.orderId)} selected={!!trip && key(t) === key(trip)} onSelect={(x) => (x.status === "combined-into" ? goTo(x.mergedInto!, x.orderId) : select(x))} />)}
+                {shown.map((r) => <EatingRowButton key={`${r.orderId}:${r.date}`} row={r} plan={tagOf(r.orderId)} selected={!!row && r.orderId === row.orderId && r.date === row.date} onSelect={(x) => select({ date: x.date, orderId: x.orderId })} />)}
               </div>
 
               <div className="min-w-0 space-y-4">
-                {trip && model ? (
-                  <TripCard trip={trip} tz={tz} plan={tagOf(trip.orderId)} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
+                {row && trip && model ? (
+                  <EatingCard row={row} tz={tz} plan={tagOf(trip.orderId)} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
                     <div className="mt-6 hidden lg:block">
+                      {trip.coversDates.length > 1 && trip.status === "upcoming" && (
+                        <p className="mb-3 text-[13px] text-[var(--muted-foreground,#6E6558)]">Hold applies to the whole trip: holds {trip.coversDates.map(weekdayShort).join(" + ")}.</p>
+                      )}
                       <TripActions model={model} layout="card" onAction={setActive} onGoTo={(d) => goTo(d, trip.orderId)} />
                       <div className="mt-4">
                         {ctx.onVacation ? (
@@ -223,9 +243,9 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
                         )}
                       </div>
                     </div>
-                  </TripCard>
+                  </EatingCard>
                 ) : emptyDay ? (
-                  <Card className="p-6"><p className="text-[15px] font-semibold">No delivery on {humanDate(emptyDay)}.</p></Card>
+                  <Card className="p-6"><p className="text-[15px] font-semibold">Nothing planned on {humanDate(emptyDay)}.</p></Card>
                 ) : null}
                 {heldOnly && <Notice>Everything this week is on hold. Resume a trip or schedule a make-up.</Notice>}
               </div>

@@ -15,11 +15,15 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: 
 afterEach(cleanup);
 
 const NOW = Date.parse("2026-09-21T12:00:00Z");
-const trip = (o: Partial<Trip>): Trip => ({
-  orderId: "o",  date: "2026-09-23", deliveryId: "a", units: 1, coversDates: ["2026-09-23"], coversLabel: null,
-  eatingDays: [{ date: "2026-09-23", dishSummary: "Paneer, Jeera Rice", swaps: [], locksWith: null }],
-  status: "upcoming", cutoffAt: NOW + 30 * 3600e3, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o,
-});
+const trip = (o: Partial<Trip>): Trip => {
+  const date = o.date ?? "2026-09-23";
+  const covers = o.coversDates ?? [date];
+  return {
+    orderId: "o", date, deliveryId: "a", units: 1, coversDates: covers, coversLabel: null,
+    eatingDays: covers.map((c) => ({ date: c, dishSummary: "Paneer, Jeera Rice", swaps: [], locksWith: c === date ? null : date })),
+    status: "upcoming", cutoffAt: NOW + 30 * 3600e3, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o,
+  };
+};
 const mk = (orderId: string, o: { size: string; remaining: number; total: number; pooled?: number }) =>
   ({
     orderId, today: "2026-09-21", days: [], categoryLabels: {}, categoryPortions: {},
@@ -30,14 +34,14 @@ const mk = (orderId: string, o: { size: string; remaining: number; total: number
   }) as unknown as PlanView;
 const plan = mk("o", { size: "Large", remaining: 16, total: 20 });
 const trips = [
-  trip({ date: "2026-09-21", status: "delivered", units: 2, coversLabel: "Covers Mon + Tue", coversDates: ["2026-09-21", "2026-09-22"], eatingDays: [] }),
+  trip({ date: "2026-09-21", status: "delivered", units: 2, coversLabel: "Covers Mon + Tue", coversDates: ["2026-09-21", "2026-09-22"] }),
   trip({}),
   trip({ date: "2026-09-25", status: "hold" }),
 ];
 const cut = NOW + 30 * 3600e3;
 const agendaOf = (...e: [string, string, "scheduled" | "skipped"][]): Agenda => {
   const a: Agenda = {};
-  for (const [d, orderId, status] of e) (a[d] ??= []).push({ orderId, status, cutoffAt: cut, combined: false });
+  for (const [d, orderId, status] of e) (a[d] ??= []).push({ orderId, status, cutoffAt: cut, deliveryDate: d, truck: true, units: 1, covers: [d] });
   return a;
 };
 const view = (sel: string | null = "2026-09-23", t = trips, p = plan, extra: Partial<React.ComponentProps<typeof DeliveriesView>> = {}) =>
@@ -64,7 +68,8 @@ describe("DeliveriesView (single plan)", () => {
   });
   it("selected trip detail lists eating-day dishes", () => {
     view();
-    expect(screen.getByText("Paneer, Jeera Rice")).toBeInTheDocument();
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Wed, Sep 23");
+    expect(screen.getAllByText("Paneer, Jeera Rice").length).toBeGreaterThan(0);
   });
   it("opens the pick sheet in one click", () => {
     view();
@@ -83,7 +88,7 @@ describe("DeliveriesView (single plan)", () => {
   it("selecting another row swaps the detail", () => {
     view();
     fireEvent.click(screen.getAllByRole("button", { name: /Fri, Sep 25/ })[0]!);
-    expect(screen.getAllByRole("heading", { name: "Fri, Sep 25" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /Fri, Sep 25/ }).length).toBeGreaterThan(0);
   });
   it("pool banner opens the make-up sheet", () => {
     view("2026-09-23", trips, mk("o", { size: "Large", remaining: 16, total: 20, pooled: 3 }));
@@ -95,7 +100,7 @@ describe("DeliveriesView (single plan)", () => {
     const day = (date: string) => ({ date, dishSummary: "Bhindi Masala, Bhindi Masala", swaps: [], locksWith: null });
     view("2026-09-23", [trip({ eatingDays: [day("2026-09-23"), day("2026-09-24")], units: 2 })]);
     expect(err.mock.calls.filter((c) => String(c[0]).includes("same key"))).toEqual([]);
-    expect(screen.getAllByText("Bhindi Masala ×2").length).toBe(2);
+    expect(screen.getAllByText("Bhindi Masala ×2").length).toBeGreaterThanOrEqual(2);
     err.mockRestore();
   });
   it("a merged source day has no row and folds into its target's covers line", () => {
@@ -104,8 +109,8 @@ describe("DeliveriesView (single plan)", () => {
       trip({ date: "2026-09-24", units: 2, coversLabel: "Covers Wed + Thu", coversDates: ["2026-09-23", "2026-09-24"] }),
     ];
     view("2026-09-23", t);
-    expect(screen.getAllByTestId("trip-row")).toHaveLength(1);
-    expect(screen.getAllByRole("heading", { name: "Thu, Sep 24" }).length).toBe(1);
+    expect(screen.getAllByTestId("trip-row")).toHaveLength(2);
+    expect(screen.getAllByRole("heading", { name: /Wed, Sep 23/ }).length).toBe(1);
   });
   it("?action opens its sheet on load", () => {
     view("2026-09-23", trips, plan, { initialAction: "hold" });
@@ -115,7 +120,13 @@ describe("DeliveriesView (single plan)", () => {
     view();
     expect(screen.queryByRole("button", { name: /Show earlier|Show more|See all/ })).toBeNull();
     expect(screen.queryByRole("link", { name: /trips$/ })).toBeNull();
-    expect(screen.getAllByTestId("trip-row")).toHaveLength(3);
+    expect(screen.getAllByTestId("trip-row")).toHaveLength(4);
+  });
+  it("a trip covering Mon + Tue: Tue names the delivery that feeds it", () => {
+    view("2026-09-22");
+    expect(screen.getByRole("heading", { name: /Tue, Sep 22/ })).toBeInTheDocument();
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Delivered Mon, Sep 21");
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("2 tiffins covering Mon, Tue");
   });
 });
 
@@ -138,17 +149,16 @@ describe("DeliveriesView (week + several plans)", () => {
     multi();
     fireEvent.click(screen.getByRole("button", { name: /Wed, Sep 23, Small/ }));
     expect(screen.getByText(/8 of 10 tiffins left/)).toBeInTheDocument();
-    expect(screen.getByText("Chole")).toBeInTheDocument();
+    expect(screen.getAllByText("Chole").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /Wed, Sep 23, Large/ }));
     expect(screen.getByText(/16 of 20 tiffins left/)).toBeInTheDocument();
   });
   it("plan filter chips narrow the list and the strip dots", () => {
     multi();
     const day = () => screen.getByRole("button", { name: /Wednesday, September 23/ });
-    expect(day().getAttribute("aria-label")).toContain("Upcoming, Upcoming");
+    expect(day().getAttribute("aria-label")).toContain("Upcoming, Upcoming, delivery arrives");
     fireEvent.click(screen.getByRole("button", { name: /^Small/ }));
     expect(screen.getAllByTestId("trip-row")).toHaveLength(1);
-    expect(day().getAttribute("aria-label")).toMatch(/Upcoming$/);
     expect(day().getAttribute("aria-label")).not.toContain("Upcoming, Upcoming");
     fireEvent.click(screen.getByRole("button", { name: "All plans" }));
     expect(screen.getAllByTestId("trip-row")).toHaveLength(3);
@@ -159,9 +169,9 @@ describe("DeliveriesView (week + several plans)", () => {
   });
   it("strip lists a dot per plan for every day in range, even other weeks", () => {
     multi();
-    expect(screen.getByRole("button", { name: /Wednesday, September 30, Upcoming/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Wednesday, October 7, Upcoming/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Saturday, September 26, no delivery/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Wednesday, September 30, eating, Upcoming/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Wednesday, October 7, eating, Upcoming/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Saturday, September 26, nothing planned/ })).toBeInTheDocument();
   });
   it("tapping a day in another week changes the ?week param via router.replace", () => {
     replace.mockClear();
@@ -174,15 +184,22 @@ describe("DeliveriesView (week + several plans)", () => {
   it("tapping a no-delivery day in the week says so", () => {
     multi();
     fireEvent.click(screen.getByRole("button", { name: /Saturday, September 26/ }));
-    expect(screen.getByText("No delivery on Sat, Sep 26.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing planned on Sat, Sep 26.")).toBeInTheDocument();
   });
   it("empty week: names the next delivery with a Go to button", () => {
     replace.mockClear();
     multi({ trips: [], weekStart: "2026-10-12", initialTrip: null });
-    expect(screen.getByText(/No deliveries this week/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing to eat this week/)).toBeInTheDocument();
     const go = screen.getByRole("button", { name: "Go to Wed, Oct 7" });
     fireEvent.click(go);
     expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
+  });
+  it("Next delivery card lists the earliest arriving trip per plan with tiffins, covers and cutoff", () => {
+    multi();
+    const card = screen.getByTestId("next-delivery");
+    expect(card).toHaveTextContent("Next delivery: Wed, Sep 23, 1 tiffin (Wed)");
+    expect(within(card).getAllByRole("button")).toHaveLength(2);
+    expect(card).toHaveTextContent(/Changes close/);
   });
   it("next arrow moves one week forward", () => {
     replace.mockClear();

@@ -2,6 +2,7 @@
 import { Card, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { formatCutoff, humanDate, type Trip } from "@/lib/deliveries-view";
+import { deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
@@ -110,6 +111,77 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
           })}
         </ul>
       )}
+      {children}
+    </Card>
+  );
+}
+
+const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
+
+/** One eating day of the selected week: dishes first, the delivery that feeds it as quiet second text. */
+export function EatingRowButton({ row, selected, onSelect, plan }: { row: EatingRow; selected: boolean; onSelect: (row: EatingRow) => void; plan?: PlanTagInfo }) {
+  const m = statusMeta(row.trip);
+  const dish = dedupeDishes(row.dish).join(", ");
+  return (
+    <button
+      type="button"
+      data-testid="trip-row"
+      aria-pressed={selected}
+      aria-label={`${humanDate(row.date)}${plan ? `, ${plan.label}` : ""}, ${m.label}`}
+      onClick={() => onSelect(row)}
+      className={cn(
+        FONT, FOCUS,
+        "flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors [touch-action:manipulation] motion-reduce:transition-none",
+        selected ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]/60",
+      )}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold">{humanDate(row.date)}</span>
+        <span className={cn(HELP, "block truncate")}>{dish || "Default menu"}</span>
+        <span className={cn(HELP, "block")}>{deliveryLine(row)}</span>
+        {plan && <span className="mt-1 block"><PlanTag plan={plan} /></span>}
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
+        {m.dot && <StatusDot decorative status={m.dot} />}
+        {m.label}
+      </span>
+    </button>
+  );
+}
+
+/** Selected eating day: what is eaten, the delivery block, then the actions slot. */
+export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; children?: React.ReactNode }) {
+  const { trip } = row;
+  const m = statusMeta(trip);
+  const dishes = dedupeDishes(row.dish);
+  const covers = trip.coversDates.map(weekdayShort).join(", ");
+  const done = trip.status === "delivered" || trip.status === "cutoff-passed";
+  const cutoff = trip.status === "upcoming" ? `Changes close ${formatCutoff(trip.cutoffAt, tz)}` : null;
+  return (
+    <Card className="p-5 lg:p-8" aria-live="polite">
+      <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
+        {m.dot && <StatusDot decorative status={m.dot} />}
+        {m.label}
+        {plan && <PlanTag plan={plan} />}
+      </p>
+      <h2 className="mt-1 text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">
+        {humanDate(row.date)} <span className="text-base font-medium text-[var(--muted-foreground,#6E6558)]">(eating)</span>
+      </h2>
+      <ul className="mt-4 space-y-1 text-[15px]">
+        <li>{dishes.length ? dishes.join(", ") : <span className="text-[var(--muted-foreground,#6E6558)]">Default menu</span>}</li>
+        {row.swaps.length > 0 && <li className={HELP}>Swapped: {row.swaps.join(", ")}</li>}
+      </ul>
+      <div className="mt-5 rounded-xl bg-[var(--muted)]/60 p-4" data-testid="delivery-block">
+        <p className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">Delivery</p>
+        <p className="mt-1 text-[15px] font-semibold">{deliveryLine(row)}</p>
+        <p className={HELP}>
+          {[
+            `${tiffins(trip.units)} covering ${covers}`,
+            cutoff ?? (done ? null : reason),
+            !row.own && trip.status === "upcoming" ? `Locks with ${weekdayShort(trip.date)}'s delivery` : null,
+          ].filter(Boolean).join(" · ")}
+        </p>
+      </div>
       {children}
     </Card>
   );

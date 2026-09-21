@@ -1,11 +1,11 @@
 "use client";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { STATUS_LABEL, type DeliveryStatus } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { addDays, weekDays } from "@/lib/deliveries-view/week";
 
-export type StripDot = { orderId: string; status: DeliveryStatus };
+export type StripDot = { orderId: string; status: DeliveryStatus; truck: boolean };
 
 const WD = ["M", "T", "W", "T", "F", "S", "S"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" });
@@ -69,7 +69,7 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
                 {weekDays(w).map((iso, i) => {
                   const ds = dots[iso] ?? [];
                   const sel = iso === selectedDay;
-                  const text = `${d(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}${ds.length ? `, ${ds.map((x) => STATUS_LABEL[x.status]).join(", ")}` : ", no delivery"}`;
+                  const text = `${d(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}${ds.length ? `, eating, ${ds.map((x) => STATUS_LABEL[x.status]).join(", ")}${ds.some((x) => x.truck) ? ", delivery arrives" : ""}` : ", nothing planned"}`;
                   return (
                     <button
                       key={iso}
@@ -78,9 +78,10 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
                       aria-pressed={sel}
                       data-day={iso}
                       onClick={() => onPickDay(iso)}
-                      className={cn(FOCUS, "flex h-[68px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] text-xs [touch-action:manipulation] motion-reduce:transition-none", sel ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] font-semibold text-[var(--foreground)]" : "border-transparent bg-[var(--card)]", iso < today && !sel && "opacity-60")}
+                      className={cn(FOCUS, "relative flex h-[68px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] text-xs [touch-action:manipulation] motion-reduce:transition-none", sel ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] font-semibold text-[var(--foreground)]" : "border-transparent bg-[var(--card)]", iso < today && !sel && "opacity-60")}
                     >
                       <span aria-hidden className="opacity-80">{WD[i]}</span>
+                      {ds.some((x) => x.truck) && <Truck aria-hidden className="absolute right-1 top-1 size-3 text-[var(--muted-foreground,#6E6558)]" />}
                       <b aria-hidden className={cn("grid size-7 place-items-center rounded-full text-[16px] tabular-nums", iso === today && !sel && "border-2 border-[var(--primary)]")}>{d(iso).getUTCDate()}</b>
                       <span aria-hidden className="flex h-2.5 items-center gap-0.5">
                         {ds.map((x, k) => <Dot key={k} color={colorOf(x.orderId)} status={x.status} />)}
