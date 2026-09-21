@@ -57,7 +57,7 @@ test.describe("customer deliveries (trip timeline)", () => {
       if (!(await b.isVisible()) || !(await b.isEnabled())) continue;
       await b.click();
       await expect(d.sheet(title)).toBeVisible({ timeout: 10_000 });
-      await page.getByRole("button", { name: "Close" }).click();
+      await page.getByRole("button", { name: "Close", exact: true }).click();
       await expect(d.sheet(title)).toBeHidden();
     }
   });
