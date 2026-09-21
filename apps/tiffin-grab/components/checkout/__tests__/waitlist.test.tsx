@@ -67,7 +67,7 @@ describe("Checkout postal-served gate + waitlist", () => {
 
     await waitFor(() =>
       expect(
-        (screen.getByRole("button", { name: /continue to payment/i }) as HTMLButtonElement).disabled,
+        screen.getByRole("button", { name: /continue to payment/i }).getAttribute("aria-disabled") === "true",
       ).toBe(true),
     );
 

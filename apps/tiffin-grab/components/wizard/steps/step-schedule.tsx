@@ -4,12 +4,11 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { savePct } from "@/lib/pricing/discounts";
+import { OptionCard, Pill, PillToggle } from "@/components/customer/kit";
 import { planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const pill = (on: boolean) =>
-  `flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full border px-0 text-[14px] sm:px-3 sm:text-[15px] font-semibold transition-[transform,background-color,border-color] duration-100 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:active:scale-100 ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`;
 const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
 
 export function StepSchedule({
@@ -73,9 +72,9 @@ export function StepSchedule({
           {WEEK_DAYS.map((day) => {
             const on = eating.includes(day);
             return (
-              <button key={day} type="button" aria-pressed={on} disabled={on ? atMin : atMax} onClick={() => toggle(day)} className={pill(on)}>
+              <PillToggle key={day} on={on} disabled={on ? atMin : atMax} onClick={() => toggle(day)}>
                 {LABEL[day]}
-              </button>
+              </PillToggle>
             );
           })}
         </div>
@@ -96,25 +95,24 @@ export function StepSchedule({
             const active = f.key === selections.frequencyKey;
             const save = savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct);
             return (
-              <button
+              <OptionCard
                 key={f.key}
-                type="button"
-                aria-pressed={active}
+                selected={active}
                 // Delivery type only: eating days are chosen first, so switching never changes how many tiffins they get.
                 onClick={() => set({ frequencyKey: f.key })}
-                className={`flex min-h-24 cursor-pointer flex-col items-start justify-between gap-3 rounded-[20px] border-2 p-4 text-left transition-[transform,background-color,border-color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`}
+                className="flex min-h-24 flex-col items-start justify-between gap-3 p-4"
               >
                 <span className="flex w-full items-center justify-between gap-2">
                   <span className="text-[28px] leading-none font-bold tracking-[-0.03em]">{f.weekdays?.length} days</span>
                   <span className="sr-only">{f.name}</span>
-                  {save > 0 && <span aria-label={`Save ${save}%`} className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">Save {save}%</span>}
+                  {save > 0 && <Pill tone="save" size="sm" aria-label={`Save ${save}%`}>Save {save}%</Pill>}
                 </span>
                 <span className="flex flex-wrap gap-1.5">
                   {(f.weekdays as DayOfWeek[]).map((d) => (
-                    <span key={d} className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{LABEL[d]}</span>
+                    <Pill key={d} size="sm" tone={active ? "solid" : "soft"}>{LABEL[d]}</Pill>
                   ))}
                 </span>
-              </button>
+              </OptionCard>
             );
           })}
         </div>
@@ -149,7 +147,7 @@ export function StepSchedule({
                   <span className="text-primary text-[15px] font-semibold">{plural(t.units, "tiffin", "tiffins")}</span>
                   <span className="mt-auto flex flex-wrap gap-1">
                     {t.days.map((e) => (
-                      <span key={e} className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[11px] font-semibold">{LABEL[e]}</span>
+                      <Pill key={e} size="sm" tone="wash" className="!px-2 !text-[11px]">{LABEL[e]}</Pill>
                     ))}
                   </span>
                 </motion.li>

@@ -175,7 +175,7 @@ describe("IdentityGate", () => {
     await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
 
-    await waitFor(() => expect(screen.getByRole("button", { name: /^sign in$/i })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^sign in$/i })).toHaveAttribute("aria-disabled", "true"));
 
     resolveSend();
     await waitFor(() => expect(screen.getByLabelText(/verification code/i)).toBeInTheDocument());

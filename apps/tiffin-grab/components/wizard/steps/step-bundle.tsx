@@ -1,7 +1,7 @@
-import { MinusIcon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
-import { Badge } from "@foundry/ui/badge";
+import { Button, OptionCard, Pill, Stepper } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
 import { MealSizePrice } from "../meal-size-price";
@@ -60,29 +60,28 @@ export function StepBundle({
               {tierMeals.map((m) => {
                 const active = selections.mealSizeId === m.publicId;
                 return (
-                  <button
+                  <OptionCard
                     key={m.publicId}
-                    type="button"
-                    aria-pressed={active}
+                    selected={active}
                     onClick={() => set({ mealSizeId: m.publicId })}
-                    className={`flex min-w-0 cursor-pointer flex-col gap-3 rounded-[20px] border-2 p-4 text-left transition-[transform,background-color,border-color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`}
+                    className="flex min-w-0 flex-col gap-3 p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <span className="text-[17px] leading-snug font-semibold tracking-[-0.02em]">{m.name}</span>
                       <MealSizePrice meal={m} perTiffin priceClassName="text-primary text-[17px] font-bold" />
                     </div>
-                    {mealOffPct(m) > 0 && <span className="-mt-1 w-fit rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">{mealOffPct(m)}% off</span>}
+                    {mealOffPct(m) > 0 && <Pill tone="save" size="sm" className="-mt-1 w-fit">{mealOffPct(m)}% off</Pill>}
                     {m.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{m.description}</p> : null}
                     <MealSizeItems items={m.items} categoryLabels={catalog.categoryLabels} />
                     {active && (
                       <div className="flex flex-wrap gap-1">
-                        <Badge variant="secondary" className="rounded-full">{m.kcalMin}–{m.kcalMax} kcal</Badge>
-                        {m.proteinG != null && <Badge variant="secondary" className="rounded-full">P {m.proteinG}g</Badge>}
-                        {m.carbsG != null && <Badge variant="secondary" className="rounded-full">C {m.carbsG}g</Badge>}
-                        {m.fatG != null && <Badge variant="secondary" className="rounded-full">F {m.fatG}g</Badge>}
+                        <Pill tone="soft" size="sm">{m.kcalMin}–{m.kcalMax} kcal</Pill>
+                        {m.proteinG != null && <Pill tone="soft" size="sm">P {m.proteinG}g</Pill>}
+                        {m.carbsG != null && <Pill tone="soft" size="sm">C {m.carbsG}g</Pill>}
+                        {m.fatG != null && <Pill tone="soft" size="sm">F {m.fatG}g</Pill>}
                       </div>
                     )}
-                  </button>
+                  </OptionCard>
                 );
               })}
             </div>
@@ -107,34 +106,11 @@ export function StepBundle({
                     <span className="nums text-muted-foreground text-xs">${addon.pricePerWeek.toFixed(2)}/wk each</span>
                   </div>
                   {active ? (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        aria-label={`Remove one ${addon.name}`}
-                        onClick={() => setQty(addon.key, qty - 1)}
-                        className="border-border hover-lift flex size-11 cursor-pointer items-center justify-center rounded-full border transition-transform active:scale-[0.92]"
-                      >
-                        <MinusIcon className="size-3.5" />
-                      </button>
-                      <span className="nums w-6 text-center text-sm font-semibold" aria-live="polite">{qty}</span>
-                      <button
-                        type="button"
-                        aria-label={`Add one more ${addon.name}`}
-                        disabled={qty >= addon.maxQty}
-                        onClick={() => setQty(addon.key, qty + 1)}
-                        className="border-border hover-lift flex size-11 cursor-pointer items-center justify-center rounded-full border transition-transform active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <PlusIcon className="size-3.5" />
-                      </button>
-                    </div>
+                    <Stepper label={addon.name} value={qty} min={0} max={addon.maxQty} onChange={(n) => setQty(addon.key, n)} />
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => setQty(addon.key, 1)}
-                      className="border-border hover-lift flex min-h-11 cursor-pointer items-center gap-1 rounded-full border px-4 py-1.5 text-sm font-medium transition-[transform,box-shadow,background-color] active:scale-[0.96] hover:bg-accent"
-                    >
-                      <PlusIcon className="size-3.5" /> Add
-                    </button>
+                    <Button variant="quiet" pill className="gap-1 !px-4 py-1.5 text-sm font-medium" onClick={() => setQty(addon.key, 1)}>
+                      <PlusIcon aria-hidden className="size-3.5" /> Add
+                    </Button>
                   )}
                 </div>
               );

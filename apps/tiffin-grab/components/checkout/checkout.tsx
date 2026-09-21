@@ -21,16 +21,13 @@ import { emailSchema, phoneSchema } from "@foundry/commons";
 import { WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, clearIdentity, readIdentity, resetSession, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
-import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
-import { Label } from "@foundry/ui/label";
+import { Button, Input, Label, OptionCard, Pill } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
-import { cn } from "@foundry/ui/cn";
 import { Check, Coins, MapPin, ShieldCheck, Tag } from "lucide-react";
 import { Stepper } from "@/components/stepper";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 
-const PILL = "h-12 rounded-full px-6 text-[15px] font-semibold transition-transform duration-100 active:scale-[0.97] motion-reduce:active:scale-100";
+const PILL = "!min-h-12 !px-6";
 const PANEL = "bg-card border-border rounded-[20px] border p-5 sm:p-6";
 // The shared @foundry/ui inputs are h-8; scope a 44px touch height over every field
 // (name, phone + country button, address, card, coupon, coins) so they all match.
@@ -267,7 +264,7 @@ export function Checkout({
     resetSession();
     router.replace("/subscribe");
   };
-  const fromAccount = lockContact ? <span className="bg-muted text-muted-foreground ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium">From your account</span> : null;
+  const fromAccount = lockContact ? <Pill tone="soft" size="sm" className="ml-2 !px-2 !text-[11px] !font-medium">From your account</Pill> : null;
   const meal = catalog?.mealSizes.find((m) => m.publicId === selections.mealSizeId);
   const freq = catalog?.frequencies.find((f) => f.key === selections.frequencyKey);
   // The frequency name already spells out its days; the eating-day pills below show the chosen ones.
@@ -306,7 +303,7 @@ export function Checkout({
                 <p className="mt-0.5 text-sm text-muted-foreground">Where should we deliver your tiffins?</p>
               </div>
               <div className="grid gap-4">
-                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" autoCapitalize="words" enterKeyHint="next" className={lockContact ? "bg-muted/50 text-muted-foreground" : undefined} readOnly={lockContact} value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} />
+                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input dense id="fullName" autoComplete="name" autoCapitalize="words" enterKeyHint="next" className={lockContact ? "bg-[color-mix(in_oklch,var(--muted)_50%,transparent)] text-[var(--muted-foreground)]" : undefined} readOnly={lockContact} value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} />
                   {lockContact ? <p className="text-xs text-muted-foreground text-pretty"><Link href="/me/account?section=profile" className="underline">Change your name in Account</Link>.</p> : null}
                 </div>
                 <div className="grid gap-1.5">
@@ -316,14 +313,14 @@ export function Checkout({
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="email">Email</Label>
-                  <Input
+                  <Input dense
                     id="email"
                     type="email"
                     autoComplete="email"
                     inputMode="email"
                     autoCapitalize="none"
                     spellCheck={false}
-                    className={emailReadOnly ? "bg-muted/50 text-muted-foreground" : undefined}
+                    className={emailReadOnly ? "bg-[color-mix(in_oklch,var(--muted)_50%,transparent)] text-[var(--muted-foreground)]" : undefined}
                     value={contact.email}
                     readOnly={emailReadOnly}
                     aria-describedby={emailReadOnly ? "email-locked-hint" : undefined}
@@ -343,7 +340,7 @@ export function Checkout({
                 </div>
                 {lockContact ? (
                   <p className="-mb-2 text-xs text-muted-foreground text-pretty">
-                    <span className="bg-muted rounded-full px-2 py-0.5 text-[11px] font-medium">From your account</span>{" "}
+                    <Pill tone="neutral" size="sm" className="!px-2 !text-[11px] !font-medium">From your account</Pill>{" "}
                     Edit the address if this order goes elsewhere. Your saved address won&apos;t change; <Link href="/me/account?section=address" className="underline">update it in Account</Link>.
                   </p>
                 ) : null}
@@ -357,7 +354,7 @@ export function Checkout({
                   onPostalBlur={checkPostal}
                   postalSlot={
                     <div data-postal-slot>
-                      <Button type="button" variant="outline" className={`${PILL} h-11 px-5 text-sm`} onClick={checkPostal}>Check area</Button>
+                      <Button pill variant="quiet" className="!min-h-11 !px-5 !text-sm" onClick={checkPostal}>Check area</Button>
                     </div>
                   }
                 />
@@ -370,7 +367,7 @@ export function Checkout({
                   {zone && !zone.served && !waitlisted && (
                     <div className={`space-y-2 rounded-2xl p-3 ${toneClasses("warning").bg}`}>
                       <p className={`text-sm ${toneClasses("warning").text}`}>We don&apos;t deliver here yet.{!contact.fullName || !phoneValid || !emailValid ? " Fill in your name, phone and email above to join the waitlist." : ""}</p>
-                      <Button type="button" variant="outline" className={`${PILL} h-11`} disabled={!contact.fullName || !phoneValid || !emailValid} onClick={joinWaitlist}>Join waitlist</Button>
+                      <Button pill variant="quiet" className="!min-h-11" disabled={!contact.fullName || !phoneValid || !emailValid} onClick={joinWaitlist}>Join waitlist</Button>
                     </div>
                   )}
                   {waitlisted && (
@@ -407,16 +404,7 @@ export function Checkout({
                   {paymentMethods.map((m) => {
                     const selected = m.id === paymentMethodId;
                     return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => selectMethod(m.id)}
-                        className={cn(
-                          "flex min-h-14 flex-col justify-center rounded-[20px] border-2 p-4 text-left transition-[transform,background-color,border-color] duration-100 outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] motion-reduce:active:scale-100",
-                          selected ? "border-primary bg-primary/10" : "border-border bg-card",
-                        )}
-                      >
+                      <OptionCard key={m.id} selected={selected} onClick={() => selectMethod(m.id)} className="flex min-h-14 flex-col justify-center p-4">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">{m.label}</span>
                           {selected && <Check className="size-4 text-primary" />}
@@ -427,16 +415,16 @@ export function Checkout({
                             {m.instructions && <p className="whitespace-pre-wrap">{m.instructions}</p>}
                           </div>
                         )}
-                      </button>
+                      </OptionCard>
                     );
                   })}
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" autoComplete="cc-number" className="nums" placeholder="4242 4242 4242 4242" /></div>
+                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input dense id="card" inputMode="numeric" autoComplete="cc-number" className="nums" placeholder="4242 4242 4242 4242" /></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" inputMode="numeric" autoComplete="cc-exp" className="nums" placeholder="12/29" /></div>
-                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" inputMode="numeric" autoComplete="cc-csc" className="nums" placeholder="123" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input dense id="exp" inputMode="numeric" autoComplete="cc-exp" className="nums" placeholder="12/29" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input dense id="cvc" inputMode="numeric" autoComplete="cc-csc" className="nums" placeholder="123" /></div>
                   </div>
                 </div>
               )}
@@ -475,9 +463,9 @@ export function Checkout({
             </ul>
           )}
           <div className="border-border rounded-2xl border border-dashed p-3">
-            <Label htmlFor="coupon" className="flex items-center gap-1.5 text-xs text-muted-foreground"><Tag className="size-3.5" /> Coupon code</Label>
+            <Label htmlFor="coupon" className="!gap-1.5 !text-xs !font-normal text-[var(--muted-foreground)]"><Tag className="size-3.5" /> Coupon code</Label>
             <div className="mt-1.5 flex gap-2">
-              <Input
+              <Input dense
                 id="coupon"
                 className="uppercase"
                 value={couponCode}
@@ -487,7 +475,7 @@ export function Checkout({
                 autoComplete="off"
                 spellCheck={false}
               />
-              <Button type="button" variant="outline" className={`${PILL} h-11 px-4`} onClick={applyCoupon} disabled={couponState.status === "checking"}>
+              <Button pill variant="quiet" className="!min-h-11 !px-4" onClick={applyCoupon} disabled={couponState.status === "checking"}>
                 {couponState.status === "checking" ? "Checking…" : "Apply"}
               </Button>
             </div>
@@ -500,7 +488,7 @@ export function Checkout({
             </p>
           ) : (
             <div className="rounded-2xl bg-muted/50 p-3">
-              <Label htmlFor="coins" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Label htmlFor="coins" className="!gap-1.5 !text-xs !font-normal text-[var(--muted-foreground)]">
                 <Coins className="size-3.5" /> Use coins ({coinBalance} available)
               </Label>
               {coinCap && coinBalance > 0 ? (
@@ -510,7 +498,7 @@ export function Checkout({
                 </p>
               ) : null}
               <div className="mt-1.5 flex gap-2">
-                <Input
+                <Input dense
                   id="coins"
                   inputMode="numeric"
                   autoComplete="off"
@@ -518,7 +506,7 @@ export function Checkout({
                   onChange={(e) => { setCoinsInput(e.target.value); if (coinsState.status !== "idle") setCoinsState({ status: "idle" }); }}
                   placeholder="e.g. 50"
                 />
-                <Button type="button" variant="outline" className={`${PILL} h-11 px-4`} onClick={applyCoins} disabled={coinsState.status === "checking"}>
+                <Button pill variant="quiet" className="!min-h-11 !px-4" onClick={applyCoins} disabled={coinsState.status === "checking"}>
                   {coinsState.status === "checking" ? "Checking…" : "Apply"}
                 </Button>
               </div>
@@ -530,14 +518,15 @@ export function Checkout({
           </OrderSummary>
           <ActionBar reason={actionReason} total={result?.total} backLabel={step > 1 ? "Back" : "Edit plan"} onBack={goBack}>
             {step === 1 ? (
-              <Button size="lg" className={`${PILL} flex-1 md:w-full`} disabled={step1Reason != null} onClick={() => {
+              <Button pill variant="primary" className={`${PILL} flex-1 md:w-full`} disabled={step1Reason != null} onClick={() => {
                 setStep(2);
                 // The address is final now — re-price so tax reflects its province.
                 void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined).catch(() => undefined);
               }}>Continue to payment</Button>
             ) : (
               <Button
-                size="lg"
+                pill
+                variant="primary"
                 className={`${PILL} flex-1 md:w-full`}
                 disabled={submitting || (realPayments && !paymentMethodId)}
                 onClick={confirm}
@@ -558,7 +547,7 @@ function ActionBar({ reason, total, backLabel, onBack, children }: { reason: str
     <div className="bg-background/80 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:space-y-2 max-md:border-t max-md:px-4 max-md:pt-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] max-md:backdrop-blur-xl md:space-y-2 md:bg-transparent">
       {reason && <p role="status" className="text-[13px] text-muted-foreground">{reason}</p>}
       <div className="flex items-center gap-2 md:block">
-        <Button type="button" variant="outline" className={`${PILL} w-24 shrink-0 px-3 sm:hidden`} onClick={onBack}>{backLabel}</Button>
+        <Button pill variant="quiet" className="!min-h-12 w-24 shrink-0 !px-3 sm:hidden" onClick={onBack}>{backLabel}</Button>
         {total != null && (
           <a href="#order-summary" className="bg-primary/15 flex h-12 shrink-0 flex-col justify-center rounded-full px-4 text-[13px] leading-tight font-semibold tabular-nums md:hidden">
             <span className="text-muted-foreground text-[11px] font-medium">Total</span>${total.toFixed(2)}

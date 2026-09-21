@@ -1,10 +1,29 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
-import { useId, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { forwardRef, useId, type InputHTMLAttributes, type Ref, type LabelHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn, FONT, FOCUS, SPRING } from "./cn";
 
+/** Bare kit input: 52px / 16px radius / hairline; `dense` is the 44px / 12px checkout size. */
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; dense?: boolean }>(function Input({ invalid, dense, className, ...rest }, ref) {
+  return (
+    <input
+      {...rest}
+      ref={ref}
+      aria-invalid={invalid ? true : rest["aria-invalid"]}
+      className={cn(FONT, FOCUS, "border bg-[var(--card)] text-base text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]", dense ? "min-h-11 rounded-xl px-2.5 md:text-sm" : "min-h-[52px] rounded-2xl px-4", invalid ? "border-[#be123c]" : "border-[var(--border)]", className)}
+    />
+  );
+});
+
+/** Standalone form label: 14px medium. Field carries its own semibold label for stacked forms. */
+export function Label({ className, ...rest }: LabelHTMLAttributes<HTMLLabelElement>) {
+  return <label {...rest} className={cn(FONT, "flex items-center gap-2 text-sm font-medium leading-none select-none", className)} />;
+}
+
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
+  /** React 19 passes ref as a prop; typed so react-hook-form register() spreads cleanly. */
+  ref?: Ref<HTMLInputElement>;
   label: string;
   hint?: string;
   error?: string;
@@ -21,18 +40,7 @@ export function Field({ label, hint, error, className, id, ...rest }: FieldProps
       <label htmlFor={inputId} className="text-sm font-semibold">
         {label}
       </label>
-      <input
-        {...rest}
-        id={inputId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        className={cn(
-          FOCUS,
-          "min-h-[52px] rounded-2xl border bg-[var(--card)] px-4 text-base text-[var(--foreground)]",
-          error ? "border-[#be123c]" : "border-[var(--border)]",
-          className,
-        )}
-      />
+      <Input {...rest} id={inputId} invalid={Boolean(error)} aria-describedby={describedBy} className={className} />
       {hint && (
         <p id={hintId} className="text-[13px] text-[var(--muted-foreground,#6E6558)]">
           {hint}

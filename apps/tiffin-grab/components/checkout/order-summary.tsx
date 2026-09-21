@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "@/components/wizard/selections";
-import { Separator } from "@foundry/ui/separator";
+import { Divider, Pill } from "@/components/customer/kit";
 
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -76,7 +76,7 @@ export function OrderSummary({
           {perWeek > 0 && (
             <div className="flex flex-wrap gap-1.5" aria-label="Eating days">
               {days.map((d) => (
-                <span key={d} className="bg-primary/15 rounded-full px-2.5 py-0.5 text-xs font-semibold">{DAY_LABEL[d] ?? d}</span>
+                <Pill key={d} tone="save" size="sm" className="!text-[var(--foreground)]">{DAY_LABEL[d] ?? d}</Pill>
               ))}
             </div>
           )}
@@ -99,7 +99,7 @@ export function OrderSummary({
               </li>
             ))}
           </ul>
-          <Separator className="my-3" />
+          <Divider className="my-3" />
           <div className="text-muted-foreground flex justify-between gap-2"><span>Subtotal</span><span className="nums">{money(result.subtotal)}</span></div>
           {(result.taxLines ?? []).map((t) => (
             <div key={t.name} className="text-muted-foreground mt-1 flex justify-between gap-2">

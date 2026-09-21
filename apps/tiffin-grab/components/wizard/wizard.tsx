@@ -8,8 +8,7 @@ import { PlanSummary } from "./plan-summary";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
-import { Button } from "@foundry/ui/button";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { BottomBar, Button, Sheet } from "@/components/customer/kit";
 import { initialSelections, nextBlockedReason, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
@@ -117,12 +116,6 @@ export function Wizard({
   };
 
   const [invoiceOpen, setInvoiceOpen] = useState(false);
-  useEffect(() => {
-    if (!invoiceOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setInvoiceOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [invoiceOpen]);
   const reduce = useReducedMotion();
   const slide = reduce ? 0 : 24;
   const sign = direction === "forward" ? 1 : -1;
@@ -187,58 +180,33 @@ export function Wizard({
         </motion.div>
       </AnimatePresence>
 
-      <AnimatePresence>
-        {invoiceOpen && result && (
-          <>
-            <motion.div
-              className="fixed inset-0 z-40 bg-black/40"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setInvoiceOpen(false)}
+      <Sheet open={invoiceOpen && result != null} onClose={() => setInvoiceOpen(false)} title="Price summary">
+        {result && (
+          <div className="space-y-3 pb-3">
+            <PlanSummary
+              baseline={catalog.plans.find((p) => p.key === selections.planKey)?.name}
+              mealName={catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId)?.name}
+              deliveryName={catalog.frequencies.find((f) => f.key === selections.frequencyKey)?.name}
+              eatingDays={selections.eatingDays ?? []}
+              weeks={selections.durationWeeks}
+              startDate={selections.startDate}
+              tiffinCount={result.tiffinCount}
             />
-            <motion.div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Price summary"
-              className="bg-background fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-t-[28px] p-5 shadow-2xl"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={spring}
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-[20px] font-semibold tracking-[-0.022em]">Price summary</h2>
-                <Button type="button" variant="ghost" className="h-11" onClick={() => setInvoiceOpen(false)}>Done</Button>
-              </div>
-              <PlanSummary
-                baseline={catalog.plans.find((p) => p.key === selections.planKey)?.name}
-                mealName={catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId)?.name}
-                deliveryName={catalog.frequencies.find((f) => f.key === selections.frequencyKey)?.name}
-                eatingDays={selections.eatingDays ?? []}
-                weeks={selections.durationWeeks}
-                startDate={selections.startDate}
-                tiffinCount={result.tiffinCount}
-              />
-              <Invoice result={result} />
-            </motion.div>
-          </>
+            <Invoice result={result} />
+          </div>
         )}
-      </AnimatePresence>
+      </Sheet>
 
-      <div className="wizard-bar fixed inset-x-0 bottom-0 z-[45] border-t px-4 pt-3 sm:sticky sm:mt-6 sm:px-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-        {blocked ? <p role="status" className="text-muted-foreground mx-auto mb-2 max-w-3xl text-center text-[13px] sm:text-right">{blocked}</p> : null}
-        <div className="mx-auto flex max-w-3xl gap-2 sm:justify-end">
-          <Button type="button" variant="outline" className={`${IOS_BUTTON} w-24 shrink-0 sm:hidden`} onClick={goBack}>Back</Button>
-          {step < 3 ? (
-            <Button type="button" className={`${IOS_BUTTON} flex-1 sm:h-10 sm:min-h-10 sm:w-auto sm:flex-none sm:px-8`} disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Next</Button>
-          ) : (
-            <Button type="button" className={`${IOS_BUTTON} flex-1 sm:h-10 sm:min-h-10 sm:w-auto sm:flex-none sm:px-8`} disabled={!canNext} onClick={deploy}>
-              Continue to checkout
-            </Button>
-          )}
-        </div>
-      </div>
+      <BottomBar alignEnd note={blocked ?? undefined} className="sm:sticky sm:mt-6 sm:px-0">
+        <Button variant="quiet" size="lg" className="w-24 shrink-0 sm:hidden" onClick={goBack}>Back</Button>
+        {step < 3 ? (
+          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Next</Button>
+        ) : (
+          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={deploy}>
+            Continue to checkout
+          </Button>
+        )}
+      </BottomBar>
     </div>
   );
 }

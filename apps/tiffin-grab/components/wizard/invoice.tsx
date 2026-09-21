@@ -1,5 +1,5 @@
 import type { PricingResult } from "@/lib/pricing";
-import { Separator } from "@foundry/ui/separator";
+import { Divider } from "@/components/customer/kit";
 
 export function Invoice({ result }: { result: PricingResult | null }) {
   if (!result) return <p className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">Select a meal to see pricing.</p>;
@@ -21,7 +21,7 @@ export function Invoice({ result }: { result: PricingResult | null }) {
           </li>
         ))}
       </ul>
-      <Separator className="my-3" />
+      <Divider className="my-3" />
       {/* Receipt order: subtotal, then tax on the discounted base, then total.
           Tax used to print above the subtotal, which read as if it were part of
           the line items rather than applied to them. */}

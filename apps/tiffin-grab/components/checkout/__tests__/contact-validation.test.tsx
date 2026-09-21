@@ -60,7 +60,7 @@ describe("Checkout contact format validation", () => {
 
     expect(screen.getByText(/enter a valid phone number/i)).toBeTruthy();
     expect(
-      (screen.getByRole("button", { name: /continue to payment/i }) as HTMLButtonElement).disabled,
+      screen.getByRole("button", { name: /continue to payment/i }).getAttribute("aria-disabled") === "true",
     ).toBe(true);
   });
 
@@ -73,12 +73,12 @@ describe("Checkout contact format validation", () => {
     const email = screen.getByLabelText(/email/i) as HTMLInputElement;
     expect(email.value).toBe("jane@example.com");
     expect(email.readOnly).toBe(true);
-    expect((screen.getByRole("button", { name: /continue to payment/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: /continue to payment/i }).getAttribute("aria-disabled") === "true").toBe(true);
 
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
     fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
-    expect((screen.getByRole("button", { name: /continue to payment/i }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole("button", { name: /continue to payment/i }).getAttribute("aria-disabled") === "true").toBe(false);
   });
 
   it("disables Continue when the stored gate email is not a valid address", async () => {
@@ -92,7 +92,7 @@ describe("Checkout contact format validation", () => {
     fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
 
     expect(
-      (screen.getByRole("button", { name: /continue to payment/i }) as HTMLButtonElement).disabled,
+      screen.getByRole("button", { name: /continue to payment/i }).getAttribute("aria-disabled") === "true",
     ).toBe(true);
   });
 });

@@ -71,13 +71,9 @@ describe("VacationDateField", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /start date/i }));
-    const todayCell = document.querySelector('[data-day="2026-08-19"]');
-    expect(todayCell).not.toBeNull();
-    expect(todayCell).not.toHaveAttribute("data-disabled");
-    const todayButton = todayCell!.querySelector("button");
-    expect(todayButton).not.toBeNull();
-    expect(todayButton).toBeEnabled();
-    fireEvent.click(todayButton!);
+    const todayButton = screen.getByRole("button", { name: /Wednesday, August 19$/ });
+    expect(todayButton).not.toHaveAttribute("aria-disabled");
+    fireEvent.click(todayButton);
     expect(onChange).toHaveBeenCalledWith("2026-08-19");
   });
 
@@ -93,6 +89,6 @@ describe("VacationDateField", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /start date/i }));
-    expect(document.querySelector('[data-day="2026-08-18"]')).toHaveAttribute("data-disabled");
+    expect(screen.getByRole("button", { name: /Tuesday, August 18, unavailable/ })).toHaveAttribute("aria-disabled", "true");
   });
 });

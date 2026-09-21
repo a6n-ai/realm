@@ -76,7 +76,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
-    expect(continueBtn().disabled).toBe(true);
+    expect(continueBtn().getAttribute("aria-disabled") === "true").toBe(true);
 
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
@@ -84,7 +84,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
     fireEvent.blur(screen.getByLabelText(/postal code/i));
 
-    await waitFor(() => expect(continueBtn().disabled).toBe(false));
+    await waitFor(() => expect(continueBtn().getAttribute("aria-disabled") === "true").toBe(false));
   });
 
   it("shows the waitlist path for an unserved postal and blocks Continue", async () => {
@@ -103,7 +103,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     fireEvent.blur(screen.getByLabelText(/postal code/i));
 
     const waitlistBtn = await screen.findByRole("button", { name: /join waitlist/i });
-    expect(continueBtn().disabled).toBe(true);
+    expect(continueBtn().getAttribute("aria-disabled") === "true").toBe(true);
 
     fireEvent.click(waitlistBtn);
     await waitFor(() =>

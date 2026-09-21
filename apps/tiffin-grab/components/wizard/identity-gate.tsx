@@ -8,9 +8,7 @@ import { z } from "zod";
 import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { checkExistingAccount } from "@/app/(public)/subscribe/actions";
-import { Button } from "@foundry/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
-import { Input } from "@foundry/ui/input";
+import { Button, Field, Label } from "@/components/customer/kit";
 import { CodeOtp } from "@foundry/auth-ui";
 import { readIdentity, resetSession, writeIdentity } from "./selections";
 
@@ -138,42 +136,25 @@ export function IdentityGate({ children }: { children: ReactNode }) {
   return (
     <div className="border-border rounded-2xl border p-4.5 sm:p-6">
       {state === "email" && (
-        <Form {...emailForm}>
-          <form onSubmit={emailForm.handleSubmit(submitEmail)} className="flex flex-col gap-4">
-            <div>
-              <h2 className="text-xl font-bold tracking-[-0.02em]">What&apos;s your email?</h2>
-              <p className="text-muted-foreground mt-1 text-sm text-pretty">
-                We&apos;ll check if you already have an account.
-              </p>
-            </div>
-            <FormField
-              control={emailForm.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      autoComplete="email"
-                      placeholder="you@example.com"
-                      className="border-border h-13 rounded-2xl border px-4"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              type="submit"
-              className="hover-lift h-14 w-full rounded-full shadow-[0_12px_30px_-6px_var(--color-primary)]"
-              disabled={emailForm.formState.isSubmitting}
-            >
-              Continue
-            </Button>
-          </form>
-        </Form>
+        <form onSubmit={emailForm.handleSubmit(submitEmail)} noValidate className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-[-0.02em]">What&apos;s your email?</h2>
+            <p className="text-muted-foreground mt-1 text-sm text-pretty">
+              We&apos;ll check if you already have an account.
+            </p>
+          </div>
+          <Field
+            label="Email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            error={emailForm.formState.errors.email?.message}
+            {...emailForm.register("email")}
+          />
+          <Button type="submit" variant="hero" size="lg" className="w-full !min-h-14" disabled={emailForm.formState.isSubmitting}>
+            Continue
+          </Button>
+        </form>
       )}
 
       {state === "matched" && (
@@ -185,65 +166,44 @@ export function IdentityGate({ children }: { children: ReactNode }) {
             </p>
           </div>
           {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
-          <Button
-            type="button"
-            className="hover-lift h-14 w-full rounded-full shadow-[0_12px_30px_-6px_var(--color-primary)]"
-            onClick={continueAsGuest}
-          >
+          <Button variant="hero" size="lg" className="w-full !min-h-14" onClick={continueAsGuest}>
             Continue as guest
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="border-border h-14 w-full rounded-full border"
-            onClick={sendCode}
-            disabled={sending}
-          >
+          <Button variant="quiet" pill size="lg" className="w-full !min-h-14" onClick={sendCode} disabled={sending}>
             Sign in
           </Button>
         </div>
       )}
 
       {state === "otp" && (
-        <Form {...codeForm}>
-          <form onSubmit={codeForm.handleSubmit(verifyCode)} className="flex flex-col gap-4">
-            <div>
-              <h2 className="text-xl font-bold tracking-[-0.02em]">Enter your code</h2>
-              <p className="text-muted-foreground mt-1 text-sm text-pretty">
-                We emailed a 6-digit code to {email}.
-              </p>
-            </div>
-            <FormField
-              control={codeForm.control}
-              name="code"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel>Verification code</FormLabel>
-                  <FormControl>
-                    <CodeOtp
-                      value={field.value}
-                      onChange={field.onChange}
-                      onComplete={() => codeForm.handleSubmit(verifyCode)()}
-                      aria-invalid={!!fieldState.error}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <form onSubmit={codeForm.handleSubmit(verifyCode)} className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-[-0.02em]">Enter your code</h2>
+            <p className="text-muted-foreground mt-1 text-sm text-pretty">
+              We emailed a 6-digit code to {email}.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="gate-code">Verification code</Label>
+            <CodeOtp
+              id="gate-code"
+              value={codeForm.watch("code")}
+              onChange={(v: string) => codeForm.setValue("code", v, { shouldValidate: codeForm.formState.isSubmitted })}
+              onComplete={() => codeForm.handleSubmit(verifyCode)()}
+              aria-invalid={!!codeForm.formState.errors.code}
             />
-            {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
-            <Button
-              type="submit"
-              className="hover-lift h-14 w-full rounded-full shadow-[0_12px_30px_-6px_var(--color-primary)]"
-              disabled={codeForm.formState.isSubmitting}
-            >
-              Sign in
-            </Button>
-            <Button type="button" variant="ghost" className="h-12 w-full rounded-full" onClick={continueAsGuest}>
-              Continue as guest instead
-            </Button>
-          </form>
-        </Form>
+            {codeForm.formState.errors.code && (
+              <p role="alert" className="text-destructive text-sm">{codeForm.formState.errors.code.message}</p>
+            )}
+          </div>
+          {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
+          <Button type="submit" variant="hero" size="lg" className="w-full !min-h-14" disabled={codeForm.formState.isSubmitting}>
+            Sign in
+          </Button>
+          <Button variant="ghost" pill size="lg" className="w-full !min-h-12" onClick={continueAsGuest}>
+            Continue as guest instead
+          </Button>
+        </form>
       )}
     </div>
   );

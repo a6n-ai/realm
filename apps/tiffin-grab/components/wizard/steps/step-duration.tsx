@@ -3,8 +3,7 @@ import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "../selections";
-import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
-import { Label } from "@foundry/ui/label";
+import { Choice, ChoiceGroup, Pill } from "@/components/customer/kit";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
@@ -131,30 +130,25 @@ export function StepDuration({
         ) : null}
       </div>
       <div>
-        <Label className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Commitment duration</Label>
-        <RadioGroup
+        <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Commitment duration</p>
+        <ChoiceGroup
+          label="Commitment duration"
           className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2"
           value={String(selections.durationWeeks)}
-          onValueChange={(v) => set({ durationWeeks: Number(v) })}
+          onChange={(v) => set({ durationWeeks: Number(v) })}
         >
           {catalog.durations.map((d) => {
-            const active = selections.durationWeeks === d.weeks;
             const save = savings[d.weeks] ?? 0;
             return (
-              <label
-                key={d.weeks}
-                htmlFor={`d${d.weeks}`}
-                className={`flex min-h-[72px] cursor-pointer items-center justify-between gap-2 rounded-[20px] border-2 p-4 text-sm font-semibold transition-[transform,background-color,border-color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`}
-              >
+              <Choice key={d.weeks} value={String(d.weeks)} className="min-h-[72px] p-4 text-sm font-semibold">
                 <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="text-[22px] leading-none font-bold tracking-[-0.03em]">{d.weeks}wk</span>
-                  {save > 0 && <span aria-label={`Save ${save}%`} className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-xs font-semibold">Save {save}%</span>}
+                  {save > 0 && <Pill tone="save" size="sm" aria-label={`Save ${save}%`}>Save {save}%</Pill>}
                 </span>
-                <RadioGroupItem id={`d${d.weeks}`} value={String(d.weeks)} />
-              </label>
+              </Choice>
             );
           })}
-        </RadioGroup>
+        </ChoiceGroup>
       </div>
     </div>
   );
