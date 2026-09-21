@@ -47,18 +47,22 @@ export function DateCell({ date, selected, disabledReason, status, onSelect, onD
         FOCUS,
         "relative flex flex-none flex-col items-center justify-center rounded-[14px] border-[1.5px] text-xs leading-tight [touch-action:manipulation] transition-[transform,background-color] duration-150 active:scale-[.97] motion-reduce:transition-none",
         SPRING,
-        compact ? "size-11" : "h-[52px] min-w-11",
+        compact ? "size-11" : delivery !== undefined ? "h-[62px] min-w-11" : "h-[52px] min-w-11",
         selected ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "border-[var(--border)] bg-[var(--card)]",
         disabledReason && "opacity-35",
         className,
       )}
     >
       {!compact && <span aria-hidden>{WD.format(d)}</span>}
-      {delivery && <Truck aria-hidden className="absolute right-1 top-1 size-3 text-[var(--muted-foreground,#6E6558)]" />}
       <StatusRing status={status === "delivered" ? "delivered" : undefined} className={compact ? "size-8" : undefined}>
         <b aria-hidden className="text-[17px] tabular-nums">{d.getUTCDate()}</b>
       </StatusRing>
-      {status && status !== "delivered" && <StatusDot decorative status={status} className="absolute bottom-1" />}
+      {((status && status !== "delivered") || delivery) && (
+        <span aria-hidden className="absolute bottom-1 flex items-center gap-0.5">
+          {delivery && <Truck className="size-3 text-[var(--muted-foreground,#6E6558)]" />}
+          {status && status !== "delivered" && <StatusDot decorative status={status} />}
+        </span>
+      )}
     </button>
   );
 }

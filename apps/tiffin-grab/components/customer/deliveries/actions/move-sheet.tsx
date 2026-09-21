@@ -10,13 +10,12 @@ import { formatCoversLabel } from "@/lib/menu/coverage";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
 
-const MONTH = new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric", timeZone: "UTC" });
-/** "September 2026" or "September – October 2026" for the days on offer. */
-function monthsOf(dates: string[]): string {
+const MON = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" });
+/** Same style as the hub's week label: "SEP 24 – OCT 21" for the days on offer. */
+function rangeOf(dates: string[]): string {
   if (dates.length === 0) return "";
-  const f = (iso: string) => MONTH.format(new Date(`${iso}T00:00:00Z`));
-  const a = f(dates[0]!), b = f(dates[dates.length - 1]!);
-  return a === b ? a : `${a.split(" ")[0]} – ${b}`;
+  const f = (iso: string) => `${MON.format(new Date(`${iso}T00:00:00Z`))} ${Number(iso.slice(8))}`;
+  return `${f(dates[0]!)} – ${f(dates[dates.length - 1]!)}`;
 }
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
@@ -55,7 +54,7 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 pb-2">
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>
-              <p className="text-[13px] font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">{monthsOf(options.map((o) => o.date))}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--muted-foreground,#6E6558)]">{rangeOf(options.map((o) => o.date))}</p>
               <DateStrip label="New day to eat" days={options.map((o) => ({ ...o, delivery: o.carriedOn === o.date }))} value={picked} onChange={setPicked} />
               {!chosen && <Reason>Choose a day to continue.</Reason>}
               {chosen?.merge ? (

@@ -73,7 +73,7 @@ describe("MoveSheet", () => {
   });
   it("shows the month on top and marks delivery days with a truck", () => {
     mount(MoveSheet, trip());
-    expect(screen.getByText(/^September/)).toBeInTheDocument();
+    expect(screen.getByText(/^Sep \d+ – (Sep|Oct|Nov) \d+$/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Monday, September 28, delivery day/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Saturday, September 26(?!, delivery)/ })).toBeInTheDocument();
   });
