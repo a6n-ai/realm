@@ -37,6 +37,7 @@ export function TripRow({ trip, tz, selected, onSelect }: { trip: Trip; tz: stri
   return (
     <button
       type="button"
+      data-testid="trip-row"
       aria-pressed={selected}
       aria-label={`${humanDate(trip.date)}, ${m.label}`}
       onClick={() => onSelect(trip.date)}

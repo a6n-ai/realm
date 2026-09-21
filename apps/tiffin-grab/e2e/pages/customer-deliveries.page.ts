@@ -10,11 +10,11 @@ export class CustomerDeliveriesPage {
   }
 
   tripRows() {
-    return this.page.getByRole("button", { pressed: true }).or(this.page.getByRole("button", { pressed: false })).filter({ has: this.page.locator("b") });
+    return this.page.getByTestId("trip-row").filter({ visible: true });
   }
 
   vacationButton() {
-    return this.page.getByRole("button", { name: /^(vacation|resume)$|resume deliveries/i }).first();
+    return this.page.getByRole("button", { name: /going away|on vacation/i }).first();
   }
 
   action(name: string | RegExp) {
