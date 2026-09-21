@@ -6,6 +6,7 @@ export { DateCell, DateStrip, MonthGrid, type StripDay } from "./dates";
 export { Field, Stepper, Textarea, Toggle } from "./field";
 export { Notice, Reason } from "./notice";
 export { Chip, Pill, type Tone } from "./pill";
+export { Select } from "./select";
 export { Sheet } from "./sheet";
 export { Skeleton } from "./skeleton";
 export { STATUS_COLOR, STATUS_LABEL, StatusDot, StatusRing, type DeliveryStatus } from "./status";

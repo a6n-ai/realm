@@ -24,7 +24,7 @@ import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
-import { AddressFields } from "@foundry/ui/address-fields";
+import { AddressFields } from "@/components/customer/address/address-fields";
 import { cn } from "@foundry/ui/cn";
 import { Check, Coins, MapPin, ShieldCheck, Tag } from "lucide-react";
 import { Stepper } from "@/components/stepper";
@@ -350,9 +350,6 @@ export function Checkout({
                 <AddressFields
                   preset="delivery"
                   idPrefix="checkout"
-                  // The shared postal cell wraps postalSlot in sm:col-span-2, which makes its own
-                  // one-column grid grow a second column and puts the label beside the input.
-                  className="[&_div:has(>div>[data-postal-slot])]:grid-cols-[minmax(0,1fr)_auto] [&_div:has(>div>[data-postal-slot])]:gap-x-2 sm:[&_div:has(>div>[data-postal-slot])]:col-span-2 [&_div:has(>div>[data-postal-slot])>label]:col-span-2 [&_div:has(>[data-postal-slot])]:col-span-1 [&_div:has(>[data-postal-slot])]:self-end sm:[&_div:has(>[data-postal-slot])]:col-span-1"
                   fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
                   values={contact}
                   onChange={set}

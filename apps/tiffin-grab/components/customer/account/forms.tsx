@@ -7,8 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Area, CropperProps } from "react-easy-crop";
 import { profileAddressSchema, type ProfileAddressValues } from "@foundry/commons";
-import { AddressFormFields } from "@foundry/ui/address-form-fields";
-import { Form } from "@foundry/ui/form";
+import { AddressFields } from "@/components/customer/address/address-fields";
 import { Button, Card, Field, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { getCroppedBlob } from "@/lib/images/crop";
@@ -255,19 +254,19 @@ export function AddressForm(props: Partial<ProfileAddressValues>) {
   });
   return (
     <Block title="Delivery address" subtitle="Where your tiffins go. Checkout uses this by default.">
-      <Form {...form}>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <AddressFormFields
-            control={form.control}
-            preset="profile"
-            resolveUrl="/api/address/resolve"
-            onAutofill={(patch) => {
-              for (const [key, value] of Object.entries(patch)) form.setValue(key as keyof ProfileAddressValues, value, { shouldDirty: true });
-            }}
-          />
-          <SaveBar pending={s.pending || form.formState.isSubmitting} dirty={form.formState.isDirty} status={s.status} label="Save address" />
-        </form>
-      </Form>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <AddressFields
+          preset="profile"
+          idPrefix="account"
+          values={form.watch()}
+          errors={Object.fromEntries(Object.entries(form.formState.errors).map(([k, e]) => [k, e?.message]))}
+          resolveUrl="/api/address/resolve"
+          onChange={(patch) => {
+            for (const [key, value] of Object.entries(patch)) form.setValue(key as keyof ProfileAddressValues, value ?? "", { shouldDirty: true });
+          }}
+        />
+        <SaveBar pending={s.pending || form.formState.isSubmitting} dirty={form.formState.isDirty} status={s.status} label="Save address" />
+      </form>
     </Block>
   );
 }

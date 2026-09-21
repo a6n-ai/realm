@@ -36,7 +36,7 @@ import { Button } from "@foundry/ui/button";
 import { DialogFooterRow, IOS_BUTTON } from "@/components/customer/ios-button";
 import { Input } from "@foundry/ui/input";
 import { AddressDisplay } from "@foundry/ui/address-display";
-import { AddressFields } from "@foundry/ui/address-fields";
+import { AddressFields } from "@/components/customer/address/address-fields";
 import { ResponsiveDialog } from "@/components/ds";
 import { fullDayName } from "@/lib/menu/coverage";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
