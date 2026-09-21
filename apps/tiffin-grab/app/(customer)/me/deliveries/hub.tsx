@@ -61,7 +61,8 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const win = windows[sub.publicId];
 
   // One light query for the strip; the heavy per-trip calendar is loaded for the selected week only.
-  const firstWeek = mondayOf(today);
+  // The strip starts at this plan's first week (a plan starting next month must not open with empty weeks to scroll past).
+  const firstWeek = mondayOf(win && win.first > today ? win.first : today);
   const lastWeek = mondayOf(win && win.last > today ? win.last : today);
   const all = await myAgendaDots(userId, firstWeek, addDays(lastWeek, 6));
   const agenda: Agenda = {};
@@ -113,6 +114,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
         trips={trips}
         agenda={agenda}
         weekStart={weekStart}
+        firstWeek={firstWeek}
         lastWeek={lastWeek}
         now={now}
         initialTrip={initialTrip}

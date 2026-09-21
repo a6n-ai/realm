@@ -47,7 +47,7 @@ const agendaOf = (...e: (readonly [string, Agenda[string][number]])[][]): Agenda
   return a;
 };
 const view = (sel: string | null = "2026-09-23", t = trips, p = plan, extra: Partial<React.ComponentProps<typeof DeliveriesView>> = {}) =>
-  render(<DeliveriesView plan={p} subs={[p.sub]} windows={{}} trips={t} agenda={{}} weekStart="2026-09-21" lastWeek="2026-10-05" now={NOW} initialTrip={sel} {...extra} />);
+  render(<DeliveriesView plan={p} subs={[p.sub]} windows={{}} trips={t} agenda={{}} weekStart="2026-09-21" firstWeek="2026-09-21" lastWeek="2026-10-05" now={NOW} initialTrip={sel} {...extra} />);
 
 const p1 = mk("o1", { size: "Large", remaining: 16, total: 20 });
 const p2 = mk("o2", { size: "Small", remaining: 8, total: 10 });
@@ -56,7 +56,7 @@ const monTrip = trip({ orderId: "o1", date: "2026-09-21", deliveryId: "a", units
 const plan1Trips = [monTrip, trip({ orderId: "o1", date: "2026-09-24", status: "hold" })];
 const agenda1 = agendaOf(dot("o1", "2026-09-21", ["2026-09-21", "2026-09-22"], 2), dot("o1", "2026-09-24", ["2026-09-24"], 1, "skipped"), dot("o1", "2026-10-05", ["2026-10-05"]));
 const multi = (over: Partial<React.ComponentProps<typeof DeliveriesView>> = {}) =>
-  render(<DeliveriesView plan={p1} subs={[p1.sub, p2.sub]} windows={win} trips={plan1Trips} agenda={agenda1} weekStart="2026-09-21" lastWeek="2026-10-05" now={NOW} initialTrip={null} {...over} />);
+  render(<DeliveriesView plan={p1} subs={[p1.sub, p2.sub]} windows={win} trips={plan1Trips} agenda={agenda1} weekStart="2026-09-21" firstWeek="2026-09-21" lastWeek="2026-10-05" now={NOW} initialTrip={null} {...over} />);
 
 describe("DeliveriesView (one plan)", () => {
   it("shows plan summary with tiffin counts, hold days and renew", () => {

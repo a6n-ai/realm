@@ -32,6 +32,7 @@ interface Props {
   /** Eating-day agenda of this plan across the whole range. */
   agenda: Agenda;
   weekStart: string;
+  firstWeek: string;
   lastWeek: string;
   now: number;
   initialTrip: string | null;
@@ -43,7 +44,7 @@ function PlanTab({ selected, className, ...rest }: React.ButtonHTMLAttributes<HT
 }
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "hold" ? 1 : 2);
 
-export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, lastWeek, now, initialTrip, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
   const multi = subs.length > 1;
@@ -109,10 +110,11 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const dates = Object.keys(agenda).sort();
   const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;
   const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
+  const hasBar = !!(trip && model && (model.rows.length > 0 || model.goTo || model.primary === "vacation"));
   const heldOnly = shown.length > 0 && shown.every((r) => r.trip.status === "hold");
 
   return (
-    <div className={`${FONT} pb-[190px] lg:pb-8`}>
+    <div className={`${FONT} ${hasBar ? "pb-[150px]" : "pb-8"} lg:pb-8`}>
       <PlanHeader
         sub={sub}
         counts={plan.counts}
@@ -162,7 +164,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
       <div className="mb-4">
         <WeekStrip
-          firstWeek={mondayOf(today)}
+          firstWeek={firstWeek}
           lastWeek={lastWeek}
           week={weekStart}
           today={today}
