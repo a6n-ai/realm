@@ -229,9 +229,6 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
                 {row && trip && model ? (
                   <EatingCard row={row} tz={tz} plan={tagOf(trip.orderId)} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
                     <div className="mt-6 hidden lg:block">
-                      {trip.coversDates.length > 1 && trip.status === "upcoming" && (
-                        <p className="mb-3 hidden text-[13px] lg:block text-[var(--muted-foreground,#6E6558)]">Hold applies to the whole trip: holds {trip.coversDates.map(weekdayShort).join(" + ")}.</p>
-                      )}
                       <TripActions model={model} layout="card" onAction={setActive} onGoTo={(d) => goTo(d, trip.orderId)} />
                       <div className="mt-4">
                         {ctx.onVacation ? (
@@ -250,10 +247,6 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
                 {heldOnly && <Notice>Everything this week is on hold. Resume a trip or schedule a make-up.</Notice>}
               </div>
             </div>
-
-            {trip && trip.coversDates.length > 1 && trip.status === "upcoming" && (
-              <p className="mt-3 text-[13px] text-[var(--muted-foreground,#6E6558)] lg:hidden">Hold applies to the whole trip: holds {trip.coversDates.map(weekdayShort).join(" + ")}.</p>
-            )}
             {trip && model && (model.rows.length > 0 || model.goTo || model.primary === "vacation") && (
               <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
                 <TripActions model={model} layout="bar" onAction={setActive} onGoTo={(d) => goTo(d, trip.orderId)} />

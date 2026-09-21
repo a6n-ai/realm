@@ -27,7 +27,7 @@ test.describe("customer deliveries (trip timeline)", () => {
     const d = new CustomerDeliveriesPage(page);
     await d.selectFirstTrip();
     await expect(
-      d.action(/hold this trip|resume this trip|swap items/i).or(page.getByRole("status")).first(),
+      d.action(/reschedule this day|resume this trip|swap items/i).or(page.getByRole("status")).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -67,14 +67,13 @@ test.describe("customer deliveries (trip timeline)", () => {
     await expect(d.sheet(/pause deliveries|resume deliveries/i)).toBeVisible({ timeout: 10_000 });
   });
 
-  test("hold, move, swap and pick sheets open from the trip actions", async ({ page }) => {
+  test("move, swap and pick sheets open from the trip actions", async ({ page }) => {
     test.setTimeout(120_000);
     await gotoDeliveries(page);
     test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
     const d = new CustomerDeliveriesPage(page);
     await d.selectFirstTrip();
     const cases: [RegExp, RegExp][] = [
-      [/hold this trip/i, /^hold /i],
       [/reschedule this day/i, /^reschedule /i],
       [/swap items/i, /swap items/i],
       [/pick meals/i, /pick meals/i],
