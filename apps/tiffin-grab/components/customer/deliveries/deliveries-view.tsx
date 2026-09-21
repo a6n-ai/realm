@@ -134,22 +134,7 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
   const next = nextDates.find((d) => d > weekEnd) ?? [...nextDates].reverse().find((d) => d < weekStart) ?? null;
   const nextOrder = next ? agenda[next]!.find(inFilter)?.orderId : undefined;
   const nextPlan = nextOrder ? plansByOrder[nextOrder] : undefined;
-  const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today && inFilter(d)).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate) || order(a.orderId) - order(b.orderId));
-  const nextTruck = upcoming.filter((d) => d.deliveryDate === upcoming[0]?.deliveryDate);
   const heldOnly = shown.length > 0 && shown.every((r) => r.trip.status === "hold");
-
-  const chips = multi && (
-    <div role="group" aria-label="Filter by plan" className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap">
-      <PlanChip selected={!filter} onClick={() => pickFilter(null)}>All plans</PlanChip>
-      {plans.map((p) => (
-        <PlanChip key={p.orderId} selected={filter === p.orderId} onClick={() => pickFilter(p.orderId)} aria-label={`${p.sub.mealSizeName} ${p.sub.tagLabel || p.sub.planName}${p.sub.status === "paused" ? " (paused)" : ""}, ${windowLabel(windows[p.orderId], today) ?? ""}`}>
-          <span aria-hidden className="mr-1.5 inline-block size-2 rounded-full align-middle" style={{ background: colorOf(p.orderId) }} />
-          {p.sub.mealSizeName}
-          <span className="ml-1.5 text-xs font-normal opacity-70">{windowLabel(windows[p.orderId], today)}</span>
-        </PlanChip>
-      ))}
-    </div>
-  );
 
   return (
     <div className={`${FONT} pb-[190px] lg:pb-8`}>
@@ -161,26 +146,6 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
         onVacationClick={() => setActive("vacation")}
         color={multi ? colorOf(activePlan.orderId) : undefined}
       />
-      {chips}
-
-      {nextTruck.length > 0 && (
-        <section aria-label="Next delivery" data-testid="next-delivery" className="mb-4 space-y-2">
-          {nextTruck.map((d) => (
-            <button
-              key={d.orderId}
-              type="button"
-              onClick={() => goTo(d.deliveryDate, d.orderId)}
-              className={cn(FOCUS, "flex min-h-14 w-full flex-col items-start rounded-2xl border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-4 py-3 text-left [touch-action:manipulation]")}
-            >
-              <span className="text-[15px] font-semibold">
-                Next delivery: {humanDate(d.deliveryDate)}, {tiffins(d.units)} ({d.covers.map(weekdayShort).join(" + ")})
-                {multi && plansByOrder[d.orderId] ? ` · ${plansByOrder[d.orderId]!.sub.mealSizeName}` : ""}
-              </span>
-              <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Changes close {formatCutoff(d.cutoffAt, tz)}</span>
-            </button>
-          ))}
-        </section>
-      )}
 
       <div className="mb-4">
         <WeekStrip

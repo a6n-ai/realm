@@ -137,8 +137,8 @@ describe("DeliveriesView (week + several plans)", () => {
     expect(rows).toHaveLength(3);
     const sep23 = rows.filter((r) => /Wed, Sep 23/.test(r.textContent ?? ""));
     expect(sep23).toHaveLength(2);
-    expect(within(sep23[0]!).getByTestId("plan-tag")).toHaveTextContent("Large");
-    expect(within(sep23[1]!).getByTestId("plan-tag")).toHaveTextContent("Small");
+    expect(sep23[0]).toHaveAttribute("aria-label", expect.stringContaining("Large"));
+    expect(sep23[1]).toHaveAttribute("aria-label", expect.stringContaining("Small"));
   });
   it("only the week's trips are listed (trips are week-scoped)", () => {
     multi();
@@ -152,16 +152,6 @@ describe("DeliveriesView (week + several plans)", () => {
     expect(screen.getAllByText("Chole").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /^Wed, Sep 23, Large/ }));
     expect(screen.getByText(/16 of 20 tiffins left/)).toBeInTheDocument();
-  });
-  it("plan filter chips narrow the list and the strip dots", () => {
-    multi();
-    const day = () => screen.getByRole("button", { name: /Wednesday, September 23/ });
-    expect(day().getAttribute("aria-label")).toContain("Upcoming, Upcoming, delivery arrives");
-    fireEvent.click(screen.getByRole("button", { name: /^Small/ }));
-    expect(screen.getAllByTestId("trip-row")).toHaveLength(1);
-    expect(day().getAttribute("aria-label")).not.toContain("Upcoming, Upcoming");
-    fireEvent.click(screen.getByRole("button", { name: "All plans" }));
-    expect(screen.getAllByTestId("trip-row")).toHaveLength(3);
   });
   it("?sub pre-filters to one plan", () => {
     multi({ initialFilter: "o2", initialPlan: "o2" });
@@ -193,13 +183,6 @@ describe("DeliveriesView (week + several plans)", () => {
     const go = screen.getByRole("button", { name: "Go to Wed, Oct 7" });
     fireEvent.click(go);
     expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
-  });
-  it("Next delivery card lists the earliest arriving trip per plan with tiffins, covers and cutoff", () => {
-    multi();
-    const card = screen.getByTestId("next-delivery");
-    expect(card).toHaveTextContent("Next delivery: Wed, Sep 23, 1 tiffin (Wed)");
-    expect(within(card).getAllByRole("button")).toHaveLength(2);
-    expect(card).toHaveTextContent(/Changes close/);
   });
   it("the info button on a row explains the trip: status, delivery day, feeds, cutoff", () => {
     multi();

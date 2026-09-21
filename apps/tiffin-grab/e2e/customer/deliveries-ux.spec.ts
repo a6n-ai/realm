@@ -27,7 +27,7 @@ test.describe("customer deliveries (trip timeline)", () => {
     const d = new CustomerDeliveriesPage(page);
     await d.selectFirstTrip();
     await expect(
-      d.action(/reschedule this day|resume this trip|swap items/i).or(page.getByRole("status")).first(),
+      d.action(/hold this trip|resume this trip|swap items/i).or(page.getByRole("status")).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -74,7 +74,8 @@ test.describe("customer deliveries (trip timeline)", () => {
     const d = new CustomerDeliveriesPage(page);
     await d.selectFirstTrip();
     const cases: [RegExp, RegExp][] = [
-      [/reschedule this day/i, /^reschedule /i],
+      [/hold this trip/i, /^hold /i],
+      [/move to another day/i, /^move /i],
       [/swap items/i, /swap items/i],
       [/pick meals/i, /pick meals/i],
     ];

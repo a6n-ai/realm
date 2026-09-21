@@ -42,7 +42,7 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   );
 
   return (
-    <Sheet open={open} onClose={() => onDone()} title={`Reschedule ${day}`} footer={footer}>
+    <Sheet open={open} onClose={() => onDone()} title={`Move ${day}`} footer={footer}>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 pb-2">
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>

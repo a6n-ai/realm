@@ -1,5 +1,5 @@
 "use client";
-import { Info } from "lucide-react";
+import { Info, Truck } from "lucide-react";
 import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { formatCutoff, humanDate, type Trip } from "@/lib/deliveries-view";
@@ -119,7 +119,7 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
 
 const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
 
-/** One eating day of the selected week: dishes first, the delivery that feeds it as quiet second text. */
+/** One eating day of the selected week: date + dishes; a truck marks the delivery day, the "i" button (beside the row) holds the rest. */
 export function EatingRowButton({ row, selected, onSelect, plan }: { row: EatingRow; selected: boolean; onSelect: (row: EatingRow) => void; plan?: PlanTagInfo }) {
   const m = statusMeta(row.trip);
   const dish = dedupeDishes(row.dish).join(", ");
@@ -137,10 +137,12 @@ export function EatingRowButton({ row, selected, onSelect, plan }: { row: Eating
       )}
     >
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">{humanDate(row.date)}</span>
+        <span className="flex items-center gap-2 text-[15px] font-semibold">
+          {plan && <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: plan.color }} />}
+          {humanDate(row.date)}
+          {row.own && <Truck aria-label="Delivery day" className="size-4 text-[var(--muted-foreground,#6E6558)]" />}
+        </span>
         <span className={cn(HELP, "block truncate")}>{dish || "Default menu"}</span>
-        <span className={cn(HELP, "block")}>{deliveryLine(row)}</span>
-        {plan && <span className="mt-1 block"><PlanTag plan={plan} /></span>}
       </span>
       <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
         {m.dot && <StatusDot decorative status={m.dot} />}
@@ -172,17 +174,11 @@ export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow
         <li>{dishes.length ? dishes.join(", ") : <span className="text-[var(--muted-foreground,#6E6558)]">Default menu</span>}</li>
         {row.swaps.length > 0 && <li className={HELP}>Swapped: {row.swaps.join(", ")}</li>}
       </ul>
-      <div className="mt-5 rounded-xl bg-[var(--muted)]/60 p-4" data-testid="delivery-block">
-        <p className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">Delivery</p>
-        <p className="mt-1 text-[15px] font-semibold">{deliveryLine(row)}</p>
-        <p className={HELP}>
-          {[
-            `${tiffins(trip.units)} covering ${covers}`,
-            cutoff ?? (done ? null : reason),
-            !row.own && trip.status === "upcoming" ? `Locks with ${weekdayShort(trip.date)}'s delivery` : null,
-          ].filter(Boolean).join(" · ")}
-        </p>
-      </div>
+      <p className={cn(HELP, "mt-4 flex items-center gap-1.5")} data-testid="delivery-block">
+        <Truck aria-hidden className="size-4 shrink-0" />
+        {deliveryLine(row)} · {tiffins(trip.units)} covering {covers}
+        {cutoff ? ` · ${cutoff.toLowerCase()}` : ""}
+      </p>
       {children}
     </Card>
   );
