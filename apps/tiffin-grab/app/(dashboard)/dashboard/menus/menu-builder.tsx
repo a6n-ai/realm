@@ -177,7 +177,7 @@ export function MenuBuilder({
     return [...byKey.values()];
   }, [problems]);
 
-  const blockingCount = problems.filter((p) => p.kind === "missing").length;
+  const gapCount = problems.filter((p) => p.kind === "missing").length;
 
   const posterItems: PosterItem[] = rows.flatMap((r, index) => {
     const d = dishById.get(r.dishId);
@@ -411,11 +411,12 @@ export function MenuBuilder({
         </div>
       )}
 
-      {blockingCount > 0 && !isReleased && (
+      {gapCount > 0 && !isReleased && (
         <div className="rounded-xl border border-warn/40 bg-warn/5 p-4 text-sm">
           <p className="font-medium">
-            This menu cannot be released yet — <span className="tabular-nums">{blockingCount}</span>{" "}
-            {blockingCount === 1 ? "gap" : "gaps"} would leave subscribers without a meal.
+            Warning — <span className="tabular-nums">{gapCount}</span>{" "}
+            {gapCount === 1 ? "gap" : "gaps"} may leave some subscribers without a meal.
+            You can still release.
           </p>
           {/* Grouped, and collapsed by default. One row per missing (plan, day, category) is
               O(plans x days x categories): a week built across all seven days produced ~84

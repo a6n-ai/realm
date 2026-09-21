@@ -27,14 +27,10 @@ import { releaseWeek, markReady as markReadyAction } from "../actions";
 // Thrown errors are redacted to "Minified React error #441" in production, so
 // expected validation failures must come back as { error } the builder can show.
 describe("menu actions", () => {
-  it("releaseWeek returns { error } when release would leave a meal gap", async () => {
-    release.mockRejectedValueOnce(
-      new ValidationError("This menu would leave subscribers without a meal: Veg has no Dal on Monday"),
-    );
+  it("releaseWeek returns { error } when the week is already released", async () => {
+    release.mockRejectedValueOnce(new ValidationError("This menu is already released"));
     const res = await releaseWeek("mw_test");
-    expect(res).toEqual({
-      error: expect.stringContaining("without a meal"),
-    });
+    expect(res).toEqual({ error: "This menu is already released" });
   });
 
   it("markReady returns { error } when the week is not a draft", async () => {

@@ -300,15 +300,17 @@ export const menuService = {
   },
 
   /**
-   * What a subscriber on a given plan would find missing if this week went live now.
+   * Soft check for the builder: which (plan, day, category) cells would leave a
+   * subscriber without a dish if this week went live now. Warnings only — release()
+   * does not consult this list.
    *
    * The builder shows the union of categories across a plan type, and offers dishes filtered
    * by dishes.category — but what a subscriber actually receives is filtered by dish_plans
-   * membership. So an admin can fill a day that is empty for the veg plan and get no warning
-   * anywhere. This is that warning, computed with the same membership the serving path uses.
+   * membership. So an admin can fill a day that is empty for the veg plan and get no
+   * feedback unless we surface it here.
    *
    * Only days that already have dishes are checked: a week that deliberately skips Sunday
-   * is not an error, but a Monday built for non-veg only is.
+   * is not an error, but a Monday built for non-veg only is worth a warning.
    */
   async releaseProblems(weekPublicId: string): Promise<
     { kind: "missing" | "extra"; day: DayOfWeek; planName: string; categoryKey: string; categoryLabel: string; dishNames: string[] }[]
@@ -427,21 +429,9 @@ export const menuService = {
     if (!week) throw new ValidationError("Week not found");
     if (week.status === "released") throw new ValidationError("This menu is already released");
 
-    // Match the builder banner: only *missing* categories block release. Surplus
-    // ("extra") dishes on a fixed category are warnings, not blockers.
-    const blocking = (await this.releaseProblems(weekPublicId)).filter((p) => p.kind === "missing");
-    if (blocking.length > 0) {
-      const dayLabel: Record<string, string> = {
-        mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday",
-        fri: "Friday", sat: "Saturday", sun: "Sunday",
-      };
-      const first = blocking
-        .slice(0, 3)
-        .map((p) => `${p.planName} has no ${p.categoryLabel} on ${dayLabel[p.day] ?? p.day}`)
-        .join("; ");
-      const more = blocking.length > 3 ? ` (and ${blocking.length - 3} more)` : "";
-      throw new ValidationError(`This menu would leave subscribers without a meal: ${first}${more}`);
-    }
+    // Gaps (missing categories / surplus on a fixed slot) stay as builder warnings via
+    // releaseProblems — they do not block going live. Kitchen/ops may ship a partial week
+    // on purpose (e.g. weekends empty for some plans).
 
     await menuWeeksEntity.update(weekPublicId, { status: "released", releasedAt: Date.now() });
     await publishedCache.evictAll();
