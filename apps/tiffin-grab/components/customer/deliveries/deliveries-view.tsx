@@ -201,7 +201,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                 ))}
               </div>
 
-              <div className="order-first min-w-0 space-y-4 lg:order-none">
+              <div className="min-w-0 space-y-4">
                 {row && trip && model ? (
                   <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
                     <div className="mt-6 hidden lg:block">
@@ -224,12 +224,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
             {trip && model && (model.rows.length > 0 || model.goTo || model.primary === "vacation") && (
               <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
-{row && (
-              <p data-testid="day-delivery" className="mb-2 flex items-start gap-2 text-[12px] leading-snug text-[var(--muted-foreground,#6E6558)]">
-                <Truck aria-hidden className="mt-0.5 size-4 shrink-0" />
-                <span>{humanDate(row.date)}: {deliveryLine(row)} · {tiffins(row.trip.units)} covering {row.trip.coversDates.map(weekdayShort).join(" + ")}{row.trip.status === "upcoming" ? ` · changes close ${formatCutoff(row.trip.cutoffAt, tz)}` : ""}</span>
-              </p>
-            )}
                 <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} />
               </div>
             )}

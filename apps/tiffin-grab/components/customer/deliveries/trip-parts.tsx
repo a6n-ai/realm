@@ -150,33 +150,28 @@ export function EatingRowButton({ row, selected, onSelect, plan }: { row: Eating
   );
 }
 
-/** Selected eating day: what is eaten, the delivery block, then the actions slot. */
+/** Delivery card for the selected eating day: which truck feeds it, how many tiffins, when it locks. Dishes live in the list, not here. */
 export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; children?: React.ReactNode }) {
   const { trip } = row;
   const m = statusMeta(trip);
-  const dishes = dedupeDishes(row.dish);
-  const covers = trip.coversDates.map(weekdayShort).join(", ");
-  const done = trip.status === "delivered" || trip.status === "cutoff-passed";
-  const cutoff = trip.status === "upcoming" ? `Changes close ${formatCutoff(trip.cutoffAt, tz)}` : null;
+  const covers = trip.coversDates.map(weekdayShort).join(" + ");
+  const facts = [
+    `${tiffins(trip.units)} covering ${covers}`,
+    trip.status === "upcoming" ? `Changes close ${formatCutoff(trip.cutoffAt, tz)}` : reason,
+    !row.own && trip.status === "upcoming" ? `${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery` : null,
+  ].filter(Boolean);
   return (
-    <Card className="p-5 lg:p-8" aria-live="polite">
+    <Card className="p-5 lg:p-8" aria-live="polite" data-testid="delivery-block">
       <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
         {m.dot && <StatusDot decorative status={m.dot} />}
         {m.label}
         {plan && <PlanTag plan={plan} />}
       </p>
-      <h2 className="mt-1 text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">
-        {humanDate(row.date)} <span className="text-base font-medium text-[var(--muted-foreground,#6E6558)]">(eating)</span>
+      <h2 className="mt-1 flex items-center gap-2 text-[24px] font-bold leading-tight tracking-[-0.03em] lg:text-[30px]">
+        <Truck aria-hidden className="size-6 shrink-0" />
+        {deliveryLine(row)}
       </h2>
-      <ul className="mt-4 space-y-1 text-[15px]">
-        <li>{dishes.length ? dishes.join(", ") : <span className="text-[var(--muted-foreground,#6E6558)]">Default menu</span>}</li>
-        {row.swaps.length > 0 && <li className={HELP}>Swapped: {row.swaps.join(", ")}</li>}
-      </ul>
-      <p className={cn(HELP, "mt-4 hidden items-center gap-1.5 lg:flex")} data-testid="delivery-block">
-        <Truck aria-hidden className="size-4 shrink-0" />
-        {deliveryLine(row)} · {tiffins(trip.units)} covering {covers}
-        {cutoff ? ` · ${cutoff}` : ""}
-      </p>
+      <p className="mt-1 text-[15px] text-[var(--muted-foreground,#6E6558)]">{facts.join(" · ")}</p>
       {children}
     </Card>
   );
