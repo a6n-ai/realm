@@ -2,7 +2,7 @@ import { test, expect } from "../fixtures";
 import { CustomerDeliveriesPage } from "../pages/customer-deliveries.page";
 
 async function gotoDeliveries(page: import("@playwright/test").Page) {
-  await page.goto("/me/deliveries", { waitUntil: "domcontentloaded" });
+  await page.goto("/me", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/me\/deliveries/, { timeout: 30_000 });
   await expect(page.locator("body")).not.toContainText(/something went wrong/i);
   await expect(page.getByRole("heading", { level: 1, name: /trips/i })).toBeVisible({ timeout: 30_000 });

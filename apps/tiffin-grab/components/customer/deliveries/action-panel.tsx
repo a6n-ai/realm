@@ -75,7 +75,7 @@ export function ActionBar({ model, onAction, onGoTo }: Common) {
     <div
       className={cn(
         FONT,
-        "fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 pb-2 pt-2 backdrop-blur-xl md:bottom-0 md:pb-[calc(12px+env(safe-area-inset-bottom))] lg:hidden",
+        "fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 pb-2 pt-2 backdrop-blur-xl md:pb-2 lg:hidden",
       )}
     >
       {reason && <div role="status"><Reason className="mb-2">{reason}</Reason></div>}

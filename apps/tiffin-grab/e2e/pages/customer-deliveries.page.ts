@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-/** Customer `/me/deliveries`: plan header, trip timeline rows, action rail/bar and sheets. */
+/** Customer `/me`: plan header, trip timeline rows, action rail/bar and sheets. */
 export class CustomerDeliveriesPage {
   constructor(readonly page: Page) {}
 

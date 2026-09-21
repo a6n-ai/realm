@@ -101,7 +101,7 @@ export function CustomerShell({ coinBalance, children }: { coinBalance: number; 
           <Link
             href="/subscribe"
             aria-label="Order a new plan"
-            className={cn(FOCUS, "absolute left-1/2 top-0 grid size-14 -translate-x-1/2 -translate-y-1/3 place-items-center rounded-full bg-[var(--primary)] text-white shadow-[0_8px_24px_rgba(240,107,26,.4)] [touch-action:manipulation] active:scale-[.97]")}
+            className={cn(FOCUS, "absolute left-1/2 top-1 grid size-12 -translate-x-1/2 place-items-center rounded-full bg-[var(--primary)] text-white shadow-[0_8px_24px_rgba(240,107,26,.4)] [touch-action:manipulation] active:scale-[.97]")}
           >
             <Plus aria-hidden className="size-7" />
           </Link>
