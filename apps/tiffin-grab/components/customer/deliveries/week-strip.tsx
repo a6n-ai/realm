@@ -36,9 +36,11 @@ interface Props {
   colorOf: (orderId: string) => string;
   onPickDay: (iso: string) => void;
   onWeek: (monday: string) => void;
+  /** Picker mode (move sheet): one week per screen, arrows in the header, no meal dots, unpickable days greyed. */
+  picker?: { isDisabled: (iso: string) => boolean; onDisabledTap?: (iso: string) => void };
 }
 
-export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots, colorOf, onPickDay, onWeek }: Props) {
+export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots, colorOf, onPickDay, onWeek, picker }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const weeks: string[] = [];
   for (let w = firstWeek; w <= lastWeek; w = addDays(w, 7)) weeks.push(w);
@@ -51,7 +53,7 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
   const arrow = "hidden size-11 shrink-0 place-items-center self-center rounded-full hover:bg-[var(--muted)] disabled:opacity-30 lg:grid [touch-action:manipulation]";
   return (
     <div className={cn(FONT, "flex gap-1")} data-testid="week-strip">
-      <button type="button" aria-label="Previous week" disabled={week <= firstWeek} onClick={() => onWeek(addDays(week, -7))} className={cn(arrow, FOCUS)}><ChevronLeft aria-hidden className="size-5" /></button>
+      {!picker && <button type="button" aria-label="Previous week" disabled={week <= firstWeek} onClick={() => onWeek(addDays(week, -7))} className={cn(arrow, FOCUS)}><ChevronLeft aria-hidden className="size-5" /></button>}
       <div ref={box} role="group" aria-label="Delivery days" className="flex min-w-0 flex-1 snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none]">
         {weeks.map((w) => {
           const cur = w === week;
@@ -60,14 +62,14 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
               key={w}
               data-week={w}
               aria-current={cur ? "true" : undefined}
-              className={cn("w-full shrink-0 snap-start rounded-2xl border-[1.5px] p-2 lg:w-[calc(50%-4px)]", cur ? "border-[var(--primary)] bg-[var(--muted)]/50" : "border-[var(--border)]")}
+              className={cn("w-full shrink-0 snap-start rounded-2xl border-[1.5px] p-2", !picker && "lg:w-[calc(50%-4px)]", cur ? "border-[var(--primary)] bg-[var(--muted)]/50" : "border-[var(--border)]")}
             >
               <div className="mb-1 flex items-center justify-between">
                 <button type="button" onClick={() => onWeek(w)} className={cn(FOCUS, "min-h-8 px-1 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)] [touch-action:manipulation]")}>
                   {label(w)}{w === mondayOfToday(today) ? " · This week" : ""}
                 </button>
                 {cur && (
-                  <span className="flex lg:hidden">
+                  <span className={cn("flex", !picker && "lg:hidden")}>
                     <button type="button" aria-label="Previous week" disabled={week <= firstWeek} onClick={() => onWeek(addDays(week, -7))} className={cn(FOCUS, "grid size-9 place-items-center rounded-full disabled:opacity-30 [touch-action:manipulation]")}><ChevronLeft aria-hidden className="size-5" /></button>
                     <button type="button" aria-label="Next week" disabled={week >= lastWeek} onClick={() => onWeek(addDays(week, 7))} className={cn(FOCUS, "grid size-9 place-items-center rounded-full disabled:opacity-30 [touch-action:manipulation]")}><ChevronRight aria-hidden className="size-5" /></button>
                   </span>
@@ -77,23 +79,25 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
                 {weekDays(w).map((iso, i) => {
                   const ds = dots[iso] ?? [];
                   const sel = iso === selectedDay;
+                  const off = picker?.isDisabled(iso) ?? false;
                   const text = `${d(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}${ds.length ? `, eating, ${ds.map((x) => STATUS_LABEL[x.status]).join(", ")}${ds.some((x) => x.truck) ? ", delivery arrives" : ""}` : ", nothing planned"}`;
                   return (
                     <button
                       key={iso}
                       type="button"
-                      aria-label={text}
+                      aria-label={picker ? `${text.replace(/, (eating|nothing planned).*$/, "")}${ds.some((x) => x.truck) ? ", delivery day" : ""}${off ? ", unavailable" : ""}` : text}
                       aria-pressed={sel}
+                      aria-disabled={off || undefined}
                       data-day={iso}
-                      onClick={() => onPickDay(iso)}
-                      className={cn(FOCUS, "relative flex h-[76px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] text-xs [touch-action:manipulation] motion-reduce:transition-none", sel ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] font-semibold text-[var(--foreground)]" : "border-transparent bg-[var(--card)]", iso < today && !sel && "opacity-60")}
+                      onClick={() => (off ? picker?.onDisabledTap?.(iso) : onPickDay(iso))}
+                      className={cn(FOCUS, "relative flex h-[76px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] text-xs [touch-action:manipulation] motion-reduce:transition-none", sel ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] font-semibold text-[var(--foreground)]" : "border-transparent bg-[var(--card)]", (iso < today || off) && !sel && "opacity-40")}
                     >
                       <span aria-hidden className="opacity-80">{WD[i]}</span>
                       
                       <b aria-hidden className={cn("grid size-7 place-items-center rounded-full text-[16px] tabular-nums", iso === today && !sel && "border-2 border-[var(--primary)]")}>{d(iso).getUTCDate()}</b>
                       <span aria-hidden className="flex h-3 items-center justify-center gap-0.5">
                         {ds.some((x) => x.truck) && <Truck className="size-3 shrink-0 text-[var(--muted-foreground,#6E6558)]" />}
-                        {ds.map((x, k) => <Dot key={k} color={colorOf(x.orderId)} status={x.status} />)}
+                        {!picker && ds.map((x, k) => <Dot key={k} color={colorOf(x.orderId)} status={x.status} />)}
                       </span>
                     </button>
                   );
@@ -103,7 +107,7 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
           );
         })}
       </div>
-      <button type="button" aria-label="Next week" disabled={week >= lastWeek} onClick={() => onWeek(addDays(week, 7))} className={cn(arrow, FOCUS)}><ChevronRight aria-hidden className="size-5" /></button>
+      {!picker && <button type="button" aria-label="Next week" disabled={week >= lastWeek} onClick={() => onWeek(addDays(week, 7))} className={cn(arrow, FOCUS)}><ChevronRight aria-hidden className="size-5" /></button>}
     </div>
   );
 }

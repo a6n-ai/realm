@@ -77,6 +77,15 @@ describe("MoveSheet", () => {
     expect(screen.getByRole("button", { name: /Monday, September 28, delivery day/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Saturday, September 26(?!, delivery)/ })).toBeInTheDocument();
   });
+  it("only delivery days can be picked; a non-delivery day answers why and selects nothing", () => {
+    mount(MoveSheet, trip());
+    const sat = screen.getByRole("button", { name: /Saturday, September 26, unavailable/ });
+    expect(sat).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(sat);
+    expect(screen.getAllByText("Choose a day to continue.").length).toBeGreaterThan(0);
+    expect(screen.getByText(/We only deliver on the days marked with a truck/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Monday, September 28, delivery day/ })).not.toHaveAttribute("aria-disabled");
+  });
   it("free day: preview then move", async () => {
     a.move.mockResolvedValue({ ok: true, message: "moved" });
     const onDone = mount(MoveSheet, trip());
