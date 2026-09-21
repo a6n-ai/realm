@@ -6,6 +6,8 @@ export type ActionSheetProps = {
   /** Vacation is not a trip action, so the shell may mount it without one. */
   trip: Trip;
   plan: PlanView;
+  /** Eating day the customer selected; pick/swap open on it. */
+  day?: string;
   open: boolean;
   /** Closes the sheet. With a message the shell also toasts it and refreshes; call it right after a successful commit. */
   onDone: (message?: string) => void;

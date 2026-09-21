@@ -58,6 +58,13 @@ describe("PickSheet", () => {
     expect(screen.getByText("Locks with Monday's delivery")).toBeInTheDocument();
   });
 
+  it("opens on the eating day the customer selected", async () => {
+    load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue", lockNote: "Locks with Monday's delivery" })]));
+    render(<PickSheet trip={trip()} plan={plan} day={tue} open onDone={vi.fn()} />);
+    expect(await screen.findByText("Locks with Monday's delivery")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Tue/ })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("single-day trip has no day tabs", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));

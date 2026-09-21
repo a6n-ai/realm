@@ -14,7 +14,7 @@ const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const cellKey = (c: GridCell) => `${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`;
 const muted = "text-[var(--muted-foreground,#6E6558)]";
 
-export function PickSheet({ trip, plan, open, onDone }: ActionSheetProps) {
+export function PickSheet({ trip, plan, open, day: startDay, onDone }: ActionSheetProps) {
   const [now] = useState(() => Date.now());
   const av = actionAvailability(trip, now, plan.ctx).pick;
   const closed = now >= trip.cutoffAt;
@@ -22,7 +22,7 @@ export function PickSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const dates = useMemo(() => (trip.coversDates.length ? trip.coversDates : [trip.date]), [trip]);
 
   const [state, setState] = useState<{ grid: PickGrid | null } | { error: string } | null>(null);
-  const [day, setDay] = useState(dates[0]);
+  const [day, setDay] = useState(startDay && dates.includes(startDay) ? startDay : dates[0]);
   const [person, setPerson] = useState(1);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);

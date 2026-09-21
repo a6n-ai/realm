@@ -11,9 +11,9 @@ import type { ActionSheetProps } from "./types";
 const PREFIX = "swap";
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 
-export function SwapSheet({ trip, plan, open, onDone, onChanged }: ActionSheetProps) {
+export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }: ActionSheetProps) {
   const days = trip.coversDates.length ? trip.coversDates : [trip.date];
-  const [day, setDay] = useState(days[0]);
+  const [day, setDay] = useState(startDay && days.includes(startDay) ? startDay : days[0]);
   const [pair, setPair] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [pending, setPending] = useState<"apply" | string | null>(null);
