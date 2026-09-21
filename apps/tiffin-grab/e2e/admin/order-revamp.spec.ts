@@ -163,13 +163,11 @@ test.describe("admin order revamp (desktop)", () => {
     test.skip(!createdOrderUrl, "Requires create-order test to run first");
     await page.goto(createdOrderUrl!);
 
-    const calendarDay = page.getByRole("button", { name: /scheduled|today/i }).first();
-    if (await calendarDay.count()) {
-      await calendarDay.click();
-    }
+    const row = page.getByTestId("trip-row").first();
+    if (await row.count()) await row.click();
 
     await expect(
-      page.getByText(/skip this day|reschedule|menu for|not scheduled this day/i).first(),
-    ).toBeAttached({ timeout: 15_000 });
+      page.getByTestId("delivery-block").or(page.getByText(/no eating days this week|nothing planned/i)).first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });

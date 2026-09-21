@@ -41,8 +41,8 @@ export class OrderDetailPage {
   }
 
   async expectDeliveriesCalendar() {
-    await expect(this.page.getByRole("button", { name: /vacation|resume/i })).toBeVisible();
-    await expect(this.page.getByText(/month calendar|vacation pause|deliveries/i).first()).toBeVisible();
+    await expect(this.page.getByRole("button", { name: /vacation|resume/i }).first()).toBeVisible();
+    await expect(this.page.getByTestId("week-strip")).toBeVisible();
   }
 
   async expectActivityFilters() {
