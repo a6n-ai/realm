@@ -2,7 +2,7 @@
 
 import { TicketPercentIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
-import { Skeleton } from "@foundry/ui/skeleton";
+import { Skeleton } from "@/components/customer/kit";
 import { Card, EmptyState, SectionCard } from "@/components/ds";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";

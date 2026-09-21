@@ -1,7 +1,7 @@
 "use client";
 
 import { CoinsIcon } from "lucide-react";
-import { Skeleton } from "@foundry/ui/skeleton";
+import { Skeleton } from "@/components/customer/kit";
 import { Card, SectionCard } from "@/components/ds";
 import { AnimatedNumber, LottieEmptyState, TransitionLink } from "@/components/motion";
 import { eventLabel } from "@relay/engine/ui";

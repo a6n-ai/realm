@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Skeleton } from "@foundry/ui/skeleton";
-import { cn } from "@foundry/ui/cn";
+import { Skeleton } from "@/components/customer/kit";
+import { cn } from "@/components/customer/kit/cn";
 import { SectionCard } from "@/components/ds";
 import { Pressable, LottieEmptyState } from "@/components/motion";
 import { formatDateOnly, formatMenuWeekRange } from "@/lib/format/datetime";

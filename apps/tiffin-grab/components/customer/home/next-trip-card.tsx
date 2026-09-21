@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRightIcon, TruckIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { Skeleton } from "@foundry/ui/skeleton";
+import { Skeleton } from "@/components/customer/kit";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { formatCoversLabel } from "@/lib/menu/coverage";
 

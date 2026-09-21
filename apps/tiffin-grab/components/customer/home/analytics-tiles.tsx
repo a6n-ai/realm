@@ -1,4 +1,4 @@
-import { Skeleton } from "@foundry/ui/skeleton";
+import { Skeleton } from "@/components/customer/kit";
 import { SectionCard, StatGrid } from "@/components/ds";
 
 export function AnalyticsTiles({

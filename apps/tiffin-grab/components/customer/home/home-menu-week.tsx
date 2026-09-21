@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Skeleton } from "@foundry/ui/skeleton";
-import { cn } from "@foundry/ui/cn";
+import { Skeleton } from "@/components/customer/kit";
+import { cn } from "@/components/customer/kit/cn";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { formatDateOnly, formatMenuWeekRange } from "@/lib/format/datetime";
 import { DAY_LABELS, HOME_MENU_DAY_COLUMNS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";

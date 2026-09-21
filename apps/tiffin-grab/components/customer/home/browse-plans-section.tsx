@@ -2,7 +2,7 @@
 
 import { ArrowRightIcon, UtensilsIcon } from "lucide-react";
 import Link from "next/link";
-import { Skeleton } from "@foundry/ui/skeleton";
+import { Skeleton } from "@/components/customer/kit";
 import { Card, EmptyState, SectionCard } from "@/components/ds";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { PlanHero } from "./plan-hero";

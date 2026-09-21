@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CalendarDaysIcon, LifeBuoyIcon, PlusIcon, UtensilsIcon } from "lucide-react";
-import { Skeleton } from "@foundry/ui/skeleton";
+import { Skeleton } from "@/components/customer/kit";
 
 const ACTIONS = [
   { href: "/me/deliveries", label: "Deliveries", icon: CalendarDaysIcon },

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Skeleton } from "@foundry/ui/skeleton";
+import { Skeleton } from "@/components/customer/kit";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
-import { cn } from "@foundry/ui/cn";
+import { cn } from "@/components/customer/kit/cn";
 import { ChevronDownIcon } from "lucide-react";
 import { Card, SectionCard } from "@/components/ds";
 import { Reveal } from "@/components/motion";

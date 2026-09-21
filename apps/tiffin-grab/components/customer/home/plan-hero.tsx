@@ -1,5 +1,5 @@
 import { SaladIcon, UtensilsIcon } from "lucide-react";
-import { cn } from "@foundry/ui/cn";
+import { cn } from "@/components/customer/kit/cn";
 
 // Was a per-plan-key random hue (see git history) — the same "random gradient" pattern
 // removed from dish tiles earlier this session, for the same reason: an arbitrary color per

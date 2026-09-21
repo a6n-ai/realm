@@ -1,4 +1,4 @@
-import { cn } from "@foundry/ui/cn";
+import { cn } from "@/components/customer/kit/cn";
 import type { PlanTag } from "@/lib/services/dishes.service";
 
 /**
