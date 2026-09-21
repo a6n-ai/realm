@@ -1,6 +1,6 @@
 import { NotFoundError, Role, weekdayKey, zonedDateIso } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
@@ -114,17 +114,31 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
 }
 
 /**
- * Customer calendars and home assume one live plan. Prefer `active` over `paused`;
- * if several exist (legacy), pick the newest by createdAt.
+ * The customer's default plan. Prefer `active` over `paused`; among several (sequential plans),
+ * the one that delivers next, and only when nothing is left to deliver the newest by createdAt.
  */
 export async function myPrimarySubscription(userId: bigint): Promise<Subscription | null> {
   const all = await myActiveSubscriptions(userId);
   if (all.length === 0) return null;
   const active = all.filter((s) => s.status === "active");
   const pool = active.length > 0 ? active : all;
-  // myActiveSubscriptions has no createdAt — re-query newest publicId among the pool.
   if (pool.length === 1) return pool[0]!;
   const ids = pool.map((s) => s.publicId);
+  // Sequential plans are allowed, so the newest plan is often the one that has not started yet.
+  // The default is the plan that delivers next; only when nothing is left to deliver do we fall
+  // back to the newest (myActiveSubscriptions has no createdAt, hence the re-query).
+  const { timezone } = await getAppSettings();
+  const today = zonedDateIso(Date.now(), timezone);
+  const upcoming = await db
+    .select({ publicId: orders.publicId, next: sql<string>`min(${deliveries.deliveryDate})` })
+    .from(deliveries)
+    .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .where(and(inArray(orders.publicId, ids), inArray(deliveries.status, [...VISIBLE]), gte(deliveries.deliveryDate, today)))
+    .groupBy(orders.publicId)
+    .orderBy(asc(sql`min(${deliveries.deliveryDate})`), desc(sql`max(${orders.createdAt})`))
+    .limit(1);
+  const nextUp = pool.find((s) => s.publicId === upcoming[0]?.publicId);
+  if (nextUp) return nextUp;
   const [newest] = await db
     .select({ publicId: orders.publicId })
     .from(orders)

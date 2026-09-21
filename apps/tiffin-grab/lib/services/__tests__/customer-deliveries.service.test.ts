@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq, inArray, ne } from "drizzle-orm";
 import { nextWeekday, NotFoundError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -105,17 +105,29 @@ describe("customer-deliveries.service (integration)", () => {
     expect(subs.every((s) => s.persons >= 1 && typeof s.categoryCounts === "object")).toBe(true);
   });
 
-  it("myPrimarySubscription prefers the newest active plan", async () => {
+  it("myPrimarySubscription prefers the plan that delivers next, not the newest one", async () => {
+    // The customer bought a follow-up plan (created later, starts later) while the first is running:
+    // the running plan must be the default, otherwise the hub shows an empty month.
     const aOrder1 = await makeOrder(PHONE_A, "User A");
     const aOrder2 = await makeOrder(PHONE_A, "User A", 1);
     const userA = await userIdByPhone(PHONE_A);
 
     const primary = await myPrimarySubscription(userA);
-    expect(primary?.publicId).toBe(aOrder2.publicId);
+    expect(primary?.publicId).toBe(aOrder1.publicId);
 
-    await db.update(orders).set({ status: "paused" }).where(eq(orders.id, aOrder2.id));
+    await db.update(orders).set({ status: "paused" }).where(eq(orders.id, aOrder1.id));
     const afterPause = await myPrimarySubscription(userA);
-    expect(afterPause?.publicId).toBe(aOrder1.publicId);
+    expect(afterPause?.publicId).toBe(aOrder2.publicId);
+  });
+
+  it("myPrimarySubscription falls back to the newest plan when nothing is left to deliver", async () => {
+    const aOrder1 = await makeOrder(PHONE_A, "User A");
+    const aOrder2 = await makeOrder(PHONE_A, "User A", 1);
+    const userA = await userIdByPhone(PHONE_A);
+    await db.update(deliveries).set({ status: "cancelled" }).where(inArray(deliveries.orderId, [aOrder1.id, aOrder2.id]));
+
+    const primary = await myPrimarySubscription(userA);
+    expect(primary?.publicId).toBe(aOrder2.publicId);
   });
 
   it("never returns another user's deliveries", async () => {
