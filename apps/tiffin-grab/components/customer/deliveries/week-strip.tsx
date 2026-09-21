@@ -62,9 +62,17 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
               aria-current={cur ? "true" : undefined}
               className={cn("w-full shrink-0 snap-start rounded-2xl border-[1.5px] p-2 lg:w-[calc(50%-4px)]", cur ? "border-[var(--primary)] bg-[var(--muted)]/50" : "border-[var(--border)]")}
             >
-              <button type="button" onClick={() => onWeek(w)} className={cn(FOCUS, "mb-1 min-h-8 px-1 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)] [touch-action:manipulation]")}>
-                {label(w)}{w === mondayOfToday(today) ? " · This week" : ""}
-              </button>
+              <div className="mb-1 flex items-center justify-between">
+                <button type="button" onClick={() => onWeek(w)} className={cn(FOCUS, "min-h-8 px-1 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)] [touch-action:manipulation]")}>
+                  {label(w)}{w === mondayOfToday(today) ? " · This week" : ""}
+                </button>
+                {cur && (
+                  <span className="flex lg:hidden">
+                    <button type="button" aria-label="Previous week" disabled={week <= firstWeek} onClick={() => onWeek(addDays(week, -7))} className={cn(FOCUS, "grid size-9 place-items-center rounded-full disabled:opacity-30 [touch-action:manipulation]")}><ChevronLeft aria-hidden className="size-5" /></button>
+                    <button type="button" aria-label="Next week" disabled={week >= lastWeek} onClick={() => onWeek(addDays(week, 7))} className={cn(FOCUS, "grid size-9 place-items-center rounded-full disabled:opacity-30 [touch-action:manipulation]")}><ChevronRight aria-hidden className="size-5" /></button>
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-7 gap-1">
                 {weekDays(w).map((iso, i) => {
                   const ds = dots[iso] ?? [];

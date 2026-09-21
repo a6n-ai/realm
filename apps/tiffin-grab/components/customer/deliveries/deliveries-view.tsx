@@ -114,7 +114,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const heldOnly = shown.length > 0 && shown.every((r) => r.trip.status === "hold");
 
   return (
-    <div className={`${FONT} ${hasBar ? "pb-[150px]" : "pb-8"} lg:pb-8`}>
+    <div className={`${FONT} ${hasBar ? "pb-[190px]" : "pb-8"} lg:pb-8`}>
       <PlanHeader
         sub={sub}
         counts={plan.counts}
@@ -138,26 +138,17 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         </nav>
       )}
 
-      {(sel && row ? row.trip : upcoming) && (
+      {upcoming && (
         <button
           type="button"
           data-testid="next-delivery"
-          onClick={() => goTo(sel && row ? row.trip.date : upcoming!.deliveryDate)}
+          onClick={() => goTo(upcoming.deliveryDate)}
           className={cn(FOCUS, "mb-4 flex min-h-12 w-full items-center gap-3 rounded-2xl border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-4 py-2.5 text-left [touch-action:manipulation]")}
         >
           <Truck aria-hidden className="size-5 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
           <span className="min-w-0">
-            {sel && row ? (
-              <>
-                <span className="block text-[15px] font-semibold">{deliveryLine(row)}</span>
-                <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">{tiffins(row.trip.units)} covering {row.trip.coversDates.map(weekdayShort).join(" + ")}{row.trip.status === "upcoming" ? ` · changes close ${formatCutoff(row.trip.cutoffAt, tz)}` : ""}</span>
-              </>
-            ) : (
-              <>
-                <span className="block text-[15px] font-semibold">Next delivery: {humanDate(upcoming!.deliveryDate)}, {tiffins(upcoming!.units)} ({upcoming!.covers.map(weekdayShort).join(" + ")})</span>
-                <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">Changes close {formatCutoff(upcoming!.cutoffAt, tz)}</span>
-              </>
-            )}
+            <span className="block text-[15px] font-semibold">Next delivery: {humanDate(upcoming.deliveryDate)}, {tiffins(upcoming.units)} ({upcoming.covers.map(weekdayShort).join(" + ")})</span>
+            <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">Changes close {formatCutoff(upcoming.cutoffAt, tz)}</span>
           </span>
         </button>
       )}
@@ -233,6 +224,12 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
             {trip && model && (model.rows.length > 0 || model.goTo || model.primary === "vacation") && (
               <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
+{row && (
+              <p data-testid="day-delivery" className="mb-2 flex items-start gap-2 text-[12px] leading-snug text-[var(--muted-foreground,#6E6558)]">
+                <Truck aria-hidden className="mt-0.5 size-4 shrink-0" />
+                <span>{humanDate(row.date)}: {deliveryLine(row)} · {tiffins(row.trip.units)} covering {row.trip.coversDates.map(weekdayShort).join(" + ")}{row.trip.status === "upcoming" ? ` · changes close ${formatCutoff(row.trip.cutoffAt, tz)}` : ""}</span>
+              </p>
+            )}
                 <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} />
               </div>
             )}

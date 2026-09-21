@@ -143,11 +143,12 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     expect(strip.getByRole("button", { name: /Monday, September 21, eating, Upcoming, delivery arrives/ })).toBeInTheDocument();
     expect(strip.getByRole("button", { name: /Tuesday, September 22, eating, Upcoming$/ })).toBeInTheDocument();
   });
-  it("delivery section shows the next delivery by default and the tapped day's delivery once selected", () => {
+  it("Next delivery card always shows the upcoming delivery; the tapped eating day's delivery shows at the bottom", () => {
     multi();
     expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21, 2 tiffins (Mon + Tue)");
     fireEvent.click(within(screen.getByTestId("week-strip")).getByRole("button", { name: /Tuesday, September 22/ }));
-    expect(screen.getByTestId("next-delivery")).toHaveTextContent("Arrives Mon, Sep 21 with Mon");
+    expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21");
+    expect(screen.getByTestId("day-delivery")).toHaveTextContent("Tue, Sep 22: Arrives Mon, Sep 21 with Mon");
   });
   it("tapping a day in another week updates ?week via router.replace", () => {
     replace.mockClear();
@@ -177,7 +178,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
   it("next arrow moves one week forward", () => {
     replace.mockClear();
     multi();
-    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Next week" })[0]!);
     expect(replace.mock.calls[0]![0]).toContain("week=2026-09-28");
   });
 });
