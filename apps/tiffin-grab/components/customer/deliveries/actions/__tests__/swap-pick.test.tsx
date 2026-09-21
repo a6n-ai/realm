@@ -24,7 +24,7 @@ afterEach(cleanup);
 
 const pairs = [{ fromCategory: "rice", toCategory: "roti" }, { fromCategory: "roti", toCategory: "rice" }];
 const mon = "2026-09-21", tue = "2026-09-22";
-const trip = (o: Partial<Trip> = {}): Trip => ({
+const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o",
   date: mon, deliveryId: "dlv1", units: 2, coversDates: [mon, tue], coversLabel: "Covers Mon + Tue",
   eatingDays: [
     { date: mon, dishSummary: "Paneer, Jeera Rice", swaps: [], locksWith: null },

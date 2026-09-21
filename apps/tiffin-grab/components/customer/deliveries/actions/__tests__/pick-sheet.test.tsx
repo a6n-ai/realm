@@ -25,7 +25,7 @@ const cell = (o: Partial<GridCell>): GridCell => ({
 const grid = (cells: GridCell[], persons = 1) => ({
   ok: true, grid: { cells, persons, categories: [{ key: "curry", label: "Curry", selectable: true, sortOrder: 1 }], weekByDate: { [mon]: "wk1", [tue]: "wk1" } },
 });
-const trip = (o: Partial<Trip> = {}): Trip => ({
+const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o",
   date: mon, deliveryId: "dlv1", units: 2, coversDates: [mon, tue], coversLabel: "Covers Mon + Tue",
   eatingDays: [], status: "upcoming", cutoffAt: Date.now() + 36e5 * 30, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o,
 });

@@ -17,7 +17,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-const trip = (o: Partial<Trip> = {}): Trip => ({
+const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o",
   date: "2026-09-23", deliveryId: "d1", units: 2, coversDates: ["2026-09-22", "2026-09-23"], coversLabel: "Covers Tue + Wed", eatingDays: [],
   status: "upcoming", cutoffAt: Date.parse("2026-09-23T18:00:00Z"), mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o,
 });

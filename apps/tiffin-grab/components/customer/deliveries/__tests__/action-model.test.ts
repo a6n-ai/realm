@@ -3,7 +3,7 @@ import { actionModel } from "../action-model";
 import type { Trip } from "@/lib/deliveries-view";
 
 const ctx = { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true };
-const trip = (o: Partial<Trip> = {}): Trip => ({ date: "2026-09-23", deliveryId: "a", units: 1, coversDates: ["2026-09-23"], coversLabel: null, eatingDays: [], status: "upcoming", cutoffAt: Date.now() + 9e9, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o });
+const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o", date: "2026-09-23", deliveryId: "a", units: 1, coversDates: ["2026-09-23"], coversLabel: null, eatingDays: [], status: "upcoming", cutoffAt: Date.now() + 9e9, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o });
 
 describe("actionModel", () => {
   it("upcoming: pick is primary, rows are pick/swap/hold/move, all enabled", () => {
