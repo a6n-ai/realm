@@ -20,7 +20,7 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "rescheduled": return { label: "Moved", tone: "hold", dot: "hold" };
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
     case "vacation": return { label: "Vacation", tone: "vac", dot: "vacation" };
-    case "combined-into": return { label: "Combined", tone: "neutral", dot: "combined" };
+    case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
   }
 }
 
@@ -37,6 +37,7 @@ export function PlanTag({ plan }: { plan: PlanTagInfo }) {
 export const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
 export function rowSubline(t: Trip, tz: string): string {
+  if (t.status === "rescheduled" && t.movedTo) return `Moved to ${humanDate(t.movedTo)}`;
   if (t.status === "combined-into" && t.mergedInto) return `Combined into ${humanDate(t.mergedInto)}`;
   if (t.coversLabel) return t.coversLabel;
   if (t.isMakeup) return "Make-up delivery";

@@ -78,8 +78,13 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
               ) : chosen ? (
                 <Notice>Your {tiffins(trip.units)} will arrive on {humanDate(chosen.date)}.</Notice>
               ) : null}
+              {chosen && (
+                <Notice>
+                  Only one move is allowed per meal. Once you move it, you can&apos;t move it again, move it back to {humanDate(trip.date)}, or put it on hold.
+                </Notice>
+              )}
               <Reason>
-                Pick the day you want to eat. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {held ? "Uses one of your hold days. " : ""}Days already covered stay with this trip. Once moved, it can&apos;t be put back on hold.
+                Pick the day you want to eat. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {held ? "Uses one of your hold days. " : ""}Days already covered stay with this trip.
               </Reason>
             </>
           )}

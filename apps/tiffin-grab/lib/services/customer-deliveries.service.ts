@@ -1,3 +1,4 @@
+import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { NotFoundError, Role, weekdayKey, zonedDateIso } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
@@ -190,11 +191,16 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     .where(and(eq(orders.userId, userId), inArray(deliveries.status, [...VISIBLE]), gte(deliveries.deliveryDate, from), lte(deliveries.deliveryDate, until)))
     .orderBy(asc(deliveries.deliveryDate));
   const out: Record<string, AgendaDay[]> = {};
+  const extrasById = await loadExtraDates(db, rows.map((r) => r.d.id));
   for (const { d, orderId } of rows) {
     if (d.mergedIntoDeliveryId != null) continue;
     const covers = coveredDates(d);
     for (const date of covers) {
       (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers });
+    }
+    // A doubled day (moved tiffin landed on an eating day) gets a second dot.
+    for (const date of extrasById.get(d.id) ?? []) {
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers });
     }
   }
   return out;
@@ -286,6 +292,8 @@ export type TiffinCounts = {
   lastDeliveryDate: string | null;
   /** Weekday keys (e.g. ["mon","wed","fri"]) a pooled tiffin may land on, per the plan. */
   deliveryWeekdays: string[];
+  /** Weekdays the customer eats; null for legacy plans (every day the plan delivers or carries). */
+  eatingWeekdays?: string[] | null;
 };
 
 // Delivered/remaining/pooled tiffins for one subscription, plus the constraints the "schedule from
@@ -365,6 +373,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     persons: order.persons,
     lastDeliveryDate,
     deliveryWeekdays,
+    eatingWeekdays: order.eatingDays?.length ? (order.eatingDays as string[]) : null,
   };
 }
 
@@ -396,19 +405,19 @@ export async function myEarliestNewPlanStartDate(userId: bigint): Promise<string
   return latest ? latest.toISOString().slice(0, 10) : null;
 }
 
-/** Original delivery ids that already have a make-up row (reschedule / pool schedule). */
-export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Set<string>> {
+/** Original delivery id -> the day its tiffin moved to (the picked eat day for a single-day trip, else the make-up's delivery date). */
+export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Map<string, string>> {
   const [order] = await db
     .select({ id: orders.id })
     .from(orders)
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
-  if (!order) return new Set();
+  if (!order) return new Map();
   const rows = await db
-    .select({ src: deliveries.makeupForDeliveryId })
+    .select({ src: deliveries.makeupForDeliveryId, deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
     .from(deliveries)
     .where(and(eq(deliveries.orderId, order.id), isNotNull(deliveries.makeupForDeliveryId)));
-  return new Set(rows.map((r) => r.src!.toString()));
+  return new Map(rows.map((r) => [r.src!.toString(), r.coversDates?.length === 1 ? r.coversDates[0]! : r.deliveryDate]));
 }
 
 // Pause budget for the customer's pause UI: limits (nullable = unlimited) and
@@ -594,6 +603,8 @@ export type CalendarDay = {
   units?: number;
   /** Eating days the trip carries; a single entry for a plain day. */
   covers?: string[];
+  /** Eating days on this trip that carry a second tiffin. */
+  extras?: string[];
   /** "Covers Mon + Tue"; null for a plain day. */
   coversLabel?: string | null;
   /** Delivery date of the trip this row was merged into ("Combined into Wed's delivery"); null otherwise. */
@@ -654,11 +665,13 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     .from(deliveries)
     .where(inArray(deliveries.id, mergeTargetIds));
   const targetDateById = new Map(mergeTargets.map((t) => [t.id, t.deliveryDate]));
+  const extrasById = await loadExtraDates(db, rows.map((r) => r.id));
   const tripFields = (row: CustomerDelivery) => {
     const covers = coveredDates(row);
     return {
       units: row.mergedIntoDeliveryId ? 0 : row.tiffinUnits,
       covers,
+      extras: row.mergedIntoDeliveryId ? [] : (extrasById.get(row.id) ?? []),
       coversLabel: row.mergedIntoDeliveryId ? null : formatCoversLabel(covers),
       combinedInto: row.mergedIntoDeliveryId ? (targetDateById.get(row.mergedIntoDeliveryId) ?? null) : null,
     };

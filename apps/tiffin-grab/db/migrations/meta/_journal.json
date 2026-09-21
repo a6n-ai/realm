@@ -232,6 +232,13 @@
       "when": 1789910000000,
       "tag": "0032_section_kind_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790023662687,
+      "tag": "0033_narrow_lenny_balinger",
+      "breakpoints": true
     }
   ]
 }

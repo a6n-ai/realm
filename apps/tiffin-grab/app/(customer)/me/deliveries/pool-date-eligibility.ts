@@ -2,6 +2,8 @@ import type { TiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 
+const eatsOn = (iso: string, counts: TiffinCounts) => !counts.eatingWeekdays?.length || counts.eatingWeekdays.includes(isoWeekdayKey(iso));
+
 const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 export function isoWeekdayKey(iso: string): string {
@@ -19,7 +21,7 @@ export function isPoolScheduleDateEligible(
   counts: TiffinCounts,
   today: string,
 ): boolean {
-  if (iso < today) return false;
+  if (iso < today || !eatsOn(iso, counts)) return false;
   const weekdays = counts.deliveryWeekdays as DayOfWeek[];
   const carriedOn = carryTripDateIso(iso, weekdays);
   if (!carriedOn) return false;
@@ -35,7 +37,7 @@ export function isRescheduleTargetDateEligible(
   counts: TiffinCounts,
   today: string,
 ): boolean {
-  if (iso < today) return false;
+  if (iso < today || !eatsOn(iso, counts)) return false;
   const weekdays = counts.deliveryWeekdays as DayOfWeek[];
   const carriedOn = carryTripDateIso(iso, weekdays);
   if (!carriedOn) return false;

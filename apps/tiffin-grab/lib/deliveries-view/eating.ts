@@ -17,9 +17,14 @@ export const weekdayShort = (iso: string) => WD[new Date(`${iso}T00:00:00Z`).get
 /** Eating days of the given trips, in date order. Merged-source trips add nothing: their day is in the target's covers. */
 export function buildEatingDays(trips: Trip[]): EatingRow[] {
   const rows: EatingRow[] = [];
+  const covered = new Set(trips.filter((t) => t.status !== "combined-into").flatMap((t) => t.coversDates));
   for (const trip of trips) {
-    if (trip.status === "combined-into") continue;
-    for (const e of trip.eatingDays) rows.push({ orderId: trip.orderId, date: e.date, trip, dish: e.dishSummary, swaps: e.swaps, own: e.date === trip.date });
+    const moved = trip.status === "rescheduled" || trip.status === "combined-into";
+    for (const e of trip.eatingDays) {
+      // A merged source shows only the days its target does not already carry: those read "Moved to ...".
+      if (trip.status === "combined-into" && covered.has(e.date)) continue;
+      rows.push({ orderId: trip.orderId, date: e.date, trip, dish: moved ? null : e.dishSummary, swaps: moved ? [] : e.swaps, own: e.date === trip.date });
+    }
   }
   return rows.sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -33,7 +38,8 @@ export function deliveryLine(r: EatingRow): string {
     case "delivered": return `Delivered ${day}${with_}`;
     case "cutoff-passed": return `Being prepared, arrives ${day}${with_}`;
     case "upcoming": return `Arrives ${day}${with_}`;
-    case "hold": case "rescheduled": return "On hold";
+    case "rescheduled": case "combined-into": return t.movedTo ? `Moved to ${humanDate(t.movedTo)}` : "Moved";
+    case "hold": return "On hold";
     case "vacation": return "On vacation";
     default: return `Arrives ${day}${with_}`;
   }

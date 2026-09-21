@@ -5,7 +5,7 @@ import { ValidationError } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryCategorySwaps, orderActivities, orders } = await import("@/db/schema");
+const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, orderActivities, orders } = await import("@/db/schema");
 const { reconcilePoolFromMisses, rescheduleDelivery } = await import("../deliveries.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
 
@@ -30,8 +30,9 @@ describe("rescheduleDelivery merge", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("merges Mon trip into Wed trip: one Wed row of 4 covering 7..10, swaps keep their eating day", async () => {
+  it("merges Mon trip into Wed trip: one Wed row of 3 covering 7..9, swaps keep their eating day", async () => {
     const { order, mon, wed } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-09"], tiffinUnits: 1 }).where(eq(deliveries.id, wed.id));
     await db.insert(deliveryCategorySwaps).values([
       { deliveryId: mon.id, fromCategory: "sabzi", toCategory: "dal", qtyFrom: 1, qtyTo: 1 },
       { deliveryId: mon.id, fromCategory: "roti", toCategory: "rice", qtyFrom: 1, qtyTo: 1, forDate: "2030-01-08" },
@@ -43,8 +44,8 @@ describe("rescheduleDelivery merge", () => {
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
     expect(rows.filter((r) => r.deliveryDate === "2030-01-09")).toHaveLength(1);
     const [target] = await db.select().from(deliveries).where(eq(deliveries.id, wed.id));
-    expect(target.tiffinUnits).toBe(4);
-    expect(target.coversDates).toEqual(["2030-01-07", "2030-01-08", "2030-01-09", "2030-01-10"]);
+    expect(target.tiffinUnits).toBe(3);
+    expect(target.coversDates).toEqual(["2030-01-07", "2030-01-08", "2030-01-09"]);
 
     const swaps = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, wed.id));
     expect(swaps.map((s) => [s.fromCategory, s.forDate]).sort()).toEqual([["roti", "2030-01-08"], ["sabzi", "2030-01-07"]]);
@@ -57,12 +58,44 @@ describe("rescheduleDelivery merge", () => {
   });
 
   it("a merged source is never pooled after its cutoff, and is not debt", async () => {
-    const { order, mon } = await makeTripOrder(DEP, PFX);
+    const { order, mon, wed } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-09"], tiffinUnits: 1 }).where(eq(deliveries.id, wed.id));
     await rescheduleDelivery(mon.publicId, "2030-01-09", 1n);
     await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.id, mon.id));
     expect(await reconcilePoolFromMisses(order.id)).toBe(0);
     const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect(o.pooledTiffinCount).toBe(0);
+  });
+
+  it("rejects a merge that would push a delivery past 3 tiffins", async () => {
+    const { mon } = await makeTripOrder(DEP, PFX);
+    await expect(rescheduleDelivery(mon.publicId, "2030-01-09", 1n)).rejects.toThrow(/at most 3/);
+  });
+
+  it("moving a tiffin onto a day already eaten records an extra and caps that day at 2", async () => {
+    const { mon, wed } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-09"], tiffinUnits: 1 }).where(eq(deliveries.id, wed.id));
+    await db.update(deliveries).set({ coversDates: ["2030-01-07"], tiffinUnits: 1 }).where(eq(deliveries.id, mon.id));
+    await rescheduleDelivery(mon.publicId, "2030-01-09", 1n);
+    const [target] = await db.select().from(deliveries).where(eq(deliveries.id, wed.id));
+    expect(target.tiffinUnits).toBe(2);
+    expect(target.coversDates).toEqual(["2030-01-09"]);
+    const extras = await db.select().from(deliveryExtraTiffins).where(eq(deliveryExtraTiffins.deliveryId, wed.id));
+    expect(extras.map((e) => e.eatDate)).toEqual(["2030-01-09"]);
+  });
+
+  it("only one move per meal: a moved trip and a trip carrying a moved tiffin cannot move again", async () => {
+    const { mon, wed } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-09"], tiffinUnits: 1 }).where(eq(deliveries.id, wed.id));
+    await rescheduleDelivery(mon.publicId, "2030-01-09", 1n);
+    await expect(rescheduleDelivery(wed.publicId, "2030-01-14", 1n)).rejects.toThrow(/Only one move/);
+  });
+
+  it("a make-up row cannot be moved again", async () => {
+    const { mon } = await makeTripOrder(DEP, PFX);
+    await rescheduleDelivery(mon.publicId, "2030-01-14", 1n);
+    const [makeup] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, mon.id));
+    await expect(rescheduleDelivery(makeup.publicId, "2030-01-16", 1n)).rejects.toThrow(/make-up/i);
   });
 
   it("without an occupied target keeps coverage unchanged on the make-up row", async () => {

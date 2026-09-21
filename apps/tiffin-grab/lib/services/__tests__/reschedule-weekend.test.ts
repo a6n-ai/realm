@@ -107,7 +107,7 @@ describe("rescheduleDelivery eat-day snap", () => {
 describe("rescheduleDelivery for eatingDays / MWF", () => {
   it("snaps Tue onto Mon and allows Wed on-pattern; rejects nothing for Sat (snaps to Fri)", async () => {
     const order = await makeOrder(false, "mwf");
-    await db.update(orders).set({ eatingDays: ["mon", "wed", "fri", "sat", "sun"] }).where(eq(orders.id, order.id));
+    await db.update(orders).set({ eatingDays: ["mon", "tue", "wed", "fri", "sat", "sun"] }).where(eq(orders.id, order.id));
     const delivery = await firstDeliveryOf(order);
 
     const tue = farFutureIso(2); // Tuesday
@@ -116,9 +116,16 @@ describe("rescheduleDelivery for eatingDays / MWF", () => {
     expect(tueRes.carriedOn).toBe(carryTripDateIso(tue, ["mon", "wed", "fri"])!);
   });
 
+  it("rejects a day the customer does not eat", async () => {
+    const order = await makeOrder(false, "mwf");
+    await db.update(orders).set({ eatingDays: ["mon", "wed", "thu", "fri", "sat", "sun"] }).where(eq(orders.id, order.id));
+    const delivery = await firstDeliveryOf(order);
+    await expect(rescheduleDelivery(delivery.publicId, farFutureIso(2), null)).rejects.toThrow(/eating days/);
+  });
+
   it("merges onto an existing trip instead of rejecting", async () => {
     const order = await makeOrder(false, "mwf");
-    await db.update(orders).set({ eatingDays: ["mon", "wed", "fri"] }).where(eq(orders.id, order.id));
+    await db.update(orders).set({ eatingDays: ["mon", "wed", "thu", "fri"] }).where(eq(orders.id, order.id));
     const all = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
     const mon = all.find((d) => weekdayKey(parseIsoDateUtc(d.deliveryDate)) === "mon");
     const dates = new Set(all.map((d) => d.deliveryDate));

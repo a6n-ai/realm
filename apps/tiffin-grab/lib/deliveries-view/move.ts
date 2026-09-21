@@ -1,8 +1,10 @@
-import { cutoffMsFor, parseIsoDateUtc } from "@foundry/commons";
-import { mergeCoverage } from "@/lib/menu/coverage";
+import { cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
+import { MAX_TIFFINS_PER_TRIP, dateCounts, mergeBlockReason, mergeCoverage } from "@/lib/menu/coverage";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { fullCarryWeekdays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from "./index";
+
+const weekdayName = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
 
 export type MoveOption = {
   date: string;
@@ -18,18 +20,22 @@ export type MoveOption = {
  * trip (nearest plan weekday on or before it, so weekends ride Friday). Every check (past, cutoff,
  * held target, already-covered) runs on the carrying trip. The server stays authoritative.
  */
-export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers">[], now: number, ctx: PlanContext, today: string, horizon = 28): MoveOption[] {
+export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon = 28): MoveOption[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
   const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun") as DayOfWeek[];
+  const eating = ctx.eatingWeekdays?.length ? new Set(ctx.eatingWeekdays) : null;
+  const full = ctx.eatingWeekdays?.length ? fullCarryWeekdays(weekdays, ctx.eatingWeekdays as DayOfWeek[], MAX_TIFFINS_PER_TRIP) : new Set<DayOfWeek>();
   const out: MoveOption[] = [];
   const cursor = parseIsoDateUtc(today);
   for (let i = 0; i < horizon; i++, cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     const date = cursor.toISOString().slice(0, 10);
+    if (eating && !eating.has(weekdayKey(cursor))) continue;
     const carriedOn = carryTripDateIso(date, weekdays);
     if (!carriedOn) continue;
     const target = byDate.get(carriedOn);
     let disabledReason: string | undefined;
     if (carriedOn === trip.date) disabledReason = date === trip.date ? "This is the day you're moving from." : "That day already rides on this trip.";
+    else if (full.has(weekdayKey(parseIsoDateUtc(carriedOn)) as DayOfWeek)) disabledReason = `${weekdayName(carriedOn)}'s delivery already carries ${MAX_TIFFINS_PER_TRIP} tiffins.`;
     else if (carriedOn < today || now > cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
     else if (trip.pooled && ctx.lastDeliveryDate && carriedOn <= ctx.lastDeliveryDate) disabledReason = `A pooled tiffin can only go after ${humanDate(ctx.lastDeliveryDate)}.`;
     else if (target && target.status !== "scheduled") disabledReason = `${humanDate(carriedOn)} already has a held trip. Pick another day.`;
@@ -37,6 +43,11 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
     let merge: MoveOption["merge"] = null;
     if (target?.status === "scheduled" && carriedOn !== trip.date) {
       const carried = trip.coversDates.length === 1 ? [date] : trip.coversDates;
+      if (!disabledReason) {
+        const incoming = new Map<string, number>();
+        for (const c of [...carried, ...(trip.extraDates ?? [])]) incoming.set(c, (incoming.get(c) ?? 0) + 1);
+        disabledReason = mergeBlockReason(dateCounts({ deliveryDate: carriedOn, coversDates: target.covers ?? null }, target.extras), incoming) ?? undefined;
+      }
       const covers = mergeCoverage(carried, target.covers ?? [carriedOn]);
       merge = { units: (target.units ?? 1) + trip.units, covers };
     }

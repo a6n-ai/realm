@@ -27,7 +27,7 @@ type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cuto
 export function toCalendarInputs(a: {
   days: CalendarDay[];
   rows: RowLike[];
-  makeupSources: Set<string>;
+  makeupSources: Set<string> | Map<string, string>;
   categoryLabels: Record<string, string>;
   swapCategories?: Record<string, SwapCategory>;
 }): CalendarDayInput[] {
@@ -43,6 +43,7 @@ export function toCalendarInputs(a: {
       cutoffAt: r?.cutoffAt,
       pooled: r?.pooledAt != null,
       rescheduled: r ? a.makeupSources.has(r.id.toString()) : false,
+      movedTo: r && a.makeupSources instanceof Map ? a.makeupSources.get(r.id.toString()) : undefined,
       mealsByDate,
       appliedSwaps: Object.fromEntries(
         (d.eatingDays ?? []).map((e) => [e.date, e.appliedSwaps.map((s) => ({ label: swapLabel(s, label, a.swapCategories) }))]),
@@ -59,6 +60,7 @@ export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; c
     pooled: a.counts.pooled,
     lastDeliveryDate: a.counts.lastDeliveryDate,
     deliveryWeekdays: a.counts.deliveryWeekdays,
+    eatingWeekdays: a.counts.eatingWeekdays,
     active: true,
     onVacation: a.sub.status === "paused",
     vacationsLeft: max == null ? null : Math.max(max - a.pause.usage.count, 0),

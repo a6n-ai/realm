@@ -20,11 +20,14 @@ export type CalendarDayInput = {
   options?: unknown[];
   units?: number;
   covers?: string[];
+  extras?: string[];
   coversLabel?: string | null;
   combinedInto?: string | null;
   cutoffAt?: number;
   pooled?: boolean;
   rescheduled?: boolean;
+  /** Day this trip's tiffin moved to (make-up row), for the "Moved to" label. */
+  movedTo?: string;
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
 };
@@ -35,6 +38,7 @@ export type PlanContext = {
   pooled: number;
   lastDeliveryDate: string | null;
   deliveryWeekdays: string[];
+  eatingWeekdays?: string[] | null;
   active?: boolean;
   onVacation?: boolean;
   vacationsLeft?: number | null;
@@ -48,6 +52,7 @@ export type Trip = {
   deliveryId: string | null;
   units: number;
   coversDates: string[];
+  extraDates?: string[];
   coversLabel: string | null;
   eatingDays: EatingDay[];
   status: TripStatus;
@@ -56,6 +61,10 @@ export type Trip = {
   isMakeup: boolean;
   pooled: boolean;
   rescheduled: boolean;
+  /** Where a moved trip went: the eat day it was moved to, or the trip it combined into. */
+  movedTo?: string | null;
+  /** Another trip was merged into this one: it carries a moved tiffin, so it cannot be moved again. */
+  hasMovedIn?: boolean;
 };
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -80,6 +89,7 @@ function summarize(meal: MealLike | null | undefined): string | null {
 }
 
 export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanContext, orderId = ""): Trip[] {
+  const movedIn = new Set(days.flatMap((d) => (d.combinedInto ? [d.combinedInto] : [])));
   return days
     .map((d): Trip => {
       const cutoffAt = d.cutoffAt ?? cutoffMsFor(d.date, plan.cutoffHour, plan.timezone);
@@ -101,6 +111,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         deliveryId: d.deliveryId ?? null,
         units: d.units ?? 1,
         coversDates: covers,
+        extraDates: d.extras ?? [],
         coversLabel: d.coversLabel ?? formatCoversLabel(covers),
         eatingDays: covers.map((c) => ({
           date: c,
@@ -114,6 +125,8 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         isMakeup: d.isMakeup,
         pooled: !!d.pooled,
         rescheduled,
+        movedTo: d.movedTo ?? d.combinedInto ?? null,
+        hasMovedIn: movedIn.has(d.date),
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -168,12 +181,13 @@ export function actionAvailability(trip: Trip, _now: number, plan: PlanContext):
 
   if (editable && trip.isMakeup) {
     hold = no("Make-up trips can't be held or moved.");
-    move = hold;
+    move = no("Already moved once. Only one move is allowed.");
   } else {
     hold = editable ? yes("Adds 1 hold day back to your plan")
       : s === "hold" || s === "rescheduled" ? no("Already on hold. Resume it instead.")
       : no(blocked("Already delivered."));
-    move = editable ? yes("Pick a new delivery day")
+    move = editable && trip.hasMovedIn ? no("This trip already carries a moved tiffin. Only one move is allowed.")
+      : editable ? yes("Pick a new delivery day")
       : s === "hold" && trip.pooled ? yes(plan.lastDeliveryDate ? `Only days after ${humanDate(plan.lastDeliveryDate)}` : "Only days after your last delivery")
       : s === "hold" ? yes("Uses one of your hold days")
       : resumeVacation ? yes("Uses one of your hold days")

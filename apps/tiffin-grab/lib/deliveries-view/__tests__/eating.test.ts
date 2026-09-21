@@ -8,6 +8,19 @@ const trip = (o: Partial<Trip>): Trip => ({
   eatingDays: [day("2026-09-21", "Dal"), day("2026-09-22", "Kadhi", "2026-09-21")], status: "upcoming", cutoffAt: 0, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o,
 });
 
+describe("moved days", () => {
+  it("a rescheduled day reads Moved to <date> with no dish", () => {
+    const rows = buildEatingDays([trip({ date: "2026-09-23", coversDates: ["2026-09-23"], eatingDays: [day("2026-09-23", "Dal")], status: "rescheduled", movedTo: "2026-09-25" })]);
+    expect(rows[0]!.dish).toBeNull();
+    expect(deliveryLine(rows[0]!)).toBe("Moved to Fri, Sep 25");
+  });
+  it("a merged source keeps a Moved row only for days its target does not carry", () => {
+    const src = trip({ date: "2026-09-23", coversDates: ["2026-09-23"], eatingDays: [day("2026-09-23")], status: "combined-into", movedTo: "2026-09-25", mergedInto: "2026-09-25" });
+    const tgt = trip({ date: "2026-09-25", coversDates: ["2026-09-25"], eatingDays: [day("2026-09-25")] });
+    expect(buildEatingDays([src, tgt]).map((r) => [r.date, deliveryLine(r)])).toEqual([["2026-09-23", "Moved to Fri, Sep 25"], ["2026-09-25", "Arrives Fri, Sep 25"]]);
+  });
+});
+
 describe("buildEatingDays", () => {
   it("a Mon trip covering Mon+Tue yields two eating days, only Mon is the delivery day", () => {
     const rows = buildEatingDays([trip({})]);
