@@ -128,7 +128,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
       {rows.length === 0 ? (
         <Card><CardContent className="text-muted-foreground py-6 text-sm">No eating days this week.</CardContent></Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
           <div className="space-y-1" role="list" aria-label="Eating days">
             {rows.map((r) => {
               const m = statusMeta(r.trip);
