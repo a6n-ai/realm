@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { monthFetchRange, parseMonthParam, pickCalendarSelectedDay, calendarRailDays } from "../calendar-constants";
+import {
+  calendarRailDays,
+  deliveryFetchRange,
+  monthFetchRange,
+  parseMonthParam,
+  pickCalendarSelectedDay,
+} from "../calendar-constants";
 
 describe("calendar month helpers", () => {
   it("monthFetchRange spans the calendar month", () => {
@@ -14,6 +20,20 @@ describe("calendar month helpers", () => {
 
   it("monthFetchRange does not start before today in the current month", () => {
     expect(monthFetchRange("2026-07", "2026-07-22")).toEqual({ from: "2026-07-22", until: "2026-07-31" });
+  });
+
+  it("deliveryFetchRange extends the current month through the plan's last trip", () => {
+    expect(deliveryFetchRange("2026-09", "2026-09-21", "2026-10-15")).toEqual({
+      from: "2026-09-21",
+      until: "2026-10-15",
+    });
+  });
+
+  it("deliveryFetchRange keeps future months month-scoped", () => {
+    expect(deliveryFetchRange("2026-10", "2026-09-21", "2026-10-15")).toEqual({
+      from: "2026-10-01",
+      until: "2026-10-31",
+    });
   });
 });
 

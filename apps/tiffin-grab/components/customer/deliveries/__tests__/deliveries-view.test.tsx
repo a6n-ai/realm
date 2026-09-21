@@ -131,6 +131,31 @@ describe("DeliveriesView", () => {
     view(null, []);
     expect(screen.getByText(/No deliveries in September/)).toBeInTheDocument();
   });
+  it("soft month change reselects a trip in the new month (does not fake empty)", () => {
+    const { rerender } = view("2026-09-23");
+    expect(screen.queryByText(/No deliveries in September/)).toBeNull();
+    const october = [
+      trip({
+        date: "2026-10-01",
+        coversDates: ["2026-10-01"],
+        eatingDays: [{ date: "2026-10-01", dishSummary: "Dal, Rice", swaps: [], locksWith: null }],
+      }),
+      trip({ date: "2026-10-07", coversDates: ["2026-10-07"], eatingDays: [] }),
+    ];
+    rerender(
+      <DeliveriesView
+        plan={plan}
+        subs={[plan.sub]}
+        windows={{}}
+        trips={october}
+        now={NOW}
+        monthKey="2026-10"
+        initialTrip="2026-10-01"
+      />,
+    );
+    expect(screen.queryByText(/No deliveries in October/)).toBeNull();
+    expect(screen.getAllByRole("heading", { name: /Thu, Oct 1|Wed, Oct 7/ }).length).toBeGreaterThan(0);
+  });
 });
 
 describe("action registry", () => {

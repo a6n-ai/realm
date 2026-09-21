@@ -2,7 +2,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, DateStrip, Notice, Toast, type DeliveryStatus, type StripDay } from "@/components/customer/kit";
 import { FONT } from "@/components/customer/kit/cn";
 import { actionAvailability, buildDayStatusMap, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
@@ -11,7 +11,7 @@ import { actionModel } from "./action-model";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { VacationSheet } from "./actions/vacation-sheet";
-import { renewDays, type PlanView } from "./adapter";
+import { pickDefaultTrip, renewDays, type PlanView } from "./adapter";
 import { PlanHeader } from "./plan-header";
 import { TripCard, TripRow, tiffins } from "./trip-parts";
 
@@ -60,16 +60,42 @@ function TripList({ trips, today, tz, selected, onSelect, limit, allowEarlier }:
   );
 }
 
+function resolveTripDate(trips: Trip[], date: string | null | undefined): string | null {
+  if (!date) return null;
+  const hit = trips.find((t) => t.date === date);
+  if (!hit) return null;
+  return hit.mergedInto ? (trips.find((x) => x.date === hit.mergedInto)?.date ?? hit.date) : hit.date;
+}
+
 export function DeliveriesView({ plan, subs, windows, trips, now, monthKey, initialTrip, initialAction }: Props) {
   const router = useRouter();
   const resolve = useCallback((t: Trip | undefined) => (t?.mergedInto ? trips.find((x) => x.date === t.mergedInto) ?? t : t), [trips]);
-  const [selected, setSelected] = useState(() => resolve(trips.find((t) => t.date === initialTrip))?.date ?? initialTrip);
+  // Soft Link navigations (month / plan) reuse this client tree — reset selection when the
+  // server hands a new month or order, otherwise selected stays on a date that isn't in `trips`
+  // and the empty-state branch falsely claims "No deliveries".
+  const [selected, setSelected] = useState(() => resolveTripDate(trips, initialTrip) ?? pickDefaultTrip(trips, undefined));
+  useEffect(() => {
+    // Prefer the server's pick for this month/order; if that date isn't in `trips` (stale
+    // client state after a soft Link), fall back to the first real trip — never leave
+    // `selected` pointing at a date that makes `trip` null and fakes an empty month.
+    setSelected((prev) => {
+      const fromServer = resolveTripDate(trips, initialTrip);
+      if (fromServer) return fromServer;
+      if (prev && trips.some((t) => t.date === prev && t.status !== "combined-into")) return prev;
+      return pickDefaultTrip(trips, undefined);
+    });
+  }, [initialTrip, monthKey, plan.orderId, trips]);
   const [active, setActive] = useState<TripAction | null>(() => ACTIONS.find((a) => a === initialAction) ?? null);
   const [toast, setToast] = useState<string | null>(null);
   const { ctx, today, sub } = plan;
   const tz = ctx.timezone;
 
-  const trip = trips.find((t) => t.date === selected) ?? null;
+  const trip =
+    trips.find((t) => t.date === selected) ??
+    trips.find((t) => t.date === initialTrip) ??
+    trips.find((t) => t.status === "upcoming") ??
+    trips.find((t) => t.status !== "combined-into") ??
+    null;
   const byDate = useMemo(() => buildDayStatusMap(trips), [trips]);
   const statusOf = (iso: string): DeliveryStatus | undefined => {
     const e = byDate[iso];
@@ -96,7 +122,9 @@ export function DeliveriesView({ plan, subs, windows, trips, now, monthKey, init
   };
 
   const floor = today.slice(0, 7);
-  const monthHref = (m: string) => `${qs({ month: m, trip: null, action: null })}`;
+  // Absolute path: query-only hrefs drop `sub` on SSR (no window) and can fail to
+  // land on /me/deliveries when navigating months — which looked like "no October."
+  const monthHref = (m: string) => `/me/deliveries${qs({ month: m, trip: null, action: null })}`;
   const model = trip ? actionModel(trip, now, ctx) : null;
   const vacAv = trip ? actionAvailability(trip, now, ctx).vacation : null;
   const stripDays: StripDay[] = trip ? weekOf(trip.date).map((iso) => ({ date: iso, status: statusOf(iso) })) : [];
@@ -137,7 +165,7 @@ export function DeliveriesView({ plan, subs, windows, trips, now, monthKey, init
         renew={renewDays(plan.counts.lastDeliveryDate, today)}
         onVacation={!!ctx.onVacation}
         onVacationClick={() => setActive("vacation")}
-        subHref={(id) => `${qs({ sub: id, trip: null, month: null, action: null })}`}
+        subHref={(id) => `/me/deliveries${qs({ sub: id, trip: null, month: null, action: null })}`}
       />
 
       {ctx.pooled >= 1 && trip && (
@@ -147,7 +175,7 @@ export function DeliveriesView({ plan, subs, windows, trips, now, monthKey, init
         </Notice>
       )}
 
-      {trips.length === 0 || !trip || !model ? (
+      {trips.filter((t) => t.status !== "combined-into").length === 0 || !trip || !model ? (
         <Card className="space-y-2 p-6">
           {monthNav}
           <p className="text-[15px] font-semibold">No deliveries in {monthLabel(monthKey).split(" ")[0]}.</p>

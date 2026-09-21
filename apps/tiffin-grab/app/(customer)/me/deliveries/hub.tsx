@@ -23,7 +23,7 @@ import {
   myTiffinCounts,
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
-import { currentMonthKey, monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { currentMonthKey, deliveryFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
 
 export type HubSearchParams = Promise<{ month?: string; sub?: string; trip?: string; action?: string }>;
 type SearchParams = HubSearchParams;
@@ -58,8 +58,11 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   // Open on the month of the plan's next delivery: a plan that starts next month must not land on an empty current month.
   const hasMonthParam = !!monthParam && /^\d{4}-\d{2}$/.test(monthParam);
   const nextDate = windows[sub.publicId]?.next ?? null;
+  const planLast = windows[sub.publicId]?.last ?? null;
   const monthKey = hasMonthParam ? parseMonthParam(monthParam, today) : nextDate ? currentMonthKey(nextDate) : parseMonthParam(undefined, today);
-  const { from, until } = monthFetchRange(monthKey, today);
+  // Current month: load through the plan's last trip so next weeks/months appear
+  // in Upcoming. Future ?month= stays month-scoped (selection remount handles nav).
+  const { from, until } = deliveryFetchRange(monthKey, today, planLast);
 
   const [rows, days, counts, pause, makeupSources, catalog, categoryRows, swapCategories] = await Promise.all([
     myDeliveries(userId, from, until),
@@ -91,7 +94,17 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
 
   return (
     <div className="mx-auto w-full max-w-[1280px]">
-      <DeliveriesView plan={plan} subs={subs} windows={windows} trips={trips} now={now} monthKey={monthKey} initialTrip={pickDefaultTrip(trips, tripParam)} initialAction={actionParam ?? null} />
+      <DeliveriesView
+        key={`${sub.publicId}:${monthKey}`}
+        plan={plan}
+        subs={subs}
+        windows={windows}
+        trips={trips}
+        now={now}
+        monthKey={monthKey}
+        initialTrip={pickDefaultTrip(trips, tripParam)}
+        initialAction={actionParam ?? null}
+      />
     </div>
   );
 }
