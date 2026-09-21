@@ -175,7 +175,7 @@ export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow
       <p className={cn(HELP, "mt-4 flex items-center gap-1.5")} data-testid="delivery-block">
         <Truck aria-hidden className="size-4 shrink-0" />
         {deliveryLine(row)} · {tiffins(trip.units)} covering {covers}
-        {cutoff ? ` · ${cutoff.toLowerCase()}` : ""}
+        {cutoff ? ` · ${cutoff}` : ""}
       </p>
       {children}
     </Card>
