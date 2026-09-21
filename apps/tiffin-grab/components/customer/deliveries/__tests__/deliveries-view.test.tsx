@@ -147,10 +147,10 @@ describe("DeliveriesView (week + several plans)", () => {
   });
   it("selecting the second plan's trip shows THAT plan's counts and its own dishes", () => {
     multi();
-    fireEvent.click(screen.getByRole("button", { name: /Wed, Sep 23, Small/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Wed, Sep 23, Small/ }));
     expect(screen.getByText(/8 of 10 tiffins left/)).toBeInTheDocument();
     expect(screen.getAllByText("Chole").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: /Wed, Sep 23, Large/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Wed, Sep 23, Large/ }));
     expect(screen.getByText(/16 of 20 tiffins left/)).toBeInTheDocument();
   });
   it("plan filter chips narrow the list and the strip dots", () => {
