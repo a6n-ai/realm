@@ -283,7 +283,7 @@ function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: O
   const { plan, now } = data;
   const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today), [trip, plan, now]);
   const byDate = useMemo(() => new Map(options.map((o) => [o.date, o])), [options]);
-  const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason && o.carriedOn === o.date; };
+  const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason; };
   const first = options[0]?.date ?? plan.today;
   const last = options[options.length - 1]?.date ?? plan.today;
   const [week, setWeek] = useState(mondayOf(first));
@@ -294,7 +294,7 @@ function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: O
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Move {humanDate(trip.date)}</DialogTitle><DialogDescription>Only delivery days (marked with a truck) can be picked. Days already covered stay with this trip.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Move {humanDate(trip.date)}</DialogTitle><DialogDescription>Pick the day the customer wants to eat. The delivery day is chosen automatically from the plan (truck marks delivery days).</DialogDescription></DialogHeader>
         <div className="rounded-md border p-2" data-testid="move-week">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-muted-foreground px-1 text-xs font-semibold uppercase tracking-wider">{MON.format(d(week))} {d(week).getUTCDate()} – {MON.format(d(addDays(week, 6)))} {d(addDays(week, 6)).getUTCDate()}</span>
@@ -313,18 +313,19 @@ function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: O
                   aria-pressed={iso === date}
                   aria-disabled={!ok || undefined}
                   aria-label={`${humanDate(iso)}${byDate.get(iso)?.carriedOn === iso ? ", delivery day" : ""}${ok ? "" : ", unavailable"}`}
-                  onClick={() => (ok ? (setDate(iso), setNote(null)) : setNote(byDate.get(iso)?.disabledReason ?? (byDate.has(iso) ? "We only deliver on the days marked with a truck." : "That day isn't available.")))}
+                  onClick={() => (ok ? (setDate(iso), setNote(null)) : setNote(byDate.get(iso)?.disabledReason ?? "That day isn't available."))}
                   className={cn("flex h-16 flex-col items-center justify-center gap-1 rounded-md border text-xs", iso === date ? "border-primary bg-primary/10 font-semibold" : "border-transparent", ok ? "hover:bg-muted" : "opacity-40")}
                 >
                   <span className="text-muted-foreground">{weekdayShort(iso)[0]}</span>
                   <b className="text-sm tabular-nums">{d(iso).getUTCDate()}</b>
-                  <span className="flex h-3 items-center">{byDate.get(iso)?.carriedOn === iso && <Truck aria-hidden className="text-muted-foreground size-3" />}</span>
+                  <span className="flex h-3 items-center gap-0.5">{ok && <Utensils aria-hidden className="text-muted-foreground size-3" />}{byDate.get(iso)?.carriedOn === iso && ok && <Truck aria-hidden className="text-muted-foreground size-3" />}</span>
                 </button>
               );
             })}
           </div>
         </div>
         {note && <p className="text-muted-foreground text-sm">{note}</p>}
+        {date && byDate.get(date) && byDate.get(date)!.carriedOn !== date && !byDate.get(date)!.merge && <p className="text-muted-foreground text-sm">{humanDate(date)} will arrive {humanDate(byDate.get(date)!.carriedOn)} with {weekdayShort(byDate.get(date)!.carriedOn)}.</p>}
         {date && byDate.get(date)?.merge && <p className="text-muted-foreground text-sm">{humanDate(date)} already has a delivery: both trips combine into {tiffins(byDate.get(date)!.merge!.units)}.</p>}
         <Err e={error} />
         <DialogFooter>

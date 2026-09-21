@@ -23,8 +23,8 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const [reason, setReason] = useState<string | null>(null);
   const setPicked = (d: string) => (setReason(null), setPickedRaw(d));
   const byDate = useMemo(() => new Map(options.map((o) => [o.date, o])), [options]);
-  const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason && o.carriedOn === o.date; };
-  const truckDots = useMemo(() => Object.fromEntries(options.filter((o) => o.carriedOn === o.date).map((o) => [o.date, [{ orderId: "x", status: "upcoming" as const, truck: true }]])), [options]);
+  const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason; };
+  const truckDots = useMemo(() => Object.fromEntries(options.filter((o) => !o.disabledReason).map((o) => [o.date, [{ orderId: "x", status: "upcoming" as const, truck: o.carriedOn === o.date }]])), [options]);
   const { pending, error, run } = useCommit(onDone);
   const chosen = options.find((o) => o.date === picked);
   const held = trip.status === "hold";
@@ -65,7 +65,7 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
                 colorOf={() => "currentColor"}
                 onPickDay={setPicked}
                 onWeek={setWeek}
-                picker={{ isDisabled: (iso) => !pickable(iso), onDisabledTap: (iso) => setReason(byDate.get(iso)?.disabledReason ?? (byDate.has(iso) ? "We only deliver on the days marked with a truck." : "That day isn't available.")) }}
+                picker={{ isDisabled: (iso) => !pickable(iso), onDisabledTap: (iso) => setReason(byDate.get(iso)?.disabledReason ?? "That day isn't available.") }}
               />
               {reason && <Reason>{reason}</Reason>}
               {!chosen && <Reason>Choose a day to continue.</Reason>}
@@ -79,7 +79,7 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
                 <Notice>Your {tiffins(trip.units)} will arrive on {humanDate(chosen.date)}.</Notice>
               ) : null}
               <Reason>
-                <Truck aria-hidden className="mr-1 inline size-3.5 align-[-2px]" /> marks delivery days. {held ? "Uses one of your hold days. " : ""}Days already covered stay with this trip. Once moved, it can&apos;t be put back on hold.
+                Pick the day you want to eat. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {held ? "Uses one of your hold days. " : ""}Days already covered stay with this trip. Once moved, it can&apos;t be put back on hold.
               </Reason>
             </>
           )}

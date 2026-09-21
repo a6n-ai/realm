@@ -84,7 +84,7 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
                       className={cn(FOCUS, "relative flex h-[76px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] text-xs [touch-action:manipulation] motion-reduce:transition-none", sel ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] font-semibold text-[var(--foreground)]" : "border-transparent bg-[var(--card)]", (iso < today || off) && !sel && "opacity-40")}
                     >
                       <span aria-hidden className="grid w-full grid-cols-[1fr_auto_1fr] items-center px-1">
-                        <span className="flex justify-end">{ds.length > 0 && !picker && <Utensils className="size-2.5 text-[var(--muted-foreground,#6E6558)]" />}</span>
+                        <span className="flex justify-end">{ds.length > 0 && <Utensils className="size-2.5 text-[var(--muted-foreground,#6E6558)]" />}</span>
                         <span className="px-1 opacity-80">{WD[i]}</span>
                         <span className="flex justify-start">{ds.some((x) => x.truck) && <Truck className="size-2.5 text-[var(--muted-foreground,#6E6558)]" />}</span>
                       </span>

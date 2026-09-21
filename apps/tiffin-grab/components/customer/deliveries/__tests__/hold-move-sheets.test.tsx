@@ -77,13 +77,14 @@ describe("MoveSheet", () => {
     expect(screen.getByRole("button", { name: /Monday, September 28, delivery day/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Saturday, September 26(?!, delivery)/ })).toBeInTheDocument();
   });
-  it("only delivery days can be picked; a non-delivery day answers why and selects nothing", () => {
+  it("every eating day can be picked; a non-delivery day previews which delivery carries it", () => {
     mount(MoveSheet, trip());
-    const sat = screen.getByRole("button", { name: /Saturday, September 26, unavailable/ });
-    expect(sat).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(sat);
-    expect(screen.getAllByText("Choose a day to continue.").length).toBeGreaterThan(0);
-    expect(screen.getByText(/We only deliver on the days marked with a truck/)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Next week" })[0]!);
+    const tue = screen.getByRole("button", { name: /Tuesday, September 29/ });
+    expect(tue).not.toHaveAttribute("aria-disabled");
+    expect(tue.getAttribute("aria-label")).not.toContain("delivery day");
+    fireEvent.click(tue);
+    expect(screen.getByText(/Tue, Sep 29 will arrive Mon, Sep 28 with Mon/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Monday, September 28, delivery day/ })).not.toHaveAttribute("aria-disabled");
   });
   it("free day: preview then move", async () => {
