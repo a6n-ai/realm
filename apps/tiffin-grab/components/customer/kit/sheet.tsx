@@ -111,7 +111,7 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
         tabIndex={-1}
         className={cn(
           "absolute flex flex-col bg-[var(--card)] text-[var(--foreground)] shadow-[0_-8px_40px_rgba(0,0,0,.18)] outline-none overscroll-contain",
-          "inset-x-0 bottom-0 max-h-[90dvh] rounded-t-[28px]",
+          "inset-x-0 bottom-0 max-h-[90dvh] rounded-t-[var(--c-radius-sheet,28px)]",
           "md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[440px] md:rounded-l-[28px] md:rounded-tr-none",
         )}
       >

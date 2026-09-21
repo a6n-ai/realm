@@ -107,3 +107,81 @@ Card 24, input and date cell 16, chip 10, pill and button 9999, sheet top corner
 - Do pair every status color with text and a shape.
 - Don't use hover-only affordances; explanations are visible text.
 - Don't apply this language to admin surfaces.
+
+# Customer design system (derived from /subscribe)
+
+Source of truth: `components/wizard/*`, `app/(public)/subscribe/*`. Living guide: `/me/design-system` (dev only). Kit: `components/customer/kit` (no shadcn / `@foundry/ui` in the customer app). Tokens: `app/globals.css`, section "Customer design system", scoped to `.customer-app`.
+
+## Principles
+1. Bold type, big soft cards, pill controls, saffron on cream. One italic saffron accent word per title.
+2. One primary action per screen, with the glow. Everything else is outline or quiet.
+3. Never color alone; explanations are visible text; 44px minimum targets (CTA 52, wizard day pills 48).
+4. Mobile first; same components on desktop, only the grid widens.
+
+## Tokens (wizard value -> variable)
+| Value | Token |
+|---|---|
+| Cream page / card / muted / hairline | `--background` `--card` `--muted` `--border` (dark: green-black `#14201A` / `#1B2921`) |
+| Saffron, hover, wash | `--primary` `#F06B1A`/`#FF9843`, `--primary-hover`, wash `#FBE3D2`/`#3A2A1C`; selected fill = primary at 10% |
+| Radii: chip 10, input 16, option card 20, card 24, sheet 28, pill 9999 | `--c-radius-chip/input/select/card/sheet` |
+| CTA glow `0 12px 30px -8px` primary 70% | `--c-shadow-cta` |
+| Sheet shadow, scrim `rgb(20 16 12 / .45)` | `--c-shadow-sheet`, `--c-scrim` |
+| Heights: tap 44, wizard pill 48, CTA 52, input 52 | `--c-h-tap/pill/cta` |
+| Motion: soft `(.22,1,.36,1)` 400ms sheets, 250ms scrim; spring `(.34,1.56,.64,1)`; press scale .97 in 100-150ms; wizard step slide 24px, spring bounce 0 / 400ms | `--c-ease-*`, `--c-dur-*` |
+| Glass bar: background 72% + blur 20 saturate 180 | `.c-glass` |
+
+## Typography (Poppins)
+| Class | Spec | Use |
+|---|---|---|
+| `.c-eyebrow` | 12/600, +0.25em, uppercase, saffron | above page title |
+| `.c-title` | 34-40 / 1.06 / 700 / -0.03em | wizard question |
+| `.c-title-page` | 28-40 / 1.08 / 700 / -0.03em | page header |
+| `.c-accent` | italic, saffron | one word in a title |
+| `.c-h2` | 22 / 700 / -0.03em | card and sheet titles |
+| `.c-label` | 13 / 600 / +0.02em muted | section labels |
+| `.c-body` / `.c-caption` | 16/1.5 ; 13 muted | copy |
+| `.c-stat` | 28 / 700 tabular saffron | numbers (40 in previews) |
+
+## Layout and spacing
+Content column `max-w-3xl` (wizard) centered, 16px mobile gutter, sections `space-y-8`, option grids `gap-3` (day pills `gap-1.5/2`), card padding 16-20. Mobile pads bottom for the fixed bar (`pb-44`).
+
+Page header: eyebrow, bold title + italic saffron accent, optional subtitle, ONE primary action right-aligned (`PageHeader`).
+
+## Top bar anatomy
+Brand (left) | pill nav: Deliveries, Menu, Account (`NavPill`, saffron wash when current) | `CoinChip` (wallet icon + tabular balance, links to `/me/wallet`, active state on `/me/wallet*`; it is the ONLY entry to Finances, not a nav pill) | ONE `ThemeToggle`. ThemeToggle is a single 44px icon button showing the current theme; one tap cycles light, dark, system (chosen over a popover: one tap, no overlay to dismiss); aria-label announces current and next. The full Light/System/Dark choice (`Segmented`) also lives in the Menu sheet. Mobile: brand, coin chip, theme button on top; `TabBar` at bottom.
+
+## Components (kit)
+- Button: pill, 1.5px border, 44 (md) / 52 (lg); primary = saffron + glow, outline = ink border, quiet = hairline card; press scale .97; disabled 45% opacity but `disabledReason` keeps it focusable and prints the reason. Do: one primary. Don't: shadow on non-primary.
+- Pill (28px, 12/600, tone wash) and Chip (28px, 10px radius, 13px tabular).
+- Card: 24px, 1px hairline, white/`--card`. `selected` = primary border + 10% wash.
+- SelectableCard: 20px, 2px border, min-h 96, title `c-h2`, optional round arrow/check indicator; `aria-pressed`.
+- Sheet: bottom 28px radius w/ grabber on mobile, right panel 440px on desktop, title `c-h2`, close 44px, sticky footer CTA, focus trap, Esc, drag to dismiss.
+- Field: label 14/600, 52px input, 16px radius, 1px hairline; error border rose + `role=alert` text. Toggle 52x32, Stepper pill 44 buttons.
+- Tabs / Segmented: pill 44; active = ink fill.
+- DateStrip / MonthGrid / DateCell: 16px cells, emerald ring delivered, dashed combined.
+- NavPill, CoinChip, ThemeToggle, TabBar (56px, 11/600 labels), BottomBar (glass, hairline, safe-area, note above CTA).
+- PageHeader, StatTile (20px, label, saffron `c-stat`), ListRow/ListGroup (56px rows, 24px group, chevron when link), EmptyState (dashed 24px, wash icon), MenuSection (label + rows), Notice/Reason, Toast (ink pill bottom), Skeleton (muted, 16px).
+
+## Motion and accessibility
+Press scale .97 (100ms), sheets 400ms soft ease, toggles and toasts spring 250ms. `prefers-reduced-motion`: opacity only. Visible 2px saffron focus outline offset 2. Targets >= 44. `aria-pressed` for choices, `aria-current` for nav, `role=status/alert` for messages. Reduced transparency makes glass opaque.
+
+## Templates (ASCII)
+```
+HUB (desktop)                          HUB (mobile)
+eyebrow                                eyebrow
+Title *accent*            [Primary]    Title *accent*
+[StatTile][StatTile][StatTile]         [StatTile][StatTile]
+[ Card list / ListGroup          ]     [ ListGroup            ]
+                                       [Home|Menu|Deliv|Acct]
+
+DETAIL LIST            FORM PAGE                 SETTINGS PAGE
+Back  Title            Title *accent*            Tabs (desktop) / rows (mobile)
+[Card][Card]           Field  Field              ListGroup > ListRow > chevron
+[Card]                 ...                       Toggle rows
+                       [BottomBar: Back|Save]
+```
+
+## Wizard reuse, matches and drift
+Reusable as-is: option cards (now `SelectableCard`), day pills (h-48 pill, primary fill), progress bar (h-1 rounded, primary/border), glass bottom bar (`BottomBar`), invoice sheet (`Sheet`).
+Fixed: Card selected ring became 10% wash + 2px border cue; Field 1.5px border/48px -> 1px/52px; Sheet radius on token.
+Still drifting (wizard uses `@foundry/ui` Button): wizard Next uses a 14px-radius 50px iOS button, not the pill CTA. Migrating the wizard to kit Button is out of scope here.

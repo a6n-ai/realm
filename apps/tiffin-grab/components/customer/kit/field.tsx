@@ -28,7 +28,7 @@ export function Field({ label, hint, error, className, id, ...rest }: FieldProps
         aria-describedby={describedBy}
         className={cn(
           FOCUS,
-          "min-h-12 rounded-2xl border-[1.5px] bg-[var(--card)] px-4 text-base text-[var(--foreground)]",
+          "min-h-[52px] rounded-2xl border bg-[var(--card)] px-4 text-base text-[var(--foreground)]",
           error ? "border-[#be123c]" : "border-[var(--border)]",
           className,
         )}

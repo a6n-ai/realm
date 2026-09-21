@@ -15,7 +15,7 @@ export function Card({ interactive, selected, className, ...rest }: CardProps) {
         FONT,
         "rounded-3xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]",
         interactive && cn(FOCUS, "cursor-pointer transition-transform duration-150 active:scale-[.985] motion-reduce:transition-none", SPRING),
-        selected && "border-[var(--primary)] ring-2 ring-[var(--primary)]",
+        selected && "border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]",
         className,
       )}
     />

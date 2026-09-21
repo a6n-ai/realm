@@ -1,9 +1,9 @@
 "use client";
 
-import { CalendarDays, Pause } from "lucide-react";
+import { CalendarDays, Pause, Inbox, Home, UtensilsCrossed, User } from "lucide-react";
 import { useState } from "react";
 import {
-  ActionRow, Button, Card, Chip, Countdown, DateStrip, Field, MonthGrid, Notice, Pill, Reason, Segmented,
+  ActionRow, BottomBar, Button, CoinChip, EmptyState, ListGroup, ListRow, MenuSection, NavPill, PageHeader, SelectableCard, StatTile, TabBar, ThemeToggle, Card, Chip, Countdown, DateStrip, Field, MonthGrid, Notice, Pill, Reason, Segmented,
   Sheet, Skeleton, StatusDot, StatusRing, Stepper, Tabs, Toast, Toggle, type DeliveryStatus,
 } from "@/components/customer/kit";
 
@@ -25,6 +25,7 @@ export function KitGallery() {
   const [seg, setSeg] = useState("a");
   const [on, setOn] = useState(true);
   const [n, setN] = useState(2);
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [day, setDay] = useState<string | null>("2026-09-23");
   const [sel, setSel] = useState<string | null>("2026-09-24");
   const days = ["2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25", "2026-09-26"].map((date, i) => ({
@@ -33,7 +34,41 @@ export function KitGallery() {
   }));
   return (
     <div className="mx-auto max-w-3xl space-y-10 p-4 pb-32 md:p-8">
-      <h1 className="text-[clamp(28px,5vw,40px)] font-bold tracking-[-0.03em]">Kit <em className="text-[var(--primary)]">preview.</em></h1>
+      <PageHeader eyebrow="Customer design system" title="Same family as" accent="the plan form." subtitle="Every token and primitive, derived from /subscribe." action={<Button variant="primary" size="lg">Primary</Button>} />
+      <Block title="Type scale">
+        <p className="c-eyebrow">c-eyebrow 12/600 +0.25em</p>
+        <p className="c-title">c-title 34-40 <em className="c-accent">accent.</em></p>
+        <p className="c-h2">c-h2 22/700 card title</p>
+        <p className="c-body">c-body 16/1.5 body copy</p>
+        <p className="c-label">c-label 13/600 section label</p>
+        <p className="c-caption">c-caption 13 muted</p>
+        <p className="c-stat">28 <span className="c-caption">c-stat tabular</span></p>
+      </Block>
+      <Block title="Top bar (nav pills, coin chip, one theme button)">
+        <div className="flex flex-wrap items-center gap-2">
+          <NavPill href="#" active>Deliveries</NavPill><NavPill href="#">Menu</NavPill><NavPill href="#">Account</NavPill>
+          <CoinChip href="#" balance={120} /><CoinChip href="#" balance={120} active />
+          <ThemeToggle value={theme} onChange={setTheme} />
+        </div>
+      </Block>
+      <Block title="Selectable cards">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <SelectableCard selected title="Non-Veg Plan" description="Sabzi, daal and roti" indicator onClick={() => {}} />
+          <SelectableCard selected={false} title="Veg Plan" description="Fresh every day" indicator onClick={() => {}} />
+        </div>
+      </Block>
+      <Block title="Stat tiles, list rows, empty state">
+        <div className="grid grid-cols-2 gap-3"><StatTile label="Remaining" value={12} unit="tiffins" hint="of 20" /><StatTile label="On hold" value={2} unit="days" /></div>
+        <ListGroup><ListRow label="Profile" sublabel="Name, phone" href="#" icon={<User className="size-4" />} /><ListRow label="Coins" value="120" /></ListGroup>
+        <EmptyState icon={<Inbox className="size-6" />} title="No tickets yet" body="Need help with an order? Start a ticket." action={<Button variant="primary">New ticket</Button>} />
+      </Block>
+      <Block title="Menu sheet content and bar">
+        <MenuSection title="Appearance"><Segmented label="Theme" idPrefix="th" value={seg} onChange={setSeg} items={[{ id: "a", label: "Light" }, { id: "b", label: "System" }, { id: "c", label: "Dark" }]} /></MenuSection>
+        <div className="relative h-40 overflow-hidden rounded-3xl border border-[var(--border)] [transform:translateZ(0)]">
+          <BottomBar note="Pick a meal size to continue."><Button className="w-24">Back</Button><Button variant="primary" size="lg" className="flex-1" disabledReason="Pick a meal size">Next</Button></BottomBar>
+          <TabBar items={[{ href: "#", label: "Home", icon: <Home className="size-5" />, active: true }, { href: "#", label: "Menu", icon: <UtensilsCrossed className="size-5" /> }]} />
+        </div>
+      </Block>
       <Block title="Buttons">
         <div className="flex flex-wrap items-start gap-3">
           <Button variant="primary" size="lg">Primary</Button>
