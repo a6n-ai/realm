@@ -1,5 +1,5 @@
 "use client";
-import { Info, Truck } from "lucide-react";
+import { Info, Truck, Utensils } from "lucide-react";
 import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { formatCutoff, humanDate, type Trip } from "@/lib/deliveries-view";
@@ -137,6 +137,7 @@ export function EatingRowButton({ row, selected, onSelect, plan }: { row: Eating
         selected ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]/60",
       )}
     >
+      <Utensils aria-hidden className="size-5 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2 text-[15px] font-semibold">
           {humanDate(row.date)}
