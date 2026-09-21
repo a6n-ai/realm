@@ -140,6 +140,10 @@ describe("customer-deliveries.service (integration)", () => {
     const ids = new Set(Object.values(dots).flat().map((d) => d.orderId));
     expect(ids).toEqual(new Set([o1.publicId, o2.publicId]));
     expect(Object.keys(dots).every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))).toBe(true);
+    const trucks = Object.entries(dots).flatMap(([date, ds]) => ds.filter((d) => d.truck).map((d) => [date, d.deliveryDate]));
+    expect(trucks.length).toBeGreaterThan(0);
+    expect(trucks.every(([eat, arrives]) => eat === arrives)).toBe(true);
+    expect(Object.values(dots).flat().every((d) => d.covers.includes(d.deliveryDate))).toBe(true);
     expect(await myAgendaDots(userA, "2100-01-01", "2100-02-01")).toEqual({});
   });
 
