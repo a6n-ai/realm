@@ -39,13 +39,51 @@ const data = {
   weekStart: "2026-09-21", firstWeek: "2026-09-21", lastWeek: "2026-10-05", now: NOW,
 } as unknown as OrderWeek;
 
+import { PagedTable } from "../paged-table";
+import { TableCell } from "@foundry/ui/table";
+
+describe("PagedTable (shadcn)", () => {
+  const rows = Array.from({ length: 23 }, (_, i) => ({ id: String(i + 1) }));
+  const table = () => render(<PagedTable columns={[{ key: "id", label: "ID" }]} rows={rows} rowKey={(r) => r.id} renderRow={(r) => <TableCell>{r.id}</TableCell>} empty="none" />);
+  it("paginates: 10 per page, next/prev, page size", () => {
+    table();
+    expect(screen.getAllByTestId("paged-row")).toHaveLength(10);
+    expect(screen.getByText(/1–10 of 23/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText(/11–20 of 23/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "3" }));
+    expect(screen.getAllByTestId("paged-row")).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Prev" }));
+    expect(screen.getByText(/11–20 of 23/)).toBeInTheDocument();
+  });
+  it("shows the empty message", () => {
+    render(<PagedTable columns={[{ key: "id", label: "ID" }]} rows={[]} rowKey={() => "x"} renderRow={() => null} empty="No eating days scheduled." />);
+    expect(screen.getByText("No eating days scheduled.")).toBeInTheDocument();
+  });
+});
+
 describe("OrderWeekHub (admin, shadcn)", () => {
+  it("menu not released: only the message, no list/delivery/actions, strip stays", () => {
+    const out = { ...data, plan: { ...data.plan, days: [{ date: "2026-09-21", menuWeekId: null, meal: null }] } } as unknown as OrderWeek;
+    render(<OrderWeekHub data={out} />);
+    expect(screen.getByTestId("menu-not-released")).toHaveTextContent("Menu not released yet.");
+    expect(screen.queryAllByTestId("trip-row")).toHaveLength(0);
+    expect(screen.queryByTestId("next-delivery")).toBeNull();
+    expect(screen.getByTestId("week-strip")).toBeInTheDocument();
+  });
+  it("lists every eating day in a paginated table; a row opens its week", () => {
+    replace.mockClear();
+    render(<OrderWeekHub data={data} />);
+    expect(screen.getAllByTestId("paged-row").length).toBe(3);
+    fireEvent.click(screen.getAllByTestId("paged-row")[2]!);
+    expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
+  });
   it("lists eating days of the week; a Mon trip feeds Mon and Tue; Tue names the delivery", () => {
     render(<OrderWeekHub data={data} />);
     expect(screen.getAllByTestId("trip-row")).toHaveLength(2);
     fireEvent.click(screen.getAllByTestId("trip-row")[1]!);
     expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Mon, Sep 21 with Mon");
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("2 tiffins covering Mon, Tue");
+    expect(screen.getByText(/2 tiffins covering Mon \+ Tue/)).toBeInTheDocument();
   });
   it("strip marks the delivery day and next-delivery banner shows", () => {
     render(<OrderWeekHub data={data} />);
@@ -61,7 +99,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
   it("info button explains the trip", () => {
     render(<OrderWeekHub data={data} />);
     fireEvent.click(screen.getByRole("button", { name: "Details for Tue, Sep 22" }));
-    expect(screen.getByRole("dialog", { name: /Tue, Sep 22 · trip details/ })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /Tue, Sep 22 · meal/ })).toBeInTheDocument();
   });
   it("next week arrow updates ?week via router.replace", () => {
     replace.mockClear();

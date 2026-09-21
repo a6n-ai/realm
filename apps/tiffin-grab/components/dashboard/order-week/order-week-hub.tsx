@@ -28,7 +28,9 @@ import { moveOptions } from "@/lib/deliveries-view/move";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
 import { applySwapsToCounts, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { OrderWeek } from "@/lib/services/order-week.service";
-import { EXPLAIN, statusMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
+import { statusMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
+import { TableCell } from "@foundry/ui/table";
+import { PagedTable } from "./paged-table";
 
 type Dlg = "reschedule" | "swap" | "vacation" | "makeup" | "info" | null;
 const STATUS_TONE: Record<string, string> = {
@@ -57,6 +59,9 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
   const leftCounts = plan.sub.categoryCounts ? applySwapsToCounts(plan.sub.categoryCounts, eatingSwaps?.appliedSwaps ?? []) : null;
   const canSwap = (eatingSwaps?.swapPairs ?? []).some((q) => !leftCounts || (leftCounts[q.fromCategory] ?? 0) >= 1);
 
+  const weekDaysOfPlan = plan.days.filter((x) => x.date >= weekStart && x.date <= weekEnd);
+  const menuOut = weekDaysOfPlan.length > 0 && weekDaysOfPlan.every((x) => x.menuWeekId == null);
+  const scheduleRows = Object.entries(agenda).sort(([a], [b]) => a.localeCompare(b)).flatMap(([date, ds]) => ds.map((x) => ({ date, ...x })));
   const goWeek = (m: string, tripDate?: string) =>
     startNav(() => router.replace(`?week=${m}${tripDate ? `&trip=${tripDate}` : ""}`, { scroll: false }));
   const refresh = (msg: string) => (toast.success(msg), setDlg(null), router.refresh());
@@ -80,7 +85,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
         </div>
       </div>
 
-      {nextTruck && (
+      {nextTruck && !menuOut && (
         <Card className="py-3">
           <CardContent className="flex items-center gap-2 text-sm">
             <Truck className="size-4" aria-hidden />
@@ -110,12 +115,12 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                       aria-pressed={picked}
                       aria-label={`${humanDate(iso)}${ds.length ? `, eating${ds.some((x) => x.truck) ? ", delivery arrives" : ""}` : ", nothing planned"}`}
                       onClick={() => (w === weekStart ? setSel(iso) : goWeek(w, iso))}
-                      className={cn("relative flex h-16 flex-col items-center justify-center gap-1 rounded-md border text-xs", picked ? "border-primary bg-primary/10 font-semibold" : "border-transparent hover:bg-muted", iso === plan.today && "ring-1 ring-primary")}
+                      className={cn("relative flex h-[72px] flex-col items-center justify-center gap-1 rounded-md border text-xs", picked ? "border-primary bg-primary/10 font-semibold" : "border-transparent hover:bg-muted", iso === plan.today && "ring-1 ring-primary")}
                     >
                       <span className="text-muted-foreground">{weekdayShort(iso)[0]}</span>
-                      {ds.some((x) => x.truck) && <Truck aria-hidden className="text-muted-foreground absolute right-1 top-1 size-3" />}
                       <b className="text-sm tabular-nums">{d(iso).getUTCDate()}</b>
-                      <span className="flex h-2 gap-0.5">
+                      <span className="flex h-3 items-center gap-0.5">
+                        {ds.some((x) => x.truck) && <Truck aria-hidden className="text-muted-foreground size-3" />}
                         {ds.map((x, i) => <span key={i} aria-hidden className={cn("size-2 rounded-full", STATUS_TONE[dotStatus(x, now)])} />)}
                       </span>
                     </button>
@@ -128,7 +133,9 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
         <Button variant="ghost" size="icon" aria-label="Next week" disabled={weekStart >= lastWeek} onClick={() => goWeek(addDays(weekStart, 7))}><ChevronRight /></Button>
       </div>
 
-      {rows.length === 0 ? (
+      {menuOut ? (
+        <Card data-testid="menu-not-released"><CardContent className="space-y-1 py-6"><p className="font-medium">Menu not released yet.</p><p className="text-muted-foreground text-sm">Meals for this week appear once the menu is out.</p></CardContent></Card>
+      ) : rows.length === 0 ? (
         <Card><CardContent className="text-muted-foreground py-6 text-sm">No eating days this week.</CardContent></Card>
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
@@ -154,23 +161,18 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
           {row && trip && av && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex flex-wrap items-baseline gap-2">
-                  {humanDate(row.date)} <span className="text-muted-foreground text-sm font-normal">(eating)</span>
+                <CardTitle className="flex flex-wrap items-center gap-2" data-testid="delivery-block">
+                  <Truck className="size-5" aria-hidden />
+                  {deliveryLine(row)}
                   <Badge variant="outline">{statusMeta(trip).label}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-sm">{row.dish ?? <span className="text-muted-foreground">Default menu</span>}</p>
-                {row.swaps.length > 0 && <p className="text-muted-foreground text-xs">Swapped: {row.swaps.join(", ")}</p>}
-                <div className="bg-muted/50 rounded-md p-3 text-sm" data-testid="delivery-block">
-                  <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Delivery</p>
-                  <p className="font-medium">{deliveryLine(row)}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {tiffins(trip.units)} covering {trip.coversDates.map(weekdayShort).join(", ")}
-                    {trip.status === "upcoming" && ` · changes close ${formatCutoff(trip.cutoffAt, tz)}`}
-                    {!row.own && trip.status === "upcoming" && ` · locks with ${weekdayShort(trip.date)}'s delivery`}
-                  </p>
-                </div>
+                <p className="text-muted-foreground text-sm">
+                  {tiffins(trip.units)} covering {trip.coversDates.map(weekdayShort).join(" + ")}
+                  {trip.status === "upcoming" && ` · changes close ${formatCutoff(trip.cutoffAt, tz)}`}
+                  {!row.own && trip.status === "upcoming" && ` · ${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery`}
+                </p>
                 <Actions trip={trip} av={av} canSwap={canSwap} onOpen={setDlg} onResume={async () => {
                   const r = await unskipMyDelivery(trip.deliveryId!);
                   "error" in r ? toast.error(r.error) : refresh(`Resumed ${humanDate(trip.date)}.`);
@@ -182,7 +184,31 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
         </div>
       )}
 
-      {dlg === "info" && row && <InfoDialog row={row} tz={tz} onClose={() => setDlg(null)} />}
+      <Card>
+        <CardHeader><CardTitle className="text-base">All eating days</CardTitle></CardHeader>
+        <CardContent>
+          <PagedTable
+            columns={[{ key: "day", label: "Eating day" }, { key: "delivery", label: "Delivery" }, { key: "tiffins", label: "Tiffins", className: "text-right" }, { key: "status", label: "Status" }]}
+            rows={scheduleRows}
+            rowKey={(x) => x.date}
+            selected={(x) => x.date === row?.date}
+            onRowClick={(x) => (mondayOf(x.date) === weekStart ? setSel(x.date) : goWeek(mondayOf(x.date), x.date))}
+            empty="No eating days scheduled."
+            renderRow={(x) => (
+              <>
+                <TableCell className="font-medium">{humanDate(x.date)}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : `with ${weekdayShort(x.deliveryDate)}, ${humanDate(x.deliveryDate)}`}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{x.truck ? x.units : ""}</TableCell>
+                <TableCell><Badge variant="outline">{dotStatus(x, now) === "delivered" ? "Delivered" : dotStatus(x, now) === "hold" ? "On hold" : dotStatus(x, now) === "vacation" ? "Vacation" : "Upcoming"}</Badge></TableCell>
+              </>
+            )}
+          />
+        </CardContent>
+      </Card>
+
+      {dlg === "info" && row && <InfoDialog row={row} plan={plan} tz={tz} onClose={() => setDlg(null)} />}
       {dlg === "reschedule" && trip && <RescheduleDialog trip={trip} data={data} onClose={() => setDlg(null)} onDone={refresh} />}
       {dlg === "swap" && row && <SwapDialog row={row} data={data} onClose={() => setDlg(null)} onDone={refresh} />}
       {dlg === "vacation" && <VacationDialog data={data} onClose={() => setDlg(null)} onDone={refresh} />}
@@ -208,23 +234,30 @@ function Actions({ trip, av, canSwap, onOpen, onResume }: { trip: Trip; av: Retu
   );
 }
 
-function InfoDialog({ row, tz, onClose }: { row: EatingRow; tz: string; onClose: () => void }) {
+function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWeek["plan"]; tz: string; onClose: () => void }) {
   const t = row.trip;
-  const facts: [string, string][] = [
-    ["Status", statusMeta(t).label],
-    ["Delivery day", humanDate(t.date)],
-    ["Feeds", `${t.coversDates.map(humanDate).join(", ")} (${tiffins(t.units)})`],
-    ["Changes close", `${t.status === "upcoming" ? "" : "Closed "}${formatCutoff(t.cutoffAt, tz)}`],
-    ...(t.isMakeup ? [["Type", "Make-up delivery"] as [string, string]] : []),
-    ...(t.pooled ? [["Pool", "Tiffin is in the pool"] as [string, string]] : []),
-  ];
+  const source = plan.days.find((x) => x.date === t.date);
+  const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
+  const cats = (meal ?? []).filter((c) => c.picks.length > 0);
+  const portion = (k: string) => plan.categoryPortions[k];
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{humanDate(row.date)} · trip details</DialogTitle><DialogDescription>{EXPLAIN[t.status]}</DialogDescription></DialogHeader>
-        <dl className="divide-y rounded-md border text-sm">
-          {facts.map(([k, v]) => <div key={k} className="flex justify-between gap-4 px-3 py-2"><dt className="text-muted-foreground">{k}</dt><dd className="text-right font-medium">{v}</dd></div>)}
-        </dl>
+        <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
+        {cats.length > 0 ? (
+          <ul className="divide-y rounded-md border text-sm" aria-label="Meal">
+            {cats.map((c) => (
+              <li key={c.category} className="px-3 py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">{c.label}</span>
+                  <span className="text-muted-foreground text-xs">{[c.quantity > 1 ? `${c.quantity}×` : null, portion(c.category)].filter(Boolean).join(" ")}</span>
+                </div>
+                {c.picks.map((p, i) => <div key={`${p.dishPublicId}-${i}`} className="font-medium">{p.name}{p.isDefaulted && c.selectable && <span className="text-muted-foreground ml-2 text-xs font-normal">default pick</span>}</div>)}
+              </li>
+            ))}
+          </ul>
+        ) : <p className="text-muted-foreground text-sm">{row.dish ?? "Default menu."}</p>}
+        {row.swaps.length > 0 && <p className="text-muted-foreground text-xs">Swapped: {row.swaps.join(", ")}</p>}
       </DialogContent>
     </Dialog>
   );
@@ -244,14 +277,14 @@ const Err = ({ e }: { e: string | null }) => (e ? <p role="alert" className="tex
 
 function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
   const { plan, now } = data;
-  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today).filter((o) => !o.disabledReason), [trip, plan, now]);
+  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today).filter((o) => !o.disabledReason && o.carriedOn === o.date), [trip, plan, now]);
   const [date, setDate] = useState<string>("");
   const { pending, error, run } = useRun(onDone);
   const o = options.find((x) => x.date === date);
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Reschedule {humanDate(trip.date)}</DialogTitle><DialogDescription>Pick the day the customer wants to eat. The delivery day is chosen automatically.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Reschedule {humanDate(trip.date)}</DialogTitle><DialogDescription>Only delivery days can be picked. Days already covered stay with this trip.</DialogDescription></DialogHeader>
         <Select value={date} onValueChange={setDate}>
           <SelectTrigger aria-label="New day to eat"><SelectValue placeholder="Choose a day" /></SelectTrigger>
           <SelectContent>{options.map((x) => <SelectItem key={x.date} value={x.date}>{humanDate(x.date)}</SelectItem>)}</SelectContent>
