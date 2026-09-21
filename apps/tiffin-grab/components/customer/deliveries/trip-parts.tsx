@@ -21,6 +21,16 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
   }
 }
 
+export type PlanTagInfo = { color: string; label: string };
+export function PlanTag({ plan }: { plan: PlanTagInfo }) {
+  return (
+    <span data-testid="plan-tag" className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs font-semibold text-[var(--foreground)]">
+      <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: plan.color }} />
+      <span className="truncate">{plan.label}</span>
+    </span>
+  );
+}
+
 export const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
 export function rowSubline(t: Trip, tz: string): string {
@@ -31,15 +41,15 @@ export function rowSubline(t: Trip, tz: string): string {
   return humanDate(t.date);
 }
 
-export function TripRow({ trip, tz, selected, onSelect }: { trip: Trip; tz: string; selected: boolean; onSelect: (date: string) => void }) {
+export function TripRow({ trip, tz, selected, onSelect, plan }: { trip: Trip; tz: string; selected: boolean; onSelect: (trip: Trip) => void; plan?: PlanTagInfo }) {
   const m = statusMeta(trip);
   return (
     <button
       type="button"
       data-testid="trip-row"
       aria-pressed={selected}
-      aria-label={`${humanDate(trip.date)}, ${m.label}`}
-      onClick={() => onSelect(trip.date)}
+      aria-label={`${humanDate(trip.date)}${plan ? `, ${plan.label}` : ""}, ${m.label}`}
+      onClick={() => onSelect(trip)}
       className={cn(
         FONT, FOCUS,
         "flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors [touch-action:manipulation] motion-reduce:transition-none",
@@ -49,6 +59,7 @@ export function TripRow({ trip, tz, selected, onSelect }: { trip: Trip; tz: stri
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold">{humanDate(trip.date)}</span>
         <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">{trip.status === "combined-into" ? rowSubline(trip, tz) : trip.coversLabel ?? tiffins(trip.units)}</span>
+        {plan && <span className="mt-1 block"><PlanTag plan={plan} /></span>}
       </span>
       <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
         {m.dot && <StatusDot decorative status={m.dot} />}
@@ -70,7 +81,7 @@ function cutoffLine(trip: Trip, tz: string): string | null {
 }
 
 /** Header + dishes only; the desktop card slots its actions in as children. */
-export function TripCard({ trip, tz, reason, children }: { trip: Trip; tz: string; reason: string | null; children?: React.ReactNode }) {
+export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz: string; reason: string | null; plan?: PlanTagInfo; children?: React.ReactNode }) {
   const m = statusMeta(trip);
   const cutoff = cutoffLine(trip, tz);
   const multi = trip.eatingDays.length > 1;
@@ -79,6 +90,7 @@ export function TripCard({ trip, tz, reason, children }: { trip: Trip; tz: strin
       <p className="flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
         {m.dot && <StatusDot decorative status={m.dot} />}
         {m.label}
+        {plan && <PlanTag plan={plan} />}
       </p>
       <h2 className="mt-1 text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">{humanDate(trip.date)}</h2>
       <p className="mt-1 text-[15px] text-[var(--muted-foreground,#6E6558)]">

@@ -5,7 +5,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { DeliveriesSkeleton } from "@/components/customer/deliveries/deliveries-skeleton";
 import { DeliveriesView } from "@/components/customer/deliveries/deliveries-view";
 import { NoPlan } from "@/components/customer/deliveries/no-plan";
-import { buildPlanContext, pickDefaultTrip, toCalendarInputs, type PlanView } from "@/components/customer/deliveries/adapter";
+import { buildPlanContext, toCalendarInputs, type PlanView } from "@/components/customer/deliveries/adapter";
 import { buildTrips } from "@/lib/deliveries-view";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -19,13 +19,14 @@ import {
   myDeliveries,
   myPausePanel,
   myPrimarySubscription,
+  myAgendaDots,
   mySubscriptionWindows,
   myTiffinCounts,
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
-import { currentMonthKey, deliveryFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { addDays, defaultWeek, mondayOf, parseWeekParam } from "@/lib/deliveries-view/week";
 
-export type HubSearchParams = Promise<{ month?: string; sub?: string; trip?: string; action?: string }>;
+export type HubSearchParams = Promise<{ week?: string; sub?: string; trip?: string; action?: string }>;
 type SearchParams = HubSearchParams;
 
 export function DeliveriesHub({ searchParams }: { searchParams: SearchParams }) {
@@ -41,68 +42,80 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
-  const { month: monthParam, sub: subParam, trip: tripParam, action: actionParam } = await searchParams;
+  const { week: weekParam, sub: subParam, trip: tripParam, action: actionParam } = await searchParams;
   const { timezone, cutoffHour } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();
   const today = zonedDateIso(now, timezone);
-  const [subs, waitlisted, primary] = await Promise.all([
+  const [allSubs, waitlisted, windows] = await Promise.all([
     myActiveSubscriptions(userId),
     myWaitlistedSubscriptions(userId),
-    myPrimarySubscription(userId),
+    mySubscriptionWindows(userId, today),
   ]);
-  if (subs.length === 0 || !primary) return <NoPlan waitlisted={waitlisted} />;
+  if (allSubs.length === 0) return <NoPlan waitlisted={waitlisted} />;
+  const subs = [...allSubs].sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? "") || a.publicId.localeCompare(b.publicId));
 
-  const sub = (subParam ? subs.find((s) => s.publicId === subParam) : null) ?? primary;
-  const windows = await mySubscriptionWindows(userId, today);
-  // Open on the month of the plan's next delivery: a plan that starts next month must not land on an empty current month.
-  const hasMonthParam = !!monthParam && /^\d{4}-\d{2}$/.test(monthParam);
-  const nextDate = windows[sub.publicId]?.next ?? null;
-  const planLast = windows[sub.publicId]?.last ?? null;
-  const monthKey = hasMonthParam ? parseMonthParam(monthParam, today) : nextDate ? currentMonthKey(nextDate) : parseMonthParam(undefined, today);
-  // Current month: load through the plan's last trip so next weeks/months appear
-  // in Upcoming. Future ?month= stays month-scoped (selection remount handles nav).
-  const { from, until } = deliveryFetchRange(monthKey, today, planLast);
+  // One light query for the whole strip; the heavy per-trip calendar is loaded for the selected week only.
+  const firstWeek = mondayOf(today);
+  const lastDate = subs.reduce((m, s) => ((windows[s.publicId]?.last ?? "") > m ? windows[s.publicId]!.last : m), today);
+  const lastWeek = mondayOf(lastDate);
+  const agenda = await myAgendaDots(userId, firstWeek, addDays(lastWeek, 6));
 
-  const [rows, days, counts, pause, makeupSources, catalog, categoryRows, swapCategories] = await Promise.all([
-    myDeliveries(userId, from, until),
-    myCalendar(userId, sub.publicId, { from, until }),
-    myTiffinCounts(userId, sub.publicId),
-    myPausePanel(userId, sub.publicId),
-    makeupSourceIdsForOrder(sub.publicId),
-    loadCatalogSnapshot(),
-    dishCategoriesService.forPlanType(sub.planType),
-    dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
-  ]);
-  const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
+  const tripWeek = tripParam && /^\d{4}-\d{2}-\d{2}$/.test(tripParam) ? mondayOf(tripParam) : null;
+  const requested = parseWeekParam(weekParam) ?? tripWeek ?? defaultWeek(today, agenda);
+  const weekStart = requested < firstWeek ? firstWeek : requested > lastWeek ? lastWeek : requested;
+  const from = weekStart;
+  const until = addDays(weekStart, 6);
 
-  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause });
-  const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels });
-  const trips = buildTrips(inputs, now, ctx);
-  const plan: PlanView = {
-    orderId: sub.publicId,
-    sub,
-    counts,
-    ctx,
-    pause,
-    today,
-    days,
-    categoryLabels,
-    categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
-    swapCategories: Object.fromEntries(swapCategories),
-  };
+  const [rows, catalog] = await Promise.all([myDeliveries(userId, from, until), loadCatalogSnapshot()]);
+  const built = await Promise.all(
+    subs.map(async (sub) => {
+      const [days, counts, pause, makeupSources, categoryRows, swapCategories] = await Promise.all([
+        myCalendar(userId, sub.publicId, { from, until }),
+        myTiffinCounts(userId, sub.publicId),
+        myPausePanel(userId, sub.publicId),
+        makeupSourceIdsForOrder(sub.publicId),
+        dishCategoriesService.forPlanType(sub.planType),
+        dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
+      ]);
+      const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
+      const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause });
+      const plan: PlanView = {
+        orderId: sub.publicId,
+        sub,
+        counts,
+        ctx,
+        pause,
+        today,
+        days,
+        categoryLabels,
+        categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
+        swapCategories: Object.fromEntries(swapCategories),
+      };
+      const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels });
+      return { plan, trips: buildTrips(inputs, now, ctx, sub.publicId) };
+    }),
+  );
+  const plans = built.map((b) => b.plan);
+  const trips = built.flatMap((b) => b.trips).sort((a, b) => a.date.localeCompare(b.date));
+
+  const valid = (t: string | undefined) => (t && trips.some((x) => x.date === t) ? t : null);
+  const initialTrip = valid(tripParam);
+  const filter = subParam && subs.some((s) => s.publicId === subParam) ? subParam : null;
 
   return (
     <div className="mx-auto w-full max-w-[1280px]">
       <DeliveriesView
-        key={`${sub.publicId}:${monthKey}`}
-        plan={plan}
-        subs={subs}
+        plans={plans}
         windows={windows}
         trips={trips}
+        agenda={agenda}
+        weekStart={weekStart}
+        lastWeek={lastWeek}
         now={now}
-        monthKey={monthKey}
-        initialTrip={pickDefaultTrip(trips, tripParam)}
+        initialTrip={initialTrip}
+        initialPlan={filter}
+        initialFilter={filter}
         initialAction={actionParam ?? null}
       />
     </div>

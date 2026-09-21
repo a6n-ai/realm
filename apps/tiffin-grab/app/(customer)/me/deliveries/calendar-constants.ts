@@ -50,25 +50,6 @@ export function monthFetchRange(monthKey: string, today: string): { from: string
   return { from, until };
 }
 
-/**
- * Range the deliveries hub actually loads.
- *
- * Future months stay month-scoped (`?month=2026-10` → October only). The *current*
- * month extends through the plan's last trip so Upcoming shows next weeks and
- * later months without requiring a month click — otherwise a Sep view with
- * renew-in-October hides Oct trips and looks like "only this week."
- */
-export function deliveryFetchRange(
-  monthKey: string,
-  today: string,
-  planLast: string | null | undefined,
-): { from: string; until: string } {
-  const range = monthFetchRange(monthKey, today);
-  if (monthKey !== currentMonthKey(today)) return range;
-  if (planLast && planLast > range.until) return { from: range.from, until: planLast };
-  return range;
-}
-
 /** Monday of the week to load menu options for a selected day (on/after today's week). */
 export function menuWeekForDay(dayIso: string, today: string): string {
   const minMonday = mondayOfIso(today);
