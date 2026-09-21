@@ -199,6 +199,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
           </Card>
         ) : (
           <>
+            {emptyDay && <Card className="mb-4 p-4"><p className="text-[15px] font-semibold">Nothing planned on {humanDate(emptyDay)}.</p></Card>}
             <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
               <div className="space-y-0.5">
                 {shown.map((r) => (
@@ -225,8 +226,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                       </div>
                     </div>
                   </EatingCard>
-                ) : emptyDay ? (
-                  <Card className="p-6"><p className="text-[15px] font-semibold">Nothing planned on {humanDate(emptyDay)}.</p></Card>
                 ) : null}
                 {heldOnly && <Notice>Everything this week is on hold. Resume a trip or schedule a make-up.</Notice>}
               </div>
