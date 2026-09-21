@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
-import { cn } from "@foundry/ui/cn";
-import { PlanTags } from "@/components/customer/home/plan-tags";
+import { Card, Pill } from "@/components/customer/kit";
+import { cn } from "@/components/customer/kit/cn";
 import { mealChipLabel } from "@/lib/menu/format-tu";
-import { SUB_STATUS_LABEL, TONE_CLASS, type SubscriptionStatus } from "@/app/(customer)/me/deliveries/calendar-constants";
+type SubscriptionStatus = "active" | "paused";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -24,23 +24,27 @@ export function PlanBox({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("rounded-2xl border bg-card p-4", className)} style={planBoxStyle(color)}>
+    <Card className={cn("p-4", className)} style={planBoxStyle(color)}>
       {children}
-    </div>
+    </Card>
   );
 }
 
 export function DietTag({ label, color }: { label: string; color?: string | null }) {
-  return <PlanTags tags={[{ label, color: color && HEX.test(color) ? color : "#8A8178" }]} />;
+  const c = color && HEX.test(color) ? color : "#8A8178";
+  return (
+    <span
+      className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-semibold"
+      style={{ borderColor: `${c}59`, color: c, backgroundColor: `${c}14` }}
+    >
+      <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: c }} />
+      {label}
+    </span>
+  );
 }
 
 export function StatusPill({ status }: { status: SubscriptionStatus }) {
-  const tone = status === "active" ? "ok" : "warn";
-  return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", TONE_CLASS[tone])}>
-      {SUB_STATUS_LABEL[status]}
-    </span>
-  );
+  return <Pill tone={status === "active" ? "ok" : "vac"}>{status === "active" ? "Active" : "Paused"}</Pill>;
 }
 
 /** `[Meal size] [diet pill] .............. [optional trailing] [Active pill]` */
@@ -72,7 +76,7 @@ export function PlanHeadingRow({
   );
 }
 
-const CHIP = "rounded-full bg-background/70 px-2.5 py-1 text-xs font-medium text-foreground";
+const CHIP = "rounded-full bg-[var(--muted)] px-2.5 py-1 text-xs font-medium text-[var(--foreground)]";
 
 /** What's in the tiffin — chips, not a comma sentence. Meal size is the heading, not repeated here. */
 export function MealInfoChips({

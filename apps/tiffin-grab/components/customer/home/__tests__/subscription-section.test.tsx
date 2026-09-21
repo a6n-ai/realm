@@ -55,7 +55,7 @@ describe("SubscriptionSection", () => {
     expect(screen.getByText(/Active/i)).toBeInTheDocument();
     expect(screen.getByText("5 days to renew")).toBeInTheDocument();
     expect(screen.getByText(/Jul 16, 2026/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Manage/i })).toHaveAttribute("href", "/me/deliveries");
+    expect(screen.getByRole("link", { name: /Manage deliveries/i })).toHaveAttribute("href", "/me/deliveries");
     expect(screen.getByRole("link", { name: /Vacation/i })).toHaveAttribute("href", "/me/deliveries");
     expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
   });
@@ -84,8 +84,8 @@ describe("SubscriptionSection", () => {
 
   it("sends vacation and manage to the deliveries calendar", () => {
     render(<SubscriptionSection subscriptions={[baseSub]} />);
-    expect(screen.getByRole("link", { name: /Manage/i })).toHaveAttribute("href", "/me/deliveries");
+    expect(screen.getByRole("link", { name: /Manage deliveries/i })).toHaveAttribute("href", "/me/deliveries");
     expect(screen.getByRole("link", { name: /Vacation/i })).toHaveAttribute("href", "/me/deliveries");
-    expect(screen.getByRole("link", { name: /Renew plan/i })).toHaveAttribute("href", "/me/renew");
+    expect(screen.getByRole("link", { name: /^Renew$/i })).toHaveAttribute("href", "/me/renew");
   });
 });
