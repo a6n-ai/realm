@@ -148,11 +148,13 @@ export function IdentityGate({ children }: { children: ReactNode }) {
             type="email"
             autoComplete="email"
             placeholder="you@example.com"
-            className="!bg-transparent"
+            wrapperClassName="!gap-2"
+            labelClassName="!font-medium !leading-none"
+            className="!bg-transparent md:!text-sm focus-visible:!outline-0 focus-visible:!border-[var(--primary)] focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary)_50%,transparent)]"
             error={emailForm.formState.errors.email?.message}
             {...emailForm.register("email")}
           />
-          <Button type="submit" variant="hero" className="w-full !min-h-14 !text-sm !font-medium" disabled={emailForm.formState.isSubmitting}>
+          <Button type="submit" variant="hero" className="w-full !min-h-14 !text-sm !font-medium hover:!bg-[color-mix(in_oklch,var(--primary)_90%,transparent)]" disabled={emailForm.formState.isSubmitting}>
             Continue
           </Button>
         </form>
@@ -167,7 +169,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
             </p>
           </div>
           {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
-          <Button variant="hero" className="w-full !min-h-14 !text-sm !font-medium" onClick={continueAsGuest}>
+          <Button variant="hero" className="w-full !min-h-14 !text-sm !font-medium hover:!bg-[color-mix(in_oklch,var(--primary)_90%,transparent)]" onClick={continueAsGuest}>
             Continue as guest
           </Button>
           <Button variant="quiet" pill className="w-full !min-h-14 !text-sm !font-medium" onClick={sendCode} disabled={sending}>
@@ -198,7 +200,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
             )}
           </div>
           {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
-          <Button type="submit" variant="hero" className="w-full !min-h-14 !text-sm !font-medium" disabled={codeForm.formState.isSubmitting}>
+          <Button type="submit" variant="hero" className="w-full !min-h-14 !text-sm !font-medium hover:!bg-[color-mix(in_oklch,var(--primary)_90%,transparent)]" disabled={codeForm.formState.isSubmitting}>
             Sign in
           </Button>
           <Button variant="ghost" pill className="w-full !min-h-12 !text-sm !font-medium" onClick={continueAsGuest}>

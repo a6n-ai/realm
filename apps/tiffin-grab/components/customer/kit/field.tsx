@@ -27,17 +27,20 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   hint?: string;
   error?: string;
+  /** Overrides on the label / wrapper for embedded forms that keep a denser look. */
+  labelClassName?: string;
+  wrapperClassName?: string;
 }
 
-export function Field({ label, hint, error, className, id, ...rest }: FieldProps) {
+export function Field({ label, hint, error, className, labelClassName, wrapperClassName, id, ...rest }: FieldProps) {
   const uid = useId();
   const inputId = id ?? uid;
   const hintId = `${inputId}-hint`;
   const errId = `${inputId}-err`;
   const describedBy = [hint && hintId, error && errId].filter(Boolean).join(" ") || undefined;
   return (
-    <div className={cn(FONT, "flex flex-col gap-1.5")}>
-      <label htmlFor={inputId} className="text-sm font-semibold">
+    <div className={cn(FONT, "flex flex-col gap-1.5", wrapperClassName)}>
+      <label htmlFor={inputId} className={cn("text-sm font-semibold", labelClassName)}>
         {label}
       </label>
       <Input {...rest} id={inputId} invalid={Boolean(error)} aria-describedby={describedBy} className={className} />
