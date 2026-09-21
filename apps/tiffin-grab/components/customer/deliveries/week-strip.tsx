@@ -86,12 +86,13 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
                       aria-pressed={sel}
                       data-day={iso}
                       onClick={() => onPickDay(iso)}
-                      className={cn(FOCUS, "relative flex h-[68px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] text-xs [touch-action:manipulation] motion-reduce:transition-none", sel ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] font-semibold text-[var(--foreground)]" : "border-transparent bg-[var(--card)]", iso < today && !sel && "opacity-60")}
+                      className={cn(FOCUS, "relative flex h-[76px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] text-xs [touch-action:manipulation] motion-reduce:transition-none", sel ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] font-semibold text-[var(--foreground)]" : "border-transparent bg-[var(--card)]", iso < today && !sel && "opacity-60")}
                     >
                       <span aria-hidden className="opacity-80">{WD[i]}</span>
-                      {ds.some((x) => x.truck) && <Truck aria-hidden className="absolute right-1 top-1 size-3 text-[var(--muted-foreground,#6E6558)]" />}
+                      
                       <b aria-hidden className={cn("grid size-7 place-items-center rounded-full text-[16px] tabular-nums", iso === today && !sel && "border-2 border-[var(--primary)]")}>{d(iso).getUTCDate()}</b>
-                      <span aria-hidden className="flex h-2.5 items-center gap-0.5">
+                      <span aria-hidden className="flex h-3 items-center justify-center gap-0.5">
+                        {ds.some((x) => x.truck) && <Truck className="size-3 shrink-0 text-[var(--muted-foreground,#6E6558)]" />}
                         {ds.map((x, k) => <Dot key={k} color={colorOf(x.orderId)} status={x.status} />)}
                       </span>
                     </button>

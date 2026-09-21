@@ -172,7 +172,7 @@ export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow
         <li>{dishes.length ? dishes.join(", ") : <span className="text-[var(--muted-foreground,#6E6558)]">Default menu</span>}</li>
         {row.swaps.length > 0 && <li className={HELP}>Swapped: {row.swaps.join(", ")}</li>}
       </ul>
-      <p className={cn(HELP, "mt-4 flex items-center gap-1.5")} data-testid="delivery-block">
+      <p className={cn(HELP, "mt-4 hidden items-center gap-1.5 lg:flex")} data-testid="delivery-block">
         <Truck aria-hidden className="size-4 shrink-0" />
         {deliveryLine(row)} · {tiffins(trip.units)} covering {covers}
         {cutoff ? ` · ${cutoff}` : ""}
