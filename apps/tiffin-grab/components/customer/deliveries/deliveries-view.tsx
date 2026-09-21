@@ -13,7 +13,7 @@ import { ActionSheet } from "./actions/registry";
 import { VacationSheet } from "./actions/vacation-sheet";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
-import { EatingCard, EatingRowButton, tiffins, type PlanTagInfo } from "./trip-parts";
+import { EatingCard, EatingRowButton, InfoButton, TripInfoSheet, tiffins, type PlanTagInfo } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "hold", "resume", "move", "vacation", "makeup", "pool"];
@@ -60,6 +60,7 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
     setSel({ date: initialTrip, orderId: initialPlan });
   }
   const [active, setActive] = useState<TripAction | null>(() => ACTIONS.find((a) => a === initialAction) ?? null);
+  const [info, setInfo] = useState<EatingRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const today = plans[0]!.today;
   const tz = plans[0]!.ctx.timezone;
@@ -222,7 +223,12 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
           <>
             <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
               <div className="space-y-0.5">
-                {shown.map((r) => <EatingRowButton key={`${r.orderId}:${r.date}`} row={r} plan={tagOf(r.orderId)} selected={!!row && r.orderId === row.orderId && r.date === row.date} onSelect={(x) => select({ date: x.date, orderId: x.orderId })} />)}
+                {shown.map((r) => (
+                  <div key={`${r.orderId}:${r.date}`} className="flex items-center">
+                    <div className="min-w-0 flex-1"><EatingRowButton row={r} plan={tagOf(r.orderId)} selected={!!row && r.orderId === row.orderId && r.date === row.date} onSelect={(x) => select({ date: x.date, orderId: x.orderId })} /></div>
+                    <InfoButton label={`Details for ${humanDate(r.date)}${tagOf(r.orderId) ? `, ${tagOf(r.orderId)!.label}` : ""}`} onClick={() => setInfo(r)} />
+                  </div>
+                ))}
               </div>
 
               <div className="min-w-0 space-y-4">
@@ -263,6 +269,7 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
       ) : (
         active && trip && <ActionSheet action={active} trip={trip} day={row?.date} plan={plansByOrder[trip.orderId] ?? activePlan} open onDone={done} onChanged={changed} />
       )}
+      {info && <TripInfoSheet row={info} tz={tz} plan={tagOf(info.orderId)} open onClose={() => setInfo(null)} />}
       <Toast open={toast !== null} onClose={closeToast}>{toast}</Toast>
     </div>
   );

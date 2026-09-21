@@ -201,6 +201,15 @@ describe("DeliveriesView (week + several plans)", () => {
     expect(within(card).getAllByRole("button")).toHaveLength(2);
     expect(card).toHaveTextContent(/Changes close/);
   });
+  it("the info button on a row explains the trip: status, delivery day, feeds, cutoff", () => {
+    multi();
+    fireEvent.click(screen.getByRole("button", { name: /Details for Thu, Sep 24, Large/ }));
+    const d = screen.getByRole("dialog", { name: /Thu, Sep 24 · trip details/ });
+    expect(within(d).getByText(/On hold\. Nothing arrives/)).toBeInTheDocument();
+    expect(within(d).getByText("Delivery day")).toBeInTheDocument();
+    expect(within(d).getByText("Feeds")).toBeInTheDocument();
+    expect(within(d).getByText("Plan")).toBeInTheDocument();
+  });
   it("next arrow moves one week forward", () => {
     replace.mockClear();
     multi();
