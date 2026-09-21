@@ -48,6 +48,7 @@ interface DatePickerProps {
 export function DatePicker({ id, label, hint, value, onChange, format, min, max, disabledReason }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(monthOf(value || min));
+  const [above, setAbove] = useState(false);
   const days: Record<string, { disabledReason?: string }> = {};
   const count = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5), 0)).getUTCDate();
   for (let i = 1; i <= count; i++) {
@@ -110,6 +111,8 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
         className="!min-h-12 w-full justify-start !rounded-2xl !border font-normal tabular-nums"
         onClick={() => {
           setMonth(monthOf(value || min));
+          const r = box.current?.getBoundingClientRect();
+          setAbove(!!r && innerHeight - r.bottom < 380 && r.top > 380);
           setOpen(true);
         }}
       >
@@ -118,7 +121,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
       </Button>
       {wide ? (
         open && (
-          <div role="dialog" aria-label={label} className="absolute left-0 top-full z-50 mt-2 w-[340px] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-[0_8px_30px_rgba(0,0,0,.14)]">
+          <div role="dialog" aria-label={label} className={cn("absolute left-0 z-50 w-[325px] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-[0_8px_30px_rgba(0,0,0,.14)]", above ? "bottom-[calc(100%-20px)]" : "top-full mt-2")}>
             {picker}
           </div>
         )
