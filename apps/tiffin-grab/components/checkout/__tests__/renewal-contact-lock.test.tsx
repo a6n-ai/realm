@@ -120,6 +120,6 @@ describe("checkout contact locking", () => {
     const backs = screen.getAllByRole("button", { name: "Edit plan" });
     expect(backs).toHaveLength(2);
     expect(backs.filter((b) => b.className.includes("sm:hidden"))).toHaveLength(1);
-    expect(backs.filter((b) => b.className.includes("hidden") && b.className.includes("sm:inline-flex"))).toHaveLength(1);
+    expect(backs.filter((b) => b.className.includes("hidden") && b.className.includes("sm:!inline-flex"))).toHaveLength(1);
   });
 });
