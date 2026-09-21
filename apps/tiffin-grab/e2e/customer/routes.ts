@@ -6,7 +6,7 @@ export type CustomerRoute = {
 };
 
 export const CUSTOMER_ROUTES: CustomerRoute[] = [
-  { id: "home", path: "/me", heading: /home|week|meal|subscription|tiffin|menu/i },
+  { id: "home", path: "/me", heading: /monday|tuesday|wednesday|thursday|friday|saturday|sunday/i },
   { id: "menu", path: "/me/menu", heading: /menu/i },
   { id: "meals", path: "/me/meals", heading: /meal/i },
   { id: "deliveries", path: "/me/deliveries", heading: /trips/i },
