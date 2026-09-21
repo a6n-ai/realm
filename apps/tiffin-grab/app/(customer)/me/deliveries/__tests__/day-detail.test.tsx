@@ -162,7 +162,7 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
     );
     expect(screen.getByRole("button", { name: /Reschedule/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Change address/i })).toBeInTheDocument();
-    expect(screen.getByText("Pick another day")).toBeInTheDocument();
+    expect(screen.getByText("Pick the day you want to eat")).toBeInTheDocument();
     expect(screen.getByText("Deliver somewhere else")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Skip this day/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Un-skip/i })).not.toBeInTheDocument();
@@ -204,7 +204,7 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
         onChanged={noop}
       />,
     );
-    expect(screen.getByRole("button", { name: /Swap items/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Menu selection/i })).toBeInTheDocument();
   });
 
   it("shows Un-skip and Reschedule, not Skip or Change address, for a skipped day", () => {

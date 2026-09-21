@@ -24,6 +24,16 @@ describe("buildEatingDays", () => {
   });
 });
 
+describe("prod shape: plan eating Mon/Tue/Fri/Sat/Sun", () => {
+  it("Mon trip feeds Mon+Tue, Fri trip feeds Fri+Sat+Sun; carried days say which truck", () => {
+    const fri = trip({ date: "2026-09-25", coversDates: ["2026-09-25", "2026-09-26", "2026-09-27"], units: 3, eatingDays: [day("2026-09-25"), day("2026-09-26", null, "2026-09-25"), day("2026-09-27", null, "2026-09-25")] });
+    const rows = buildEatingDays([trip({}), fri]);
+    expect(rows.map((r) => r.date)).toEqual(["2026-09-21", "2026-09-22", "2026-09-25", "2026-09-26", "2026-09-27"]);
+    expect(rows.filter((r) => r.own).map((r) => r.date)).toEqual(["2026-09-21", "2026-09-25"]);
+    expect(deliveryLine(rows[4]!)).toBe("Arrives Fri, Sep 25 with Fri");
+  });
+});
+
 describe("deliveryLine", () => {
   it("names the truck day and 'with' for carried days", () => {
     const [mon, tue] = buildEatingDays([trip({})]);
