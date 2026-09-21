@@ -108,7 +108,7 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
         {!claimable && !waitlisted && (
           <a
             className="bg-primary text-primary-foreground mt-6 inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold transition-transform active:scale-[0.98]"
-            href="/me/deliveries"
+            href="/me"
           >
             View my deliveries
           </a>

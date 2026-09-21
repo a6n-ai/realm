@@ -34,7 +34,7 @@ export async function pickMyDish(input: {
       actorId,
     });
     revalidatePath("/me/meals");
-    revalidatePath("/me/deliveries");
+    revalidatePath("/me");
     revalidatePath(`/dashboard/orders/${input.orderId}`);
   });
 }
@@ -54,7 +54,7 @@ export async function applyMyDishToWeek(input: {
       pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId, actorId,
     });
     revalidatePath("/me/meals");
-    revalidatePath("/me/deliveries");
+    revalidatePath("/me");
     revalidatePath(`/dashboard/orders/${input.orderId}`);
     // selectionsService.applyToWeek's skipped entries are { dateIso, reason }; the
     // interface here declares skipped: string[] — flatten to the date so callers

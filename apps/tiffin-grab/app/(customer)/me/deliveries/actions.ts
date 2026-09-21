@@ -16,7 +16,7 @@ import { runAction, type ActionResult } from "../action-result";
 // acting user (currentUserId) — so an admin acting on a customer's order is audited as the admin.
 
 async function revalidateDeliverySurfaces(orderPublicId: string) {
-  revalidatePath("/me/deliveries");
+  revalidatePath("/me");
   revalidatePath(`/dashboard/orders/${orderPublicId}`);
   revalidatePath("/dashboard/orders");
 }
@@ -37,7 +37,7 @@ export async function skipMyDelivery(deliveryPublicId: string): Promise<ActionRe
     const { missedDates } = await skipDelivery(deliveryPublicId, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me/deliveries");
+    else revalidatePath("/me");
     return `${formatMissedDays(missedDates)} tiffins will be added to your pool`;
   });
 }
@@ -48,7 +48,7 @@ export async function unskipMyDelivery(deliveryPublicId: string): Promise<Action
     await unskipDelivery(deliveryPublicId, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me/deliveries");
+    else revalidatePath("/me");
   });
 }
 
@@ -61,7 +61,7 @@ export async function setMyDeliveryAddress(
     await setDeliveryAddress(deliveryPublicId, input, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me/deliveries");
+    else revalidatePath("/me");
   });
 }
 
@@ -71,7 +71,7 @@ export async function clearMyDeliveryAddress(deliveryPublicId: string): Promise<
     await clearDeliveryAddress(deliveryPublicId, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me/deliveries");
+    else revalidatePath("/me");
   });
 }
 
@@ -114,7 +114,7 @@ export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory
     await applyDeliverySwap(deliveryPublicId, fromCategory, toCategory, fromPicks, await currentUserId(), forDate);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me/deliveries");
+    else revalidatePath("/me");
   });
 }
 
@@ -124,7 +124,7 @@ export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwap
     await removeDeliverySwap(deliveryPublicId, appliedSwapPublicId, await currentUserId(), forDate);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me/deliveries");
+    else revalidatePath("/me");
   });
 }
 
@@ -134,7 +134,7 @@ export async function rescheduleMyDelivery(deliveryPublicId: string, newDateIso:
     const { merged } = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me/deliveries");
+    else revalidatePath("/me");
     return merged ? "merged" : "moved";
   });
 }

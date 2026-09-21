@@ -35,7 +35,7 @@ function Group({ title, subs }: { title: string; subs: SubSummary[] }) {
     <section>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <Link href="/me/deliveries" className="text-primary text-xs font-medium">
+        <Link href="/me" className="text-primary text-xs font-medium">
           Manage →
         </Link>
       </div>

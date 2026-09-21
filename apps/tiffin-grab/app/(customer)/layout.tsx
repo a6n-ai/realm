@@ -1,17 +1,12 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { NotFoundError } from "@foundry/commons";
-import { CrmShell } from "@foundry/crm";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { usersService } from "@/lib/services/users.service";
 import { walletService } from "@/lib/services/wallet.service";
+import { CustomerShell } from "@/components/customer/shell/customer-shell";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
-import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
-import { CustomerSidebar } from "@/components/customer/customer-sidebar";
-import { CustomerSearch } from "@/components/customer/customer-search";
-import { CustomerHeaderActions } from "@/components/customer/customer-header-actions";
-import { AppBrand } from "@/components/app-brand";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
 // ever actually be static — this stops Next from wastefully rendering all of them
@@ -39,27 +34,11 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     getAppSettings(),
     walletService.balance(user.id),
   ]);
-  const email = user.email ?? session.user.email ?? "";
 
   return (
     <div className="crm-app customer-app">
       <TimezoneProvider tz={timezone}>
-        <CrmShell
-          chrome="glass"
-          hideSidebarOnMobile
-          brand={<AppBrand href="/me" subtitle="Meals" />}
-          sidebar={<CustomerSidebar user={{ name: user.name ?? null, email, image: user.image ?? null }} />}
-          center={<CustomerSearch />}
-          actions={
-            <CustomerHeaderActions
-              user={{ name: user.name ?? null, email, image: user.image ?? null }}
-              coinBalance={coinBalance}
-            />
-          }
-          bottomNav={<CustomerBottomNav />}
-        >
-          {children}
-        </CrmShell>
+        <CustomerShell coinBalance={coinBalance}>{children}</CustomerShell>
       </TimezoneProvider>
     </div>
   );

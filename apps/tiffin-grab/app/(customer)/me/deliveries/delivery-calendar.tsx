@@ -118,7 +118,7 @@ function TiffinCalendarSection({
     else router.refresh();
   }
 
-  const includeSub = basePath === "/me/deliveries";
+  const includeSub = basePath === "/me";
 
   function switchSubscription(publicId: string) {
     router.push(deliveriesHref(basePath, monthKey, publicId, includeSub));
@@ -230,7 +230,7 @@ export function DeliveryCalendar({
   waitlisted = [],
   today = "",
   tiffinCounts,
-  basePath = "/me/deliveries",
+  basePath = "/me",
   title = "My deliveries",
   subtitle = "Month calendar, day details, and vacation pause for your plan.",
   showHeader = true,
@@ -249,7 +249,7 @@ export function DeliveryCalendar({
   waitlisted?: WaitlistedSubscription[];
   today?: string;
   tiffinCounts?: TiffinCounts;
-  /** Month navigation base (customer `/me/deliveries` or admin `/dashboard/orders/{id}`). */
+  /** Month navigation base (customer `/me` or admin `/dashboard/orders/{id}`). */
   basePath?: string;
   title?: string;
   subtitle?: string;

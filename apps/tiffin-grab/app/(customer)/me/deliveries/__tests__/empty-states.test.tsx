@@ -141,6 +141,6 @@ describe("DeliveryCalendar — three-way empty state", () => {
     );
 
     fireEvent.click(screen.getAllByRole("button", { name: /Go to the Next Month/i })[0]!);
-    expect(push).toHaveBeenCalledWith("/me/deliveries?month=2026-08&sub=ord_1");
+    expect(push).toHaveBeenCalledWith("/me?month=2026-08&sub=ord_1");
   });
 });

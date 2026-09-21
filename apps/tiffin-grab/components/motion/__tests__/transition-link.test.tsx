@@ -22,26 +22,26 @@ describe("TransitionLink", () => {
       return { finished: Promise.resolve() };
     });
     (document as unknown as { startViewTransition: unknown }).startViewTransition = start;
-    render(<TransitionLink href="/me/deliveries">Deliveries</TransitionLink>);
+    render(<TransitionLink href="/me">Deliveries</TransitionLink>);
     fireEvent.click(screen.getByText("Deliveries"));
     expect(start).toHaveBeenCalledOnce();
-    expect(push).toHaveBeenCalledWith("/me/deliveries");
+    expect(push).toHaveBeenCalledWith("/me");
   });
 
   it("falls back to a plain push when the API is absent", () => {
-    render(<TransitionLink href="/me/deliveries">Deliveries</TransitionLink>);
+    render(<TransitionLink href="/me">Deliveries</TransitionLink>);
     fireEvent.click(screen.getByText("Deliveries"));
-    expect(push).toHaveBeenCalledWith("/me/deliveries");
+    expect(push).toHaveBeenCalledWith("/me");
   });
 
   it("skips the transition under reduced motion", () => {
     reducedMotion = true;
     const start = vi.fn();
     (document as unknown as { startViewTransition: unknown }).startViewTransition = start;
-    render(<TransitionLink href="/me/deliveries">Deliveries</TransitionLink>);
+    render(<TransitionLink href="/me">Deliveries</TransitionLink>);
     fireEvent.click(screen.getByText("Deliveries"));
     expect(start).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/me/deliveries");
+    expect(push).toHaveBeenCalledWith("/me");
   });
 
   it("lets next/link handle navigation natively for object hrefs", () => {

@@ -48,7 +48,7 @@ type MenuItem = {
 };
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { href: "/me/deliveries", label: "My deliveries", icon: CalendarDaysIcon },
+  { href: "/me", label: "My deliveries", icon: CalendarDaysIcon },
   { href: "/me/wallet?tab=transactions", label: "Transactions", icon: ArrowLeftRightIcon },
   { href: "/me/wallet?tab=bills", label: "Monthly bills", icon: ReceiptIcon },
 ];
