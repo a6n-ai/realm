@@ -136,7 +136,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
   return (
     <div className="border-border rounded-2xl border p-4.5 sm:p-6">
       {state === "email" && (
-        <form onSubmit={emailForm.handleSubmit(submitEmail)} noValidate className="flex flex-col gap-4">
+        <form onSubmit={emailForm.handleSubmit(submitEmail)} className="flex flex-col gap-4">
           <div>
             <h2 className="text-xl font-bold tracking-[-0.02em]">What&apos;s your email?</h2>
             <p className="text-muted-foreground mt-1 text-sm text-pretty">
@@ -148,10 +148,11 @@ export function IdentityGate({ children }: { children: ReactNode }) {
             type="email"
             autoComplete="email"
             placeholder="you@example.com"
+            className="!bg-transparent"
             error={emailForm.formState.errors.email?.message}
             {...emailForm.register("email")}
           />
-          <Button type="submit" variant="hero" size="lg" className="w-full !min-h-14" disabled={emailForm.formState.isSubmitting}>
+          <Button type="submit" variant="hero" className="w-full !min-h-14 !text-sm !font-medium" disabled={emailForm.formState.isSubmitting}>
             Continue
           </Button>
         </form>
@@ -166,10 +167,10 @@ export function IdentityGate({ children }: { children: ReactNode }) {
             </p>
           </div>
           {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
-          <Button variant="hero" size="lg" className="w-full !min-h-14" onClick={continueAsGuest}>
+          <Button variant="hero" className="w-full !min-h-14 !text-sm !font-medium" onClick={continueAsGuest}>
             Continue as guest
           </Button>
-          <Button variant="quiet" pill size="lg" className="w-full !min-h-14" onClick={sendCode} disabled={sending}>
+          <Button variant="quiet" pill className="w-full !min-h-14 !text-sm !font-medium" onClick={sendCode} disabled={sending}>
             Sign in
           </Button>
         </div>
@@ -197,10 +198,10 @@ export function IdentityGate({ children }: { children: ReactNode }) {
             )}
           </div>
           {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
-          <Button type="submit" variant="hero" size="lg" className="w-full !min-h-14" disabled={codeForm.formState.isSubmitting}>
+          <Button type="submit" variant="hero" className="w-full !min-h-14 !text-sm !font-medium" disabled={codeForm.formState.isSubmitting}>
             Sign in
           </Button>
-          <Button variant="ghost" pill size="lg" className="w-full !min-h-12" onClick={continueAsGuest}>
+          <Button variant="ghost" pill className="w-full !min-h-12 !text-sm !font-medium" onClick={continueAsGuest}>
             Continue as guest instead
           </Button>
         </form>

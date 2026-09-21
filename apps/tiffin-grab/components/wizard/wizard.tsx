@@ -180,7 +180,7 @@ export function Wizard({
         </motion.div>
       </AnimatePresence>
 
-      <Sheet open={invoiceOpen && result != null} onClose={() => setInvoiceOpen(false)} title="Price summary">
+      <Sheet bottom open={invoiceOpen && result != null} onClose={() => setInvoiceOpen(false)} title="Price summary">
         {result && (
           <div className="space-y-3 pb-3">
             <PlanSummary

@@ -147,7 +147,7 @@ export function StepSchedule({
                   <span className="text-primary text-[15px] font-semibold">{plural(t.units, "tiffin", "tiffins")}</span>
                   <span className="mt-auto flex flex-wrap gap-1">
                     {t.days.map((e) => (
-                      <Pill key={e} size="sm" tone="wash" className="!px-2 !text-[11px]">{LABEL[e]}</Pill>
+                      <Pill key={e} size="sm" tone="wash" className="!px-2 !text-[11px] !leading-normal">{LABEL[e]}</Pill>
                     ))}
                   </span>
                 </motion.li>

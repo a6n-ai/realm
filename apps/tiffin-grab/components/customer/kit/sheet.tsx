@@ -15,11 +15,13 @@ interface SheetProps {
   children: ReactNode;
   /** Sticky bottom area (the one primary CTA). */
   footer?: ReactNode;
+  /** Keep the bottom-sheet form on desktop too (centered, max-w-xl) instead of the right panel. */
+  bottom?: boolean;
 }
 
 const subscribeNone = () => () => {};
 
-export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
+export function Sheet({ open, onClose, title, children, footer, bottom }: SheetProps) {
   const [present, setPresent] = useState(open);
   // Portal targets document.body, which hydration also walks; render nothing until after hydration.
   const mounted = useSyncExternalStore(subscribeNone, () => true, () => false);
@@ -34,7 +36,7 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   }, [open]);
 
   const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const side = () => typeof matchMedia === "function" && matchMedia("(min-width: 768px)").matches;
+  const side = () => !bottom && typeof matchMedia === "function" && matchMedia("(min-width: 768px)").matches;
   const off = () => (side() ? "translateX(100%)" : "translateY(100%)");
 
   useEffect(() => {
@@ -116,18 +118,20 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
         className={cn(
           "absolute flex flex-col bg-[var(--card)] text-[var(--foreground)] shadow-[0_-8px_40px_rgba(0,0,0,.18)] outline-none overscroll-contain",
           "inset-x-0 bottom-0 max-h-[90dvh] rounded-t-[var(--c-radius-sheet,28px)]",
-          "md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[440px] md:rounded-l-[28px] md:rounded-tr-none",
+          bottom
+            ? "mx-auto max-w-xl"
+            : "md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[440px] md:rounded-l-[28px] md:rounded-tr-none",
         )}
       >
         <div
-          className="flex touch-none justify-center pb-1 pt-2.5 md:hidden"
+          className={cn("flex touch-none justify-center pb-1 pt-2.5", !bottom && "md:hidden")}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
           <span aria-hidden className="h-1.5 w-10 rounded-full bg-[var(--border)]" />
         </div>
-        <header className="flex items-center justify-between gap-3 px-5 pb-2 pt-2 md:pt-5">
+        <header className={cn("flex items-center justify-between gap-3 px-5 pb-2 pt-2", !bottom && "md:pt-5")}>
           <h2 id={titleId} className="text-[22px] font-bold tracking-[-0.02em]">
             {title}
           </h2>
