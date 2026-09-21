@@ -24,7 +24,7 @@ import {
   myTiffinCounts,
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
-import { addDays, defaultWeek, mondayOf, parseWeekParam } from "@/lib/deliveries-view/week";
+import { addDays, defaultWeek, mondayOf, parseWeekParam, type Agenda } from "@/lib/deliveries-view/week";
 
 export type HubSearchParams = Promise<{ week?: string; sub?: string; trip?: string; action?: string }>;
 type SearchParams = HubSearchParams;
@@ -55,11 +55,20 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   if (allSubs.length === 0) return <NoPlan waitlisted={waitlisted} />;
   const subs = [...allSubs].sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? "") || a.publicId.localeCompare(b.publicId));
 
-  // One light query for the whole strip; the heavy per-trip calendar is loaded for the selected week only.
+  // The page shows ONE plan; ?sub picks it, else the plan with the soonest upcoming delivery.
+  const soonest = [...subs].filter((s) => windows[s.publicId]?.next).sort((a, b) => windows[a.publicId]!.next!.localeCompare(windows[b.publicId]!.next!))[0];
+  const sub = subs.find((s) => s.publicId === subParam) ?? soonest ?? subs[0]!;
+  const win = windows[sub.publicId];
+
+  // One light query for the strip; the heavy per-trip calendar is loaded for the selected week only.
   const firstWeek = mondayOf(today);
-  const lastDate = subs.reduce((m, s) => ((windows[s.publicId]?.last ?? "") > m ? windows[s.publicId]!.last : m), today);
-  const lastWeek = mondayOf(lastDate);
-  const agenda = await myAgendaDots(userId, firstWeek, addDays(lastWeek, 6));
+  const lastWeek = mondayOf(win && win.last > today ? win.last : today);
+  const all = await myAgendaDots(userId, firstWeek, addDays(lastWeek, 6));
+  const agenda: Agenda = {};
+  for (const [date, ds] of Object.entries(all)) {
+    const mine = ds.filter((d) => d.orderId === sub.publicId);
+    if (mine.length) agenda[date] = mine;
+  }
 
   const tripWeek = tripParam && /^\d{4}-\d{2}-\d{2}$/.test(tripParam) ? mondayOf(tripParam) : null;
   const requested = parseWeekParam(weekParam) ?? tripWeek ?? defaultWeek(today, agenda);
@@ -67,46 +76,39 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const from = addDays(weekStart, -3);
   const until = addDays(weekStart, 6);
 
-  const [rows, catalog] = await Promise.all([myDeliveries(userId, from, until), loadCatalogSnapshot()]);
-  const built = await Promise.all(
-    subs.map(async (sub) => {
-      const [days, counts, pause, makeupSources, categoryRows, swapCategories] = await Promise.all([
-        myCalendar(userId, sub.publicId, { from, until }),
-        myTiffinCounts(userId, sub.publicId),
-        myPausePanel(userId, sub.publicId),
-        makeupSourceIdsForOrder(sub.publicId),
-        dishCategoriesService.forPlanType(sub.planType),
-        dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
-      ]);
-      const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
-      const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause });
-      const plan: PlanView = {
-        orderId: sub.publicId,
-        sub,
-        counts,
-        ctx,
-        pause,
-        today,
-        days,
-        categoryLabels,
-        categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
-        swapCategories: Object.fromEntries(swapCategories),
-      };
-      const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
-      return { plan, trips: buildTrips(inputs, now, ctx, sub.publicId) };
-    }),
-  );
-  const plans = built.map((b) => b.plan);
-  const trips = built.flatMap((b) => b.trips).sort((a, b) => a.date.localeCompare(b.date));
-
-  const valid = (t: string | undefined) => (t && trips.some((x) => x.date === t) ? t : null);
-  const initialTrip = valid(tripParam);
-  const filter = subParam && subs.some((s) => s.publicId === subParam) ? subParam : null;
+  const [rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories] = await Promise.all([
+    myDeliveries(userId, from, until),
+    loadCatalogSnapshot(),
+    myCalendar(userId, sub.publicId, { from, until }),
+    myTiffinCounts(userId, sub.publicId),
+    myPausePanel(userId, sub.publicId),
+    makeupSourceIdsForOrder(sub.publicId),
+    dishCategoriesService.forPlanType(sub.planType),
+    dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
+  ]);
+  const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
+  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause });
+  const plan: PlanView = {
+    orderId: sub.publicId,
+    sub,
+    counts,
+    ctx,
+    pause,
+    today,
+    days,
+    categoryLabels,
+    categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
+    swapCategories: Object.fromEntries(swapCategories),
+  };
+  const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
+  const trips = buildTrips(inputs, now, ctx, sub.publicId);
+  const initialTrip = tripParam && trips.some((t) => t.date === tripParam || t.coversDates.includes(tripParam)) ? tripParam : null;
 
   return (
     <div className="mx-auto w-full max-w-[1280px]">
       <DeliveriesView
-        plans={plans}
+        plan={plan}
+        subs={subs}
         windows={windows}
         trips={trips}
         agenda={agenda}
@@ -114,8 +116,6 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
         lastWeek={lastWeek}
         now={now}
         initialTrip={initialTrip}
-        initialPlan={filter}
-        initialFilter={filter}
         initialAction={actionParam ?? null}
       />
     </div>

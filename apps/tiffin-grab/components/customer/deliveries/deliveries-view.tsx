@@ -1,19 +1,20 @@
 "use client";
+import { Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { buildEatingDays, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { buildEatingDays, deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf, PLAN_COLORS, type Agenda } from "@/lib/deliveries-view/week";
-import type { SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
+import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import { actionModel } from "./action-model";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { VacationSheet } from "./actions/vacation-sheet";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
-import { EatingCard, EatingRowButton, InfoButton, TripInfoSheet, tiffins, type PlanTagInfo } from "./trip-parts";
+import { EatingCard, EatingRowButton, InfoButton, TripInfoSheet, tiffins } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "hold", "resume", "move", "vacation", "makeup", "pool"];
@@ -21,77 +22,59 @@ const WEEK = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", 
 const weekTitle = (m: string) => `${WEEK.format(new Date(`${m}T00:00:00Z`))} – ${WEEK.format(new Date(`${addDays(m, 6)}T00:00:00Z`))}`;
 
 interface Props {
-  /** Every active/paused plan, ordered by start date (colour follows this order). */
-  plans: PlanView[];
+  /** The ONE plan on screen; switching plans reloads the page for the other plan. */
+  plan: PlanView;
+  /** All the customer's plans, ordered by start date, for the tabs on top. */
+  subs: Subscription[];
   windows: Record<string, SubscriptionWindow>;
-  /** Trips of the selected week across all plans. */
+  /** Trips of the selected week for this plan. */
   trips: Trip[];
+  /** Eating-day agenda of this plan across the whole range. */
   agenda: Agenda;
   weekStart: string;
   lastWeek: string;
   now: number;
   initialTrip: string | null;
-  initialPlan: string | null;
-  initialFilter: string | null;
   initialAction?: string | null;
 }
 
-function PlanChip({ selected, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }) {
-  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "inline-flex min-h-11 shrink-0 items-center rounded-full border-[1.5px] px-4 text-sm font-semibold [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)] bg-[var(--card,#fff)]", className)} />;
+function PlanTab({ selected, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }) {
+  return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "flex min-h-11 shrink-0 flex-col justify-center rounded-2xl border-[1.5px] px-4 py-1.5 text-left [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)] bg-[var(--card,#fff)]", className)} />;
 }
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "hold" ? 1 : 2);
 
-export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastWeek, now, initialTrip, initialPlan, initialFilter, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, lastWeek, now, initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
-  const multi = plans.length > 1;
-  const plansByOrder = useMemo(() => Object.fromEntries(plans.map((p) => [p.orderId, p])), [plans]);
-  const colorOf = useCallback((id: string) => PLAN_COLORS[Math.max(plans.findIndex((p) => p.orderId === id), 0) % PLAN_COLORS.length]!, [plans]);
-  const tagOf = (id: string): PlanTagInfo | undefined => {
-    const p = plansByOrder[id];
-    return multi && p ? { color: colorOf(id), label: `${p.sub.mealSizeName} · ${p.sub.tagLabel || p.sub.planName}` } : undefined;
-  };
+  const multi = subs.length > 1;
+  const color = PLAN_COLORS[Math.max(subs.findIndex((s) => s.publicId === plan.orderId), 0) % PLAN_COLORS.length]!;
 
-  const [filter, setFilter] = useState<string | null>(initialFilter && plansByOrder[initialFilter] ? initialFilter : null);
-  const [sel, setSel] = useState<{ date: string | null; orderId: string | null }>({ date: initialTrip, orderId: initialPlan });
+  const [sel, setSel] = useState<string | null>(initialTrip);
   const [wk, setWk] = useState(weekStart);
   if (wk !== weekStart) {
     setWk(weekStart);
-    setSel({ date: initialTrip, orderId: initialPlan });
+    setSel(initialTrip);
   }
   const [active, setActive] = useState<TripAction | null>(() => ACTIONS.find((a) => a === initialAction) ?? null);
   const [info, setInfo] = useState<EatingRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const today = plans[0]!.today;
-  const tz = plans[0]!.ctx.timezone;
-
-  const inFilter = (t: { orderId: string }) => !filter || t.orderId === filter;
+  const { ctx, sub, today } = plan;
+  const tz = ctx.timezone;
   const weekEnd = addDays(weekStart, 6);
-  const rows = useMemo(() => buildEatingDays(trips.filter(inFilter)).filter((r) => r.date >= weekStart && r.date <= weekEnd), [trips, filter, weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
-  const order = (id: string) => plans.findIndex((p) => p.orderId === id);
-  const shown = [...rows].sort((a, b) => a.date.localeCompare(b.date) || order(a.orderId) - order(b.orderId));
 
-  const onDay = sel.date ? shown.filter((r) => r.date === sel.date) : [];
-  const row: EatingRow | null =
-    onDay.find((r) => r.orderId === sel.orderId) ??
-    [...onDay].sort((a, b) => rank(a.trip) - rank(b.trip))[0] ??
-    (sel.date && sel.date >= weekStart && sel.date <= weekEnd ? null : [...shown].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
+  const shown = useMemo(() => buildEatingDays(trips).filter((r) => r.date >= weekStart && r.date <= weekEnd), [trips, weekStart, weekEnd]);
+  const inWeek = !!sel && sel >= weekStart && sel <= weekEnd;
+  const row: EatingRow | null = (sel ? shown.find((r) => r.date === sel) : null) ?? (inWeek ? null : [...shown].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
   const trip = row?.trip ?? null;
-  const emptyDay = !row && sel.date && sel.date >= weekStart && sel.date <= weekEnd ? sel.date : null;
-
-  const activePlan: PlanView = plansByOrder[trip?.orderId ?? filter ?? ""] ?? plans[0]!;
-  const { ctx, sub } = activePlan;
-  const model = trip ? actionModel(trip, now, activePlan.ctx) : null;
+  const emptyDay = !row && inWeek ? sel : null;
+  const model = trip ? actionModel(trip, now, ctx) : null;
   const vacAv = trip ? actionAvailability(trip, now, ctx).vacation : null;
 
   const dots = useMemo(() => {
     const out: Record<string, { orderId: string; status: DeliveryStatus; truck: boolean }[]> = {};
-    for (const [date, ds] of Object.entries(agenda)) {
-      const list = ds.filter(inFilter).map((d) => ({ orderId: d.orderId, status: dotStatus(d, now), truck: d.truck }));
-      if (list.length) out[date] = list;
-    }
+    for (const [date, ds] of Object.entries(agenda)) out[date] = ds.map((d) => ({ orderId: d.orderId, status: dotStatus(d, now), truck: d.truck }));
     return out;
-  }, [agenda, filter, now]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [agenda, now]);
 
   const qs = (over: Record<string, string | null>) => {
     const p = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
@@ -101,26 +84,19 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
   };
   const goWeek = (monday: string, over: Record<string, string | null> = {}) =>
     startNav(() => router.replace(`/me${qs({ week: monday, trip: null, action: null, ...over })}`, { scroll: false }));
-  const select = (t: { date: string; orderId: string | null }) => {
-    setSel({ date: t.date, orderId: t.orderId });
-    window.history.replaceState(null, "", qs({ trip: t.date, action: null }));
+  const select = (date: string) => {
+    setSel(date);
+    window.history.replaceState(null, "", qs({ trip: date, action: null }));
     if (window.innerWidth < 1024) window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const goTo = (date: string, orderId?: string) => {
+  const goTo = (date: string) => {
     const mon = mondayOf(date);
-    if (mon === weekStart) return select({ date, orderId: orderId ?? sel.orderId });
-    setSel({ date, orderId: orderId ?? null });
+    if (mon === weekStart) return select(date);
+    setSel(date);
     goWeek(mon, { trip: date });
   };
-  const pickDay = (iso: string) => {
-    if (mondayOf(iso) !== weekStart) return goTo(iso);
-    select({ date: iso, orderId: null });
-  };
-  const pickFilter = (id: string | null) => {
-    setFilter(id);
-    setSel((s) => ({ date: s.date, orderId: null }));
-    window.history.replaceState(null, "", qs({ sub: id }));
-  };
+  const pickDay = (iso: string) => (mondayOf(iso) === weekStart ? select(iso) : goTo(iso));
+  const switchPlan = (id: string) => startNav(() => router.replace(`/me?sub=${id}`, { scroll: false }));
 
   const closeToast = useCallback(() => setToast(null), []);
   const changed = (message: string) => (setToast(message), router.refresh());
@@ -130,22 +106,59 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
   };
   const linkCls = "text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation]";
 
-  const nextDates = Object.keys(agenda).filter((d) => agenda[d]!.some(inFilter)).sort();
-  const next = nextDates.find((d) => d > weekEnd) ?? [...nextDates].reverse().find((d) => d < weekStart) ?? null;
-  const nextOrder = next ? agenda[next]!.find(inFilter)?.orderId : undefined;
-  const nextPlan = nextOrder ? plansByOrder[nextOrder] : undefined;
+  const dates = Object.keys(agenda).sort();
+  const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;
+  const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
   const heldOnly = shown.length > 0 && shown.every((r) => r.trip.status === "hold");
 
   return (
     <div className={`${FONT} pb-[190px] lg:pb-8`}>
       <PlanHeader
         sub={sub}
-        counts={activePlan.counts}
-        renew={renewDays(activePlan.counts.lastDeliveryDate, today)}
+        counts={plan.counts}
+        renew={renewDays(plan.counts.lastDeliveryDate, today)}
         onVacation={!!ctx.onVacation}
         onVacationClick={() => setActive("vacation")}
-        color={multi ? colorOf(activePlan.orderId) : undefined}
+        color={multi ? color : undefined}
       />
+
+      {multi && (
+        <nav aria-label="Your plans" className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap">
+          {subs.map((s, i) => (
+            <PlanTab key={s.publicId} selected={s.publicId === plan.orderId} onClick={() => switchPlan(s.publicId)}>
+              <span className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
+                <span aria-hidden className="size-2 rounded-full" style={{ background: PLAN_COLORS[i % PLAN_COLORS.length] }} />
+                {s.mealSizeName}{s.status === "paused" ? " (paused)" : ""}
+              </span>
+              <span className="text-xs leading-tight text-[var(--muted-foreground,#6E6558)]">{windowLabel(windows[s.publicId], today)}</span>
+            </PlanTab>
+          ))}
+        </nav>
+      )}
+
+      {(sel && row ? row.trip : upcoming) && (
+        <button
+          type="button"
+          data-testid="next-delivery"
+          onClick={() => goTo(sel && row ? row.trip.date : upcoming!.deliveryDate)}
+          className={cn(FOCUS, "mb-4 flex min-h-12 w-full items-center gap-3 rounded-2xl border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-4 py-2.5 text-left [touch-action:manipulation]")}
+        >
+          <Truck aria-hidden className="size-5 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
+          <span className="min-w-0">
+            {sel && row ? (
+              <>
+                <span className="block text-[15px] font-semibold">{deliveryLine(row)}</span>
+                <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">{tiffins(row.trip.units)} covering {row.trip.coversDates.map(weekdayShort).join(" + ")}{row.trip.status === "upcoming" ? ` · changes close ${formatCutoff(row.trip.cutoffAt, tz)}` : ""}</span>
+              </>
+            ) : (
+              <>
+                <span className="block text-[15px] font-semibold">Next delivery: {humanDate(upcoming!.deliveryDate)}, {tiffins(upcoming!.units)} ({upcoming!.covers.map(weekdayShort).join(" + ")})</span>
+                <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">Changes close {formatCutoff(upcoming!.cutoffAt, tz)}</span>
+              </>
+            )}
+          </span>
+        </button>
+      )}
 
       <div className="mb-4">
         <WeekStrip
@@ -153,9 +166,9 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
           lastWeek={lastWeek}
           week={weekStart}
           today={today}
-          selectedDay={row?.date ?? sel.date}
+          selectedDay={row?.date ?? sel}
           dots={dots}
-          colorOf={colorOf}
+          colorOf={() => color}
           onPickDay={pickDay}
           onWeek={(m) => goWeek(m)}
         />
@@ -163,7 +176,7 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
 
       {ctx.pooled >= 1 && (
         <Notice className="mb-4 items-center justify-between">
-          <span>{tiffins(ctx.pooled)} {ctx.pooled === 1 ? "is" : "are"} waiting{multi ? ` on ${sub.mealSizeName}` : ""}.</span>
+          <span>{tiffins(ctx.pooled)} {ctx.pooled === 1 ? "is" : "are"} waiting.</span>
           <button type="button" aria-label="Schedule a make-up" onClick={() => setActive("makeup")} className="min-h-11 shrink-0 px-2 text-sm font-semibold underline underline-offset-4 [touch-action:manipulation]">Make-up<span className="hidden lg:inline"> day</span></button>
         </Notice>
       )}
@@ -172,13 +185,11 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
         <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--muted-foreground,#6E6558)]">{weekTitle(weekStart)}</h2>
         {shown.length === 0 && !emptyDay ? (
           <Card className="space-y-3 p-6">
-            <p className="text-[15px] font-semibold">Nothing to eat this week{filter ? " on this plan" : ""}.</p>
+            <p className="text-[15px] font-semibold">Nothing to eat this week.</p>
             {next ? (
               <>
-                <p className="text-sm text-[var(--muted-foreground,#6E6558)]">
-                  {next > weekStart ? "Next" : "Last"} delivery: {humanDate(next)}{multi && nextPlan ? ` · ${nextPlan.sub.mealSizeName}` : ""}.
-                </p>
-                <Button variant="primary" onClick={() => goTo(next, nextOrder)}>Go to {humanDate(next)}</Button>
+                <p className="text-sm text-[var(--muted-foreground,#6E6558)]">{next > weekStart ? "Next" : "Last"} day: {humanDate(next)}.</p>
+                <Button variant="primary" onClick={() => goTo(next)}>Go to {humanDate(next)}</Button>
               </>
             ) : (
               <p className="text-sm text-[var(--muted-foreground,#6E6558)]">Nothing else is scheduled.</p>
@@ -189,25 +200,25 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
             <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
               <div className="space-y-0.5">
                 {shown.map((r) => (
-                  <div key={`${r.orderId}:${r.date}`} className="flex items-center">
-                    <div className="min-w-0 flex-1"><EatingRowButton row={r} plan={tagOf(r.orderId)} selected={!!row && r.orderId === row.orderId && r.date === row.date} onSelect={(x) => select({ date: x.date, orderId: x.orderId })} /></div>
-                    <InfoButton label={`Details for ${humanDate(r.date)}${tagOf(r.orderId) ? `, ${tagOf(r.orderId)!.label}` : ""}`} onClick={() => setInfo(r)} />
+                  <div key={r.date} className="flex items-center">
+                    <div className="min-w-0 flex-1"><EatingRowButton row={r} selected={!!row && r.date === row.date} onSelect={(x) => select(x.date)} /></div>
+                    <InfoButton label={`Details for ${humanDate(r.date)}`} onClick={() => setInfo(r)} />
                   </div>
                 ))}
               </div>
 
               <div className="min-w-0 space-y-4">
                 {row && trip && model ? (
-                  <EatingCard row={row} tz={tz} plan={tagOf(trip.orderId)} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
+                  <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
                     <div className="mt-6 hidden lg:block">
-                      <TripActions model={model} layout="card" onAction={setActive} onGoTo={(d) => goTo(d, trip.orderId)} />
+                      <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} />
                       <div className="mt-4">
                         {ctx.onVacation ? (
                           <button type="button" className={linkCls} onClick={() => setActive("vacation")}>On vacation · Resume deliveries</button>
                         ) : vacAv?.ok === false ? (
                           <p className="text-sm text-[var(--muted-foreground,#6E6558)]">{vacAv.why}</p>
                         ) : (
-                          <button type="button" className={linkCls} onClick={() => setActive("vacation")}>Going away? Vacation{multi ? ` (${sub.mealSizeName})` : ""}</button>
+                          <button type="button" className={linkCls} onClick={() => setActive("vacation")}>Going away? Vacation</button>
                         )}
                       </div>
                     </div>
@@ -218,9 +229,10 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
                 {heldOnly && <Notice>Everything this week is on hold. Resume a trip or schedule a make-up.</Notice>}
               </div>
             </div>
+
             {trip && model && (model.rows.length > 0 || model.goTo || model.primary === "vacation") && (
               <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
-                <TripActions model={model} layout="bar" onAction={setActive} onGoTo={(d) => goTo(d, trip.orderId)} />
+                <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} />
               </div>
             )}
           </>
@@ -228,13 +240,13 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
       </div>
 
       {active === "vacation" ? (
-        <VacationSheet plan={activePlan} open onDone={done} />
+        <VacationSheet plan={plan} open onDone={done} />
       ) : active === "makeup" ? (
-        <ActionSheet action={active} trip={trip ?? ({ orderId: activePlan.orderId } as Trip)} plan={activePlan} open onDone={done} onChanged={changed} />
+        <ActionSheet action={active} trip={trip ?? ({ orderId: plan.orderId } as Trip)} plan={plan} open onDone={done} onChanged={changed} />
       ) : (
-        active && trip && <ActionSheet action={active} trip={trip} day={row?.date} plan={plansByOrder[trip.orderId] ?? activePlan} open onDone={done} onChanged={changed} />
+        active && trip && <ActionSheet action={active} trip={trip} day={row?.date} plan={plan} open onDone={done} onChanged={changed} />
       )}
-      {info && <TripInfoSheet row={info} tz={tz} plan={tagOf(info.orderId)} open onClose={() => setInfo(null)} />}
+      {info && <TripInfoSheet row={info} tz={tz} open onClose={() => setInfo(null)} />}
       <Toast open={toast !== null} onClose={closeToast}>{toast}</Toast>
     </div>
   );

@@ -138,9 +138,7 @@ export function EatingRowButton({ row, selected, onSelect, plan }: { row: Eating
     >
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2 text-[15px] font-semibold">
-          {plan && <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: plan.color }} />}
           {humanDate(row.date)}
-          {row.own && <Truck aria-label="Delivery day" className="size-4 text-[var(--muted-foreground,#6E6558)]" />}
         </span>
         <span className={cn(HELP, "block truncate")}>{dish || "Default menu"}</span>
       </span>

@@ -139,7 +139,6 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium">{humanDate(r.date)}</span>
                       <span className="text-muted-foreground block truncate text-xs">{r.dish ?? "Default menu"}</span>
-                      <span className="text-muted-foreground block text-xs">{deliveryLine(r)}</span>
                     </span>
                     <Badge variant="outline">{m.label}</Badge>
                   </button>
