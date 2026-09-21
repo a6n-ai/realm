@@ -7,6 +7,7 @@ import { deliveryZones, orders, plans, ticketMessages, tickets, users, type Atta
 import { complaintWhere, type ComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { getSession } from "@/lib/auth/session";
 import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/services/reassign";
+import { publishTicketsInbox } from "@/lib/realtime/publish-inbox";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 
@@ -113,6 +114,8 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       ...(input.orderId != null ? { orderId: input.orderId } : {}),
     });
     await this.message(ticket.id, actor.id, "customer", body, input.attachments);
+    // Fan-out to staff SSE so sidebar dots / queue refresh without polling.
+    publishTicketsInbox();
     return ticket;
   }
 

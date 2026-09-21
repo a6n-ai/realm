@@ -22,6 +22,7 @@ import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { AppBrand } from "@/components/app-brand";
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
+import { InboxRealtime } from "@/components/dashboard/inbox-realtime";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
 // ever actually be static — this just stops Next from wastefully rendering all
@@ -114,6 +115,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       footer={hasPin ? <IdleLock /> : null}
       bottomNav={<AppBottomNav role={role} />}
     >
+      <InboxRealtime tickets payments={role === "admin"} />
       {children}
     </CrmShell>
     </QuickAddProvider>

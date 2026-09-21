@@ -1,10 +1,10 @@
 import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inquiries, sectionSeen, tickets, users } from "@/db/schema";
+import { inquiries, payments, sectionSeen, tickets, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 
-export type Section = "tickets" | "inquiries" | "customers";
-const SECTIONS: Section[] = ["tickets", "inquiries", "customers"];
+export type Section = "tickets" | "inquiries" | "customers" | "payments";
+const SECTIONS: Section[] = ["tickets", "inquiries", "customers", "payments"];
 
 async function actorId(): Promise<bigint | null> {
   const publicId = (await getSession())?.user?.id;
@@ -18,7 +18,7 @@ async function seenMap(userId: bigint): Promise<Record<Section, number>> {
     .select({ section: sectionSeen.section, seenAt: sectionSeen.seenAt })
     .from(sectionSeen)
     .where(eq(sectionSeen.userId, userId));
-  const map: Record<Section, number> = { tickets: 0, inquiries: 0, customers: 0 };
+  const map: Record<Section, number> = { tickets: 0, inquiries: 0, customers: 0, payments: 0 };
   for (const r of rows) map[r.section as Section] = r.seenAt;
   return map;
 }
@@ -36,6 +36,15 @@ async function existsAfter(section: Section, since: number): Promise<boolean> {
     const [r] = await db.select({ x: probe }).from(inquiries).where(gt(inquiries.createdAt, since)).limit(1);
     return Boolean(r);
   }
+  if (section === "payments") {
+    // Dot tracks claims waiting on staff — claimedAt advances on (re)claim.
+    const [r] = await db
+      .select({ x: probe })
+      .from(payments)
+      .where(and(eq(payments.status, "pending_verification"), gt(payments.claimedAt, since)))
+      .limit(1);
+    return Boolean(r);
+  }
   const [r] = await db
     .select({ x: probe })
     .from(users)
@@ -46,14 +55,17 @@ async function existsAfter(section: Section, since: number): Promise<boolean> {
 
 export async function newActivity(): Promise<Record<Section, boolean>> {
   const uid = await actorId();
-  if (uid == null) return { tickets: false, inquiries: false, customers: false };
+  if (uid == null) {
+    return { tickets: false, inquiries: false, customers: false, payments: false };
+  }
   const seen = await seenMap(uid);
-  const [t, i, c] = await Promise.all([
+  const [t, i, c, p] = await Promise.all([
     existsAfter("tickets", seen.tickets),
     existsAfter("inquiries", seen.inquiries),
     existsAfter("customers", seen.customers),
+    existsAfter("payments", seen.payments),
   ]);
-  return { tickets: t, inquiries: i, customers: c };
+  return { tickets: t, inquiries: i, customers: c, payments: p };
 }
 
 export async function markRead(section: Section): Promise<void> {

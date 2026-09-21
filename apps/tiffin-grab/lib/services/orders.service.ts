@@ -50,6 +50,7 @@ import {
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import { eatingDaysError, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "./app-settings.service";
+import { publishPaymentsInbox } from "@/lib/realtime/publish-inbox";
 
 const log = createLogger("orders.service");
 
@@ -873,6 +874,9 @@ export async function claimPayment(
     note: reference ? `${pay.method} · ref ${reference}` : `${pay.method} · proof attached`,
     createdBy: actorId,
   });
+
+  // Staff review queue + sidebar dot via payments:inbox SSE.
+  publishPaymentsInbox();
 }
 
 // Staff rejects a submitted claim. pending_verification → rejected with a note;

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { and } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/guards";
 import { payments } from "@/db/schema";
+import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { listPayments } from "../payment-queries";
 import { RequestsTable, RequestsTableSkeleton } from "./requests-table";
 
@@ -11,6 +12,7 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 export default function RequestsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <Suspense fallback={<RequestsTableSkeleton />}>
+      <MarkSectionRead section="payments" />
       <RequestsData searchParams={searchParams} />
     </Suspense>
   );

@@ -64,6 +64,7 @@ const SECTION_BY_HREF: Record<string, Section> = {
   "/dashboard/tickets": "tickets",
   "/dashboard/inquiries": "inquiries",
   "/dashboard/customers": "customers",
+  "/dashboard/payments": "payments",
 };
 
 // Grouped navigation. A section renders only when the current user's role

@@ -225,6 +225,13 @@
       "when": 1789903289333,
       "tag": "0031_trip_coverage",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1789910000000,
+      "tag": "0032_section_kind_payments",
+      "breakpoints": true
     }
   ]
 }
