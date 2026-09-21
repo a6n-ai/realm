@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn, FONT, FOCUS } from "./cn";
 
@@ -17,8 +17,12 @@ interface SheetProps {
   footer?: ReactNode;
 }
 
+const subscribeNone = () => () => {};
+
 export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   const [present, setPresent] = useState(open);
+  // Portal targets document.body, which hydration also walks; render nothing until after hydration.
+  const mounted = useSyncExternalStore(subscribeNone, () => true, () => false);
   const panel = useRef<HTMLDivElement>(null);
   const scrim = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -34,7 +38,7 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   const off = () => (side() ? "translateX(100%)" : "translateY(100%)");
 
   useEffect(() => {
-    if (!present) return;
+    if (!present || !mounted) return;
     const el = panel.current;
     if (!open) {
       document.body.style.overflow = "";
@@ -58,9 +62,9 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
       document.body.style.overflow = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, present]);
+  }, [open, present, mounted]);
 
-  if (!present || typeof document === "undefined") return null;
+  if (!present || !mounted) return null;
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape") return onClose();
