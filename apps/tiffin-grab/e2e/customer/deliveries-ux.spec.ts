@@ -5,7 +5,7 @@ async function gotoDeliveries(page: import("@playwright/test").Page) {
   await page.goto("/me", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/me\/?(\?|$)/, { timeout: 30_000 });
   await expect(page.locator("body")).not.toContainText(/something went wrong/i);
-  await expect(page.getByRole("heading", { level: 1, name: /trips/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 30_000 });
 }
 
 const hasPlan = (page: import("@playwright/test").Page) => page.getByText(/tiffins left/i).count();
@@ -55,7 +55,7 @@ test.describe("customer deliveries (trip timeline)", () => {
   test("a bad ?week is ignored and old ?month links still load", async ({ page }) => {
     test.setTimeout(90_000);
     await page.goto("/me?week=garbage&month=2026-10", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { level: 1, name: /trips/i })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 30_000 });
   });
 
   test("vacation sheet opens", async ({ page }) => {

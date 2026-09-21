@@ -94,7 +94,15 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     render(<OrderWeekHub data={data} />);
     expect(screen.queryByRole("button", { name: /^Hold/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Reschedule this day" }));
-    expect(screen.getByRole("dialog", { name: /Reschedule Mon, Sep 21/ })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /Move Mon, Sep 21/ })).toBeInTheDocument();
+  });
+  it("reschedule uses a week picker with week label + arrows; only delivery days are pickable", () => {
+    const d2 = { ...data, plan: { ...data.plan, ctx: { ...data.plan.ctx, deliveryWeekdays: ["mon", "tue", "wed", "thu", "fri"] } } } as unknown as OrderWeek;
+    render(<OrderWeekHub data={d2} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reschedule this day" }));
+    const picker = within(screen.getByTestId("move-week"));
+    expect(picker.getByRole("button", { name: "Next week" })).toBeInTheDocument();
+    expect(picker.getByRole("button", { name: /Saturday|Sat, Sep 26, unavailable/ })).toHaveAttribute("aria-disabled", "true");
   });
   it("info button explains the trip", () => {
     render(<OrderWeekHub data={data} />);

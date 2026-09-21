@@ -86,3 +86,16 @@ export function swapLabel(s: SwapRow, label: (key: string) => string, cats?: Rec
   const a = swapAmounts(cats?.[s.fromCategory], cats?.[s.toCategory], s.qtyFrom, s.qtyTo);
   return a ? `${label(s.fromCategory)} · ${a.give} → ${label(s.toCategory)} · ${a.get}` : `${s.qtyFrom} ${label(s.fromCategory)} → ${s.qtyTo} ${label(s.toCategory)}`;
 }
+
+/** Side note for a swap option: the smallest whole swap in real units ("8oz ⇄ 8oz", "4 roti ⇄ 1 unit"); "" when none fits. */
+export function smallestSwapNote(from: SwapCategory | undefined, to: SwapCategory | undefined): string {
+  if (!from || !to) return "";
+  for (let q = 1; q <= 8; q++) {
+    const r = swapQuantities(from, to, q);
+    if (r.ok) {
+      const a = swapAmounts(from, to, q, r.qtyTo);
+      return a ? `${a.give} ⇄ ${a.get}` : "";
+    }
+  }
+  return "";
+}

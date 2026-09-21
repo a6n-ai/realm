@@ -1,4 +1,7 @@
 import { Suspense } from "react";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { users } from "@/db/schema";
 import { ReviewNudge } from "@/app/(customer)/me/review-nudge";
 import { redirect } from "next/navigation";
 import { zonedDateIso } from "@foundry/commons";
@@ -47,10 +50,11 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();
   const today = zonedDateIso(now, timezone);
-  const [allSubs, waitlisted, windows] = await Promise.all([
+  const [allSubs, waitlisted, windows, [userRow]] = await Promise.all([
     myActiveSubscriptions(userId),
     myWaitlistedSubscriptions(userId),
     mySubscriptionWindows(userId, today),
+    db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1),
   ]);
   if (allSubs.length === 0) return <NoPlan waitlisted={waitlisted} />;
   const subs = [...allSubs].sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? "") || a.publicId.localeCompare(b.publicId));
@@ -117,6 +121,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
         firstWeek={firstWeek}
         lastWeek={lastWeek}
         now={now}
+        customerName={userRow?.name ?? null}
         initialTrip={initialTrip}
         initialAction={actionParam ?? null}
       />

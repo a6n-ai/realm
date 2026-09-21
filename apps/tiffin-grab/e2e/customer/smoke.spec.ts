@@ -22,6 +22,6 @@ test.describe("customer feature smoke (desktop)", () => {
     }
 
     await page.goto("/me");
-    await expectHealthy(page, /trips/i);
+    await expectHealthy(page, /hi,|trips/i);
   });
 });

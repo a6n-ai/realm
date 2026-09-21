@@ -5,7 +5,7 @@ import { applyMyDeliverySwap, removeMyDeliverySwap } from "@/app/(customer)/me/d
 import { Button, Chip, Notice, Reason, Segmented, Sheet, Stepper, panelId } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
-import { applySwapsToCounts, capViolation, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
+import { applySwapsToCounts, capViolation, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { ActionSheetProps } from "./types";
 
 const PREFIX = "swap";
@@ -62,15 +62,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const shownQty = options.qtys.includes(qty) ? qty : (options.qtys[0] ?? 1);
   const qtyTo = options.byQty.get(shownQty);
   const amounts = chosen && qtyTo != null ? swapAmounts(from, to, shownQty, qtyTo) : null;
-  // Side note per pair: the smallest whole swap in real units ("6oz ⇄ 4 roti"), never TU or pick counts.
-  const smallest = (f: string, t: string) => {
-    const a = cats?.[f], b = cats?.[t];
-    for (let q = 1; q <= 8; q++) {
-      const r = a && b ? swapQuantities(a, b, q) : null;
-      if (r?.ok) return (({ give, get }) => `${give} ⇄ ${get}`)(swapAmounts(a, b, q, r.qtyTo) ?? { give: `${q}`, get: `${r.qtyTo}` });
-    }
-    return "";
-  };
+  const smallest = (f: string, t: string) => smallestSwapNote(cats?.[f], cats?.[t]);
   const lockLine = trip.eatingDays.find((e) => e.date === day)?.locksWith;
 
   const run = async (key: string, call: () => Promise<{ ok: true } | { error: string }>, msg: string) => {

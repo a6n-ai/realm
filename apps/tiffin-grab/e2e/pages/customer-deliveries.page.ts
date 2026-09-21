@@ -6,7 +6,7 @@ export class CustomerDeliveriesPage {
   constructor(readonly page: Page) {}
 
   heading() {
-    return this.page.getByRole("heading", { level: 1, name: /trips/i });
+    return this.page.getByRole("heading", { level: 1 });
   }
 
   tripRows() {

@@ -36,6 +36,8 @@ interface Props {
   firstWeek: string;
   lastWeek: string;
   now: number;
+  /** Account name for the page heading. */
+  customerName?: string | null;
   initialTrip: string | null;
   initialAction?: string | null;
 }
@@ -45,7 +47,7 @@ function PlanTab({ selected, className, ...rest }: React.ButtonHTMLAttributes<HT
 }
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "hold" ? 1 : 2);
 
-export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, initialTrip, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
   const multi = subs.length > 1;
@@ -124,6 +126,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   return (
     <div className={`${FONT} ${hasBar ? "pb-[190px]" : "pb-8"} lg:pb-8`}>
       <PlanHeader
+        name={customerName}
         sub={sub}
         counts={plan.counts}
         renew={renewDays(plan.counts.lastDeliveryDate, today)}

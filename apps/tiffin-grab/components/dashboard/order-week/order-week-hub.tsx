@@ -26,7 +26,7 @@ import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction
 import { buildEatingDays, deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { moveOptions } from "@/lib/deliveries-view/move";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
-import { applySwapsToCounts, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
+import { applySwapsToCounts, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { statusMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { TableCell } from "@foundry/ui/table";
@@ -281,27 +281,55 @@ const Err = ({ e }: { e: string | null }) => (e ? <p role="alert" className="tex
 
 function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
   const { plan, now } = data;
-  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today).filter((o) => !o.disabledReason && o.carriedOn === o.date), [trip, plan, now]);
-  const [date, setDate] = useState<string>("");
+  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today), [trip, plan, now]);
+  const byDate = useMemo(() => new Map(options.map((o) => [o.date, o])), [options]);
+  const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason && o.carriedOn === o.date; };
+  const first = options[0]?.date ?? plan.today;
+  const last = options[options.length - 1]?.date ?? plan.today;
+  const [week, setWeek] = useState(mondayOf(first));
+  const [date, setDate] = useState("");
+  const [note, setNote] = useState<string | null>(null);
   const { pending, error, run } = useRun(onDone);
-  const o = options.find((x) => x.date === date);
+  const days = weekDays(week);
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Reschedule {humanDate(trip.date)}</DialogTitle><DialogDescription>Only delivery days can be picked. Days already covered stay with this trip.</DialogDescription></DialogHeader>
-        <Select value={date} onValueChange={setDate}>
-          <SelectTrigger aria-label="New day to eat"><SelectValue placeholder="Choose a day" /></SelectTrigger>
-          <SelectContent>{options.map((x) => <SelectItem key={x.date} value={x.date}>{humanDate(x.date)}</SelectItem>)}</SelectContent>
-        </Select>
-        {o && (
-          <p className="text-muted-foreground text-sm">
-            {o.merge ? `${humanDate(o.date)} already has a delivery: both trips combine into ${tiffins(o.merge.units)}.` : o.carriedOn !== o.date ? `${humanDate(o.date)} will arrive ${humanDate(o.carriedOn)} with ${weekdayShort(o.carriedOn)}.` : `Arrives ${humanDate(o.date)}.`}
-          </p>
-        )}
+        <DialogHeader><DialogTitle>Move {humanDate(trip.date)}</DialogTitle><DialogDescription>Only delivery days (marked with a truck) can be picked. Days already covered stay with this trip.</DialogDescription></DialogHeader>
+        <div className="rounded-md border p-2" data-testid="move-week">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-muted-foreground px-1 text-xs font-semibold uppercase tracking-wider">{MON.format(d(week))} {d(week).getUTCDate()} – {MON.format(d(addDays(week, 6)))} {d(addDays(week, 6)).getUTCDate()}</span>
+            <span className="flex">
+              <Button variant="ghost" size="icon" aria-label="Previous week" disabled={week <= mondayOf(first)} onClick={() => setWeek(addDays(week, -7))}><ChevronLeft /></Button>
+              <Button variant="ghost" size="icon" aria-label="Next week" disabled={week >= mondayOf(last)} onClick={() => setWeek(addDays(week, 7))}><ChevronRight /></Button>
+            </span>
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {days.map((iso) => {
+              const ok = pickable(iso);
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  aria-pressed={iso === date}
+                  aria-disabled={!ok || undefined}
+                  aria-label={`${humanDate(iso)}${byDate.get(iso)?.carriedOn === iso ? ", delivery day" : ""}${ok ? "" : ", unavailable"}`}
+                  onClick={() => (ok ? (setDate(iso), setNote(null)) : setNote(byDate.get(iso)?.disabledReason ?? (byDate.has(iso) ? "We only deliver on the days marked with a truck." : "That day isn't available.")))}
+                  className={cn("flex h-16 flex-col items-center justify-center gap-1 rounded-md border text-xs", iso === date ? "border-primary bg-primary/10 font-semibold" : "border-transparent", ok ? "hover:bg-muted" : "opacity-40")}
+                >
+                  <span className="text-muted-foreground">{weekdayShort(iso)[0]}</span>
+                  <b className="text-sm tabular-nums">{d(iso).getUTCDate()}</b>
+                  <span className="flex h-3 items-center">{byDate.get(iso)?.carriedOn === iso && <Truck aria-hidden className="text-muted-foreground size-3" />}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {note && <p className="text-muted-foreground text-sm">{note}</p>}
+        {date && byDate.get(date)?.merge && <p className="text-muted-foreground text-sm">{humanDate(date)} already has a delivery: both trips combine into {tiffins(byDate.get(date)!.merge!.units)}.</p>}
         <Err e={error} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={!o || pending} onClick={() => run(() => rescheduleMyDelivery(trip.deliveryId!, date), `Moved ${humanDate(trip.date)} to ${humanDate(date)}.`)}>{pending ? "Saving…" : "Confirm"}</Button>
+          <Button disabled={!date || pending} onClick={() => run(() => rescheduleMyDelivery(trip.deliveryId!, date), `Moved ${humanDate(trip.date)} to ${humanDate(date)}.`)}>{pending ? "Saving…" : date ? `Move to ${humanDate(date)}` : "Move trip"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -340,10 +368,17 @@ function SwapDialog({ row, data, onClose, onDone }: { row: EatingRow; data: Orde
         )}
         {pairs.length === 0 ? <p className="text-muted-foreground text-sm">No swaps are available for this meal size.</p> : (
           <div className="space-y-3">
-            <Select value={pair} onValueChange={(v) => (setPair(v), setQty(1))}>
-              <SelectTrigger aria-label="Swap"><SelectValue placeholder="Choose a swap" /></SelectTrigger>
-              <SelectContent>{pairs.map((p) => <SelectItem key={`${p.fromCategory}>${p.toCategory}`} value={`${p.fromCategory}>${p.toCategory}`}>{label(p.fromCategory)} → {label(p.toCategory)}</SelectItem>)}</SelectContent>
-            </Select>
+            <div className="space-y-2" role="group" aria-label="Swap options">
+              {pairs.map((p) => {
+                const k = `${p.fromCategory}>${p.toCategory}`;
+                return (
+                  <button key={k} type="button" aria-pressed={k === pair} onClick={() => (setPair(k), setQty(1))} className={cn("flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left text-sm", k === pair ? "border-primary bg-primary/10" : "hover:bg-muted")}>
+                    <span className="font-medium">{label(p.fromCategory)} → {label(p.toCategory)}</span>
+                    <span className="text-muted-foreground text-xs">{smallestSwapNote(plan.swapCategories[p.fromCategory], plan.swapCategories[p.toCategory])}</span>
+                  </button>
+                );
+              })}
+            </div>
             {chosen && (
               <div className="space-y-1">
                 <Label htmlFor="swap-picks">{label(chosen.fromCategory)} picks to give up</Label>

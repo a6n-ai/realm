@@ -59,12 +59,13 @@ const multi = (over: Partial<React.ComponentProps<typeof DeliveriesView>> = {}) 
   render(<DeliveriesView plan={p1} subs={[p1.sub, p2.sub]} windows={win} trips={plan1Trips} agenda={agenda1} weekStart="2026-09-21" firstWeek="2026-09-21" lastWeek="2026-10-05" now={NOW} initialTrip={null} {...over} />);
 
 describe("DeliveriesView (one plan)", () => {
-  it("shows plan summary with tiffin counts, hold days and renew", () => {
-    view();
-    const line = screen.getByText(/16 of 20 tiffins left/).closest("p")!;
-    expect(line).toHaveTextContent("Large");
-    expect(line).toHaveTextContent("2 hold days");
-    expect(line).toHaveTextContent("renews in 11 days");
+  it("header: greets by name, bold meal-size title, pills for plan, tiffins left, hold days, renew", () => {
+    view(undefined, trips, plan, { customerName: "Hrithik Raj" });
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Hi, Hrithik.");
+    expect(screen.getByTestId("plan-title")).toHaveTextContent("Large");
+    expect(screen.getByText("16 of 20 tiffins left")).toBeInTheDocument();
+    expect(screen.getByText("2 hold days")).toBeInTheDocument();
+    expect(screen.getByText("renews in 11 days")).toBeInTheDocument();
   });
   it("dishes live in the list; the card below shows the delivery, not the eating info", () => {
     view();
