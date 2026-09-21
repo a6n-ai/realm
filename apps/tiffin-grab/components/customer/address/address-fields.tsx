@@ -10,9 +10,13 @@ export type { ResolvedPlaceFields as ResolvedPlace } from "@foundry/ui/address-f
 const kitAddressUi: AddressUi = {
   Field: ({ id, label, error, wide, inputProps, overlay, combo, footer }) => (
     <div className={cn("flex flex-col gap-2", wide && "sm:col-span-2", combo && "relative")}>
-      <Field id={id} label={label} error={error} {...inputProps} />
+      <div className={cn(footer && "flex items-end gap-2")}>
+        <div className="min-w-0 flex-1">
+          <Field id={id} label={label} error={error} {...inputProps} />
+        </div>
+        {footer}
+      </div>
       {overlay}
-      {footer}
     </div>
   ),
   Select: ({ id, label, error, wide, disabled, placeholder, value, options, onChange }) => (

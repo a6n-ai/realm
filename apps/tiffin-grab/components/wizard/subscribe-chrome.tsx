@@ -26,7 +26,7 @@ export function SubscribeChrome({
     <div className="bg-background/80 sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between border-b px-4 py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] backdrop-blur-xl backdrop-saturate-150 sm:mx-0 sm:px-0 sm:pt-2">
       <Button
         variant="ghost"
-        className="-ml-2 hidden gap-1 !px-1.5 !text-[13px] tracking-tight sm:inline-flex"
+        className="-ml-2 !hidden gap-1 !px-1.5 !text-[13px] tracking-tight sm:!inline-flex"
         onClick={() => (onBack ? onBack() : router.back())}
       >
         <ArrowLeftIcon aria-hidden className="size-3.5" />
