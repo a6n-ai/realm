@@ -170,11 +170,21 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Go to Mon, Oct 5" }));
     expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
   });
-  it("info button on a row explains the trip", () => {
-    multi();
-    fireEvent.click(screen.getByRole("button", { name: /Details for Thu, Sep 24/ }));
-    const d = screen.getByRole("dialog", { name: /Thu, Sep 24 · trip details/ });
-    expect(within(d).getByText(/On hold\. Nothing arrives/)).toBeInTheDocument();
+  it("info button on a row is about the meal (category, portion, dish) with only a short delivery footer", () => {
+    const meal = [
+      { category: "sabzi", label: "Sabzi", selectable: true, quantity: 2, picks: [{ dishId: 1n, dishPublicId: "d1", name: "Bhindi Masala", isDefaulted: true }] },
+      { category: "roti", label: "Roti", selectable: false, quantity: 1, picks: [{ dishId: 2n, dishPublicId: "d2", name: "Roti", isDefaulted: false }] },
+    ];
+    const carried = { ...p1, categoryPortions: { sabzi: "8oz", roti: "4 roti" }, days: [{ date: "2026-09-21", meal: null, carriedMeals: { "2026-09-22": meal } }] } as unknown as PlanView;
+    multi({ plan: carried });
+    fireEvent.click(screen.getByRole("button", { name: /Details for Tue, Sep 22/ }));
+    const d = screen.getByRole("dialog", { name: /Tue, Sep 22 · your meal/ });
+    expect(within(d).getByText("Sabzi")).toBeInTheDocument();
+    expect(within(d).getByText("2× 8oz")).toBeInTheDocument();
+    expect(within(d).getByText("Bhindi Masala")).toBeInTheDocument();
+    expect(within(d).getByText("default pick")).toBeInTheDocument();
+    expect(within(d).getByTestId("info-delivery")).toHaveTextContent("Arrives Mon, Sep 21 with Mon · 2 tiffins covering Mon + Tue");
+    expect(within(d).queryByText("Delivery day")).toBeNull();
   });
   it("next arrow moves one week forward", () => {
     replace.mockClear();

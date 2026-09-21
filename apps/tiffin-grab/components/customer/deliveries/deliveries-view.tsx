@@ -238,7 +238,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       ) : (
         active && trip && <ActionSheet action={active} trip={trip} day={row?.date} plan={plan} open onDone={done} onChanged={changed} />
       )}
-      {info && <TripInfoSheet row={info} tz={tz} open onClose={() => setInfo(null)} />}
+      {info && <TripInfoSheet row={info} tz={tz} plan={plan} open onClose={() => setInfo(null)} />}
       <Toast open={toast !== null} onClose={closeToast}>{toast}</Toast>
     </div>
   );

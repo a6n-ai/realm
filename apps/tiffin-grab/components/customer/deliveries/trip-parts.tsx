@@ -4,6 +4,7 @@ import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/compon
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { formatCutoff, humanDate, type Trip } from "@/lib/deliveries-view";
 import { deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import type { PlanView } from "./adapter";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
@@ -188,43 +189,53 @@ export const EXPLAIN: Record<Trip["status"], string> = {
   "combined-into": "Combined into another delivery.",
 };
 
-/** Plain-words breakdown of one trip: what the status means, what arrives, when it locks. */
-export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanTagInfo; open: boolean; onClose: () => void }) {
+/** Meal breakdown of one eating day (category, portion, dishes, swaps), with a compact delivery footer. */
+export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
   const t = row.trip;
-  const m = statusMeta(t);
-  const facts: [string, string][] = [
-    ["Status", m.label],
-    ["Delivery day", humanDate(t.date)],
-    ["Feeds", `${t.coversDates.map((c) => humanDate(c)).join(", ")} (${tiffins(t.units)})`],
-    ["Changes close", t.status === "upcoming" ? formatCutoff(t.cutoffAt, tz) : `Closed ${formatCutoff(t.cutoffAt, tz)}`],
-  ];
-  if (plan) facts.unshift(["Plan", plan.label]);
-  if (t.isMakeup) facts.push(["Type", "Make-up delivery, added after your plan's last day"]);
-  if (t.pooled) facts.push(["Pool", "This tiffin is in your pool. Schedule it on a day."]);
+  const source = plan?.days.find((d) => d.date === t.date);
+  const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
+  const cats = (meal ?? []).filter((c) => c.picks.length > 0);
+  const portion = (key: string) => plan?.categoryPortions[key];
+  const delivery = [
+    deliveryLine(row),
+    `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
+    t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null,
+  ].filter(Boolean).join(" · ");
   return (
-    <Sheet open={open} onClose={onClose} title={`${humanDate(row.date)} · trip details`}>
+    <Sheet open={open} onClose={onClose} title={`${humanDate(row.date)} · your meal`}>
       <div className="space-y-4 pb-2 text-[15px]">
-        <p>{EXPLAIN[t.status]}</p>
-        <dl className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]">
-          {facts.map(([k, v]) => (
-            <div key={k} className="flex justify-between gap-4 px-4 py-2.5">
-              <dt className="text-[var(--muted-foreground,#6E6558)]">{k}</dt>
-              <dd className="text-right font-semibold">{v}</dd>
-            </div>
-          ))}
-        </dl>
-        <section aria-label="Meals">
-          <h3 className="mb-2 text-sm font-semibold">Meals on this trip</h3>
-          <ul className="space-y-2">
-            {t.eatingDays.map((e) => (
-              <li key={e.date}>
-                <span className="block text-[13px] font-semibold text-[var(--muted-foreground,#6E6558)]">{humanDate(e.date)}</span>
-                {dedupeDishes(e.dishSummary).join(", ") || "Default menu"}
-                {e.swaps.length > 0 && <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">Swapped: {e.swaps.join(", ")}</span>}
+        {cats.length > 0 ? (
+          <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]" aria-label="Meal">
+            {cats.map((c) => (
+              <li key={c.category} className="px-4 py-3">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</span>
+                  {(portion(c.category) || c.quantity > 1) && (
+                    <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">{[c.quantity > 1 ? `${c.quantity}×` : null, portion(c.category)].filter(Boolean).join(" ")}</span>
+                  )}
+                </span>
+                {c.picks.map((p, i) => (
+                  <span key={`${p.dishPublicId}-${i}`} className="mt-0.5 block font-semibold">
+                    {p.name}
+                    {p.isDefaulted && c.selectable && <span className="ml-2 text-[13px] font-normal text-[var(--muted-foreground,#6E6558)]">default pick</span>}
+                  </span>
+                ))}
               </li>
             ))}
           </ul>
-        </section>
+        ) : (
+          <p>{dedupeDishes(row.dish).join(", ") || "Default menu. Your dishes appear once this week's menu is released."}</p>
+        )}
+        {row.swaps.length > 0 && (
+          <section aria-label="Swaps">
+            <h3 className="mb-1 text-sm font-semibold">Swapped</h3>
+            <ul className="space-y-1 text-[14px]">{row.swaps.map((x) => <li key={x}>{x}</li>)}</ul>
+          </section>
+        )}
+        <p className="flex items-start gap-2 text-[13px] text-[var(--muted-foreground,#6E6558)]" data-testid="info-delivery">
+          <Truck aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <span>{delivery}</span>
+        </p>
       </div>
     </Sheet>
   );
