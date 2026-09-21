@@ -427,17 +427,19 @@ export const menuService = {
     if (!week) throw new ValidationError("Week not found");
     if (week.status === "released") throw new ValidationError("This menu is already released");
 
-    const problems = await this.releaseProblems(weekPublicId);
-    if (problems.length > 0) {
+    // Match the builder banner: only *missing* categories block release. Surplus
+    // ("extra") dishes on a fixed category are warnings, not blockers.
+    const blocking = (await this.releaseProblems(weekPublicId)).filter((p) => p.kind === "missing");
+    if (blocking.length > 0) {
       const dayLabel: Record<string, string> = {
         mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday",
         fri: "Friday", sat: "Saturday", sun: "Sunday",
       };
-      const first = problems
+      const first = blocking
         .slice(0, 3)
         .map((p) => `${p.planName} has no ${p.categoryLabel} on ${dayLabel[p.day] ?? p.day}`)
         .join("; ");
-      const more = problems.length > 3 ? ` (and ${problems.length - 3} more)` : "";
+      const more = blocking.length > 3 ? ` (and ${blocking.length - 3} more)` : "";
       throw new ValidationError(`This menu would leave subscribers without a meal: ${first}${more}`);
     }
 

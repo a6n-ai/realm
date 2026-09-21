@@ -90,6 +90,8 @@ export function MenuBuilder({
   const isReleased = week.status === "released";
   const editable = isDraft || (isReleased && amending);
 
+  // Actions return { error } instead of throwing — production redacts thrown
+  // Server Action errors to "Minified React error #441".
   const run = (fn: () => Promise<void>) => start(async () => {
     setError(null);
     try { await fn(); }
@@ -112,6 +114,11 @@ export function MenuBuilder({
         items: wireItems(),
         amend: opts?.amend,
       });
+      if ("error" in result) {
+        setError(result.error);
+        if (/another tab|reload/i.test(result.error)) setStaleConflict(true);
+        return;
+      }
       // Adopt the persisted rows so new items pick up their server ids without a page
       // refresh — the refresh-per-click was the other half of the old cost.
       const persisted = toRows(result.items);
@@ -226,6 +233,10 @@ export function MenuBuilder({
       // Default the new dish's category to the slot it was created in, so the
       // category guard accepts it and it stays scoped to that slot.
       const d = await createDish({ name: newName, category: t.slot });
+      if ("error" in d) {
+        setError(d.error);
+        return;
+      }
       setCreatedDishes((prev) => [...prev, { id: d.publicId, name: d.name, category: d.category }]);
       addRow(t.storeDay, t.slot, d.publicId);
       setCreateTarget(null);
@@ -237,7 +248,11 @@ export function MenuBuilder({
   const handleCopyWeek = (fromWeekId: string) => {
     if (!week) return;
     run(async () => {
-      await copyWeek({ fromWeekId, toWeekId: week.id });
+      const res = await copyWeek({ fromWeekId, toWeekId: week.id });
+      if ("error" in res) {
+        setError(res.error);
+        return;
+      }
       // The copy rewrote the week's items server-side. A full reload re-seeds the working
       // copy from them; merging into local state would just invent a second source of truth.
       window.location.reload();
@@ -247,8 +262,15 @@ export function MenuBuilder({
   const handleRelease = () => {
     if (!week) return;
     run(async () => {
-      if (dirty) await save();
-      await releaseWeek(week.id);
+      if (dirty) {
+        const saved = await save();
+        if (!saved) return;
+      }
+      const res = await releaseWeek(week.id);
+      if ("error" in res) {
+        setError(res.error);
+        return;
+      }
       router.refresh();
     });
   };
@@ -258,7 +280,12 @@ export function MenuBuilder({
   const handleReviewAmend = () => {
     if (!week) return;
     run(async () => {
-      setAmendPreview(await amendImpact({ menuWeekId: week.id, items: wireItems() }));
+      const res = await amendImpact({ menuWeekId: week.id, items: wireItems() });
+      if ("error" in res) {
+        setError(res.error);
+        return;
+      }
+      setAmendPreview(res);
     });
   };
 
@@ -329,7 +356,11 @@ export function MenuBuilder({
                   Save
                 </Button>
                 <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={pending || saving || dirty || rows.length === 0}
-                  onClick={() => run(async () => { await markReady(week.id); router.refresh(); })}>
+                  onClick={() => run(async () => {
+                    const res = await markReady(week.id);
+                    if ("error" in res) { setError(res.error); return; }
+                    router.refresh();
+                  })}>
                   Mark ready
                 </Button>
               </>
@@ -337,7 +368,11 @@ export function MenuBuilder({
 
             {isReady && (
               <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={pending}
-                onClick={() => run(async () => { await backToDraft(week.id); router.refresh(); })}>
+                onClick={() => run(async () => {
+                  const res = await backToDraft(week.id);
+                  if ("error" in res) { setError(res.error); return; }
+                  router.refresh();
+                })}>
                 Back to draft
               </Button>
             )}

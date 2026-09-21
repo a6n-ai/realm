@@ -23,6 +23,10 @@ export function NewWeekCard({ takenWeekStarts }: { takenWeekStarts: string[] }) 
       setError(null);
       try {
         const w = await upsertWeek({ weekStart });
+        if ("error" in w) {
+          setError(w.error);
+          return;
+        }
         router.push(`/dashboard/menus/${w.publicId}`);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not create the week");
