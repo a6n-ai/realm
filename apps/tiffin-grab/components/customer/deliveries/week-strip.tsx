@@ -1,5 +1,5 @@
 "use client";
-import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Truck, Utensils } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { STATUS_LABEL, type DeliveryStatus } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
@@ -93,10 +93,12 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
                       className={cn(FOCUS, "relative flex h-[76px] min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] text-xs [touch-action:manipulation] motion-reduce:transition-none", sel ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)] font-semibold text-[var(--foreground)]" : "border-transparent bg-[var(--card)]", (iso < today || off) && !sel && "opacity-40")}
                     >
                       <span aria-hidden className="opacity-80">{WD[i]}</span>
-                      
-                      <b aria-hidden className={cn("grid size-7 place-items-center rounded-full text-[16px] tabular-nums", iso === today && !sel && "border-2 border-[var(--primary)]")}>{d(iso).getUTCDate()}</b>
+                      <span aria-hidden className="relative flex w-full items-center justify-center">
+                        {ds.length > 0 && !picker && <Utensils className="absolute left-0 size-2.5 text-[var(--muted-foreground,#6E6558)]" />}
+                        <b className={cn("grid size-7 place-items-center rounded-full text-[16px] tabular-nums", iso === today && !sel && "border-2 border-[var(--primary)]")}>{d(iso).getUTCDate()}</b>
+                        {ds.some((x) => x.truck) && <Truck className="absolute right-0 size-2.5 text-[var(--muted-foreground,#6E6558)]" />}
+                      </span>
                       <span aria-hidden className="flex h-3 items-center justify-center gap-0.5">
-                        {ds.some((x) => x.truck) && <Truck className="size-3 shrink-0 text-[var(--muted-foreground,#6E6558)]" />}
                         {!picker && ds.map((x, k) => <Dot key={k} color={colorOf(x.orderId)} status={x.status} />)}
                       </span>
                     </button>
