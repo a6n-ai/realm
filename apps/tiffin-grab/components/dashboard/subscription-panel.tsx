@@ -1,22 +1,15 @@
-import { zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { readOrder } from "@/lib/services/orders.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
-import {
-  myWaitlistedSubscriptions,
-  type Subscription,
-} from "@/lib/services/customer-deliveries.service";
+import { loadOrderWeek } from "@/lib/services/order-week.service";
+import { OrderWeekHub } from "@/components/dashboard/order-week/order-week-hub";
+import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
 import { db } from "@/db/client";
 import { plans } from "@/db/schema";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { SectionCard, SkeletonCardGrid } from "@/components/ds";
 import { MealsGrid } from "@/app/(dashboard)/dashboard/meals/meals-grid";
-import { DeliveryCalendarSkeleton } from "@/app/(customer)/me/deliveries/delivery-calendar";
-import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
-// Still owned by the order route: it is a thin wrapper over the customer's DeliveryCalendar
-// and pairs with fetchOrderDeliveriesMonth, which lives beside it.
-import { AdminOrderDeliveries } from "@/app/(dashboard)/dashboard/orders/[id]/admin-order-deliveries";
 
 export const SUBSCRIPTION_SECTIONS = {
   deliveries: { title: "Deliveries" },
@@ -34,23 +27,16 @@ export const SUBSCRIPTION_SECTIONS = {
  */
 export async function SubscriptionPanel({
   orderPublicId,
-  monthParam,
-  basePath,
+  weekParam,
   visible,
 }: {
   orderPublicId: string;
-  monthParam?: string;
-  /** Where the calendar's month links point, so the host page's params survive paging. */
-  basePath: string;
+  /** ?week=YYYY-MM-DD from the host page. */
+  weekParam?: string;
   /** Org visibility scope — same value the host page resolved via resolveSessionVisibleOrgIds. */
   visible: "all" | string[];
 }) {
   const [order, settings] = await Promise.all([readOrder(orderPublicId, visible), getAppSettings()]);
-
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const today = zonedDateIso(Date.now(), settings.timezone);
-  const monthKey = parseMonthParam(monthParam, today);
-  const { from, until } = monthFetchRange(monthKey, today);
 
   const planRow = await db
     .select({ planType: plans.planType, tagLabel: plans.tagLabel, tagColor: plans.tagColor })
@@ -83,15 +69,8 @@ export async function SubscriptionPanel({
         }
       : null;
 
-  const waitlisted =
-    order.userId != null && (order.status === "waitlisted" || order.status === "pending")
-      ? (await myWaitlistedSubscriptions(order.userId)).filter((s) => s.publicId === order.publicId)
-      : [];
-
-  const [deliveriesBundle, grid] = await Promise.all([
-    subscription && order.userId != null
-      ? loadOrderDeliveriesBundle(order.userId, subscription, from, until)
-      : Promise.resolve(null),
+  const [week, grid] = await Promise.all([
+    subscription && order.userId != null ? loadOrderWeek(order.userId, subscription, weekParam) : Promise.resolve(null),
     buildMealsGrid(
       {
         id: order.id,
@@ -112,15 +91,10 @@ export async function SubscriptionPanel({
     <>
       <SectionCard
         title={SUBSCRIPTION_SECTIONS.deliveries.title}
-        subtitle="Same calendar, vacation, skip, and pool controls the customer sees."
+        subtitle="Week view by eating day: delivery days, swaps, reschedule, vacation and make-up."
       >
-        {subscription && deliveriesBundle ? (
-          <AdminOrderDeliveries
-            initial={{ ...deliveriesBundle, monthKey, today }}
-            subscription={subscription}
-            waitlisted={waitlisted}
-            basePath={basePath}
-          />
+        {week ? (
+          <OrderWeekHub data={week} />
         ) : (
           <p className="text-muted-foreground text-sm">
             This subscription is {order.status} — there is no delivery schedule to manage.
@@ -156,7 +130,11 @@ export function SubscriptionPanelSkeleton() {
   return (
     <>
       <SectionCard title={SUBSCRIPTION_SECTIONS.deliveries.title}>
-        <DeliveryCalendarSkeleton />
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-64" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
       </SectionCard>
       <SectionCard title={SUBSCRIPTION_SECTIONS.meals.title}>
         <SkeletonCardGrid count={6} />

@@ -32,7 +32,7 @@ import { SubscriptionPanel, SubscriptionPanelSkeleton } from "@/components/dashb
 // multi-order view — it spans a person's subscriptions; this is the single-order view.
 // Both mount the same SubscriptionPanel so they cannot drift.
 
-type SearchParams = Promise<{ month?: string }>;
+type SearchParams = Promise<{ week?: string }>;
 
 export default function OrderDetailPage({
   params,
@@ -59,7 +59,7 @@ async function OrderDetail({
 }) {
   await requireStaff();
   const { id } = await params;
-  const { month } = await searchParams;
+  const { week } = await searchParams;
 
   const settingsP = getAppSettings();
   const session = await getSession();
@@ -166,8 +166,7 @@ async function OrderDetail({
 
       <SubscriptionPanel
         orderPublicId={order.publicId}
-        monthParam={month}
-        basePath={`/dashboard/orders/${order.publicId}`}
+        weekParam={week}
         visible={visible}
       />
     </>

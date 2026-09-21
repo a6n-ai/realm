@@ -188,7 +188,7 @@ export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow
   );
 }
 
-const EXPLAIN: Record<Trip["status"], string> = {
+export const EXPLAIN: Record<Trip["status"], string> = {
   upcoming: "Scheduled. You can still change meals or reschedule until the cutoff.",
   delivered: "This delivery has been made.",
   "cutoff-passed": "The cutoff has passed and the kitchen is preparing it. It can no longer be changed.",
