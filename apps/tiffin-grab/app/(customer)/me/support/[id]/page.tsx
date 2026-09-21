@@ -1,30 +1,25 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
-import { LifeBuoyIcon } from "lucide-react";
 import { AuthError, ForbiddenError, NotFoundError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/customer/kit";
+import { BackLink } from "@/components/customer/support/parts";
 import { TicketThread, TicketThreadSkeleton } from "@/components/customer/support/ticket-thread";
 
 export default function TicketThreadPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <PageShell>
+    <div className="mx-auto max-w-2xl space-y-6">
       <BackLink href="/me/support" label="Support" />
-
-      <Suspense fallback={<PageHeader icon={LifeBuoyIcon} title="Support ticket" />}>
+      <Suspense fallback={<PageHeader eyebrow="Support" title="Support ticket" />}>
         <TicketHeader params={params} />
       </Suspense>
-
-      <SectionCard title="Conversation" subtitle="Replies from you and our support team.">
-        <Suspense fallback={<TicketThreadSkeleton />}>
-          <TicketThreadData params={params} />
-        </Suspense>
-      </SectionCard>
-    </PageShell>
+      <Suspense fallback={<TicketThreadSkeleton />}>
+        <TicketThreadData params={params} />
+      </Suspense>
+    </div>
   );
 }
 
@@ -42,11 +37,7 @@ async function TicketHeader({ params }: { params: Promise<{ id: string }> }) {
   }
 
   return (
-    <PageHeader
-      icon={LifeBuoyIcon}
-      title={ticket.subject}
-      subtitle="Support ticket — reply below if you need to add more detail."
-    />
+    <PageHeader eyebrow="Support ticket" title={ticket.subject} subtitle="Reply below if you need to add more detail." />
   );
 }
 

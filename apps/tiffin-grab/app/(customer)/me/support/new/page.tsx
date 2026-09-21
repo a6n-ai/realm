@@ -1,10 +1,9 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { LifeBuoyIcon } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/customer/kit";
+import { BackLink } from "@/components/customer/support/parts";
 import { NewTicketForm, NewTicketFormSkeleton } from "@/components/customer/support/new-ticket-form";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 
@@ -12,21 +11,13 @@ type SearchParams = Promise<{ orderId?: string }>;
 
 export default function NewTicketPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <PageShell>
+    <div className="mx-auto max-w-2xl space-y-6">
       <BackLink href="/me/support" label="Support" />
-
-      <PageHeader
-        icon={LifeBuoyIcon}
-        title="New ticket"
-        subtitle="Tell us what's going on — you can attach photos or screenshots, and link a plan if it helps."
-      />
-
-      <SectionCard title="Details" subtitle="Subject, category, and your message.">
-        <Suspense fallback={<NewTicketFormSkeleton />}>
-          <TicketFormData searchParams={searchParams} />
-        </Suspense>
-      </SectionCard>
-    </PageShell>
+      <PageHeader eyebrow="Support" title="New" accent="ticket" subtitle="Tell us what's going on. You can attach photos or screenshots, and link a plan if it helps." />
+      <Suspense fallback={<NewTicketFormSkeleton />}>
+        <TicketFormData searchParams={searchParams} />
+      </Suspense>
+    </div>
   );
 }
 

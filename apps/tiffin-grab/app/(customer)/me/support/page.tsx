@@ -1,39 +1,35 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LifeBuoyIcon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { usersService } from "@/lib/services/users.service";
 import { ticketsService } from "@/lib/services/tickets.service";
-import { Button } from "@foundry/ui/button";
-import { PageShell, PageHeader } from "@/components/ds";
-import { BackLink } from "@/components/back-link";
+import { PageHeader } from "@/components/customer/kit";
+import { BackLink, LinkButton } from "@/components/customer/support/parts";
 import { TicketsList, TicketsListSkeleton } from "@/components/customer/support/tickets-list";
 
 export default function SupportPage() {
   return (
-    <PageShell>
+    <div className="mx-auto max-w-2xl space-y-6">
       <BackLink href="/me/account" label="Account" />
-
       <PageHeader
-        icon={LifeBuoyIcon}
-        title="Support"
-        subtitle="Questions or something not right? Raise a ticket and we'll help."
-        actions={
-          <Button asChild className="min-h-11 active:scale-[0.98]">
-            <Link href="/me/support/new">
-              <PlusIcon className="size-4" />
-              New ticket
-            </Link>
-          </Button>
+        eyebrow="Support"
+        title="How can we"
+        accent="help?"
+        subtitle="Raise a ticket and we'll help."
+        action={
+          <LinkButton href="/me/support/new">
+            <PlusIcon aria-hidden className="size-4" />
+            New ticket
+          </LinkButton>
         }
       />
-
       <Suspense fallback={<TicketsListSkeleton />}>
         <TicketsData />
       </Suspense>
-    </PageShell>
+    </div>
   );
 }
 

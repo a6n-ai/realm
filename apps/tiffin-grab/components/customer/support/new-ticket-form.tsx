@@ -1,22 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlusIcon, Loader2Icon, SendIcon, XIcon } from "lucide-react";
-import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
-import { Label } from "@foundry/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@foundry/ui/select";
-import { Textarea } from "@foundry/ui/textarea";
-import { Skeleton } from "@foundry/ui/skeleton";
-import { cn } from "@foundry/ui/cn";
+import { Button, Field, Notice, Select, Skeleton, Textarea } from "@/components/customer/kit";
+import { cn } from "@/components/customer/kit/cn";
 import { makeImageThumbnail } from "@/components/ds";
+import { MAX_FILES, PhotoPicker, useImageFiles } from "./parts";
 import { createTicket } from "@/app/(customer)/me/support/actions";
 import {
   CATEGORY_LABEL,
@@ -43,9 +32,6 @@ const LABEL = Object.fromEntries(FIELDS.map((f) => [f.key, f.label])) as Record<
 >;
 
 const NO_ORDER = "__none__";
-const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
-const MAX_BYTES = 5 * 1024 * 1024;
-const MAX_FILES = 4;
 
 type OrderOption = { value: string; label: string };
 
@@ -68,32 +54,8 @@ export function NewTicketForm({
   const [subcategory, setSubcategory] = useState("");
   const [orderId, setOrderId] = useState(defaultOrderId ?? NO_ORDER);
   const [body, setBody] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  function addFiles(picked: FileList | null) {
-    if (!picked) return;
-    setError(null);
-    const next = [...files];
-    for (const f of Array.from(picked)) {
-      if (next.length >= MAX_FILES) {
-        setError(`Attach up to ${MAX_FILES} images`);
-        break;
-      }
-      if (!ACCEPT.includes(f.type)) {
-        setError("Only PNG, JPEG, WebP or GIF images are allowed");
-        continue;
-      }
-      if (f.size > MAX_BYTES) {
-        setError("Each image must be 5 MB or smaller");
-        continue;
-      }
-      next.push(f);
-    }
-    setFiles(next);
-    if (inputRef.current) inputRef.current.value = "";
-  }
+  const { files, inputRef, add: addFiles, setFiles } = useImageFiles(setError);
 
   // Changing the category invalidates whatever sub-category was picked under the
   // previous one, so clear it rather than carry a mismatched pair to the server.
@@ -134,160 +96,68 @@ export function NewTicketForm({
   }
 
   return (
-    <div className="grid w-full max-w-xl gap-5">
-      <div className="grid gap-1.5">
-        <Label htmlFor="ticket-subject">{LABEL.subject}</Label>
-        <Input
-          id="ticket-subject"
-          autoFocus
-          className="min-h-11"
-          placeholder="e.g. Tiffin didn't arrive today"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-        />
-      </div>
+    <form
+      className="grid w-full max-w-xl gap-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <Field id="ticket-subject" label={LABEL.subject} placeholder="e.g. Tiffin didn't arrive today" value={subject} onChange={(e) => setSubject(e.target.value)} />
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="ticket-category">{LABEL.category}</Label>
-        <Select value={category || undefined} onValueChange={(v) => pickCategory(v as TicketCategoryValue)}>
-          <SelectTrigger id="ticket-category" className="min-h-11 w-full">
-            <SelectValue placeholder="Choose a category" />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((c) => (
-              <SelectItem key={c} value={c}>
-                {CATEGORY_LABEL[c]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <Select
+        id="ticket-category"
+        label={LABEL.category}
+        placeholder="Choose a category"
+        options={categories.map((c) => ({ value: c, label: CATEGORY_LABEL[c] }))}
+        value={category}
+        onChange={(e) => pickCategory(e.target.value as TicketCategoryValue)}
+      />
 
       {category ? (
-        <div className="grid gap-1.5">
-          <Label htmlFor="ticket-subcategory">{LABEL.subcategory}</Label>
-          {/* Keyed on category: Radix keeps internal state while mounted, so clearing
-              the value on a category switch would blank the trigger instead of
-              restoring the placeholder. Remounting gives a clean list + placeholder. */}
-          <Select key={category} value={subcategory || undefined} onValueChange={setSubcategory}>
-            <SelectTrigger id="ticket-subcategory" className="min-h-11 w-full">
-              <SelectValue placeholder="Choose a sub-category" />
-            </SelectTrigger>
-            <SelectContent>
-              {SUBCATEGORIES[category].map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select
+          key={category}
+          id="ticket-subcategory"
+          label={LABEL.subcategory}
+          placeholder="Choose a sub-category"
+          options={SUBCATEGORIES[category]}
+          value={subcategory}
+          onChange={(e) => setSubcategory(e.target.value)}
+        />
       ) : null}
 
       {orders.length > 0 ? (
-        <div className="grid gap-1.5">
-          <Label htmlFor="ticket-order">
-            {LABEL.order} <span className="text-muted-foreground font-normal">optional</span>
-          </Label>
-          <Select value={orderId} onValueChange={setOrderId}>
-            <SelectTrigger id="ticket-order" className="min-h-11 w-full">
-              <SelectValue placeholder="None" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_ORDER}>None</SelectItem>
-              {orders.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select
+          id="ticket-order"
+          label={LABEL.order}
+          hint="Optional"
+          options={[{ value: NO_ORDER, label: "None" }, ...orders]}
+          value={orderId}
+          onChange={(e) => setOrderId(e.target.value)}
+        />
       ) : null}
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="ticket-body">{LABEL.body}</Label>
-        <Textarea
-          id="ticket-body"
-          rows={5}
-          className="min-h-28 text-base"
-          placeholder="Tell us what happened, and anything that helps us sort it out…"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-        />
+      <Textarea id="ticket-body" label={LABEL.body} rows={5} placeholder="Tell us what happened, and anything that helps us sort it out…" value={body} onChange={(e) => setBody(e.target.value)} />
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="ticket-photos" className="text-sm font-semibold">
+          Photos or screenshots
+        </label>
+        <PhotoPicker id="ticket-photos" files={files} inputRef={inputRef} onAdd={addFiles} onRemove={(i) => setFiles(files.filter((_, j) => j !== i))} disabled={pending} />
+        <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Optional, up to {MAX_FILES}. PNG, JPEG, WebP or GIF, max 5 MB each. Great for delivery issues or app screenshots.</p>
       </div>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="ticket-photos">
-          Photos or screenshots{" "}
-          <span className="text-muted-foreground font-normal">optional · up to {MAX_FILES}</span>
-        </Label>
-        <input
-          ref={inputRef}
-          id="ticket-photos"
-          type="file"
-          accept={ACCEPT.join(",")}
-          multiple
-          // Mobile: open photo library / camera roll for screenshots
-          className="sr-only"
-          onChange={(e) => addFiles(e.target.files)}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 w-full justify-start gap-2 sm:w-auto"
-          disabled={pending || files.length >= MAX_FILES}
-          onClick={() => inputRef.current?.click()}
-        >
-          <ImagePlusIcon className="size-4" />
-          {files.length >= MAX_FILES ? "Limit reached" : "Add photos"}
-        </Button>
-        {files.length > 0 ? (
-          <ul className="flex flex-wrap gap-2 pt-1">
-            {files.map((f, i) => (
-              <li key={`${f.name}-${i}`} className="bg-muted flex max-w-full items-center gap-1 rounded-md border px-2 py-1.5 text-xs">
-                <span className="truncate">{f.name}</span>
-                <button
-                  type="button"
-                  aria-label={`Remove ${f.name}`}
-                  disabled={pending}
-                  onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                  className="text-muted-foreground hover:text-foreground shrink-0"
-                >
-                  <XIcon className="size-3.5" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground text-xs text-pretty">
-            PNG, JPEG, WebP or GIF — max 5 MB each. Great for delivery issues or app screenshots.
-          </p>
-        )}
-      </div>
-
-      {error ? (
-        <p className="text-destructive text-sm" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Button onClick={submit} disabled={pending} className="min-h-11 active:scale-[0.98]">
-          {pending ? <Loader2Icon className="size-4 animate-spin" /> : <SendIcon className="size-4" />}
+        <Button type="submit" variant="primary" size="lg" pending={pending}>
           {pending ? "Sending…" : "Submit ticket"}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={pending}
-          className="min-h-11"
-          onClick={() => router.push("/me/support")}
-        >
+        <Button variant="quiet" size="lg" disabled={pending} onClick={() => router.push("/me/support")}>
           Cancel
         </Button>
       </div>
-    </div>
+    </form>
   );
 }
 
