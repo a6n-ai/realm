@@ -159,6 +159,15 @@ Deliveries hub (`/me`): calm and selection-first. Title, then ONE quiet plan lin
 - SelectableCard: 20px, 2px border, min-h 96, title `c-h2`, optional round arrow/check indicator; `aria-pressed`.
 - Sheet: bottom 28px radius w/ grabber on mobile, right panel 440px on desktop, title `c-h2`, close 44px, sticky footer CTA, focus trap, Esc, drag to dismiss.
 - Field: label 14/600, 52px input, 16px radius, 1px hairline; error border rose + `role=alert` text. Toggle 52x32, Stepper pill 44 buttons.
+- Button variants: `primary`, `outline`, `quiet`, `ghost` (transparent, muted hover; text links such as Back), `danger`, `hero`. `pill` gives any variant the full radius (checkout actions); size `lg` is the wizard Next.
+- Input / Label: bare 52px input (16px radius, hairline, `invalid` rose border; `dense` = 44px / 12px radius for checkout forms) and a 14px medium label. `Field` is Label + Input + hint + error.
+- OptionCard: the bare 20px / 2px option shell (primary/10 wash when selected, press .97, `aria-pressed`, or `aria-checked` with `role="radio"`); callers own the inside (bundle, delivery type, payment method). `SelectableCard` is OptionCard with title, description and indicator.
+- PillToggle: 48px round day toggle, primary fill when on, `aria-pressed`.
+- ChoiceGroup / Choice: radiogroup of OptionCards with a radio dot, roving tabindex, arrow keys move and select (commitment duration).
+- Pill `size="sm"` (compact 20px tag) and tones `save`, `wash`, `solid`, `soft` for offers, day chips and nutrition tags.
+- IconButton (44px round on muted; `href` makes it a link: close, back, month arrows) and Divider (hairline rule).
+- DatePicker: trigger button plus a month grid (`MonthGrid`); an anchored popover from 768px up, the kit Sheet on phones; `min`, `max`, `disabledReason(iso)` explain blocked days. Never a native date input. `components/customer/date-field.tsx` adapts it for deliveries and vacation.
+- Sheet `bottom`: keep the bottom-sheet form on desktop (centered, max-w-xl); the wizard price summary uses it. BottomBar `alignEnd` right-aligns the wizard bar from sm up.
 - Tabs / Segmented: pill 44; active = ink fill.
 - DateStrip / MonthGrid / DateCell: 16px cells, emerald ring delivered, dashed combined.
 - NavPill, CoinChip, ThemeToggle, TabBar (56px, 11/600 labels), BottomBar (glass, hairline, safe-area, note above CTA).
@@ -186,4 +195,4 @@ Back  Title            Title *accent*            Tabs (desktop) / rows (mobile)
 ## Wizard reuse, matches and drift
 Reusable as-is: option cards (now `SelectableCard`), day pills (h-48 pill, primary fill), progress bar (h-1 rounded, primary/border), glass bottom bar (`BottomBar`), invoice sheet (`Sheet`).
 Fixed: Card selected ring became 10% wash + 2px border cue; Field 1.5px border/48px -> 1px/52px; Sheet radius on token.
-Wizard still renders its Next through `@foundry/ui` Button + IOS_BUTTON; kit Button now matches it visually. Migrating the wizard is out of scope here.
+The wizard and checkout now render on the kit (no `@foundry/ui` Button, Input, Label, RadioGroup, Badge, Separator; the only stock pieces left are `PhoneInput` and the shared `AddressFields`). The wizard is the reference implementation: change a kit primitive and the wizard changes with it.
