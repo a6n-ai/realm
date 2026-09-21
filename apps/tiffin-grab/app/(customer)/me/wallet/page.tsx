@@ -1,14 +1,14 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { WalletIcon } from "lucide-react";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { myDeliveries } from "@/lib/services/customer-deliveries.service";
 import { myBillsPage, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
 import { couponsService } from "@/lib/services/coupons.service";
-import { ledgerService } from "@/lib/services/ledger.service";
 import { walletService } from "@/lib/services/wallet.service";
-import { parseFilterState, PageShell, PageHeader } from "@/components/ds";
+import { parseFilterState } from "@/components/ds";
+import { PageHeader, Skeleton } from "@/components/customer/kit";
+import { getCustomerUsage } from "@/lib/services/customer-usage.service";
+import { FinanceStats, FinanceStatsSkeleton } from "@/components/customer/wallet/finance-stats";
 import { WalletHero } from "@/components/customer/wallet/wallet-hero";
 import { EarnSpendTiles } from "@/components/customer/wallet/earn-spend-tiles";
 import { WalletLog, WalletLogSkeleton } from "@/components/customer/wallet/wallet-log";
@@ -19,8 +19,6 @@ import { MONEY_LEDGER_FACETS } from "@/components/customer/wallet/money-ledger-f
 import { FinancesTabs } from "@/components/customer/wallet/finances-tabs";
 import { parseFinancesTab } from "@/components/customer/wallet/finances-tab";
 import { CouponsSection, CouponsSectionSkeleton } from "@/components/customer/home/coupons-section";
-import { AnalyticsTiles, AnalyticsTilesSkeleton } from "@/components/customer/home/analytics-tiles";
-import { monthWindow } from "@/components/customer/home/analytics-month-window";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -30,17 +28,16 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
 
   const sp = await searchParams;
   const tab = parseFinancesTab(sp.tab);
-  const { timezone } = await getAppSettings();
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={WalletIcon}
-        title="Finances"
-        subtitle="Coins, bills, and money transactions in one place."
-      />
+    <div className="mx-auto w-full max-w-4xl space-y-6">
+      <PageHeader eyebrow="Account" title="Your" accent="finances." subtitle="Coins, bills, and money transactions in one place." />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<FinanceStatsSkeleton />}>
+        <StatsData userId={userId} />
+      </Suspense>
+
+      <Suspense fallback={<Skeleton className="h-11 w-72 rounded-full" />}>
         <FinancesTabs active={tab} />
       </Suspense>
 
@@ -51,9 +48,6 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
           </Suspense>
           <Suspense fallback={<CouponsSectionSkeleton />}>
             <CouponsSectionData />
-          </Suspense>
-          <Suspense fallback={<AnalyticsTilesSkeleton />}>
-            <AnalyticsTilesData userId={userId} timezone={timezone} />
           </Suspense>
         </>
       ) : null}
@@ -69,7 +63,7 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
           <TransactionsPanel userId={userId} searchParams={searchParams} />
         </Suspense>
       ) : null}
-    </PageShell>
+    </div>
   );
 }
 
@@ -132,21 +126,10 @@ async function CouponsSectionData() {
   return <CouponsSection coupons={coupons} />;
 }
 
-// Session-scoped: the month window is computed from the APP timezone (never the
-// server's UTC clock — spec 6), and every read below is scoped to `userId`.
-async function AnalyticsTilesData({ userId, timezone }: { userId: bigint; timezone: string }) {
+// All-time totals; usage is computed server-side from the ledger, never client input.
+async function StatsData({ userId }: { userId: bigint }) {
+  const { currency } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const { from, until } = monthWindow(Date.now(), timezone);
-  const [deliveriesThisMonth, totalSpend, totalSavings] = await Promise.all([
-    myDeliveries(userId, from, until),
-    ledgerService.totalSpent(userId),
-    ledgerService.totalSavings(userId),
-  ]);
-  return (
-    <AnalyticsTiles
-      deliveriesThisMonth={deliveriesThisMonth.length}
-      totalSpend={totalSpend}
-      totalSavings={totalSavings}
-    />
-  );
+  const usage = await getCustomerUsage(userId, 0, Date.now());
+  return <FinanceStats usage={usage} currency={currency} />;
 }

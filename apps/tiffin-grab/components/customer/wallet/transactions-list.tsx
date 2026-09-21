@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton } from "@foundry/ui/skeleton";
+import { Skeleton } from "@/components/customer/kit";
 import { ListPagination } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { Reveal, LottieEmptyState } from "@/components/motion";

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
-import { Skeleton } from "@foundry/ui/skeleton";
+import { Skeleton } from "@/components/customer/kit";
 import {
   Dialog,
   DialogContent,

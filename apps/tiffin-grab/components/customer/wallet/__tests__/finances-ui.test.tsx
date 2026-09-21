@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
+const push = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ replace: vi.fn(), push }),
   usePathname: () => "/me/wallet",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -61,14 +62,15 @@ describe("parseFinancesTab", () => {
 });
 
 describe("FinancesTabs", () => {
-  it("renders Coins, Bills, and Transactions tabs with hrefs", () => {
+  it("renders Coins, Bills, and Transactions tabs and navigates on select", () => {
     render(<FinancesTabs active="coins" />);
-    expect(screen.getByRole("tab", { name: /Coins/i })).toHaveAttribute("href", "/me/wallet");
-    expect(screen.getByRole("tab", { name: /Bills/i })).toHaveAttribute("href", "/me/wallet?tab=bills");
-    expect(screen.getByRole("tab", { name: /Transactions/i })).toHaveAttribute(
-      "href",
-      "/me/wallet?tab=transactions",
-    );
+    expect(screen.getByRole("tab", { name: "Coins" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByRole("tab", { name: "Bills" }));
+    expect(push).toHaveBeenCalledWith("/me/wallet?tab=bills");
+    fireEvent.click(screen.getByRole("tab", { name: "Transactions" }));
+    expect(push).toHaveBeenCalledWith("/me/wallet?tab=transactions");
+    fireEvent.click(screen.getByRole("tab", { name: "Coins" }));
+    expect(push).toHaveBeenCalledWith("/me/wallet");
   });
 });
 

@@ -1,41 +1,28 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CoinsIcon, ReceiptIcon, ScrollTextIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
+import { Tabs } from "@/components/customer/kit";
 import type { FinancesTab } from "./finances-tab";
 
-const TABS: { id: FinancesTab; label: string; icon: typeof CoinsIcon }[] = [
-  { id: "coins", label: "Coins", icon: CoinsIcon },
-  { id: "bills", label: "Bills", icon: ReceiptIcon },
-  { id: "transactions", label: "Transactions", icon: ScrollTextIcon },
+const TABS: { id: FinancesTab; label: string }[] = [
+  { id: "coins", label: "Coins" },
+  { id: "bills", label: "Bills" },
+  { id: "transactions", label: "Transactions" },
 ];
 
-function tabHref(id: FinancesTab): string {
+export function tabHref(id: FinancesTab): string {
   return id === "coins" ? "/me/wallet" : `/me/wallet?tab=${id}`;
 }
 
 export function FinancesTabs({ active }: { active: FinancesTab }) {
   const router = useRouter();
-
   return (
     <Tabs
+      label="Finances sections"
+      idPrefix="finances"
+      items={TABS}
       value={active}
-      onValueChange={(v) => {
-        router.push(tabHref(v as FinancesTab));
-      }}
-    >
-      <TabsList aria-label="Finances sections" className="md:h-10">
-        {TABS.map((tab) => (
-          <TabsTrigger key={tab.id} value={tab.id} asChild className="md:px-4">
-            <Link href={tabHref(tab.id)} prefetch={false}>
-              <tab.icon />
-              {tab.label}
-            </Link>
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
+      onChange={(id) => router.push(tabHref(id as FinancesTab))}
+    />
   );
 }
