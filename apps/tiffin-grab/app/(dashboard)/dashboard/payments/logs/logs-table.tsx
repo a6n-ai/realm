@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ActivityIcon } from "lucide-react";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, type Column, type FacetDef } from "@/components/ds";
+import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import type { SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -44,17 +44,34 @@ const COLUMNS: readonly Column<LogSortKey | "detail">[] = [
   { key: "detail", label: "Detail" },
 ];
 
-export function LogsTable({ rows, sort }: { rows: Row[]; sort: SortState<LogSortKey> }) {
+export function LogsTable({
+  rows,
+  total,
+  page,
+  size,
+  sort,
+}: {
+  rows: Row[];
+  total: number;
+  page: number;
+  size: number;
+  sort: SortState<LogSortKey>;
+}) {
   const tz = useTimezone();
   return (
+    <div className="space-y-4">
     <DataTable
       columns={COLUMNS}
       rows={rows}
       rowKey={(r) => r.publicId}
+      idAccessor={(r) => r.publicId}
+      idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
+      rowClassName={() => "group cursor-pointer"}
       sort={sort as SortState<LogSortKey | "detail">}
       filters={<ListSearchFilters spec={SPEC} placeholder="Search order, person, note…" shortPlaceholder="Search…" />}
       emptyIcon={ActivityIcon}
       emptyMessage="No payment events yet."
+      emptySearchMessage="No payment events match your search."
       renderRow={(r) => (
         <>
           <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
@@ -76,9 +93,11 @@ export function LogsTable({ rows, sort }: { rows: Row[]; sort: SortState<LogSort
         </>
       )}
     />
+      <ListPagination page={page} size={size} total={total} />
+    </div>
   );
 }
 
 export function LogsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <DataTable.Skeleton columns={COLUMNS} hasId />;
 }

@@ -10,12 +10,15 @@ import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { Textarea } from "@foundry/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
-import { DataTable, type Column } from "@/components/ds";
+import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { rejectPaymentAction, verifyPaymentAction } from "../../orders/[id]/actions";
 import type { PaymentRow, PaymentSortKey } from "../payment-facets";
 import type { SortState } from "@/lib/list/sort";
+
+const SPEC: FacetDef[] = [{ kind: "search", fields: [] }];
 
 // reference/proof/actions have no sort key in PAYMENT_SORT_KEYS, so they stay plain headers.
 const COLUMNS: readonly Column<PaymentSortKey | "reference" | "proof" | "actions">[] = [
@@ -28,7 +31,19 @@ const COLUMNS: readonly Column<PaymentSortKey | "reference" | "proof" | "actions
   { key: "actions", label: "", align: "right" },
 ];
 
-export function RequestsTable({ rows, sort }: { rows: PaymentRow[]; sort: SortState<PaymentSortKey> }) {
+export function RequestsTable({
+  rows,
+  total,
+  page,
+  size,
+  sort,
+}: {
+  rows: PaymentRow[];
+  total: number;
+  page: number;
+  size: number;
+  sort: SortState<PaymentSortKey>;
+}) {
   const tz = useTimezone();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -65,15 +80,18 @@ export function RequestsTable({ rows, sort }: { rows: PaymentRow[]; sort: SortSt
   }
 
   return (
-    <>
+    <div className="space-y-4">
       <DataTable
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
+        idAccessor={(r) => r.publicId}
+        idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
         sort={sort as SortState<PaymentSortKey | "reference" | "proof" | "actions">}
-        search={{ placeholder: "Search order, customer, reference…", shortPlaceholder: "Search…", debounceMs: 300 }}
+        filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
         emptyIcon={InboxIcon}
         emptyMessage="Nothing waiting. New e-transfer claims land here for approval."
+        emptySearchMessage="No requests match your search."
         renderRow={(r) => (
           <>
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
@@ -110,6 +128,7 @@ export function RequestsTable({ rows, sort }: { rows: PaymentRow[]; sort: SortSt
           </>
         )}
       />
+      <ListPagination page={page} size={size} total={total} />
 
       <Dialog open={rejecting != null} onOpenChange={(o) => !o && setRejecting(null)}>
         <DialogContent>
@@ -135,10 +154,10 @@ export function RequestsTable({ rows, sort }: { rows: PaymentRow[]; sort: SortSt
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 
 export function RequestsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <DataTable.Skeleton columns={COLUMNS} hasId />;
 }

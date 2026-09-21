@@ -15,6 +15,6 @@ export default function AllPaymentsPage({ searchParams }: { searchParams: Search
 
 async function AllPaymentsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const { rows, sort } = await listPayments(await searchParams);
-  return <PaymentsTable rows={rows} sort={sort} />;
+  const { rows, total, page, size, sort } = await listPayments(await searchParams);
+  return <PaymentsTable rows={rows} total={total} page={page} size={size} sort={sort} />;
 }

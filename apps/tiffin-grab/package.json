@@ -34,7 +34,7 @@
     "@foundry/discounts": "github:a6n-ai/foundry#path:packages/discounts",
     "@foundry/design-system": "github:a6n-ai/foundry#path:packages/design-system",
     "@foundry/google-reviews": "github:a6n-ai/foundry#path:packages/google-reviews",
-    "@foundry/payments": "github:a6n-ai/foundry#path:packages/payments",
+    "@foundry/payments": "github:a6n-ai/foundry#9b0c203&path:packages/payments",
     "@foundry/places": "github:a6n-ai/foundry#path:packages/places",
     "@foundry/realtime": "github:a6n-ai/foundry#path:packages/realtime",
     "@foundry/routes": "github:a6n-ai/foundry#path:packages/routes",

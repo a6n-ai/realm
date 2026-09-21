@@ -7,6 +7,7 @@ import {
   type IntegrationsConfigStore,
 } from "@foundry/clover";
 import { DEFAULT_PAYMENT_CONFIG, parsePaymentConfig, type PaymentConfig } from "@foundry/payments";
+import { mergePaymentCatalog } from "@foundry/payments/providers";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { and, eq, gt } from "drizzle-orm";
 import { sharedCache } from "@/lib/cache";
@@ -204,6 +205,29 @@ export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { paymentConfig: parsed });
   else await appSettingsEntity.create({ ...DEFAULTS, paymentConfig: parsed });
+}
+
+/**
+ * Seed cash (on) + e-Transfer from Foundry's catalog. Drop the old card-style
+ * "manual" rail — Stripe lands later as an online provider.
+ */
+export async function ensurePaymentCatalog(): Promise<PaymentConfig> {
+  const cfg = await getPaymentConfig();
+  const hadManual = cfg.methods.some((m) => m.id === "manual");
+  const merged = mergePaymentCatalog(cfg);
+  const methods = merged.methods
+    .filter((m) => m.id !== "manual")
+    .map((m) => (m.id === "cash" && hadManual ? { ...m, enabled: true } : m));
+  const next: PaymentConfig = { ...merged, methods };
+  const unchanged =
+    next.methods.length === cfg.methods.length &&
+    next.methods.every((m, i) => {
+      const prev = cfg.methods[i];
+      return prev && prev.id === m.id && prev.enabled === m.enabled && prev.label === m.label;
+    });
+  if (unchanged) return cfg;
+  await setPaymentConfig(next);
+  return next;
 }
 
 /** Non-payment plugins (Clover, …) — same JSONB singleton pattern as payment_config. */

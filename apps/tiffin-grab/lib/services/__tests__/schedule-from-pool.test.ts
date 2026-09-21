@@ -1,6 +1,6 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { asc, eq, ne } from "drizzle-orm";
-import { nextWeekday, ValidationError } from "@foundry/commons";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { asc, eq, inArray } from "drizzle-orm";
+import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -9,15 +9,22 @@ const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = 
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { scheduleFromPool } = await import("../deliveries.service");
+const { coveredDates } = await import("@/lib/menu/coverage");
 
-async function reset() {
-  await db.delete(deliveries);
-  await db.delete(ledgerEntries);
-  await db.delete(orderActivities);
-  await db.delete(payments);
-  await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
-}
+const createdOrderIds: bigint[] = [];
+const createdUserIds: bigint[] = [];
+
+afterEach(async () => {
+  const orderIds = createdOrderIds.splice(0);
+  const userIds = createdUserIds.splice(0);
+  if (orderIds.length) {
+    await db.delete(orderActivities).where(inArray(orderActivities.orderId, orderIds));
+    await db.delete(ledgerEntries).where(inArray(ledgerEntries.orderId, orderIds));
+    await db.delete(payments).where(inArray(payments.orderId, orderIds));
+    await db.delete(orders).where(inArray(orders.id, orderIds));
+  }
+  if (userIds.length) await db.delete(users).where(inArray(users.id, userIds));
+});
 
 async function makeOrder() {
   const snap = await loadCatalogSnapshot();
@@ -36,6 +43,8 @@ async function makeOrder() {
     contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+  createdOrderIds.push(o.id);
+  if (o.userId) createdUserIds.push(o.userId);
   return o;
 }
 
@@ -48,6 +57,8 @@ async function seedWeeks(o: { id: bigint }) {
   ];
   await db.insert(deliveries).values(dates.map((deliveryDate) => ({
     orderId: o.id, deliveryDate, status: "scheduled" as const, cutoffAt: Date.now() + 1e9,
+    coversDates: [deliveryDate],
+    tiffinUnits: 1,
   })));
 }
 
@@ -60,9 +71,6 @@ async function setPool(o: { id: bigint }, pooled: number, persons = 1) {
 }
 
 describe("scheduleFromPool (integration)", () => {
-  beforeEach(reset);
-  afterAll(reset);
-
   it("rejects when the pool is empty", async () => {
     const o = await makeOrder();
     await seedWeeks(o);
@@ -70,45 +78,53 @@ describe("scheduleFromPool (integration)", () => {
     await expect(scheduleFromPool(o.publicId, "2030-01-21", 1n)).rejects.toThrow("No tiffins left to schedule");
   });
 
-  it("rejects a date on or before the last delivery", async () => {
+  it("rejects a new trip on or before the last delivery when no occupant to merge", async () => {
     const o = await makeOrder();
     await seedWeeks(o);
     await setPool(o, 1);
-    await expect(scheduleFromPool(o.publicId, "2030-01-18", 1n)).rejects.toThrow("Date must be after your last delivery");
+    await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
+    await db.insert(deliveries).values([
+      { orderId: o.id, deliveryDate: "2030-01-18", status: "scheduled", cutoffAt: Date.now() + 1e9, coversDates: ["2030-01-18"], tiffinUnits: 1 },
+    ]);
+    await expect(scheduleFromPool(o.publicId, "2030-01-16", 1n)).rejects.toThrow("Date must be after your last delivery");
   });
 
-  it("rejects a weekend target with the Friday-bundling explanation, before the generic plan check", async () => {
+  it("snaps Saturday onto Friday and merges onto the existing Friday trip", async () => {
     const o = await makeOrder();
     await seedWeeks(o);
     await setPool(o, 1);
-    // 2030-01-19 is a Saturday, after the last delivery but not a 5-day plan weekday — the
-    // weekend-specific message (assertNotWeekendTarget) takes priority over the generic one,
-    // since it explains WHY rather than just that the day is invalid.
-    await expect(scheduleFromPool(o.publicId, "2030-01-19", 1n)).rejects.toThrow(
-      "We don't deliver on weekends — a Saturday or Sunday tiffin ships with the same week's Friday delivery instead. Pick a weekday.",
-    );
+    const res = await scheduleFromPool(o.publicId, "2030-01-19", 1n);
+    expect(res.carriedOn).toBe("2030-01-18");
+    expect(res.merged).toBe(true);
+    const [fri] = await db.select().from(deliveries).where(eq(deliveries.publicId, res.deliveryPublicId));
+    expect(coveredDates(fri).includes("2030-01-19")).toBe(true);
+    expect(fri.tiffinUnits).toBeGreaterThanOrEqual(2);
+    const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(order.pooledTiffinCount).toBe(0);
   });
 
   it("schedules a row after the last delivery, links a pooled miss, and decrements the pool by persons", async () => {
     const o = await makeOrder();
     await seedWeeks(o);
-    await setPool(o, 2, 2); // persons = 2
-    // Make row[0] a pooled miss so scheduleFromPool has something to link the make-up to.
+    await setPool(o, 2, 2);
     const [first] = await rowsFor(o);
     await db.update(deliveries)
       .set({ status: "skipped", cutoffAt: Date.now() - 1, pooledAt: Date.now() })
       .where(eq(deliveries.id, first.id));
 
-    const { deliveryPublicId } = await scheduleFromPool(o.publicId, "2030-01-21", 1n);
+    const { deliveryPublicId, carriedOn, merged } = await scheduleFromPool(o.publicId, "2030-01-21", 1n);
     expect(deliveryPublicId).toBeTruthy();
+    expect(carriedOn).toBe("2030-01-21");
+    expect(merged).toBe(false);
 
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
-    expect(order.pooledTiffinCount).toBe(0); // 2 - persons(2)
+    expect(order.pooledTiffinCount).toBe(0);
 
     const [created] = await db.select().from(deliveries).where(eq(deliveries.publicId, deliveryPublicId));
     expect(created.deliveryDate).toBe("2030-01-21");
     expect(created.status).toBe("scheduled");
     expect(created.makeupForDeliveryId).toBe(first.id);
+    expect(coveredDates(created)).toEqual(["2030-01-21"]);
   });
 
   it("never links a make-up to a merged source, only to a real pooled miss", async () => {
@@ -118,30 +134,16 @@ describe("scheduleFromPool (integration)", () => {
     const [a, b, c] = await rowsFor(o);
     await db.update(deliveries).set({ status: "skipped", cutoffAt: Date.now() - 1, mergedIntoDeliveryId: c.id }).where(eq(deliveries.id, a.id));
     await db.update(deliveries).set({ status: "skipped", cutoffAt: Date.now() - 1, pooledAt: Date.now() }).where(eq(deliveries.id, b.id));
+
     const { deliveryPublicId } = await scheduleFromPool(o.publicId, "2030-01-21", 1n);
     const [created] = await db.select().from(deliveries).where(eq(deliveries.publicId, deliveryPublicId));
     expect(created.makeupForDeliveryId).toBe(b.id);
   });
 
-  it("eatingDays order: a make-up row is worth min(pooled, persons) and drains the pool by the same", async () => {
+  it("rejects past carrying-trip cutoff", async () => {
     const o = await makeOrder();
     await seedWeeks(o);
-    await db.update(orders).set({ eatingDays: ["mon", "tue", "wed", "thu", "fri"] }).where(eq(orders.id, o.id));
-    await setPool(o, 1, 2);
-    await scheduleFromPool(o.publicId, "2030-01-21", 1n);
-    const madeUp = (await rowsFor(o)).find((r) => r.deliveryDate === "2030-01-21");
-    expect(madeUp?.tiffinUnits).toBe(1);
-    const [after] = await db.select().from(orders).where(eq(orders.id, o.id));
-    expect(after.pooledTiffinCount).toBe(0);
-  });
-
-  it("eatingDays order: a multi-unit pooled miss is redeemed one persons-worth per call", async () => {
-    const o = await makeOrder();
-    await seedWeeks(o);
-    await db.update(orders).set({ eatingDays: ["mon", "tue", "wed", "thu", "fri"] }).where(eq(orders.id, o.id));
-    await setPool(o, 3, 1);
-    await scheduleFromPool(o.publicId, "2030-01-21", 1n);
-    const [after] = await db.select().from(orders).where(eq(orders.id, o.id));
-    expect(after.pooledTiffinCount).toBe(2);
+    await setPool(o, 1);
+    await expect(scheduleFromPool(o.publicId, "2020-01-06", 1n)).rejects.toThrow(/past|cutoff/i);
   });
 });

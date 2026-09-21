@@ -51,6 +51,8 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
                 <Notice>
                   {humanDate(chosen.date)} already has a delivery. Both trips combine into one: {tiffins(chosen.merge.units)} on {humanDate(chosen.date)}. {formatCoversLabel(chosen.merge.covers)}.
                 </Notice>
+              ) : chosen && chosen.carriedOn !== chosen.date ? (
+                <Notice>We don&apos;t deliver on {humanDate(chosen.date)}. Your {tiffins(trip.units)} will arrive with the {humanDate(chosen.carriedOn)} delivery.</Notice>
               ) : chosen ? (
                 <Notice>Your {tiffins(trip.units)} will arrive on {humanDate(chosen.date)}.</Notice>
               ) : null}

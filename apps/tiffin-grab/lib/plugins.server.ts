@@ -7,14 +7,23 @@ import {
   getIntegrationsConfig,
   setIntegrationsConfig,
   getPaymentConfig,
+  ensurePaymentCatalog,
   integrationsConfigStore,
 } from "@/lib/services/app-settings.service";
 
+const payments = paymentsPlugin({
+  integrations: { get: getIntegrationsConfig, set: setIntegrationsConfig },
+  payments: { get: getPaymentConfig },
+});
+
 export const PLUGINS: PluginRegistry = [
-  paymentsPlugin({
-    integrations: { get: getIntegrationsConfig, set: setIntegrationsConfig },
-    payments: { get: getPaymentConfig },
-  }),
+  {
+    ...payments,
+    async install() {
+      await payments.install();
+      await ensurePaymentCatalog();
+    },
+  },
   cloverPlugin(integrationsConfigStore),
   googleReviewsPlugin(integrationsConfigStore),
   optimoRoutePlugin(),

@@ -97,11 +97,15 @@ export async function resumeMySubscription(orderPublicId: string, fromDate?: str
 
 // Turns one pooled tiffin into a real delivery on `dateIso` (must be after the last delivery and
 // a plan weekday — enforced server-side in scheduleFromPool).
-export async function scheduleMyPooledTiffin(orderPublicId: string, dateIso: string): Promise<ActionResult> {
+export async function scheduleMyPooledTiffin(
+  orderPublicId: string,
+  dateIso: string,
+): Promise<ActionResult<{ carriedOn: string; merged: boolean }>> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
-    await scheduleFromPool(orderPublicId, dateIso, await currentUserId());
+    const result = await scheduleFromPool(orderPublicId, dateIso, await currentUserId());
     await revalidateDeliverySurfaces(orderPublicId);
+    return { carriedOn: result.carriedOn, merged: result.merged };
   });
 }
 
@@ -128,13 +132,16 @@ export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwap
   });
 }
 
-export async function rescheduleMyDelivery(deliveryPublicId: string, newDateIso: string): Promise<ActionResult> {
+export async function rescheduleMyDelivery(
+  deliveryPublicId: string,
+  newDateIso: string,
+): Promise<ActionResult<{ carriedOn: string; merged: boolean }>> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
-    const { merged } = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
+    const result = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
     else revalidatePath("/me");
-    return merged ? "merged" : "moved";
+    return { carriedOn: result.carriedOn, merged: result.merged, message: result.merged ? "merged" : "moved" };
   });
 }

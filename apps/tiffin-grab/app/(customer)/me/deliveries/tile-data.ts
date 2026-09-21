@@ -16,6 +16,8 @@ export type TileData = {
   // Additional distinct picks beyond the primary one shown on the tile face (e.g. a second
   // category's dish, or a second unit of a selectable one) — rendered as a "+N" badge.
   extraCount: number;
+  /** Eating days this trip carries (>1 → "2 days" badge on the calendar cell). */
+  coverCount: number;
 };
 
 export function cellToTileData(cell: CalendarCell): TileData {
@@ -33,5 +35,6 @@ export function cellToTileData(cell: CalendarCell): TileData {
     dishImage: option?.image ?? null,
     dishCategory: option?.category ?? null,
     extraCount: Math.max(picks.length - 1, 0),
+    coverCount: cell.coverCount ?? 1,
   };
 }

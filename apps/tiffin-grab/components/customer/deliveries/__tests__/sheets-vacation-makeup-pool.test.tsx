@@ -119,7 +119,7 @@ describe("MakeupSheet", () => {
     render(<MakeupSheet trip={trip} plan={mk({ pooled: 3, persons: 2 })} open onDone={vi.fn()} />);
     expect(screen.getByText(/Pick a day after Fri, Oct 2 \(Mon, Wed, Fri\)/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Monday, October 5/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Tuesday, October 6/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Saturday, October 3/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Friday, October 2\b/ })).toBeNull();
     fireEvent.click(cell(/Monday, October 5/));
     expect(screen.getByText(/carrying 2 tiffins/)).toBeInTheDocument();

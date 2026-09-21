@@ -62,9 +62,13 @@ export interface RepriceResult {
   coinCap: { maxCoins: number; maxPct: number | null; message: string | null } | null;
 }
 
+function checkoutRails(cfg: Awaited<ReturnType<typeof getPaymentConfig>>) {
+  return enabledMethods(cfg).filter((m) => m.id === "cash" || m.id === "etransfer");
+}
+
 export async function listCheckoutPaymentMethods(): Promise<CheckoutPaymentMethod[]> {
   const cfg = await getPaymentConfig();
-  return enabledMethods(cfg).map((m) => ({
+  return checkoutRails(cfg).map((m) => ({
     id: m.id,
     label: m.label,
     instructions: m.instructions,
@@ -93,7 +97,7 @@ export async function reprice(
   const postCatalog = postCatalogSubtotal(base.subtotal, base.adjustments);
 
   const paymentCfg = await getPaymentConfig();
-  const paymentMethods = enabledMethods(paymentCfg).map((m) => ({
+  const paymentMethods = checkoutRails(paymentCfg).map((m) => ({
     id: m.id,
     label: m.label,
     instructions: m.instructions,

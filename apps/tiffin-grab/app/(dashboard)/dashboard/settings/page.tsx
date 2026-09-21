@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRightIcon,
+  BanknoteIcon,
   CreditCardIcon,
   HelpCircleIcon,
   PuzzleIcon,
@@ -82,8 +83,8 @@ export default async function SettingsPage() {
     sections.push({
       key: "payments",
       label: "Payment",
-      description: "Configure installed payment providers — taxes, payee, and enablement.",
-      icon: CreditCardIcon,
+      description: "Cash on delivery is on by default. Add e-Transfer when you need it.",
+      icon: BanknoteIcon,
       href: "/dashboard/settings/payments",
     });
   }

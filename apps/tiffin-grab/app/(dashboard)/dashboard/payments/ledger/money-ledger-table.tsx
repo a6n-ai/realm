@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ScrollTextIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, type Column, type FacetDef } from "@/components/ds";
+import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import type { SortState } from "@/lib/list/sort";
 import { LEDGER_TYPE_OPTIONS, type LedgerSortKey } from "../payment-facets";
@@ -36,17 +36,32 @@ const COLUMNS: readonly Column<LedgerSortKey | "memo">[] = [
   { key: "amount", label: "Amount", sortable: true, align: "right" },
 ];
 
-export function MoneyLedgerTable({ rows, sort }: { rows: Row[]; sort: SortState<LedgerSortKey> }) {
+export function MoneyLedgerTable({
+  rows,
+  total,
+  page,
+  size,
+  sort,
+}: {
+  rows: Row[];
+  total: number;
+  page: number;
+  size: number;
+  sort: SortState<LedgerSortKey>;
+}) {
   const tz = useTimezone();
   return (
+    <div className="space-y-4">
     <DataTable
       columns={COLUMNS}
       rows={rows}
       rowKey={(r) => r.publicId}
+      idAccessor={(r) => r.publicId}
       sort={sort as SortState<LedgerSortKey | "memo">}
       filters={<ListSearchFilters spec={SPEC} placeholder="Search ledger…" shortPlaceholder="Search…" />}
       emptyIcon={ScrollTextIcon}
       emptyMessage="No money movements yet. Approved payments, refunds and discounts appear here."
+      emptySearchMessage="No ledger entries match your search."
       renderRow={(r) => {
         const credit = r.direction === "credit";
         return (
@@ -74,9 +89,11 @@ export function MoneyLedgerTable({ rows, sort }: { rows: Row[]; sort: SortState<
         );
       }}
     />
+      <ListPagination page={page} size={size} total={total} />
+    </div>
   );
 }
 
 export function MoneyLedgerTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <DataTable.Skeleton columns={COLUMNS} hasId />;
 }

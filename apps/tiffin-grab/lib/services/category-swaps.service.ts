@@ -41,6 +41,7 @@ export async function applyDeliverySwap(
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot swap on a ${row.status} delivery`);
     const eatingDate = forDate ?? row.deliveryDate;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(eatingDate)) throw new ValidationError("Swap date must be ISO YYYY-MM-DD");
     if (!coveredDates(row).includes(eatingDate)) throw new ValidationError("This delivery doesn't cover that day");
     // NULL keeps legacy semantics (trip's own date) for the readers that resolve it.
     const storedForDate = eatingDate === row.deliveryDate ? null : eatingDate;
@@ -61,9 +62,7 @@ export async function applyDeliverySwap(
     if (!quantities.ok) throw new ValidationError(quantities.reason);
     const qtyTo = quantities.qtyTo;
 
-    // Stack-aware bound check: fold every swap already applied to this delivery before
-    // checking whether fromCategory has enough left to give up — a customer can stack
-    // several different swaps on one day, but never past what's actually there.
+    // Stack-aware bound check: only swaps for this eating day count toward the stack.
     const existing = await tx.select({
       fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate,
@@ -99,7 +98,7 @@ export async function applyDeliverySwap(
     });
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "category_swap_applied",
-      note: `${fromPicks} ${fromCategory} → ${qtyTo} ${toCategory}`,
+      note: `${fromPicks} ${fromCategory} → ${qtyTo} ${toCategory} (eat ${eatingDate})`,
       createdBy: actorId,
     });
   });

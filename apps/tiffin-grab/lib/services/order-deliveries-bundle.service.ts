@@ -14,6 +14,13 @@ import {
   myTiffinCounts,
   type Subscription,
 } from "@/lib/services/customer-deliveries.service";
+import {
+  eatingDaysByDeliveryPublicId,
+  loadTripEatingDays,
+  type TripEatingDay,
+} from "@/lib/services/trip-eating-days.service";
+
+export type { TripEatingDay };
 
 export async function loadOrderDeliveriesBundle(
   userId: bigint,
@@ -59,9 +66,24 @@ export async function loadOrderDeliveriesBundle(
       toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom,
       qtyTo: deliveryCategorySwaps.qtyTo,
+      forDate: deliveryCategorySwaps.forDate,
     })
     .from(deliveryCategorySwaps)
     .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id)));
+
+  const tripEating = selectedDeliveries.length === 0
+    ? []
+    : await loadTripEatingDays(
+        selected.publicId,
+        selectedDeliveries.map((d) => ({
+          id: d.id,
+          publicId: d.publicId,
+          deliveryDate: d.deliveryDate,
+          coversDates: d.coversDates,
+          cutoffAt: d.cutoffAt,
+        })),
+      );
+  const eatingByPublicId = eatingDaysByDeliveryPublicId(tripEating);
 
   const deliveries = await Promise.all(
     selectedDeliveries.map(async (d) => {
@@ -77,6 +99,7 @@ export async function loadOrderDeliveriesBundle(
         swapPairs,
         mealSizeCategories,
         appliedSwaps: allAppliedSwaps.filter((s) => s.deliveryId === d.id),
+        eatingDays: eatingByPublicId.get(d.publicId) ?? [],
       };
     }),
   );

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CreditCardIcon } from "lucide-react";
+import { BanknoteIcon } from "lucide-react";
 import { PageHeader } from "@foundry/design-system";
 import { PAYMENTS_PLUGIN_ID } from "@foundry/payments/plugin";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -15,11 +15,11 @@ export default async function PaymentsSettingsLayout({ children }: { children: R
   return (
     <div className="grid gap-6">
       <PageHeader
-        icon={CreditCardIcon}
+        icon={BanknoteIcon}
         title="Payment"
         subtitle={
           active
-            ? "Enable a method and families can pay for a booking."
+            ? "Cash on delivery is on by default. e-Transfer is optional. Card payments come later via Stripe."
             : "Activate Payments under Integrations to collect booking fees. Method tabs stay available either way."
         }
       />

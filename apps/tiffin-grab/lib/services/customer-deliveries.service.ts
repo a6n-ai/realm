@@ -288,7 +288,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     weekdays: order.weekdays as DayOfWeek[] | null,
     includeSaturday: !order.eatingDays?.length && order.includeSaturday,
     includeSunday: !order.eatingDays?.length && order.includeSunday,
-  });
+  }).filter((d) => d !== "sat" && d !== "sun");
 
   return {
     total: order.tiffinCount,
@@ -541,6 +541,8 @@ export type CalendarDay = {
   swapAllowance?: null;
   /** Resolved meal per covered eating day other than the trip's own date (a carried day has no row of its own). */
   carriedMeals?: Record<string, ResolvedMeal>;
+  /** Eating days this trip carries (covers_dates length); 1 for legacy single-day rows. */
+  coverCount?: number;
 };
 
 // Day-cell aggregator for the customer calendar (this week + next week). Composed entirely from
@@ -641,6 +643,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
         ...tripFields(row),
         ...swapFields(row),
         ...(await carriedFields(row)),
+        coverCount: coveredDates(row).length,
       });
       continue;
     }
@@ -685,6 +688,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       ...tripFields(row),
       ...swapFields(row),
       ...(await carriedFields(row)),
+        coverCount: coveredDates(row).length,
     });
   }
   return out;

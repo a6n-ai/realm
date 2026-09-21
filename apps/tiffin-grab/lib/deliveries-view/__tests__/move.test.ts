@@ -12,11 +12,19 @@ describe("moveOptions", () => {
       { date: "2026-09-25", status: "scheduled", units: 3, covers: ["2026-09-24", "2026-09-25"] },
       { date: "2026-09-28", status: "skipped" },
     ], NOW, ctx, "2026-09-21");
-    expect(o.map((x) => x.date).slice(0, 5)).toEqual(["2026-09-21", "2026-09-23", "2026-09-25", "2026-09-28", "2026-09-30"]);
-    expect(o[0]!.disabledReason).toMatch(/closed/);
-    expect(o[1]!.disabledReason).toMatch(/moving from/);
-    expect(o[2]).toMatchObject({ disabledReason: undefined, merge: { units: 4, covers: ["2026-09-23", "2026-09-24", "2026-09-25"] } });
-    expect(o[3]!.disabledReason).toMatch(/held/);
+    const at = (d: string) => o.find((x) => x.date === d)!;
+    expect(at("2026-09-21").disabledReason).toMatch(/closed/);
+    expect(at("2026-09-23").disabledReason).toMatch(/moving from/);
+    expect(at("2026-09-25")).toMatchObject({ disabledReason: undefined, merge: { units: 4, covers: ["2026-09-24", "2026-09-25"] } });
+    expect(at("2026-09-28").disabledReason).toMatch(/held/);
+  });
+  it("eat-day picks snap to the carrying trip: weekends ride Friday, off-pattern days the earlier trip", () => {
+    const o = moveOptions(trip, [{ date: "2026-09-25", status: "scheduled", units: 1, covers: ["2026-09-25"] }], NOW, ctx, "2026-09-24", 5);
+    const sat = o.find((x) => x.date === "2026-09-26")!;
+    expect(sat).toMatchObject({ carriedOn: "2026-09-25", disabledReason: undefined });
+    expect(sat.merge!.covers).toEqual(["2026-09-25", "2026-09-26"]);
+    expect(o.find((x) => x.date === "2026-09-24")).toMatchObject({ carriedOn: "2026-09-23", disabledReason: "That day already rides on this trip." });
+    expect(o.find((x) => x.date === "2026-09-27")!.carriedOn).toBe("2026-09-25");
   });
   it("pooled trip may only go after the last delivery to an open day", () => {
     const o = moveOptions({ ...trip, pooled: true }, [], NOW, ctx, "2026-09-30", 10);

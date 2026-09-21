@@ -1,5 +1,7 @@
 import { cutoffMsFor, parseIsoDateUtc } from "@foundry/commons";
 import { mergeCoverage } from "@/lib/menu/coverage";
+import { carryTripDateIso } from "@/lib/menu/carry-trip";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from "./index";
 
 export type MoveOption = {
@@ -7,31 +9,38 @@ export type MoveOption = {
   disabledReason?: string;
   /** Set when a scheduled trip already sits on this day: moving here combines the two. */
   merge: { units: number; covers: string[] } | null;
+  /** Delivery day that carries this eating day: weekends and off-pattern days snap to the earlier trip. */
+  carriedOn: string;
 };
 
-const KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
 /**
- * Mirrors rescheduleDelivery's checks (plan weekday, no weekend, not past, target cutoff open,
- * target not held) so the picker only offers days the server will accept. The server stays authoritative.
+ * Mirrors rescheduleDelivery: the customer picks the day they want to EAT; it snaps to the carrying
+ * trip (nearest plan weekday on or before it, so weekends ride Friday). Every check (past, cutoff,
+ * held target, already-covered) runs on the carrying trip. The server stays authoritative.
  */
 export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers">[], now: number, ctx: PlanContext, today: string, horizon = 28): MoveOption[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
+  const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun") as DayOfWeek[];
   const out: MoveOption[] = [];
   const cursor = parseIsoDateUtc(today);
   for (let i = 0; i < horizon; i++, cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     const date = cursor.toISOString().slice(0, 10);
-    const key = KEYS[cursor.getUTCDay()]!;
-    if (key === "sat" || key === "sun" || !ctx.deliveryWeekdays.includes(key)) continue;
-    const target = byDate.get(date);
+    const carriedOn = carryTripDateIso(date, weekdays);
+    if (!carriedOn) continue;
+    const target = byDate.get(carriedOn);
     let disabledReason: string | undefined;
-    if (date === trip.date) disabledReason = "This is the day you're moving from.";
-    else if (now > cutoffMsFor(date, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(date)} is already closed for changes.`;
-    else if (trip.pooled && ctx.lastDeliveryDate && date <= ctx.lastDeliveryDate) disabledReason = `A pooled tiffin can only go after ${humanDate(ctx.lastDeliveryDate)}.`;
-    else if (target && target.status !== "scheduled") disabledReason = `${humanDate(date)} already has a held trip. Pick another day.`;
-    else if (target && trip.pooled) disabledReason = `${humanDate(date)} already has a delivery. Pick an open day for a pooled tiffin.`;
-    const merge = target?.status === "scheduled" ? { units: (target.units ?? 1) + trip.units, covers: mergeCoverage(trip.coversDates, target.covers ?? [date]) } : null;
-    out.push({ date, disabledReason, merge });
+    if (carriedOn === trip.date) disabledReason = date === trip.date ? "This is the day you're moving from." : "That day already rides on this trip.";
+    else if (carriedOn < today || now > cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
+    else if (trip.pooled && ctx.lastDeliveryDate && carriedOn <= ctx.lastDeliveryDate) disabledReason = `A pooled tiffin can only go after ${humanDate(ctx.lastDeliveryDate)}.`;
+    else if (target && target.status !== "scheduled") disabledReason = `${humanDate(carriedOn)} already has a held trip. Pick another day.`;
+    else if (target && trip.pooled) disabledReason = `${humanDate(carriedOn)} already has a delivery. Pick an open day for a pooled tiffin.`;
+    let merge: MoveOption["merge"] = null;
+    if (target?.status === "scheduled" && carriedOn !== trip.date) {
+      const carried = trip.coversDates.length === 1 ? [date] : trip.coversDates;
+      const covers = mergeCoverage(carried, target.covers ?? [carriedOn]);
+      merge = { units: (target.units ?? 1) + trip.units, covers };
+    }
+    out.push({ date, disabledReason, merge, carriedOn });
   }
   return out;
 }

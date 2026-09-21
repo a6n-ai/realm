@@ -119,6 +119,7 @@ function MethodCard({
   onRemove: () => void;
 }) {
   const setTaxes = (taxes: TaxLine[]) => onPatch({ taxes });
+  const needsPayee = method.id === "etransfer";
 
   return (
     <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
@@ -149,24 +150,30 @@ function MethodCard({
             className="h-10"
           />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-muted-foreground text-xs">
-            Payee handle (e-Transfer email / phone)
-          </Label>
-          <Input
-            value={method.payeeHandle ?? ""}
-            placeholder="pay@yourbrand.ca"
-            onChange={(e) => onPatch({ payeeHandle: e.target.value })}
-            className="h-10"
-          />
-        </div>
+        {needsPayee ? (
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-muted-foreground text-xs">
+              Payee handle (e-Transfer email / phone)
+            </Label>
+            <Input
+              value={method.payeeHandle ?? ""}
+              placeholder="pay@yourbrand.ca"
+              onChange={(e) => onPatch({ payeeHandle: e.target.value })}
+              className="h-10"
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label className="text-muted-foreground text-xs">Instructions shown to the customer</Label>
         <Textarea
           value={method.instructions ?? ""}
-          placeholder="Send an Interac e-Transfer to the email above and include your order reference."
+          placeholder={
+            method.id === "cash"
+              ? "Staff will collect cash on delivery. Bring exact change if you can."
+              : "Send an Interac e-Transfer to the email above and include your order reference."
+          }
           onChange={(e) => onPatch({ instructions: e.target.value })}
           rows={2}
         />

@@ -63,7 +63,10 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
 
   async enabledRails(): Promise<PaymentMethodConfig[]> {
     if (!(await this.paymentsInstalled())) return [];
-    return enabledMethods(await getPaymentConfig());
+    // Catalog is cash + e-Transfer only; ignore any leftover manual/card row.
+    return enabledMethods(await getPaymentConfig()).filter(
+      (m) => m.id === "cash" || m.id === "etransfer",
+    );
   }
 
   async createForBooking(input: {

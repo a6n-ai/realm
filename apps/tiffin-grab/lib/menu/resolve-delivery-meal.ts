@@ -157,9 +157,9 @@ export async function resolveDeliveryMeal(
   // null is a defensive fallback (no delivery row = no swaps possible) — every
   // real caller has one.
   deliveryId: bigint | null,
-  // The eating date being resolved. Omit for the trip's own date; pass it for a carried day so
-  // that day's swaps (for_date) are used, not the trip's own-date ones.
-  options: { forDate?: string } = {},
+  // The eating date being resolved. Omit for the trip's own date; pass `forDate` (or the explicit
+  // `eatingDate` + `tripDate` pair) for a carried day so that day's swaps (for_date) are used.
+  options: { forDate?: string; eatingDate?: string; tripDate?: string } = {},
 ): Promise<ResolvedCategory[]> {
   // forPlan, never forPlanType: buildMealsGrid decides which categories to render with
   // forPlan(order.planId), so resolving against the plan_type union made the two disagree —
@@ -181,13 +181,14 @@ export async function resolveDeliveryMeal(
   let swaps: SwapRow[] = [];
   if (deliveryId != null) {
     const [trip] = await db.select({ deliveryDate: deliveries.deliveryDate }).from(deliveries).where(eq(deliveries.id, deliveryId)).limit(1);
-    const eatingDate = options.forDate ?? trip?.deliveryDate;
+    const tripDate = options.tripDate ?? trip?.deliveryDate;
+    const eatingDate = options.eatingDate ?? options.forDate ?? tripDate;
     const rows = await db
       .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
       .from(deliveryCategorySwaps)
       .where(eq(deliveryCategorySwaps.deliveryId, deliveryId))
       .orderBy(asc(deliveryCategorySwaps.id));
-    swaps = trip && eatingDate ? rows.filter((r) => swapAppliesTo(r.forDate, trip.deliveryDate, eatingDate)) : rows;
+    swaps = tripDate && eatingDate ? rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatingDate)) : rows;
   }
 
   const { planDishIds, exclusiveDishIds, maxTuByCat } = await defaultPickContext(order);

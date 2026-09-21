@@ -17,6 +17,7 @@ export default async function PaymentMethodSettingsPage({ params }: Props) {
 }
 
 async function MethodFormLoader({ methodId }: { methodId: string }) {
+  if (methodId !== "cash" && methodId !== "etransfer") notFound();
   const cfg = await ensurePaymentCatalog();
   const method = cfg.methods.find((m) => m.id === methodId);
   if (!method) notFound();

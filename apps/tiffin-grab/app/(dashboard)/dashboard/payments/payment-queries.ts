@@ -1,4 +1,5 @@
 import { asc, desc, eq, ilike, inArray, or, sql, and, type SQL } from "drizzle-orm";
+import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -26,11 +27,12 @@ const csv = (v: string | undefined, allowed: readonly { value: string }[]) =>
     .split(",")
     .filter((x) => allowed.some((a) => a.value === x));
 
-/** Newest first by default, capped: an ops queue, not a report. `where` pins a tab's own rule. */
+/** Newest first by default, server-paginated like Orders. `where` pins a tab's own rule. */
 export async function listPayments(
   sp: Sp,
   opts: { where?: SQL } = {},
-): Promise<{ rows: PaymentRow[]; sort: SortState<PaymentSortKey> }> {
+): Promise<{ rows: PaymentRow[]; total: number; page: number; size: number; sort: SortState<PaymentSortKey> }> {
+  const { page } = parseFilterState([], sp);
   const sort = parseSort(sp, PAYMENT_SORT_KEYS, { column: "time", dir: "desc" });
   const q = sp.q?.trim();
   const statuses = csv(sp.status, PAYMENT_STATUS_OPTIONS);
@@ -51,6 +53,12 @@ export async function listPayments(
   );
 
   const col = SORT_COL[sort.column];
+  const [{ total }] = await db
+    .select({ total: sql<number>`cast(count(*) as int)` })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .leftJoin(users, eq(users.id, orders.userId))
+    .where(where);
   const rows = await db
     .select({
       publicId: payments.publicId,
@@ -69,7 +77,14 @@ export async function listPayments(
     .leftJoin(users, eq(users.id, orders.userId))
     .where(where)
     .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-    .limit(100);
+    .limit(page.size)
+    .offset(page.page * page.size);
 
-  return { rows: rows.map(({ proof, ...r }) => ({ ...r, proofThumb: proof?.thumbUrl ?? null })), sort };
+  return {
+    rows: rows.map(({ proof, ...r }) => ({ ...r, proofThumb: proof?.thumbUrl ?? null })),
+    total,
+    page: page.page,
+    size: page.size,
+    sort,
+  };
 }
