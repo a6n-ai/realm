@@ -1,7 +1,7 @@
 "use client";
 import { ChevronLeft, ChevronRight, Truck, Utensils } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { STATUS_LABEL, type DeliveryStatus } from "@/components/customer/kit";
+import { StatusDot, STATUS_LABEL, type DeliveryStatus } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { addDays, weekDays } from "@/lib/deliveries-view/week";
 
@@ -10,18 +10,9 @@ export type StripDot = { orderId: string; status: DeliveryStatus; truck: boolean
 const WD = ["M", "T", "W", "T", "F", "S", "S"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
-const RING: Record<DeliveryStatus, string | null> = { delivered: "var(--s-delivered,#10b981)", hold: "var(--s-hold,#f43f5e)", vacation: "var(--s-vac,#d98a00)", combined: "var(--muted-foreground,#6E6558)", upcoming: null };
-
-/** Plan-coloured dot; the ring carries status so colour is never the only signal. */
-function Dot({ color, status }: { color: string; status: DeliveryStatus }) {
-  const ring = RING[status];
-  return (
-    <span
-      aria-hidden
-      className="inline-block size-2.5 rounded-full"
-      style={{ background: status === "combined" ? "transparent" : color, boxShadow: ring ? `0 0 0 1.5px ${ring}` : undefined, border: status === "combined" ? `1.5px dashed ${color}` : undefined }}
-    />
-  );
+/** Status dot: colour is the delivery status (delivered, upcoming, hold, vacation), not the plan. */
+function Dot({ status }: { status: DeliveryStatus }) {
+  return <StatusDot decorative status={status} className="size-2.5" />;
 }
 
 const label = (r: string) => `${MON.format(d(r))} ${d(r).getUTCDate()} – ${MON.format(d(addDays(r, 6))) === MON.format(d(r)) ? "" : `${MON.format(d(addDays(r, 6)))} `}${d(addDays(r, 6)).getUTCDate()}`;
@@ -99,7 +90,7 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
                       </span>
                       <b aria-hidden className={cn("grid size-7 place-items-center rounded-full text-[16px] tabular-nums", iso === today && !sel && "border-2 border-[var(--primary)]")}>{d(iso).getUTCDate()}</b>
                       <span aria-hidden className="flex h-3 items-center justify-center gap-0.5">
-                        {!picker && ds.map((x, k) => <Dot key={k} color={colorOf(x.orderId)} status={x.status} />)}
+                        {!picker && ds.map((x, k) => <Dot key={k} status={x.status} />)}
                       </span>
                     </button>
                   );

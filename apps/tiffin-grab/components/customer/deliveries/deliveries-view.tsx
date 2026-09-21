@@ -129,15 +129,13 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         renew={renewDays(plan.counts.lastDeliveryDate, today)}
         onVacation={!!ctx.onVacation}
         onVacationClick={() => setActive("vacation")}
-        color={multi ? color : undefined}
       />
 
       {multi && (
         <nav aria-label="Your plans" className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap">
-          {subs.map((s, i) => (
+          {subs.map((s) => (
             <PlanTab key={s.publicId} selected={s.publicId === plan.orderId} onClick={() => switchPlan(s.publicId)}>
               <span className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
-                <span aria-hidden className="size-2 rounded-full" style={{ background: PLAN_COLORS[i % PLAN_COLORS.length] }} />
                 {s.mealSizeName}{s.status === "paused" ? " (paused)" : ""}
               </span>
               <span className="text-xs leading-tight text-[var(--muted-foreground,#6E6558)]">{windowLabel(windows[s.publicId], today)}</span>
