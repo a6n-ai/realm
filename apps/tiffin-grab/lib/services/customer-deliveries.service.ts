@@ -148,6 +148,24 @@ export async function myPrimarySubscription(userId: bigint): Promise<Subscriptio
   return pool.find((s) => s.publicId === newest?.publicId) ?? pool[0]!;
 }
 
+/** First, last and next (>= today) delivery date of each of the customer's plans, keyed by order publicId. */
+export type SubscriptionWindow = { first: string; last: string; next: string | null };
+
+export async function mySubscriptionWindows(userId: bigint, today: string): Promise<Record<string, SubscriptionWindow>> {
+  const rows = await db
+    .select({
+      publicId: orders.publicId,
+      first: sql<string>`min(${deliveries.deliveryDate})`,
+      last: sql<string>`max(${deliveries.deliveryDate})`,
+      next: sql<string | null>`min(${deliveries.deliveryDate}) filter (where ${deliveries.deliveryDate} >= ${today})`,
+    })
+    .from(deliveries)
+    .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .where(and(eq(orders.userId, userId), inArray(deliveries.status, [...VISIBLE])))
+    .groupBy(orders.publicId);
+  return Object.fromEntries(rows.map((r) => [r.publicId, { first: String(r.first), last: String(r.last), next: r.next == null ? null : String(r.next) }]));
+}
+
 export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
   return (await myPrimarySubscription(userId)) != null;
 }

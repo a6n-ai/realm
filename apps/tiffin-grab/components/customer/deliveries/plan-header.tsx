@@ -1,14 +1,25 @@
 "use client";
 import Link from "next/link";
-import type { Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
+import type { Subscription, SubscriptionWindow, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
+const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+/** "Running · to Sep 25" / "Starts Oct 26" / "Finished": tells same-sized plans apart. */
+function windowLabel(w: SubscriptionWindow | undefined, today: string): string | null {
+  if (!w) return null;
+  if (w.next == null) return "Finished";
+  return w.first > today ? `Starts ${shortDate(w.first)}` : `Running · to ${shortDate(w.last)}`;
+}
+
 export function PlanHeader({
-  sub, subs, counts, renew, onVacation, onVacationClick, subHref,
+  sub, subs, windows, today, counts, renew, onVacation, onVacationClick, subHref,
 }: {
   sub: Subscription;
   subs: Subscription[];
+  windows: Record<string, SubscriptionWindow>;
+  today: string;
   counts: TiffinCounts;
   renew: number | null;
   onVacation: boolean;
@@ -44,17 +55,24 @@ export function PlanHeader({
         {onVacation && " · On vacation"}
       </p>
       {subs.length > 1 && (
-        <nav aria-label="Subscriptions" className="mt-3 flex flex-wrap gap-2">
-          {subs.map((s) => (
-            <Link
-              key={s.publicId}
-              href={subHref(s.publicId)}
-              aria-current={s.publicId === sub.publicId ? "true" : undefined}
-              className={`inline-flex min-h-11 items-center rounded-full border-[1.5px] px-4 text-sm font-semibold ${s.publicId === sub.publicId ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)]"}`}
-            >
-              {s.mealSizeName}{s.status === "paused" ? " (paused)" : ""}
-            </Link>
-          ))}
+        <nav aria-label="Your plans" className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap">
+          {[...subs]
+            .sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? ""))
+            .map((s) => {
+              const current = s.publicId === sub.publicId;
+              const label = windowLabel(windows[s.publicId], today);
+              return (
+                <Link
+                  key={s.publicId}
+                  href={subHref(s.publicId)}
+                  aria-current={current ? "true" : undefined}
+                  className={`flex min-h-11 shrink-0 flex-col justify-center rounded-2xl border-[1.5px] px-4 py-1.5 text-left [touch-action:manipulation] ${current ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)] bg-[var(--card,#fff)]"}`}
+                >
+                  <span className="text-sm font-semibold leading-tight">{s.mealSizeName}{s.status === "paused" ? " (paused)" : ""}</span>
+                  {label && <span className="text-xs leading-tight text-[var(--muted-foreground,#6E6558)]">{label}</span>}
+                </Link>
+              );
+            })}
         </nav>
       )}
     </header>

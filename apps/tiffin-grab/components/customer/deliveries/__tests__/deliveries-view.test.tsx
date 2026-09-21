@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import { ACTION_SHEETS } from "../actions/registry";
@@ -31,7 +31,7 @@ const trips = [
   trip({ date: "2026-09-25", status: "hold" }),
 ];
 const view = (sel: string | null = "2026-09-23", t = trips, p = plan) =>
-  render(<DeliveriesView plan={p} subs={[p.sub]} trips={t} now={NOW} monthKey="2026-09" initialTrip={sel} />);
+  render(<DeliveriesView plan={p} subs={[p.sub]} windows={{}} trips={t} now={NOW} monthKey="2026-09" initialTrip={sel} />);
 
 describe("DeliveriesView", () => {
   it("shows plan summary with tiffin counts, hold days and status pills", () => {
@@ -95,8 +95,36 @@ describe("DeliveriesView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show earlier" }));
     expect(screen.getAllByRole("button", { name: /Sat, Sep 19/ }).length).toBe(1);
   });
+  it("plan switcher tells same-sized plans apart by their dates and links each one", () => {
+    const later = { ...plan.sub, publicId: "ord_later" };
+    const last = { ...plan.sub, publicId: "ord_last" };
+    render(
+      <DeliveriesView
+        plan={plan}
+        subs={[later, plan.sub, last]}
+        windows={{
+          [plan.sub.publicId]: { first: "2026-09-18", last: "2026-09-25", next: "2026-09-22" },
+          ord_later: { first: "2026-09-28", last: "2026-10-21", next: "2026-09-28" },
+          ord_last: { first: "2026-10-26", last: "2026-11-18", next: "2026-10-26" },
+        }}
+        trips={trips}
+        now={NOW}
+        monthKey="2026-09"
+        initialTrip="2026-09-23"
+      />,
+    );
+    const nav = screen.getByRole("navigation", { name: "Your plans" });
+    const links = within(nav).getAllByRole("link");
+    expect(links.map((l) => l.textContent)).toEqual([
+      expect.stringContaining("Running · to Sep 25"),
+      expect.stringContaining("Starts Sep 28"),
+      expect.stringContaining("Starts Oct 26"),
+    ]);
+    expect(links[1]!.getAttribute("href")).toContain("sub=ord_later");
+    expect(links[0]).toHaveAttribute("aria-current", "true");
+  });
   it("?action opens its sheet on load", () => {
-    render(<DeliveriesView plan={plan} subs={[plan.sub]} trips={trips} now={NOW} monthKey="2026-09" initialTrip="2026-09-23" initialAction="hold" />);
+    render(<DeliveriesView plan={plan} subs={[plan.sub]} windows={{}} trips={trips} now={NOW} monthKey="2026-09" initialTrip="2026-09-23" initialAction="hold" />);
     expect(screen.getByRole("dialog", { name: /^Hold / })).toBeInTheDocument();
   });
   it("empty month shows a plain message", () => {

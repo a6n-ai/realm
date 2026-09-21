@@ -19,10 +19,11 @@ import {
   myDeliveries,
   myPausePanel,
   myPrimarySubscription,
+  mySubscriptionWindows,
   myTiffinCounts,
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
-import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { currentMonthKey, monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
 
 export type HubSearchParams = Promise<{ month?: string; sub?: string; trip?: string; action?: string }>;
 type SearchParams = HubSearchParams;
@@ -45,9 +46,6 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();
   const today = zonedDateIso(now, timezone);
-  const monthKey = parseMonthParam(monthParam, today);
-  const { from, until } = monthFetchRange(monthKey, today);
-
   const [subs, waitlisted, primary] = await Promise.all([
     myActiveSubscriptions(userId),
     myWaitlistedSubscriptions(userId),
@@ -56,6 +54,12 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   if (subs.length === 0 || !primary) return <NoPlan waitlisted={waitlisted} />;
 
   const sub = (subParam ? subs.find((s) => s.publicId === subParam) : null) ?? primary;
+  const windows = await mySubscriptionWindows(userId, today);
+  // Open on the month of the plan's next delivery: a plan that starts next month must not land on an empty current month.
+  const hasMonthParam = !!monthParam && /^\d{4}-\d{2}$/.test(monthParam);
+  const nextDate = windows[sub.publicId]?.next ?? null;
+  const monthKey = hasMonthParam ? parseMonthParam(monthParam, today) : nextDate ? currentMonthKey(nextDate) : parseMonthParam(undefined, today);
+  const { from, until } = monthFetchRange(monthKey, today);
 
   const [rows, days, counts, pause, makeupSources, catalog, categoryRows, swapCategories] = await Promise.all([
     myDeliveries(userId, from, until),
@@ -87,7 +91,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
 
   return (
     <div className="mx-auto w-full max-w-[1280px]">
-      <DeliveriesView plan={plan} subs={subs} trips={trips} now={now} monthKey={monthKey} initialTrip={pickDefaultTrip(trips, tripParam)} initialAction={actionParam ?? null} />
+      <DeliveriesView plan={plan} subs={subs} windows={windows} trips={trips} now={now} monthKey={monthKey} initialTrip={pickDefaultTrip(trips, tripParam)} initialAction={actionParam ?? null} />
     </div>
   );
 }

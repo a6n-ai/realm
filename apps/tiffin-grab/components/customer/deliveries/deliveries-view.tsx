@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Card, DateStrip, Notice, Toast, type DeliveryStatus, type StripDay } from "@/components/customer/kit";
 import { FONT } from "@/components/customer/kit/cn";
 import { actionAvailability, buildDayStatusMap, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import type { Subscription } from "@/lib/services/customer-deliveries.service";
+import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import { actionModel } from "./action-model";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
@@ -32,6 +32,7 @@ const weekOf = (iso: string) => {
 interface Props {
   plan: PlanView;
   subs: Subscription[];
+  windows: Record<string, SubscriptionWindow>;
   trips: Trip[];
   now: number;
   monthKey: string;
@@ -59,7 +60,7 @@ function TripList({ trips, today, tz, selected, onSelect, limit, allowEarlier }:
   );
 }
 
-export function DeliveriesView({ plan, subs, trips, now, monthKey, initialTrip, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, windows, trips, now, monthKey, initialTrip, initialAction }: Props) {
   const router = useRouter();
   const resolve = useCallback((t: Trip | undefined) => (t?.mergedInto ? trips.find((x) => x.date === t.mergedInto) ?? t : t), [trips]);
   const [selected, setSelected] = useState(() => resolve(trips.find((t) => t.date === initialTrip))?.date ?? initialTrip);
@@ -130,6 +131,8 @@ export function DeliveriesView({ plan, subs, trips, now, monthKey, initialTrip, 
       <PlanHeader
         sub={sub}
         subs={subs}
+        windows={windows}
+        today={today}
         counts={plan.counts}
         renew={renewDays(plan.counts.lastDeliveryDate, today)}
         onVacation={!!ctx.onVacation}
