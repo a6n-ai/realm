@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
-import { useId, type InputHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn, FONT, FOCUS, SPRING } from "./cn";
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -29,6 +29,49 @@ export function Field({ label, hint, error, className, id, ...rest }: FieldProps
         className={cn(
           FOCUS,
           "min-h-[52px] rounded-2xl border bg-[var(--card)] px-4 text-base text-[var(--foreground)]",
+          error ? "border-[#be123c]" : "border-[var(--border)]",
+          className,
+        )}
+      />
+      {hint && (
+        <p id={hintId} className="text-[13px] text-[var(--muted-foreground,#6E6558)]">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={errId} role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string;
+  hint?: string;
+  error?: string;
+}
+
+export function Textarea({ label, hint, error, className, id, ...rest }: TextareaProps) {
+  const uid = useId();
+  const inputId = id ?? uid;
+  const hintId = `${inputId}-hint`;
+  const errId = `${inputId}-err`;
+  const describedBy = [hint && hintId, error && errId].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className={cn(FONT, "flex flex-col gap-1.5")}>
+      <label htmlFor={inputId} className="text-sm font-semibold">
+        {label}
+      </label>
+      <textarea
+        {...rest}
+        id={inputId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className={cn(
+          FOCUS,
+          "min-h-28 rounded-2xl border bg-[var(--card)] px-4 py-3 text-base text-[var(--foreground)]",
           error ? "border-[#be123c]" : "border-[var(--border)]",
           className,
         )}
