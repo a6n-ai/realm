@@ -33,7 +33,6 @@ export async function pickMyDish(input: {
       personIndex: input.personIndex, pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId,
       actorId,
     });
-    revalidatePath("/me/meals");
     revalidatePath("/me");
     revalidatePath(`/dashboard/orders/${input.orderId}`);
   });
@@ -53,7 +52,6 @@ export async function applyMyDishToWeek(input: {
       order, menuWeek: week, slot: input.slot, personIndex: input.personIndex,
       pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId, actorId,
     });
-    revalidatePath("/me/meals");
     revalidatePath("/me");
     revalidatePath(`/dashboard/orders/${input.orderId}`);
     // selectionsService.applyToWeek's skipped entries are { dateIso, reason }; the

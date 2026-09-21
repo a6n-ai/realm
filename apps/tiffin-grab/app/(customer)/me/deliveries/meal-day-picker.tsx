@@ -3,7 +3,7 @@
 // Interactive per-day meal picker for a pre-cutoff calendar cell — the calendar surface's
 // lighter-weight sibling to components/customer/meals/meal-picker.tsx's full weekly grid.
 // Supports multiple picks per category from the plan's categoryCounts (e.g. 2× Sabzi →
-// "Sabzi 1" / "Sabzi 2"). Still single-person (personIndex 1); multi-person stays on /me/meals.
+// "Sabzi 1" / "Sabzi 2"). Still single-person (personIndex 1); multi-person picks live in the Pick meals sheet.
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";

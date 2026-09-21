@@ -4,7 +4,6 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import type { PlanView } from "../../adapter";
-import { PickSheet } from "../pick-sheet";
 import { SwapSheet } from "../swap-sheet";
 
 const apply = vi.fn();
@@ -119,20 +118,5 @@ describe("SwapSheet", () => {
   it("cutoff passed while status still upcoming is locked", () => {
     swap(trip({ cutoffAt: Date.now() - 1000 }));
     expect(screen.getByText(/Changes closed/)).toBeInTheDocument();
-  });
-});
-
-describe("PickSheet", () => {
-  it("summarises each eating day and links to the menu for the trip date", () => {
-    render(<PickSheet trip={trip()} plan={plan} open onDone={vi.fn()} />);
-    expect(screen.getByText("Paneer, Jeera Rice")).toBeInTheDocument();
-    expect(screen.getByText("Dal")).toBeInTheDocument();
-    expect(screen.getByText(/Locks with/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Choose meals/ })).toHaveAttribute("href", `/me/meals?date=${mon}`);
-  });
-  it("shows default note when a day has no dishes, and reason when locked", () => {
-    render(<PickSheet trip={trip({ status: "delivered", eatingDays: [{ date: mon, dishSummary: null, swaps: [], locksWith: null }] })} plan={plan} open onDone={vi.fn()} />);
-    expect(screen.getByText(/Changes closed/)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Choose meals/ })).toBeNull();
   });
 });

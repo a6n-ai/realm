@@ -7,6 +7,8 @@ import { ACTION_SHEETS } from "../actions/registry";
 import { DeliveriesView } from "../deliveries-view";
 import type { PlanView } from "../adapter";
 
+vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: () => new Promise(() => {}) }));
+vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: vi.fn(), applyMyDishToWeek: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 afterEach(cleanup);
 
@@ -47,7 +49,7 @@ describe("DeliveriesView", () => {
     view();
     fireEvent.click(screen.getAllByRole("button", { name: /Pick meals/ })[0]!);
     expect(screen.getByRole("dialog", { name: "Pick meals" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Choose meals/ })).toHaveAttribute("href", "/me/meals?date=2026-09-23");
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
   });
   it("held trip: Resume is offered, Hold is not", () => {
     view("2026-09-25");

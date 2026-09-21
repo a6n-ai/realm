@@ -7,7 +7,7 @@ export type CustomerRoute = {
 
 export const CUSTOMER_ROUTES: CustomerRoute[] = [
   { id: "menu", path: "/me/menu", heading: /menu/i },
-  { id: "meals", path: "/me/meals", heading: /meal/i },
+  { id: "meals-redirect", path: "/me/meals", heading: /trips|no plan|subscription|start/i },
   { id: "deliveries", path: "/me", heading: /trips|no plan|subscription|start/i },
   { id: "deliveries-legacy", path: "/me/deliveries", heading: /trips|no plan|subscription|start/i },
   { id: "wallet", path: "/me/wallet", heading: /finance|wallet|coin|bill|transaction/i },

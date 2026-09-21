@@ -19,7 +19,7 @@ function fmt(ms: number): string {
 export function CutoffBanner({
   days,
   now: injectedNow,
-  // "days" means different things at each call site: the full week's dates on the /me/meals
+  // "days" means different things at each call site: the full week's dates on the admin order
   // grid, or a single day's cutoff on the /me/deliveries day-detail panel. When every entry is
   // past cutoff there's nothing left to count down to, so the fallback copy must match which
   // one was actually passed in — "this week's meals" is wrong when `days` only ever held one day.

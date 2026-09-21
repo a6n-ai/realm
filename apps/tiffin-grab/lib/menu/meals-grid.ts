@@ -61,6 +61,8 @@ export type MealsGridResult =
 export async function buildMealsGrid(
   order: MealOrder,
   settings: { timezone: string; cutoffHour: number },
+  /** Monday of the week to build; default is the current (or order-start) week. */
+  forWeekStart?: string,
 ): Promise<MealsGridResult> {
   // cutoffHour is intentionally unused here: lockMs/locked come from each row's own
   // stored cutoffAt (snapshotted when the delivery schedule was written), not recomputed
@@ -85,7 +87,7 @@ export async function buildMealsGrid(
   // subscriber who hasn't started yet). ISO date strings compare correctly with `>`.
   const thisMonday = thisWeekStartIso(Date.now(), timezone);
   const orderStartMonday = mondayOfIso(order.startDate);
-  const targetMonday = orderStartMonday > thisMonday ? orderStartMonday : thisMonday;
+  const targetMonday = forWeekStart ?? (orderStartMonday > thisMonday ? orderStartMonday : thisMonday);
   const releasedRef = await menuService.getReleasedWeek(targetMonday);
   if (!releasedRef) return { empty: "no-week" };
 

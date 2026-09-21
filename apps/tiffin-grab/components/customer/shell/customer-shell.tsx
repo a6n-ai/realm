@@ -19,7 +19,7 @@ type Tab = "deliveries" | "menu" | "account";
 function activeTab(p: string): Tab | null {
   if (MENU_PATHS.some((b) => under(p, b))) return "menu";
   if (ACCOUNT_PATHS.some((b) => under(p, b))) return "account";
-  if (p === "/me" || under(p, "/me") || under(p, "/me/meals")) return "deliveries";
+  if (p === "/me" || under(p, "/me")) return "deliveries";
   return null;
 }
 

@@ -71,4 +71,32 @@ test.describe("customer deliveries (trip timeline)", () => {
     await b.click();
     await expect(page.getByRole("dialog", { name: /schedule a make-up/i })).toBeVisible();
   });
+
+  test("pick meals sheet lists dishes and saves a choice", async ({ page }) => {
+    test.setTimeout(120_000);
+    await gotoDeliveries(page);
+    test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+    const d = new CustomerDeliveriesPage(page);
+    test.skip((await d.tripRows().count()) === 0, "No trips in the current month");
+    await d.selectFirstTrip();
+    const b = d.action(/pick meals/i);
+    test.skip(!(await b.isVisible()) || !(await b.isEnabled()), "First trip is past its cutoff");
+    await b.click();
+    const sheet = d.sheet(/pick meals/i);
+    await expect(sheet).toBeVisible({ timeout: 10_000 });
+    const tiles = sheet.locator("[aria-pressed=false]");
+    const empty = sheet.getByText(/isn.t out yet/i);
+    await expect(tiles.first().or(empty)).toBeVisible({ timeout: 30_000 });
+    test.skip((await empty.count()) > 0, "No released menu for the first trip");
+    await tiles.first().click();
+    await expect(sheet.getByRole("button", { name: "Apply to the whole week" }).first()).toBeVisible({ timeout: 10_000 });
+    await sheet.getByRole("button", { name: "Done" }).click();
+    await expect(sheet).toBeHidden();
+    await expect(page.getByText("Meals saved")).toBeVisible();
+  });
+
+  test("legacy /me/meals redirects into the pick sheet", async ({ page }) => {
+    await page.goto("/me/meals?date=2026-01-05", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/me\?action=pick&trip=2026-01-05/, { timeout: 30_000 });
+  });
 });
