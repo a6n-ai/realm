@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Info, Truck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, Truck, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -117,10 +117,13 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                       onClick={() => (w === weekStart ? setSel(iso) : goWeek(w, iso))}
                       className={cn("relative flex h-[72px] flex-col items-center justify-center gap-1 rounded-md border text-xs", picked ? "border-primary bg-primary/10 font-semibold" : "border-transparent hover:bg-muted", iso === plan.today && "ring-1 ring-primary")}
                     >
-                      <span className="text-muted-foreground">{weekdayShort(iso)[0]}</span>
+                      <span aria-hidden className="text-muted-foreground grid w-full grid-cols-[1fr_auto_1fr] items-center px-1">
+                        <span className="flex justify-end">{ds.length > 0 && <Utensils className="size-2.5" />}</span>
+                        <span className="px-1">{weekdayShort(iso)[0]}</span>
+                        <span className="flex justify-start">{ds.some((x) => x.truck) && <Truck className="size-2.5" />}</span>
+                      </span>
                       <b className="text-sm tabular-nums">{d(iso).getUTCDate()}</b>
                       <span className="flex h-3 items-center gap-0.5">
-                        {ds.some((x) => x.truck) && <Truck aria-hidden className="text-muted-foreground size-3" />}
                         {ds.map((x, i) => <span key={i} aria-hidden className={cn("size-2 rounded-full", STATUS_TONE[dotStatus(x, now)])} />)}
                       </span>
                     </button>
@@ -146,6 +149,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
               return (
                 <div key={r.date} role="listitem" className="flex items-center">
                   <button type="button" data-testid="trip-row" aria-pressed={on} onClick={() => setSel(r.date)} className={cn("flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-left", on ? "bg-muted" : "hover:bg-muted/60")}>
+                    <Utensils aria-hidden className="text-muted-foreground size-4 shrink-0" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium">{humanDate(r.date)}</span>
                       <span className="text-muted-foreground block truncate text-xs">{r.dish ?? "Default menu"}</span>
