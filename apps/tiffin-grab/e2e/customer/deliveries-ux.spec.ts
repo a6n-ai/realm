@@ -3,7 +3,7 @@ import { CustomerDeliveriesPage } from "../pages/customer-deliveries.page";
 
 async function gotoDeliveries(page: import("@playwright/test").Page) {
   await page.goto("/me", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/me\/deliveries/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/me\/?(\?|$)/, { timeout: 30_000 });
   await expect(page.locator("body")).not.toContainText(/something went wrong/i);
   await expect(page.getByRole("heading", { level: 1, name: /trips/i })).toBeVisible({ timeout: 30_000 });
 }
@@ -40,7 +40,7 @@ test.describe("customer deliveries (trip timeline)", () => {
     await expect(d.sheet(/pause deliveries|resume deliveries/i)).toBeVisible({ timeout: 10_000 });
   });
 
-  test("hold, move, swap and pick sheets open from the rail", async ({ page }) => {
+  test("hold, move, swap and pick sheets open from the trip actions", async ({ page }) => {
     test.setTimeout(120_000);
     await gotoDeliveries(page);
     test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");

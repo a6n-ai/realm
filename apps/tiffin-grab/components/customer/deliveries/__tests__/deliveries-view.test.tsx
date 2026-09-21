@@ -34,17 +34,16 @@ const view = (sel: string | null = "2026-09-23", t = trips, p = plan) =>
 describe("DeliveriesView", () => {
   it("shows plan summary with tiffin counts, hold days and status pills", () => {
     view();
-    expect(screen.getByText("Large")).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
-    expect(screen.getByText(/16 of 20 tiffins left/)).toHaveTextContent("2 hold days");
-    expect(screen.getByText("Renews in 11 days")).toBeInTheDocument();
+    const line = screen.getByText(/16 of 20 tiffins left/).closest("p")!;
+    expect(line).toHaveTextContent("Large");
+    expect(line).toHaveTextContent("2 hold days");
+    expect(line).toHaveTextContent("renews in 11 days");
   });
   it("selected trip detail lists eating-day dishes", () => {
     view();
-    expect(screen.getByText("Paneer")).toBeInTheDocument();
-    expect(screen.getByText("Jeera Rice")).toBeInTheDocument();
+    expect(screen.getByText("Paneer, Jeera Rice")).toBeInTheDocument();
   });
-  it("action rail has visible rows for an upcoming trip, opens the pick sheet in one click", () => {
+  it("inline actions are in the card for an upcoming trip, opens the pick sheet in one click", () => {
     view();
     fireEvent.click(screen.getAllByRole("button", { name: /Pick meals/ })[0]!);
     expect(screen.getByRole("dialog", { name: "Pick meals" })).toBeInTheDocument();
@@ -75,7 +74,28 @@ describe("DeliveriesView", () => {
     const day = (date: string) => ({ date, dishSummary: "Bhindi Masala, Bhindi Masala", swaps: [], locksWith: null });
     view("2026-09-23", [trip({ eatingDays: [day("2026-09-23"), day("2026-09-24")], units: 2 })]);
     expect(err.mock.calls.filter((c) => String(c[0]).includes("same key"))).toEqual([]);
+    expect(screen.getAllByText("Bhindi Masala ×2").length).toBe(2);
     err.mockRestore();
+  });
+  it("a merged source day has no row and folds into its target's covers line", () => {
+    const t = [
+      trip({ date: "2026-09-23", status: "combined-into", mergedInto: "2026-09-24", eatingDays: [] }),
+      trip({ date: "2026-09-24", units: 2, coversLabel: "Covers Wed + Thu", coversDates: ["2026-09-23", "2026-09-24"] }),
+    ];
+    view("2026-09-23", t);
+    expect(screen.queryByText("Nothing arrives")).toBeNull();
+    expect(screen.getAllByTestId("trip-row")).toHaveLength(2);
+    expect(screen.getAllByRole("heading", { name: "Thu, Sep 24" }).length).toBe(1);
+  });
+  it("earlier trips are hidden until asked for", () => {
+    view("2026-09-23", [trip({ date: "2026-09-19", status: "delivered", eatingDays: [] }), ...trips]);
+    expect(screen.queryByRole("button", { name: /Sat, Sep 19/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show earlier" }));
+    expect(screen.getAllByRole("button", { name: /Sat, Sep 19/ }).length).toBe(1);
+  });
+  it("?action opens its sheet on load", () => {
+    render(<DeliveriesView plan={plan} subs={[plan.sub]} trips={trips} now={NOW} monthKey="2026-09" initialTrip="2026-09-23" initialAction="hold" />);
+    expect(screen.getByRole("dialog", { name: /^Hold / })).toBeInTheDocument();
   });
   it("empty month shows a plain message", () => {
     view(null, []);

@@ -91,25 +91,18 @@ export function CustomerShell({ coinBalance, children }: { coinBalance: number; 
           <Link href="/me" aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "deliveries"))}>
             <CalendarDays aria-hidden className="size-6" />Deliveries
           </Link>
-          <span aria-hidden className="w-20 shrink-0" />
           <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={tabCls(tab === "menu")}>
             <MenuIcon aria-hidden className="size-6" />Menu
           </MenuButton>
           <Link href="/me/account" aria-current={tab === "account" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "account"))}>
             <User aria-hidden className="size-6" />Account
           </Link>
-          <Link
-            href="/subscribe"
-            aria-label="Order a new plan"
-            className={cn(FOCUS, "absolute left-1/2 top-1 grid size-12 -translate-x-1/2 place-items-center rounded-full bg-[var(--primary)] text-white shadow-[0_8px_24px_rgba(240,107,26,.4)] [touch-action:manipulation] active:scale-[.97]")}
-          >
-            <Plus aria-hidden className="size-7" />
-          </Link>
         </div>
       </nav>
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Menu">
         <MenuSection title="Meals">
+          <ListRow href="/subscribe" icon={<Plus className="size-[18px]" />} label="New order" sublabel="Start another plan" />
           <ListRow href="/me/menu" icon={<UtensilsCrossed className="size-[18px]" />} label="Weekly menu" sublabel="What is being served" />
           <ListRow href="/me/renew" icon={<RefreshCw className="size-[18px]" />} label="Renew plan" sublabel="Keep your meals coming" />
         </MenuSection>

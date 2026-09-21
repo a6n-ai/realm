@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-/** Customer `/me`: plan header, trip timeline rows, action rail/bar and sheets. */
+/** Customer `/me`: plan line, trip list rows, selected-trip card actions (inline on desktop, sticky bar on mobile) and sheets. */
 export class CustomerDeliveriesPage {
   constructor(readonly page: Page) {}
 
@@ -14,11 +14,11 @@ export class CustomerDeliveriesPage {
   }
 
   vacationButton() {
-    return this.page.getByRole("button", { name: /going away|on vacation/i }).first();
+    return this.page.getByRole("button", { name: /going away|vacation/i }).filter({ visible: true }).first();
   }
 
   action(name: string | RegExp) {
-    return this.page.getByRole("button", { name }).first();
+    return this.page.getByRole("button", { name }).filter({ visible: true }).first();
   }
 
   sheet(title: string | RegExp) {

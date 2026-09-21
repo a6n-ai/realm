@@ -1,103 +1,68 @@
 "use client";
-import { CalendarClock, CalendarDays, Palmtree, Pause, Play, Repeat2, Utensils, Wallet } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { ActionRow, Button, Reason } from "@/components/customer/kit";
+import { useState } from "react";
+import { Button, Reason } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
-import { humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { ACTION_LABEL, type actionModel } from "./action-model";
+import { humanDate, type TripAction } from "@/lib/deliveries-view";
+import { ACTION_LABEL, ACTION_SHORT, type actionModel } from "./action-model";
 
 type Model = ReturnType<typeof actionModel>;
-interface Common {
+interface Props {
   model: Model;
-  trip: Trip;
-  tz: string;
+  layout: "card" | "bar";
   onAction: (a: TripAction) => void;
   onGoTo: (date: string) => void;
 }
 
-const ICON: Record<TripAction, ReactNode> = {
-  pick: <Utensils className="size-4" />,
-  swap: <Repeat2 className="size-4" />,
-  hold: <Pause className="size-4" />,
-  resume: <Play className="size-4" />,
-  move: <CalendarDays className="size-4" />,
-  vacation: <Palmtree className="size-4" />,
-  makeup: <CalendarClock className="size-4" />,
-  pool: <Wallet className="size-4" />,
-};
-
-/** Desktop rail: one row per action, each with its when/why line. */
-export function ActionRail({ model, onAction, onGoTo, vacation }: Pick<Common, "model" | "onAction" | "onGoTo"> & { vacation: { label: string; sub: string; reason?: string } }) {
-  return (
-    <div className="space-y-2">
-      {model.rows.map((r) => {
-        const primary = r.key === model.primary;
-        return (
-          <ActionRow
-            key={r.key}
-            label={r.label}
-            sublabel={r.av.sub}
-            disabledReason={r.av.ok ? undefined : (r.av.why ?? undefined)}
-            icon={ICON[r.key]}
-            onClick={() => onAction(r.key)}
-            className={cn(
-              "border border-[var(--border)]",
-              primary && r.av.ok && "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)] shadow-[0_12px_30px_-8px_color-mix(in_oklch,var(--primary)_70%,transparent)] [&_span]:!text-current active:bg-[var(--primary-hover,var(--primary))]",
-            )}
-          />
-        );
-      })}
-      {model.rows.length === 0 && (
-        <div className="space-y-3 px-1 py-2">
-          <Reason>{model.closedReason}</Reason>
-          {model.goTo && <Button size="md" variant="outline" onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
-        </div>
-      )}
-      <div className="my-3 border-t border-dashed border-[var(--border)]" />
-      <ActionRow
-        label={vacation.label}
-        sublabel={vacation.sub}
-        disabledReason={vacation.reason}
-        icon={ICON.vacation}
-        onClick={() => onAction("vacation")}
-        className="border border-[var(--border)]"
-      />
-    </div>
-  );
-}
-
-/** Mobile thumb-zone bar: one row (primary + up to three secondary). The cutoff line lives in the trip hero so the bar stays short. */
-export function ActionBar({ model, onAction, onGoTo }: Common) {
+/** Pick meals (or Resume) is the one primary; the rest are a quiet row. Disabled actions stay tappable and answer in plain words. */
+export function TripActions({ model, layout, onAction, onGoTo }: Props) {
   const [reason, setReason] = useState<string | null>(null);
+  const bar = layout === "bar";
   const fire = (k: TripAction, a: { ok: boolean; why: string | null }) => (a.ok ? (setReason(null), onAction(k)) : setReason(a.why));
-  const primary = model.primary && model.primary !== "vacation" ? model.rows.find((r) => r.key === model.primary) : null;
-  return (
-    <div
-      className={cn(
-        FONT,
-        "fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 pb-2 pt-2 backdrop-blur-xl md:pb-2 lg:hidden",
-      )}
+  const primary = model.primary === "vacation" ? null : model.rows.find((r) => r.key === model.primary);
+  const held = model.primary === "resume";
+  // On hold, Pick and Swap can only say "resume first"; the trip card already says so in words.
+  const secondary = model.rows.filter((r) => r.key !== model.primary && r.key !== "pick" && !(held && r.key === "swap"));
+
+  if (model.rows.length === 0 && model.primary !== "vacation") {
+    if (!model.goTo) return null;
+    return (
+      <div className={cn(FONT, "space-y-3")}>
+        {model.goTo && <Button variant="primary" size="lg" className="w-full" onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
+      </div>
+    );
+  }
+  const btn = (k: TripAction, a: { ok: boolean; why: string | null }, label: string) => (
+    <Button
+      key={k}
+      size={bar ? "lg" : "md"}
+      aria-label={ACTION_LABEL[k]}
+      aria-disabled={!a.ok || undefined}
+      className={cn(bar ? "min-w-0 flex-1 px-1" : "px-5", !a.ok && "opacity-45")}
+      onClick={() => fire(k, a)}
     >
-      {reason && <div role="status"><Reason className="mb-2">{reason}</Reason></div>}
-      {model.closedReason && <Reason className="mb-2">{model.closedReason}</Reason>}
-      {model.goTo && <Button className="w-full" onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
-      <div className="flex items-center gap-2">
+      {label}
+    </Button>
+  );
+  return (
+    <div className={cn(FONT, bar ? "space-y-2" : "space-y-3")}>
+      {reason && <div role="status"><Reason>{reason}</Reason></div>}
+      <div className={cn("flex gap-2", !bar && "flex-col")}>
+        {model.primary === "vacation" && <Button variant="primary" size="lg" className={cn(bar ? "min-w-0 flex-[2]" : "w-full")} onClick={() => onAction("vacation")}>Resume deliveries</Button>}
         {primary && (
-          <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-3" onClick={() => fire(primary.key, primary.av)} aria-disabled={!primary.av.ok || undefined}>
-            {primary.label}
+          <Button
+            variant="primary"
+            size="lg"
+            aria-label={ACTION_LABEL[primary.key]}
+            aria-disabled={!primary.av.ok || undefined}
+            className={cn("whitespace-nowrap px-3", bar ? "min-w-0 flex-[2]" : "w-full", !primary.av.ok && "opacity-45")}
+            onClick={() => fire(primary.key, primary.av)}
+          >
+            {ACTION_SHORT[primary.key]}
           </Button>
         )}
-        {model.primary === "vacation" && (
-          <Button variant="primary" size="lg" className="min-w-0 flex-1 px-3" onClick={() => onAction("vacation")}>Resume deliveries</Button>
-        )}
-        {model.bar.map((k) => {
-          const a = model.av[k];
-          return (
-            <Button key={k} size="lg" className={cn("w-[72px] shrink-0 px-0", !a.ok && "opacity-45")} aria-disabled={!a.ok || undefined} onClick={() => fire(k, a)}>
-              {ACTION_LABEL[k].split(" ")[0]}
-            </Button>
-          );
-        })}
+        <div className={cn("flex gap-2", bar && "contents")}>
+          {secondary.map((r) => btn(r.key, r.av, ACTION_SHORT[r.key]))}
+        </div>
       </div>
     </div>
   );

@@ -29,3 +29,14 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext) {
     goTo: trip.status === "combined-into" ? trip.mergedInto : null,
   };
 }
+
+export const ACTION_SHORT: Record<TripAction, string> = {
+  pick: "Pick meals",
+  swap: "Swap",
+  hold: "Hold",
+  resume: "Resume",
+  move: "Move",
+  vacation: "Vacation",
+  makeup: "Make-up",
+  pool: "From pool",
+};

@@ -40,7 +40,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
-  const { month: monthParam, sub: subParam, trip: tripParam } = await searchParams;
+  const { month: monthParam, sub: subParam, trip: tripParam, action: actionParam } = await searchParams;
   const { timezone, cutoffHour } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();
@@ -87,7 +87,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
 
   return (
     <div className="mx-auto w-full max-w-[1280px]">
-      <DeliveriesView plan={plan} subs={subs} trips={trips} now={now} monthKey={monthKey} initialTrip={pickDefaultTrip(trips, tripParam)} />
+      <DeliveriesView plan={plan} subs={subs} trips={trips} now={now} monthKey={monthKey} initialTrip={pickDefaultTrip(trips, tripParam)} initialAction={actionParam ?? null} />
     </div>
   );
 }

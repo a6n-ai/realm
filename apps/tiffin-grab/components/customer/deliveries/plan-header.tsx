@@ -1,60 +1,48 @@
 "use client";
-import { Palmtree } from "lucide-react";
 import Link from "next/link";
-import { Button, Pill } from "@/components/customer/kit";
 import type { Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-/** Diet pill keeps the admin tagColor (PlanBox data rule), tinted like the kit pills. */
-function DietPill({ label, color }: { label: string; color?: string | null }) {
-  const c = color && HEX.test(color) ? color : null;
-  return (
-    <Pill tone="neutral" style={c ? { backgroundColor: `${c}24`, color: `color-mix(in oklab, ${c} 75%, var(--foreground))` } : undefined}>
-      {label}
-    </Pill>
-  );
-}
-
 export function PlanHeader({
-  sub, subs, counts, renew, cutoffHour, onVacation, onVacationClick, subHref,
+  sub, subs, counts, renew, onVacation, onVacationClick, subHref,
 }: {
   sub: Subscription;
   subs: Subscription[];
   counts: TiffinCounts;
   renew: number | null;
-  cutoffHour: number;
   onVacation: boolean;
   onVacationClick: () => void;
   subHref: (publicId: string) => string;
 }) {
-  const left = counts.remaining;
-  const hour = new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(2000, 0, 1, cutoffHour));
+  const color = sub.tagColor && HEX.test(sub.tagColor) ? sub.tagColor : null;
   return (
-    <header className="mb-4 lg:mb-8">
+    <header className="mb-5 lg:mb-8">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--primary)]">Deliveries</p>
-          <h1 className="mt-1 text-[clamp(28px,5vw,40px)] font-bold leading-[1.1] tracking-[-0.03em]">
-            Your <em className="text-[var(--primary)]">trips.</em>
-          </h1>
-        </div>
-        <Button variant="quiet" className="shrink-0 lg:hidden" onClick={onVacationClick}>
-          <Palmtree aria-hidden className="size-4" />
-          {onVacation ? "Resume" : "Vacation"}
-        </Button>
+        <h1 className="text-[clamp(28px,5vw,40px)] font-bold leading-[1.1] tracking-[-0.03em]">
+          Your <em className="text-[var(--primary)]">trips.</em>
+        </h1>
+        <button
+          type="button"
+          onClick={onVacationClick}
+          className="-mr-2 inline-flex min-h-11 shrink-0 items-center px-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation] lg:hidden"
+        >
+          {onVacation ? "On vacation · Resume" : "Vacation"}
+        </button>
       </div>
-      <div className="mt-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&>*]:shrink-0 md:flex-wrap md:overflow-visible [&::-webkit-scrollbar]:hidden">
-        <Pill tone="brand">{sub.mealSizeName}</Pill>
-        <DietPill label={sub.tagLabel || sub.planName} color={sub.tagColor} />
-        <Pill tone={onVacation ? "vac" : "ok"}>{onVacation ? "On vacation" : "Active"}</Pill>
-        <Pill className="tabular-nums">
-          {left} of {counts.total} tiffins left
+      <p className="mt-2 text-[15px] text-[var(--muted-foreground,#6E6558)]">
+        <span className="font-semibold text-[var(--foreground)]">{sub.mealSizeName}</span>
+        {" · "}
+        {color && <span aria-hidden className="mr-1.5 inline-block size-2 rounded-full align-middle" style={{ background: color }} />}
+        <span>{sub.tagLabel || sub.planName}</span>
+        {" · "}
+        <span className="tabular-nums">
+          {counts.remaining} of {counts.total} tiffins left
           {counts.holdDays > 0 && <> · {counts.holdDays} hold {counts.holdDays === 1 ? "day" : "days"}</>}
-        </Pill>
-        {renew != null && <Pill className="tabular-nums">Renews in {renew} {renew === 1 ? "day" : "days"}</Pill>}
-        <span className="ml-auto hidden text-sm text-[var(--muted-foreground,#6E6558)] lg:inline">Cutoff is {hour} the day before each delivery</span>
-      </div>
+        </span>
+        {renew != null && <span className="tabular-nums"> · renews in {renew} {renew === 1 ? "day" : "days"}</span>}
+        {onVacation && " · On vacation"}
+      </p>
       {subs.length > 1 && (
         <nav aria-label="Subscriptions" className="mt-3 flex flex-wrap gap-2">
           {subs.map((s) => (
