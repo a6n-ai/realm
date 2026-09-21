@@ -21,7 +21,9 @@ import { removeMyAvatar, updateMyAvatar } from "@/app/(dashboard)/dashboard/acco
 import { ChangeEmailForm } from "@/components/account/leaves/change-email-form";
 import { ChangePasswordForm } from "@/components/account/leaves/change-password-form";
 import { DeleteAccountForm } from "@/components/account/leaves/delete-account-form";
-import { PinSection as PinForm } from "@/components/account/leaves/pin-section";
+import { PinForm } from "@foundry/auth-ui";
+import { setMyPin, removeMyPin } from "@/app/(dashboard)/dashboard/account/actions";
+import { kitAuthUi } from "./auth-ui-kit";
 
 type CropperType = (typeof import("react-easy-crop"))["default"];
 const Cropper = dynamic(() => import("react-easy-crop"), { ssr: false }) as ComponentType<
@@ -357,17 +359,17 @@ export function SecurityPanel({ email, staffPin }: { email: string | null; staff
     <div className="space-y-4">
       {staffPin && (
         <Block title="PIN" subtitle="Unlocks the console after idle.">
-          <PinForm hasPin={staffPin.hasPin} />
+          <PinForm hasPin={staffPin.hasPin} onSetPin={setMyPin} onRemovePin={removeMyPin} ui={kitAuthUi} />
         </Block>
       )}
       <Block title="Email address" subtitle="Used for sign-in and account notices. We verify your current and new address.">
-        <ChangeEmailForm currentEmail={email} />
+        <ChangeEmailForm currentEmail={email} ui={kitAuthUi} />
       </Block>
       <Block title="Password" subtitle="Change your password. Other devices are signed out.">
-        <ChangePasswordForm />
+        <ChangePasswordForm ui={kitAuthUi} />
       </Block>
       <Block title="Delete account" subtitle="Permanently close your account. This can't be undone.">
-        <DeleteAccountForm />
+        <DeleteAccountForm ui={kitAuthUi} />
       </Block>
     </div>
   );

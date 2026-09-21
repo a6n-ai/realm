@@ -1,14 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChangeEmailForm as SharedChangeEmailForm } from "@foundry/auth-ui";
+import { ChangeEmailForm as SharedChangeEmailForm, type AuthUi } from "@foundry/auth-ui";
 import { authClient } from "@/lib/auth/client";
 
 /** App wiring for the shared OTP change-email form. */
-export function ChangeEmailForm({ currentEmail }: { currentEmail?: string | null }) {
+export function ChangeEmailForm({ currentEmail, ui }: { currentEmail?: string | null; ui?: Partial<AuthUi> }) {
   const router = useRouter();
   return (
     <SharedChangeEmailForm
+      ui={ui}
       currentEmail={currentEmail}
       onSendCurrentOtp={() =>
         currentEmail

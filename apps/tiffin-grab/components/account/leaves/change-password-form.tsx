@@ -1,15 +1,16 @@
 "use client";
 
-import { ChangePasswordForm as SharedChangePasswordForm } from "@foundry/auth-ui";
+import { ChangePasswordForm as SharedChangePasswordForm, type AuthUi } from "@foundry/auth-ui";
 import { authClient, useSession } from "@/lib/auth/client";
 
 /** App wiring for the shared change-password form. */
-export function ChangePasswordForm() {
+export function ChangePasswordForm({ ui }: { ui?: Partial<AuthUi> }) {
   const { data: session } = useSession();
   const email = session?.user?.email;
 
   return (
     <SharedChangePasswordForm
+      ui={ui}
       onChangePassword={({ currentPassword, newPassword }) =>
         authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true })
       }
