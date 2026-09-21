@@ -52,7 +52,7 @@ export function AccountPage({ user, role, active }: { user: AccountUser; role: R
   const shown = active ?? sections[0];
   const who = [user.name?.trim(), user.email].filter(Boolean).join(" · ");
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <div className={cn(active && "hidden lg:block")}>
         <PageHeader eyebrow="Account" title="Your" accent="account" subtitle={who} />
       </div>
