@@ -9,6 +9,7 @@ import {
   menuItems,
   menuWeeks,
   orders,
+  payments,
   users,
 } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
@@ -45,6 +46,7 @@ async function reset() {
 
   if (orderIds.length) {
     await db.delete(mealSelections).where(inArray(mealSelections.orderId, orderIds));
+    await db.delete(payments).where(inArray(payments.orderId, orderIds));
     await db.delete(deliveries).where(inArray(deliveries.orderId, orderIds));
     await db.delete(orders).where(inArray(orders.id, orderIds));
   }
@@ -104,6 +106,14 @@ describe("dailyLabelSheet (integration)", () => {
       })
       .returning();
     order = o;
+
+    await db.insert(payments).values({
+      orderId: o.id,
+      amount: o.total,
+      status: "simulated_paid",
+      method: "simulated",
+      capturedAt: Date.now(),
+    });
 
     await db.insert(deliveries).values({
       orderId: o.id,
@@ -251,5 +261,16 @@ describe("dailyLabelSheet (integration)", () => {
     const [label] = (await dailyLabelSheet(MONDAY)).labels;
     expect(label.forLabel).toBeNull();
     expect(label.forDate).toBe(MONDAY);
+  });
+
+  it("excludes payment-review orders even when status is active", async () => {
+    await db
+      .update(payments)
+      .set({ status: "pending_verification", capturedAt: null })
+      .where(eq(payments.orderId, order.id));
+
+    const sheet = await dailyLabelSheet(MONDAY);
+    expect(sheet.labels).toEqual([]);
+    expect(sheet.counts).toEqual([]);
   });
 });

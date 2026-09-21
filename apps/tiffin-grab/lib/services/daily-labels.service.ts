@@ -18,6 +18,7 @@ import {
   plans,
   users,
 } from "@/db/schema";
+import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { menuService } from "@/lib/services/menu.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
@@ -130,7 +131,13 @@ export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(users, eq(orders.userId, users.id))
-    .where(and(eq(deliveries.deliveryDate, dateIso), eq(deliveries.status, "scheduled")))
+    .where(
+      and(
+        eq(deliveries.deliveryDate, dateIso),
+        eq(deliveries.status, "scheduled"),
+        fulfillmentReadyOrder(),
+      ),
+    )
     .orderBy(asc(deliveries.id));
 }
 

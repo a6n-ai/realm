@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, payments, users } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
@@ -27,6 +27,7 @@ async function reset() {
   const orderIds = mine.map((o) => o.id);
   if (orderIds.length) {
     await db.delete(mealSelections).where(inArray(mealSelections.orderId, orderIds));
+    await db.delete(payments).where(inArray(payments.orderId, orderIds));
     await db.delete(deliveries).where(inArray(deliveries.orderId, orderIds));
     await db.delete(orders).where(inArray(orders.id, orderIds));
   }
@@ -80,6 +81,14 @@ describe("getKitchenPackingSheet", () => {
       })
       .returning();
     order = o;
+
+    await db.insert(payments).values({
+      orderId: o.id,
+      amount: o.total,
+      status: "simulated_paid",
+      method: "simulated",
+      capturedAt: Date.now(),
+    });
 
     await db.insert(deliveries).values({
       orderId: o.id,
@@ -170,5 +179,14 @@ describe("getKitchenPackingSheet", () => {
 
     const after = await getKitchenPackingSheet(MONDAY);
     expect(after.rows[0]?.items.some((c) => c.includes("Saag Paneer"))).toBe(true);
+  });
+
+  it("excludes payment-review orders from the packing sheet", async () => {
+    await db
+      .update(payments)
+      .set({ status: "awaiting_payment", capturedAt: null })
+      .where(eq(payments.orderId, order.id));
+    const sheet = await getKitchenPackingSheet(MONDAY);
+    expect(sheet.rows).toEqual([]);
   });
 });

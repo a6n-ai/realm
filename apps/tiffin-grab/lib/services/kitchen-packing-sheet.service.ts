@@ -14,6 +14,7 @@ import {
   plans,
 } from "@/db/schema";
 import { coveredDates } from "@/lib/menu/coverage";
+import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import {
   addDishPortion,
@@ -81,6 +82,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
         eq(deliveries.deliveryDate, dateIso),
         eq(deliveries.status, "scheduled"),
         eq(plans.planType, "tiffin"),
+        fulfillmentReadyOrder(),
       ),
     )
     .orderBy(asc(deliveries.id));
