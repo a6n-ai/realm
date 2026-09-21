@@ -1,4 +1,4 @@
-import type { SwapCategory } from "@/lib/menu/swap-rules";
+import { swapLabel, type SwapCategory } from "@/lib/menu/swap-rules";
 import type { CalendarDayInput, PlanContext, Trip } from "@/lib/deliveries-view";
 import type { CalendarDay, CustomerDelivery, Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 
@@ -29,6 +29,7 @@ export function toCalendarInputs(a: {
   rows: RowLike[];
   makeupSources: Set<string>;
   categoryLabels: Record<string, string>;
+  swapCategories?: Record<string, SwapCategory>;
 }): CalendarDayInput[] {
   const byDate = new Map(a.rows.map((r) => [r.deliveryDate, r]));
   const mealsByDate: Record<string, CalendarDay["meal"]> = Object.fromEntries(a.days.map((d) => [d.date, d.meal]));
@@ -44,7 +45,7 @@ export function toCalendarInputs(a: {
       rescheduled: r ? a.makeupSources.has(r.id.toString()) : false,
       mealsByDate,
       appliedSwaps: Object.fromEntries(
-        (d.eatingDays ?? []).map((e) => [e.date, e.appliedSwaps.map((s) => ({ label: `${s.qtyFrom} ${label(s.fromCategory)} → ${s.qtyTo} ${label(s.toCategory)}` }))]),
+        (d.eatingDays ?? []).map((e) => [e.date, e.appliedSwaps.map((s) => ({ label: swapLabel(s, label, a.swapCategories) }))]),
       ),
     };
   });

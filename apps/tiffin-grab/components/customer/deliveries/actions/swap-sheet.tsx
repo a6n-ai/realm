@@ -5,7 +5,7 @@ import { applyMyDeliverySwap, removeMyDeliverySwap } from "@/app/(customer)/me/d
 import { Button, Chip, Notice, Reason, Segmented, Sheet, Stepper, panelId } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
-import { applySwapsToCounts, capViolation, swapQuantities } from "@/lib/menu/swap-rules";
+import { applySwapsToCounts, capViolation, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { ActionSheetProps } from "./types";
 
 const PREFIX = "swap";
@@ -61,6 +61,16 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const usable = options.qtys.length > 0;
   const shownQty = options.qtys.includes(qty) ? qty : (options.qtys[0] ?? 1);
   const qtyTo = options.byQty.get(shownQty);
+  const amounts = chosen && qtyTo != null ? swapAmounts(from, to, shownQty, qtyTo) : null;
+  // Side note per pair: the smallest whole swap in real units ("6oz ⇄ 4 roti"), never TU or pick counts.
+  const smallest = (f: string, t: string) => {
+    const a = cats?.[f], b = cats?.[t];
+    for (let q = 1; q <= 8; q++) {
+      const r = a && b ? swapQuantities(a, b, q) : null;
+      if (r?.ok) return (({ give, get }) => `${give} ⇄ ${get}`)(swapAmounts(a, b, q, r.qtyTo) ?? { give: `${q}`, get: `${r.qtyTo}` });
+    }
+    return "";
+  };
   const lockLine = trip.eatingDays.find((e) => e.date === day)?.locksWith;
 
   const run = async (key: string, call: () => Promise<{ ok: true } | { error: string }>, msg: string) => {
@@ -129,7 +139,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                   <section aria-label="Applied swaps" className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold">Applied on this day</h3>
                     {applied.map((s) => {
-                      const text = `${s.qtyFrom} ${label(s.fromCategory)} → ${s.qtyTo} ${label(s.toCategory)}`;
+                      const text = swapLabel(s, label, cats);
                       return (
                         <div key={s.publicId} className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--muted)] py-1 pl-4 pr-1">
                           <Chip tone="swap">{text}</Chip>
@@ -161,14 +171,14 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                           <ArrowLeftRight aria-hidden className="size-5 shrink-0 text-[var(--primary)]" />
                           <span className="flex-1 text-[15px] font-semibold">{name}</span>
                           <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">
-                            {[plan.categoryPortions[p.fromCategory], plan.categoryPortions[p.toCategory]].filter(Boolean).join(" / ")}
+                            {smallest(p.fromCategory, p.toCategory)}
                           </span>
                         </button>
                         {on && (
                           <div className="mt-2 flex items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
                             <p className="text-sm">
                               {usable && qtyTo != null
-                                ? <>Give up <b>{shownQty} {label(p.fromCategory)}</b>, get <b>{qtyTo} {label(p.toCategory)}</b>.</>
+                                ? <>Give up <b>{amounts ? `${label(p.fromCategory)} · ${amounts.give}` : `${shownQty} ${label(p.fromCategory)}`}</b>, get <b>{amounts ? `${label(p.toCategory)} · ${amounts.get}` : `${qtyTo} ${label(p.toCategory)}`}</b>.</>
                                 : usable
                                   ? <>Give up <b>{shownQty}</b> {label(p.fromCategory)} for {label(p.toCategory)}. We match the portion size for you.</>
                                   : <>{options.why ?? "This swap isn't possible on this day."}</>}

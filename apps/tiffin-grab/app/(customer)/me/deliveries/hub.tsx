@@ -92,7 +92,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
         categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
         swapCategories: Object.fromEntries(swapCategories),
       };
-      const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels });
+      const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
       return { plan, trips: buildTrips(inputs, now, ctx, sub.publicId) };
     }),
   );

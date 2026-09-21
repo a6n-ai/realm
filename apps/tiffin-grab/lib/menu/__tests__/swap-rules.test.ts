@@ -57,3 +57,17 @@ describe("capViolation", () => {
     expect(capViolation({ daal: 3 }, daal8)).toBeNull();
   });
 });
+
+describe("swapAmounts / swapLabel (human units, never TU)", () => {
+  const rice = { key: "rice", pickTu: 1, unitType: "weight" as const, unitLabel: "oz", maxPicksPerTiffin: null, unitSize: 6 };
+  const roti = { key: "roti", pickTu: 0.25, unitType: "count" as const, unitLabel: "roti", maxPicksPerTiffin: null, unitSize: 2 };
+  it("1 rice pick (1 TU = 6oz) equals 4 roti picks (0.25 TU each, 1 TU = 2 roti)", async () => {
+    const { swapAmounts, swapLabel } = await import("../swap-rules");
+    expect(swapAmounts(rice, roti, 1, 4)).toEqual({ give: "6oz", get: "2 roti" });
+    expect(swapLabel({ fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 4 }, (k) => k, { rice, roti })).toBe("rice · 6oz → roti · 2 roti");
+  });
+  it("falls back to pick counts without unit sizes", async () => {
+    const { swapLabel } = await import("../swap-rules");
+    expect(swapLabel({ fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 4 }, (k) => k)).toBe("1 rice → 4 roti");
+  });
+});

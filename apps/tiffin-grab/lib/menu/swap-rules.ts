@@ -8,6 +8,8 @@
 // which is only meaningful when both are measured in the same unit — so roti -> rice
 // on a meal size without rice is never offered.
 
+import { formatTuHuman } from "./format-tu";
+
 export type SwapRow = { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
 
 // Folds every applied swap for a delivery onto a base counts map, in the order the
@@ -31,6 +33,8 @@ export type SwapCategory = {
   unitType: "weight" | "count";
   unitLabel: string;
   maxPicksPerTiffin: number | null;
+  /** How many natural units one TU is (tu_unit_size); needed to show oz/roti instead of raw TU. */
+  unitSize?: number;
 };
 
 export function swapPairFits(from: SwapCategory, to: SwapCategory): boolean {
@@ -60,4 +64,25 @@ export function capViolation(effectiveCounts: Record<string, number>, to: SwapCa
   if (to.maxPicksPerTiffin == null) return null;
   const picks = effectiveCounts[to.key] ?? 0;
   return picks > to.maxPicksPerTiffin ? `At most ${to.maxPicksPerTiffin} ${to.key} per tiffin` : null;
+}
+
+/** Human amounts of a swap ("6oz", "4 roti") from per-pick TU; null when the category unit size is unknown. */
+export function swapAmounts(
+  from: SwapCategory | undefined,
+  to: SwapCategory | undefined,
+  qtyFrom: number,
+  qtyTo: number,
+): { give: string; get: string } | null {
+  if (!from?.unitSize || !to?.unitSize) return null;
+  const fromTu = from.pickTu ?? to.pickTu;
+  const toTu = to.pickTu ?? from.pickTu;
+  if (fromTu == null || toTu == null) return null;
+  const fmt = (c: SwapCategory, tu: number) => formatTuHuman({ tuUnitType: c.unitType, tuUnitSize: c.unitSize!, tuUnitLabel: c.unitLabel }, tu);
+  return { give: fmt(from, qtyFrom * fromTu), get: fmt(to, qtyTo * toTu) };
+}
+
+/** "Rice 6oz → Roti 4 roti"; falls back to pick counts when units are unknown. */
+export function swapLabel(s: SwapRow, label: (key: string) => string, cats?: Record<string, SwapCategory>): string {
+  const a = swapAmounts(cats?.[s.fromCategory], cats?.[s.toCategory], s.qtyFrom, s.qtyTo);
+  return a ? `${label(s.fromCategory)} · ${a.give} → ${label(s.toCategory)} · ${a.get}` : `${s.qtyFrom} ${label(s.fromCategory)} → ${s.qtyTo} ${label(s.toCategory)}`;
 }

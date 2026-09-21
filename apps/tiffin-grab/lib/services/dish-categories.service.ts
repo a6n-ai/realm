@@ -361,7 +361,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     if (!size) return new Map();
     const [cats, items] = await Promise.all([
       db
-        .select({ key: dishCategories.key, unitType: dishCategories.tuUnitType, unitLabel: dishCategories.tuUnitLabel, maxPicksPerTiffin: dishCategories.maxPicksPerTiffin })
+        .select({ key: dishCategories.key, unitType: dishCategories.tuUnitType, unitLabel: dishCategories.tuUnitLabel, unitSize: dishCategories.tuUnitSize, maxPicksPerTiffin: dishCategories.maxPicksPerTiffin })
         .from(dishCategories)
         .innerJoin(categoryPlans, eq(categoryPlans.categoryId, dishCategories.id))
         .where(and(eq(categoryPlans.planId, size.planId), eq(dishCategories.enabled, true))),
@@ -374,7 +374,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     const pickTu = new Map<string, number>();
     for (const i of items) if (!pickTu.has(i.category)) pickTu.set(i.category, Number(i.tuAmount));
     return new Map(cats.map((c) => [c.key, {
-      key: c.key, pickTu: pickTu.get(c.key) ?? null, unitType: c.unitType, unitLabel: c.unitLabel, maxPicksPerTiffin: c.maxPicksPerTiffin,
+      key: c.key, pickTu: pickTu.get(c.key) ?? null, unitType: c.unitType, unitLabel: c.unitLabel, unitSize: Number(c.unitSize), maxPicksPerTiffin: c.maxPicksPerTiffin,
     }]));
   }
 
