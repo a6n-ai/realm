@@ -6,6 +6,7 @@ import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/c
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import { addDays, dotStatus, mondayOf, PLAN_COLORS, type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import { actionModel } from "./action-model";
@@ -68,7 +69,14 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const row: EatingRow | null = (sel ? shown.find((r) => r.date === sel) : null) ?? (inWeek ? null : [...shown].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
   const trip = row?.trip ?? null;
   const emptyDay = !row && inWeek ? sel : null;
-  const model = trip ? actionModel(trip, now, ctx) : null;
+  // Swap only when this eating day has a swap the customer can still make (same filter the swap sheet applies).
+  const eatingSwaps = trip && row ? plan.days.find((d) => d.date === trip.date)?.eatingDays?.find((e) => e.date === row.date) : undefined;
+  const left = plan.sub.categoryCounts ? applySwapsToCounts(plan.sub.categoryCounts, eatingSwaps?.appliedSwaps ?? []) : null;
+  const canSwap = (eatingSwaps?.swapPairs ?? []).some((p) => !left || (left[p.fromCategory] ?? 0) >= 1);
+  const model = trip ? actionModel(trip, now, ctx, { canSwap }) : null;
+  // The menu of this week isn't out: say so and show nothing else for the week.
+  const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
+  const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
   const vacAv = trip ? actionAvailability(trip, now, ctx).vacation : null;
 
   const dots = useMemo(() => {
@@ -138,7 +146,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         </nav>
       )}
 
-      {upcoming && (
+      {upcoming && !menuOut && (
         <button
           type="button"
           data-testid="next-delivery"
@@ -167,7 +175,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         />
       </div>
 
-      {ctx.pooled >= 1 && (
+      {ctx.pooled >= 1 && !menuOut && (
         <Notice className="mb-4 items-center justify-between">
           <span>{tiffins(ctx.pooled)} {ctx.pooled === 1 ? "is" : "are"} waiting.</span>
           <button type="button" aria-label="Schedule a make-up" onClick={() => setActive("makeup")} className="min-h-11 shrink-0 px-2 text-sm font-semibold underline underline-offset-4 [touch-action:manipulation]">Make-up<span className="hidden lg:inline"> day</span></button>
@@ -176,7 +184,9 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
       <div className={navigating ? "opacity-60 transition-opacity" : undefined} aria-busy={navigating}>
         <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--muted-foreground,#6E6558)]">{weekTitle(weekStart)}</h2>
-        {shown.length === 0 && !emptyDay ? (
+        {menuOut ? (
+          <Card className="space-y-1 p-6" data-testid="menu-not-released"><p className="text-[15px] font-semibold">Menu not released yet.</p><p className="text-sm text-[var(--muted-foreground,#6E6558)]">Your meals for this week will show up here once the menu is out.</p></Card>
+        ) : shown.length === 0 && !emptyDay ? (
           <Card className="space-y-3 p-6">
             <p className="text-[15px] font-semibold">Nothing to eat this week.</p>
             {next ? (

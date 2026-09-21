@@ -53,6 +53,9 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
   const trip = row?.trip ?? null;
   const av = trip ? actionAvailability(trip, now, plan.ctx) : null;
   const tz = plan.ctx.timezone;
+  const eatingSwaps = row ? plan.days.find((x) => x.date === row.trip.date)?.eatingDays?.find((e) => e.date === row.date) : undefined;
+  const leftCounts = plan.sub.categoryCounts ? applySwapsToCounts(plan.sub.categoryCounts, eatingSwaps?.appliedSwaps ?? []) : null;
+  const canSwap = (eatingSwaps?.swapPairs ?? []).some((q) => !leftCounts || (leftCounts[q.fromCategory] ?? 0) >= 1);
 
   const goWeek = (m: string, tripDate?: string) =>
     startNav(() => router.replace(`?week=${m}${tripDate ? `&trip=${tripDate}` : ""}`, { scroll: false }));
@@ -168,7 +171,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                     {!row.own && trip.status === "upcoming" && ` · locks with ${weekdayShort(trip.date)}'s delivery`}
                   </p>
                 </div>
-                <Actions trip={trip} av={av} onOpen={setDlg} onResume={async () => {
+                <Actions trip={trip} av={av} canSwap={canSwap} onOpen={setDlg} onResume={async () => {
                   const r = await unskipMyDelivery(trip.deliveryId!);
                   "error" in r ? toast.error(r.error) : refresh(`Resumed ${humanDate(trip.date)}.`);
                 }} />
@@ -188,10 +191,10 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
   );
 }
 
-function Actions({ trip, av, onOpen, onResume }: { trip: Trip; av: ReturnType<typeof actionAvailability>; onOpen: (d: Dlg) => void; onResume: () => void }) {
+function Actions({ trip, av, canSwap, onOpen, onResume }: { trip: Trip; av: ReturnType<typeof actionAvailability>; canSwap: boolean; onOpen: (d: Dlg) => void; onResume: () => void }) {
   const held = trip.status === "hold" || trip.status === "rescheduled";
   const items: { key: TripAction; label: string; run: () => void }[] = [
-    { key: "swap", label: "Swap items", run: () => onOpen("swap") },
+    ...(canSwap ? [{ key: "swap" as const, label: "Swap items", run: () => onOpen("swap") }] : []),
     { key: "move", label: "Reschedule this day", run: () => onOpen("reschedule") },
     ...(held ? [{ key: "resume" as const, label: "Resume this trip", run: onResume }] : []),
   ];

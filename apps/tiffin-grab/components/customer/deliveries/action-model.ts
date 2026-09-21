@@ -14,17 +14,18 @@ export const ACTION_LABEL: Record<TripAction, string> = {
 const CLOSED = new Set<Trip["status"]>(["delivered", "cutoff-passed", "locked", "combined-into"]);
 
 /** One place that decides what the rail and the mobile bar show for a trip. */
-export function actionModel(trip: Trip, now: number, ctx: PlanContext) {
+export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean } = {}) {
   const av = actionAvailability(trip, now, ctx);
   const held = trip.status === "hold" || trip.status === "rescheduled";
   const closed = CLOSED.has(trip.status);
-  const keys: TripAction[] = closed ? [] : ["pick", "swap", ...(held ? (["resume"] as const) : []), "move", ...(av.pool.ok ? (["pool"] as const) : [])];
+  const swapOk = opts.canSwap !== false;
+  const keys: TripAction[] = closed ? [] : ["pick", ...(swapOk ? (["swap"] as const) : []), ...(held ? (["resume"] as const) : []), "move", ...(av.pool.ok ? (["pool"] as const) : [])];
   const primary: TripAction | null = trip.status === "vacation" ? "vacation" : held ? "resume" : trip.status === "upcoming" ? "pick" : null;
   return {
     av,
     primary,
     rows: keys.map((key) => ({ key, label: key === "vacation" ? "Resume deliveries" : ACTION_LABEL[key], av: av[key] as Availability })),
-    bar: (closed ? [] : (["swap", "move"] as TripAction[])),
+    bar: (closed ? [] : ((swapOk ? ["swap", "move"] : ["move"]) as TripAction[])),
     closedReason: closed ? av.pick.why : null,
     goTo: trip.status === "combined-into" ? trip.mergedInto : null,
   };
