@@ -6,11 +6,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { CalendarDays, LifeBuoy, LogOut, Menu as MenuIcon, Plus, RefreshCw, User, UtensilsCrossed } from "lucide-react";
 import { useTheme } from "@foundry/themes";
 import { signOut } from "@/lib/auth/client";
-import { CUSTOMER_ACCOUNT_NAV } from "@/app/(customer)/me/(account-settings)/nav.config";
 import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet, ThemeToggle } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 
-const ACCOUNT_PATHS = ["/me/account", "/me/usage", ...CUSTOMER_ACCOUNT_NAV.map((i) => i.href)];
+const ACCOUNT_PATHS = ["/me/account"];
 const MENU_PATHS = ["/me/menu", "/me/renew", "/me/support"];
 const under = (p: string, base: string) => p === base || p.startsWith(`${base}/`);
 

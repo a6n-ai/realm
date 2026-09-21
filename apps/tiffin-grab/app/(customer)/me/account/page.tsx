@@ -1,28 +1,33 @@
-import { redirect } from "next/navigation";
-import { NotFoundError } from "@foundry/commons";
-import { getSession } from "@/lib/auth/session";
-import { usersService } from "@/lib/services/users.service";
-import { CustomerAccountHub } from "@/components/customer/account/customer-account-hub";
+import { requireAccountUser } from "@/app/(dashboard)/dashboard/account/current-user";
+import { AccountPage } from "@/components/customer/account/account-page";
+import { sectionFromSlug, sectionsForRole } from "@/components/customer/account/sections.config";
 
-export default async function MeAccountPage() {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
-
-  let user;
-  try {
-    user = await usersService.read(session.user.id);
-  } catch (err) {
-    if (err instanceof NotFoundError) redirect("/login");
-    throw err;
-  }
-
+export default async function MeAccountPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
+  const [{ user, role }, sp] = await Promise.all([requireAccountUser(), searchParams]);
+  const active = sectionFromSlug(sp.section, sectionsForRole(role));
   return (
-    <CustomerAccountHub
+    <AccountPage
+      role={role}
+      active={active}
       user={{
         name: user.name ?? null,
-        email: user.email ?? session.user.email ?? "",
+        email: user.email ?? "",
         phone: user.phone ?? null,
         image: user.image ?? null,
+        username: user.displayUsername ?? user.username ?? null,
+        emailVerified: user.emailVerified ?? false,
+        phoneVerified: user.phoneVerified ?? false,
+        addressLine: user.addressLine ?? "",
+        addressUnit: user.addressUnit ?? "",
+        city: user.city ?? "",
+        postalCode: user.postalCode ?? "",
+        province: user.province ?? "",
+        dietaryNotes: user.dietaryNotes ?? "",
+        allergens: (user.allergens ?? "").split(",").map((s: string) => s.trim()).filter(Boolean),
+        deliveryNotes: user.deliveryNotes ?? "",
+        notifyEmail: user.notifyEmail ?? true,
+        notifySms: user.notifySms ?? false,
+        hasPin: Boolean(user.pinHash),
       }}
     />
   );

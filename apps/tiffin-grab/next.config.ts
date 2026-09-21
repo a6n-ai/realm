@@ -31,6 +31,13 @@ const nextConfig: NextConfig = {
     // Marketing hero background: a single static CC BY-SA Commons photo, not user content.
     remotePatterns: [{ protocol: "https", hostname: "commons.wikimedia.org", pathname: "/wiki/Special:FilePath/**" }],
   },
+  async redirects() {
+    const slugs = ["profile", "security", "address", "dietary", "delivery-notes", "notifications", "contact"];
+    return [
+      ...slugs.map((s) => ({ source: `/me/${s}`, destination: `/me/account?section=${s}`, permanent: true })),
+      { source: "/me/usage", destination: "/me/wallet", permanent: true },
+    ];
+  },
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
 };
 

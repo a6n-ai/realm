@@ -307,7 +307,7 @@ export function Checkout({
               </div>
               <div className="grid gap-4">
                 <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" autoCapitalize="words" enterKeyHint="next" className={lockContact ? "bg-muted/50 text-muted-foreground" : undefined} readOnly={lockContact} value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} />
-                  {lockContact ? <p className="text-xs text-muted-foreground text-pretty"><Link href="/dashboard/account/profile" className="underline">Change your name in Account</Link>.</p> : null}
+                  {lockContact ? <p className="text-xs text-muted-foreground text-pretty"><Link href="/me/account?section=profile" className="underline">Change your name in Account</Link>.</p> : null}
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="phone">Phone{fromAccount}</Label>
@@ -331,7 +331,7 @@ export function Checkout({
                   />
                   {lockContact ? (
                     <p id="email-locked-hint" className="text-xs text-muted-foreground text-pretty">
-                      Renewals use your account email. <Link href="/dashboard/account/contact" className="underline">Change it in Account</Link>.
+                      Renewals use your account email. <Link href="/me/account?section=contact" className="underline">Change it in Account</Link>.
                     </p>
                   ) : gateEmail != null ? (
                     <p id="email-locked-hint" className="text-xs text-muted-foreground text-pretty">
@@ -344,7 +344,7 @@ export function Checkout({
                 {lockContact ? (
                   <p className="-mb-2 text-xs text-muted-foreground text-pretty">
                     <span className="bg-muted rounded-full px-2 py-0.5 text-[11px] font-medium">From your account</span>{" "}
-                    Edit the address if this order goes elsewhere. Your saved address won&apos;t change; <Link href="/dashboard/account/address" className="underline">update it in Account</Link>.
+                    Edit the address if this order goes elsewhere. Your saved address won&apos;t change; <Link href="/me/account?section=address" className="underline">update it in Account</Link>.
                   </p>
                 ) : null}
                 <AddressFields
