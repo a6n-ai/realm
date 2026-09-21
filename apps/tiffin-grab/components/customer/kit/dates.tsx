@@ -1,5 +1,6 @@
 "use client";
 
+import { Truck } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { cn, FONT, FOCUS, SPRING } from "./cn";
 import { Reason } from "./notice";
@@ -21,14 +22,16 @@ interface DateCellProps {
   onDisabledTap?: (reason: string) => void;
   tabIndex?: number;
   compact?: boolean;
+  /** Marks a delivery day with a small truck. */
+  delivery?: boolean;
   className?: string;
   onKeyDown?: (e: KeyboardEvent<HTMLButtonElement>) => void;
   buttonRef?: (el: HTMLButtonElement | null) => void;
 }
 
-export function DateCell({ date, selected, disabledReason, status, onSelect, onDisabledTap, tabIndex, compact, className, onKeyDown, buttonRef }: DateCellProps) {
+export function DateCell({ date, selected, disabledReason, status, onSelect, onDisabledTap, tabIndex, compact, delivery, className, onKeyDown, buttonRef }: DateCellProps) {
   const d = parse(date);
-  const label = LONG.format(d) + (status ? `, ${STATUS_LABEL[status]}` : "") + (disabledReason ? `, unavailable: ${disabledReason}` : "");
+  const label = LONG.format(d) + (delivery ? ", delivery day" : "") + (status ? `, ${STATUS_LABEL[status]}` : "") + (disabledReason ? `, unavailable: ${disabledReason}` : "");
   return (
     <button
       ref={buttonRef}
@@ -51,6 +54,7 @@ export function DateCell({ date, selected, disabledReason, status, onSelect, onD
       )}
     >
       {!compact && <span aria-hidden>{WD.format(d)}</span>}
+      {delivery && <Truck aria-hidden className="absolute right-1 top-1 size-3 text-[var(--muted-foreground,#6E6558)]" />}
       <StatusRing status={status === "delivered" ? "delivered" : undefined} className={compact ? "size-8" : undefined}>
         <b aria-hidden className="text-[17px] tabular-nums">{d.getUTCDate()}</b>
       </StatusRing>
@@ -63,6 +67,7 @@ export interface StripDay {
   date: string;
   disabledReason?: string;
   status?: DeliveryStatus;
+  delivery?: boolean;
 }
 
 interface StripProps {

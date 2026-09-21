@@ -71,6 +71,12 @@ describe("MoveSheet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Move trip" }));
     expect(a.move).not.toHaveBeenCalled();
   });
+  it("shows the month on top and marks delivery days with a truck", () => {
+    mount(MoveSheet, trip());
+    expect(screen.getByText(/^September/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Monday, September 28, delivery day/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Saturday, September 26(?!, delivery)/ })).toBeInTheDocument();
+  });
   it("free day: preview then move", async () => {
     a.move.mockResolvedValue({ ok: true, message: "moved" });
     const onDone = mount(MoveSheet, trip());

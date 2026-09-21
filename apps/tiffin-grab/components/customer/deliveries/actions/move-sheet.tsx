@@ -1,4 +1,5 @@
 "use client";
+import { Truck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
 import { Button, DateStrip, Notice, Reason, Sheet } from "@/components/customer/kit";
@@ -9,6 +10,14 @@ import { formatCoversLabel } from "@/lib/menu/coverage";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
 
+const MONTH = new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric", timeZone: "UTC" });
+/** "September 2026" or "September – October 2026" for the days on offer. */
+function monthsOf(dates: string[]): string {
+  if (dates.length === 0) return "";
+  const f = (iso: string) => MONTH.format(new Date(`${iso}T00:00:00Z`));
+  const a = f(dates[0]!), b = f(dates[dates.length - 1]!);
+  return a === b ? a : `${a.split(" ")[0]} – ${b}`;
+}
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
 export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
@@ -46,7 +55,8 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 pb-2">
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>
-              <DateStrip label="New day to eat" days={options} value={picked} onChange={setPicked} />
+              <p className="text-[13px] font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">{monthsOf(options.map((o) => o.date))}</p>
+              <DateStrip label="New day to eat" days={options.map((o) => ({ ...o, delivery: o.carriedOn === o.date }))} value={picked} onChange={setPicked} />
               {!chosen && <Reason>Choose a day to continue.</Reason>}
               {chosen?.merge ? (
                 <Notice>
@@ -58,7 +68,7 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
                 <Notice>Your {tiffins(trip.units)} will arrive on {humanDate(chosen.date)}.</Notice>
               ) : null}
               <Reason>
-                {held ? "Uses one of your hold days. " : ""}Days already covered stay with this trip. Once moved, it can&apos;t be put back on hold.
+                <Truck aria-hidden className="mr-1 inline size-3.5 align-[-2px]" /> marks delivery days. {held ? "Uses one of your hold days. " : ""}Days already covered stay with this trip. Once moved, it can&apos;t be put back on hold.
               </Reason>
             </>
           )}
