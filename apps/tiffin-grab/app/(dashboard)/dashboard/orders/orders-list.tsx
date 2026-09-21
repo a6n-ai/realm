@@ -9,6 +9,7 @@ import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
+import { orderDisplayStatus } from "@/lib/orders/display-status";
 import type { SortState } from "@/lib/list/sort";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import { reassignOrderAction } from "./actions";
@@ -76,7 +77,7 @@ export function OrdersList({
           <TableCell>{o.deploymentId}</TableCell>
           <TableCell>{o.city}</TableCell>
           <TableCell>
-            <OrderStatusBadge status={o.status} />
+            <OrderStatusBadge status={orderDisplayStatus(o.status, [o.paymentStatus])} />
           </TableCell>
           <TableCell>
             {canReassign ? (

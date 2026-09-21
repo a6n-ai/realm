@@ -396,11 +396,23 @@ export async function getCustomer360(userPublicId: string) {
   const PAID_STATUSES = new Set(["paid", "simulated_paid"]);
   const paymentRows = orderIds.length
     ? await db
-        .select({ status: payments.status, method: payments.method, amount: payments.amount, capturedAt: payments.capturedAt })
+        .select({
+          orderId: payments.orderId,
+          status: payments.status,
+          method: payments.method,
+          amount: payments.amount,
+          capturedAt: payments.capturedAt,
+          createdAt: payments.createdAt,
+        })
         .from(payments)
         .where(inArray(payments.orderId, orderIds))
-        .orderBy(desc(payments.capturedAt))
+        .orderBy(desc(payments.createdAt))
     : [];
+  const paymentStatusByOrder = new Map<string, string>();
+  for (const p of paymentRows) {
+    const key = p.orderId.toString();
+    if (!paymentStatusByOrder.has(key)) paymentStatusByOrder.set(key, p.status);
+  }
   const payment = {
     totalPaid: paymentRows.filter((p) => PAID_STATUSES.has(p.status)).reduce((sum, p) => sum + Number(p.amount), 0),
     pendingCount: paymentRows.filter((p) => p.status === "pending_verification" || p.status === "awaiting_payment").length,
@@ -427,7 +439,10 @@ export async function getCustomer360(userPublicId: string) {
       locale: user.locale,
     },
     payment,
-    orders: orderRows,
+    orders: orderRows.map(({ id, ...o }) => ({
+      ...o,
+      paymentStatus: paymentStatusByOrder.get(id.toString()) ?? null,
+    })),
     inquiries: inqRows,
     timeline,
   };

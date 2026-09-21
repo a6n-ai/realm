@@ -1,11 +1,26 @@
 import { cn } from "@foundry/ui/cn";
 
 export const ORDER_STATUS_LABEL: Record<string, string> = {
-  pending: "Pending", active: "Active", upcoming: "Upcoming", waitlisted: "Waitlisted", paused: "Paused", cancelled: "Cancelled", completed: "Completed",
+  pending: "Pending",
+  active: "Active",
+  upcoming: "Upcoming",
+  waitlisted: "Waitlisted",
+  paused: "Paused",
+  cancelled: "Cancelled",
+  completed: "Completed",
+  // Derived (not an orders.status enum value) — unpaid e-Transfer/cash overlay.
+  payment_review: "Payment review",
 };
 type Variant = "neutral" | "ok" | "warn" | "bad";
 const STATUS_VARIANT: Record<string, Variant> = {
-  pending: "neutral", active: "ok", upcoming: "neutral", waitlisted: "warn", paused: "warn", cancelled: "bad", completed: "neutral",
+  pending: "neutral",
+  active: "ok",
+  upcoming: "neutral",
+  waitlisted: "warn",
+  paused: "warn",
+  cancelled: "bad",
+  completed: "neutral",
+  payment_review: "warn",
 };
 const VARIANT_CLASS: Record<Variant, string> = {
   neutral: "bg-muted text-muted-foreground border",

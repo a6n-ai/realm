@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatMoney as fmt } from "@foundry/commons";
 import { OrderStatusBadge } from "@/components/ds";
+import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { OrderPricingBreakdown } from "./order-pricing-breakdown";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
@@ -50,7 +51,7 @@ export function OrderSummaryPanel({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <OrderStatusBadge status={order.status} />
+        <OrderStatusBadge status={orderDisplayStatus(order.status, order.payments.map((p) => p.status))} />
         {customer && (
           <Link
             href={`/dashboard/customers/${customer.publicId}`}

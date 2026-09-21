@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@foundry/commons";
 import { DataTable, SearchInput, OrderStatusBadge, type Column } from "@/components/ds";
+import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -82,7 +83,7 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
           </TableCell>
           <TableCell>{o.city}</TableCell>
           <TableCell>
-            <OrderStatusBadge status={o.status} />
+            <OrderStatusBadge status={orderDisplayStatus(o.status, [o.paymentStatus])} />
           </TableCell>
           <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>

@@ -105,7 +105,21 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
           </div>
         )}
 
-        {!claimable && !waitlisted && (
+        {waitlisted ? (
+          <a
+            className="border-border text-foreground mt-6 inline-flex h-12 items-center justify-center rounded-full border px-6 text-sm font-semibold transition-transform active:scale-[0.98]"
+            href="/"
+          >
+            Back to home
+          </a>
+        ) : claimable ? (
+          <a
+            className="border-border text-foreground mt-6 inline-flex h-12 items-center justify-center rounded-full border px-6 text-sm font-semibold transition-transform active:scale-[0.98]"
+            href="/me"
+          >
+            Back to home
+          </a>
+        ) : (
           <a
             className="bg-primary text-primary-foreground mt-6 inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold transition-transform active:scale-[0.98]"
             href="/me"

@@ -959,6 +959,8 @@ export type OrderListRow = {
   city: string;
   planKey: string;
   status: string;
+  /** Latest payment row status when present — drives the Payment review badge overlay. */
+  paymentStatus: string | null;
   startDate: string;
   total: string;
   createdAt: number;
@@ -1023,6 +1025,7 @@ export async function listOrdersPage(
 
   const rows = await db
     .select({
+      id: orders.id,
       publicId: orders.publicId,
       deploymentId: orders.deploymentId,
       fullName: orders.fullName,
@@ -1048,7 +1051,35 @@ export async function listOrdersPage(
     .from(orders)
     .where(where);
 
-  const items = rows.map((r) => ({ ...r, ownerId: r.ownerId ?? null, ownerName: r.ownerName ?? null }));
+  // One payment status per order (newest wins) for the admin badge overlay — keep
+  // the list query free of a multiplying payments join.
+  const paymentByOrder = new Map<string, string>();
+  if (rows.length > 0) {
+    const pays = await db
+      .select({ orderId: payments.orderId, status: payments.status, createdAt: payments.createdAt })
+      .from(payments)
+      .where(inArray(payments.orderId, rows.map((r) => r.id)))
+      .orderBy(desc(payments.createdAt));
+    for (const p of pays) {
+      const key = p.orderId.toString();
+      if (!paymentByOrder.has(key)) paymentByOrder.set(key, p.status);
+    }
+  }
+
+  const items: OrderListRow[] = rows.map((r) => ({
+    publicId: r.publicId,
+    deploymentId: r.deploymentId,
+    fullName: r.fullName,
+    city: r.city,
+    planKey: r.planKey,
+    status: r.status,
+    paymentStatus: paymentByOrder.get(r.id.toString()) ?? null,
+    startDate: r.startDate,
+    total: r.total,
+    createdAt: r.createdAt,
+    ownerId: r.ownerId ?? null,
+    ownerName: r.ownerName ?? null,
+  }));
   return { items, page: page.page, size: page.size, total: count };
 }
 
