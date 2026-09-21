@@ -63,7 +63,7 @@ Applies to public, auth and customer (`/me`) surfaces. Admin/dashboard stays sto
 
 ## Overview
 
-Soft and warm, not brutal. A cream page, white cards edged by a 1px hairline (`#E3DFD1`), 24px card radius, 16px input radius, and a pill CTA with an orange glow. Each screen title carries one italic saffron accent word ("Build your *tiffin.*") above a tracked orange eyebrow. No offset punch shadows, no 1.5px ink borders on cards (the ink border survives only on outline buttons).
+Soft and warm, not brutal. A cream page, white cards edged by a 1px hairline (`#E3DFD1`), 24px card radius, 16px input radius, and a flat 14px-radius button (the wizard Next), with the glowing pill reserved for hero CTAs. Each screen title carries one italic saffron accent word ("Build your *tiffin.*") above a tracked orange eyebrow. No offset punch shadows, no 1.5px ink borders on cards (the ink border survives only on outline buttons).
 
 ## Colors
 
@@ -94,7 +94,7 @@ Poppins 400-700 everywhere in public and customer (the customer shell opts in wi
 
 ## Shape and elevation
 
-Card 24, input and date cell 16, chip 10, pill and button 9999, sheet top corners 28. Flat by default; the only shadow is the CTA glow `0 12px 30px -8px` primary at 70%, on one primary action per screen, plus overlay shadow on sheets. Tap targets at least 44px (primary 52); pills 28px tall on a wash background with matching ink.
+Card 24, input and date cell 16, chip 10, pill 9999, button 14 (hero CTA 9999), sheet top corners 28. Flat by default; the only shadows are the hero CTA glow `0 12px 30px -8px` primary at 70% and overlay shadow on sheets. Tap targets at least 44px (primary 52); pills 28px tall on a wash background with matching ink.
 
 ## Motion
 
@@ -151,7 +151,7 @@ Page header: eyebrow, bold title + italic saffron accent, optional subtitle, ONE
 Brand (left) | pill nav: Deliveries, Menu, Account (`NavPill`, saffron wash when current) | `CoinChip` (wallet icon + tabular balance, links to `/me/wallet`, active state on `/me/wallet*`; it is the ONLY entry to Finances, not a nav pill) | ONE `ThemeToggle`. ThemeToggle is a single 44px icon button showing the current theme; one tap cycles light, dark, system (chosen over a popover: one tap, no overlay to dismiss); aria-label announces current and next. The full Light/System/Dark choice (`Segmented`) also lives in the Menu sheet. Mobile: brand, coin chip, theme button on top; `TabBar` at bottom.
 
 ## Components (kit)
-- Button: pill, 1.5px border, 44 (md) / 52 (lg); primary = saffron + glow, outline = ink border, quiet = hairline card; press scale .97; disabled 45% opacity but `disabledReason` keeps it focusable and prints the reason. Do: one primary. Don't: shadow on non-primary.
+- Button: the wizard Next button. 14px radius, 1.5px border, 50 (lg, 17/600, tracking -0.022em) / 44 (md, 15/600); primary = flat saffron, outline = ink border, quiet = hairline card, danger = rose outline; no shadow; press scale .97; disabled 45% opacity but `disabledReason` keeps it focusable and prints the reason. `hero` is the only glowing pill (full radius, 52px, glow `0 12px 30px -8px`), reserved for hero calls to action. Sticky CTA bars in sheets use the standard button.
 - Pill (28px, 12/600, tone wash) and Chip (28px, 10px radius, 13px tabular).
 - Card: 24px, 1px hairline, white/`--card`. `selected` = primary border + 10% wash.
 - SelectableCard: 20px, 2px border, min-h 96, title `c-h2`, optional round arrow/check indicator; `aria-pressed`.
@@ -184,4 +184,4 @@ Back  Title            Title *accent*            Tabs (desktop) / rows (mobile)
 ## Wizard reuse, matches and drift
 Reusable as-is: option cards (now `SelectableCard`), day pills (h-48 pill, primary fill), progress bar (h-1 rounded, primary/border), glass bottom bar (`BottomBar`), invoice sheet (`Sheet`).
 Fixed: Card selected ring became 10% wash + 2px border cue; Field 1.5px border/48px -> 1px/52px; Sheet radius on token.
-Still drifting (wizard uses `@foundry/ui` Button): wizard Next uses a 14px-radius 50px iOS button, not the pill CTA. Migrating the wizard to kit Button is out of scope here.
+Wizard still renders its Next through `@foundry/ui` Button + IOS_BUTTON; kit Button now matches it visually. Migrating the wizard is out of scope here.

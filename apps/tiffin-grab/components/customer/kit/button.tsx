@@ -4,10 +4,11 @@ import { Loader2 } from "lucide-react";
 import { useId, useState, type ButtonHTMLAttributes } from "react";
 import { cn, FOCUS, FONT, SPRING } from "./cn";
 
-export type ButtonVariant = "primary" | "outline" | "quiet" | "danger";
+export type ButtonVariant = "primary" | "outline" | "quiet" | "danger" | "hero";
 
 const VARIANT: Record<ButtonVariant, string> = {
-  primary:
+  primary: "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)] hover:bg-[var(--primary-hover,var(--primary))]",
+  hero:
     "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)] shadow-[0_12px_30px_-8px_color-mix(in_oklch,var(--primary)_70%,transparent)] hover:bg-[var(--primary-hover,var(--primary))]",
   outline: "border-[var(--foreground)] bg-transparent text-[var(--foreground)]",
   quiet: "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]",
@@ -56,9 +57,12 @@ export function Button({
         className={cn(
           FONT,
           FOCUS,
-          "inline-flex select-none items-center justify-center gap-2 rounded-full border-[1.5px] px-[22px] text-[15px] font-semibold [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] transition-[transform,background-color,opacity] duration-150 active:scale-[.97] motion-reduce:transition-none motion-reduce:active:scale-100",
+          "inline-flex select-none items-center justify-center gap-2 border-[1.5px] font-semibold [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] transition-[transform,background-color,opacity] duration-150 active:scale-[.97] motion-reduce:transition-none motion-reduce:active:scale-100",
           SPRING,
-          size === "lg" ? "min-h-[52px]" : "min-h-[44px]",
+          variant === "hero" ? "rounded-full px-[22px] text-[15px]" : "rounded-[14px]",
+          size === "lg"
+            ? cn("min-h-[50px] px-4 text-[17px] tracking-[-0.022em]", variant === "hero" && "min-h-[52px] px-[22px] text-[15px] tracking-normal")
+            : cn("min-h-[44px] px-4 text-[15px]", variant === "hero" && "px-[22px]"),
           VARIANT[variant],
           blocked && "opacity-45 shadow-none",
           className,

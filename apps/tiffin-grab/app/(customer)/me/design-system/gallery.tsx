@@ -75,6 +75,7 @@ export function KitGallery() {
           <Button>Outline</Button>
           <Button variant="quiet">Quiet</Button>
           <Button variant="danger">Danger</Button>
+          <Button variant="hero" size="lg">Hero CTA</Button>
           <Button pending>Saving</Button>
           <Button disabledReason="Cutoff passed at 8:00 PM">Hold day</Button>
         </div>
