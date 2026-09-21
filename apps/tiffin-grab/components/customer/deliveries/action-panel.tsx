@@ -37,7 +37,7 @@ export function TripActions({ model, layout, onAction, onGoTo }: Props) {
       size={bar ? "lg" : "md"}
       aria-label={ACTION_LABEL[k]}
       aria-disabled={!a.ok || undefined}
-      className={cn(bar ? "min-w-0 flex-1 px-1" : "px-5", !a.ok && "opacity-45")}
+      className={cn(bar ? "flex-auto whitespace-nowrap !px-2 !text-[13px]" : "px-5", !a.ok && "opacity-45")}
       onClick={() => fire(k, a)}
     >
       {label}
@@ -54,7 +54,7 @@ export function TripActions({ model, layout, onAction, onGoTo }: Props) {
             size="lg"
             aria-label={ACTION_LABEL[primary.key]}
             aria-disabled={!primary.av.ok || undefined}
-            className={cn("whitespace-nowrap px-3", bar ? "min-w-0 flex-[2]" : "w-full", !primary.av.ok && "opacity-45")}
+            className={cn("whitespace-nowrap px-3", bar ? "flex-none !px-3 !text-[15px]" : "w-full", !primary.av.ok && "opacity-45")}
             onClick={() => fire(primary.key, primary.av)}
           >
             {ACTION_SHORT[primary.key]}

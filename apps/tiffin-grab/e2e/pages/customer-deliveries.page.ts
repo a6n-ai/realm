@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-/** Customer `/me`: plan line, trip list rows, selected-trip card actions (inline on desktop, sticky bar on mobile) and sheets. */
+/** Customer `/me`: plan line, eating-day rows for the selected week, week strip, selected-trip card actions (inline on desktop, sticky bar on mobile) and sheets. */
 export class CustomerDeliveriesPage {
   constructor(readonly page: Page) {}
 
@@ -11,6 +11,14 @@ export class CustomerDeliveriesPage {
 
   tripRows() {
     return this.page.getByTestId("trip-row").filter({ visible: true });
+  }
+
+  strip() {
+    return this.page.getByTestId("week-strip");
+  }
+
+  planChips() {
+    return this.page.getByRole("group", { name: "Filter by plan" }).getByRole("button");
   }
 
   vacationButton() {

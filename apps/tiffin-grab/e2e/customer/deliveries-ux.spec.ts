@@ -31,6 +31,33 @@ test.describe("customer deliveries (trip timeline)", () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
+  test("week strip is visible on desktop and shows a delivery marker", async ({ page }) => {
+    test.setTimeout(90_000);
+    await gotoDeliveries(page);
+    test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+    const d = new CustomerDeliveriesPage(page);
+    await expect(d.strip()).toBeVisible();
+    await expect(d.strip().getByRole("button", { name: /delivery arrives/ }).first()).toBeVisible();
+  });
+
+  test("next arrow changes ?week and the list is scoped to that week", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await gotoDeliveries(page);
+    test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+    const next = page.getByRole("button", { name: "Next week" });
+    test.skip(!(await next.isEnabled()), "Only one week of deliveries");
+    await next.click();
+    await expect(page).toHaveURL(/week=\d{4}-\d{2}-\d{2}/, { timeout: 15_000 });
+    await expect(page.getByRole("button", { name: /Show earlier|Show more|See all/ })).toHaveCount(0);
+  });
+
+  test("a bad ?week is ignored and old ?month links still load", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto("/me?week=garbage&month=2026-10", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 1, name: /trips/i })).toBeVisible({ timeout: 30_000 });
+  });
+
   test("vacation sheet opens", async ({ page }) => {
     test.setTimeout(90_000);
     await gotoDeliveries(page);
@@ -48,7 +75,7 @@ test.describe("customer deliveries (trip timeline)", () => {
     await d.selectFirstTrip();
     const cases: [RegExp, RegExp][] = [
       [/hold this trip/i, /^hold /i],
-      [/move to another day/i, /^move /i],
+      [/reschedule this day/i, /^reschedule /i],
       [/swap items/i, /swap items/i],
       [/pick meals/i, /pick meals/i],
     ];
@@ -77,7 +104,7 @@ test.describe("customer deliveries (trip timeline)", () => {
     await gotoDeliveries(page);
     test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
     const d = new CustomerDeliveriesPage(page);
-    test.skip((await d.tripRows().count()) === 0, "No trips in the current month");
+    test.skip((await d.tripRows().count()) === 0, "No eating days in the selected week");
     await d.selectFirstTrip();
     const b = d.action(/pick meals/i);
     test.skip(!(await b.isVisible()) || !(await b.isEnabled()), "First trip is past its cutoff");

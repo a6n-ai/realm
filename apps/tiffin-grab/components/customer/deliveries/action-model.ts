@@ -35,7 +35,7 @@ export const ACTION_SHORT: Record<TripAction, string> = {
   swap: "Swap",
   hold: "Hold",
   resume: "Resume",
-  move: "Reschedule",
+  move: "Move day",
   vacation: "Vacation",
   makeup: "Make-up",
   pool: "From pool",

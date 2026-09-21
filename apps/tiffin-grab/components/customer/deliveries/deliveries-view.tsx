@@ -187,7 +187,7 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
           lastWeek={lastWeek}
           week={weekStart}
           today={today}
-          selectedDay={sel.date}
+          selectedDay={row?.date ?? sel.date}
           dots={dots}
           colorOf={colorOf}
           onPickDay={pickDay}
@@ -220,7 +220,7 @@ export function DeliveriesView({ plans, windows, trips, agenda, weekStart, lastW
           </Card>
         ) : (
           <>
-            <div className="grid gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
               <div className="space-y-0.5">
                 {shown.map((r) => <EatingRowButton key={`${r.orderId}:${r.date}`} row={r} plan={tagOf(r.orderId)} selected={!!row && r.orderId === row.orderId && r.date === row.date} onSelect={(x) => select({ date: x.date, orderId: x.orderId })} />)}
               </div>

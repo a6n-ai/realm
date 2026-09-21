@@ -25,7 +25,7 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
 export type PlanTagInfo = { color: string; label: string };
 export function PlanTag({ plan }: { plan: PlanTagInfo }) {
   return (
-    <span data-testid="plan-tag" className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs font-semibold text-[var(--foreground)]">
+    <span data-testid="plan-tag" className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs font-semibold text-[var(--foreground)]">
       <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: plan.color }} />
       <span className="truncate">{plan.label}</span>
     </span>
