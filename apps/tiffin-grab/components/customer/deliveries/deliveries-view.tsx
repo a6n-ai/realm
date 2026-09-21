@@ -209,7 +209,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                 ))}
               </div>
 
-              <div className="min-w-0 space-y-4">
+              <div className="hidden min-w-0 space-y-4 lg:block">
                 {row && trip && model ? (
                   <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
                     <div className="mt-6 hidden lg:block">
