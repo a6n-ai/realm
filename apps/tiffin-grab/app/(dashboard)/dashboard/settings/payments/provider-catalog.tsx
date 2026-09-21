@@ -17,8 +17,8 @@ import { installPaymentPlugin } from "./actions";
  * the payments actions instead of a per-provider Integrations entry.
  *
  * `installedIds` filters out already-installed providers rather than relying
- * on installPaymentPlugin's duplicate-id ValidationError as the guard — that
- * error exists as a last-resort invariant, not a UI contract.
+ * on installPaymentPlugin's duplicate-id error as the guard — that error
+ * exists as a last-resort invariant, not a UI contract.
  */
 export function ProviderCatalog({
   installedIds,
@@ -45,7 +45,9 @@ export function ProviderCatalog({
       }
     });
 
-  const available = PAYMENT_PROVIDERS.filter((p) => !installedIds.includes(p.id));
+  const available = PAYMENT_PROVIDERS.filter(
+    (p) => (p.id === "cash" || p.id === "etransfer") && !installedIds.includes(p.id),
+  );
   if (available.length === 0) {
     return <p className="text-muted-foreground text-sm">All payment providers are installed.</p>;
   }
@@ -87,7 +89,7 @@ export function ProviderCatalog({
 export function ProviderCatalogSkeleton() {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {PAYMENT_PROVIDERS.map((p) => (
+      {PAYMENT_PROVIDERS.filter((p) => p.id === "cash" || p.id === "etransfer").map((p) => (
         <IntegrationPluginCardSkeleton key={p.id} />
       ))}
     </div>

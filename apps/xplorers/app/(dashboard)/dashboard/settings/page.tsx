@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRightIcon,
-  CreditCardIcon,
+  BanknoteIcon,
   PuzzleIcon,
   SettingsIcon,
   UsersIcon,
@@ -46,8 +46,8 @@ export default async function SettingsPage() {
     {
       key: "payments",
       label: "Payment",
-      description: "e-Transfer, cash, and manual rails. Enable the ones you use.",
-      icon: CreditCardIcon,
+      description: "Cash on delivery is on by default. Add e-Transfer when you need it.",
+      icon: BanknoteIcon,
       href: "/dashboard/settings/payments",
     },
   ];

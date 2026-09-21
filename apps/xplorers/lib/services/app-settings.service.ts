@@ -1,6 +1,6 @@
 import { ValidationError } from "@foundry/commons";
 import { parsePaymentConfig, type PaymentConfig } from "@foundry/payments";
-import { PAYMENT_PROVIDERS } from "@foundry/payments/providers";
+import { mergePaymentCatalog } from "@foundry/payments/providers";
 import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
 import { app } from "@/db/schema";
@@ -53,13 +53,25 @@ export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
   await appSettingsEntity.update(row.publicId, { paymentConfig: parsed });
 }
 
-/** Catalog methods (e-Transfer, cash, manual) always exist as tabs. Enablement is per-method. */
+/**
+ * Seed cash (on) + e-Transfer from Foundry's catalog. Drop the old card-style
+ * "manual" rail — Stripe lands later as an online provider.
+ */
 export async function ensurePaymentCatalog(): Promise<PaymentConfig> {
   const cfg = await getPaymentConfig();
-  const have = new Set(cfg.methods.map((m) => m.id));
-  const missing = PAYMENT_PROVIDERS.filter((p) => !have.has(p.id)).map((p) => p.seed());
-  if (missing.length === 0) return cfg;
-  const next = { ...cfg, methods: [...cfg.methods, ...missing] };
+  const hadManual = cfg.methods.some((m) => m.id === "manual");
+  const merged = mergePaymentCatalog(cfg);
+  const methods = merged.methods
+    .filter((m) => m.id !== "manual")
+    .map((m) => (m.id === "cash" && hadManual ? { ...m, enabled: true } : m));
+  const next: PaymentConfig = { ...merged, methods };
+  const unchanged =
+    next.methods.length === cfg.methods.length &&
+    next.methods.every((m, i) => {
+      const prev = cfg.methods[i];
+      return prev && prev.id === m.id && prev.enabled === m.enabled && prev.label === m.label;
+    });
+  if (unchanged) return cfg;
   await setPaymentConfig(next);
   return next;
 }
