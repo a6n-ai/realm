@@ -25,11 +25,16 @@ export async function resetTrips(deploymentId: string, userPrefix: string) {
 /** MWF order eating all 7 days for 1 week from MON, materialized: Mon [Mon,Tue], Wed [Wed,Thu], Fri [Fri,Sat,Sun]. */
 export async function makeTripOrder(deploymentId: string, userPrefix: string, persons = 1) {
   const snap = await loadCatalogSnapshot();
+  const vegPlanId = snap.plans.find((p) => p.key === "veg")!.id;
+  // A meal size scoped to the veg plan specifically — snap.mealSizes[0] isn't
+  // guaranteed to be one, and allowedDishIdsForMealSize derives eligible dishes
+  // from THIS meal size's own composition rows, not order.planId alone.
+  const vegMealSize = snap.mealSizes.find((m) => m.planId === vegPlanId)!;
   const [u] = await db.insert(users).values({ email: `${userPrefix}${Math.random().toString(36).slice(2)}@test.invalid`, role: "user" }).returning();
   const [o] = await db.insert(orders).values({
     userId: u.id,
-    planId: snap.plans.find((p) => p.key === "veg")!.id,
-    mealSizeId: snap.mealSizes[0].id,
+    planId: vegPlanId,
+    mealSizeId: vegMealSize.id,
     frequencyId: snap.frequencies.find((f) => f.key === "mwf")!.id,
     persons,
     mealSlots: ["lunch"],

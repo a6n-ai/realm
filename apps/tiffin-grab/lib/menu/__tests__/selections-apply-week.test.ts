@@ -35,9 +35,11 @@ describe("selectionsService.applyToWeek", () => {
   beforeEach(async () => {
     await reset();
     const snap = await loadCatalogSnapshot();
+    const vegPlanId = snap.plans.find((p) => p.key === "veg")!.id;
+    const vegMealSize = snap.mealSizes.find((m) => m.planId === vegPlanId)!;
     const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475557100", role: "user" }).returning();
     const [o] = await db.insert(orders).values({
-      userId: u.id, planId: snap.plans.find((p) => p.key === "veg")!.id, mealSizeId: snap.mealSizes[0].id,
+      userId: u.id, planId: vegPlanId, mealSizeId: vegMealSize.id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
       categoryCounts: { sabzi: 2, rice: 1, roti: 4, raita: 1, salad: 1 },
       durationWeeks: 1, startDate: FUTURE_MONDAY, tiffinCount: 5, perTiffinPrice: "10.00",

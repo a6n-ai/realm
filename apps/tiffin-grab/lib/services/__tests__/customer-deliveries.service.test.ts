@@ -45,10 +45,11 @@ async function makeOrder(phone: string, fullName: string, startOffsetWeeks = 0) 
   const snap = await loadCatalogSnapshot();
   const startDate = nextWeekday(new Date());
   startDate.setUTCDate(startDate.getUTCDate() + startOffsetWeeks * 7);
+  const mealSize = snap.mealSizes.find((m) => m.planId === snap.plans[0].id) ?? snap.mealSizes[0];
   const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
-      mealSizeId: snap.mealSizes[0].publicId,
+      mealSizeId: mealSize.publicId,
       frequencyKey: "5_day",
       persons: 1,
       mealSlots: ["lunch"],
@@ -272,9 +273,10 @@ describe("myCalendar (integration)", () => {
   async function seedOrder(phone: string) {
     const snap = await loadCatalogSnapshot();
     const plan = snap.plans.find((p) => p.key === "veg")!;
+    const mealSize = snap.mealSizes.find((m) => m.planId === plan.id)!;
     const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone, role: "user" }).returning();
     const [order] = await db.insert(orders).values({
-      userId: u.id, planId: plan.id, mealSizeId: snap.mealSizes[0].id,
+      userId: u.id, planId: plan.id, mealSizeId: mealSize.id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
       categoryCounts: { sabzi: 2, rice: 1 },
       durationWeeks: 2, startDate: THIS_MONDAY, tiffinCount: 10, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "100.00", status: "active",

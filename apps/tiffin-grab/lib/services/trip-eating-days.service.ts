@@ -21,7 +21,7 @@ import {
   resolveDeliveryMeal,
   type ResolvedCategory,
 } from "@/lib/menu/resolve-delivery-meal";
-import { dishIdsForPlan } from "@/lib/menu/selections.service";
+import { allowedDishIdsForMealSize } from "@/lib/menu/selections.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { menuService } from "@/lib/services/menu.service";
 
@@ -113,7 +113,7 @@ export async function loadTripEatingDays(
 
   const cats = await dishCategoriesService.forPlanType(order.planType as "tiffin" | "healthy");
   const selectableCats = cats.filter((c) => c.selectable && (order.categoryCounts?.[c.key] ?? 0) > 0);
-  const planDishIds = await dishIdsForPlan(order.planId);
+  const planDishIds = await allowedDishIdsForMealSize(order.mealSizeId);
 
   const itemsByWeekId = new Map<bigint, { dayOfWeek: string; slot: string; dishId: bigint; publicId: string; name: string; image: FileDetail | null }[]>();
   for (const week of releasedWeeks) {

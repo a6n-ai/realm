@@ -5,7 +5,7 @@
 import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orderActivities, orders } from "@/db/schema";
 import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import { validateMealRules } from "@/lib/menu/meal-validation";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -40,6 +40,27 @@ export async function dishIdsForPlan(planId: bigint): Promise<Set<bigint>> {
  * the "exclusive_to_plan" meal-rule concept, not because the sets can differ.
  */
 export const exclusiveDishIdsForPlan = dishIdsForPlan;
+
+/**
+ * The dish ids a subscriber on this MEAL SIZE may ever be served — the union of
+ * dishIdsForPlan(planId) over every distinct plan the meal size's own
+ * composition rows target, not just the order's own plan.
+ *
+ * This is what makes "add a second Sabzi row, tagged veg" on a non-veg meal
+ * size actually reach the subscriber: a meal size can mix categories across
+ * plans (e.g. non-veg thali with both a veg-tagged and a non-veg-tagged sabzi
+ * slot), so the food-safety filter has to be keyed off the meal size's item
+ * rows, not the order's single planId. A meal size whose items are all on one
+ * plan (the common case) reduces to exactly dishIdsForPlan(that plan) — same
+ * behavior as before this existed.
+ */
+export async function allowedDishIdsForMealSize(mealSizeId: bigint): Promise<Set<bigint>> {
+  const rows = await db.selectDistinct({ planId: mealSizeItems.planId }).from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, mealSizeId));
+  const sets = await Promise.all(rows.map((r) => dishIdsForPlan(r.planId)));
+  const out = new Set<bigint>();
+  for (const s of sets) for (const id of s) out.add(id);
+  return out;
+}
 
 // The ISO date of `dayOfWeek` within the menu week starting on weekStart.
 function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
@@ -78,10 +99,12 @@ export const selectionsService = {
     )).limit(1);
     if (!item) throw new ValidationError("Dish is not available for that day and slot");
 
-    // The dish's own plan must match THIS order's plan. A non-veg dish's planId is
-    // never the veg plan's, so a vegetarian subscriber cannot select one even by
-    // posting the id directly.
-    if (dishRow.planId !== order.planId) throw new ValidationError("Dish does not match your plan");
+    // The dish must be on a plan this order's MEAL SIZE actually composes with — not
+    // necessarily the order's own plan, since a meal size can mix categories across
+    // plans (a non-veg thali can carry a veg-tagged sabzi slot). A dish on a plan
+    // nothing in this meal size ever references is still refused.
+    const allowedDishIds = await allowedDishIdsForMealSize(order.mealSizeId);
+    if (!allowedDishIds.has(dishId)) throw new ValidationError("Dish does not match your plan");
 
     // `slot` is a dish-category key: only categories marked selectable may receive a subscriber pick,
     // and pickIndex must fall within that category's per-plan count (e.g. sabzi:2 allows picks 1 and 2).

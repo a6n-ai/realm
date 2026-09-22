@@ -4,7 +4,7 @@ import type { FileDetail } from "@foundry/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
 import { mondayOfIso, thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
-import { dishIdsForPlan } from "./selections.service";
+import { allowedDishIdsForMealSize } from "./selections.service";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -78,7 +78,9 @@ export async function buildMealsGrid(
     .where(eq(plans.id, order.planId))
     .limit(1);
   if (!planRow) throw new Error(`buildMealsGrid: order ${order.publicId} references a plan that no longer exists (planId=${order.planId})`);
-  const planDishIds = await dishIdsForPlan(planRow.id);
+  // Union of every plan this order's meal size's own composition rows target —
+  // must agree with resolveDeliveryMeal/setSelection, see selections.service.ts.
+  const planDishIds = await allowedDishIdsForMealSize(order.mealSizeId);
 
   // A brand-new subscriber's first delivery is often next week, not this one — falling back to
   // thisWeekStartIso alone would show "no-week" forever even though their actual upcoming week
