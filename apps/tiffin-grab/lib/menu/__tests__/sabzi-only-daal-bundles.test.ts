@@ -29,8 +29,6 @@ describe("Sabzi Only Large (1.5+1.5+1.0) → Daal bundles", () => {
         ["daal", daalAbsent],
       ]),
       labels: { sabzi: "Sabzi", daal: "Daal" },
-      mealRules: [],
-      dishPlanKeys: new Map(),
     };
 
     const opt = computeSwapOption({
@@ -66,8 +64,6 @@ describe("Sabzi Only Large (1.5+1.5+1.0) → Daal bundles", () => {
         ["daal", daal],
       ]),
       labels: { sabzi: "Sabzi", daal: "Daal" },
-      mealRules: [],
-      dishPlanKeys: new Map(),
     };
 
     const opt = computeSwapOption({
