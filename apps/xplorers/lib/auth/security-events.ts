@@ -25,3 +25,21 @@ export async function sendAuthOtp(email: string, otp: string, type: OtpType): Pr
     if (process.env.NODE_ENV === "production") throw e;
   }
 }
+
+/** Branded invite email for the organization plugin's staff-invite flow. */
+export async function sendStaffInvitation(input: { email: string; role: string; inviteUrl: string }): Promise<void> {
+  const subject = `You've been invited to ${SITE_NAME}`;
+  const text = `You've been invited to join the ${SITE_NAME} team as ${input.role}. Accept your invitation: ${input.inviteUrl}\n\nThis invite expires in 7 days.`;
+  const html = `<p>You've been invited to join the ${SITE_NAME} team as <strong>${input.role}</strong>.</p><p><a href="${input.inviteUrl}">Accept invitation</a></p><p>This invite expires in 7 days.</p>`;
+
+  if (process.env.NODE_ENV !== "production") {
+    log.info({ email: input.email, role: input.role, inviteUrl: input.inviteUrl }, "staff invitation (dev)");
+  }
+
+  try {
+    await getEmailProvider().send({ to: { email: input.email }, subject, text, html });
+  } catch (e) {
+    log.error({ err: e, email: input.email }, "staff invitation send failed");
+    if (process.env.NODE_ENV === "production") throw e;
+  }
+}

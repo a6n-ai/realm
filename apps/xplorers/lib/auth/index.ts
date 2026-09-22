@@ -10,10 +10,10 @@ import { ac, roles } from "./permissions";
 import { Role } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { account, organization, session, users, verification } from "@/db/schema";
+import { account, invitation, member, organization, session, users, verification } from "@/db/schema";
 import { recordAudit } from "@/lib/services/session-service";
 import { betterAuthPassword } from "./password";
-import { sendAuthOtp } from "./security-events";
+import { sendAuthOtp, sendStaffInvitation } from "./security-events";
 
 const log = createLogger("auth");
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
@@ -49,7 +49,12 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: "pg",
-    schema: { user: users, account, session, verification },
+    // organization/member/invitation must be listed too — the organization plugin's
+    // own endpoints (acceptInvitation, createInvitation, ...) resolve models through
+    // this adapter, and an explicit `schema` here takes precedence over the db's own
+    // full schema (see @better-auth/drizzle-adapter's getSchema: `config.schema ||
+    // db._.fullSchema`), so an incomplete map throws "model not found" at call time.
+    schema: { user: users, account, session, verification, organization, member, invitation },
   }),
   advanced: {
     database: { generateId: false },
@@ -118,6 +123,10 @@ export const auth = betterAuth({
       organizationTable: organization,
       eq,
       allowUserToCreateOrganization: (user) => user.role !== Role.USER,
+      sendInvitationEmail: async (data) => {
+        const url = new URL(`/accept-invitation/${data.invitation.id}`, process.env.BETTER_AUTH_URL).toString();
+        await sendStaffInvitation({ email: data.email, role: data.invitation.role, inviteUrl: url });
+      },
     }),
     nextCookies(),
   ],
