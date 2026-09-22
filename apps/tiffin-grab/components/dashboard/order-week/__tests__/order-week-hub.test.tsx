@@ -24,7 +24,7 @@ const mon: Trip = {
 };
 const data = {
   plan: {
-    orderId: "o", today: "2026-09-21", days: [], categoryLabels: {}, categoryPortions: {}, swapCategories: {},
+    orderId: "o", today: "2026-09-21", days: [], categoryLabels: {}, categoryPortions: {}, categoryPortionSlots: {}, swapCategories: {},
     sub: { publicId: "o", mealSizeName: "Large", planName: "Veg", status: "active" },
     counts: { total: 20, delivered: 4, remaining: 16, pooled: 0, holdDays: 0, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"] },
     ctx: { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"], active: true },

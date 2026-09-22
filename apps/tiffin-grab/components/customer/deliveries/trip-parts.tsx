@@ -197,7 +197,11 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
   const source = plan?.days.find((d) => d.date === t.date);
   const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
   const cats = (meal ?? []).filter((c) => c.picks.length > 0);
-  const portion = (key: string) => plan?.categoryPortions[key];
+  const slotPortion = (category: string, pickIndex: number): string | null => {
+    const slots = plan?.categoryPortionSlots?.[category];
+    if (slots?.length) return slots[pickIndex] ?? slots[slots.length - 1] ?? null;
+    return plan?.categoryPortions[category] ?? null;
+  };
   const delivery = [
     deliveryLine(row),
     `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
@@ -210,18 +214,19 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
           <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]" aria-label="Meal">
             {cats.map((c) => (
               <li key={c.category} className="px-4 py-3">
-                <span className="flex items-baseline justify-between gap-3">
-                  <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</span>
-                  {(portion(c.category) || c.quantity > 1) && (
-                    <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">{[c.quantity > 1 ? `${c.quantity}×` : null, portion(c.category)].filter(Boolean).join(" ")}</span>
-                  )}
-                </span>
-                {c.picks.map((p, i) => (
-                  <span key={`${p.dishPublicId}-${i}`} className="mt-0.5 block font-semibold">
-                    {p.name}
-                    {p.isDefaulted && c.selectable && <span className="ml-2 text-[13px] font-normal text-[var(--muted-foreground,#6E6558)]">default pick</span>}
-                  </span>
-                ))}
+                <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</span>
+                {c.picks.map((p, i) => {
+                  const oz = slotPortion(c.category, i);
+                  return (
+                    <span key={`${p.dishPublicId}-${i}`} className="mt-0.5 block font-semibold">
+                      {p.name}
+                      {oz ? <span className="font-normal text-[var(--muted-foreground,#6E6558)]"> · {oz}</span> : null}
+                      {p.isDefaulted && c.selectable && (
+                        <span className="ml-2 text-[13px] font-normal text-[var(--muted-foreground,#6E6558)]">default pick</span>
+                      )}
+                    </span>
+                  );
+                })}
               </li>
             ))}
           </ul>

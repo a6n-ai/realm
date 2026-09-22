@@ -8,7 +8,7 @@ import {
   removeMyDeliverySwap,
 } from "@/app/(customer)/me/deliveries/actions";
 import { applyMyDishToWeek, pickMyDish } from "@/app/(customer)/me/meals/actions";
-import { Button, Chip, Notice, Reason, Select, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
+import { Button, Chip, Choice, ChoiceGroup, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
 import type { SwapOption } from "@/lib/menu/meal-validation";
@@ -380,9 +380,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                 }
 
                 return (
-                  <section key={group.key} aria-label={group.label} className="grid gap-3">
+                  <section key={group.key} aria-label={group.label} className="grid gap-4">
                     <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{group.label}</h4>
-                    <div className="grid gap-3">
+                    <div className="grid gap-5">
                       {group.cells.map((cell, i) => {
                         const options = buildSlotDropdownOptions({
                           cellIndexInCategory: i,
@@ -395,18 +395,40 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         const value = selectedId ? dishOptionValue(selectedId) : "";
                         const key = cellKey(cell);
                         const cellLocked = locked || cell.locked;
+                        const label = slotLabel(group, i);
+                        const isDefault =
+                          !!selectedId && cell.isDefaulted && picked[key] == null;
                         return (
-                          <Select
-                            key={key}
-                            label={slotLabel(group, i)}
-                            value={value}
-                            disabled={cellLocked || busy != null}
-                            options={options.map((o) => ({ value: o.value, label: o.label }))}
-                            onChange={(e) => onSlotChange(cell, i, e.target.value)}
-                            hint={
-                              selectedId && cell.isDefaulted && picked[key] == null ? "Default pick" : undefined
-                            }
-                          />
+                          <div key={key} className="grid gap-2">
+                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                              <p className="text-[15px] font-semibold">{label}</p>
+                              {isDefault && <p className={`text-[13px] ${muted}`}>Default pick</p>}
+                            </div>
+                            <ChoiceGroup
+                              label={label}
+                              value={value}
+                              onChange={(v) => onSlotChange(cell, i, v)}
+                              className="grid gap-2 sm:grid-cols-2"
+                            >
+                              {options.map((o) => (
+                                <Choice
+                                  key={o.value}
+                                  value={o.value}
+                                  disabled={cellLocked || busy != null}
+                                  className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold"
+                                >
+                                  <span className="min-w-0 flex-1 text-left">
+                                    <span className="block leading-snug">{o.label}</span>
+                                    {o.kind === "swap" && (
+                                      <span className={`mt-0.5 block text-[13px] font-normal ${muted}`}>
+                                        Exchange
+                                      </span>
+                                    )}
+                                  </span>
+                                </Choice>
+                              ))}
+                            </ChoiceGroup>
+                          </div>
                         );
                       })}
                     </div>
