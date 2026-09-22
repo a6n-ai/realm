@@ -303,9 +303,16 @@ function FieldControl({
   // Discount targets are per-kind: show only the selected kind's rows (+ "All").
   // eslint-disable-next-line react-hooks/purity -- reads live form state
   const kindNow = f.optionsSource === "discount-targets" ? form.watch("kind") : undefined;
-  const opts = f.optionsSource
-    ? (options[f.key] ?? []).filter((o) => !o.group || o.group === kindNow)
-    : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
+  // A dish's category is scoped to its own plan — the same reason meal-size
+  // composition rows scope by plan: a category not attached to this dish's plan
+  // could never appear on that plan's menu anyway.
+  // eslint-disable-next-line react-hooks/purity -- reads live form state
+  const dishPlanId = f.key === "category" && categoriesByPlan ? (form.watch("planId") as string | undefined) : undefined;
+  const opts = dishPlanId !== undefined
+    ? (dishPlanId ? (categoriesByPlan?.[dishPlanId] ?? []) : [])
+    : f.optionsSource
+      ? (options[f.key] ?? []).filter((o) => !o.group || o.group === kindNow)
+      : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
   const keyFrozen = f.readOnlyOnEdit && !isNew;
   // discountValue's unit depends on the sibling discountType field's live value ("%" vs "$") —
   // the only field whose unit isn't static, so this is a targeted override rather than a new
@@ -328,8 +335,21 @@ function FieldControl({
           </FormLabel>
           {f.help ? <p className="text-muted-foreground text-xs">{f.help}</p> : null}
           {f.type === "select" ? (
-            <Select value={(field.value as string) ?? ""} onValueChange={field.onChange}>
-              <FormControl><SelectTrigger><SelectValue placeholder={`Select ${f.label.toLowerCase()}`} /></SelectTrigger></FormControl>
+            <Select
+              value={(field.value as string) ?? ""}
+              onValueChange={(v) => {
+                field.onChange(v);
+                // Plan changed: the category field is plan-scoped, so a category
+                // picked under the old plan may not exist under the new one.
+                if (f.key === "planId" && categoriesByPlan) form.setValue("category" as never, "" as never);
+              }}
+              disabled={dishPlanId === undefined ? false : !dishPlanId}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={dishPlanId === undefined ? `Select ${f.label.toLowerCase()}` : dishPlanId ? `Select ${f.label.toLowerCase()}` : "Pick a plan first"} />
+                </SelectTrigger>
+              </FormControl>
               <SelectContent>{opts.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
           ) : f.type === "multiselect" ? (
