@@ -116,12 +116,6 @@ describe("rescheduleDelivery for eatingDays / MWF", () => {
     expect(tueRes.carriedOn).toBe(carryTripDateIso(tue, ["mon", "wed", "fri"])!);
   });
 
-  it("rejects a day the customer does not eat", async () => {
-    const order = await makeOrder(false, "mwf");
-    await db.update(orders).set({ eatingDays: ["mon", "wed", "thu", "fri", "sat", "sun"] }).where(eq(orders.id, order.id));
-    const delivery = await firstDeliveryOf(order);
-    await expect(rescheduleDelivery(delivery.publicId, farFutureIso(2), null)).rejects.toThrow(/eating days/);
-  });
 
   it("merges onto an existing trip instead of rejecting", async () => {
     const order = await makeOrder(false, "mwf");

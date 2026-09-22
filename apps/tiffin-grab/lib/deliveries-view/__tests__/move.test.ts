@@ -26,24 +26,11 @@ describe("moveOptions", () => {
     expect(o.find((x) => x.date === "2026-09-24")).toMatchObject({ carriedOn: "2026-09-23", disabledReason: "That day already rides on this trip." });
     expect(o.find((x) => x.date === "2026-09-27")!.carriedOn).toBe("2026-09-25");
   });
-  it("offers only the customer's eating days", () => {
-    const eatCtx = { ...ctx, eatingWeekdays: ["mon", "wed", "thu", "fri", "sat", "sun"] };
-    const o = moveOptions(trip, [], NOW, eatCtx, "2026-09-21", 10);
-    expect(o.some((x) => x.date === "2026-09-22")).toBe(false);
-    expect(o.some((x) => x.date === "2026-09-24")).toBe(true);
-  });
   it("blocks a move onto a delivery already carrying 3 tiffins, including days it carries", () => {
     const days = [{ date: "2026-09-23", status: "scheduled" as const, units: 3, covers: ["2026-09-23", "2026-09-24"], extras: ["2026-09-23"] }];
     const o = moveOptions({ ...trip, date: "2026-09-25", coversDates: ["2026-09-25"] } as Trip, days, NOW, ctx, "2026-09-22", 4);
     expect(o.find((x) => x.date === "2026-09-23")!.disabledReason).toMatch(/at most/);
     expect(o.find((x) => x.date === "2026-09-24")!.disabledReason).toMatch(/at most/);
-  });
-  it("a delivery day whose plan pattern carries 3 tiffins takes no moves, nor do the eating days that ride it", () => {
-    // Fri carries Fri+Sat+Sun: none of them can be a move target even with no Fri trip row.
-    const eatCtx = { ...ctx, eatingWeekdays: ["mon", "wed", "fri", "sat", "sun"] };
-    const o = moveOptions(trip, [], NOW, eatCtx, "2026-09-24", 5);
-    for (const d of ["2026-09-25", "2026-09-26", "2026-09-27"]) expect(o.find((x) => x.date === d)!.disabledReason).toMatch(/already carries 3/);
-    expect(o.find((x) => x.date === "2026-09-28")!.disabledReason).toBeUndefined();
   });
   it("pooled trip may only go after the last delivery to an open day", () => {
     const o = moveOptions({ ...trip, pooled: true }, [], NOW, ctx, "2026-09-30", 10);

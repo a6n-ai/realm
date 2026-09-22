@@ -5,7 +5,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryZones, orderActivities, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
-import { fullCarryWeekdays, orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { MAX_TIFFINS_PER_TRIP, coveredDates, dateCounts, mergeBlockReason, mergeCoverage, tripCoverage } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
@@ -560,14 +560,8 @@ export async function scheduleFromPool(
       includeSaturday: !order.eatingDays?.length && order.includeSaturday,
       includeSunday: !order.eatingDays?.length && order.includeSunday,
     }).filter((d) => d !== "sat" && d !== "sun");
-    if (order.eatingDays?.length && !(order.eatingDays as string[]).includes(weekdayKey(parseIsoDateUtc(eatingDateIso)))) {
-      throw new ValidationError("That isn't one of your eating days");
-    }
     const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
     if (!carriedOn) throw new ValidationError("That day isn't on your plan");
-    if (order.eatingDays?.length && fullCarryWeekdays(deliveryWeekdays, order.eatingDays as DayOfWeek[], MAX_TIFFINS_PER_TRIP).has(weekdayKey(parseIsoDateUtc(carriedOn)))) {
-      throw new ValidationError(`${carriedOn}'s delivery already carries ${MAX_TIFFINS_PER_TRIP} tiffins`);
-    }
 
     const [{ max }] = await tx.select({ max: sql<string | null>`max(${deliveries.deliveryDate})` })
       .from(deliveries).where(eq(deliveries.orderId, orderId));
@@ -789,14 +783,8 @@ export async function rescheduleDelivery(
     // Trip weekdays never include sat/sun — weekend food always rides Friday (one rule
     // for legacy weekend add-ons and eating_days orders).
     const deliveryWeekdays = [...deliveryDays].filter((d) => d !== "sat" && d !== "sun") as DayOfWeek[];
-    if (order.eatingDays?.length && !(order.eatingDays as string[]).includes(weekdayKey(parseIsoDateUtc(eatingDateIso)))) {
-      throw new ValidationError("That isn't one of your eating days");
-    }
     const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
     if (!carriedOn) throw new ValidationError("That day isn't on your plan");
-    if (order.eatingDays?.length && fullCarryWeekdays(deliveryWeekdays, order.eatingDays as DayOfWeek[], MAX_TIFFINS_PER_TRIP).has(weekdayKey(parseIsoDateUtc(carriedOn)))) {
-      throw new ValidationError(`${carriedOn}'s delivery already carries ${MAX_TIFFINS_PER_TRIP} tiffins`);
-    }
     if (carriedOn === row.deliveryDate) {
       throw new ValidationError("Pick a different day");
     }
