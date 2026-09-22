@@ -18,7 +18,7 @@ const week = {
   planType: "tiffin",
   theme: { accent: "#f60", titlePrefix: "Tiffin" },
   weekStart: "2026-07-13",
-  slots: [{ key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 1 }],
+  slots: [{ key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 1, tuUnitType: "weight", tuUnitSize: "8", tuUnitLabel: "oz" }],
   items: [
     {
       dayOfWeek: "mon",
