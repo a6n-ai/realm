@@ -4,9 +4,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin as adminPlugin } from "better-auth/plugins/admin";
 import { emailOTP } from "better-auth/plugins/email-otp";
-import { organization as organizationPlugin } from "better-auth/plugins/organization";
 import { createLogger } from "@foundry/commons/logger";
-import { assertHierarchyDepth, authAuditAction } from "@foundry/auth";
+import { createOrganizationPlugin, authAuditAction } from "@foundry/auth";
 import { ac, roles } from "./permissions";
 import { Role } from "@foundry/commons";
 import { eq } from "drizzle-orm";
@@ -114,37 +113,11 @@ export const auth = betterAuth({
       },
     }),
     adminPlugin({ ac, roles, defaultRole: Role.USER, adminRoles: [Role.ADMIN] }),
-    organizationPlugin({
-      allowUserToCreateOrganization: async (user) => (user as { role?: string }).role !== Role.USER,
-      schema: {
-        organization: {
-          modelName: "organization",
-          additionalFields: {
-            clientCode: { type: "string", required: true },
-            parentOrganizationId: { type: "string", required: false, input: false },
-            region: { type: "string", required: false },
-          },
-        },
-        member: { modelName: "member" },
-        invitation: { modelName: "invitation" },
-      },
-      organizationHooks: {
-        beforeCreateOrganization: async ({ organization: newOrg }) => {
-          const parentId = (newOrg as { parentOrganizationId?: string | null }).parentOrganizationId ?? null;
-          if (parentId) {
-            const [parent] = await db
-              .select({ id: organization.id, parentOrganizationId: organization.parentOrganizationId })
-              .from(organization)
-              .where(eq(organization.id, parentId))
-              .limit(1);
-            try {
-              assertHierarchyDepth(parent ?? null);
-            } catch (e) {
-              throw new APIError("BAD_REQUEST", { message: e instanceof Error ? e.message : "Invalid parent organization" });
-            }
-          }
-        },
-      },
+    createOrganizationPlugin({
+      db: db as unknown as Parameters<typeof createOrganizationPlugin>[0]["db"],
+      organizationTable: organization,
+      eq,
+      allowUserToCreateOrganization: (user) => user.role !== Role.USER,
     }),
     nextCookies(),
   ],
