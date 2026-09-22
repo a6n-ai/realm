@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orderActivities, orders, users } from "@/db/schema";
+import { deliveries, deliveryExtraTiffins, orderActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -29,6 +29,7 @@ async function reset() {
   const ids = mine.map((o) => o.id);
   if (ids.length) {
     await db.delete(orderActivities).where(inArray(orderActivities.orderId, ids));
+    await db.delete(payments).where(inArray(payments.orderId, ids));
     await db.delete(deliveries).where(inArray(deliveries.orderId, ids));
     await db.delete(orders).where(inArray(orders.id, ids));
   }
@@ -56,6 +57,9 @@ describe("OptimoRoute payload for a trip carrying several days", () => {
     await db.insert(deliveries).values({
       orderId: o.id, deliveryDate: MONDAY, status: "scheduled", cutoffAt: Date.now() + 1e9,
       coversDates: [MONDAY, TUESDAY], tiffinUnits: 2,
+    });
+    await db.insert(payments).values({
+      orderId: o.id, amount: o.total, status: "simulated_paid", method: "simulated", capturedAt: Date.now(),
     });
   });
   afterAll(reset);
@@ -90,6 +94,15 @@ describe("OptimoRoute payload for a trip carrying several days", () => {
     expect(r.tiffinUnits).toBe(2);
     expect(r.coveredDates).toEqual([MONDAY, TUESDAY]);
     expect(r.notes).toContain("Covers Mon + Tue");
+  });
+
+  it("calls out a day doubled by a moved-in tiffin instead of only totalling units", async () => {
+    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.deliveryDate, MONDAY));
+    await db.insert(deliveryExtraTiffins).values({ deliveryId: delivery!.id, eatDate: TUESDAY });
+    await db.update(deliveries).set({ tiffinUnits: 3 }).where(eq(deliveries.id, delivery!.id));
+
+    const [p] = await buildPlannedOrders(MONDAY);
+    expect(p.payload.customField3).toBe("Covers Mon + Tue · 3 tiffins (Tue x2)");
   });
 
   it("a plain single-day stop is untouched: no coverage, no customField3", async () => {
