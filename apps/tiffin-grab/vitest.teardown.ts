@@ -20,8 +20,18 @@ export async function setup() {
   // would open its long-lived pool in the main process and hang vitest's exit.
   const postgres = (await import("postgres")).default;
   const client = postgres(dbUrl, { prepare: false, max: 1 });
-  await client`TRUNCATE wallet_ledger, event_payout`;
-  await client.end();
+  try {
+    await client`TRUNCATE wallet_ledger, event_payout`;
+  } catch (err) {
+    // Unit-only worktrees / cold laptops may not have the local DB yet.
+    // Live-DB suites will fail on their own connection; pure UI tests can proceed.
+    console.warn(
+      "[vitest] local wallet truncate skipped (non-fatal):",
+      err instanceof Error ? err.message : err,
+    );
+  } finally {
+    await client.end();
+  }
 }
 
 // Live-DB service suites blanket-delete their tables (users, dishes, menu, catalog,

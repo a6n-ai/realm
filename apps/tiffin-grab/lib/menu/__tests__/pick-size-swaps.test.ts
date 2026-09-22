@@ -75,3 +75,19 @@ describe("portionsByCategory with swaps", () => {
     expect(after.get("daal")).toEqual(["8oz", "8oz"]);
   });
 });
+
+describe("sumTuForPicks with swaps (kitchen packing rolled qty)", () => {
+  it("after giving the 1.5 TU sabzi row, remaining 1 pick sums to 1.0 TU not 1.5", async () => {
+    const { sumTuForPicks } = await import("@/lib/menu/pick-size");
+    const hetero = [
+      { category: "sabzi", tuAmount: "1.50", sortOrder: 0 },
+      { category: "sabzi", tuAmount: "1.00", sortOrder: 1 },
+    ];
+    expect(sumTuForPicks(hetero, "sabzi", 1)).toBe(1.5);
+    expect(
+      sumTuForPicks(hetero, "sabzi", 1, [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 }]),
+    ).toBe(1.0);
+    // Never collapse 1.5+1.0 into a single 2.5 when counting two picks without swaps.
+    expect(sumTuForPicks(hetero, "sabzi", 2)).toBe(2.5);
+  });
+});

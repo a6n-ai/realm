@@ -208,6 +208,36 @@ describe("dailyLabelSheet (integration)", () => {
     ]);
   });
 
+  it("after a sabzi→daal swap, kitchen labels keep the remaining 8oz row (not 12oz or 24oz)", async () => {
+    const { deliveryCategorySwaps } = await import("@/db/schema");
+    const [dal] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Dal` }).returning();
+    await attachDishToPlans(dal.id);
+    const daal = await categoryIdFor("daal");
+    await db.insert(menuItems).values({
+      menuWeekId: week.id, dayOfWeek: "mon", categoryId: daal, dishId: dal.id, isDefault: true,
+    });
+    await db.insert(mealSizeItems).values({
+      mealSizeId, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 3,
+    });
+
+    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+    await db.insert(deliveryCategorySwaps).values({
+      deliveryId: delivery!.id,
+      fromCategory: "sabzi",
+      toCategory: "daal",
+      qtyFrom: 1,
+      qtyTo: 1,
+      forDate: null,
+    });
+
+    const [label] = (await dailyLabelSheet(MONDAY)).labels;
+    const sabziPortions = label.lines.filter((l) => l.category === "sabzi").map((l) => l.portion);
+    // Front-removed the 12oz slot; remaining sabzi is 8oz only — never collapsed to 20/24oz.
+    expect(sabziPortions).toEqual(["8oz"]);
+    expect(label.lines.some((l) => l.portion === "24oz" || l.portion === "20oz")).toBe(false);
+    expect(label.lines.some((l) => l.category === "daal" && l.dish.includes("Dal"))).toBe(true);
+  });
+
   it("prints a label per person on a multi-person order", async () => {
     await db.update(orders).set({ persons: 2 }).where(eq(orders.id, order.id));
     const sheet = await dailyLabelSheet(MONDAY);

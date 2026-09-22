@@ -181,6 +181,64 @@ describe("getKitchenPackingSheet", () => {
     expect(after.rows[0]?.items.some((c) => c.includes("Saag Paneer"))).toBe(true);
   });
 
+  it("reflects applied category swaps on packing item portions", async () => {
+    const { deliveryCategorySwaps, mealSizeItems } = await import("@/db/schema");
+    const snap = await loadCatalogSnapshot();
+    const size =
+      snap.mealSizes.find((m) => m.key === "maharaja_nonveg") ??
+      snap.mealSizes.find((m) => m.planKey === "non-veg")!;
+
+    const prior = await db.select().from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+    try {
+      // Force multi-row sabzi 1.5+1.0 TU (=12oz+8oz when 1 TU = 8oz).
+      await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+      await db.insert(mealSizeItems).values([
+        { mealSizeId: size.id, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 0 },
+        { mealSizeId: size.id, name: "Side", category: "sabzi", tuAmount: "1.00", sortOrder: 1 },
+        { mealSizeId: size.id, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 2 },
+        { mealSizeId: size.id, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 3 },
+        ...Array.from({ length: 8 }, (_, i) => ({
+          mealSizeId: size.id,
+          name: "Roti",
+          category: "roti",
+          tuAmount: "0.25",
+          sortOrder: 4 + i,
+        })),
+      ]);
+      await db.update(orders).set({ categoryCounts: { sabzi: 2, daal: 1, rice: 1, roti: 8 } }).where(eq(orders.id, order.id));
+
+      const before = await getKitchenPackingSheet(MONDAY);
+      const beforeItems = before.rows[0]?.items.join(" | ") ?? "";
+      expect(beforeItems).toMatch(/12\s*OZ/i);
+      expect(beforeItems).toMatch(/8\s*OZ/i);
+      expect(beforeItems).not.toMatch(/24\s*OZ/i);
+
+      const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+      await db.insert(deliveryCategorySwaps).values({
+        deliveryId: delivery!.id,
+        fromCategory: "sabzi",
+        toCategory: "daal",
+        qtyFrom: 1,
+        qtyTo: 1,
+        forDate: null,
+      });
+
+      const after = await getKitchenPackingSheet(MONDAY);
+      const afterItems = after.rows[0]?.items.join(" | ") ?? "";
+      // Front-removed 12oz sabzi; remaining sabzi is 8oz; extra daal pick appears.
+      expect(afterItems).not.toMatch(/12\s*OZ/i);
+      expect(afterItems).toMatch(/8\s*OZ/i);
+      expect(afterItems).not.toMatch(/24\s*OZ/i);
+    } finally {
+      await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+      if (prior.length) {
+        await db.insert(mealSizeItems).values(
+          prior.map(({ id: _id, publicId: _p, ...rest }) => rest),
+        );
+      }
+    }
+  });
+
   it("excludes payment-review orders from the packing sheet", async () => {
     await db
       .update(payments)

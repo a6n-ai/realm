@@ -169,6 +169,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
           sizeItems.filter((i) => i.mealSizeId === row.mealSizeId),
           category,
           pickCount,
+          daySwaps,
         );
         const qty = converter ? tuToNatural(converter, tuTotal) : pickCount;
         return {

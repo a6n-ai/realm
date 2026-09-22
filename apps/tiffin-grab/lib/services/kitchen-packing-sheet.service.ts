@@ -181,9 +181,10 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
             // Non-selectable (roti/rice/…): one pick name, quantity = slot count. Do NOT loop
             // portionForPick(i) — meal_size may have one TU line for the whole count (or N
             // lines); missing indices used to invent "portion" and explode Item columns.
+            const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
             const pick = cat.picks[0]!;
             const mealItems = sizeItems.filter((i) => i.mealSizeId === row.mealSizeId);
-            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity);
+            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity, daySwaps);
             const converter = tuByKey.get(cat.category);
             const portion =
               converter && tuTotal > 0

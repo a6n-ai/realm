@@ -74,10 +74,10 @@ describe("DeliveriesView (one plan)", () => {
     expect(within(screen.getByTestId("delivery-block")).queryByText("Paneer, Jeera Rice")).toBeNull();
     expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Wed, Sep 23");
   });
-  it("Pick meals on the eating day opens the pick sheet in one click", () => {
+  it("Edit meal on the eating day opens the pick sheet in one click", () => {
     view();
-    fireEvent.click(screen.getAllByRole("button", { name: /Pick meals/ })[0]!);
-    expect(screen.getByRole("dialog", { name: "Pick meals" })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: /Edit meal/ })[0]!);
+    expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
   });
   it("there is no Hold action; held trip offers Resume", () => {
     view();
@@ -88,7 +88,7 @@ describe("DeliveriesView (one plan)", () => {
   });
   it("delivered eating day: no action rows", () => {
     view("2026-09-21");
-    expect(screen.queryByRole("button", { name: /Pick meals/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Edit meal/ })).toBeNull();
   });
   it("a trip covering Mon + Tue: Tue names the delivery that feeds it", () => {
     view("2026-09-22");
@@ -198,8 +198,8 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(within(rows[0]!).getByText("Menu not released yet")).toBeInTheDocument();
     expect(screen.getByTestId("week-strip")).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: /Pick meals/ })[0]!);
-    expect(screen.queryByRole("dialog", { name: "Pick meals" })).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: /Edit meal/ })[0]!);
+    expect(screen.queryByRole("dialog", { name: "Edit meal" })).toBeNull();
     expect(screen.getAllByText("Menu not released yet.").length).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByRole("button", { name: /Move to another day/ })[0]!);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -208,35 +208,26 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     multi({ initialTrip: "2026-09-21" });
     expect(screen.queryByTestId("menu-not-released")).toBeNull();
   });
-  it("no Swap button when the eating day has no swap it can make; Swap when it has", () => {
-    const day = (swapPairs: { fromCategory: string; toCategory: string }[]) => ({ ...p1, sub: { ...p1.sub, categoryCounts: { rice: 1 } }, days: [{ date: "2026-09-21", menuWeekId: "w1", meal: null, eatingDays: [{ date: "2026-09-21", swapPairs, appliedSwaps: [] }, { date: "2026-09-22", swapPairs, appliedSwaps: [] }] }] }) as unknown as PlanView;
-    multi({ plan: day([]), initialTrip: "2026-09-21" });
-    expect(screen.queryByRole("button", { name: /Swap items/ })).toBeNull();
-    cleanup();
-    multi({ plan: day([{ fromCategory: "rice", toCategory: "roti" }]), initialTrip: "2026-09-21" });
-    expect(screen.getAllByRole("button", { name: /Swap items/ }).length).toBeGreaterThan(0);
-  });
-
-  it("hides Swap when leftover picks cannot form an even portion exchange", () => {
-    const plan = {
-      ...p1,
-      swapCategories: {
-        rice: { key: "rice", pickTu: 1.5, unitType: "count", unitLabel: "unit", maxPicksPerTiffin: null },
-        roti: { key: "roti", pickTu: 1, unitType: "count", unitLabel: "roti", maxPicksPerTiffin: null },
-      },
-      sub: { ...p1.sub, categoryCounts: { rice: 1 } },
-      days: [{
-        date: "2026-09-21",
-        menuWeekId: "w1",
-        meal: null,
-        eatingDays: [
-          { date: "2026-09-21", swapPairs: [{ fromCategory: "rice", toCategory: "roti" }], appliedSwaps: [] },
-          { date: "2026-09-22", swapPairs: [{ fromCategory: "rice", toCategory: "roti" }], appliedSwaps: [] },
+  it("no standalone Swap button — exchanges live inside Edit meal", () => {
+    const day = (swapPairs: { fromCategory: string; toCategory: string }[]) =>
+      ({
+        ...p1,
+        sub: { ...p1.sub, categoryCounts: { rice: 1 } },
+        days: [
+          {
+            date: "2026-09-21",
+            menuWeekId: "w1",
+            meal: null,
+            eatingDays: [
+              { date: "2026-09-21", swapPairs, appliedSwaps: [] },
+              { date: "2026-09-22", swapPairs, appliedSwaps: [] },
+            ],
+          },
         ],
-      }],
-    } as unknown as PlanView;
-    multi({ plan, initialTrip: "2026-09-21" });
+      }) as unknown as PlanView;
+    multi({ plan: day([{ fromCategory: "rice", toCategory: "roti" }]), initialTrip: "2026-09-21" });
     expect(screen.queryByRole("button", { name: /Swap items/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /Edit meal/ }).length).toBeGreaterThan(0);
   });
   it("next arrow moves one week forward", () => {
     replace.mockClear();

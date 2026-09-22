@@ -36,11 +36,15 @@ export type PortionSwap = {
   qtyTo: number;
 };
 
-export function portionsByCategory(
+/**
+ * Per-category TU slot arrays after front-splice swaps (same mutation as portionsByCategory).
+ * Receive-side slots use toCategory's first catalog TU (pair-fit receive rate).
+ * `null` preserves catalog rows with no TU (formatted as null portions).
+ */
+export function slotTuAfterSwaps(
   items: MealSizeItemRow[],
-  categoriesByKey: Map<string, TuCategory>,
   swaps: PortionSwap[] = [],
-): Map<string, (string | null)[]> {
+): Map<string, (number | null)[]> {
   const byCategory = new Map<string, MealSizeItemRow[]>();
   for (const item of items) {
     const list = byCategory.get(item.category);
@@ -48,38 +52,47 @@ export function portionsByCategory(
     else byCategory.set(item.category, [item]);
   }
 
-  const out = new Map<string, (string | null)[]>();
+  const out = new Map<string, (number | null)[]>();
   for (const [category, list] of byCategory) {
-    const slots: (string | null)[] = [];
-    for (const item of [...list].sort((a, b) => a.sortOrder - b.sortOrder)) {
-      slots.push(formatPortion(item.tuAmount, categoriesByKey.get(category) ?? null));
-    }
+    const slots = [...list]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((item) => {
+        if (item.tuAmount == null || item.tuAmount === "") return null;
+        const n = Number(item.tuAmount);
+        return Number.isFinite(n) ? n : null;
+      });
     out.set(category, slots);
   }
 
-  // Snapshot each category's ORIGINAL catalog portion before the swap loop
-  // below mutates `out` — otherwise a second portionless swap into the same
-  // category would inherit whatever the first swap just pushed, instead of
-  // the catalog line, making the fallback order-dependent.
-  const catalogFirstPortion = new Map<string, string | null>();
-  for (const [category, slots] of out) catalogFirstPortion.set(category, slots[0] ?? null);
+  const catalogFirst = new Map<string, number | null>();
+  for (const [category, slots] of out) catalogFirst.set(category, slots[0] ?? null);
 
-  // Applied swaps move slots between categories. TU is the shared currency now, so a
-  // pick moved INTO toCategory carries toCategory's own catalog portion — no per-swap
-  // override needed.
-  //
-  // Removals splice from the FRONT (earliest composition rows). That matches
-  // meal-validation slotsAfterSwaps / give-side TU (sum of the first N remaining
-  // rows). Removing from the end would desync Pick portions from swap accounting.
   for (const s of swaps) {
     const from = out.get(s.fromCategory) ?? [];
     from.splice(0, s.qtyFrom);
     out.set(s.fromCategory, from);
 
     const to = out.get(s.toCategory) ?? [];
-    const portion = catalogFirstPortion.get(s.toCategory) ?? null;
-    for (let i = 0; i < s.qtyTo; i++) to.push(portion);
+    const receiveTu = catalogFirst.get(s.toCategory) ?? null;
+    for (let i = 0; i < s.qtyTo; i++) to.push(receiveTu);
     out.set(s.toCategory, to);
+  }
+  return out;
+}
+
+export function portionsByCategory(
+  items: MealSizeItemRow[],
+  categoriesByKey: Map<string, TuCategory>,
+  swaps: PortionSwap[] = [],
+): Map<string, (string | null)[]> {
+  const tus = slotTuAfterSwaps(items, swaps);
+  const out = new Map<string, (string | null)[]>();
+  for (const [category, slots] of tus) {
+    const converter = categoriesByKey.get(category) ?? null;
+    out.set(
+      category,
+      slots.map((tu) => (converter && tu != null ? formatTuHuman(converter, tu) : null)),
+    );
   }
   return out;
 }
@@ -93,15 +106,27 @@ export function portionForPick(
   return portions.get(category)?.[pickIndex - 1] ?? null;
 }
 
-/** Total TU for `pickCount` slots of a category (wraps the catalog lines when persons > 1). */
-export function sumTuForPicks(items: MealSizeItemRow[], category: string, pickCount: number): number {
-  const slots = items
-    .filter((i) => i.category === category)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-  if (slots.length === 0 || pickCount <= 0) return 0;
+/**
+ * Total TU for `pickCount` slots of a category after the same front-splice swaps as
+ * portionsByCategory. Without swaps, wraps catalog lines when pickCount exceeds row count
+ * (multi-person edge). With swaps, prefer remaining post-swap slots (no re-expanding removed rows).
+ */
+export function sumTuForPicks(
+  items: MealSizeItemRow[],
+  category: string,
+  pickCount: number,
+  swaps: PortionSwap[] = [],
+): number {
+  if (pickCount <= 0) return 0;
+  const slots = slotTuAfterSwaps(items, swaps).get(category) ?? [];
+  if (slots.length === 0) return 0;
+  const num = (v: number | null) => (v == null ? 0 : v);
   let tu = 0;
-  for (let i = 0; i < pickCount; i++) {
-    tu += Number(slots[i % slots.length]!.tuAmount);
+  if (swaps.length === 0) {
+    for (let i = 0; i < pickCount; i++) tu += num(slots[i % slots.length]!);
+    return tu;
   }
+  const n = Math.min(pickCount, slots.length);
+  for (let i = 0; i < n; i++) tu += num(slots[i]!);
   return tu;
 }
