@@ -3,16 +3,26 @@ import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { addonCategories, addons, categoryPlans, categorySwapPairPlans, categorySwapPairs, dishCategories, dishCategoryAddonCategories, mealSizeItems, mealSizes, plans } from "@/db/schema";
+import { disabledCategoryMessage } from "@/lib/menu/admin-config-guards";
 import { swapPairFits, type SwapCategory } from "@/lib/menu/swap-rules";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
 
-type CategoryRow = { key: string; label: string; selectable: boolean; sortOrder: number };
-
 // A slot shared by several plans joins once per plan; callers want it once.
-function dedupeByKey(rows: CategoryRow[]): CategoryRow[] {
+function dedupeByKey<T extends { key: string }>(rows: T[]): T[] {
   const seen = new Set<string>();
   return rows.filter((r) => (seen.has(r.key) ? false : (seen.add(r.key), true)));
+}
+
+/** Postgres unique-violation on category_swap_pairs (from, to) — drizzle wraps cause. */
+function isDuplicateSwapPair(err: unknown): boolean {
+  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr; message?: string };
+  const layers = [err, (err as PgErr)?.cause, (err as PgErr)?.cause?.cause].filter(Boolean) as PgErr[];
+  return layers.some(
+    (l) =>
+      (l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("category_swap_pairs_pair_unique")) ||
+      (typeof l.message === "string" && l.message.includes("category_swap_pairs_pair_unique")),
+  );
 }
 
 class DishCategoriesService extends SessionUpdatableService<typeof dishCategories> {
@@ -156,7 +166,16 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    */
   async forPlan(planId: bigint) {
     return db
-      .select({ key: dishCategories.key, label: dishCategories.label, selectable: dishCategories.selectable, sortOrder: dishCategories.sortOrder })
+      .select({
+        key: dishCategories.key,
+        label: dishCategories.label,
+        selectable: dishCategories.selectable,
+        sortOrder: dishCategories.sortOrder,
+        // TU facts for admin composition hints (natural-unit readouts) — not a second ratio store.
+        tuUnitType: dishCategories.tuUnitType,
+        tuUnitSize: dishCategories.tuUnitSize,
+        tuUnitLabel: dishCategories.tuUnitLabel,
+      })
       .from(dishCategories)
       .innerJoin(categoryPlans, eq(categoryPlans.categoryId, dishCategories.id))
       .where(and(eq(categoryPlans.planId, planId), eq(dishCategories.enabled, true)))
@@ -180,7 +199,15 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
 
   async enabledCategories() {
     const rows = await db
-      .select({ key: dishCategories.key, label: dishCategories.label, selectable: dishCategories.selectable, sortOrder: dishCategories.sortOrder })
+      .select({
+        key: dishCategories.key,
+        label: dishCategories.label,
+        selectable: dishCategories.selectable,
+        sortOrder: dishCategories.sortOrder,
+        tuUnitType: dishCategories.tuUnitType,
+        tuUnitSize: dishCategories.tuUnitSize,
+        tuUnitLabel: dishCategories.tuUnitLabel,
+      })
       .from(dishCategories)
       .where(eq(dishCategories.enabled, true))
       .orderBy(asc(dishCategories.sortOrder));
@@ -300,12 +327,17 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   }
 
   async addSwapPair(fromKey: string, toKey: string, planPublicIds: string[] = []) {
-    const rows = await db.select({ key: dishCategories.key, id: dishCategories.id }).from(dishCategories).where(inArray(dishCategories.key, [fromKey, toKey]));
-    const byKey = new Map(rows.map((r) => [r.key, r.id]));
-    const fromId = byKey.get(fromKey);
-    const toId = byKey.get(toKey);
-    if (!fromId) throw new ValidationError(`Category "${fromKey}" not found`);
-    if (!toId) throw new ValidationError(`Category "${toKey}" not found`);
+    const rows = await db
+      .select({ key: dishCategories.key, id: dishCategories.id, enabled: dishCategories.enabled })
+      .from(dishCategories)
+      .where(inArray(dishCategories.key, [fromKey, toKey]));
+    const byKey = new Map(rows.map((r) => [r.key, r]));
+    const from = byKey.get(fromKey);
+    const to = byKey.get(toKey);
+    if (!from || !from.enabled) throw new ValidationError(disabledCategoryMessage(fromKey));
+    if (!to || !to.enabled) throw new ValidationError(disabledCategoryMessage(toKey));
+    const fromId = from.id;
+    const toId = to.id;
     const [toUnreachable, fromUnreachable] = await Promise.all([
       this.isUnreachableByRestriction(toId),
       this.isUnreachableByRestriction(fromId),
@@ -327,8 +359,8 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
         return created;
       });
     } catch (e) {
-      if (e instanceof Error && e.message.includes("category_swap_pairs_pair_unique")) {
-        throw new ValidationError("This pair is already configured");
+      if (isDuplicateSwapPair(e)) {
+        throw new ValidationError("This swap rule already exists for this direction.");
       }
       throw e;
     }
@@ -355,6 +387,13 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * on this meal size (null when the composition has no row for it), unit and cap.
    * Plan membership is the gate — Curry is attached only to the non-veg plan, so a
    * veg subscriber can never swap into it.
+   *
+   * pickTu = FIRST meal_size_items row for that category (sortOrder). Used as
+   * pair-fit / absent-side fallback and as the receive rate for inbound picks.
+   * Give-side TU for multi-row categories comes from actual composition rows in
+   * meal-validation (slotsAfterSwaps) — not from fromPicks × pickTu.
+   * Multi-row compositions with different tuAmount (Sabzi 1.5 + Sabzi 1.0) remain
+   * separate picks for selection; Max TU uses the simulated slot sum after swaps.
    */
   async swapCategoriesForMealSize(mealSizeId: bigint): Promise<Map<string, SwapCategory>> {
     const [size] = await db.select({ planId: mealSizes.planId }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);

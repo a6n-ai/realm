@@ -67,9 +67,13 @@ export function portionsByCategory(
   // Applied swaps move slots between categories. TU is the shared currency now, so a
   // pick moved INTO toCategory carries toCategory's own catalog portion — no per-swap
   // override needed.
+  //
+  // Removals splice from the FRONT (earliest composition rows). That matches
+  // meal-validation slotsAfterSwaps / give-side TU (sum of the first N remaining
+  // rows). Removing from the end would desync Pick portions from swap accounting.
   for (const s of swaps) {
     const from = out.get(s.fromCategory) ?? [];
-    from.splice(Math.max(0, from.length - s.qtyFrom), s.qtyFrom);
+    from.splice(0, s.qtyFrom);
     out.set(s.fromCategory, from);
 
     const to = out.get(s.toCategory) ?? [];

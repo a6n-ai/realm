@@ -7,7 +7,9 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
 import { applySwapsToCounts } from "@/lib/menu/swap-rules";
+import { validateMealRules } from "@/lib/menu/meal-validation";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { mealRulesService } from "@/lib/services/meal-rules.service";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { mealPickNote } from "@/lib/menu/meal-pick-note";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
@@ -127,6 +129,37 @@ export const selectionsService = {
     const daySwaps = swaps.filter((s) => swapAppliesTo(s.forDate, deliveryRow.deliveryDate, deliveryDateIso));
     const max = applySwapsToCounts(order.categoryCounts ?? {}, daySwaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
+
+    // Meal rules (e.g. max exclusive_to_plan dishes in a category) against the
+    // proposed final meal for this person/day — shared validator, not UI logic.
+    const rules = await mealRulesService.listEnabledForPlan(order.planId);
+    if (rules.some((r) => r.categoryKey === slot)) {
+      const exclusiveDishIds = await exclusiveDishIdsForPlan(order.planId);
+      const categoryIds = await requireCategoryIds(cats.map((c) => c.key));
+      const catId = categoryIds.get(slot)!;
+      const existing = await db
+        .select({ pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
+        .from(mealSelections)
+        .where(and(
+          eq(mealSelections.orderId, order.id),
+          eq(mealSelections.menuWeekId, menuWeek.id),
+          eq(mealSelections.dayOfWeek, dayOfWeek),
+          eq(mealSelections.categoryId, catId),
+          eq(mealSelections.personIndex, personIndex),
+        ));
+      const byPick = new Map(existing.map((e) => [e.pickIndex, e.dishId]));
+      byPick.set(pickIndex, dishId);
+      const picks = [...byPick.entries()].map(([pi, id]) => ({ category: slot, dishId: id, pickIndex: pi }));
+      // Only count picks that still exist within the effective slot count.
+      const proposed = picks.filter((p) => p.pickIndex >= 1 && p.pickIndex <= max).map(({ category, dishId: id }) => ({ category, dishId: id }));
+      const ruleCheck = validateMealRules({
+        rules,
+        exclusiveDishIds,
+        picks: proposed,
+        labels: Object.fromEntries(cats.map((c) => [c.key, c.label])),
+      });
+      if (!ruleCheck.ok) throw new ValidationError(ruleCheck.reason);
+    }
 
     // Read the outgoing dish BEFORE the upsert overwrites it. Without this the log could
     // only say "someone touched Tuesday" — the prior value is what answers the actual

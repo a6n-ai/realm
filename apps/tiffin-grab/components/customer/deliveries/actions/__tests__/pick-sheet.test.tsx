@@ -22,8 +22,16 @@ const cell = (o: Partial<GridCell>): GridCell => ({
   day: "mon", dateIso: mon, slot: "curry", personIndex: 1, pickIndex: 1, selectable: true, quantity: 1,
   selectedDishId: "d1", isDefaulted: true, dishes, locked: false, lockNote: null, ...o,
 });
-const grid = (cells: GridCell[], persons = 1) => ({
-  ok: true, grid: { cells, persons, categories: [{ key: "curry", label: "Curry", selectable: true, sortOrder: 1 }], weekByDate: { [mon]: "wk1", [tue]: "wk1" } },
+const grid = (cells: GridCell[], persons = 1, extras: { categories?: { key: string; label: string; selectable: boolean; sortOrder: number }[]; portionsBySlot?: Record<string, (string | null)[]>; portionsByDate?: Record<string, Record<string, (string | null)[]>> } = {}) => ({
+  ok: true,
+  grid: {
+    cells,
+    persons,
+    categories: extras.categories ?? [{ key: "curry", label: "Curry", selectable: true, sortOrder: 1 }],
+    portionsBySlot: extras.portionsBySlot ?? { curry: ["8oz"] },
+    portionsByDate: extras.portionsByDate ?? {},
+    weekByDate: { [mon]: "wk1", [tue]: "wk1" },
+  },
 });
 const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o",
   date: mon, deliveryId: "dlv1", units: 2, coversDates: [mon, tue], coversLabel: "Covers Mon + Tue",
@@ -44,10 +52,23 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("PickSheet", () => {
-  it("asks for the grid of every covered eating day and labels an unpicked default", async () => {
+  it("groups multi-pick categories as Choose N with a selection counter", async () => {
+    load.mockResolvedValue(grid(
+      [cell({ pickIndex: 1 }), cell({ pickIndex: 2 })],
+      1,
+      { categories: [{ key: "curry", label: "Curry", selectable: true, sortOrder: 1 }], portionsBySlot: { curry: ["12oz", "8oz"] } },
+    ));
+    show(trip({ coversDates: [mon] }));
+    expect(await screen.findByText("Choose 2")).toBeInTheDocument();
+    expect(screen.getByText("Selected: 0 of 2")).toBeInTheDocument();
+    expect(screen.getByText("12oz + 8oz")).toBeInTheDocument();
+    expect(screen.queryByText(/1 of 2/i)).not.toBeInTheDocument();
+  });
+
+  it("asks for the grid of every covered eating day", async () => {
     load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue", lockNote: "Locks with Monday's delivery" })]));
     show();
-    expect(await screen.findByText("Default pick")).toBeInTheDocument();
+    expect(await screen.findByText("Choose 1")).toBeInTheDocument();
     expect(load).toHaveBeenCalledWith("o1", [mon, tue]);
   });
 
@@ -80,12 +101,37 @@ describe("PickSheet", () => {
     await waitFor(() => expect(pick).toHaveBeenCalledWith(expect.objectContaining({ orderId: "o1", menuWeekId: "wk1", personIndex: 2, slot: "curry", dishId: "d2", dayOfWeek: "mon" })));
   });
 
-  it("applies the selected dish to the whole week", async () => {
+  it("applies the category picks to the whole week", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("button", { name: "Apply to the whole week" }));
     await waitFor(() => expect(applyWeek).toHaveBeenCalledWith(expect.objectContaining({ menuWeekId: "wk1", slot: "curry", dishId: "d1" })));
     expect(await screen.findByText(/Applied to the rest of the week/)).toBeInTheDocument();
+    // Refresh so other day tabs match the server after apply-to-week.
+    await waitFor(() => expect(load.mock.calls.length).toBeGreaterThanOrEqual(2));
+  });
+
+  it("names skip reasons instead of always saying locked", async () => {
+    applyWeek.mockResolvedValue({
+      applied: 1,
+      skipped: [{ dateIso: tue, reason: "Dish is not on the menu that day" }],
+    });
+    load.mockResolvedValue(grid([cell({})]));
+    show(trip({ coversDates: [mon] }));
+    fireEvent.click(await screen.findByRole("button", { name: "Apply to the whole week" }));
+    expect(await screen.findByText(/except Tue.*not on menu/i)).toBeInTheDocument();
+  });
+
+  it("disables Apply to week while a pick is saving", async () => {
+    let resolvePick!: (v: { ok: true }) => void;
+    pick.mockReturnValue(new Promise((r) => { resolvePick = r; }));
+    load.mockResolvedValue(grid([cell({})]));
+    show(trip({ coversDates: [mon] }));
+    fireEvent.click(await screen.findByRole("button", { name: /Dal/ }));
+    const applyBtn = screen.getByRole("button", { name: "Apply to the whole week" });
+    expect(applyBtn).toHaveAttribute("aria-disabled", "true");
+    resolvePick({ ok: true });
+    await waitFor(() => expect(applyBtn).not.toHaveAttribute("aria-disabled"));
   });
 
   it("locked day disables tiles and hides apply", async () => {
@@ -97,13 +143,23 @@ describe("PickSheet", () => {
     expect(screen.getByText(/Locked/)).toBeInTheDocument();
   });
 
-  it("rolls back and shows the server error when a pick is rejected", async () => {
-    pick.mockResolvedValue({ error: "Cutoff passed" });
+  it("rolls back and shows the server error when a pick is rejected (Meal Rules / validation)", async () => {
+    pick.mockResolvedValue({ error: "You can select only 1 sabzi exclusive to this plan in this meal." });
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("button", { name: /Dal/ }));
-    expect(await screen.findByText("Cutoff passed")).toBeInTheDocument();
-    expect(screen.getByText("Default pick")).toBeInTheDocument();
+    expect(await screen.findByText(/only 1 sabzi exclusive/i)).toBeInTheDocument();
+  });
+
+  it("shows Your meal summary from current selections", async () => {
+    load.mockResolvedValue(grid(
+      [cell({ selectedDishId: "d1", isDefaulted: false })],
+      1,
+      { portionsBySlot: { curry: ["8oz"] } },
+    ));
+    show(trip({ coversDates: [mon] }));
+    expect(await screen.findByRole("heading", { name: "Your meal" })).toBeInTheDocument();
+    expect(screen.getByText("Paneer · 8oz")).toBeInTheDocument();
   });
 
   it("Done closes with a toast only after a change", async () => {

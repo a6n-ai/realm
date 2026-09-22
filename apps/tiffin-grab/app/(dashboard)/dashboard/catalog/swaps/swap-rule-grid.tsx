@@ -11,6 +11,7 @@ import { TableCell } from "@foundry/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { cn } from "@foundry/ui/cn";
 import { addSwapPair, removeSwapPair, setSwapPairPlans } from "./actions";
+import { naturalSwapConversion, type AdminTuCategory } from "../admin-tu-hints";
 
 export type CategoryOption = { key: string; label: string };
 export type PlanOption = { publicId: string; name: string; tagColor: string | null };
@@ -24,9 +25,10 @@ export type SwapPairRow = {
   plans: string[];
 };
 
-type Cols = "pair" | "scope" | "actions";
+type Cols = "pair" | "exchange" | "scope" | "actions";
 const COLUMNS: readonly Column<Cols>[] = [
   { key: "pair", label: "Swap" },
+  { key: "exchange", label: "Natural exchange" },
   { key: "scope", label: "Plans" },
   { key: "actions", label: "", align: "right" },
 ];
@@ -51,12 +53,14 @@ function eligiblePlans(fromKey: string, toKey: string, planIdsByCategory: Record
 
 export function SwapPairGrid({
   categoryOptions,
+  categoryTu,
   planOptions,
   planIdsByCategory,
   pairs,
   unreachableByKey,
 }: {
   categoryOptions: CategoryOption[];
+  categoryTu: AdminTuCategory[];
   planOptions: PlanOption[];
   planIdsByCategory: Record<string, string[]>;
   pairs: SwapPairRow[];
@@ -66,14 +70,15 @@ export function SwapPairGrid({
   const [adding, setAdding] = React.useState(false);
   const [editingScope, setEditingScope] = React.useState<SwapPairRow | null>(null);
   const planByPublicId = new Map(planOptions.map((p) => [p.publicId, p]));
+  const tuByKey = new Map(categoryTu.map((c) => [c.key, c]));
 
   return (
     <SectionCard
-      title="Swap-eligible category pairs"
-      subtitle="A swap is a flat 1 TU for 1 TU trade, one direction per row — Sabzi → Daal and Daal → Sabzi are separate pairs, each with its own plan scope."
+      title="Swap rules"
+      subtitle="One direction per row — Roti → Rice does not create Rice → Roti. Configure category pairs only; natural amounts come from Dish Category TU settings."
       action={
         <Button size="sm" onClick={() => setAdding(true)}>
-          <PlusIcon data-icon="inline-start" /> Add pair
+          <PlusIcon data-icon="inline-start" /> Add rule
         </Button>
       }
     >
@@ -83,8 +88,10 @@ export function SwapPairGrid({
         rowKey={(p) => p.id}
         serial={false}
         emptyIcon={ArrowLeftRightIcon}
-        emptyMessage="No swap pairs configured yet."
-        renderRow={(pair) => (
+        emptyMessage="No swap rules configured yet."
+        renderRow={(pair) => {
+          const conv = naturalSwapConversion(tuByKey.get(pair.fromCategory), tuByKey.get(pair.toCategory));
+          return (
           <>
             <TableCell>
               <span className="flex items-center gap-2 text-sm font-medium">
@@ -92,6 +99,16 @@ export function SwapPairGrid({
                 <ArrowRightIcon className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
                 {pair.toLabel}
               </span>
+            </TableCell>
+            <TableCell>
+              {conv ? (
+                <div className="text-sm">
+                  <div className="font-medium">{conv.naturalLine}</div>
+                  <div className="text-muted-foreground text-xs">{conv.tuLine}</div>
+                </div>
+              ) : (
+                <span className="text-muted-foreground text-sm">—</span>
+              )}
             </TableCell>
             <TableCell>
               {pair.plans.length === 0 ? (
@@ -120,13 +137,15 @@ export function SwapPairGrid({
               </div>
             </TableCell>
           </>
-        )}
+          );
+        }}
       />
 
       <AddSwapPairDialog
         open={adding}
         onOpenChange={setAdding}
         categoryOptions={categoryOptions}
+        categoryTu={categoryTu}
         planOptions={planOptions}
         planIdsByCategory={planIdsByCategory}
         unreachableByKey={unreachableByKey}
@@ -152,7 +171,7 @@ function RemoveButton({ pair }: { pair: SwapPairRow }) {
     start(async () => {
       try {
         await removeSwapPair({ id: pair.id });
-        toast.success("Swap pair removed");
+        toast.success("Swap rule removed");
         router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to remove");
@@ -233,6 +252,7 @@ function AddSwapPairDialog({
   open,
   onOpenChange,
   categoryOptions,
+  categoryTu,
   planOptions,
   planIdsByCategory,
   unreachableByKey,
@@ -240,6 +260,7 @@ function AddSwapPairDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categoryOptions: CategoryOption[];
+  categoryTu: AdminTuCategory[];
   planOptions: PlanOption[];
   planIdsByCategory: Record<string, string[]>;
   unreachableByKey: Record<string, boolean>;
@@ -249,8 +270,10 @@ function AddSwapPairDialog({
   const [fromCategory, setFromCategory] = React.useState("");
   const [toCategory, setToCategory] = React.useState("");
   const [planIds, setPlanIds] = React.useState<Set<string>>(new Set());
+  const tuByKey = new Map(categoryTu.map((c) => [c.key, c]));
 
   const eligible = eligiblePlans(fromCategory, toCategory, planIdsByCategory, planOptions);
+  const conversion = naturalSwapConversion(tuByKey.get(fromCategory), tuByKey.get(toCategory));
 
   // New pair defaults to running everywhere it can — every eligible plan starts
   // lit. Reset on each category change (not an effect) so switching categories
@@ -297,7 +320,7 @@ function AddSwapPairDialog({
     start(async () => {
       try {
         await addSwapPair({ fromCategory, toCategory, planIds: scoped });
-        toast.success("Swap pair added");
+        toast.success("Swap rule added");
         router.refresh();
         close();
       } catch (e) {
@@ -314,15 +337,15 @@ function AddSwapPairDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(next) : close())}
-      title="Add swap pair"
-      description="Customers on any meal size offering both categories may swap From into To. A restricted plan (e.g. veg) can never receive a category it doesn't offer — swap the other direction instead."
+      title="Add swap rule"
+      description="Choose which categories may exchange. Natural amounts are calculated from Dish Category settings — you do not enter a conversion ratio."
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={close} disabled={pending}>
             Cancel
           </Button>
           <Button onClick={save} disabled={pending || blocked}>
-            {pending ? "Adding…" : "Add pair"}
+            {pending ? "Adding…" : "Add rule"}
           </Button>
         </div>
       }
@@ -347,6 +370,15 @@ function AddSwapPairDialog({
             </SelectContent>
           </Select>
         </div>
+        {conversion ? (
+          <div className="bg-muted/40 rounded-lg border px-3 py-2 text-sm">
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Based on current category configuration</p>
+            <p className="mt-1 font-medium">{conversion.naturalLine}</p>
+            <p className="text-muted-foreground text-xs">TU exchange: {conversion.tuLine}</p>
+          </div>
+        ) : fromCategory && toCategory ? (
+          <p className="text-muted-foreground text-sm">Natural conversion unavailable — check each category&apos;s TU settings.</p>
+        ) : null}
         {blocked && (
           <p className="text-destructive text-sm">
             &ldquo;{categoryOptions.find((c) => c.key === toCategory)?.label}&rdquo; isn&apos;t offered on any

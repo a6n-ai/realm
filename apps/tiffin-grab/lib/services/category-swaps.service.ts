@@ -12,15 +12,19 @@
 // e.g. giving up 1 rice pick (1 TU) into roti (0.25 TU/pick) buys exactly 4 roti
 // picks, matching the pick-count-driven categoryCounts/pickIndex machinery
 // unchanged (see lib/menu/resolve-delivery-meal.ts).
+//
+// Final validation (divisibility, stack, maxPicksPerTiffin, maxTuAmount) lives in
+// lib/menu/meal-validation.ts — shared with listValidSwapOptionsForDelivery so
+// apply never accepts a quantity the options API would not have offered.
 import { ValidationError } from "@foundry/commons";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryCategorySwaps, mealSizeItems, orderActivities, orders } from "@/db/schema";
-import { applySwapsToCounts, validateSwapStack } from "@/lib/menu/resolve-delivery-meal";
-import { capViolation, swapQuantities } from "@/lib/menu/swap-rules";
+import { deliveryCategorySwaps, orderActivities, orders } from "@/db/schema";
+import { validateProposedSwap } from "@/lib/menu/meal-validation";
 import { coveredDates, swapAppliesTo } from "@/lib/menu/coverage";
 import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
+import { loadCompositionContext } from "./swap-options.service";
 
 export async function applyDeliverySwap(
   deliveryPublicId: string,
@@ -54,41 +58,25 @@ export async function applyDeliverySwap(
     const allowed = await dishCategoriesService.isSwapPairAllowed(fromCategory, toCategory, planId);
     if (!allowed) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory} on this plan`);
 
-    const cats = await dishCategoriesService.swapCategoriesForMealSize(order.mealSizeId);
-    const from = cats.get(fromCategory);
-    const to = cats.get(toCategory);
-    if (!from || !to) throw new ValidationError("Both categories must be part of this plan");
-    const quantities = swapQuantities(from, to, fromPicks);
-    if (!quantities.ok) throw new ValidationError(quantities.reason);
-    const qtyTo = quantities.qtyTo;
-
-    // Stack-aware bound check: only swaps for this eating day count toward the stack.
+    const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {});
     const existing = await tx.select({
       fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate,
     }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id))
       .then((rs) => rs.filter((r) => swapAppliesTo(r.forDate, row.deliveryDate, eatingDate)));
-    const check = validateSwapStack(order.categoryCounts ?? {}, existing, { fromCategory, toCategory, qtyFrom: fromPicks, qtyTo });
+
+    const check = validateProposedSwap({
+      composition,
+      applied: existing.map((r) => ({
+        fromCategory: r.fromCategory,
+        toCategory: r.toCategory,
+        qtyFrom: r.qtyFrom,
+        qtyTo: r.qtyTo,
+      })),
+      next: { fromCategory, toCategory, fromPicks },
+    });
     if (!check.ok) throw new ValidationError(check.reason);
-
-    const effective = applySwapsToCounts(order.categoryCounts ?? {}, [...existing, { fromCategory, toCategory, qtyFrom: fromPicks, qtyTo }]);
-    // Per-tiffin pick cap (Curry = 1 keeps a non-veg tiffin to one non-veg curry).
-    const cap = capViolation(effective, to);
-    if (cap) throw new ValidationError(cap);
-
-    // maxTuAmount cap: TU total after this swap = (pick count already resolved into
-    // toCategory, folded through every applied swap + this one) × its own per-pick tuAmount.
-    // A category can have several rows (a row is one pick) but only one may carry the
-    // cap — take whichever has it, so it's never skipped by landing on an uncapped row.
-    const [capRow] = await tx.select({ maxTuAmount: mealSizeItems.maxTuAmount }).from(mealSizeItems)
-      .where(and(eq(mealSizeItems.mealSizeId, order.mealSizeId), eq(mealSizeItems.category, toCategory), isNotNull(mealSizeItems.maxTuAmount)))
-      .limit(1);
-    if (capRow?.maxTuAmount != null && to.pickTu != null) {
-      const resultingTu = (effective[toCategory] ?? 0) * to.pickTu;
-      if (resultingTu > Number(capRow.maxTuAmount)) {
-        throw new ValidationError(`This swap would exceed the ${toCategory} limit for this meal size`);
-      }
-    }
+    const qtyTo = check.qtyTo;
 
     // Snapshot the derived quantities onto the applied row — never re-read from
     // meal_size_items after this, so a later admin edit to a category's tuAmount

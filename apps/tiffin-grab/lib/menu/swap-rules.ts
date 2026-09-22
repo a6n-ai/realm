@@ -54,7 +54,9 @@ export function swapQuantities(
   const ratio = (fromPicks * fromTu) / toTu;
   // Epsilon, not `%`: TU amounts are decimals (0.25 roti) and float modulo lies.
   if (Math.abs(ratio - Math.round(ratio)) > 1e-9) {
-    return { ok: false, reason: `Giving up ${fromPicks} ${from.key} doesn't divide evenly into ${to.key} portions` };
+    // Customer-facing: never mention pick counts / TU math. Valid-options must
+    // filter these quantities before the UI offers them.
+    return { ok: false, reason: "This swap requires an even portion exchange." };
   }
   return { ok: true, qtyTo: Math.round(ratio) };
 }
@@ -85,6 +87,20 @@ export function swapAmounts(
 export function swapLabel(s: SwapRow, label: (key: string) => string, cats?: Record<string, SwapCategory>): string {
   const a = swapAmounts(cats?.[s.fromCategory], cats?.[s.toCategory], s.qtyFrom, s.qtyTo);
   return a ? `${label(s.fromCategory)} · ${a.give} → ${label(s.toCategory)} · ${a.get}` : `${s.qtyFrom} ${label(s.fromCategory)} → ${s.qtyTo} ${label(s.toCategory)}`;
+}
+
+/** True when some give-count in 1..availableFromPicks divides evenly into the destination (pair-fit only). */
+export function hasEvenPortionSwap(
+  from: SwapCategory | undefined,
+  to: SwapCategory | undefined,
+  availableFromPicks: number,
+): boolean {
+  if (availableFromPicks < 1) return false;
+  if (!from || !to) return true;
+  for (let q = 1; q <= availableFromPicks; q++) {
+    if (swapQuantities(from, to, q).ok) return true;
+  }
+  return false;
 }
 
 /** Side note for a swap option: the smallest whole swap in real units ("8oz ⇄ 8oz", "4 roti ⇄ 1 unit"); "" when none fits. */

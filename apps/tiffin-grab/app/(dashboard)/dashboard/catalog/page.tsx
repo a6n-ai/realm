@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftRightIcon, ArrowRightIcon, LayersIcon, UtensilsCrossedIcon } from "lucide-react";
+import { ArrowLeftRightIcon, ArrowRightIcon, LayersIcon, ListChecksIcon, UtensilsCrossedIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, PageHeader, PageShell } from "@/components/ds";
 import { catalogIndexEntries } from "./resource-config";
@@ -21,14 +21,16 @@ export default async function CatalogIndexPage() {
               </CardHeader>
               <CardContent>
                 <div className="font-medium">{r.label}</div>
-                <div className="text-muted-foreground text-sm">Edit {r.label.toLowerCase()}</div>
+                <div className="text-muted-foreground text-sm">
+                  {r.key === "meal-sizes"
+                    ? "What the customer starts with"
+                    : `Edit ${r.label.toLowerCase()}`}
+                </div>
               </CardContent>
             </Card>
           </Link>
         ))}
-        {/* Not a ResourceDef — a swap rule is a grouped-by-meal-size list of directional
-            pairs, not a flat single-table CRUD, so this is a hand-authored card + a
-            bespoke static route rather than routed through catalogIndexEntries(). */}
+        {/* Not ResourceDefs — bespoke list UIs for directional pairs and meal constraints. */}
         <Link href="/dashboard/catalog/swaps" className="group" prefetch={false}>
           <Card variant="lift" className="h-full">
             <CardHeader className="flex flex-row items-start justify-between">
@@ -38,8 +40,22 @@ export default async function CatalogIndexPage() {
               <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
             </CardHeader>
             <CardContent>
-              <div className="font-medium">Category swaps</div>
-              <div className="text-muted-foreground text-sm">Edit category swaps</div>
+              <div className="font-medium">Swap Rules</div>
+              <div className="text-muted-foreground text-sm">Which categories can exchange</div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/dashboard/catalog/meal-rules" className="group" prefetch={false}>
+          <Card variant="lift" className="h-full">
+            <CardHeader className="flex flex-row items-start justify-between">
+              <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
+                <ListChecksIcon className="size-5" />
+              </span>
+              <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
+            </CardHeader>
+            <CardContent>
+              <div className="font-medium">Meal Rules</div>
+              <div className="text-muted-foreground text-sm">Limits the final meal must obey</div>
             </CardContent>
           </Card>
         </Link>

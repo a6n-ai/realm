@@ -216,6 +216,28 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     multi({ plan: day([{ fromCategory: "rice", toCategory: "roti" }]), initialTrip: "2026-09-21" });
     expect(screen.getAllByRole("button", { name: /Swap items/ }).length).toBeGreaterThan(0);
   });
+
+  it("hides Swap when leftover picks cannot form an even portion exchange", () => {
+    const plan = {
+      ...p1,
+      swapCategories: {
+        rice: { key: "rice", pickTu: 1.5, unitType: "count", unitLabel: "unit", maxPicksPerTiffin: null },
+        roti: { key: "roti", pickTu: 1, unitType: "count", unitLabel: "roti", maxPicksPerTiffin: null },
+      },
+      sub: { ...p1.sub, categoryCounts: { rice: 1 } },
+      days: [{
+        date: "2026-09-21",
+        menuWeekId: "w1",
+        meal: null,
+        eatingDays: [
+          { date: "2026-09-21", swapPairs: [{ fromCategory: "rice", toCategory: "roti" }], appliedSwaps: [] },
+          { date: "2026-09-22", swapPairs: [{ fromCategory: "rice", toCategory: "roti" }], appliedSwaps: [] },
+        ],
+      }],
+    } as unknown as PlanView;
+    multi({ plan, initialTrip: "2026-09-21" });
+    expect(screen.queryByRole("button", { name: /Swap items/ })).toBeNull();
+  });
   it("next arrow moves one week forward", () => {
     replace.mockClear();
     multi();

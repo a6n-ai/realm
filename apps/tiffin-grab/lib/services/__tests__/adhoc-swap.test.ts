@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
-import { applySwapsToCounts } from "@/lib/menu/swap-rules";
+import { applySwapsToCounts, swapQuantities } from "@/lib/menu/swap-rules";
+import { computeSwapOption } from "@/lib/menu/meal-validation";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -11,6 +12,7 @@ const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/c
 const { createOrder } = await import("../orders.service");
 const { applyDeliverySwap } = await import("../category-swaps.service");
 const { dishCategoriesService } = await import("../dish-categories.service");
+const { loadCompositionContext } = await import("../swap-options.service");
 
 const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];
@@ -70,6 +72,34 @@ async function mealSizeWithTwoCategories() {
   return size;
 }
 
+/** Prefer a directional pair that the shared validator can actually apply (divisible TU). */
+async function swappablePair(order: { mealSizeId: bigint; categoryCounts: Record<string, number> | null }, cats: string[]) {
+  const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {});
+  for (const from of cats) {
+    for (const to of cats) {
+      if (from === to) continue;
+      const opt = computeSwapOption({ composition, applied: [], fromCategory: from, toCategory: to });
+      if (opt.validBundles[0]) return { from, to, fromPicks: opt.validBundles[0].fromPicks };
+    }
+  }
+  // Fall back: same-category self-swap always divides 1↔1 when the category is present.
+  const self = cats[0]!;
+  return { from: self, to: self, fromPicks: 1 };
+}
+
+/** First fromPicks that divides evenly (ignores Max TU) — for asserting Max TU rejection. */
+async function firstDivisibleFromPicks(order: { mealSizeId: bigint; categoryCounts: Record<string, number> | null }, from: string, to: string) {
+  const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {});
+  const fromCat = composition.categories.get(from);
+  const toCat = composition.categories.get(to);
+  if (!fromCat || !toCat) throw new Error("categories missing from composition");
+  const have = order.categoryCounts?.[from] ?? 0;
+  for (let q = 1; q <= Math.max(have, 1); q++) {
+    if (swapQuantities(fromCat, toCat, q).ok) return q;
+  }
+  throw new Error(`No divisible ${from}→${to} quantity on this meal size`);
+}
+
 // Idempotent: the seed already wires some pairs globally (roti/rice,
 // salad/raita, ...), and mealSizeWithTwoCategories() can land on a meal size
 // whose two categories are one of those. Only track (for cleanup) a pair this
@@ -86,19 +116,20 @@ describe("applyDeliverySwap", () => {
     const size = await mealSizeWithTwoCategories();
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
-    const [from, to] = [...new Set(size.items.map((i) => i.category))];
-    await allowPair(from, to);
+    const cats = [...new Set(size.items.map((i) => i.category))];
 
     const { publicId } = await createOrder(orderInput(size.publicId, planKey));
     const order = await fetchOrder(publicId);
     const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
+    const { from, to, fromPicks } = await swappablePair(order, cats);
+    await allowPair(from, to);
 
-    await applyDeliverySwap(delivery.publicId, from, to, 1, null);
+    await applyDeliverySwap(delivery.publicId, from, to, fromPicks, null);
 
     const [swap] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, delivery.id));
     expect(swap.fromCategory).toBe(from);
     expect(swap.toCategory).toBe(to);
-    expect(swap.qtyFrom).toBe(1);
+    expect(swap.qtyFrom).toBe(fromPicks);
     expect(swap.qtyTo).toBeGreaterThan(0);
   });
 
@@ -182,27 +213,45 @@ describe("applyDeliverySwap", () => {
     const size = await mealSizeWithTwoCategories();
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
-    const [from, to] = [...new Set(size.items.map((i) => i.category))];
+    const cats = [...new Set(size.items.map((i) => i.category))];
+
+    const { publicId } = await createOrder(orderInput(size.publicId, planKey));
+    const order = await fetchOrder(publicId);
+    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
+
+    // Pick a divisible cross-category pair first (before capping), then cap destination Max TU.
+    let from = cats[0]!;
+    let to = from;
+    let fromPicks = 1;
+    outer: for (const a of cats) {
+      for (const b of cats) {
+        if (a === b) continue;
+        try {
+          fromPicks = await firstDivisibleFromPicks(order, a, b);
+          from = a;
+          to = b;
+          break outer;
+        } catch {
+          /* try next pair */
+        }
+      }
+    }
+    if (from === to) {
+      throw new Error("Seed meal size has no divisible cross-category swap for Max TU fixture");
+    }
     await allowPair(from, to);
 
-    // Cap the destination at its current TU so any swap into it overflows. Scoped
-    // to THIS meal size — a category can have many rows across other meal sizes
-    // now that qty removal made each row one pick, so an unscoped query could
-    // silently cap an unrelated meal size instead of the one under test.
     const [{ id: mealSizeId }] = await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.publicId, size.publicId)).limit(1);
-    const [toItemRow] = await db.select({ id: mealSizeItems.id, tuAmount: mealSizeItems.tuAmount })
-      .from(mealSizeItems).where(and(eq(mealSizeItems.mealSizeId, mealSizeId), eq(mealSizeItems.category, to))).limit(1);
-    await db.update(mealSizeItems).set({ maxTuAmount: toItemRow.tuAmount }).where(eq(mealSizeItems.id, toItemRow.id));
+    const toRows = await db.select({ id: mealSizeItems.id, tuAmount: mealSizeItems.tuAmount })
+      .from(mealSizeItems).where(and(eq(mealSizeItems.mealSizeId, mealSizeId), eq(mealSizeItems.category, to)));
+    const baseTu = toRows.reduce((s, r) => s + Number(r.tuAmount), 0);
+    for (const r of toRows) await db.update(mealSizeItems).set({ maxTuAmount: String(baseTu) }).where(eq(mealSizeItems.id, r.id));
 
     try {
-      const { publicId } = await createOrder(orderInput(size.publicId, planKey));
-      const order = await fetchOrder(publicId);
-      const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
-
-      await expect(applyDeliverySwap(delivery.publicId, from, to, 1, null))
-        .rejects.toThrow(/limit for this meal size/i);
+      await expect(applyDeliverySwap(delivery.publicId, from, to, fromPicks, null))
+        .rejects.toThrow(/maximum .+ allowed in this meal/i);
     } finally {
-      await db.update(mealSizeItems).set({ maxTuAmount: null }).where(eq(mealSizeItems.id, toItemRow.id));
+      for (const r of toRows) await db.update(mealSizeItems).set({ maxTuAmount: null }).where(eq(mealSizeItems.id, r.id));
     }
   });
 });

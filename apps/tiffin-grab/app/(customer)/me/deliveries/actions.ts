@@ -8,6 +8,8 @@ import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, cle
 import { formatMissedDays } from "@/lib/menu/coverage";
 import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
+import { listValidSwapOptionsForDelivery } from "@/lib/services/swap-options.service";
+import type { SwapOption } from "@/lib/menu/meal-validation";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { runAction, type ActionResult } from "../action-result";
@@ -106,6 +108,24 @@ export async function scheduleMyPooledTiffin(
     const result = await scheduleFromPool(orderPublicId, dateIso, await currentUserId());
     await revalidateDeliverySurfaces(orderPublicId);
     return { carriedOn: result.carriedOn, merged: result.merged };
+  });
+}
+
+/**
+ * Authoritative swap cards for the customer sheet. Renders `validBundles` only —
+ * never recompute TU/divisibility/caps in React.
+ */
+export async function loadMySwapOptions(
+  deliveryPublicId: string,
+  forDate?: string,
+): Promise<ActionResult<{ options: SwapOption[] }>> {
+  return runAction(async () => {
+    await assertCanManageDelivery(deliveryPublicId);
+    const options = await listValidSwapOptionsForDelivery(deliveryPublicId, {
+      forDate,
+      hideUnavailable: true,
+    });
+    return { options };
   });
 }
 

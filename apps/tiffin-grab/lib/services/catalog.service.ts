@@ -6,6 +6,11 @@ import type { z } from "zod";
 import { db } from "@/db/client";
 import { addonCategories, addons, deliveryFrequencies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { RESOURCES, slug } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import {
+  emptyActiveCompositionMessage,
+  maxTuBelowBaseMessage,
+  unknownPlanCategoryMessage,
+} from "@/lib/menu/admin-config-guards";
 import { getAppSettings } from "./app-settings.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import { SessionUpdatableService } from "./session-service";
@@ -61,6 +66,7 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
     const { items, planId, ...rest } = parsed as {
       items?: CompositionItem[];
       planId?: string;
+      active?: boolean;
     } & Record<string, unknown>;
 
     const parentPatch: Record<string, unknown> = { ...rest };
@@ -68,16 +74,42 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
     // `components` is derived from the category labels, never hand-edited.
     // Resolved below, once the label map is loaded.
 
+    // Resolve plan for plan-scoped category checks (create requires planId; update may inherit).
+    let resolvedPlanId: bigint | null = (parentPatch.planId as bigint | undefined) ?? null;
+    let currentlyActive = true;
+    let mealSizeInternalId: bigint | null = null;
+    if (id) {
+      const [existing] = await db
+        .select({ id: mealSizes.id, planId: mealSizes.planId, active: mealSizes.active })
+        .from(mealSizes)
+        .where(eq(mealSizes.publicId, id))
+        .limit(1);
+      mealSizeInternalId = existing?.id ?? null;
+      if (resolvedPlanId == null) resolvedPlanId = existing?.planId ?? null;
+      currentlyActive = existing?.active ?? true;
+    }
+    const willBeActive = parentPatch.active !== undefined ? Boolean(parentPatch.active) : currentlyActive;
+
     // Validate every category soft-ref BEFORE any write, so a bad row rejects the
     // whole save (create/update + item replace) rather than half-applying it.
     let rows: (typeof mealSizeItems.$inferInsert)[] | undefined;
     if (items !== undefined) {
-      const categories = await dishCategoriesService.enabledCategories();
-      const labelByKey = new Map(categories.map((c) => [c.key, c.label]));
+      if (items.length === 0 && willBeActive) {
+        throw new ValidationError(emptyActiveCompositionMessage());
+      }
+
+      const maxTuErr = maxTuBelowBaseMessage(items);
+      if (maxTuErr) throw new ValidationError(maxTuErr);
+
+      if (items.length > 0 && resolvedPlanId == null) {
+        throw new ValidationError("Select a plan for this meal size.");
+      }
+      const planCats = resolvedPlanId != null ? await dishCategoriesService.forPlan(resolvedPlanId) : [];
+      const labelByKey = new Map(planCats.map((c) => [c.key, c.label]));
       // An item's name IS its category label now, so the two can never disagree.
       parentPatch.components = items.map((i) => labelByKey.get(i.category) ?? i.category);
       rows = items.map((item, index) => {
-        if (!labelByKey.has(item.category)) throw new ValidationError(`Unknown category: ${item.category}`);
+        if (!labelByKey.has(item.category)) throw new ValidationError(unknownPlanCategoryMessage(item.category));
         const label = labelByKey.get(item.category)!;
         return {
           mealSizeId: 0n, // placeholder; set once the parent id is known
@@ -89,6 +121,14 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
           sortOrder: index,
         };
       });
+    } else if (willBeActive && mealSizeInternalId != null && !currentlyActive) {
+      // Restore / re-activate without re-sending items: still refuse an empty composition.
+      const existingItems = await db
+        .select({ id: mealSizeItems.id })
+        .from(mealSizeItems)
+        .where(eq(mealSizeItems.mealSizeId, mealSizeInternalId))
+        .limit(1);
+      if (existingItems.length === 0) throw new ValidationError(emptyActiveCompositionMessage());
     }
 
     // Parent upsert through the base path preserves createdBy/updatedBy stamping

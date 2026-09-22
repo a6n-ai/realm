@@ -40,7 +40,7 @@ export async function pickMyDish(input: {
 
 export async function applyMyDishToWeek(input: {
   orderId: string; menuWeekId: string; slot: string; personIndex: number; pickIndex?: number; dishId: string;
-}): Promise<{ applied: number; skipped: string[] } | { error: string }> {
+}): Promise<{ applied: number; skipped: { dateIso: string; reason: string }[] } | { error: string }> {
   try {
     const actorId = await me();
     await assertCanManageOrder(input.orderId);
@@ -54,10 +54,7 @@ export async function applyMyDishToWeek(input: {
     });
     revalidatePath("/me");
     revalidatePath(`/dashboard/orders/${input.orderId}`);
-    // selectionsService.applyToWeek's skipped entries are { dateIso, reason }; the
-    // interface here declares skipped: string[] — flatten to the date so callers
-    // get a simple list without depending on the service's internal shape.
-    return { applied: result.applied, skipped: result.skipped.map((s) => s.dateIso) };
+    return { applied: result.applied, skipped: result.skipped };
   } catch (e) {
     if (e instanceof AppError) return { error: e.message };
     throw e;

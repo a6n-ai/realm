@@ -7,7 +7,7 @@ import { OrderStatusBadge } from "@/components/ds";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { applySwapsToCounts } from "@/lib/menu/swap-rules";
+import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
 import { addDays, dotStatus, mondayOf, PLAN_COLORS, type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import { actionModel } from "./action-model";
@@ -75,7 +75,13 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // Swap only when this eating day has a swap the customer can still make (same filter the swap sheet applies).
   const eatingSwaps = trip && row ? plan.days.find((d) => d.date === trip.date)?.eatingDays?.find((e) => e.date === row.date) : undefined;
   const left = plan.sub.categoryCounts ? applySwapsToCounts(plan.sub.categoryCounts, eatingSwaps?.appliedSwaps ?? []) : null;
-  const canSwap = (eatingSwaps?.swapPairs ?? []).some((p) => !left || (left[p.fromCategory] ?? 0) >= 1);
+  // Entry gate: at least one configured pair has an even-portion give count left.
+  // Full Max TU / Meal Rules filtering still happens in listValidSwapOptionsForDelivery.
+  const canSwap = (eatingSwaps?.swapPairs ?? []).some((p) => {
+    const available = left ? (left[p.fromCategory] ?? 0) : 1;
+    const cats = plan.swapCategories ?? {};
+    return hasEvenPortionSwap(cats[p.fromCategory], cats[p.toCategory], available);
+  });
   // The menu of this week isn't out: pick/swap are disabled, everything else (dates, move, info) still shows.
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
@@ -205,7 +211,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
             {emptyDay && <Card className="mb-4 p-4"><p className="text-[15px] font-semibold">Nothing planned on {humanDate(emptyDay)}.</p></Card>}
             <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
               <div className="space-y-0.5">
-                {menuOut && <Card className="mb-2 p-4" data-testid="menu-not-released"><p className="text-[15px] font-semibold">Menu not released yet.</p><p className="text-sm text-[var(--muted-foreground,#6E6558)]">Meals appear below once the kitchen releases this week's menu. You can still move a day.</p></Card>}
+                {menuOut && <Card className="mb-2 p-4" data-testid="menu-not-released"><p className="text-[15px] font-semibold">Menu not released yet.</p><p className="text-sm text-[var(--muted-foreground,#6E6558)]">Meals appear below once the kitchen releases this week&apos;s menu. You can still move a day.</p></Card>}
                 {shown.map((r) => (
                   <div key={r.date} className="flex items-center">
                     <div className="min-w-0 flex-1"><EatingRowButton row={r} selected={!!row && r.date === row.date} onSelect={(x) => select(x.date)} menuOut={menuOut} /></div>
