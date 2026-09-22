@@ -3,10 +3,11 @@ import { Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/customer/kit";
+import { OrderStatusBadge } from "@/components/ds";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { applySwapsToCounts } from "@/lib/menu/swap-rules";
+import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
 import { addDays, dotStatus, mondayOf, PLAN_COLORS, type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import { actionModel } from "./action-model";
@@ -74,11 +75,17 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // Swap only when this eating day has a swap the customer can still make (same filter the swap sheet applies).
   const eatingSwaps = trip && row ? plan.days.find((d) => d.date === trip.date)?.eatingDays?.find((e) => e.date === row.date) : undefined;
   const left = plan.sub.categoryCounts ? applySwapsToCounts(plan.sub.categoryCounts, eatingSwaps?.appliedSwaps ?? []) : null;
-  const canSwap = (eatingSwaps?.swapPairs ?? []).some((p) => !left || (left[p.fromCategory] ?? 0) >= 1);
-  const model = trip ? actionModel(trip, now, ctx, { canSwap }) : null;
-  // The menu of this week isn't out: say so and show nothing else for the week.
+  // Entry gate: at least one configured pair has an even-portion give count left.
+  // Full Max TU / Meal Rules filtering still happens in listValidSwapOptionsForDelivery.
+  const canSwap = (eatingSwaps?.swapPairs ?? []).some((p) => {
+    const available = left ? (left[p.fromCategory] ?? 0) : 1;
+    const cats = plan.swapCategories ?? {};
+    return hasEvenPortionSwap(cats[p.fromCategory], cats[p.toCategory], available);
+  });
+  // The menu of this week isn't out: pick/swap are disabled, everything else (dates, move, info) still shows.
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
+  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd }) : null;
   const vacAv = trip ? actionAvailability(trip, now, ctx).vacation : null;
 
   const dots = useMemo(() => {
@@ -107,7 +114,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
     goWeek(mon, { trip: date });
   };
   const pickDay = (iso: string) => (mondayOf(iso) === weekStart ? select(iso) : goTo(iso));
-  const switchPlan = (id: string) => startNav(() => router.replace(`/me?sub=${id}`, { scroll: false }));
+  // A plain replace can serve the previous plan's cached RSC render for the same path — refresh forces this plan's own ctx/counts.
+  const switchPlan = (id: string) => startNav(() => (router.replace(`/me?sub=${id}`, { scroll: false }), router.refresh()));
 
   const closeToast = useCallback(() => setToast(null), []);
   const changed = (message: string) => (setToast(message), router.refresh());
@@ -139,7 +147,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
           {subs.map((s) => (
             <PlanTab key={s.publicId} selected={s.publicId === plan.orderId} onClick={() => switchPlan(s.publicId)}>
               <span className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
-                {s.mealSizeName}{s.status === "paused" ? " (paused)" : ""}
+                {s.mealSizeName}
+                <OrderStatusBadge status={s.displayStatus} />
               </span>
               <span className="text-xs leading-tight text-[var(--muted-foreground,#6E6558)]">{windowLabel(windows[s.publicId], today)}</span>
             </PlanTab>
@@ -147,7 +156,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         </nav>
       )}
 
-      {upcoming && !menuOut && (
+      {upcoming && (
         <button
           type="button"
           data-testid="next-delivery"
@@ -176,7 +185,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         />
       </div>
 
-      {ctx.pooled >= 1 && !menuOut && (
+      {ctx.pooled >= 1 && (
         <Notice className="mb-4 items-center justify-between">
           <span>{tiffins(ctx.pooled)} {ctx.pooled === 1 ? "is" : "are"} waiting.</span>
           <button type="button" aria-label="Schedule a make-up" onClick={() => setActive("makeup")} className="min-h-11 shrink-0 px-2 text-sm font-semibold underline underline-offset-4 [touch-action:manipulation]">Make-up<span className="hidden lg:inline"> day</span></button>
@@ -185,9 +194,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
       <div className={navigating ? "opacity-60 transition-opacity" : undefined} aria-busy={navigating}>
         <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--muted-foreground,#6E6558)]">{weekTitle(weekStart)}</h2>
-        {menuOut ? (
-          <Card className="space-y-1 p-6" data-testid="menu-not-released"><p className="text-[15px] font-semibold">Menu not released yet.</p><p className="text-sm text-[var(--muted-foreground,#6E6558)]">Your meals for this week will show up here once the menu is out.</p></Card>
-        ) : shown.length === 0 && !emptyDay ? (
+        {shown.length === 0 && !emptyDay ? (
           <Card className="space-y-3 p-6">
             <p className="text-[15px] font-semibold">Nothing to eat this week.</p>
             {next ? (
@@ -204,9 +211,10 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
             {emptyDay && <Card className="mb-4 p-4"><p className="text-[15px] font-semibold">Nothing planned on {humanDate(emptyDay)}.</p></Card>}
             <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
               <div className="space-y-0.5">
+                {menuOut && <Card className="mb-2 p-4" data-testid="menu-not-released"><p className="text-[15px] font-semibold">Menu not released yet.</p><p className="text-sm text-[var(--muted-foreground,#6E6558)]">Meals appear below once the kitchen releases this week&apos;s menu. You can still move a day.</p></Card>}
                 {shown.map((r) => (
                   <div key={r.date} className="flex items-center">
-                    <div className="min-w-0 flex-1"><EatingRowButton row={r} selected={!!row && r.date === row.date} onSelect={(x) => select(x.date)} /></div>
+                    <div className="min-w-0 flex-1"><EatingRowButton row={r} selected={!!row && r.date === row.date} onSelect={(x) => select(x.date)} menuOut={menuOut} /></div>
                     <InfoButton label={`Details for ${humanDate(r.date)}`} onClick={() => setInfo(r)} />
                   </div>
                 ))}

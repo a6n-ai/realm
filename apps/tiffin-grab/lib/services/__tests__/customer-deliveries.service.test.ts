@@ -103,8 +103,24 @@ describe("customer-deliveries.service (integration)", () => {
     const subs = await myActiveSubscriptions(userA);
     expect(new Set(subs.map((s) => s.publicId))).toEqual(new Set([aOrder1.publicId, aOrder2.publicId]));
     expect(subs.every((s) => ["active", "paused"].includes(s.status))).toBe(true);
+    expect(subs.every((s) => s.displayStatus === "active")).toBe(true);
     expect(subs.every((s) => typeof s.mealSizeName === "string" && s.mealSizeName.length > 0)).toBe(true);
     expect(subs.every((s) => s.persons >= 1 && typeof s.categoryCounts === "object")).toBe(true);
+  });
+
+  it("hides rejected-payment plans from myActiveSubscriptions and tags payment review", async () => {
+    const settled = await makeOrder(PHONE_A, "User A");
+    const rejected = await makeOrder(PHONE_A, "User A", 1);
+    const reviewing = await makeOrder(PHONE_A, "User A", 2);
+    const userA = await userIdByPhone(PHONE_A);
+
+    await db.update(payments).set({ status: "rejected" }).where(eq(payments.orderId, rejected.id));
+    await db.update(payments).set({ status: "pending_verification" }).where(eq(payments.orderId, reviewing.id));
+
+    const subs = await myActiveSubscriptions(userA);
+    expect(new Set(subs.map((s) => s.publicId))).toEqual(new Set([settled.publicId, reviewing.publicId]));
+    expect(subs.find((s) => s.publicId === settled.publicId)?.displayStatus).toBe("active");
+    expect(subs.find((s) => s.publicId === reviewing.publicId)?.displayStatus).toBe("payment_review");
   });
 
   it("myPrimarySubscription prefers the plan that delivers next, not the newest one", async () => {

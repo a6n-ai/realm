@@ -77,7 +77,7 @@ describe("OrdersService.pause/resume — limits + recorded pauses (integration)"
     type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
     const err = caught as PgErr;
     const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
-    expect(layers.some((l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("subscription_pauses_one_open_uniq"))).toBe(true);
+    expect(layers.some((l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("subscription_pauses_one_open_unique"))).toBe(true);
   });
 
   it("pauseOrder throws 'already paused' when the unique index rejects a concurrent-winner's open row", async () => {

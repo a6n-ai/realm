@@ -19,6 +19,7 @@ import { Switch } from "@foundry/ui/switch";
 import { TableCell } from "@foundry/ui/table";
 import { cn } from "@foundry/ui/cn";
 import type { SortState } from "@/lib/list/sort";
+import { formatTuHuman, type TuCategory } from "@/lib/menu/format-tu";
 import {
   RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type FieldType, type ResourceDef,
 } from "../resource-config";
@@ -28,6 +29,14 @@ import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actio
 
 type Row = Record<string, unknown> & { publicId: string };
 type Options = Record<string, { value: string; label: string; group?: string }[]>;
+/** Category option for meal-size composition — includes TU facts for read-only natural hints. */
+export type CompositionCategoryOption = {
+  value: string;
+  label: string;
+  tuUnitType?: "weight" | "count";
+  tuUnitSize?: number;
+  tuUnitLabel?: string;
+};
 
 const isNumberType = (f: FieldDef) => f.type === "number";
 const isArrayType = (f: FieldDef) => f.type === "csv" || f.type === "multiselect";
@@ -92,13 +101,17 @@ function formatNumber(f: FieldDef, n: number): string {
 // rows and derives sortOrder from the array order. A row IS one dish pick, so
 // "2 raita" is two rows of the same category, not a qty field — the category
 // select allows repeats on purpose.
+//
+// Swap note: exchanges use the FIRST row's TU / pick as the category's rate.
+// Later rows of the same category stay separate picks for selection, but do not
+// invent a second swap rate — don't imply that in the UI.
 function CompositionField({
   f, form, options, categoriesByPlan,
 }: {
   f: FieldDef;
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
   options: Options;
-  categoriesByPlan?: Record<string, { value: string; label: string }[]>;
+  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
 }) {
   // The dialog form is typed as Record<string, unknown>, so RHF can't infer the
   // array element shape from the key — cast the field-array path/append payload.
@@ -120,6 +133,9 @@ function CompositionField({
           </span>
         ) : null}
       </div>
+      <p className="text-muted-foreground text-xs">
+        Each row is one pick the customer starts with. Swaps use this category&apos;s first TU / pick as the exchange rate for the whole category.
+      </p>
 
       <div className="grid gap-2">
         {needsPlan ? (
@@ -133,62 +149,14 @@ function CompositionField({
         ) : null}
 
         {fields.map((row, idx) => (
-          <div
+          <CompositionRow
             key={row.id}
-            // Outer radius = inner radius + padding (rounded-md inputs + p-2 → rounded-lg).
-            className="grid grid-cols-1 items-end gap-2 rounded-lg border p-2 sm:grid-cols-[minmax(0,1.6fr)_6rem_4.5rem_auto]"
-          >
-            <Controller
-              control={form.control}
-              name={`${f.key}.${idx}.category`}
-              render={({ field }) => (
-                <label className="grid gap-1">
-                  <span className="text-muted-foreground text-xs">Category</span>
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                    <SelectTrigger><SelectValue placeholder="Pick a category" /></SelectTrigger>
-                    <SelectContent>
-                      {cats.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-              )}
-            />
-            <Controller
-              control={form.control}
-              name={`${f.key}.${idx}.tuAmount`}
-              render={({ field }) => (
-                <label className="grid gap-1">
-                  <span className="text-muted-foreground text-xs">TU / pick</span>
-                  <Input className="tabular-nums" type="number" step="0.01" min={0} value={field.value ?? ""} onChange={field.onChange} placeholder="1" />
-                </label>
-              )}
-            />
-            <Controller
-              control={form.control}
-              name={`${f.key}.${idx}.maxTuAmount`}
-              render={({ field }) => (
-                <label className="grid gap-1">
-                  <span className="text-muted-foreground text-xs">Max TU</span>
-                  <Input className="tabular-nums" type="number" step="0.01" min={0} value={field.value ?? ""} onChange={field.onChange} placeholder="—" />
-                </label>
-              )}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              // size-10 keeps the hit area at 40px even though the glyph is 16px.
-              className="text-muted-foreground hover:text-destructive size-10 self-end transition-[color,scale] active:scale-[0.96]"
-              aria-label={`Remove item ${idx + 1}`}
-              onClick={() => remove(idx)}
-            >
-              <Trash2Icon className="size-4" />
-            </Button>
-          </div>
+            form={form}
+            f={f}
+            idx={idx}
+            cats={cats}
+            onRemove={() => remove(idx)}
+          />
         ))}
 
         <Button
@@ -207,6 +175,94 @@ function CompositionField({
   );
 }
 
+function CompositionRow({
+  form, f, idx, cats, onRemove,
+}: {
+  form: ReturnType<typeof useForm<Record<string, unknown>>>;
+  f: FieldDef;
+  idx: number;
+  cats: CompositionCategoryOption[];
+  onRemove: () => void;
+}) {
+  const category = form.watch(`${f.key}.${idx}.category`) as string | undefined;
+  const tuAmount = form.watch(`${f.key}.${idx}.tuAmount`) as string | undefined;
+  const cat = cats.find((c) => c.value === category);
+  const tu = Number(tuAmount);
+  const naturalHint =
+    cat?.tuUnitType && cat.tuUnitSize != null && cat.tuUnitLabel && Number.isFinite(tu) && tu > 0
+      ? formatTuHuman(
+          { tuUnitType: cat.tuUnitType, tuUnitSize: Number(cat.tuUnitSize), tuUnitLabel: cat.tuUnitLabel } satisfies TuCategory,
+          tu,
+        )
+      : null;
+
+  return (
+    <div className="grid gap-2 rounded-lg border p-2">
+      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1.6fr)_6rem_4.5rem_auto]">
+        <Controller
+          control={form.control}
+          name={`${f.key}.${idx}.category`}
+          render={({ field }) => (
+            <label className="grid gap-1">
+              <span className="text-muted-foreground text-xs">Category</span>
+              <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                <SelectTrigger><SelectValue placeholder="Pick a category" /></SelectTrigger>
+                <SelectContent>
+                  {cats.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          )}
+        />
+        <Controller
+          control={form.control}
+          name={`${f.key}.${idx}.tuAmount`}
+          render={({ field }) => (
+            <label className="grid gap-1">
+              <span className="text-muted-foreground text-xs">TU / pick</span>
+              <Input className="tabular-nums" type="number" step="0.01" min={0} value={field.value ?? ""} onChange={field.onChange} placeholder="1" />
+            </label>
+          )}
+        />
+        <Controller
+          control={form.control}
+          name={`${f.key}.${idx}.maxTuAmount`}
+          render={({ field }) => (
+            <label className="grid gap-1">
+              <span className="text-muted-foreground text-xs">Max TU</span>
+              <Input className="tabular-nums" type="number" step="0.01" min={0} value={field.value ?? ""} onChange={field.onChange} placeholder="—" />
+            </label>
+          )}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-destructive size-10 self-end transition-[color,scale] active:scale-[0.96]"
+          aria-label={`Remove item ${idx + 1}`}
+          onClick={onRemove}
+        >
+          <Trash2Icon className="size-4" />
+        </Button>
+      </div>
+      <div className="text-muted-foreground grid gap-0.5 text-[11px] leading-snug sm:pr-12">
+        <p><span className="font-medium text-foreground/80">TU / pick</span> — amount of this category included in each pick.</p>
+        <p><span className="font-medium text-foreground/80">Max TU</span> — maximum this category can reach after swaps (leave blank for uncapped).</p>
+        {naturalHint ? (
+          <p className="text-foreground/70">
+            {tuAmount} TU = <span className="font-medium">{naturalHint}</span>
+            <span className="text-muted-foreground"> (from category settings)</span>
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function FieldControl({
   f, form, options, isNew, categoriesByPlan,
 }: {
@@ -214,7 +270,7 @@ function FieldControl({
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
   options: Options;
   isNew: boolean;
-  categoriesByPlan?: Record<string, { value: string; label: string }[]>;
+  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
 }) {
   if (f.type === "composition") return <CompositionField f={f} form={form} options={options} categoriesByPlan={categoriesByPlan} />;
   // Discount targets are per-kind: show only the selected kind's rows (+ "All").
@@ -458,7 +514,7 @@ function EditorDialog({
   options: Options;
   editing: { id: string; row: Row | null };
   onClose: () => void;
-  categoriesByPlan?: Record<string, { value: string; label: string }[]>;
+  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
 }) {
   const router = useRouter();
   const isNew = editing.id === "__new__";
@@ -596,7 +652,7 @@ export function ResourceEditor({
   dynamicOptions: Options;
   sort: SortState<string>;
   // Slots per plan, so the composition editor can scope to the selected plan.
-  categoriesByPlan?: Record<string, { value: string; label: string }[]>;
+  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
   discountCtx?: DiscountCtx;
   // Same server-side facet framework the orders and inquiries lists use.
   spec: FacetDef[];

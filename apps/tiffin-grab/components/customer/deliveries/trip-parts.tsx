@@ -20,7 +20,7 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "rescheduled": return { label: "Moved", tone: "hold", dot: "hold" };
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
     case "vacation": return { label: "Vacation", tone: "vac", dot: "vacation" };
-    case "combined-into": return { label: "Combined", tone: "neutral", dot: "combined" };
+    case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
   }
 }
 
@@ -37,6 +37,7 @@ export function PlanTag({ plan }: { plan: PlanTagInfo }) {
 export const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
 export function rowSubline(t: Trip, tz: string): string {
+  if (t.status === "rescheduled" && t.movedTo) return `Moved to ${humanDate(t.movedTo)}`;
   if (t.status === "combined-into" && t.mergedInto) return `Combined into ${humanDate(t.mergedInto)}`;
   if (t.coversLabel) return t.coversLabel;
   if (t.isMakeup) return "Make-up delivery";
@@ -121,7 +122,7 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
 const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
 
 /** One eating day of the selected week: date + dishes; a truck marks the delivery day, the "i" button (beside the row) holds the rest. */
-export function EatingRowButton({ row, selected, onSelect, plan }: { row: EatingRow; selected: boolean; onSelect: (row: EatingRow) => void; plan?: PlanTagInfo }) {
+export function EatingRowButton({ row, selected, onSelect, plan, menuOut }: { row: EatingRow; selected: boolean; onSelect: (row: EatingRow) => void; plan?: PlanTagInfo; menuOut?: boolean }) {
   const m = statusMeta(row.trip);
   const dish = dedupeDishes(row.dish).join(", ");
   return (
@@ -142,7 +143,7 @@ export function EatingRowButton({ row, selected, onSelect, plan }: { row: Eating
         <span className="flex items-center gap-2 text-[15px] font-semibold">
           {humanDate(row.date)}
         </span>
-        <span className={cn(HELP, "block truncate")}>{dish || "Default menu"}</span>
+        <span className={cn(HELP, "block truncate")}>{menuOut ? "Menu not released yet" : dish || "Default menu"}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
         {m.dot && <StatusDot decorative status={m.dot} />}

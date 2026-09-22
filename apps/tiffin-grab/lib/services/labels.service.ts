@@ -16,7 +16,9 @@ import {
   plans,
   users,
 } from "@/db/schema";
-import { coveredDates } from "@/lib/menu/coverage";
+import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
+import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
+import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { packingItemLabel } from "@/lib/menu/packing-item-label";
 import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
@@ -73,6 +75,8 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
       eq(deliveries.deliveryDate, dateIso),
       eq(deliveries.status, "scheduled"),
       eq(plans.planType, "tiffin"),
+      // Same gate as daily labels / Optimo — payment-review and rejected stay off the sheet.
+      fulfillmentReadyOrder(),
     ));
   if (rows.length === 0) return [];
 
@@ -116,11 +120,14 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
     tuRows.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]),
   );
 
+  const extrasById = await loadExtraDates(db, rows.map((r) => r.deliveryId));
   const out: PackingLabelRow[] = [];
   for (const row of rows) {
     const trip = { id: row.deliveryId, deliveryDate: row.deliveryDate };
     const covered = coveredDates(row);
-    for (const forDate of covered) {
+    // A day a moved-in tiffin doubled up on repeats here — one row per physical tiffin, not per date.
+    const occurrences = occurrenceDates(row, extrasById.get(row.deliveryId));
+    for (const forDate of occurrences) {
     const daySwaps = swapsForDay(swapRows, trip, forDate);
     // Sum resolved category quantities across every person on the order onto one row; dish
     // names are taken from person 1's picks (an order's persons can technically pick different
@@ -162,6 +169,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
           sizeItems.filter((i) => i.mealSizeId === row.mealSizeId),
           category,
           pickCount,
+          daySwaps,
         );
         const qty = converter ? tuToNatural(converter, tuTotal) : pickCount;
         return {

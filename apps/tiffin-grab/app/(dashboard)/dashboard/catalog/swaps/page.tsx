@@ -7,16 +7,17 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { PageHeader, PageShell } from "@/components/ds";
 import { SwapPairGrid, type SwapPairRow } from "./swap-rule-grid";
+import type { AdminTuCategory } from "../admin-tu-hints";
 
-export default function CategorySwapsPage() {
+export default function SwapRulesPage() {
   return (
-    <Suspense fallback={<PageShell><PageHeader icon={ArrowLeftRightIcon} title="Category swaps" /></PageShell>}>
-      <CategorySwapsData />
+    <Suspense fallback={<PageShell><PageHeader icon={ArrowLeftRightIcon} title="Swap Rules" /></PageShell>}>
+      <SwapRulesData />
     </Suspense>
   );
 }
 
-async function CategorySwapsData() {
+async function SwapRulesData() {
   await requireAdmin();
 
   const [pairs, categories, planRows, plansByCategoryKey, unreachableByKey] = await Promise.all([
@@ -28,6 +29,13 @@ async function CategorySwapsData() {
   ]);
 
   const categoryOptions = categories.map((c) => ({ key: c.key, label: c.label }));
+  const categoryTu: AdminTuCategory[] = categories.map((c) => ({
+    key: c.key,
+    label: c.label,
+    tuUnitType: c.tuUnitType,
+    tuUnitSize: Number(c.tuUnitSize),
+    tuUnitLabel: c.tuUnitLabel,
+  }));
   const planOptions = planRows.map((p) => ({ publicId: p.publicId, name: p.name, tagColor: p.tagColor }));
   const rows: SwapPairRow[] = pairs.map((p) => ({
     id: p.id,
@@ -37,20 +45,18 @@ async function CategorySwapsData() {
     toLabel: p.toLabel,
     plans: p.plans.map((pl) => pl.publicId),
   }));
-  // { categoryKey: [planPublicId, ...] } — lets the client narrow the plan picker
-  // to only plans that actually have BOTH sides of a pair, instead of showing
-  // every plan and leaving the admin to guess which ones are even relevant.
   const planIdsByCategory = Object.fromEntries(plansByCategoryKey);
 
   return (
     <PageShell>
       <PageHeader
         icon={ArrowLeftRightIcon}
-        title="Category swaps"
-        subtitle="Which categories customers may swap between, and on which plans. A swap is always 1 TU for 1 TU — the customer picks how many, per delivery day."
+        title="Swap Rules"
+        subtitle="Which categories customers may exchange, and on which plans. Exchange is always 1 TU for 1 TU — natural amounts come from each category’s settings."
       />
       <SwapPairGrid
         categoryOptions={categoryOptions}
+        categoryTu={categoryTu}
         planOptions={planOptions}
         planIdsByCategory={planIdsByCategory}
         unreachableByKey={unreachableByKey}

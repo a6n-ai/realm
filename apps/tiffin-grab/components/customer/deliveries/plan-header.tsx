@@ -1,5 +1,6 @@
 "use client";
 import type { Subscription, SubscriptionWindow, TiffinCounts } from "@/lib/services/customer-deliveries.service";
+import { OrderStatusBadge } from "@/components/ds";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -43,6 +44,7 @@ export function PlanHeader({ name, sub, counts, renew, onVacation, onVacationCli
       </div>
       <p className="mt-3 text-[22px] font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeName}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
+        <OrderStatusBadge status={sub.displayStatus} />
         <Pill>
           {dot && <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: dot }} />}
           {sub.tagLabel || sub.planName}

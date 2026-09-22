@@ -62,7 +62,7 @@ function isOpenPauseConflict(e: unknown): boolean {
   const err = e as PgErr;
   const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
   return layers.some(
-    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("subscription_pauses_one_open_uniq"),
+    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("subscription_pauses_one_open_unique"),
   );
 }
 
@@ -1341,7 +1341,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       until = last?.d ?? window.from;
     }
     // assertPauseAllowed is a fast-path UX check only — it reads-then-writes with no lock, so
-    // two concurrent pause requests can both pass it. The subscription_pauses_one_open_uniq
+    // two concurrent pause requests can both pass it. The subscription_pauses_one_open_unique
     // partial unique index is the real concurrency backstop: it makes a second OPEN pause row
     // for this order impossible at the DB level. A losing concurrent request surfaces here as a
     // 23505 unique violation, which we map to the same "already paused" error assertPauseAllowed

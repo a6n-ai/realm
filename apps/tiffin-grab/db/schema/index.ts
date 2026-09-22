@@ -12,6 +12,8 @@ export * from "./lead-sources";
 export * from "./inquiry-user-config";
 export * from "./menu";
 export * from "./category-swaps";
+export * from "./meal-rules";
+export * from "./delivery-extra-tiffins";
 export * from "./app";
 export * from "./audit";
 export * from "./wallet";

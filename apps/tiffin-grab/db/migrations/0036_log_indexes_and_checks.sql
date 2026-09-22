@@ -1,6 +1,3 @@
-CREATE INDEX "order_activities_delivery_idx" ON "order_activities" USING btree ("delivery_id");--> statement-breakpoint
-CREATE INDEX "deliveries_date_idx" ON "deliveries" USING btree ("delivery_date");--> statement-breakpoint
-CREATE INDEX "inquiries_stage_created_idx" ON "inquiries" USING btree ("stage","created_at");--> statement-breakpoint
 -- Tables owned by @foundry/@relay/better-auth: not in this app's drizzle schema, so plain SQL.
 CREATE INDEX IF NOT EXISTS "audit_log_entity_idx" ON "audit_log" USING btree ("entity","entity_public_id","created_at");--> statement-breakpoint
 -- drain() polls status='pending' AND next_attempt_at<=now with no kind filter, so the

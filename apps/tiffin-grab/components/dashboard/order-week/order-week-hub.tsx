@@ -213,7 +213,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
       </Card>
 
       {dlg === "info" && row && <InfoDialog row={row} plan={plan} tz={tz} onClose={() => setDlg(null)} />}
-      {dlg === "reschedule" && trip && <RescheduleDialog trip={trip} data={data} onClose={() => setDlg(null)} onDone={refresh} />}
+      {dlg === "reschedule" && trip && <RescheduleDialog trip={trip} day={row?.date} data={data} onClose={() => setDlg(null)} onDone={refresh} />}
       {dlg === "swap" && row && <SwapDialog row={row} data={data} onClose={() => setDlg(null)} onDone={refresh} />}
       {dlg === "vacation" && <VacationDialog data={data} onClose={() => setDlg(null)} onDone={refresh} />}
       {dlg === "makeup" && <MakeupDialog data={data} onClose={() => setDlg(null)} onDone={refresh} />}
@@ -279,9 +279,11 @@ function useRun(onDone: (m: string) => void) {
 }
 const Err = ({ e }: { e: string | null }) => (e ? <p role="alert" className="text-destructive text-sm">{e}</p> : null);
 
-function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
+function RescheduleDialog({ trip, day: sourceDate, data, onClose, onDone }: { trip: Trip; day?: string; data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
   const { plan, now } = data;
-  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today), [trip, plan, now]);
+  const source = sourceDate ?? trip.date;
+  const split = source !== trip.date && trip.coversDates.length > 1 && trip.coversDates.includes(source);
+  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today, undefined, source), [trip, plan, now, source]);
   const byDate = useMemo(() => new Map(options.map((o) => [o.date, o])), [options]);
   const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason; };
   const first = options[0]?.date ?? plan.today;
@@ -294,7 +296,7 @@ function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: O
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Move {humanDate(trip.date)}</DialogTitle><DialogDescription>Pick the day the customer wants to eat. The delivery day is chosen automatically from the plan (truck marks delivery days).</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Move {humanDate(source)}</DialogTitle><DialogDescription>Pick the day the customer wants to eat. The delivery day is chosen automatically from the plan (truck marks delivery days).{split && " Other days stay on this trip."}</DialogDescription></DialogHeader>
         <div className="rounded-md border p-2" data-testid="move-week">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-muted-foreground px-1 text-xs font-semibold uppercase tracking-wider">{MON.format(d(week))} {d(week).getUTCDate()} – {MON.format(d(addDays(week, 6)))} {d(addDays(week, 6)).getUTCDate()}</span>
@@ -330,7 +332,7 @@ function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: O
         <Err e={error} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={!date || pending} onClick={() => run(() => rescheduleMyDelivery(trip.deliveryId!, date), `Moved ${humanDate(trip.date)} to ${humanDate(date)}.`)}>{pending ? "Saving…" : date ? `Move to ${humanDate(date)}` : "Move trip"}</Button>
+          <Button disabled={!date || pending} onClick={() => run(() => rescheduleMyDelivery(trip.deliveryId!, date, split ? source : undefined), `Moved ${humanDate(source)} to ${humanDate(date)}.`)}>{pending ? "Saving…" : date ? `Move to ${humanDate(date)}` : "Move trip"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

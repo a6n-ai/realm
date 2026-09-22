@@ -8,6 +8,7 @@ describe("isFulfillmentReady", () => {
     expect(isFulfillmentReady("active", ["awaiting_payment"])).toBe(false);
     expect(isFulfillmentReady("active", ["pending_verification"])).toBe(false);
     expect(isFulfillmentReady("active", ["pending_verification", "paid"])).toBe(false);
+    expect(isFulfillmentReady("active", ["rejected"])).toBe(false);
     expect(isFulfillmentReady("paused", ["paid"])).toBe(false);
     expect(isFulfillmentReady("active", [])).toBe(false);
   });

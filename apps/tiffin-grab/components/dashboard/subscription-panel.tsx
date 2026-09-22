@@ -55,6 +55,7 @@ export async function SubscriptionPanel({
           planType,
           planKey: order.planKey,
           status: order.status,
+          displayStatus: order.status,
           fullName: order.fullName,
           addressLine: order.addressLine,
           city: order.city,

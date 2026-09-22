@@ -20,14 +20,42 @@ export function coveredDates(d: { deliveryDate: string; coversDates: string[] | 
   return d.coversDates ?? [d.deliveryDate];
 }
 
+/** covers_dates with each date repeated once per extra tiffin — one entry per physical tiffin to pack. */
+export function occurrenceDates(d: { deliveryDate: string; coversDates: string[] | null }, extraDates: readonly string[] = []): string[] {
+  const counts = dateCounts(d, extraDates);
+  return coveredDates(d).flatMap((date) => Array<string>(counts.get(date) ?? 1).fill(date));
+}
+
 export function mergeCoverage(a: string[], b: string[]): string[] {
   return [...new Set([...a, ...b])].sort();
 }
 
+/** A day holds at most 2 tiffins (its own + one moved in); a trip carries at most 3. */
+export const MAX_TIFFINS_PER_DAY = 2;
+export const MAX_TIFFINS_PER_TRIP = 3;
+
+/** Tiffins per eating day on a trip: 1 for each covered date, +1 for each extra. */
+export function dateCounts(d: { deliveryDate: string; coversDates: string[] | null }, extraDates: readonly string[] = []): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const c of coveredDates(d)) m.set(c, (m.get(c) ?? 0) + 1);
+  for (const e of extraDates) m.set(e, (m.get(e) ?? 0) + 1);
+  return m;
+}
+
+/** Why `incoming` (date -> tiffins) cannot join `target`, or null when it fits. */
+export function mergeBlockReason(target: Map<string, number>, incoming: Map<string, number>): string | null {
+  const merged = new Map(target);
+  for (const [k, v] of incoming) merged.set(k, (merged.get(k) ?? 0) + v);
+  if ([...merged.values()].some((n) => n > MAX_TIFFINS_PER_DAY)) return `A day can hold at most ${MAX_TIFFINS_PER_DAY} tiffins.`;
+  if ([...merged.values()].reduce((a, b) => a + b, 0) > MAX_TIFFINS_PER_TRIP) return `A delivery can carry at most ${MAX_TIFFINS_PER_TRIP} tiffins.`;
+  return null;
+}
+
 /** Only rows with explicit coverage are checked; legacy rows carry weekend bundles that predate covers_dates. */
-export function assertCoverageUnits(d: { coversDates: string[] | null; tiffinUnits: number }, persons: number): void {
-  if (d.coversDates && d.tiffinUnits !== d.coversDates.length * persons) {
-    throw new Error(`Trip carries ${d.tiffinUnits} tiffins but covers ${d.coversDates.length} days x ${persons} persons`);
+export function assertCoverageUnits(d: { coversDates: string[] | null; tiffinUnits: number }, persons: number, extraCount = 0): void {
+  const days = (d.coversDates?.length ?? 0) + extraCount;
+  if (d.coversDates && d.tiffinUnits !== days * persons) {
+    throw new Error(`Trip carries ${d.tiffinUnits} tiffins but covers ${days} days x ${persons} persons`);
   }
 }
 

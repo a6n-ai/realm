@@ -1,5 +1,5 @@
 {
-  "id": "875a75dd-daae-4300-b02f-1c422bb46494",
+  "id": "337411e7-482e-4487-9d97-31cb0469fe3a",
   "prevId": "bbf5e806-ebf8-46c8-8d93-84a5522744fc",
   "version": "7",
   "dialect": "postgresql",
@@ -912,23 +912,7 @@
           "notNull": true
         }
       },
-      "indexes": {
-        "user_feature_flags_flag_idx": {
-          "name": "user_feature_flags_flag_idx",
-          "columns": [
-            {
-              "expression": "flag_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "user_feature_flags_user_id_users_id_fk": {
           "name": "user_feature_flags_user_id_users_id_fk",
@@ -966,8 +950,8 @@
             "public_id"
           ]
         },
-        "user_feature_flags_user_flag_unique": {
-          "name": "user_feature_flags_user_flag_unique",
+        "user_feature_flags_user_flag_uq": {
+          "name": "user_feature_flags_user_flag_uq",
           "nullsNotDistinct": false,
           "columns": [
             "user_id",
@@ -3048,36 +3032,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "orders_plan_idx": {
-          "name": "orders_plan_idx",
-          "columns": [
-            {
-              "expression": "plan_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "orders_zone_idx": {
-          "name": "orders_zone_idx",
-          "columns": [
-            {
-              "expression": "zone_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -3590,33 +3544,23 @@
           "method": "btree",
           "with": {}
         },
-        "deliveries_zone_idx": {
-          "name": "deliveries_zone_idx",
+        "deliveries_order_date_idx": {
+          "name": "deliveries_order_date_idx",
           "columns": [
             {
-              "expression": "zone_id",
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "delivery_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "deliveries_merged_into_idx": {
-          "name": "deliveries_merged_into_idx",
-          "columns": [
-            {
-              "expression": "merged_into_delivery_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"deliveries\".\"merged_into_delivery_id\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3848,21 +3792,6 @@
           "columns": [
             {
               "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "coupon_redemptions_redeemed_by_idx": {
-          "name": "coupon_redemptions_redeemed_by_idx",
-          "columns": [
-            {
-              "expression": "redeemed_by",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4171,8 +4100,8 @@
           "method": "btree",
           "with": {}
         },
-        "coupons_rep_daily_unique": {
-          "name": "coupons_rep_daily_unique",
+        "coupons_rep_daily_unq": {
+          "name": "coupons_rep_daily_unq",
           "columns": [
             {
               "expression": "owner_user_id",
@@ -4331,8 +4260,8 @@
         }
       },
       "indexes": {
-        "ledger_entries_user_created_idx": {
-          "name": "ledger_entries_user_created_idx",
+        "ledger_user_created_idx": {
+          "name": "ledger_user_created_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -4352,8 +4281,8 @@
           "method": "btree",
           "with": {}
         },
-        "ledger_entries_order_idx": {
-          "name": "ledger_entries_order_idx",
+        "ledger_order_idx": {
+          "name": "ledger_order_idx",
           "columns": [
             {
               "expression": "order_id",
@@ -4367,26 +4296,11 @@
           "method": "btree",
           "with": {}
         },
-        "ledger_entries_organization_idx": {
-          "name": "ledger_entries_organization_idx",
+        "ledger_organization_idx": {
+          "name": "ledger_organization_idx",
           "columns": [
             {
               "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ledger_entries_payment_idx": {
-          "name": "ledger_entries_payment_idx",
-          "columns": [
-            {
-              "expression": "payment_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4684,8 +4598,8 @@
           "method": "btree",
           "with": {}
         },
-        "inquiries_open_phone_source_unique": {
-          "name": "inquiries_open_phone_source_unique",
+        "inquiries_open_phone_source_uq": {
+          "name": "inquiries_open_phone_source_uq",
           "columns": [
             {
               "expression": "lower(\"phone\")",
@@ -4726,36 +4640,6 @@
           "columns": [
             {
               "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "inquiries_source_idx": {
-          "name": "inquiries_source_idx",
-          "columns": [
-            {
-              "expression": "source_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "inquiries_converted_order_idx": {
-          "name": "inquiries_converted_order_idx",
-          "columns": [
-            {
-              "expression": "converted_order_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5145,21 +5029,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "ticket_messages_author_idx": {
-          "name": "ticket_messages_author_idx",
-          "columns": [
-            {
-              "expression": "author_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -5397,21 +5266,6 @@
           "columns": [
             {
               "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tickets_order_idx": {
-          "name": "tickets_order_idx",
-          "columns": [
-            {
-              "expression": "order_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5973,8 +5827,8 @@
             "public_id"
           ]
         },
-        "inquiry_user_config_user_source_unique": {
-          "name": "inquiry_user_config_user_source_unique",
+        "inquiry_user_config_user_source_unq": {
+          "name": "inquiry_user_config_user_source_unq",
           "nullsNotDistinct": false,
           "columns": [
             "user_id",
@@ -6853,21 +6707,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "meal_selections_menu_week_idx": {
-          "name": "meal_selections_menu_week_idx",
-          "columns": [
-            {
-              "expression": "menu_week_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -7075,21 +6914,6 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "menu_items_dish_idx": {
-          "name": "menu_items_dish_idx",
-          "columns": [
-            {
-              "expression": "dish_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7433,6 +7257,135 @@
       "uniqueConstraints": {
         "delivery_category_swaps_public_id_unique": {
           "name": "delivery_category_swaps_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.delivery_extra_tiffins": {
+      "name": "delivery_extra_tiffins",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "current_app_id()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivery_id": {
+          "name": "delivery_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "eat_date": {
+          "name": "eat_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "delivery_extra_tiffins_delivery_idx": {
+          "name": "delivery_extra_tiffins_delivery_idx",
+          "columns": [
+            {
+              "expression": "delivery_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "delivery_extra_tiffins_organization_idx": {
+          "name": "delivery_extra_tiffins_organization_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "delivery_extra_tiffins_delivery_id_deliveries_id_fk": {
+          "name": "delivery_extra_tiffins_delivery_id_deliveries_id_fk",
+          "tableFrom": "delivery_extra_tiffins",
+          "tableTo": "deliveries",
+          "columnsFrom": [
+            "delivery_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "delivery_extra_tiffins_organization_id_organization_id_fk": {
+          "name": "delivery_extra_tiffins_organization_id_organization_id_fk",
+          "tableFrom": "delivery_extra_tiffins",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "delivery_extra_tiffins_public_id_unique": {
+          "name": "delivery_extra_tiffins_public_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "public_id"
@@ -10053,8 +10006,8 @@
           "method": "btree",
           "with": {}
         },
-        "subscription_pauses_one_open_unique": {
-          "name": "subscription_pauses_one_open_unique",
+        "subscription_pauses_one_open_uniq": {
+          "name": "subscription_pauses_one_open_uniq",
           "columns": [
             {
               "expression": "order_id",

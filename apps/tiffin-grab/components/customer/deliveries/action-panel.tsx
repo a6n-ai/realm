@@ -13,7 +13,7 @@ interface Props {
   onGoTo: (date: string) => void;
 }
 
-/** Pick meals (or Resume) is the one primary; the rest are a quiet row. Disabled actions stay tappable and answer in plain words. */
+/** Edit meal (or Resume) is the one primary; the rest are a quiet row. Disabled actions stay tappable and answer in plain words. */
 export function TripActions({ model, layout, onAction, onGoTo }: Props) {
   const [reason, setReason] = useState<string | null>(null);
   const bar = layout === "bar";

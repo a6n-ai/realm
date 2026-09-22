@@ -41,6 +41,11 @@ export function planWeek(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[]): { 
   return deliveries.filter((d) => carried.has(d)).map((day) => ({ day, units: carried.get(day)!.length, days: carried.get(day)! }));
 }
 
+/** Delivery weekdays whose plan pattern already carries `max` tiffins (e.g. Fri carrying Fri+Sat+Sun): nothing can be moved onto them or the days that ride them. */
+export function fullCarryWeekdays(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[], max: number): Set<DayOfWeek> {
+  return new Set((planWeek(deliveryDays, eatingDays) ?? []).filter((t) => t.units >= max).map((t) => t.day));
+}
+
 /** Shared by the wizard and createOrder: null when the eating-day pick is valid for
  * this delivery frequency, otherwise the message to show. */
 export function eatingDaysError(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[], bounds: { min: number; max: number }): string | null {

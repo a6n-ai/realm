@@ -1,8 +1,9 @@
+import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { NotFoundError, Role, weekdayKey, zonedDateIso } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
@@ -14,6 +15,7 @@ import {
   type ResolvedCategory,
 } from "@/lib/menu/resolve-delivery-meal";
 import { dishIdsForPlan } from "@/lib/menu/selections.service";
+import { isHiddenFromCustomer, orderDisplayStatus } from "@/lib/orders/display-status";
 import { getSession } from "@/lib/auth/session";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
@@ -59,6 +61,8 @@ export type Subscription = {
   planType: "tiffin" | "healthy";
   planKey: string;
   status: string;
+  /** Shared tag vocabulary: Active / Payment review / Completed (Rejected never reaches /me). */
+  displayStatus: string;
   fullName: string;
   addressLine: string;
   city: string;
@@ -76,6 +80,21 @@ export type Subscription = {
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
 
+async function paymentStatusesByOrderId(orderIds: bigint[]): Promise<Map<bigint, string[]>> {
+  const map = new Map<bigint, string[]>();
+  if (orderIds.length === 0) return map;
+  const rows = await db
+    .select({ orderId: payments.orderId, status: payments.status })
+    .from(payments)
+    .where(inArray(payments.orderId, orderIds));
+  for (const r of rows) {
+    const list = map.get(r.orderId) ?? [];
+    list.push(r.status);
+    map.set(r.orderId, list);
+  }
+  return map;
+}
+
 export async function myActiveSubscriptions(userId: bigint): Promise<Subscription[]> {
   // Flip any elapsed pause window back to "active" before reporting status — otherwise a
   // customer whose pause silently expired keeps seeing "paused" until some other write touches
@@ -86,6 +105,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
 
   const rows = await db
     .select({
+      id: orders.id,
       publicId: orders.publicId,
       planName: plans.name,
       planType: plans.planType,
@@ -107,10 +127,32 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
-  return rows.map((r) => ({
-    ...r,
-    categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
-  }));
+
+  const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
+  return rows
+    .filter((r) => !isHiddenFromCustomer(payByOrder.get(r.id) ?? []))
+    .map((r) => {
+      const paymentStatuses = payByOrder.get(r.id) ?? [];
+      return {
+        publicId: r.publicId,
+        planName: r.planName,
+        planType: r.planType,
+        planKey: r.planKey,
+        status: r.status,
+        displayStatus: orderDisplayStatus(r.status, paymentStatuses),
+        fullName: r.fullName,
+        addressLine: r.addressLine,
+        city: r.city,
+        postalCode: r.postalCode,
+        zoneId: r.zoneId,
+        mealSizeId: r.mealSizeId,
+        mealSizeName: r.mealSizeName,
+        persons: r.persons,
+        categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
+        tagLabel: r.tagLabel,
+        tagColor: r.tagColor,
+      };
+    });
 }
 
 /**
@@ -176,6 +218,8 @@ export type AgendaDay = {
   /** Only on the truck day: tiffins and eating days the trip feeds. */
   units: number;
   covers: string[];
+  /** This date used to be its own trip, now merged into this one — render as "moved", not the trip's live status. */
+  moved?: boolean;
 };
 
 /**
@@ -190,11 +234,25 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     .where(and(eq(orders.userId, userId), inArray(deliveries.status, [...VISIBLE]), gte(deliveries.deliveryDate, from), lte(deliveries.deliveryDate, until)))
     .orderBy(asc(deliveries.deliveryDate));
   const out: Record<string, AgendaDay[]> = {};
+  const extrasById = await loadExtraDates(db, rows.map((r) => r.d.id));
+  // A merged source's OWN date is now moved: mark it on the target's dot instead of showing the target's live status there.
+  const movedDatesByTarget = new Map<string, Set<string>>();
+  for (const { d } of rows) {
+    if (d.mergedIntoDeliveryId == null) continue;
+    const key = d.mergedIntoDeliveryId.toString();
+    const set = movedDatesByTarget.get(key) ?? movedDatesByTarget.set(key, new Set()).get(key)!;
+    for (const date of coveredDates(d)) set.add(date);
+  }
   for (const { d, orderId } of rows) {
     if (d.mergedIntoDeliveryId != null) continue;
     const covers = coveredDates(d);
+    const moved = movedDatesByTarget.get(d.id.toString());
     for (const date of covers) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date) });
+    }
+    // A doubled day (moved tiffin landed on an eating day) gets a second dot.
+    for (const date of extrasById.get(d.id) ?? []) {
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true });
     }
   }
   return out;
@@ -286,6 +344,8 @@ export type TiffinCounts = {
   lastDeliveryDate: string | null;
   /** Weekday keys (e.g. ["mon","wed","fri"]) a pooled tiffin may land on, per the plan. */
   deliveryWeekdays: string[];
+  /** Weekdays the customer eats; null for legacy plans (every day the plan delivers or carries). */
+  eatingWeekdays?: string[] | null;
 };
 
 // Delivered/remaining/pooled tiffins for one subscription, plus the constraints the "schedule from
@@ -365,6 +425,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     persons: order.persons,
     lastDeliveryDate,
     deliveryWeekdays,
+    eatingWeekdays: order.eatingDays?.length ? (order.eatingDays as string[]) : null,
   };
 }
 
@@ -396,19 +457,19 @@ export async function myEarliestNewPlanStartDate(userId: bigint): Promise<string
   return latest ? latest.toISOString().slice(0, 10) : null;
 }
 
-/** Original delivery ids that already have a make-up row (reschedule / pool schedule). */
-export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Set<string>> {
+/** Original delivery id -> the day its tiffin moved to (the picked eat day for a single-day trip, else the make-up's delivery date). */
+export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Map<string, string>> {
   const [order] = await db
     .select({ id: orders.id })
     .from(orders)
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
-  if (!order) return new Set();
+  if (!order) return new Map();
   const rows = await db
-    .select({ src: deliveries.makeupForDeliveryId })
+    .select({ src: deliveries.makeupForDeliveryId, deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
     .from(deliveries)
     .where(and(eq(deliveries.orderId, order.id), isNotNull(deliveries.makeupForDeliveryId)));
-  return new Set(rows.map((r) => r.src!.toString()));
+  return new Map(rows.map((r) => [r.src!.toString(), r.coversDates?.length === 1 ? r.coversDates[0]! : r.deliveryDate]));
 }
 
 // Pause budget for the customer's pause UI: limits (nullable = unlimited) and
@@ -478,19 +539,13 @@ export type SubSummary = {
 };
 
 // All of a customer's subscriptions across every status, newest first — for the
-// "you already have" summary on /subscribe. Current (active/paused/waitlisted/
-// pending) vs past (cancelled/completed) grouping is done in the component.
-//
-// `status` here is a DISPLAY status, not the raw DB order_status: an order is
-// stored "active" from the moment it's created (deliveries are materialized
-// immediately so unpaid days can still be moved), so two orders can be
-// legitimately "active" in the DB on the same day the customer books a future
-// plan. Showing both as "Active" reads as a real conflict, so an active order
-// whose startDate hasn't arrived yet is relabeled "upcoming" for display only
-// — nothing about the underlying order or its deliveries changes.
+// "you already have" summary on /subscribe. Rejected-payment plans are omitted
+// (customer starts a new order). Status is the shared display vocabulary
+// (Active / Payment review / Completed), not raw DB order_status.
 export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary[]> {
   const rows = await db
     .select({
+      id: orders.id,
       publicId: orders.publicId,
       planName: plans.name,
       mealSizeName: mealSizes.name,
@@ -506,12 +561,18 @@ export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary
     .where(eq(orders.userId, userId))
     .orderBy(desc(orders.createdAt));
 
-  const { timezone } = await getAppSettings();
-  const todayIso = zonedDateIso(Date.now(), timezone);
-  return rows.map((r) => ({
-    ...r,
-    status: r.status === "active" && r.startDate > todayIso ? "upcoming" : r.status,
-  }));
+  const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
+  return rows
+    .filter((r) => !isHiddenFromCustomer(payByOrder.get(r.id) ?? []))
+    .map((r) => ({
+      publicId: r.publicId,
+      planName: r.planName,
+      mealSizeName: r.mealSizeName,
+      daysPerWeek: r.daysPerWeek,
+      status: orderDisplayStatus(r.status, payByOrder.get(r.id) ?? []),
+      createdAt: r.createdAt,
+      startDate: r.startDate,
+    }));
 }
 
 export type CustomerActivity = {
@@ -594,6 +655,8 @@ export type CalendarDay = {
   units?: number;
   /** Eating days the trip carries; a single entry for a plain day. */
   covers?: string[];
+  /** Eating days on this trip that carry a second tiffin. */
+  extras?: string[];
   /** "Covers Mon + Tue"; null for a plain day. */
   coversLabel?: string | null;
   /** Delivery date of the trip this row was merged into ("Combined into Wed's delivery"); null otherwise. */
@@ -654,11 +717,13 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     .from(deliveries)
     .where(inArray(deliveries.id, mergeTargetIds));
   const targetDateById = new Map(mergeTargets.map((t) => [t.id, t.deliveryDate]));
+  const extrasById = await loadExtraDates(db, rows.map((r) => r.id));
   const tripFields = (row: CustomerDelivery) => {
     const covers = coveredDates(row);
     return {
       units: row.mergedIntoDeliveryId ? 0 : row.tiffinUnits,
       covers,
+      extras: row.mergedIntoDeliveryId ? [] : (extrasById.get(row.id) ?? []),
       coversLabel: row.mergedIntoDeliveryId ? null : formatCoversLabel(covers),
       combinedInto: row.mergedIntoDeliveryId ? (targetDateById.get(row.mergedIntoDeliveryId) ?? null) : null,
     };

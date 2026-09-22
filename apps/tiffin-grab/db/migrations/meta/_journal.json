@@ -236,15 +236,29 @@
     {
       "idx": 33,
       "version": "7",
-      "when": 1790024065434,
-      "tag": "0033_index_fk_and_naming",
+      "when": 1790023662687,
+      "tag": "0033_narrow_lenny_balinger",
       "breakpoints": true
     },
     {
       "idx": 34,
       "version": "7",
-      "when": 1790024300840,
-      "tag": "0034_log_indexes_and_checks",
+      "when": 1790100000000,
+      "tag": "0034_meal_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790107552458,
+      "tag": "0035_index_fk_and_naming",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790107553458,
+      "tag": "0036_log_indexes_and_checks",
       "breakpoints": true
     }
   ]

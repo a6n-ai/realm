@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capViolation, swapPairFits, swapQuantities, type SwapCategory } from "../swap-rules";
+import { capViolation, hasEvenPortionSwap, swapPairFits, swapQuantities, type SwapCategory } from "../swap-rules";
 
 const cat = (key: string, pickTu: number | null, over: Partial<SwapCategory> = {}): SwapCategory => ({
   key, pickTu, unitType: "weight", unitLabel: "oz", maxPicksPerTiffin: null, ...over,
@@ -38,7 +38,7 @@ describe("swapQuantities", () => {
     expect(swapQuantities(roti, rice, 4)).toEqual({ ok: true, qtyTo: 1 });
   });
   it("refuses a trade that does not divide evenly", () => {
-    expect(swapQuantities(roti, rice, 1)).toMatchObject({ ok: false });
+    expect(swapQuantities(roti, rice, 1)).toMatchObject({ ok: false, reason: "This swap requires an even portion exchange." });
   });
   it("refuses 1 TU for half a pick — a swap only ever moves whole picks, never a fraction", () => {
     const doubleTu = cat("bigportion", 2);
@@ -69,5 +69,18 @@ describe("swapAmounts / swapLabel (human units, never TU)", () => {
   it("falls back to pick counts without unit sizes", async () => {
     const { swapLabel } = await import("../swap-rules");
     expect(swapLabel({ fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 4 }, (k) => k)).toBe("1 rice → 4 roti");
+  });
+});
+
+describe("hasEvenPortionSwap (Swap entry gate)", () => {
+  it("is true when some give count in 1..available divides evenly", () => {
+    expect(hasEvenPortionSwap(rice, roti, 1)).toBe(true);
+    expect(hasEvenPortionSwap(roti, rice, 1)).toBe(false);
+    expect(hasEvenPortionSwap(roti, rice, 4)).toBe(true);
+  });
+  it("is false when leftover picks cannot form an even exchange", () => {
+    const awkward = cat("rice", 1.5, { unitType: "count", unitLabel: "unit" });
+    const whole = cat("roti", 1, { unitType: "count", unitLabel: "roti" });
+    expect(hasEvenPortionSwap(awkward, whole, 1)).toBe(false);
   });
 });

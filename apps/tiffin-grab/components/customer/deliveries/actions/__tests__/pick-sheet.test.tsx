@@ -10,26 +10,85 @@ import { PickSheet } from "../pick-sheet";
 const load = vi.fn();
 const pick = vi.fn();
 const applyWeek = vi.fn();
+const loadSwaps = vi.fn();
+const applySwap = vi.fn();
+const removeSwap = vi.fn();
+
 vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: (...a: unknown[]) => load(...a) }));
 vi.mock("@/app/(customer)/me/meals/actions", () => ({
   pickMyDish: (...a: unknown[]) => pick(...a),
   applyMyDishToWeek: (...a: unknown[]) => applyWeek(...a),
 }));
+vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
+  loadMySwapOptions: (...a: unknown[]) => loadSwaps(...a),
+  applyMyDeliverySwap: (...a: unknown[]) => applySwap(...a),
+  removeMyDeliverySwap: (...a: unknown[]) => removeSwap(...a),
+}));
 
-const mon = "2026-09-21", tue = "2026-09-22";
-const dishes = [{ id: "d1", name: "Paneer", image: null }, { id: "d2", name: "Dal", image: null }];
+const mon = "2026-09-21",
+  tue = "2026-09-22";
+const dishes = [
+  { id: "d1", name: "Paneer", image: null },
+  { id: "d2", name: "Dal", image: null },
+];
 const cell = (o: Partial<GridCell>): GridCell => ({
-  day: "mon", dateIso: mon, slot: "curry", personIndex: 1, pickIndex: 1, selectable: true, quantity: 1,
-  selectedDishId: "d1", isDefaulted: true, dishes, locked: false, lockNote: null, ...o,
+  day: "mon",
+  dateIso: mon,
+  slot: "curry",
+  personIndex: 1,
+  pickIndex: 1,
+  selectable: true,
+  quantity: 1,
+  selectedDishId: "d1",
+  isDefaulted: true,
+  dishes,
+  locked: false,
+  lockNote: null,
+  ...o,
 });
-const grid = (cells: GridCell[], persons = 1) => ({
-  ok: true, grid: { cells, persons, categories: [{ key: "curry", label: "Curry", selectable: true, sortOrder: 1 }], weekByDate: { [mon]: "wk1", [tue]: "wk1" } },
+const grid = (
+  cells: GridCell[],
+  persons = 1,
+  extras: {
+    categories?: { key: string; label: string; selectable: boolean; sortOrder: number }[];
+    portionsBySlot?: Record<string, (string | null)[]>;
+    portionsByDate?: Record<string, Record<string, (string | null)[]>>;
+  } = {},
+) => ({
+  ok: true,
+  grid: {
+    cells,
+    persons,
+    categories: extras.categories ?? [{ key: "curry", label: "Curry", selectable: true, sortOrder: 1 }],
+    portionsBySlot: extras.portionsBySlot ?? { curry: ["8oz"] },
+    portionsByDate: extras.portionsByDate ?? {},
+    weekByDate: { [mon]: "wk1", [tue]: "wk1" },
+  },
 });
-const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o",
-  date: mon, deliveryId: "dlv1", units: 2, coversDates: [mon, tue], coversLabel: "Covers Mon + Tue",
-  eatingDays: [], status: "upcoming", cutoffAt: Date.now() + 36e5 * 30, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o,
+const trip = (o: Partial<Trip> = {}): Trip => ({
+  orderId: "o",
+  date: mon,
+  deliveryId: "dlv1",
+  units: 2,
+  coversDates: [mon, tue],
+  coversLabel: "Covers Mon + Tue",
+  eatingDays: [],
+  status: "upcoming",
+  cutoffAt: Date.now() + 36e5 * 30,
+  mergedInto: null,
+  isMakeup: false,
+  pooled: false,
+  rescheduled: false,
+  ...o,
 });
-const plan = { orderId: "o1", ctx: { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true } } as unknown as PlanView;
+const plan = {
+  orderId: "o1",
+  ctx: { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true },
+  categoryLabels: { curry: "Curry", daal: "Daal" },
+  swapCategories: {},
+  days: [],
+} as unknown as PlanView;
+
 const show = (t = trip()) => {
   const onDone = vi.fn();
   render(<PickSheet trip={t} plan={plan} open onDone={onDone} />);
@@ -40,14 +99,30 @@ beforeEach(() => {
   load.mockReset();
   pick.mockReset().mockResolvedValue({ ok: true });
   applyWeek.mockReset().mockResolvedValue({ applied: 3, skipped: [] });
+  loadSwaps.mockReset().mockResolvedValue({ options: [] });
+  applySwap.mockReset().mockResolvedValue({ ok: true });
+  removeSwap.mockReset().mockResolvedValue({ ok: true });
 });
 afterEach(cleanup);
 
 describe("PickSheet", () => {
-  it("asks for the grid of every covered eating day and labels an unpicked default", async () => {
+  it("shows one dropdown per composition row with portion labels", async () => {
+    load.mockResolvedValue(
+      grid([cell({ pickIndex: 1 }), cell({ pickIndex: 2 })], 1, {
+        categories: [{ key: "curry", label: "Curry", selectable: true, sortOrder: 1 }],
+        portionsBySlot: { curry: ["12oz", "8oz"] },
+      }),
+    );
+    show(trip({ coversDates: [mon] }));
+    expect(await screen.findByLabelText("Curry · 12oz")).toBeInTheDocument();
+    expect(screen.getByLabelText("Curry · 8oz")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
+  });
+
+  it("asks for the grid of every covered eating day", async () => {
     load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue", lockNote: "Locks with Monday's delivery" })]));
     show();
-    expect(await screen.findByText("Default pick")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Curry · 8oz")).toBeInTheDocument();
     expect(load).toHaveBeenCalledWith("o1", [mon, tue]);
   });
 
@@ -68,7 +143,7 @@ describe("PickSheet", () => {
   it("single-day trip has no day tabs", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
-    await screen.findByText("Paneer");
+    await screen.findByLabelText("Curry · 8oz");
     expect(screen.queryByRole("tab", { name: /Mon/ })).toBeNull();
   });
 
@@ -76,40 +151,115 @@ describe("PickSheet", () => {
     load.mockResolvedValue(grid([cell({}), cell({ personIndex: 2, selectedDishId: "d1" })], 2));
     show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("tab", { name: "Person 2" }));
-    fireEvent.click(screen.getByRole("button", { name: /Dal/ }));
-    await waitFor(() => expect(pick).toHaveBeenCalledWith(expect.objectContaining({ orderId: "o1", menuWeekId: "wk1", personIndex: 2, slot: "curry", dishId: "d2", dayOfWeek: "mon" })));
+    const select = screen.getByLabelText("Curry · 8oz");
+    fireEvent.change(select, { target: { value: "dish:d2" } });
+    await waitFor(() =>
+      expect(pick).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: "o1",
+          menuWeekId: "wk1",
+          personIndex: 2,
+          slot: "curry",
+          dishId: "d2",
+          dayOfWeek: "mon",
+        }),
+      ),
+    );
   });
 
-  it("applies the selected dish to the whole week", async () => {
+  it("applies the category picks to the whole week", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
-    fireEvent.click(await screen.findByRole("button", { name: "Apply to the whole week" }));
-    await waitFor(() => expect(applyWeek).toHaveBeenCalledWith(expect.objectContaining({ menuWeekId: "wk1", slot: "curry", dishId: "d1" })));
+    fireEvent.click(await screen.findByRole("button", { name: "Apply dishes to the whole week" }));
+    await waitFor(() =>
+      expect(applyWeek).toHaveBeenCalledWith(expect.objectContaining({ menuWeekId: "wk1", slot: "curry", dishId: "d1" })),
+    );
     expect(await screen.findByText(/Applied to the rest of the week/)).toBeInTheDocument();
+    await waitFor(() => expect(load.mock.calls.length).toBeGreaterThanOrEqual(2));
   });
 
-  it("locked day disables tiles and hides apply", async () => {
+  it("names skip reasons instead of always saying locked", async () => {
+    applyWeek.mockResolvedValue({
+      applied: 1,
+      skipped: [{ dateIso: tue, reason: "Dish is not on the menu that day" }],
+    });
+    load.mockResolvedValue(grid([cell({})]));
+    show(trip({ coversDates: [mon] }));
+    fireEvent.click(await screen.findByRole("button", { name: "Apply dishes to the whole week" }));
+    expect(await screen.findByText(/except Tue.*not on menu/i)).toBeInTheDocument();
+  });
+
+  it("embeds valid swap destinations in the leading row dropdown", async () => {
+    loadSwaps.mockResolvedValue({
+      options: [
+        {
+          fromCategory: "curry",
+          toCategory: "daal",
+          available: true,
+          reason: null,
+          validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "8oz", getNatural: "8oz" }],
+          minFromPicks: 1,
+          maxFromPicks: 1,
+          bundleIncrement: 1,
+          giveNatural: "8oz",
+          getNatural: "8oz",
+        },
+      ],
+    });
+    load.mockResolvedValue(grid([cell({})]));
+    show(trip({ coversDates: [mon] }));
+    const select = await screen.findByLabelText("Curry · 8oz");
+    expect(select).toContainHTML("Swap to Daal · 8oz");
+    fireEvent.change(select, { target: { value: "swap:curry>daal:1" } });
+    await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "curry", "daal", 1, mon));
+  });
+
+  it("disables Apply to week while a pick is saving", async () => {
+    let resolvePick!: (v: { ok: true }) => void;
+    pick.mockReturnValue(
+      new Promise((r) => {
+        resolvePick = r;
+      }),
+    );
+    load.mockResolvedValue(grid([cell({})]));
+    show(trip({ coversDates: [mon] }));
+    fireEvent.change(await screen.findByLabelText("Curry · 8oz"), { target: { value: "dish:d2" } });
+    const applyBtn = screen.getByRole("button", { name: "Apply dishes to the whole week" });
+    expect(applyBtn).toHaveAttribute("aria-disabled", "true");
+    resolvePick({ ok: true });
+    await waitFor(() => expect(applyBtn).not.toHaveAttribute("aria-disabled"));
+  });
+
+  it("locked day disables selects and hides apply", async () => {
     load.mockResolvedValue(grid([cell({ locked: true })]));
     show(trip({ coversDates: [mon] }));
-    const dal = await screen.findByRole("button", { name: /Dal/ });
-    expect(dal).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Apply to the whole week" })).toBeNull();
+    const select = await screen.findByLabelText("Curry · 8oz");
+    expect(select).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
     expect(screen.getByText(/Locked/)).toBeInTheDocument();
   });
 
-  it("rolls back and shows the server error when a pick is rejected", async () => {
-    pick.mockResolvedValue({ error: "Cutoff passed" });
+  it("rolls back and shows the server error when a pick is rejected (Meal Rules / validation)", async () => {
+    pick.mockResolvedValue({ error: "You can select only 1 sabzi exclusive to this plan in this meal." });
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
-    fireEvent.click(await screen.findByRole("button", { name: /Dal/ }));
-    expect(await screen.findByText("Cutoff passed")).toBeInTheDocument();
-    expect(screen.getByText("Default pick")).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("Curry · 8oz"), { target: { value: "dish:d2" } });
+    expect(await screen.findByText(/only 1 sabzi exclusive/i)).toBeInTheDocument();
+  });
+
+  it("shows Your meal summary from current selections", async () => {
+    load.mockResolvedValue(
+      grid([cell({ selectedDishId: "d1", isDefaulted: false })], 1, { portionsBySlot: { curry: ["8oz"] } }),
+    );
+    show(trip({ coversDates: [mon] }));
+    expect(await screen.findByRole("heading", { name: "Your meal" })).toBeInTheDocument();
+    expect(screen.getByText("Paneer · 8oz")).toBeInTheDocument();
   });
 
   it("Done closes with a toast only after a change", async () => {
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
-    fireEvent.click(await screen.findByRole("button", { name: /Dal/ }));
+    fireEvent.change(await screen.findByLabelText("Curry · 8oz"), { target: { value: "dish:d2" } });
     await waitFor(() => expect(pick).toHaveBeenCalled());
     await waitFor(() => screen.getByRole("button", { name: "Done" }));
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
@@ -120,6 +270,6 @@ describe("PickSheet", () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ cutoffAt: Date.now() - 1000 }));
     expect(screen.getByText(/Changes closed/)).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /Dal/ })).toBeDisabled();
+    expect(await screen.findByLabelText("Curry · 8oz")).toBeDisabled();
   });
 });

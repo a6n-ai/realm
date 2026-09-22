@@ -110,9 +110,46 @@ describe("MealSizeService composition save", () => {
     expect(items.map((i) => i.name)).toEqual(["STALE"]);
   });
 
-  it("empty items array clears the composition (full replace to zero)", async () => {
-    await mealSizeService.update(sizePublicId, { planId: planPublicId, items: [] });
+  it("rejects clearing composition while the meal size stays active", async () => {
+    await expect(
+      mealSizeService.update(sizePublicId, { planId: planPublicId, items: [] }),
+    ).rejects.toThrow(/at least one composition row/i);
+    const items = await db.select().from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, sizeId));
+    expect(items.map((i) => i.name)).toEqual(["STALE"]);
+  });
+
+  it("allows clearing composition when retiring the meal size", async () => {
+    await mealSizeService.update(sizePublicId, { planId: planPublicId, active: false, items: [] });
     const items = await db.select().from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, sizeId));
     expect(items).toHaveLength(0);
+  });
+
+  it("rejects Max TU below the category base composition", async () => {
+    await expect(
+      mealSizeService.update(sizePublicId, {
+        planId: planPublicId,
+        items: [
+          { category: CAT_A, tuAmount: "1.50", maxTuAmount: "2.00" },
+          { category: CAT_A, tuAmount: "1.00", maxTuAmount: "2.00" },
+        ],
+      }),
+    ).rejects.toThrow(/Max TU/);
+  });
+
+  it("accepts multi-row same-category rows with different TU", async () => {
+    await mealSizeService.update(sizePublicId, {
+      planId: planPublicId,
+      items: [
+        { category: CAT_A, tuAmount: "1.50" },
+        { category: CAT_A, tuAmount: "1.00" },
+        { category: CAT_B, tuAmount: "0.50" },
+      ],
+    });
+    const items = await db
+      .select()
+      .from(mealSizeItems)
+      .where(eq(mealSizeItems.mealSizeId, sizeId))
+      .orderBy(asc(mealSizeItems.sortOrder));
+    expect(items.map((i) => i.tuAmount)).toEqual(["1.50", "1.00", "0.50"]);
   });
 });

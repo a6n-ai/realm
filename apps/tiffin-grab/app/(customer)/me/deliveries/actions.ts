@@ -8,6 +8,8 @@ import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, cle
 import { formatMissedDays } from "@/lib/menu/coverage";
 import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
+import { listValidSwapOptionsForDelivery } from "@/lib/services/swap-options.service";
+import type { SwapOption } from "@/lib/menu/meal-validation";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { runAction, type ActionResult } from "../action-result";
@@ -109,6 +111,24 @@ export async function scheduleMyPooledTiffin(
   });
 }
 
+/**
+ * Authoritative swap cards for the customer sheet. Renders `validBundles` only —
+ * never recompute TU/divisibility/caps in React.
+ */
+export async function loadMySwapOptions(
+  deliveryPublicId: string,
+  forDate?: string,
+): Promise<ActionResult<{ options: SwapOption[] }>> {
+  return runAction(async () => {
+    await assertCanManageDelivery(deliveryPublicId);
+    const options = await listValidSwapOptionsForDelivery(deliveryPublicId, {
+      forDate,
+      hideUnavailable: true,
+    });
+    return { options };
+  });
+}
+
 // Swap eligibility is global now (category_swap_pairs) — there's no per-meal-size
 // rule catalog to pick a rule id from, so the client sends the category pair and
 // how many picks of fromCategory to give up directly.
@@ -135,10 +155,12 @@ export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwap
 export async function rescheduleMyDelivery(
   deliveryPublicId: string,
   newDateIso: string,
+  /** Which eating day is moving; leave unset (or equal to the trip's own date) to move the whole trip. */
+  sourceEatDateIso?: string,
 ): Promise<ActionResult<{ carriedOn: string; merged: boolean }>> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
-    const result = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
+    const result = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId(), sourceEatDateIso ?? null);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
     else revalidatePath("/me");

@@ -22,7 +22,8 @@ import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { menuService } from "@/lib/services/menu.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
-import { coveredDates } from "@/lib/menu/coverage";
+import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
+import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
 
@@ -199,15 +200,18 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
       swapsForDay(swapRows, r.delivery, date),
     );
 
+  const extrasById = await loadExtraDates(db, rows.map((r) => r.delivery.id));
   const labels: DeliveryLabel[] = [];
   for (const row of rows) {
     const { delivery, order } = row;
     const address = effectiveAddress(delivery, order);
     const covered = coveredDates(delivery);
+    // A day a moved-in tiffin doubled up on repeats here — one label set per physical tiffin, not per date.
+    const occurrences = occurrenceDates(delivery, extrasById.get(delivery.id));
 
-    // One label per covered date per person: the kitchen packs every carried meal for the
+    // One label per covered occurrence per person: the kitchen packs every carried meal for the
     // trip's delivery date, each tagged with the day it is eaten.
-    for (const forDate of covered)
+    for (const forDate of occurrences)
     for (let person = 1; person <= order.persons; person++) {
       const dayWeek = forDate === dateIso ? week : await loadWeek(forDate);
       const portions = portionsFor(row, forDate);

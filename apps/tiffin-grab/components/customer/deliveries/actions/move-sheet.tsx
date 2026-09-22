@@ -14,10 +14,13 @@ import { useCommit } from "./use-commit";
 
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
-export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
+export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionSheetProps) {
   const [now] = useState(() => Date.now());
   const av = actionAvailability(trip, now, plan.ctx).move;
-  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today), [trip, plan, now]);
+  // Which eating day is moving: the one the customer selected, or the trip's own date if none was passed.
+  const source = sourceDate ?? trip.date;
+  const split = source !== trip.date && trip.coversDates.length > 1 && trip.coversDates.includes(source);
+  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today, undefined, source), [trip, plan, now, source]);
   const [picked, setPickedRaw] = useState<string | null>(null);
   const [week, setWeek] = useState<string | null>(null);
   const [reason, setReason] = useState<string | null>(null);
@@ -28,12 +31,14 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const { pending, error, run } = useCommit(onDone);
   const chosen = options.find((o) => o.date === picked);
   const held = trip.status === "hold";
-  const day = humanDate(trip.date);
+  const day = humanDate(source);
+  const perTiffin = trip.units / Math.max(1, trip.coversDates.length + (trip.extraDates?.length ?? 0));
+  const movingUnits = split ? Math.round(perTiffin) || 1 : trip.units;
 
   const confirm = () => {
     if (!trip.deliveryId || !picked) return;
     void run(
-      () => rescheduleMyDelivery(trip.deliveryId!, picked),
+      () => rescheduleMyDelivery(trip.deliveryId!, picked, split ? source : undefined),
       (r) => (r.message === "merged" ? `Moved ${day} to ${humanDate(picked)} and combined with that trip.` : `Moved ${day} to ${humanDate(picked)}.`),
     );
   };
@@ -58,7 +63,7 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
               <WeekStrip
                 firstWeek={mondayOf(options[0]?.date ?? plan.today)}
                 lastWeek={mondayOf(options[options.length - 1]?.date ?? plan.today)}
-                week={week ?? mondayOf(picked ?? options[0]?.date ?? plan.today)}
+                week={week ?? mondayOf(options[0]?.date ?? plan.today)}
                 today={plan.today}
                 selectedDay={picked}
                 dots={truckDots}
@@ -76,10 +81,15 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
               ) : chosen && chosen.carriedOn !== chosen.date ? (
                 <Notice>{humanDate(chosen.date)} will arrive {humanDate(chosen.carriedOn)} with {weekdayShort(chosen.carriedOn)}. We don&apos;t deliver on {weekdayShort(chosen.date)}s, so it rides on the earlier delivery.</Notice>
               ) : chosen ? (
-                <Notice>Your {tiffins(trip.units)} will arrive on {humanDate(chosen.date)}.</Notice>
+                <Notice>Your {tiffins(movingUnits)} will arrive on {humanDate(chosen.date)}.</Notice>
               ) : null}
+              {chosen && (
+                <Notice>
+                  Only one move is allowed per meal. Once you move it, you can&apos;t move it again, move it back to {humanDate(source)}, or put it on hold.
+                </Notice>
+              )}
               <Reason>
-                Pick the day you want to eat. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {held ? "Uses one of your hold days. " : ""}Days already covered stay with this trip. Once moved, it can&apos;t be put back on hold.
+                Pick the day you want to eat. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {held ? "Uses one of your hold days. " : ""}{split ? "Your other days stay on this trip." : "Days already covered stay with this trip."}
               </Reason>
             </>
           )}

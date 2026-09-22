@@ -13,7 +13,8 @@ import {
   orders,
   plans,
 } from "@/db/schema";
-import { coveredDates } from "@/lib/menu/coverage";
+import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
+import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import {
@@ -147,9 +148,12 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     lines: PackingItemLine[];
   }[] = [];
 
+  const extrasById = await loadExtraDates(db, deliveryRows.map((r) => r.deliveryId));
   for (const row of deliveryRows) {
     const covered = coveredDates({ deliveryDate: row.deliveryDate, coversDates: row.coversDates });
-    for (const forDate of covered) {
+    // A day a moved-in tiffin doubled up on repeats here — one pass per physical tiffin, not per date.
+    const occurrences = occurrenceDates({ deliveryDate: row.deliveryDate, coversDates: row.coversDates }, extrasById.get(row.deliveryId));
+    for (const forDate of occurrences) {
     // Slot key → line. Selectable picks keep pickIndex so sabzi 12oz and 8oz stay separate.
     const lineBySlot = new Map<string, PackingItemLine>();
     const portions = portionsByCategory(
@@ -177,9 +181,10 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
             // Non-selectable (roti/rice/…): one pick name, quantity = slot count. Do NOT loop
             // portionForPick(i) — meal_size may have one TU line for the whole count (or N
             // lines); missing indices used to invent "portion" and explode Item columns.
+            const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
             const pick = cat.picks[0]!;
             const mealItems = sizeItems.filter((i) => i.mealSizeId === row.mealSizeId);
-            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity);
+            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity, daySwaps);
             const converter = tuByKey.get(cat.category);
             const portion =
               converter && tuTotal > 0

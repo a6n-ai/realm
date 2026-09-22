@@ -12,12 +12,15 @@ ALTER INDEX "ledger_organization_idx" RENAME TO "ledger_entries_organization_idx
 DROP INDEX "deliveries_order_date_idx";--> statement-breakpoint
 -- FK columns that had no supporting index.
 CREATE INDEX "user_feature_flags_flag_idx" ON "user_feature_flags" USING btree ("flag_id");--> statement-breakpoint
+CREATE INDEX "order_activities_delivery_idx" ON "order_activities" USING btree ("delivery_id");--> statement-breakpoint
 CREATE INDEX "orders_plan_idx" ON "orders" USING btree ("plan_id");--> statement-breakpoint
 CREATE INDEX "orders_zone_idx" ON "orders" USING btree ("zone_id");--> statement-breakpoint
+CREATE INDEX "deliveries_date_idx" ON "deliveries" USING btree ("delivery_date");--> statement-breakpoint
 CREATE INDEX "deliveries_zone_idx" ON "deliveries" USING btree ("zone_id");--> statement-breakpoint
 CREATE INDEX "deliveries_merged_into_idx" ON "deliveries" USING btree ("merged_into_delivery_id") WHERE "deliveries"."merged_into_delivery_id" is not null;--> statement-breakpoint
 CREATE INDEX "coupon_redemptions_redeemed_by_idx" ON "coupon_redemptions" USING btree ("redeemed_by");--> statement-breakpoint
 CREATE INDEX "ledger_entries_payment_idx" ON "ledger_entries" USING btree ("payment_id");--> statement-breakpoint
+CREATE INDEX "inquiries_stage_created_idx" ON "inquiries" USING btree ("stage","created_at");--> statement-breakpoint
 CREATE INDEX "inquiries_source_idx" ON "inquiries" USING btree ("source_id");--> statement-breakpoint
 CREATE INDEX "inquiries_converted_order_idx" ON "inquiries" USING btree ("converted_order_id");--> statement-breakpoint
 CREATE INDEX "ticket_messages_author_idx" ON "ticket_messages" USING btree ("author_id");--> statement-breakpoint

@@ -1,8 +1,8 @@
-// P2: the draft → ready → released workflow, the gate that stops a menu going live with a
-// hole in it, and the amend impact report. The gate matters because the builder shows the
-// union of a plan type's categories and filters dishes by dishes.category, while what a
-// subscriber actually receives is filtered by dish_plans — so a week can look complete and
-// serve nobody on one plan.
+// P2: the draft → ready → released workflow, meal-gap warnings (informational — they do
+// not block release), and the amend impact report. Gaps matter because the builder shows
+// the union of a plan type's categories and filters dishes by dishes.category, while what
+// a subscriber actually receives is filtered by dish_plans — so a week can look complete
+// and still leave one plan empty on a day.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, gte, inArray, like, lt } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -60,7 +60,7 @@ describe("menuService release gate", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("blocks release when a plan has no dish in a category its meal sizes require", async () => {
+  it("warns when a plan has no dish in a category its meal sizes require, but still releases", async () => {
     // Attached to non-veg only: the veg plan's Monday sabzi is empty even though the day
     // looks full in the builder.
     const nonVegOnly = await dishOn("Chicken Curry", "sabzi", ["non-veg"]);
@@ -69,10 +69,10 @@ describe("menuService release gate", () => {
 
     const problems = await menuService.releaseProblems(week.publicId);
     expect(problems.some((p) => p.categoryLabel.toLowerCase().includes("sabzi"))).toBe(true);
-    await expect(menuService.release(week.publicId)).rejects.toThrow(/without a meal/i);
 
+    await menuService.release(week.publicId);
     const [stored] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, week.publicId));
-    expect(stored.status).toBe("draft");
+    expect(stored.status).toBe("released");
   });
 
   it("does not flag a day that has no dishes at all — skipping a day is a choice, not a hole", async () => {
@@ -116,7 +116,7 @@ describe("menuService release gate", () => {
     const surplus = (await menuService.releaseProblems(week.publicId)).filter((p) => p.kind === "extra");
     expect(surplus.map((p) => p.planName).sort()).toEqual(["Non-Veg Plan", "Pure Vegetarian Plan"]);
     expect(surplus[0].dishNames).toHaveLength(2);
-    // Surplus is a warning, never a blocker — only a missing category stops a release.
+    // Surplus is a warning in the builder grid — release is never blocked by gaps.
     expect(surplus.every((p) => p.kind !== "missing")).toBe(true);
   });
 
