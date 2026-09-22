@@ -88,6 +88,7 @@ const plan = {
   orderId: "o", today: "2026-09-20",
   categoryLabels: { rice: "Rice", roti: "Roti", sabji: "Sabji", daal: "Daal" },
   categoryPortions: { rice: "8oz", roti: "4 rotis", sabji: "12 oz", daal: "12 oz" },
+  categoryPortionSlots: { rice: ["8oz"], roti: ["4 rotis"], sabji: ["12 oz"], daal: ["12 oz"] },
   sub: { mealSizeName: "Large" },
   ctx: { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true },
   days: [{

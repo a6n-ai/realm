@@ -12,7 +12,7 @@ import { buildPlanContext, toCalendarInputs, type PlanView } from "@/components/
 import { buildTrips } from "@/lib/deliveries-view";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
+import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { currentUserId } from "@/lib/services/session-service";
 import {
@@ -103,6 +103,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     days,
     categoryLabels,
     categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
+    categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
     swapCategories: Object.fromEntries(swapCategories),
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });

@@ -1,5 +1,5 @@
 /**
- * Per-composition-row dropdown options for the customer Edit meal sheet.
+ * Per-composition-row options for the customer Edit meal sheet (radio list).
  * Dish picks stay same-category; swap entries come only from backend validBundles.
  *
  * Swaps front-splice fromCategory rows, so exchange options attach only to the
@@ -64,8 +64,8 @@ function swapLabel(
   bundle: { fromPicks: number; getNatural: string | null },
 ): string {
   const get = bundle.getNatural ? ` · ${bundle.getNatural}` : "";
-  if (bundle.fromPicks <= 1) return `Swap to ${toLabel}${get}`;
-  return `Swap to ${toLabel}${get} (uses ${bundle.fromPicks} items)`;
+  if (bundle.fromPicks <= 1) return `${toLabel}${get}`;
+  return `${toLabel}${get} · uses ${bundle.fromPicks} items`;
 }
 
 /**

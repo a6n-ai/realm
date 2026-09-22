@@ -51,8 +51,8 @@ describe("slot-dropdown", () => {
     expect(leading.map((o) => o.label)).toEqual([
       "Aloo gobi",
       "Bhindi",
-      "Swap to Daal · 12oz",
-      "Swap to Daal · 24oz (uses 2 items)",
+      "Daal · 12oz",
+      "Daal · 24oz · uses 2 items",
     ]);
 
     const trailing = buildSlotDropdownOptions({
