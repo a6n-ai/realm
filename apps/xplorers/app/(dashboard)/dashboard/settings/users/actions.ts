@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ValidationError, type RoleValue } from "@foundry/commons";
 import { auth } from "@/lib/auth";
 import { requirePermission } from "@/lib/auth/guards";
-import { resolveActingOrgId } from "@/lib/services/org-scope";
-import { addMember } from "@/lib/services/organizations.service";
+import { getSession } from "@/lib/auth/session";
 import { inviteUser } from "@/lib/services/users-invite";
 import { usersService, type UserStatusValue } from "@/lib/services/users.service";
 
@@ -39,8 +38,14 @@ export async function sendPasswordReset(email: string): Promise<void> {
 
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {
   await requirePermission({ staff: ["invite"], user: ["create", "set-role"] });
-  const created = await inviteUser({ email: input.email, name: input.name, role: input.role as RoleValue });
-  const orgId = await resolveActingOrgId();
-  if (orgId) await addMember(orgId, created.publicId, "admin");
+  const session = await getSession();
+  const organizationId = session?.session.activeOrganizationId;
+  if (!organizationId) throw new ValidationError("No active organization for this session.");
+  await inviteUser({
+    email: input.email,
+    name: input.name,
+    role: input.role as "admin" | "member",
+    organizationId,
+  });
   revalidatePath(PATH);
 }

@@ -1,62 +1,35 @@
-import { emailSchema, Role, ValidationError, type RoleValue } from "@foundry/commons";
+import { headers } from "next/headers";
+import { createStaffInvite } from "@foundry/auth";
 import { auth } from "@/lib/auth";
 import { usersService } from "./users.service";
 
-export type InviteDeps = {
-  createUser: (input: { email: string; name: string; role: RoleValue }) => Promise<{ publicId: string; email: string }>;
-  markPasswordUnset: (publicId: string) => Promise<void>;
-  sendResetOtp: (email: string) => Promise<void>;
-};
-
-const liveDeps: InviteDeps = {
+const { inviteStaff } = createStaffInvite({
   createUser: async ({ email, name, role }) => {
+    // No `password` field on purpose. The admin plugin treats it as optional and, when
+    // absent, creates the user with NO credential account at all — so there is no
+    // password to generate, hash, or leak. /set-password creates the credential once
+    // the invitee accepts and signs in.
     const res = await auth.api.createUser({ body: { email, name, role: role as "admin" | "member" } });
     const created = res.user as { id: string; publicId?: string; email: string };
     if (!created.publicId) throw new Error("createUser returned no publicId");
-    return { publicId: created.publicId, email: created.email };
+    return { publicId: created.publicId, email: created.email, id: created.id };
   },
-  markPasswordUnset: async (publicId) => {
-    await usersService.markPasswordUnset(publicId);
-  },
-  sendResetOtp: async (email) => {
-    await auth.api.sendVerificationOTP({ body: { email, type: "forget-password" } });
-  },
-};
+  markPasswordUnset: (publicId) => usersService.markPasswordUnset(publicId),
+  // better-auth's organization plugin exposes this invite-member endpoint as
+  // `createInvitation` (route "/organization/invite-member"); it requires
+  // headers, which the shared StaffInviteDeps shape doesn't carry.
+  inviteMember: async (input) =>
+    auth.api.createInvitation({
+      body: { ...input.body, role: input.body.role as "admin" | "member" },
+      headers: await headers(),
+    }),
+});
 
-export async function inviteUser(
-  input: { email: string; name: string; role: RoleValue },
-  deps: InviteDeps = liveDeps,
-): Promise<{ publicId: string; email: string }> {
-  const email = input.email.trim().toLowerCase();
-  const parsed = emailSchema.safeParse(email);
-  if (!parsed.success) throw new ValidationError("Enter a valid email");
-
-  const name = input.name.trim();
-  if (name === "") throw new ValidationError("Name is required");
-  if (name.length > 120) throw new ValidationError("Name is too long");
-
-  if (input.role !== Role.ADMIN && input.role !== Role.MEMBER) {
-    throw new ValidationError("Unknown role");
-  }
-
-  let created: { publicId: string; email: string };
-  try {
-    created = await deps.createUser({ email: parsed.data, name, role: input.role });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "";
-    if (/already exists/i.test(msg)) throw new ValidationError("That email is already in use");
-    throw e;
-  }
-
-  await deps.markPasswordUnset(created.publicId);
-
-  try {
-    await deps.sendResetOtp(created.email);
-  } catch {
-    throw new ValidationError(
-      "Account created, but the invite email could not be sent. Use Send password reset on their row to retry.",
-    );
-  }
-
-  return created;
+/**
+ * Create a staff account with no credential and a real organization invitation.
+ * The invitee proves email ownership via sign-in OTP against the accept-invitation
+ * page, then sets their first password via the existing /set-password step.
+ */
+export async function inviteUser(input: { email: string; name: string; role: "admin" | "member"; organizationId: string }) {
+  return inviteStaff(input);
 }
