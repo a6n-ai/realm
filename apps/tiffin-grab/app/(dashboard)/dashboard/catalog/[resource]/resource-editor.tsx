@@ -97,10 +97,13 @@ function formatNumber(f: FieldDef, n: number): string {
 /* ─────────────────────────── Dialog form ─────────────────────────── */
 
 // Repeating-row editor for a meal size's composition. Each row is a required
-// name, a category soft-ref, and a TU portion; the service full-replaces the
-// rows and derives sortOrder from the array order. A row IS one dish pick, so
+// name, a category soft-ref, a plan, and a TU portion; the service full-replaces
+// the rows and derives sortOrder from the array order. A row IS one dish pick, so
 // "2 raita" is two rows of the same category, not a qty field — the category
 // select allows repeats on purpose.
+//
+// Each row's plan is independent of the meal size's own planId (that's a
+// filter/default only) — so one meal size's composition can span plans.
 //
 // Swap note: exchanges use the FIRST row's TU / pick as the category's rate.
 // Later rows of the same category stay separate picks for selection, but do not
@@ -116,12 +119,10 @@ function CompositionField({
   // The dialog form is typed as Record<string, unknown>, so RHF can't infer the
   // array element shape from the key — cast the field-array path/append payload.
   const { fields, append, remove } = useFieldArray<Record<string, unknown>>({ control: form.control, name: f.key as never });
-
-  // Slots follow the selected plan. Watching planId keeps the two in step without
-  // a round trip, and re-picking a plan re-scopes the options immediately.
-  const planId = form.watch("planId") as string | undefined;
-  const cats = categoriesByPlan ? (planId ? (categoriesByPlan[planId] ?? []) : []) : (options[f.key] ?? []);
-  const needsPlan = Boolean(categoriesByPlan) && !planId;
+  const planOptions = options.planId ?? [];
+  // New rows default to the meal size's own plan — a convenience only, still
+  // freely changeable per row afterward.
+  const defaultPlanId = (form.watch("planId") as string | undefined) ?? "";
 
   return (
     <FormItem className="grid gap-2">
@@ -134,17 +135,13 @@ function CompositionField({
         ) : null}
       </div>
       <p className="text-muted-foreground text-xs">
-        Each row is one pick the customer starts with. Swaps use this category&apos;s first TU / pick as the exchange rate for the whole category.
+        Each row is one pick the customer starts with, on its own plan. Swaps use this category&apos;s first TU / pick as the exchange rate for the whole category.
       </p>
 
       <div className="grid gap-2">
-        {needsPlan ? (
+        {fields.length === 0 ? (
           <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm">
-            Pick a plan first — the composition uses that plan&apos;s categories.
-          </p>
-        ) : fields.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm">
-            No items yet. Add the categories that make up this meal size.
+            No items yet. Add the category + plan pairs that make up this meal size.
           </p>
         ) : null}
 
@@ -154,7 +151,8 @@ function CompositionField({
             form={form}
             f={f}
             idx={idx}
-            cats={cats}
+            planOptions={planOptions}
+            categoriesByPlan={categoriesByPlan}
             onRemove={() => remove(idx)}
           />
         ))}
@@ -164,8 +162,7 @@ function CompositionField({
           variant="outline"
           size="sm"
           className="justify-self-start transition-transform active:scale-[0.96]"
-          disabled={needsPlan || cats.length === 0}
-          onClick={() => append({ category: "", tuAmount: "1", maxTuAmount: "" })}
+          onClick={() => append({ category: "", planId: defaultPlanId, tuAmount: "1", maxTuAmount: "" })}
         >
           <PlusIcon className="size-4" /> Add item
         </Button>
@@ -176,16 +173,19 @@ function CompositionField({
 }
 
 function CompositionRow({
-  form, f, idx, cats, onRemove,
+  form, f, idx, planOptions, categoriesByPlan, onRemove,
 }: {
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
   f: FieldDef;
   idx: number;
-  cats: CompositionCategoryOption[];
+  planOptions: { value: string; label: string }[];
+  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
   onRemove: () => void;
 }) {
+  const rowPlanId = form.watch(`${f.key}.${idx}.planId`) as string | undefined;
   const category = form.watch(`${f.key}.${idx}.category`) as string | undefined;
   const tuAmount = form.watch(`${f.key}.${idx}.tuAmount`) as string | undefined;
+  const cats = categoriesByPlan && rowPlanId ? (categoriesByPlan[rowPlanId] ?? []) : [];
   const cat = cats.find((c) => c.value === category);
   const tu = Number(tuAmount);
   const naturalHint =
@@ -198,15 +198,42 @@ function CompositionRow({
 
   return (
     <div className="grid gap-2 rounded-lg border p-2">
-      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1.6fr)_6rem_4.5rem_auto]">
+      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_6rem_4.5rem_auto]">
+        <Controller
+          control={form.control}
+          name={`${f.key}.${idx}.planId`}
+          render={({ field }) => (
+            <label className="grid gap-1">
+              <span className="text-muted-foreground text-xs">Plan</span>
+              <Select
+                value={field.value ?? ""}
+                onValueChange={(v) => {
+                  field.onChange(v);
+                  // Category options are plan-scoped — a stale category from the
+                  // previous plan could point at a category that plan doesn't have.
+                  form.setValue(`${f.key}.${idx}.category` as never, "" as never);
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Pick a plan" /></SelectTrigger>
+                <SelectContent>
+                  {planOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          )}
+        />
         <Controller
           control={form.control}
           name={`${f.key}.${idx}.category`}
           render={({ field }) => (
             <label className="grid gap-1">
               <span className="text-muted-foreground text-xs">Category</span>
-              <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                <SelectTrigger><SelectValue placeholder="Pick a category" /></SelectTrigger>
+              <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={!rowPlanId}>
+                <SelectTrigger><SelectValue placeholder={rowPlanId ? "Pick a category" : "Pick a plan first"} /></SelectTrigger>
                 <SelectContent>
                   {cats.map((o) => (
                     <SelectItem key={o.value} value={o.value}>

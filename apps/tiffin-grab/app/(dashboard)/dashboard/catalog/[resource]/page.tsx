@@ -270,6 +270,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       bucket.push({
         name: it.name,
         category: it.category,
+        planId: planPublicById.get(it.planId) ?? "",
         // numeric column ⇒ string in Drizzle; blank the null so the Input renders empty.
         tuAmount: String(it.tuAmount),
         maxTuAmount: it.maxTuAmount == null ? "" : String(it.maxTuAmount),

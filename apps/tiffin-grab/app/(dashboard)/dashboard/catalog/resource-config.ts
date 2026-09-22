@@ -80,6 +80,9 @@ const plansSchema = z.object({
 // category" is two rows, not a qty field on one.
 const compositionItem = z.object({
   category: z.string().trim().min(1, "Pick a category"),
+  // Plan publicId, independently selectable per row — not forced to the meal
+  // size's own planId. Lets one meal size's composition span multiple plans.
+  planId: z.string().trim().min(1, "Plan is required"),
   // Portion size of ONE pick, in tiffin units (TU) — the shared currency swaps move
   // between categories. See lib/menu/format-tu.ts for how this renders to the kitchen.
   tuAmount: reqNum(z.coerce.number().positive().default(1).transform((n) => n.toFixed(2))),

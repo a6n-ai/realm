@@ -127,7 +127,7 @@ ON CONFLICT (key) DO NOTHING;
 -- so "2 roti" is 2 rows at 0.25 TU each (a row IS one dish pick, there's no qty column);
 -- rice has no weight, 1 unit/TU, 1 row per pick.
 -- meal_size_id is NOT NULL so a mistyped meal_size_key fails the insert loudly instead of orphaning a row.)
-DELETE FROM meal_size_items;
+DELETE FROM meal_size_items WHERE id > 0;
 INSERT INTO meal_size_items
   (public_id, created_at, updated_at, meal_size_id, name, category, plan_id, tu_amount, max_tu_amount, sort_order)
 SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1, 10),
@@ -292,7 +292,8 @@ UPDATE meal_sizes ms SET components = COALESCE((
     FROM meal_size_items WHERE meal_size_id = ms.id
     GROUP BY name
   ) g
-), '[]'::json)::jsonb;
+), '[]'::json)::jsonb
+WHERE ms.id > 0;
 
 -- ============ DELIVERY FREQUENCIES ============
 INSERT INTO delivery_frequencies (public_id, created_at, updated_at, key, name, days_per_week, courier_discount_pct, weekdays)
@@ -350,8 +351,7 @@ VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EP
 ON CONFLICT (name) DO NOTHING;
 
 -- ============ PRICING TIERS ============ (no unique key -> wipe + reinsert, matches seed)
-DELETE
-FROM pricing_tiers;
+DELETE FROM pricing_tiers WHERE id > 0;
 INSERT INTO pricing_tiers (public_id, created_at, updated_at, min_qty, max_qty, uplift_pct)
 VALUES ('ptr_1', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 1, 11, 20.00),
        ('ptr_2', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 12, 19, 10.00),
@@ -458,7 +458,7 @@ WHERE NOT EXISTS (
 -- be dead. This is also what keeps the two exclusive — a customer can stack up to
 -- maxTuAmount(=2) raita via repeated salad->raita swaps, but can never ALSO hold salad,
 -- since there is no pair that ever moves TU back out of raita.
-DELETE FROM category_swap_pairs;
+DELETE FROM category_swap_pairs WHERE id > 0;
 INSERT INTO category_swap_pairs (public_id, created_at, updated_at, from_category_id, to_category_id)
 SELECT 'csp_' || SUBSTR(MD5(v.from_key || v.to_key), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
