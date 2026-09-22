@@ -248,10 +248,10 @@
       "breakpoints": true
     },
     {
-      "idx": 35,
+      "idx": 36,
       "version": "7",
-      "when": 1790114038943,
-      "tag": "0035_staff_invitation_event",
+      "when": 1790300000000,
+      "tag": "0036_staff_invitation_event",
       "breakpoints": true
     }
   ]
