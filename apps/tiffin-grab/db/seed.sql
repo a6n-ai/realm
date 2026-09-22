@@ -31,10 +31,6 @@ SELECT v.id,
          "tiffin": {
            "accent": "#F0820A",
            "titlePrefix": "Tiffin Menu"
-         },
-         "healthy": {
-           "accent": "#1FAE54",
-           "titlePrefix": "Healthy Menu"
          }
        }'::jsonb
 FROM (SELECT next_id() AS id) v
@@ -72,22 +68,18 @@ FROM (VALUES ('lss_web_direct', 'website', 'direct', 'Direct'),
 WHERE NOT EXISTS (SELECT 1 FROM lead_subsources s WHERE s.key = v.key);
 
 -- ============ PLANS ============
--- 'restricted' drives the generic swap-direction guard in dish-categories.service.ts
--- (a restricted plan's customers must never receive a category it can't reach) —
--- only the veg plan is restricted today, non-veg and healthy are not.
+-- Healthy plan dropped for now (pre-launch, veg/non-veg only). plans.restricted
+-- dropped too: diet-direction eligibility now comes from dishes.plan_id directly
+-- (a dish belongs to exactly one plan), not a per-plan restriction flag.
 INSERT INTO plans (public_id, created_at, updated_at, key, name, description, plan_type,
-                   allowed_start_days, restricted)
+                   allowed_start_days)
 VALUES ('pln_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'veg',
         'Pure Vegetarian Plan', 'Seasonal vegetables, paneer, daal, rotis, raitas.', 'tiffin',
-        ARRAY ['mon','tue','wed','thu','fri'], TRUE),
+        ARRAY ['mon','tue','wed','thu','fri']),
        ('pln_halal_nonveg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'non-veg', 'Non-Veg Plan', 'Poultry, mutton, egg masalas, daals, chapatis.', 'tiffin',
-        ARRAY ['mon','tue','wed','thu','fri'], FALSE),
-       ('pln_healthy', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'healthy', 'Healthy Plan', 'Breakfast, lunch, and dinner — pick the slots you want.', 'healthy',
-        ARRAY ['mon','tue','wed','thu','fri'], FALSE)
+        ARRAY ['mon','tue','wed','thu','fri'])
 ON CONFLICT (key) DO NOTHING;
-UPDATE plans SET restricted = TRUE WHERE key = 'veg' AND NOT restricted;
 
 -- ============ MEAL SIZES ============ (17 sizes, read verbatim off the tiffingrab.ca pricing
 -- plan sheet — docs/tiffingrab pricing image — not invented: 9 thalis × veg/non-veg, except
@@ -137,7 +129,7 @@ ON CONFLICT (key) DO NOTHING;
 -- meal_size_id is NOT NULL so a mistyped meal_size_key fails the insert loudly instead of orphaning a row.)
 DELETE FROM meal_size_items;
 INSERT INTO meal_size_items
-  (public_id, created_at, updated_at, meal_size_id, name, category, tu_amount, max_tu_amount, sort_order)
+  (public_id, created_at, updated_at, meal_size_id, name, category, plan_id, tu_amount, max_tu_amount, sort_order)
 SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
@@ -152,6 +144,7 @@ SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1,
          WHEN 'Salad' THEN 'salad'
          WHEN 'Raita' THEN 'raita'
        END,
+       (SELECT plan_id FROM meal_sizes WHERE key = v.meal_size_key),
        v.tu_amount, v.max_tu_amount, v.sort_order
 FROM (VALUES
   -- Small Thali: 1×12oz Sabzi + Rice + 2 Rotis
@@ -427,21 +420,12 @@ VALUES ('slt_tiffin_sabzi', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT
        -- still carry it as their dishes.category soft-ref — keep the row so that FK isn't
        -- orphaned, harmless since nothing composes a meal with it.
        ('slt_tiffin_extra', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'extra', 'Extra', TRUE, FALSE, 8, 'weight', 8, 'oz'),
-       ('slt_healthy_protein', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'protein', 'Protein', TRUE, FALSE, 1, 'weight', 8, 'oz'),
-       ('slt_healthy_grain', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'grain', 'Grain', TRUE, FALSE, 2, 'weight', 8, 'oz'),
-       ('slt_healthy_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'veg', 'Veg', TRUE, TRUE, 3, 'weight', 8, 'oz')
--- No second 'salad' row: `key` is unique now, and the one salad slot is attached
--- to the tiffin AND healthy plans below instead of being duplicated per type.
+        'extra', 'Extra', TRUE, FALSE, 8, 'weight', 8, 'oz')
 ON CONFLICT (key) DO NOTHING;
 
 -- ============ CATEGORY -> PLANS ============
 -- Which plans each slot belongs to. Tiffin slots go to both tiffin plans (a
--- non-veg thali still has sabzi/daal/roti); healthy slots to the healthy plan.
--- `salad` belongs to all three, which is what lets it be a single row.
+-- non-veg thali still has sabzi/daal/roti).
 INSERT INTO category_plans (public_id, created_at, updated_at, category_id, plan_id)
 SELECT 'cpl_' || SUBSTR(MD5(v.cat_key || v.plan_key), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
@@ -455,8 +439,7 @@ FROM (VALUES
   ('raita','veg'),('raita','non-veg'),
   ('daal','veg'),('daal','non-veg'),
   ('extra','veg'),('extra','non-veg'),
-  ('salad','veg'),('salad','non-veg'),('salad','healthy'),
-  ('protein','healthy'),('grain','healthy'),('veg','healthy')
+  ('salad','veg'),('salad','non-veg')
 ) AS v(cat_key, plan_key)
 WHERE NOT EXISTS (
   SELECT 1 FROM category_plans cp
@@ -504,79 +487,63 @@ UPDATE category_swap_pairs SET to_category_id = (SELECT id FROM dish_categories 
 DELETE FROM category_plans WHERE category_id = (SELECT id FROM dish_categories WHERE key = 'curry');
 DELETE FROM dish_categories WHERE key = 'curry';
 
--- ============ MENU: DISHES ============ (no unique key -> guard with NOT EXISTS on name)
-INSERT INTO dishes (public_id, created_at, updated_at, name, description, category)
+-- ============ MENU: DISHES ============ (unique on (name, plan_id) now — a dish
+-- belongs to exactly one plan, so a dish shared across veg and non-veg thalis
+-- (e.g. Dal Tadka) is TWO rows here, one per plan, not one row with two
+-- dish_plans memberships. public_id carries the plan suffix to keep both unique.
+INSERT INTO dishes (public_id, created_at, updated_at, name, description, category, plan_id)
 SELECT v.public_id,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        v.name,
        v.description,
-       v.category
-FROM (VALUES ('dsh_dal_tadka', 'Dal Tadka', 'Yellow lentils tempered with cumin and garlic', 'veg', 'daal'),
-             -- "Items counted as Daal" on the pricing sheet — the daal slot's real
-             -- rotation, not a single fixed dish.
-             ('dsh_lobia_masala', 'Lobia Masala', 'Black-eyed peas simmered in a spiced onion-tomato masala', 'veg', 'daal'),
-             ('dsh_rajma', 'Rajma', 'Red kidney beans in a thick Punjabi-style curry', 'veg', 'daal'),
-             ('dsh_kadhi', 'Kadhi', 'Yoghurt-and-gram-flour curry tempered with cumin', 'veg', 'daal'),
-             ('dsh_chana_masala', 'Chana Masala', 'Chickpeas simmered in a spiced tomato masala', 'veg', 'daal'),
-             ('dsh_tur_daal', 'Tur Daal', 'Split pigeon peas tempered with cumin and garlic', 'veg', 'daal'),
-             ('dsh_paneer_butter_masala', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'veg', 'sabzi'),
-             ('dsh_aloo_gobi', 'Aloo Gobi', 'Potato and cauliflower dry sabzi', 'veg', 'sabzi'),
-             ('dsh_chicken_curry', 'Chicken Curry', 'Tender chicken in a spiced onion-tomato gravy', 'nonveg', 'sabzi'),
-             ('dsh_egg_bhurji', 'Egg Bhurji', 'Spiced scrambled eggs with onion and peppers', 'nonveg', 'extra'),
-             -- Staples. Both tiffin plans' meal sizes ask for rice, roti, raita and salad,
-             -- so without a dish in each of those categories no menu week can be released:
-             -- menuService.release refuses a week that leaves a plan short of a category its
-             -- meal sizes promise. These four make the seeded catalog self-consistent.
-             ('dsh_jeera_rice', 'Jeera Rice', 'Basmati rice tempered with cumin', 'veg', 'rice'),
-             ('dsh_roti', 'Roti', 'Soft whole-wheat flatbread', 'veg', 'roti'),
-             ('dsh_boondi_raita', 'Boondi Raita', 'Whisked yoghurt with crisp gram-flour pearls', 'veg', 'raita'),
-             ('dsh_kachumber_salad', 'Kachumber Salad', 'Diced cucumber, tomato and onion with lemon', 'veg', 'salad'),
-             -- Egg Bhurji is the only other 'extra', and it is non-veg only, so the veg
-             -- plan needs its own.
-             ('dsh_masala_papad', 'Masala Papad', 'Roasted papad topped with onion, tomato and chaat masala', 'veg', 'extra')) AS v(public_id, name, description, diet, category)
-WHERE NOT EXISTS (SELECT 1 FROM dishes d WHERE d.name = v.name);
-
--- ============ DISH -> PLANS ============
--- Replaces the old dishes.diet column. A vegetarian dish is attached to BOTH the
--- veg and non-veg plans, because a non-veg thali still contains sabzi, daal and
--- roti. A non-veg dish is attached only to the non-veg plan, which is what stops
--- it ever reaching a vegetarian subscriber — every menu query joins through here.
-INSERT INTO dish_plans (public_id, created_at, updated_at, dish_id, plan_id)
-SELECT 'dpl_' || SUBSTR(MD5(v.dish_public_id || v.plan_key), 1, 10),
-       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-       (SELECT id FROM dishes WHERE public_id = v.dish_public_id),
+       v.category,
        (SELECT id FROM plans WHERE key = v.plan_key)
 FROM (VALUES
-  ('dsh_dal_tadka','veg'),            ('dsh_dal_tadka','non-veg'),
-  ('dsh_lobia_masala','veg'),         ('dsh_lobia_masala','non-veg'),
-  ('dsh_rajma','veg'),                ('dsh_rajma','non-veg'),
-  ('dsh_kadhi','veg'),                ('dsh_kadhi','non-veg'),
-  ('dsh_chana_masala','veg'),         ('dsh_chana_masala','non-veg'),
-  ('dsh_tur_daal','veg'),             ('dsh_tur_daal','non-veg'),
-  ('dsh_paneer_butter_masala','veg'), ('dsh_paneer_butter_masala','non-veg'),
-  ('dsh_aloo_gobi','veg'),            ('dsh_aloo_gobi','non-veg'),
-  ('dsh_chicken_curry','non-veg'),
-  ('dsh_egg_bhurji','non-veg'),
-  -- Staples reach both tiffin plans: a non-veg thali still contains rice, roti,
-  -- raita and salad.
-  ('dsh_jeera_rice','veg'),           ('dsh_jeera_rice','non-veg'),
-  ('dsh_roti','veg'),                 ('dsh_roti','non-veg'),
-  ('dsh_boondi_raita','veg'),         ('dsh_boondi_raita','non-veg'),
-  ('dsh_kachumber_salad','veg'),      ('dsh_kachumber_salad','non-veg'),
-  ('dsh_masala_papad','veg'),         ('dsh_masala_papad','non-veg')
-) AS v(dish_public_id, plan_key)
+  -- "Items counted as Daal" on the pricing sheet — the daal slot's real rotation,
+  -- not a single fixed dish. Shared across both tiffin plans (2 rows each).
+  ('dsh_dal_tadka_veg', 'Dal Tadka', 'Yellow lentils tempered with cumin and garlic', 'daal', 'veg'),
+  ('dsh_dal_tadka_nonveg', 'Dal Tadka', 'Yellow lentils tempered with cumin and garlic', 'daal', 'non-veg'),
+  ('dsh_lobia_masala_veg', 'Lobia Masala', 'Black-eyed peas simmered in a spiced onion-tomato masala', 'daal', 'veg'),
+  ('dsh_lobia_masala_nonveg', 'Lobia Masala', 'Black-eyed peas simmered in a spiced onion-tomato masala', 'daal', 'non-veg'),
+  ('dsh_rajma_veg', 'Rajma', 'Red kidney beans in a thick Punjabi-style curry', 'daal', 'veg'),
+  ('dsh_rajma_nonveg', 'Rajma', 'Red kidney beans in a thick Punjabi-style curry', 'daal', 'non-veg'),
+  ('dsh_kadhi_veg', 'Kadhi', 'Yoghurt-and-gram-flour curry tempered with cumin', 'daal', 'veg'),
+  ('dsh_kadhi_nonveg', 'Kadhi', 'Yoghurt-and-gram-flour curry tempered with cumin', 'daal', 'non-veg'),
+  ('dsh_chana_masala_veg', 'Chana Masala', 'Chickpeas simmered in a spiced tomato masala', 'daal', 'veg'),
+  ('dsh_chana_masala_nonveg', 'Chana Masala', 'Chickpeas simmered in a spiced tomato masala', 'daal', 'non-veg'),
+  ('dsh_tur_daal_veg', 'Tur Daal', 'Split pigeon peas tempered with cumin and garlic', 'daal', 'veg'),
+  ('dsh_tur_daal_nonveg', 'Tur Daal', 'Split pigeon peas tempered with cumin and garlic', 'daal', 'non-veg'),
+  ('dsh_paneer_butter_masala_veg', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'sabzi', 'veg'),
+  ('dsh_paneer_butter_masala_nonveg', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'sabzi', 'non-veg'),
+  ('dsh_aloo_gobi_veg', 'Aloo Gobi', 'Potato and cauliflower dry sabzi', 'sabzi', 'veg'),
+  ('dsh_aloo_gobi_nonveg', 'Aloo Gobi', 'Potato and cauliflower dry sabzi', 'sabzi', 'non-veg'),
+  -- Non-veg-only dishes: one row, non-veg plan.
+  ('dsh_chicken_curry', 'Chicken Curry', 'Tender chicken in a spiced onion-tomato gravy', 'sabzi', 'non-veg'),
+  ('dsh_egg_bhurji', 'Egg Bhurji', 'Spiced scrambled eggs with onion and peppers', 'extra', 'non-veg'),
+  -- Staples. Both tiffin plans' meal sizes ask for rice, roti, raita and salad,
+  -- so without a dish in each of those categories no menu week can be released:
+  -- menuService.release refuses a week that leaves a plan short of a category its
+  -- meal sizes promise. These make the seeded catalog self-consistent on both plans.
+  ('dsh_jeera_rice_veg', 'Jeera Rice', 'Basmati rice tempered with cumin', 'rice', 'veg'),
+  ('dsh_jeera_rice_nonveg', 'Jeera Rice', 'Basmati rice tempered with cumin', 'rice', 'non-veg'),
+  ('dsh_roti_veg', 'Roti', 'Soft whole-wheat flatbread', 'roti', 'veg'),
+  ('dsh_roti_nonveg', 'Roti', 'Soft whole-wheat flatbread', 'roti', 'non-veg'),
+  ('dsh_boondi_raita_veg', 'Boondi Raita', 'Whisked yoghurt with crisp gram-flour pearls', 'raita', 'veg'),
+  ('dsh_boondi_raita_nonveg', 'Boondi Raita', 'Whisked yoghurt with crisp gram-flour pearls', 'raita', 'non-veg'),
+  ('dsh_kachumber_salad_veg', 'Kachumber Salad', 'Diced cucumber, tomato and onion with lemon', 'salad', 'veg'),
+  ('dsh_kachumber_salad_nonveg', 'Kachumber Salad', 'Diced cucumber, tomato and onion with lemon', 'salad', 'non-veg'),
+  -- Egg Bhurji is the only other 'extra', and it is non-veg only, so the veg
+  -- plan needs its own.
+  ('dsh_masala_papad', 'Masala Papad', 'Roasted papad topped with onion, tomato and chaat masala', 'extra', 'veg')
+) AS v(public_id, name, description, category, plan_key)
 WHERE NOT EXISTS (
-  SELECT 1 FROM dish_plans dp
-  WHERE dp.dish_id = (SELECT id FROM dishes WHERE public_id = v.dish_public_id)
-    AND dp.plan_id = (SELECT id FROM plans WHERE key = v.plan_key)
+  SELECT 1 FROM dishes d WHERE d.name = v.name AND d.plan_id = (SELECT id FROM plans WHERE key = v.plan_key)
 );
 
 -- ============ PLAN DISPLAY TAGS ============ (rendered verbatim; no code reads them)
 UPDATE plans SET tag_label = 'Veg',      tag_color = '#16a34a' WHERE key = 'veg'      AND tag_label IS NULL;
 UPDATE plans SET tag_label = 'Non-veg',  tag_color = '#dc2626' WHERE key = 'non-veg'  AND tag_label IS NULL;
-UPDATE plans SET tag_label = 'Healthy',  tag_color = '#0d9488' WHERE key = 'healthy'  AND tag_label IS NULL;
 
 -- ============ MENU: WEEK + ITEMS ============ (next Monday UTC; guard week+items on week_start existing)
 WITH next_monday AS (SELECT d + (CASE WHEN dow = 0 THEN 1 ELSE 8 - dow END) AS week_start
@@ -614,17 +581,20 @@ FROM new_week nw
          CROSS JOIN (SELECT d.id,
                             dc.id AS category_id,
                             ROW_NUMBER() OVER (PARTITION BY d.category ORDER BY want.ord) AS rn
-                     FROM (VALUES ('Dal Tadka', 1),
-                                  ('Paneer Butter Masala', 2),
-                                  ('Aloo Gobi', 3),
-                                  ('Chicken Curry', 4),
-                                  ('Egg Bhurji', 5),
-                                  ('Jeera Rice', 6),
-                                  ('Roti', 7),
-                                  ('Boondi Raita', 8),
-                                  ('Kachumber Salad', 9),
-                                  ('Masala Papad', 10)) AS want(name, ord)
-                              JOIN dishes d ON d.name = want.name
+                     -- Each row picks one (name, plan) dish variant explicitly — a dish
+                     -- name alone no longer identifies one row now that names can repeat
+                     -- once per plan.
+                     FROM (VALUES ('Dal Tadka', 'veg', 1),
+                                  ('Paneer Butter Masala', 'veg', 2),
+                                  ('Aloo Gobi', 'non-veg', 3),
+                                  ('Chicken Curry', 'non-veg', 4),
+                                  ('Egg Bhurji', 'non-veg', 5),
+                                  ('Jeera Rice', 'veg', 6),
+                                  ('Roti', 'veg', 7),
+                                  ('Boondi Raita', 'veg', 8),
+                                  ('Kachumber Salad', 'veg', 9),
+                                  ('Masala Papad', 'veg', 10)) AS want(name, plan_key, ord)
+                              JOIN dishes d ON d.name = want.name AND d.plan_id = (SELECT id FROM plans WHERE key = want.plan_key)
                               JOIN dish_categories dc ON dc.key = d.category) AS dsh;
 
 

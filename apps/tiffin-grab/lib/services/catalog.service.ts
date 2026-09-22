@@ -115,6 +115,7 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
           mealSizeId: 0n, // placeholder; set once the parent id is known
           name: label,
           category: item.category,
+          planId: resolvedPlanId!,
           label,
           tuAmount: item.tuAmount,
           maxTuAmount: item.maxTuAmount,

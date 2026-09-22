@@ -1,23 +1,29 @@
 import { eq, inArray } from "drizzle-orm";
 import { db } from "./client";
-import { categoryPlans, dishCategories, dishPlans, plans } from "./schema";
+import { categoryPlans, dishCategories, dishes, plans } from "./schema";
 
 /**
- * Attach a fixture dish to plans. Dishes reach a menu only through dish_plans
- * now, so a test that inserts a dish and expects it on a menu must attach it —
- * the same rule production data follows.
- *
- * Defaults to every plan, which matches how most fixtures behaved when `diet`
- * existed and nothing filtered them. Pass explicit keys to test the filtering
- * itself (e.g. ["non-veg"] for a dish a vegetarian must never be offered).
+ * The veg plan's id, for fixtures that need SOME valid dishes.planId and don't
+ * care which one. dishes.planId is NOT NULL, so every `db.insert(dishes)` in a
+ * test needs a real plan id now — this is that default.
  */
-export async function attachDishToPlans(dishId: bigint, planKeys?: string[]): Promise<void> {
-  const rows = planKeys?.length
-    ? await db.select({ id: plans.id }).from(plans).where(inArray(plans.key, planKeys))
-    : await db.select({ id: plans.id }).from(plans);
-  if (rows.length === 0) throw new Error("attachDishToPlans: no plans found — is the catalog seeded?");
-  await db.delete(dishPlans).where(eq(dishPlans.dishId, dishId));
-  await db.insert(dishPlans).values(rows.map((p) => ({ dishId, planId: p.id })));
+export async function testPlanId(key: string = "veg"): Promise<bigint> {
+  const [row] = await db.select({ id: plans.id }).from(plans).where(eq(plans.key, key)).limit(1);
+  if (!row) throw new Error(`testPlanId: no plan with key "${key}" — is the catalog seeded?`);
+  return row.id;
+}
+
+/**
+ * Set a fixture dish's single plan. A dish belongs to exactly one plan now,
+ * so this just updates dishes.planId — the same write production admin makes.
+ * Pass exactly one key (defaults to "veg" — most fixtures don't care which
+ * plan, they just need one that exists).
+ */
+export async function attachDishToPlans(dishId: bigint, planKeys: string[] = ["veg"]): Promise<void> {
+  if (planKeys.length !== 1) throw new Error("attachDishToPlans: a dish belongs to exactly one plan now — pass one key");
+  const [row] = await db.select({ id: plans.id }).from(plans).where(eq(plans.key, planKeys[0])).limit(1);
+  if (!row) throw new Error(`attachDishToPlans: no plan with key "${planKeys[0]}" — is the catalog seeded?`);
+  await db.update(dishes).set({ planId: row.id }).where(eq(dishes.id, dishId));
 }
 
 /**

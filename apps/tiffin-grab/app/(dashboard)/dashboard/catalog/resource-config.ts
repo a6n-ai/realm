@@ -69,9 +69,6 @@ const plansSchema = z.object({
   tagLabel: z.string().trim().max(24).optional().nullable(),
   tagColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Pick a colour").optional().nullable(),
   allowedStartDays: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).default([]),
-  // Drives the swap-direction guard in dish-categories.service.ts: a restricted
-  // plan's customers must never receive a category unreachable from this plan.
-  restricted: z.boolean().default(false),
   active,
 });
 
@@ -192,10 +189,10 @@ const optCategory = z.preprocess(
 const dishesSchema = z.object({
   name,
   description: z.string().trim().optional().nullable(),
-  // Plan public_ids. Replaces the old `diet` enum: which plans a dish may appear
-  // on is explicit membership, and at least one is required because a dish
-  // attached to nothing is invisible on every menu.
-  planIds: z.array(z.string()).min(1, "Pick at least one plan"),
+  // Plan public_id. Replaces the old `diet` enum and the old planIds many-to-many:
+  // a dish belongs to exactly one plan, which is what a swap needs to be able to
+  // decide "is this dish veg or non-veg" without ambiguity.
+  planId: z.string().trim().min(1, "Plan is required"),
   // Soft ref to dish_categories.key; nullable so an uncategorized dish stays
   // placeable in any menu slot (I5). Enforced server-side via dishesService.
   category: optCategory,
@@ -227,7 +224,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     key: "dishes", label: "Dishes", singular: "dish", keyed: false, schema: dishesSchema,
     fields: [
       { key: "name", label: "Name", type: "text" },
-      { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
+      { key: "planId", label: "Plan", type: "select", optionsSource: "plans" },
       { key: "category", label: "Category", type: "select", optionsSource: "categories", optional: true },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
     ],
@@ -260,7 +257,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "tagLabel", label: "Tag", type: "text", optional: true },
       { key: "tagColor", label: "Tag colour", type: "color", optional: true },
       { key: "allowedStartDays", label: "Allowed start days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
-      { key: "restricted", label: "Restricted (can't receive swapped-in categories it doesn't offer)", type: "boolean" },
     ],
   },
   "meal-sizes": {

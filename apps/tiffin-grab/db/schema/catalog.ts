@@ -7,22 +7,6 @@ export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
 export const mealSizeDiscountType = pgEnum("meal_size_discount_type", ["none", "percent", "flat"]);
 
-// A dish carries no diet column. Which plans it may appear on is explicit
-// membership — see dishPlans below.
-export const dishes = pgTable("dishes", {
-  ...updatableColumns("dsh"),
-  name: text("name").notNull(),
-  description: text("description"),
-  image: jsonb("image").$type<FileDetail>(),
-  // Soft ref to dish_categories.key (no DB FK — key is unique only per (planType, key)).
-  // Nullable for back-compat: a null-category dish may be placed in any slot.
-  category: text("category"),
-  active: boolean("active").notNull().default(true),
-  // Client-scoping — null = shared across the whole app, set = one org's own
-  // catalog item. See db/schema/organizations.ts + orders.organizationId.
-  organizationId: text("organization_id").references(() => organization.id),
-});
-
 export const plans = pgTable("plans", {
   ...updatableColumns("pln"),
   key: text("key").notNull().unique(),
@@ -36,41 +20,30 @@ export const plans = pgTable("plans", {
   // or adding a new one needs no code change.
   tagLabel: text("tag_label"),
   tagColor: text("tag_color"),
-  // A restricted plan's customers must never receive a category this plan can't
-  // reach (e.g. the veg plan) — the swap-direction guard in
-  // dish-categories.service.ts reads this instead of matching plan.key strings
-  // like "veg"/"non-veg", so it stays correct for any future restricted plan
-  // (halal, jain, allergen-free …) with zero code changes.
-  restricted: boolean("restricted").notNull().default(false),
   active: boolean("active").notNull().default(true),
   // Client-scoping — see dishes.organizationId for the pattern.
   organizationId: text("organization_id").references(() => organization.id),
 });
 
-/**
- * Which plans a dish may appear on. Many-to-many on purpose: a veg dish belongs
- * to the veg plan AND the non-veg plan (a non-veg thali still contains sabzi,
- * daal and roti), so a single plan_id would force duplicate dish rows that drift
- * apart on edit.
- *
- * This is the food-safety boundary, and it replaces the old `diet` column. Every
- * menu query joins through here, so a dish with no row for a given plan simply
- * cannot be returned to a subscriber on that plan. The code never decides what a
- * dish *is* — only which plans an admin attached it to.
- */
-export const dishPlans = pgTable(
-  "dish_plans",
-  {
-    ...updatableColumns("dpl"),
-    dishId: bigint("dish_id", { mode: "bigint" })
-      .notNull()
-      .references(() => dishes.id, { onDelete: "cascade" }),
-    planId: bigint("plan_id", { mode: "bigint" })
-      .notNull()
-      .references(() => plans.id, { onDelete: "cascade" }),
-  },
-  (t) => [uniqueIndex("dish_plans_dish_plan_unique").on(t.dishId, t.planId)],
-);
+// A dish belongs to exactly one plan — paneer and chicken are separate dishes
+// under the same "sabzi" category, one on veg, one on non-veg. Diet is decided
+// entirely by which plan a dish is on, not by a diet column or a many-to-many
+// dish_plans join (dropped — it let one dish claim to be both veg and non-veg
+// at once, which made swap eligibility undecidable per dish).
+export const dishes = pgTable("dishes", {
+  ...updatableColumns("dsh"),
+  name: text("name").notNull(),
+  description: text("description"),
+  image: jsonb("image").$type<FileDetail>(),
+  // Soft ref to dish_categories.key (no DB FK — key is unique only per (planType, key)).
+  // Nullable for back-compat: a null-category dish may be placed in any slot.
+  category: text("category"),
+  planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
+  active: boolean("active").notNull().default(true),
+  // Client-scoping — null = shared across the whole app, set = one org's own
+  // catalog item. See db/schema/organizations.ts + orders.organizationId.
+  organizationId: text("organization_id").references(() => organization.id),
+}, (t) => [uniqueIndex("dishes_name_plan_unique").on(t.name, t.planId)]);
 
 export const mealSizes = pgTable("meal_sizes", {
   ...updatableColumns("msz"),
@@ -109,6 +82,10 @@ export const mealSizeItems = pgTable("meal_size_items", {
   // Soft ref to dish_categories.key (no DB FK — see M8/Constraint 7). NOT NULL: every
   // item belongs to a category so checkout can reduce items into per-category counts.
   category: text("category").notNull(),
+  // Equal to the parent meal size's planId, stored explicitly so swap-eligible-dish
+  // lookups (category + planId -> dishes.planId) don't need to join back through
+  // mealSizes. This, not plans.restricted, is what determines dish diet now.
+  planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
   // Optional display override for the item label.
   label: text("label"),
   // Each row IS one dish pick — "2 units of a category" is 2 rows, not qty=2 on

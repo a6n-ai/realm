@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, dishes, mealSelections, menuItems, menuWeeks } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { makeTripOrder, resetTrips } from "@/lib/services/__tests__/trip-fixture";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -19,7 +19,7 @@ describe("carried eating days", () => {
     await resetTrips(DEPLOY, "carried");
     await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
     [week] = await db.insert(menuWeeks).values({ weekStart: "2030-01-07", status: "released", orderCutoff: 4070000000000 }).returning();
-    const [d] = await db.insert(dishes).values({ name: "Carried Dal", active: true }).returning();
+    const [d] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Carried Dal", active: true }).returning();
     await attachDishToPlans(d.id);
     dishPublicId = d.publicId;
     for (const day of ["mon", "tue"] as const) {

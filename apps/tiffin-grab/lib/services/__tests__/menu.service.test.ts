@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { auditLog, dishes, dishCategories, menuItems, menuWeeks, organization } = await import("@/db/schema");
-const { attachDishToPlans, attachAllCategoriesToPlans } = await import("@/db/test-helpers");
+const { attachDishToPlans, attachAllCategoriesToPlans, testPlanId } = await import("@/db/test-helpers");
 const { menuService } = await import("../menu.service");
 
 async function reset() {
@@ -41,7 +41,7 @@ describe("menuService (integration)", () => {
   });
 
   it("addItem validates the category against the enabled categories", async () => {
-    const [d] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [d] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(d.id);
     const w = await menuService.upsertWeek({ weekStart: "2099-01-12" });
     await expect(menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "dinner", dishId: d.publicId, position: 0 })).rejects.toThrow();
@@ -50,9 +50,9 @@ describe("menuService (integration)", () => {
   });
 
   it("reorderItems writes position; getPublishedWeek returns released items ordered", async () => {
-    const [d1] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [d1] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(d1.id);
-    const [d2] = await db.insert(dishes).values({ name: "Dal"}).returning();
+    const [d2] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Dal"}).returning();
     await attachDishToPlans(d2.id);
     const w = await menuService.upsertWeek({ weekStart: "2099-01-19" });
     const i1 = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d1.publicId, position: 0 });
@@ -88,7 +88,7 @@ describe("menuService (integration)", () => {
   });
 
   it("getPublishedWeek scopes by organizationId: brand org succeeds, unknown org fails closed", async () => {
-    const [d] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [d] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(d.id);
     const w = await menuService.upsertWeek({ weekStart: "2099-06-01" });
     await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d.publicId, position: 0 });
@@ -107,7 +107,7 @@ describe("menuService (integration)", () => {
   });
 
   it("listWeeks returns every week newest-first with item counts", async () => {
-    const [d] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [d] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(d.id);
     const older = await menuService.upsertWeek({ weekStart: "2099-03-02" });
     const newer = await menuService.upsertWeek({ weekStart: "2099-03-09" });
@@ -120,7 +120,7 @@ describe("menuService (integration)", () => {
   });
 
   it("listWeekMenus returns each week's items + enabled categories", async () => {
-    const [d] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [d] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(d.id);
     const w = await menuService.upsertWeek({ weekStart: "2099-04-06" });
     await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d.publicId, position: 0 });

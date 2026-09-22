@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
 import type { GridCell } from "../meals-grid";
@@ -76,9 +76,9 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
-    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(sabziDefault.id);
-    const [staleDish] = await db.insert(dishes).values({ name: "Bhindi"}).returning();
+    const [staleDish] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Bhindi"}).returning();
     await attachDishToPlans(staleDish.id);
 
     // mon: only the default is offered (staleDish was removed from mon's menu).
@@ -112,13 +112,13 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
-    const [sabziDish] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [sabziDish] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(sabziDish.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDish.id, isDefault: true });
 
     // rice is fixed/non-selectable, and its only mon item is attached ONLY to the
     // non-veg plan — so it is outside this veg-plan order's reach.
-    const [riceNonveg] = await db.insert(dishes).values({ name: "Chicken Biryani Rice"}).returning();
+    const [riceNonveg] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Chicken Biryani Rice"}).returning();
     await attachDishToPlans(riceNonveg.id, ["non-veg"]);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("rice"), dishId: riceNonveg.id, isDefault: true });
 
@@ -154,7 +154,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
-    const [sabziDish] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [sabziDish] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(sabziDish.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDish.id, isDefault: true });
 

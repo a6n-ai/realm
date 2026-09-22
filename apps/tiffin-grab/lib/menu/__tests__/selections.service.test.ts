@@ -3,7 +3,7 @@ import { eq, ne } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -55,11 +55,11 @@ describe("selectionsService.setSelection", () => {
     await seedDelivery(o.id);
     const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
     week = w;
-    const [vd] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [vd] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(vd.id);
-    const [vd2] = await db.insert(dishes).values({ name: "Bhindi"}).returning();
+    const [vd2] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Bhindi"}).returning();
     await attachDishToPlans(vd2.id);
-    const [nd] = await db.insert(dishes).values({ name: "Chicken"}).returning();
+    const [nd] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Chicken"}).returning();
     await attachDishToPlans(nd.id);
     vegDishPublicId = vd.publicId;
     vegDishPublicId2 = vd2.publicId;

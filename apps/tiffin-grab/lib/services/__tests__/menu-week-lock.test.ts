@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { menuService } = await import("../menu.service");
@@ -26,7 +26,7 @@ async function seedWeek(status: "draft" | "released") {
   const [week] = await db.insert(menuWeeks).values({
     weekStart: FUTURE_MONDAY, status, orderCutoff: new Date("2999-01-01").getTime(),
   }).returning();
-  const [dish] = await db.insert(dishes).values({ name: `Paneer ${Math.random().toString(36).slice(2, 8)}` }).returning();
+  const [dish] = await db.insert(dishes).values({ planId: await testPlanId(), name: `Paneer ${Math.random().toString(36).slice(2, 8)}` }).returning();
   await attachDishToPlans(dish.id);
   const [item] = await db.insert(menuItems).values({
     menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: dish.id, isDefault: true, position: 0,

@@ -3,7 +3,7 @@ import { sharedCache } from "@/lib/cache";
 import { BaseRepository, UpdatableRepository } from "@foundry/database";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishCategories, dishPlans, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, organization, plans } from "@/db/schema";
+import { dishCategories, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, organization, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { getAppSettings, getMealTypes } from "./app-settings.service";
@@ -349,7 +349,7 @@ export const menuService = {
           .from(mealSizeItems)
           .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
           .where(and(eq(mealSizes.planId, plan.id), eq(mealSizes.active, true))),
-        db.select({ dishId: dishPlans.dishId }).from(dishPlans).where(eq(dishPlans.planId, plan.id)),
+        db.select({ dishId: dishes.id }).from(dishes).where(eq(dishes.planId, plan.id)),
       ]);
       const required = new Set(requiredRows.map((r) => r.category));
       const planDishIds = new Set(membership.map((m) => m.dishId));

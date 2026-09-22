@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, payments, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -107,15 +107,15 @@ describe("getKitchenPackingSheet", () => {
       .returning();
     week = w;
 
-    const [paneer] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Saag Paneer` }).returning();
+    const [paneer] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Saag Paneer` }).returning();
     await attachDishToPlans(paneer.id);
-    const [chicken] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Chilli Chicken` }).returning();
+    const [chicken] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Chilli Chicken` }).returning();
     await attachDishToPlans(chicken.id, ["non-veg"]);
-    const [dal] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Kali Dal` }).returning();
+    const [dal] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Kali Dal` }).returning();
     await attachDishToPlans(dal.id);
-    const [rice] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Jeera Rice` }).returning();
+    const [rice] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Jeera Rice` }).returning();
     await attachDishToPlans(rice.id);
-    const [roti] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Roti` }).returning();
+    const [roti] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Roti` }).returning();
     await attachDishToPlans(roti.id);
 
     const sabzi = await categoryIdFor("sabzi");
@@ -193,12 +193,13 @@ describe("getKitchenPackingSheet", () => {
       // Force multi-row sabzi 1.5+1.0 TU (=12oz+8oz when 1 TU = 8oz).
       await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
       await db.insert(mealSizeItems).values([
-        { mealSizeId: size.id, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 0 },
-        { mealSizeId: size.id, name: "Side", category: "sabzi", tuAmount: "1.00", sortOrder: 1 },
-        { mealSizeId: size.id, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 2 },
-        { mealSizeId: size.id, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 3 },
+        { mealSizeId: size.id, planId: size.planId, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 0 },
+        { mealSizeId: size.id, planId: size.planId, name: "Side", category: "sabzi", tuAmount: "1.00", sortOrder: 1 },
+        { mealSizeId: size.id, planId: size.planId, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 2 },
+        { mealSizeId: size.id, planId: size.planId, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 3 },
         ...Array.from({ length: 8 }, (_, i) => ({
           mealSizeId: size.id,
+          planId: size.planId,
           name: "Roti",
           category: "roti",
           tuAmount: "0.25",

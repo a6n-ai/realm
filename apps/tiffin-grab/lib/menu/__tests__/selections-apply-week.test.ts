@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -47,7 +47,7 @@ describe("selectionsService.applyToWeek", () => {
     order = o;
     const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
     week = w;
-    const [vd] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [vd] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(vd.id);
     vegDishPublicId = vd.publicId; vegDishBigintId = vd.id;
     // Offer the dish Mon–Thu (4 of the 5 weekday deliveries); Friday deliberately has no menu item for it.

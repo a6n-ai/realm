@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, payments, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -83,13 +83,13 @@ describe("getPackingLabels (customer pick + plan defaults)", () => {
     }).returning();
     week = w;
 
-    const [paneer] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Saag Paneer` }).returning();
+    const [paneer] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Saag Paneer` }).returning();
     await attachDishToPlans(paneer.id);
-    const [chicken] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Chilli Chicken` }).returning();
+    const [chicken] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Chilli Chicken` }).returning();
     await attachDishToPlans(chicken.id, ["non-veg"]);
-    const [dal] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Kali Dal` }).returning();
+    const [dal] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Kali Dal` }).returning();
     await attachDishToPlans(dal.id);
-    const [rice] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Jeera Rice` }).returning();
+    const [rice] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Jeera Rice` }).returning();
     await attachDishToPlans(rice.id);
 
     const sabzi = await categoryIdFor("sabzi");

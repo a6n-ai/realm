@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, dishes, menuItems, menuWeeks, orders, users } = await import("@/db/schema");
-const { attachDishToPlans, categoryIdFor } = await import("@/db/test-helpers");
+const { attachDishToPlans, categoryIdFor, testPlanId } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { myDeliveryMeal } = await import("../customer-deliveries.service");
 
@@ -52,7 +52,7 @@ describe("myDeliveryMeal (integration)", () => {
     const [week] = await db.insert(menuWeeks).values({
       weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime(),
     }).returning();
-    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(sabziDefault.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true });
 

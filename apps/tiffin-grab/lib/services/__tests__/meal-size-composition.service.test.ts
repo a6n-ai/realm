@@ -57,7 +57,7 @@ beforeEach(async () => {
   sizeId = m.id;
   sizePublicId = m.publicId;
   // A stale item that a full-replace save must delete.
-  await db.insert(mealSizeItems).values({ mealSizeId: m.id, name: "STALE", category: CAT_A, sortOrder: 0 });
+  await db.insert(mealSizeItems).values({ mealSizeId: m.id, name: "STALE", category: CAT_A, planId, sortOrder: 0 });
 });
 
 afterAll(cleanup);
