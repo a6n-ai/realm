@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { createStaffInvite } from "@foundry/auth";
+import { ValidationError } from "@foundry/commons";
 import { auth } from "@/lib/auth";
 import { usersService } from "./users.service";
 
@@ -31,5 +32,20 @@ const { inviteStaff } = createStaffInvite({
  * page, then sets their first password via the existing /set-password step.
  */
 export async function inviteUser(input: { email: string; name: string; role: "admin" | "member"; organizationId: string }) {
+  // createInvitation requires a DIRECT member row with invitation:create on this
+  // exact org, but only checks it after createUser has already run. Check first
+  // so a refusal never leaves behind a credential-less account with no invitation.
+  const allowed = await auth.api
+    .hasPermission({
+      headers: await headers(),
+      body: { organizationId: input.organizationId, permissions: { invitation: ["create"] } },
+    })
+    .then(
+      (r) => r.success,
+      () => false,
+    );
+  if (!allowed) {
+    throw new ValidationError("You can't invite staff to this organization. Switch to one you're an admin of.");
+  }
   return inviteStaff(input);
 }

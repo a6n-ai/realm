@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ValidationError, type RoleValue } from "@foundry/commons";
 import { auth } from "@/lib/auth";
 import { requirePermission } from "@/lib/auth/guards";
-import { getSession } from "@/lib/auth/session";
+import { resolveActingOrgId } from "@/lib/services/integrations.service";
 import { inviteUser } from "@/lib/services/users-invite";
 import { usersService, type UserStatusValue } from "@/lib/services/users.service";
 
@@ -52,9 +52,14 @@ export async function sendPasswordReset(email: string): Promise<void> {
 
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {
   await requirePermission({ staff: ["invite"], user: ["create", "set-role"] });
-  const session = await getSession();
-  const organizationId = session?.session.activeOrganizationId;
-  if (!organizationId) throw new ValidationError("No active organization for this session.");
+  // Same acting-org resolution the rest of the dashboard uses: the switcher's
+  // activeOrganizationId if set, else the brand (default-location) org — nothing
+  // sets activeOrganizationId at sign-in for a single-org admin.
+  // Known follow-up (not fixed here): the invitee has no member row until they
+  // accept, so a pending invite doesn't show in an org-scoped Users list; and
+  // there's no Resend-invite action yet.
+  const organizationId = await resolveActingOrgId();
+  if (!organizationId) throw new ValidationError("No organization to invite into.");
   await inviteUser({
     email: input.email,
     name: input.name,

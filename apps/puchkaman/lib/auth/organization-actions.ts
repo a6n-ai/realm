@@ -8,15 +8,13 @@ import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { auth } from "./index";
 import { getSession } from "./session";
 
-// DEVIATION FROM THE BRIEF: does not call Better Auth's own
-// auth.api.setActiveOrganization endpoint. Same wall createFranchise already
-// hit (see organizations-actions.ts) — that endpoint's membership check reads
-// through the adapter's "member"/"organization" models, and this app's
-// drizzleAdapter only registers { user, account, session, verification }
-// (lib/auth/index.ts), so the plugin throws "model not found" before it ever
-// gets to write the session row. Re-implements the same authorization
-// (getMemberOrganizations already cascades brand membership to its
-// franchises) and writes the session's active-org column directly.
+// Does not call Better Auth's auth.api.setActiveOrganization: that endpoint
+// requires a DIRECT member row on the target org, but a brand admin here may
+// act as any franchise under the brand without one (getMemberOrganizations
+// cascades brand membership to its franchises). So this re-implements the
+// authorization with that cascade and writes the session's active-org column
+// directly. Not a schema limitation — the adapter does register
+// member/organization now.
 export async function switchActiveOrganization(organizationId: string): Promise<void> {
   const session = await getSession();
   if (!session) throw new Error("No active session.");
