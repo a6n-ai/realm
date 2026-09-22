@@ -11,7 +11,8 @@ import type { Agenda } from "@/lib/deliveries-view/week";
 vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: () => new Promise(() => {}) }));
 vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: vi.fn(), applyMyDishToWeek: vi.fn() }));
 const replace = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace }) }));
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push: vi.fn(), replace }) }));
 afterEach(cleanup);
 
 const NOW = Date.parse("2026-09-21T12:00:00Z");
@@ -133,11 +134,13 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     expect(within(nav).queryByText(/All plans/)).toBeNull();
     expect(screen.getAllByTestId("trip-row")).toHaveLength(3);
   });
-  it("switching plan reloads with ?sub", () => {
+  it("switching plan reloads with ?sub and refreshes so the new plan's own data isn't served from cache", () => {
     replace.mockClear();
+    refresh.mockClear();
     multi();
     fireEvent.click(within(screen.getByRole("navigation", { name: "Your plans" })).getByRole("button", { name: /Small/ }));
     expect(replace.mock.calls[0]![0]).toBe("/me?sub=o2");
+    expect(refresh).toHaveBeenCalled();
   });
   it("strip marks the delivery day with a truck; other eating days have none", () => {
     multi();
@@ -187,14 +190,23 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     expect(within(d).getByTestId("info-delivery")).toHaveTextContent("Arrives Mon, Sep 21 with Mon · 2 tiffins covering Mon + Tue");
     expect(within(d).queryByText("Delivery day")).toBeNull();
   });
-  it("menu not released: only 'Menu not released yet', no list, no delivery card, no actions", () => {
+  it("menu not released: days still list with 'Menu not released yet', Pick disabled, Move still works", () => {
     const out = { ...p1, days: [{ date: "2026-09-21", menuWeekId: null, meal: null }, { date: "2026-09-24", menuWeekId: null, meal: null }] } as unknown as PlanView;
-    multi({ plan: out });
+    multi({ plan: out, initialTrip: "2026-09-21" });
     expect(screen.getByTestId("menu-not-released")).toHaveTextContent("Menu not released yet.");
-    expect(screen.queryAllByTestId("trip-row")).toHaveLength(0);
-    expect(screen.queryByTestId("next-delivery")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Pick meals|Move to another day/ })).toBeNull();
+    const rows = screen.getAllByTestId("trip-row");
+    expect(rows.length).toBeGreaterThan(0);
+    expect(within(rows[0]!).getByText("Menu not released yet")).toBeInTheDocument();
     expect(screen.getByTestId("week-strip")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: /Pick meals/ })[0]!);
+    expect(screen.queryByRole("dialog", { name: "Pick meals" })).toBeNull();
+    expect(screen.getAllByText("Menu not released yet.").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getAllByRole("button", { name: /Move to another day/ })[0]!);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+  it("menu released as usual: no banner, Pick enabled", () => {
+    multi({ initialTrip: "2026-09-21" });
+    expect(screen.queryByTestId("menu-not-released")).toBeNull();
   });
   it("no Swap button when the eating day has no swap it can make; Swap when it has", () => {
     const day = (swapPairs: { fromCategory: string; toCategory: string }[]) => ({ ...p1, sub: { ...p1.sub, categoryCounts: { rice: 1 } }, days: [{ date: "2026-09-21", menuWeekId: "w1", meal: null, eatingDays: [{ date: "2026-09-21", swapPairs, appliedSwaps: [] }, { date: "2026-09-22", swapPairs, appliedSwaps: [] }] }] }) as unknown as PlanView;

@@ -6,6 +6,19 @@ const NOW = Date.parse("2026-09-21T12:00:00Z");
 const ctx: PlanContext = { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon", "wed", "fri"] };
 const trip = { date: "2026-09-23", units: 1, coversDates: ["2026-09-23"], pooled: false } as Trip;
 
+describe("moveOptions default horizon", () => {
+  it("without an explicit horizon, offers up to the plan's last delivery plus a week", () => {
+    const c = { ...ctx, lastDeliveryDate: "2026-10-02" }; // Fri, 11 days after today (2026-09-21)
+    const o = moveOptions(trip, [], NOW, c, "2026-09-21");
+    expect(o[o.length - 1]!.date).toBe("2026-10-08"); // horizon 18 = today + 17 days
+  });
+  it("falls back to 28 days for a plan with no known end", () => {
+    const c = { ...ctx, lastDeliveryDate: null };
+    const o = moveOptions(trip, [], NOW, c, "2026-09-21");
+    expect(o).toHaveLength(28);
+  });
+});
+
 describe("moveOptions", () => {
   it("offers plan weekdays only, flags source, closed, held and merge days", () => {
     const o = moveOptions(trip, [

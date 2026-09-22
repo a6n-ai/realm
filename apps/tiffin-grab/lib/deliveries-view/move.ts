@@ -6,6 +6,16 @@ import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from ".
 
 const weekdayName = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
 
+function daysBetween(a: string, b: string): number {
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+}
+
+/** Move goes up to the plan's last delivery plus a week of slack; 28 days when the plan has no end (legacy) or the maths ends up negative/tiny. */
+function defaultHorizon(ctx: PlanContext, today: string): number {
+  if (!ctx.lastDeliveryDate) return 28;
+  return Math.max(daysBetween(today, ctx.lastDeliveryDate) + 7, 7);
+}
+
 export type MoveOption = {
   date: string;
   disabledReason?: string;
@@ -20,7 +30,7 @@ export type MoveOption = {
  * trip (nearest plan weekday on or before it, so weekends ride Friday). Every check (past, cutoff,
  * held target, already-covered) runs on the carrying trip. The server stays authoritative.
  */
-export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon = 28): MoveOption[] {
+export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon = defaultHorizon(ctx, today)): MoveOption[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
   const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun") as DayOfWeek[];
   const out: MoveOption[] = [];

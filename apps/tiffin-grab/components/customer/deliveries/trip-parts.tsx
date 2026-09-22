@@ -122,7 +122,7 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
 const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
 
 /** One eating day of the selected week: date + dishes; a truck marks the delivery day, the "i" button (beside the row) holds the rest. */
-export function EatingRowButton({ row, selected, onSelect, plan }: { row: EatingRow; selected: boolean; onSelect: (row: EatingRow) => void; plan?: PlanTagInfo }) {
+export function EatingRowButton({ row, selected, onSelect, plan, menuOut }: { row: EatingRow; selected: boolean; onSelect: (row: EatingRow) => void; plan?: PlanTagInfo; menuOut?: boolean }) {
   const m = statusMeta(row.trip);
   const dish = dedupeDishes(row.dish).join(", ");
   return (
@@ -143,7 +143,7 @@ export function EatingRowButton({ row, selected, onSelect, plan }: { row: Eating
         <span className="flex items-center gap-2 text-[15px] font-semibold">
           {humanDate(row.date)}
         </span>
-        <span className={cn(HELP, "block truncate")}>{dish || "Default menu"}</span>
+        <span className={cn(HELP, "block truncate")}>{menuOut ? "Menu not released yet" : dish || "Default menu"}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
         {m.dot && <StatusDot decorative status={m.dot} />}
