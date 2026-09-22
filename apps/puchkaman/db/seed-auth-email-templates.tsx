@@ -74,6 +74,11 @@ const ITEMS: { event: string; subject: string; body: string }[] = [
       "If this was you, no action is needed. If not, reset your password immediately.",
     ].join("\n"),
   },
+  {
+    event: "staff_invitation",
+    subject: `You've been invited to ${APP_NAME}`,
+    body: `You've been invited to join the ${APP_NAME} team as **{{role}}**.\n\n[Accept invitation]({{inviteUrl}})\n\nThis invite expires in 7 days.`,
+  },
 ];
 
 async function main() {

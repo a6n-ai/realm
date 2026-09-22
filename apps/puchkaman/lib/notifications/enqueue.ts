@@ -27,6 +27,7 @@ const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
   clover_customer_invite: ["email"],
   review_nudge: ["email"],
   catering_inquiry: ["email"],
+  staff_invitation: ["email"],
 };
 
 /** Staff-facing events go to the in-app feed of every active admin/member. */

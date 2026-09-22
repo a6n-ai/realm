@@ -323,6 +323,13 @@
       "when": 1789510706744,
       "tag": "0045_add-completed-campaign-status",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1790115000000,
+      "tag": "0046_staff_invitation_event",
+      "breakpoints": true
     }
   ]
 }
