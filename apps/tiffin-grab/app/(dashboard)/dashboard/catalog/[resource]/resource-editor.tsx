@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
@@ -598,8 +598,8 @@ function EditorDialog({
       open
       onOpenChange={(o) => !o && onClose()}
       title={isNew ? `New ${def.singular}` : `Edit ${def.singular}`}
-      description="Typed fields, validated before saving."
-      contentClassName="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      description={def.fields.some((f) => f.section) ? undefined : "Typed fields, validated before saving."}
+      contentClassName={cn("flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0", resource === "meal-sizes" ? "sm:max-w-3xl" : "sm:max-w-2xl")}
       footer={
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="min-h-11 sm:min-h-9">Cancel</Button>
@@ -614,20 +614,37 @@ function EditorDialog({
         <form id="resource-editor-form" onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
             {def.note ? <p className="text-muted-foreground text-sm sm:col-span-2">{def.note}</p> : null}
-            {def.fields.map((f) => (
-              <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
-                <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} />
-                {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs transition-colors"
-                    onClick={() => setKeyManual(true)}
-                  >
-                    <PencilIcon className="size-3" /> Edit key
-                  </button>
-                ) : null}
-              </div>
-            ))}
+            {def.fields.map((f, i) => {
+              const prevSection = i > 0 ? def.fields[i - 1].section : undefined;
+              const showSectionHeader = f.section && f.section !== prevSection;
+              return (
+                <Fragment key={f.key}>
+                  {showSectionHeader ? (
+                    <h3
+                      key={`${f.key}-section`}
+                      className={cn(
+                        "text-muted-foreground text-xs font-semibold tracking-wide uppercase sm:col-span-2",
+                        i > 0 ? "mt-2 border-t pt-5" : "",
+                      )}
+                    >
+                      {f.section}
+                    </h3>
+                  ) : null}
+                  <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
+                    <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} />
+                    {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs transition-colors"
+                        onClick={() => setKeyManual(true)}
+                      >
+                        <PencilIcon className="size-3" /> Edit key
+                      </button>
+                    ) : null}
+                  </div>
+                </Fragment>
+              );
+            })}
             {form.formState.errors.root ? (
               <p className="text-destructive text-sm sm:col-span-2" role="alert">
                 {form.formState.errors.root.message as string}
