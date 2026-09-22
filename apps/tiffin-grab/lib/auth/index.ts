@@ -11,7 +11,13 @@ import { db } from "@/db/client";
 import { account, organization, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
 import { ac, roles } from "./permissions";
-import { notifyNewLoginIfNewDevice, notifyPasswordChanged, sendAuthOtp, sendVerification } from "./security-events";
+import {
+  notifyNewLoginIfNewDevice,
+  notifyPasswordChanged,
+  sendAuthOtp,
+  sendStaffInvitation,
+  sendVerification,
+} from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
 
 const log = createLogger("auth");
@@ -147,6 +153,10 @@ export const auth = betterAuth({
       organizationTable: organization,
       eq,
       allowUserToCreateOrganization: (user) => user.role !== Role.USER,
+      sendInvitationEmail: async (data) => {
+        const url = new URL(`/accept-invitation/${data.invitation.id}`, process.env.BETTER_AUTH_URL).toString();
+        await sendStaffInvitation({ email: data.email, role: data.invitation.role, inviteUrl: url });
+      },
     }),
     nextCookies(),
   ],

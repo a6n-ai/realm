@@ -58,6 +58,22 @@ export async function sendVerification(user: { email?: string | null }, url: str
   );
 }
 
+/** Branded invite email for the organization plugin's staff-invite flow. */
+export async function sendStaffInvitation(input: { email: string; role: string; inviteUrl: string }): Promise<void> {
+  await db.transaction((tx) =>
+    enqueueNotification(tx, {
+      event: "staff_invitation",
+      recipientEmail: input.email,
+      title: `You've been invited to ${APP_NAME}`,
+      body: "",
+      data: { role: input.role, inviteUrl: input.inviteUrl },
+      channels: ["email"],
+      kind: "transactional",
+      dedupeKey: `staff_invitation:${input.email.toLowerCase()}`,
+    }),
+  );
+}
+
 /** Confirm-link for account deletion (OAuth / no-password paths). */
 export async function sendDeleteVerify(user: { email?: string | null }, url: string): Promise<void> {
   if (!user.email) return;

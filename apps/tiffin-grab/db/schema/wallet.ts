@@ -28,6 +28,9 @@ export const appEvent = pgEnum("app_event", [
   // Google review request — migrated off direct SES send (2026-09) so it lands
   // in the outbox/Logs like everything else instead of only email_log.
   "review_nudge",
+  // Staff invitation email (organization plugin) — migrated onto the
+  // notification pipeline (2026-09) same as the other auth/security events.
+  "staff_invitation",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({
