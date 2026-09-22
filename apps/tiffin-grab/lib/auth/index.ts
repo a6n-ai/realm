@@ -154,7 +154,7 @@ export const auth = betterAuth({
     // Client hierarchy config lives in @foundry/auth (createOrganizationPlugin) —
     // shared by every Realm app. See foundry/packages/auth/src/organization-plugin.ts.
     createOrganizationPlugin({
-      db: db as any,
+      db: db as unknown as Parameters<typeof createOrganizationPlugin>[0]["db"],
       organizationTable: organization,
       eq,
       allowUserToCreateOrganization: (user) => user.role !== Role.USER,

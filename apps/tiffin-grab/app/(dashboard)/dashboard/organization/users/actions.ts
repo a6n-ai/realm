@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { requireAdmin, requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { userFeatureFlagsService } from "@/lib/services/user-feature-flags.service";
 import { usersService } from "@/lib/services/users.service";
 import { inviteUser } from "@/lib/services/users-invite";
@@ -59,9 +60,14 @@ export async function resetStaffPassword(userId: string): Promise<{ email: strin
 
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {
   await requirePermission({ staff: ["invite"], user: ["create", "set-role"] });
+  // Nothing sets activeOrganizationId at sign-in (the switcher only fires with
+  // 2+ orgs), so fall back to the inviter's first direct membership — the same
+  // org OrgSwitcher shows as active when none is set, and a direct member row
+  // is what createInvitation requires.
   const session = await getSession();
-  const organizationId = session?.session.activeOrganizationId;
-  if (!organizationId) throw new ValidationError("No active organization for this session.");
+  const organizationId =
+    session?.session.activeOrganizationId ?? (await getMemberOrganizations(session))[0]?.id;
+  if (!organizationId) throw new ValidationError("You aren't a member of any organization.");
   await inviteUser({
     email: input.email,
     name: input.name,
