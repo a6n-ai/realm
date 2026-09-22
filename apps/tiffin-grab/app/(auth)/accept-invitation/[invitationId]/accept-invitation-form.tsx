@@ -11,8 +11,9 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { acceptInvitationAction } from "../actions";
 
-export function AcceptInvitationForm({ invitationId, email }: { invitationId: string; email: string }) {
+export function AcceptInvitationForm({ invitationId }: { invitationId: string }) {
   const router = useRouter();
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
@@ -59,7 +60,14 @@ export function AcceptInvitationForm({ invitationId, email }: { invitationId: st
           </div>
           <div className="grid gap-2">
             <Label htmlFor="invite-email">Email</Label>
-            <Input id="invite-email" type="email" value={email} readOnly disabled />
+            <Input
+              id="invite-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={sent}
+              placeholder="you@example.com"
+            />
           </div>
           {sent ? (
             <div className="grid gap-2">
@@ -73,7 +81,7 @@ export function AcceptInvitationForm({ invitationId, email }: { invitationId: st
               {verifying ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "Verify & accept"}
             </Button>
           ) : (
-            <Button type="button" className="w-full" disabled={sending} onClick={onSendCode}>
+            <Button type="button" className="w-full" disabled={sending || !email} onClick={onSendCode}>
               {sending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "Send code"}
             </Button>
           )}

@@ -15,7 +15,17 @@ async function requestHeaders(): Promise<HeadersInit> {
 
 export async function acceptInvitationAction(input: { invitationId: string; email: string; otp: string }) {
   const h = await requestHeaders();
-  await auth.api.signInEmailOTP({ body: { email: input.email, otp: input.otp }, headers: h });
-  await auth.api.acceptInvitation({ body: { invitationId: input.invitationId }, headers: h });
+  // nextCookies() sets the session cookie by writing to Next's cookies() jar,
+  // not by mutating `h` — so acceptInvitation must run with a Headers object
+  // that actually carries the Set-Cookie from sign-in, not the pre-signin `h`.
+  const signInResult = await auth.api.signInEmailOTP({
+    body: { email: input.email, otp: input.otp },
+    headers: h,
+    returnHeaders: true,
+  });
+  const sessionHeaders = new Headers(h);
+  const cookiePairs = signInResult.headers.getSetCookie().map((cookie) => cookie.split(";")[0]);
+  if (cookiePairs.length > 0) sessionHeaders.set("cookie", cookiePairs.join("; "));
+  await auth.api.acceptInvitation({ body: { invitationId: input.invitationId }, headers: sessionHeaders });
   return { ok: true };
 }

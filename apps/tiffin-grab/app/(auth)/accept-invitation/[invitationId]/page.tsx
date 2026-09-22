@@ -1,6 +1,3 @@
-import { headers } from "next/headers";
-import { notFound } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { AcceptInvitationForm } from "./accept-invitation-form";
 
 export const dynamic = "force-dynamic";
@@ -12,13 +9,9 @@ export default async function AcceptInvitationPage({
 }) {
   const { invitationId } = await params;
 
-  let email: string;
-  try {
-    const invitation = await auth.api.getInvitation({ query: { id: invitationId }, headers: await headers() });
-    email = invitation.email;
-  } catch {
-    notFound();
-  }
-
-  return <AcceptInvitationForm invitationId={invitationId} email={email} />;
+  // Cannot call auth.api.getInvitation here — the invitee has no session yet
+  // at this point in the flow and that endpoint requires one (getSessionFromCtx
+  // throws UNAUTHORIZED). Same as forgot-password: let the invitee type their
+  // own email into the OTP form instead of prefilling/validating it server-side.
+  return <AcceptInvitationForm invitationId={invitationId} />;
 }

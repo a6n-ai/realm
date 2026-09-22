@@ -8,7 +8,7 @@ import { createOrganizationPlugin, authAuditAction } from "@foundry/auth";
 import { Role } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
-import { account, organization, session, users, verification } from "@/db/schema";
+import { account, invitation, member, organization, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
 import { ac, roles } from "./permissions";
 import {
@@ -30,7 +30,12 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: "pg",
-    schema: { user: users, account, session, verification },
+    // organization/member/invitation must be listed too — the organization plugin's
+    // own endpoints (acceptInvitation, createInvitation, ...) resolve models through
+    // this adapter, and an explicit `schema` here takes precedence over the db's own
+    // full schema (see @better-auth/drizzle-adapter's getSchema: `config.schema ||
+    // db._.fullSchema`), so an incomplete map throws "model not found" at call time.
+    schema: { user: users, account, session, verification, organization, member, invitation },
   }),
   advanced: {
     database: { generateId: false },
