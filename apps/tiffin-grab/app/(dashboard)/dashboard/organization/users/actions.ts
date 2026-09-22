@@ -59,6 +59,14 @@ export async function resetStaffPassword(userId: string): Promise<{ email: strin
 
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {
   await requirePermission({ staff: ["invite"], user: ["create", "set-role"] });
-  await inviteUser({ email: input.email, name: input.name, role: input.role as RoleValue });
+  const session = await getSession();
+  const organizationId = session?.session.activeOrganizationId;
+  if (!organizationId) throw new ValidationError("No active organization for this session.");
+  await inviteUser({
+    email: input.email,
+    name: input.name,
+    role: input.role as "admin" | "member",
+    organizationId,
+  });
   revalidatePath("/dashboard/organization/users");
 }
