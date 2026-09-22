@@ -3,6 +3,7 @@ import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   deliveries,
+  deliveryExtraTiffins,
   dishes,
   mealSelections,
   mealSizeItems,
@@ -169,6 +170,16 @@ describe("dailyLabelSheet (integration)", () => {
     // categoryCounts sabzi:2 → two containers, both defaulted to the menu default.
     expect(label.lines.map((l) => l.dish)).toEqual([`${DISH_PREFIX}Paneer`, `${DISH_PREFIX}Paneer`]);
     expect(label.lines.every((l) => l.defaulted)).toBe(true);
+  });
+
+  it("a day doubled by a moved-in tiffin prints one full label set per physical tiffin", async () => {
+    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+    await db.insert(deliveryExtraTiffins).values({ deliveryId: delivery!.id, eatDate: MONDAY });
+
+    const sheet = await dailyLabelSheet(MONDAY);
+    expect(sheet.labels).toHaveLength(2);
+    expect(sheet.labels.every((l) => l.forDate === MONDAY)).toBe(true);
+    expect(sheet.labels[0]!.lines.map((l) => l.dish)).toEqual(sheet.labels[1]!.lines.map((l) => l.dish));
   });
 
   it("maps each pick to its own container size", async () => {

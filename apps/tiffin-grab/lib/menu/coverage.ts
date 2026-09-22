@@ -20,6 +20,12 @@ export function coveredDates(d: { deliveryDate: string; coversDates: string[] | 
   return d.coversDates ?? [d.deliveryDate];
 }
 
+/** covers_dates with each date repeated once per extra tiffin — one entry per physical tiffin to pack. */
+export function occurrenceDates(d: { deliveryDate: string; coversDates: string[] | null }, extraDates: readonly string[] = []): string[] {
+  const counts = dateCounts(d, extraDates);
+  return coveredDates(d).flatMap((date) => Array<string>(counts.get(date) ?? 1).fill(date));
+}
+
 export function mergeCoverage(a: string[], b: string[]): string[] {
   return [...new Set([...a, ...b])].sort();
 }
