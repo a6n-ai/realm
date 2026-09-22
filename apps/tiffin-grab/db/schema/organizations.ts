@@ -110,6 +110,9 @@ export const invitation = pgTable(
     inviterId: bigint("inviter_id", { mode: "bigint" })
       .notNull()
       .references(() => users.id),
+    // better-auth's organization plugin writes createdAt on every invitation;
+    // without this column createInvitation throws at the adapter layer.
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("invitation_org_idx").on(t.organizationId), index("invitation_email_idx").on(t.email)],
 );

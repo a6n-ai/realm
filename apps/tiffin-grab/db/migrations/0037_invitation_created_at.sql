@@ -1,0 +1,2 @@
+ALTER TABLE "invitation" ADD COLUMN IF NOT EXISTS "created_at" timestamp with time zone DEFAULT now() NOT NULL;--> statement-breakpoint
+ALTER TABLE "session" ADD COLUMN IF NOT EXISTS "active_organization_id" text;

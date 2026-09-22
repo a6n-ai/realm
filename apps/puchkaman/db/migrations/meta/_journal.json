@@ -330,6 +330,13 @@
       "when": 1790115000000,
       "tag": "0046_staff_invitation_event",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790119324240,
+      "tag": "0047_invitation_created_at",
+      "breakpoints": true
     }
   ]
 }

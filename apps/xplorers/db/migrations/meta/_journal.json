@@ -43,6 +43,13 @@
       "when": 1774000005000,
       "tag": "0005_payments_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774000006000,
+      "tag": "0006_invitation_created_at",
+      "breakpoints": true
     }
   ]
 }
