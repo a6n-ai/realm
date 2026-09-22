@@ -2,9 +2,9 @@ import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { admin as adminPlugin, emailOTP, organization as organizationPlugin } from "better-auth/plugins";
+import { admin as adminPlugin, emailOTP } from "better-auth/plugins";
 import { createLogger } from "@foundry/commons/logger";
-import { assertHierarchyDepth, authAuditAction } from "@foundry/auth";
+import { createOrganizationPlugin, authAuditAction } from "@foundry/auth";
 import { ac, roles } from "./permissions";
 import { orderTracking } from "@foundry/order-tracking";
 import { resolveTrackingSubject } from "@/lib/order-tracking/subject";
@@ -167,51 +167,13 @@ export const auth = betterAuth({
     // it. This is NOT the creation default: a row created without a role becomes a
     // user, via the column default and user.additionalFields above — both Role.USER too.
     adminPlugin({ ac, roles, defaultRole: Role.USER, adminRoles: [Role.ADMIN] }),
-    // Client hierarchy: org = brand or franchise/shop, capped at 2 levels
-    // (brand -> franchise/shop).
-    organizationPlugin({
-      // Default is `true` (any authenticated user) — restrict org creation to
-      // staff. Customers (Role.USER) hold no member row by design; letting them
-      // create orgs would let any signed-in customer mint org/member rows.
-      allowUserToCreateOrganization: async (user) => (user as { role?: string }).role !== Role.USER,
-      schema: {
-        organization: {
-          modelName: "organization",
-          additionalFields: {
-            clientCode: { type: "string", required: true },
-            // Not settable through create/update input (matches platformRole above).
-            // Brand + franchise orgs are DB-seeded (db/seed-brand-org.ts); a future
-            // franchise-creation flow would need to write this server-side.
-            parentOrganizationId: { type: "string", required: false, input: false },
-            region: { type: "string", required: false },
-          },
-        },
-        member: { modelName: "member" },
-        invitation: { modelName: "invitation" },
-      },
-      // Depth guard: reject creating an org whose parent is itself already a
-      // franchise/shop (parentOrganizationId !== null). See
-      // packages/auth/src/organization.ts assertHierarchyDepth. Unreachable via the
-      // public API today since parentOrganizationId is input:false above; kept so a
-      // future franchise-creation flow that writes it server-side still gets the
-      // check for free.
-      organizationHooks: {
-        beforeCreateOrganization: async ({ organization: newOrg }) => {
-          const parentId = (newOrg as { parentOrganizationId?: string | null }).parentOrganizationId ?? null;
-          if (parentId) {
-            const [parent] = await db
-              .select({ id: organization.id, parentOrganizationId: organization.parentOrganizationId })
-              .from(organization)
-              .where(eq(organization.id, parentId))
-              .limit(1);
-            try {
-              assertHierarchyDepth(parent ?? null);
-            } catch (e) {
-              throw new APIError("BAD_REQUEST", { message: e instanceof Error ? e.message : "Invalid parent organization" });
-            }
-          }
-        },
-      },
+    // Client hierarchy config lives in @foundry/auth (createOrganizationPlugin) —
+    // shared by every Realm app. See foundry/packages/auth/src/organization-plugin.ts.
+    createOrganizationPlugin({
+      db: db as unknown as Parameters<typeof createOrganizationPlugin>[0]["db"],
+      organizationTable: organization,
+      eq,
+      allowUserToCreateOrganization: (user) => user.role !== Role.USER,
     }),
     nextCookies(),
   ],
