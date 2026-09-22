@@ -155,10 +155,12 @@ export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwap
 export async function rescheduleMyDelivery(
   deliveryPublicId: string,
   newDateIso: string,
+  /** Which eating day is moving; leave unset (or equal to the trip's own date) to move the whole trip. */
+  sourceEatDateIso?: string,
 ): Promise<ActionResult<{ carriedOn: string; merged: boolean }>> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
-    const result = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
+    const result = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId(), sourceEatDateIso ?? null);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
     else revalidatePath("/me");

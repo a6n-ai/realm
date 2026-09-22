@@ -95,7 +95,7 @@ describe("MoveSheet", () => {
     expect(screen.getByText(/Only one move is allowed per meal/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
-    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28");
+    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", undefined);
   });
   it("occupied day: merge preview with covered days", async () => {
     a.move.mockResolvedValue({ ok: true, message: "merged" });

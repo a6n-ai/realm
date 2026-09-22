@@ -91,7 +91,9 @@ function summarize(meal: MealLike | null | undefined): string | null {
 }
 
 export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanContext, orderId = ""): Trip[] {
-  const movedIn = new Set(days.flatMap((d) => (d.combinedInto ? [d.combinedInto] : [])));
+  // A full merge marks the TARGET via combinedInto (on the source row); a split lands as an
+  // extra on the target's own row instead, so extras also count as "received a moved-in tiffin".
+  const movedIn = new Set(days.flatMap((d) => [...(d.combinedInto ? [d.combinedInto] : []), ...(d.extras?.length ? [d.date] : [])]));
   return days
     .map((d): Trip => {
       const cutoffAt = d.cutoffAt ?? cutoffMsFor(d.date, plan.cutoffHour, plan.timezone);

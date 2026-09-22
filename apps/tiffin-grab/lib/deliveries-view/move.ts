@@ -29,8 +29,13 @@ export type MoveOption = {
  * Mirrors rescheduleDelivery: the customer picks the day they want to EAT; it snaps to the carrying
  * trip (nearest plan weekday on or before it, so weekends ride Friday). Every check (past, cutoff,
  * held target, already-covered) runs on the carrying trip. The server stays authoritative.
+ *
+ * `sourceDate` is WHICH eating day the customer is moving. Left at the trip's own date (the
+ * default), the whole trip moves — a multi-day trip's weekend riders have nowhere else to ride.
+ * Any OTHER day the trip covers splits off just that one tiffin: the rest stays on the original
+ * delivery, unaffected.
  */
-export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon?: number): MoveOption[] {
+export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon?: number, sourceDate: string = trip.date): MoveOption[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
   const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun") as DayOfWeek[];
   const out: MoveOption[] = [];
@@ -38,27 +43,33 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
   const rangeStart = ctx.startDate && ctx.startDate > today ? ctx.startDate : today;
   const span = horizon ?? defaultHorizon(ctx, rangeStart);
   const cursor = parseIsoDateUtc(rangeStart);
+  const split = sourceDate !== trip.date && trip.coversDates.length > 1 && trip.coversDates.includes(sourceDate);
+  const splitExtras = (trip.extraDates ?? []).filter((d) => d === sourceDate);
+  // Per-tiffin unit count, derived rather than plumbed: units already includes any extras.
+  const perTiffin = trip.units / Math.max(1, trip.coversDates.length + (trip.extraDates?.length ?? 0));
   for (let i = 0; i < span; i++, cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     const date = cursor.toISOString().slice(0, 10);
     const carriedOn = carryTripDateIso(date, weekdays);
     if (!carriedOn) continue;
     const target = byDate.get(carriedOn);
     let disabledReason: string | undefined;
-    if (carriedOn === trip.date) disabledReason = date === trip.date ? "This is the day you're moving from." : "That day already rides on this trip.";
+    if (carriedOn === trip.date) disabledReason = date === sourceDate ? "This is the day you're moving from." : "That day already rides on this trip.";
     else if (carriedOn < today || now > cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
     else if (trip.pooled && ctx.lastDeliveryDate && carriedOn <= ctx.lastDeliveryDate) disabledReason = `A pooled tiffin can only go after ${humanDate(ctx.lastDeliveryDate)}.`;
     else if (target && target.status !== "scheduled") disabledReason = `${humanDate(carriedOn)} already has a held trip. Pick another day.`;
     else if (target && trip.pooled) disabledReason = `${humanDate(carriedOn)} already has a delivery. Pick an open day for a pooled tiffin.`;
     let merge: MoveOption["merge"] = null;
     if (target?.status === "scheduled" && carriedOn !== trip.date) {
-      const carried = trip.coversDates.length === 1 ? [date] : trip.coversDates;
+      const carried = split ? [sourceDate] : (trip.coversDates.length === 1 ? [date] : trip.coversDates);
+      const movingExtras = split ? splitExtras : (trip.extraDates ?? []);
       if (!disabledReason) {
         const incoming = new Map<string, number>();
-        for (const c of [...carried, ...(trip.extraDates ?? [])]) incoming.set(c, (incoming.get(c) ?? 0) + 1);
+        for (const c of [...carried, ...movingExtras]) incoming.set(c, (incoming.get(c) ?? 0) + 1);
         disabledReason = mergeBlockReason(dateCounts({ deliveryDate: carriedOn, coversDates: target.covers ?? null }, target.extras), incoming) ?? undefined;
       }
       const covers = mergeCoverage(carried, target.covers ?? [carriedOn]);
-      merge = { units: (target.units ?? 1) + trip.units, covers };
+      const movingUnits = split ? (carried.length + movingExtras.length) * perTiffin : trip.units;
+      merge = { units: (target.units ?? 1) + movingUnits, covers };
     }
     out.push({ date, disabledReason, merge, carriedOn });
   }
