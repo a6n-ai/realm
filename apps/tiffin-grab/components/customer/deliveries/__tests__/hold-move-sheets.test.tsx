@@ -109,6 +109,10 @@ describe("MoveSheet", () => {
     mount(MoveSheet, trip());
     expect(screen.getByRole("button", { name: /Friday, September 25/ })).toHaveAttribute("aria-disabled", "true");
   });
+  it("opens on today's week even when the trip being moved is in a later week", () => {
+    mount(MoveSheet, trip({ date: "2026-10-05", coversDates: ["2026-10-05"], cutoffAt: Date.parse("2026-10-05T18:00:00Z") }));
+    expect(screen.getByTestId("week-strip").querySelector('[data-week="2026-09-21"]')).toHaveAttribute("aria-current", "true");
+  });
   it("closed day is disabled with its reason on tap", () => {
     mount(MoveSheet, trip());
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 21/ }));

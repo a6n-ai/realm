@@ -56,9 +56,9 @@ export function MoveSheet({ trip, plan, open, onDone }: ActionSheetProps) {
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>
               <WeekStrip
-                firstWeek={mondayOf(options[0]?.date ?? plan.today)}
+                firstWeek={mondayOf(plan.today)}
                 lastWeek={mondayOf(options[options.length - 1]?.date ?? plan.today)}
-                week={week ?? mondayOf(picked ?? options[0]?.date ?? plan.today)}
+                week={week ?? mondayOf(plan.today)}
                 today={plan.today}
                 selectedDay={picked}
                 dots={truckDots}

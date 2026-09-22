@@ -284,9 +284,8 @@ function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: O
   const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today), [trip, plan, now]);
   const byDate = useMemo(() => new Map(options.map((o) => [o.date, o])), [options]);
   const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason; };
-  const first = options[0]?.date ?? plan.today;
   const last = options[options.length - 1]?.date ?? plan.today;
-  const [week, setWeek] = useState(mondayOf(first));
+  const [week, setWeek] = useState(mondayOf(plan.today));
   const [date, setDate] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const { pending, error, run } = useRun(onDone);
@@ -299,7 +298,7 @@ function RescheduleDialog({ trip, data, onClose, onDone }: { trip: Trip; data: O
           <div className="mb-1 flex items-center justify-between">
             <span className="text-muted-foreground px-1 text-xs font-semibold uppercase tracking-wider">{MON.format(d(week))} {d(week).getUTCDate()} – {MON.format(d(addDays(week, 6)))} {d(addDays(week, 6)).getUTCDate()}</span>
             <span className="flex">
-              <Button variant="ghost" size="icon" aria-label="Previous week" disabled={week <= mondayOf(first)} onClick={() => setWeek(addDays(week, -7))}><ChevronLeft /></Button>
+              <Button variant="ghost" size="icon" aria-label="Previous week" disabled={week <= mondayOf(plan.today)} onClick={() => setWeek(addDays(week, -7))}><ChevronLeft /></Button>
               <Button variant="ghost" size="icon" aria-label="Next week" disabled={week >= mondayOf(last)} onClick={() => setWeek(addDays(week, 7))}><ChevronRight /></Button>
             </span>
           </div>
