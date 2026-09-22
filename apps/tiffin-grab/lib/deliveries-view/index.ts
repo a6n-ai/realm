@@ -39,6 +39,8 @@ export type PlanContext = {
   lastDeliveryDate: string | null;
   deliveryWeekdays: string[];
   eatingWeekdays?: string[] | null;
+  /** This plan's first delivery date; Move never offers dates before it. */
+  startDate?: string;
   active?: boolean;
   onVacation?: boolean;
   vacationsLeft?: number | null;

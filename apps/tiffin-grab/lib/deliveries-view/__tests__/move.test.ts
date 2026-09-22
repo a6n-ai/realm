@@ -17,6 +17,17 @@ describe("moveOptions default horizon", () => {
     const o = moveOptions(trip, [], NOW, c, "2026-09-21");
     expect(o).toHaveLength(28);
   });
+  it("a not-yet-started plan offers dates from its own start date, not today", () => {
+    const c = { ...ctx, startDate: "2026-09-28", lastDeliveryDate: "2026-10-02" };
+    const o = moveOptions(trip, [], NOW, c, "2026-09-21");
+    expect(o[0]!.date).toBe("2026-09-28");
+    expect(o.some((x) => x.date < "2026-09-28")).toBe(false);
+  });
+  it("an already-started plan (start in the past) still starts from today", () => {
+    const c = { ...ctx, startDate: "2026-09-01", lastDeliveryDate: "2026-10-02" };
+    const o = moveOptions(trip, [], NOW, c, "2026-09-21");
+    expect(o[0]!.date).toBe("2026-09-21");
+  });
 });
 
 describe("moveOptions", () => {

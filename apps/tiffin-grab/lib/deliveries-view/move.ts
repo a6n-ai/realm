@@ -30,12 +30,15 @@ export type MoveOption = {
  * trip (nearest plan weekday on or before it, so weekends ride Friday). Every check (past, cutoff,
  * held target, already-covered) runs on the carrying trip. The server stays authoritative.
  */
-export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon = defaultHorizon(ctx, today)): MoveOption[] {
+export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon?: number): MoveOption[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
   const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun") as DayOfWeek[];
   const out: MoveOption[] = [];
-  const cursor = parseIsoDateUtc(today);
-  for (let i = 0; i < horizon; i++, cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+  // A plan that hasn't started yet offers dates from its own start; an active plan starts from today.
+  const rangeStart = ctx.startDate && ctx.startDate > today ? ctx.startDate : today;
+  const span = horizon ?? defaultHorizon(ctx, rangeStart);
+  const cursor = parseIsoDateUtc(rangeStart);
+  for (let i = 0; i < span; i++, cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     const date = cursor.toISOString().slice(0, 10);
     const carriedOn = carryTripDateIso(date, weekdays);
     if (!carriedOn) continue;

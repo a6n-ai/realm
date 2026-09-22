@@ -63,7 +63,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
-  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause });
+  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: window.first });
   const plan: PlanView = {
     orderId: sub.publicId,
     sub,

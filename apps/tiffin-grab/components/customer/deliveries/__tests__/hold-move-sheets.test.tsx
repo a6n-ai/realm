@@ -113,6 +113,12 @@ describe("MoveSheet", () => {
     mount(MoveSheet, trip({ date: "2026-10-05", coversDates: ["2026-10-05"], cutoffAt: Date.parse("2026-10-05T18:00:00Z") }));
     expect(screen.getByTestId("week-strip").querySelector('[data-week="2026-09-21"]')).toHaveAttribute("aria-current", "true");
   });
+  it("a not-yet-started plan opens on its own start week, not today's", () => {
+    const futurePlan = { ...plan, ctx: { ...plan.ctx, startDate: "2026-10-05" } } as unknown as PlanView;
+    render(<MoveSheet trip={trip({ date: "2026-10-05", coversDates: ["2026-10-05"], cutoffAt: Date.parse("2026-10-05T18:00:00Z") })} plan={futurePlan} open onDone={vi.fn()} />);
+    expect(screen.getByTestId("week-strip").querySelector('[data-week="2026-09-21"]')).toBeNull();
+    expect(screen.getByTestId("week-strip").querySelector('[data-week="2026-10-05"]')).toHaveAttribute("aria-current", "true");
+  });
   it("closed day is disabled with its reason on tap", () => {
     mount(MoveSheet, trip());
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 21/ }));

@@ -92,7 +92,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
-  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause });
+  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first });
   const plan: PlanView = {
     orderId: sub.publicId,
     sub,
