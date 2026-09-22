@@ -7,6 +7,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, orderActivities, orders } = await import("@/db/schema");
 const { reconcilePoolFromMisses, rescheduleDelivery } = await import("../deliveries.service");
+const { myAgendaDots } = await import("../customer-deliveries.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
 
 const DEP = "SUB-MERGE01";
@@ -108,6 +109,16 @@ describe("rescheduleDelivery merge", () => {
     expect(row.coversDates).toEqual(["2030-01-07", "2030-01-08"]);
     expect(row.tiffinUnits).toBe(2);
     expect(row.makeupForDeliveryId).toBe(mon.id);
+  });
+
+  it("myAgendaDots marks a merged-away day as moved, not the target's live status", async () => {
+    const { order, mon, wed } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-09"], tiffinUnits: 1 }).where(eq(deliveries.id, wed.id));
+    await rescheduleDelivery(mon.publicId, "2030-01-09", 1n);
+    const dots = await myAgendaDots(order.userId!, "2030-01-01", "2030-02-01");
+    expect(dots["2030-01-07"]!.some((d) => d.moved)).toBe(true);
+    expect(dots["2030-01-08"]!.some((d) => d.moved)).toBe(true);
+    expect(dots["2030-01-09"]!.every((d) => !d.moved)).toBe(true);
   });
 
   it("still rejects a target that is not one of the order's delivery days", async () => {

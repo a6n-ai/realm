@@ -177,6 +177,8 @@ export type AgendaDay = {
   /** Only on the truck day: tiffins and eating days the trip feeds. */
   units: number;
   covers: string[];
+  /** This date used to be its own trip, now merged into this one — render as "moved", not the trip's live status. */
+  moved?: boolean;
 };
 
 /**
@@ -192,15 +194,24 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     .orderBy(asc(deliveries.deliveryDate));
   const out: Record<string, AgendaDay[]> = {};
   const extrasById = await loadExtraDates(db, rows.map((r) => r.d.id));
+  // A merged source's OWN date is now moved: mark it on the target's dot instead of showing the target's live status there.
+  const movedDatesByTarget = new Map<string, Set<string>>();
+  for (const { d } of rows) {
+    if (d.mergedIntoDeliveryId == null) continue;
+    const key = d.mergedIntoDeliveryId.toString();
+    const set = movedDatesByTarget.get(key) ?? movedDatesByTarget.set(key, new Set()).get(key)!;
+    for (const date of coveredDates(d)) set.add(date);
+  }
   for (const { d, orderId } of rows) {
     if (d.mergedIntoDeliveryId != null) continue;
     const covers = coveredDates(d);
+    const moved = movedDatesByTarget.get(d.id.toString());
     for (const date of covers) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date) });
     }
     // A doubled day (moved tiffin landed on an eating day) gets a second dot.
     for (const date of extrasById.get(d.id) ?? []) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true });
     }
   }
   return out;
