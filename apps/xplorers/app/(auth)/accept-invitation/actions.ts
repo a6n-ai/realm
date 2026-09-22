@@ -13,7 +13,13 @@ async function requestHeaders(): Promise<HeadersInit> {
   }
 }
 
-export async function acceptInvitationAction(input: { invitationId: string; email: string; otp: string }) {
+export type AcceptInvitationResult = { ok: true } | { ok: false; error: string };
+
+export async function acceptInvitationAction(input: {
+  invitationId: string;
+  email: string;
+  otp: string;
+}): Promise<AcceptInvitationResult> {
   const h = await requestHeaders();
   // nextCookies() sets the session cookie by writing to Next's cookies() jar,
   // not by mutating `h` — so acceptInvitation must run with a Headers object
@@ -32,10 +38,18 @@ export async function acceptInvitationAction(input: { invitationId: string; emai
   // it into that cache. The organization plugin's acceptInvitation gates on
   // session.user.emailVerified, so force it to re-read the DB this once
   // rather than trust the stale cache.
-  await auth.api.acceptInvitation({
-    body: { invitationId: input.invitationId },
-    headers: sessionHeaders,
-    query: { disableCookieCache: true },
-  });
+  // The OTP is consumed by now, so a bad/expired invitation must not reuse the
+  // "Invalid or expired code" copy — retrying the code can't help. Sign back out
+  // so the invitee isn't left holding a session for an org they never joined.
+  try {
+    await auth.api.acceptInvitation({
+      body: { invitationId: input.invitationId },
+      headers: sessionHeaders,
+      query: { disableCookieCache: true },
+    });
+  } catch {
+    await auth.api.signOut({ headers: sessionHeaders }).catch(() => {});
+    return { ok: false, error: "This invitation is no longer valid. Contact your admin for a new one." };
+  }
   return { ok: true };
 }

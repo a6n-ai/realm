@@ -37,7 +37,11 @@ export function AcceptInvitationForm({ invitationId }: { invitationId: string })
     setError(null);
     setVerifying(true);
     try {
-      await acceptInvitationAction({ invitationId, email, otp });
+      const result = await acceptInvitationAction({ invitationId, email, otp });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
       // Fresh session, no password yet — /set-password already gates on exactly
       // that (session present, passwordSet false) and finishes the flow.
       router.push("/set-password");

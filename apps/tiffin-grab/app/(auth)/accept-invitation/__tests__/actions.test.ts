@@ -9,6 +9,7 @@ vi.mock("@/lib/auth", () => ({
         response: { user: { id: "u_1" } },
       }),
       acceptInvitation: vi.fn().mockResolvedValue({ member: { id: "m_1" } }),
+      signOut: vi.fn().mockResolvedValue({}),
     },
   },
 }));
@@ -29,5 +30,13 @@ describe("acceptInvitationAction", () => {
     // issued by signInEmailOTP, not the pre-signin request headers.
     expect(acceptCall.headers.get("cookie")).toContain("better-auth.session_token=tok_1");
     expect(result).toEqual({ ok: true });
+  });
+
+  it("reports a dead invitation distinctly (not as a bad code) and signs back out", async () => {
+    const { auth } = await import("@/lib/auth");
+    vi.mocked(auth.api.acceptInvitation).mockRejectedValueOnce(new Error("INVITATION_NOT_FOUND"));
+    const result = await acceptInvitationAction({ invitationId: "inv_gone", email: "a@x.com", otp: "123456" });
+    expect(result).toEqual({ ok: false, error: expect.stringMatching(/no longer valid/) });
+    expect(auth.api.signOut).toHaveBeenCalled();
   });
 });
