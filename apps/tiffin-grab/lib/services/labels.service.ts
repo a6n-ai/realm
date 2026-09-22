@@ -17,6 +17,7 @@ import {
   users,
 } from "@/db/schema";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
+import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { packingItemLabel } from "@/lib/menu/packing-item-label";
@@ -74,6 +75,8 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
       eq(deliveries.deliveryDate, dateIso),
       eq(deliveries.status, "scheduled"),
       eq(plans.planType, "tiffin"),
+      // Same gate as daily labels / Optimo — payment-review and rejected stay off the sheet.
+      fulfillmentReadyOrder(),
     ));
   if (rows.length === 0) return [];
 

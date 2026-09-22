@@ -28,7 +28,7 @@ const trip = (o: Partial<Trip>): Trip => {
 const mk = (orderId: string, o: { size: string; remaining: number; total: number; pooled?: number }) =>
   ({
     orderId, today: "2026-09-21", days: [], categoryLabels: {}, categoryPortions: {},
-    sub: { publicId: orderId, mealSizeName: o.size, planName: "Veg", tagLabel: "Veg", tagColor: "#2e8b57", status: "active" },
+    sub: { publicId: orderId, mealSizeName: o.size, planName: "Veg", tagLabel: "Veg", tagColor: "#2e8b57", status: "active", displayStatus: "active" },
     counts: { total: o.total, delivered: 4, remaining: o.remaining, pooled: o.pooled ?? 0, holdDays: 2, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"] },
     ctx: { cutoffHour: 18, timezone: "UTC", pooled: o.pooled ?? 0, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"], active: true },
     pause: { limits: {}, usage: {} },

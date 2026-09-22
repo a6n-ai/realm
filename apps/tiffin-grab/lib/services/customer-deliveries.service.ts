@@ -3,7 +3,7 @@ import { NotFoundError, Role, weekdayKey, zonedDateIso } from "@foundry/commons"
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
@@ -15,6 +15,7 @@ import {
   type ResolvedCategory,
 } from "@/lib/menu/resolve-delivery-meal";
 import { dishIdsForPlan } from "@/lib/menu/selections.service";
+import { isHiddenFromCustomer, orderDisplayStatus } from "@/lib/orders/display-status";
 import { getSession } from "@/lib/auth/session";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
@@ -60,6 +61,8 @@ export type Subscription = {
   planType: "tiffin" | "healthy";
   planKey: string;
   status: string;
+  /** Shared tag vocabulary: Active / Payment review / Completed (Rejected never reaches /me). */
+  displayStatus: string;
   fullName: string;
   addressLine: string;
   city: string;
@@ -77,6 +80,21 @@ export type Subscription = {
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
 
+async function paymentStatusesByOrderId(orderIds: bigint[]): Promise<Map<bigint, string[]>> {
+  const map = new Map<bigint, string[]>();
+  if (orderIds.length === 0) return map;
+  const rows = await db
+    .select({ orderId: payments.orderId, status: payments.status })
+    .from(payments)
+    .where(inArray(payments.orderId, orderIds));
+  for (const r of rows) {
+    const list = map.get(r.orderId) ?? [];
+    list.push(r.status);
+    map.set(r.orderId, list);
+  }
+  return map;
+}
+
 export async function myActiveSubscriptions(userId: bigint): Promise<Subscription[]> {
   // Flip any elapsed pause window back to "active" before reporting status — otherwise a
   // customer whose pause silently expired keeps seeing "paused" until some other write touches
@@ -87,6 +105,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
 
   const rows = await db
     .select({
+      id: orders.id,
       publicId: orders.publicId,
       planName: plans.name,
       planType: plans.planType,
@@ -108,10 +127,32 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
-  return rows.map((r) => ({
-    ...r,
-    categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
-  }));
+
+  const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
+  return rows
+    .filter((r) => !isHiddenFromCustomer(payByOrder.get(r.id) ?? []))
+    .map((r) => {
+      const paymentStatuses = payByOrder.get(r.id) ?? [];
+      return {
+        publicId: r.publicId,
+        planName: r.planName,
+        planType: r.planType,
+        planKey: r.planKey,
+        status: r.status,
+        displayStatus: orderDisplayStatus(r.status, paymentStatuses),
+        fullName: r.fullName,
+        addressLine: r.addressLine,
+        city: r.city,
+        postalCode: r.postalCode,
+        zoneId: r.zoneId,
+        mealSizeId: r.mealSizeId,
+        mealSizeName: r.mealSizeName,
+        persons: r.persons,
+        categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
+        tagLabel: r.tagLabel,
+        tagColor: r.tagColor,
+      };
+    });
 }
 
 /**
@@ -498,19 +539,13 @@ export type SubSummary = {
 };
 
 // All of a customer's subscriptions across every status, newest first — for the
-// "you already have" summary on /subscribe. Current (active/paused/waitlisted/
-// pending) vs past (cancelled/completed) grouping is done in the component.
-//
-// `status` here is a DISPLAY status, not the raw DB order_status: an order is
-// stored "active" from the moment it's created (deliveries are materialized
-// immediately so unpaid days can still be moved), so two orders can be
-// legitimately "active" in the DB on the same day the customer books a future
-// plan. Showing both as "Active" reads as a real conflict, so an active order
-// whose startDate hasn't arrived yet is relabeled "upcoming" for display only
-// — nothing about the underlying order or its deliveries changes.
+// "you already have" summary on /subscribe. Rejected-payment plans are omitted
+// (customer starts a new order). Status is the shared display vocabulary
+// (Active / Payment review / Completed), not raw DB order_status.
 export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary[]> {
   const rows = await db
     .select({
+      id: orders.id,
       publicId: orders.publicId,
       planName: plans.name,
       mealSizeName: mealSizes.name,
@@ -526,12 +561,18 @@ export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary
     .where(eq(orders.userId, userId))
     .orderBy(desc(orders.createdAt));
 
-  const { timezone } = await getAppSettings();
-  const todayIso = zonedDateIso(Date.now(), timezone);
-  return rows.map((r) => ({
-    ...r,
-    status: r.status === "active" && r.startDate > todayIso ? "upcoming" : r.status,
-  }));
+  const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
+  return rows
+    .filter((r) => !isHiddenFromCustomer(payByOrder.get(r.id) ?? []))
+    .map((r) => ({
+      publicId: r.publicId,
+      planName: r.planName,
+      mealSizeName: r.mealSizeName,
+      daysPerWeek: r.daysPerWeek,
+      status: orderDisplayStatus(r.status, payByOrder.get(r.id) ?? []),
+      createdAt: r.createdAt,
+      startDate: r.startDate,
+    }));
 }
 
 export type CustomerActivity = {

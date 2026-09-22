@@ -67,7 +67,8 @@ describe("mySubscriptionsSummary (integration)", () => {
     const subs = await mySubscriptionsSummary(userAId);
 
     expect(subs.length).toBe(2);
-    expect(subs.map((s) => s.status).sort()).toEqual(["cancelled", "upcoming"]);
+    // Settled active plans read as Active (future start is window copy, not a separate tag).
+    expect(subs.map((s) => s.status).sort()).toEqual(["active", "cancelled"]);
     expect(subs.every((s) => s.planName && s.mealSizeName && s.startDate)).toBe(true);
     expect(subs[0].createdAt).toBeGreaterThanOrEqual(subs[1].createdAt);
     expect(subs.map((s) => s.publicId).sort()).toEqual([aOrderOne.publicId, aOrderTwo.publicId].sort());

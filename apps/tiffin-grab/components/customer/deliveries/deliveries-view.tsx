@@ -3,6 +3,7 @@ import { Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/customer/kit";
+import { OrderStatusBadge } from "@/components/ds";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
@@ -140,7 +141,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
           {subs.map((s) => (
             <PlanTab key={s.publicId} selected={s.publicId === plan.orderId} onClick={() => switchPlan(s.publicId)}>
               <span className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
-                {s.mealSizeName}{s.status === "paused" ? " (paused)" : ""}
+                {s.mealSizeName}
+                <OrderStatusBadge status={s.displayStatus} />
               </span>
               <span className="text-xs leading-tight text-[var(--muted-foreground,#6E6558)]">{windowLabel(windows[s.publicId], today)}</span>
             </PlanTab>

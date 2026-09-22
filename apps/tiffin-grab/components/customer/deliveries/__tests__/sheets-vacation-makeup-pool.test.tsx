@@ -24,7 +24,7 @@ const mk = (o: { pooled?: number; onVacation?: boolean; limits?: object; usage?:
   ({
     orderId: "o",
     today: "2026-09-21",
-    sub: { publicId: "o", status: o.onVacation ? "paused" : "active" },
+    sub: { publicId: "o", status: o.onVacation ? "paused" : "active", displayStatus: "active" },
     counts: { pooled: o.pooled ?? 0, persons: o.persons ?? 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon", "wed", "fri"] },
     ctx: { cutoffHour: 18, timezone: "UTC", pooled: o.pooled ?? 0, active: true, onVacation: !!o.onVacation },
     pause: { limits: { maxPauses: null, maxPauseDaysTotal: null, maxPauseStretchDays: null, ...o.limits }, usage: { count: 0, daysUsed: 0, ...o.usage } },
