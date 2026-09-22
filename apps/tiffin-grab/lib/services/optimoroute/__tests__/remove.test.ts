@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orderActivities, orders, users } from "@/db/schema";
+import { deliveries, orderActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -45,6 +45,7 @@ async function reset() {
   const ids = mine.map((o) => o.id);
   if (ids.length) {
     await db.delete(orderActivities).where(inArray(orderActivities.orderId, ids));
+    await db.delete(payments).where(inArray(payments.orderId, ids));
     await db.delete(deliveries).where(inArray(deliveries.orderId, ids));
     await db.delete(orders).where(inArray(orders.id, ids));
   }
@@ -89,6 +90,10 @@ describe("removeStops (integration)", () => {
       })
       .returning();
     orderId = o.id;
+
+    await db.insert(payments).values({
+      orderId: o.id, amount: o.total, status: "simulated_paid", method: "simulated", capturedAt: Date.now(),
+    });
 
     const [d] = await db
       .insert(deliveries)
