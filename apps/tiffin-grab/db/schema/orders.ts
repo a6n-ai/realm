@@ -82,6 +82,9 @@ export const orders = pgTable("orders", {
   // Admin Orders list: default sort createdAt desc, status-pill filter. Mirrors
   // puchkaman's orders_status_created_idx for the same query shape.
   index("orders_status_created_idx").on(t.status, t.createdAt),
+  // FK columns: plan/zone filters on the admin list and kitchen roll-ups.
+  index("orders_plan_idx").on(t.planId),
+  index("orders_zone_idx").on(t.zoneId),
 ]);
 
 // A customer-submitted proof image for a manual payment claim (same shape as ticket
@@ -144,4 +147,5 @@ export const orderActivities = pgTable("order_activities", {
 }, (t) => [
   index("order_activities_order_created_idx").on(t.orderId, t.createdAt),
   index("order_activities_organization_idx").on(t.organizationId),
+  index("order_activities_delivery_idx").on(t.deliveryId),
 ]);

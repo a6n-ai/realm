@@ -232,6 +232,20 @@
       "when": 1789910000000,
       "tag": "0032_section_kind_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790024065434,
+      "tag": "0033_index_fk_and_naming",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790024300840,
+      "tag": "0034_log_indexes_and_checks",
+      "breakpoints": true
     }
   ]
 }

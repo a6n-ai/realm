@@ -1,5 +1,5 @@
 import { updatableColumns } from "@foundry/database";
-import { bigint, boolean, pgTable, unique } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { featureFlags } from "./feature-flags";
 import { users } from "./auth";
 
@@ -11,5 +11,8 @@ export const userFeatureFlags = pgTable(
     flagId: bigint("flag_id", { mode: "bigint" }).notNull().references(() => featureFlags.id, { onDelete: "cascade" }),
     enabled: boolean("enabled").notNull(),
   },
-  (t) => [unique("user_feature_flags_user_flag_uq").on(t.userId, t.flagId)],
+  (t) => [
+    unique("user_feature_flags_user_flag_unique").on(t.userId, t.flagId),
+    index("user_feature_flags_flag_idx").on(t.flagId),
+  ],
 );

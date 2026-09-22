@@ -13,7 +13,7 @@ export const inquiryUserConfig = pgTable("inquiry_user_config", {
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
-  unique("inquiry_user_config_user_source_unq").on(t.userId, t.sourceId),
+  unique("inquiry_user_config_user_source_unique").on(t.userId, t.sourceId),
   index("inquiry_user_config_source_idx").on(t.sourceId),
   index("inquiry_user_config_organization_idx").on(t.organizationId),
 ]);

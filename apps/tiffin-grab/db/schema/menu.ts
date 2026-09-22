@@ -1,5 +1,5 @@
 import { updatableColumns } from "@foundry/database";
-import { bigint, boolean, date, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, index, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { addonCategories, dishes, plans } from "./catalog";
 import { orders } from "./orders";
 import { organization } from "./organizations";
@@ -174,7 +174,10 @@ export const menuItems = pgTable(
     // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
     organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.categoryId, t.dishId)],
+  (t) => [
+    uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.categoryId, t.dishId),
+    index("menu_items_dish_idx").on(t.dishId),
+  ],
 );
 
 export const mealSelections = pgTable(
@@ -202,5 +205,6 @@ export const mealSelections = pgTable(
       t.personIndex,
       t.pickIndex,
     ),
+    index("meal_selections_menu_week_idx").on(t.menuWeekId),
   ],
 );

@@ -83,7 +83,7 @@ export const coupons = pgTable("coupons", {
 }, (t) => [
   index("coupons_kind_active_idx").on(t.kind, t.active),
   // One rep_daily coupon per rep per IST day.
-  uniqueIndex("coupons_rep_daily_unq")
+  uniqueIndex("coupons_rep_daily_unique")
     .on(t.ownerUserId, t.istDate)
     .where(sql`${t.kind} = 'rep_daily'`),
 ]);
@@ -103,6 +103,7 @@ export const couponRedemptions = pgTable("coupon_redemptions", {
   index("coupon_redemptions_user_idx").on(t.userId),
   index("coupon_redemptions_order_idx").on(t.orderId),
   index("coupon_redemptions_organization_idx").on(t.organizationId),
+  index("coupon_redemptions_redeemed_by_idx").on(t.redeemedBy),
 ]);
 
 export const ledgerDirection = pgEnum("ledger_direction", ["debit", "credit"]);
@@ -120,7 +121,8 @@ export const ledgerEntries = pgTable("ledger_entries", {
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
-  index("ledger_user_created_idx").on(t.userId, t.createdAt),
-  index("ledger_order_idx").on(t.orderId),
-  index("ledger_organization_idx").on(t.organizationId),
+  index("ledger_entries_user_created_idx").on(t.userId, t.createdAt),
+  index("ledger_entries_order_idx").on(t.orderId),
+  index("ledger_entries_organization_idx").on(t.organizationId),
+  index("ledger_entries_payment_idx").on(t.paymentId),
 ]);
