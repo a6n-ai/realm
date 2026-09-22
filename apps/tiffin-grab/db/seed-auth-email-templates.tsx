@@ -16,19 +16,34 @@ import { db } from "./client";
 import { notificationTemplate } from "./schema";
 
 const APP_NAME = "Tiffin Grab";
-// Mirrors @foundry/email's BrandedEmail exactly (render/email.tsx) — reimplemented
-// here rather than imported because that package ships raw .tsx and esbuild
-// (via tsx CLI) resolves it as classic-runtime JSX when walked to from inside
-// node_modules, losing the automatic-runtime config this app's own tsconfig sets.
-const CONTAINER = { fontFamily: "system-ui, sans-serif", color: "#111", maxWidth: "520px", margin: "0 auto", padding: "24px", background: "#fff" };
+// Brand pulled from apps/tiffin-grab/app/globals.css :root — the live site's
+// actual computed colors (orange is the dominant brand hue there, cream the
+// page background), not invented for this file. Reimplemented locally rather
+// than imported from @foundry/email/@relay/email because that package ships
+// raw .tsx and esbuild (via tsx CLI) resolves it as classic-runtime JSX when
+// walked to from inside node_modules, losing the automatic-runtime config
+// this app's own tsconfig sets.
+const BRAND = "#F06B1A";
+const BG = "#FBF4E7";
+const FG = "#241F1B";
+const MUTED = "#6E6558";
+const CONTAINER = { fontFamily: "system-ui, sans-serif", color: FG, maxWidth: "520px", margin: "0 auto", padding: "32px 24px 24px", background: "#fff", borderRadius: "12px", overflow: "hidden" };
 function BrandedEmail({ appName, markdown }: { appName: string; markdown: string }) {
   return (
     <Html lang="en">
       <Head />
-      <Body style={{ backgroundColor: "#f6f6f6", margin: 0 }}>
+      <Body style={{ backgroundColor: BG, margin: 0, padding: "24px 0" }}>
         <Container style={CONTAINER}>
-          <Heading style={{ margin: "0 0 8px" }}>{appName}</Heading>
+          <div style={{ borderBottom: `3px solid ${BRAND}`, paddingBottom: "16px", marginBottom: "20px" }}>
+            <Heading style={{ margin: 0, fontSize: "20px", color: BRAND }}>{appName}</Heading>
+          </div>
           <Markdown>{markdown}</Markdown>
+          {/* No unsubscribe link — these are transactional security emails (CASL/
+             CAN-SPAM don't require one), and @relay/engine's appendUnsubscribeFooter
+             already handles it separately for anything sent with kind: "marketing". */}
+          <div style={{ borderTop: "1px solid #eee", marginTop: "28px", paddingTop: "16px", fontSize: "12px", color: MUTED, textAlign: "center" }}>
+            {appName} · Greater Toronto Area
+          </div>
         </Container>
       </Body>
     </Html>
@@ -43,12 +58,15 @@ const ITEMS: { event: string; subject: string; body: string }[] = [
   },
   {
     event: "email_otp_password_reset",
-    subject: `Your ${APP_NAME} password reset code`,
+    // Code leads the subject on purpose — iOS/Android mail autofill suggests
+    // a numeric code from the subject/preview text, and it lands in the
+    // notification preview without opening the email either way.
+    subject: `{{otp}} is your ${APP_NAME} password reset code`,
     body: `Your password reset code is **{{otp}}**.\n\nIt expires in 10 minutes. If you didn't request this, ignore this email — your password is unchanged.`,
   },
   {
     event: "email_otp_verification",
-    subject: `Your ${APP_NAME} verification code`,
+    subject: `{{otp}} is your ${APP_NAME} verification code`,
     body: `Your verification code is **{{otp}}**.\n\nIt expires in 10 minutes. If you didn't request this, ignore this email.`,
   },
   {
@@ -93,8 +111,9 @@ async function main() {
         text,
         enabled: true,
       })
-      .onConflictDoNothing({
+      .onConflictDoUpdate({
         target: [notificationTemplate.event, notificationTemplate.channel, notificationTemplate.locale],
+        set: { subject: item.subject, body: html, html, text },
       });
     console.log(`seeded: ${item.event}`);
   }
