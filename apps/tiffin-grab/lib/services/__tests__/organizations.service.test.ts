@@ -5,6 +5,7 @@ const { db } = await import("@/db/client");
 const { organization, member, users } = await import("@/db/schema");
 const {
   getMemberOrganizations,
+  resolveMemberVisibleOrgIds,
   listOrganizations,
   addMember,
   removeMember,
@@ -249,5 +250,42 @@ describe("updateMemberRole (integration)", () => {
 
     const rows = await listMembers(org.id);
     expect(rows[0].role).toBe("owner");
+  });
+});
+
+describe("resolveMemberVisibleOrgIds (integration)", () => {
+  afterEach(reset);
+
+  it("returns the member's own org ids for a normal staff session", async () => {
+    const [org] = await db
+      .insert(organization)
+      .values({ name: "Franchise Admin Org", clientCode: "test-svc-franchise-admin" })
+      .returning({ id: organization.id });
+    const [user] = await db
+      .insert(users)
+      .values({ name: "Franchise Admin", email: `franchise-admin-${Math.random().toString(36).slice(2)}@test.invalid`, role: "admin" })
+      .returning({ id: users.id, publicId: users.publicId });
+    await db.insert(member).values({ organizationId: org.id, userId: user.id, role: "admin" });
+
+    const orgIds = await resolveMemberVisibleOrgIds({ user: { id: user.publicId } });
+
+    expect(orgIds).toEqual([org.id]);
+  });
+
+  it("returns an empty array for a session with no member rows", async () => {
+    const [user] = await db
+      .insert(users)
+      .values({ name: "Customer", email: `customer-${Math.random().toString(36).slice(2)}@test.invalid`, role: "admin" })
+      .returning({ publicId: users.publicId });
+
+    const orgIds = await resolveMemberVisibleOrgIds({ user: { id: user.publicId } });
+
+    expect(orgIds).toEqual([]);
+  });
+
+  it("returns an empty array for a null session", async () => {
+    const orgIds = await resolveMemberVisibleOrgIds(null);
+
+    expect(orgIds).toEqual([]);
   });
 });

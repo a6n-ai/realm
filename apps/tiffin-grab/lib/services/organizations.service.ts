@@ -1,5 +1,6 @@
 import { and, eq, ilike, sql } from "drizzle-orm";
 import type { OrgLocation } from "@foundry/commons";
+import { resolveVisibleOrgIds } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 
@@ -26,6 +27,22 @@ export async function getMemberOrganizations(session: { user: { id: string } } |
     .from(member)
     .innerJoin(organization, eq(organization.id, member.organizationId))
     .where(eq(member.userId, userId));
+}
+
+/**
+ * Org ids a staff session may see data for, per resolveVisibleOrgIds' platformRole
+ * bypass rule. Returns [] (not "all") for a session with no member rows at all —
+ * callers must treat [] as "show nothing", never fall back to an unscoped query.
+ */
+export async function resolveMemberVisibleOrgIds(
+  session: { user: { id: string; platformRole?: string | null } } | null,
+): Promise<"all" | string[]> {
+  if (!session) return [];
+  const orgs = await getMemberOrganizations(session);
+  return resolveVisibleOrgIds({
+    platformRole: session.user.platformRole ?? null,
+    memberOrgIds: orgs.map((o) => o.id),
+  });
 }
 
 /** The one brand-level org (parentOrganizationId null) — seeded once per app. */
