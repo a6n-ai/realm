@@ -7,7 +7,7 @@ import { ListChecksIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { SectionCard, ResponsiveDialog } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
-import { deleteMealRule, saveMealRule } from "./actions";
+import { deleteMealRuleSafe, saveMealRule } from "./actions";
 import {
   ANY,
   RuleForm,
@@ -46,20 +46,25 @@ export function RulesList({
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<Draft>(emptyDraft());
   const [saving, setSaving] = React.useState(false);
+  // Shown inside the dialog, next to the field the admin must fix.
+  const [formError, setFormError] = React.useState<string | null>(null);
 
   const openNew = () => {
     setDraft(emptyDraft());
+    setFormError(null);
     setOpen(true);
   };
   const openEdit = (r: ListRule) => {
     setDraft(r.draft);
+    setFormError(null);
     setOpen(true);
   };
 
   const save = async () => {
     setSaving(true);
+    setFormError(null);
     try {
-      await saveMealRule({
+      const res = await saveMealRule({
         publicId: draft.publicId,
         name: draft.name,
         description: draft.description || null,
@@ -78,24 +83,29 @@ export function RulesList({
           valueText: c.valueText,
         })),
       });
+      // The action returns its error; a thrown one would reach us redacted.
+      if ("error" in res) {
+        setFormError(res.error);
+        return;
+      }
       toast.success(draft.publicId ? "Rule updated" : "Rule created");
       setOpen(false);
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save the rule");
+      setFormError(e instanceof Error ? e.message : "Could not save the rule");
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async (r: ListRule) => {
-    try {
-      await deleteMealRule({ id: r.publicId });
-      toast.success("Rule deleted");
-      router.refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not delete the rule");
+    const res = await deleteMealRuleSafe({ id: r.publicId });
+    if ("error" in res) {
+      toast.error(res.error);
+      return;
     }
+    toast.success("Rule deleted");
+    router.refresh();
   };
 
   return (
@@ -145,12 +155,19 @@ export function RulesList({
         open={open}
         onOpenChange={setOpen}
         title={draft.publicId ? "Edit meal rule" : "New meal rule"}
+        description="Set constraints on dish combinations customers can select in a meal."
+        contentClassName="sm:max-w-2xl"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col gap-3">
+            {formError ? (
+              <p role="alert" className="text-destructive text-sm text-pretty">{formError}</p>
+            ) : null}
+            <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="button" onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save rule"}
             </Button>
+            </div>
           </div>
         }
       >
