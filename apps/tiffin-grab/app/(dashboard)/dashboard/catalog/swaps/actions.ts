@@ -11,12 +11,13 @@ const PATH = "/dashboard/catalog/swaps";
 const addSchema = z.object({
   fromCategory: z.string().trim().min(1),
   toCategory: z.string().trim().min(1),
+  planId: z.string().trim().min(1, "Plan is required"),
 });
 
 export async function addSwapPair(input: unknown): Promise<void> {
   await requireAdmin();
   const data = addSchema.parse(input);
-  await dishCategoriesService.addSwapPair(data.fromCategory, data.toCategory);
+  await dishCategoriesService.addSwapPair(data.fromCategory, data.toCategory, data.planId);
   // The wizard reads this off the cached snapshot — without invalidating, a
   // new pair can take up to the cache's TTL to reach it.
   await invalidateCatalogSnapshot();

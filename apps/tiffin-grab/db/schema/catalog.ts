@@ -43,7 +43,10 @@ export const dishes = pgTable("dishes", {
   // Client-scoping — null = shared across the whole app, set = one org's own
   // catalog item. See db/schema/organizations.ts + orders.organizationId.
   organizationId: text("organization_id").references(() => organization.id),
-}, (t) => [uniqueIndex("dishes_name_plan_unique").on(t.name, t.planId)]);
+  // Globally unique, not per-plan: a dish shared across plans (Aloo Gobi on veg
+  // AND non-veg) is two rows, so the name alone must disambiguate them for the
+  // admin UI — "Aloo Gobi (Veg)" / "Aloo Gobi (Non-Veg)", not two identical rows.
+}, (t) => [uniqueIndex("dishes_name_unique").on(t.name)]);
 
 export const mealSizes = pgTable("meal_sizes", {
   ...updatableColumns("msz"),

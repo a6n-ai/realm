@@ -15,6 +15,10 @@ export interface FieldDef {
   readOnlyOnEdit?: boolean;
   // Edited in the dialog but kept out of the list table to keep it scannable.
   tableHidden?: boolean;
+  // Groups this field under a labeled section in the edit dialog — a header
+  // renders once, before the first field carrying a new section name. Fields
+  // with no section render in one unlabeled leading group, as before.
+  section?: string;
 }
 
 export interface ResourceDef {
@@ -80,6 +84,9 @@ const plansSchema = z.object({
 // category" is two rows, not a qty field on one.
 const compositionItem = z.object({
   category: z.string().trim().min(1, "Pick a category"),
+  // Plan publicId, independently selectable per row — not forced to the meal
+  // size's own planId. Lets one meal size's composition span multiple plans.
+  planId: z.string().trim().min(1, "Plan is required"),
   // Portion size of ONE pick, in tiffin units (TU) — the shared currency swaps move
   // between categories. See lib/menu/format-tu.ts for how this renders to the kitchen.
   tuAmount: reqNum(z.coerce.number().positive().default(1).transform((n) => n.toFixed(2))),
@@ -262,20 +269,20 @@ export const RESOURCES: Record<string, ResourceDef> = {
   "meal-sizes": {
     key: "meal-sizes", label: "Meal sizes", singular: "meal size", keyed: true, schema: mealSizesSchema,
     fields: [
-      { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
-      { key: "name", label: "Name", type: "text" },
-      { key: "planId", label: "Plan", type: "select", optionsSource: "plans" },
-      { key: "tier", label: "Tier", type: "select", options: ["budget", "medium", "premium"], optionLabels: ENUM_LABELS },
-      { key: "items", label: "Composition", type: "composition", optionsSource: "categories", tableHidden: true },
-      { key: "kcalMin", label: "kcal min", type: "number", unit: "kcal" },
-      { key: "kcalMax", label: "kcal max", type: "number", unit: "kcal" },
-      { key: "proteinG", label: "Protein", type: "number", unit: "g", optional: true, tableHidden: true },
-      { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true, tableHidden: true },
-      { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true, tableHidden: true },
-      { key: "basePrice", label: "Base price", type: "number", unit: "$" },
-      { key: "discountType", label: "Discount type", type: "select", options: ["none", "percent", "flat"], optionLabels: { none: "No discount", percent: "Percent", flat: "Flat $" } },
-      { key: "discountValue", label: "Discount value", type: "number", unit: "" },
-      { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
+      { key: "key", label: "Key", type: "text", readOnlyOnEdit: true, section: "Basics" },
+      { key: "name", label: "Name", type: "text", section: "Basics" },
+      { key: "planId", label: "Plan", type: "select", optionsSource: "plans", section: "Basics" },
+      { key: "tier", label: "Tier", type: "select", options: ["budget", "medium", "premium"], optionLabels: ENUM_LABELS, section: "Basics" },
+      { key: "description", label: "Description", type: "text", optional: true, tableHidden: true, section: "Basics" },
+      { key: "items", label: "Composition", type: "composition", optionsSource: "categories", tableHidden: true, section: "Composition" },
+      { key: "kcalMin", label: "kcal min", type: "number", unit: "kcal", section: "Nutrition" },
+      { key: "kcalMax", label: "kcal max", type: "number", unit: "kcal", section: "Nutrition" },
+      { key: "proteinG", label: "Protein", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
+      { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
+      { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
+      { key: "basePrice", label: "Base price", type: "number", unit: "$", section: "Pricing" },
+      { key: "discountType", label: "Discount type", type: "select", options: ["none", "percent", "flat"], optionLabels: { none: "No discount", percent: "Percent", flat: "Flat $" }, section: "Pricing" },
+      { key: "discountValue", label: "Discount value", type: "number", unit: "", section: "Pricing" },
     ],
   },
   "delivery-frequencies": {

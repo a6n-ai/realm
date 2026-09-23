@@ -42,9 +42,14 @@ describe("selectionsService.setSelection", () => {
   beforeEach(async () => {
     await reset();
     const snap = await loadCatalogSnapshot();
+    const vegPlanId = snap.plans.find((p) => p.key === "veg")!.id;
+    // A meal size scoped to the veg plan specifically — snap.mealSizes[0] isn't
+    // guaranteed to be one, and allowedDishIdsForMealSize now derives eligible
+    // dishes from THIS meal size's own composition rows, not order.planId alone.
+    const vegMealSize = snap.mealSizes.find((m) => m.planId === vegPlanId)!;
     const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475557000", role: "user" }).returning();
     const [o] = await db.insert(orders).values({
-      userId: u.id, planId: snap.plans.find((p) => p.key === "veg")!.id, mealSizeId: snap.mealSizes[0].id,
+      userId: u.id, planId: vegPlanId, mealSizeId: vegMealSize.id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
       // pickIndex bounds now come from the order snapshot: sabzi=2 admits picks 1 and 2.
       categoryCounts: { sabzi: 2, rice: 1, roti: 4, raita: 1, salad: 1 },

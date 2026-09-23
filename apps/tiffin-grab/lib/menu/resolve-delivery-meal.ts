@@ -5,7 +5,7 @@ import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { dishIdsForPlan, exclusiveDishIdsForPlan } from "@/lib/menu/selections.service";
+import { allowedDishIdsForMealSize, exclusiveDishIdsForPlan } from "@/lib/menu/selections.service";
 import { defaultMenuItem, maxTuPickIndex } from "@/lib/menu/default-pick";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
@@ -141,7 +141,10 @@ async function maxTuPickByCategory(mealSizeId: bigint): Promise<Map<string, numb
 
 async function defaultPickContext(order: Order) {
   const [planDishIds, exclusiveDishIds, maxTuByCat] = await Promise.all([
-    dishIdsForPlan(order.planId),
+    // The union of every plan this meal size's OWN composition rows target — not
+    // just the order's own plan. A meal size can carry two sabzi rows (one veg,
+    // one non-veg), and both must be servable to the subscriber.
+    allowedDishIdsForMealSize(order.mealSizeId),
     exclusiveDishIdsForPlan(order.planId),
     maxTuPickByCategory(order.mealSizeId),
   ]);

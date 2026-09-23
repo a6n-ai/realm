@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
@@ -97,31 +97,34 @@ function formatNumber(f: FieldDef, n: number): string {
 /* ─────────────────────────── Dialog form ─────────────────────────── */
 
 // Repeating-row editor for a meal size's composition. Each row is a required
-// name, a category soft-ref, and a TU portion; the service full-replaces the
+// category soft-ref, a plan, and a TU portion; the service full-replaces the
 // rows and derives sortOrder from the array order. A row IS one dish pick, so
 // "2 raita" is two rows of the same category, not a qty field — the category
 // select allows repeats on purpose.
+//
+// Category comes FIRST: not every category is attached to every plan (that's
+// category_plans, an admin-editable membership, not a given), so the plan
+// select is scoped to whichever plans this category actually belongs to —
+// picking a plan blind, before the category, could offer a plan the category
+// was never attached to.
+//
+// Each row's plan is independent of the meal size's own planId (that's a
+// filter/default only) — so one meal size's composition can span plans.
 //
 // Swap note: exchanges use the FIRST row's TU / pick as the category's rate.
 // Later rows of the same category stay separate picks for selection, but do not
 // invent a second swap rate — don't imply that in the UI.
 function CompositionField({
-  f, form, options, categoriesByPlan,
+  f, form, compositionCategories, plansByCategory,
 }: {
   f: FieldDef;
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
-  options: Options;
-  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
+  compositionCategories: CompositionCategoryOption[];
+  plansByCategory: Record<string, { value: string; label: string }[]>;
 }) {
   // The dialog form is typed as Record<string, unknown>, so RHF can't infer the
   // array element shape from the key — cast the field-array path/append payload.
   const { fields, append, remove } = useFieldArray<Record<string, unknown>>({ control: form.control, name: f.key as never });
-
-  // Slots follow the selected plan. Watching planId keeps the two in step without
-  // a round trip, and re-picking a plan re-scopes the options immediately.
-  const planId = form.watch("planId") as string | undefined;
-  const cats = categoriesByPlan ? (planId ? (categoriesByPlan[planId] ?? []) : []) : (options[f.key] ?? []);
-  const needsPlan = Boolean(categoriesByPlan) && !planId;
 
   return (
     <FormItem className="grid gap-2">
@@ -134,17 +137,13 @@ function CompositionField({
         ) : null}
       </div>
       <p className="text-muted-foreground text-xs">
-        Each row is one pick the customer starts with. Swaps use this category&apos;s first TU / pick as the exchange rate for the whole category.
+        Each row is one pick the customer starts with, on its own plan. Swaps use this category&apos;s first TU / pick as the exchange rate for the whole category.
       </p>
 
       <div className="grid gap-2">
-        {needsPlan ? (
+        {fields.length === 0 ? (
           <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm">
-            Pick a plan first — the composition uses that plan&apos;s categories.
-          </p>
-        ) : fields.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm">
-            No items yet. Add the categories that make up this meal size.
+            No items yet. Add the category + plan pairs that make up this meal size.
           </p>
         ) : null}
 
@@ -154,7 +153,8 @@ function CompositionField({
             form={form}
             f={f}
             idx={idx}
-            cats={cats}
+            compositionCategories={compositionCategories}
+            plansByCategory={plansByCategory}
             onRemove={() => remove(idx)}
           />
         ))}
@@ -164,8 +164,7 @@ function CompositionField({
           variant="outline"
           size="sm"
           className="justify-self-start transition-transform active:scale-[0.96]"
-          disabled={needsPlan || cats.length === 0}
-          onClick={() => append({ category: "", tuAmount: "1", maxTuAmount: "" })}
+          onClick={() => append({ category: "", planId: "", tuAmount: "1", maxTuAmount: "" })}
         >
           <PlusIcon className="size-4" /> Add item
         </Button>
@@ -176,17 +175,19 @@ function CompositionField({
 }
 
 function CompositionRow({
-  form, f, idx, cats, onRemove,
+  form, f, idx, compositionCategories, plansByCategory, onRemove,
 }: {
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
   f: FieldDef;
   idx: number;
-  cats: CompositionCategoryOption[];
+  compositionCategories: CompositionCategoryOption[];
+  plansByCategory: Record<string, { value: string; label: string }[]>;
   onRemove: () => void;
 }) {
   const category = form.watch(`${f.key}.${idx}.category`) as string | undefined;
   const tuAmount = form.watch(`${f.key}.${idx}.tuAmount`) as string | undefined;
-  const cat = cats.find((c) => c.value === category);
+  const planOptions = category ? (plansByCategory[category] ?? []) : [];
+  const cat = compositionCategories.find((c) => c.value === category);
   const tu = Number(tuAmount);
   const naturalHint =
     cat?.tuUnitType && cat.tuUnitSize != null && cat.tuUnitLabel && Number.isFinite(tu) && tu > 0
@@ -198,17 +199,45 @@ function CompositionRow({
 
   return (
     <div className="grid gap-2 rounded-lg border p-2">
-      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1.6fr)_6rem_4.5rem_auto]">
+      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_6rem_4.5rem_auto]">
         <Controller
           control={form.control}
           name={`${f.key}.${idx}.category`}
           render={({ field }) => (
             <label className="grid gap-1">
               <span className="text-muted-foreground text-xs">Category</span>
-              <Select value={field.value ?? ""} onValueChange={field.onChange}>
+              <Select
+                value={field.value ?? ""}
+                onValueChange={(v) => {
+                  field.onChange(v);
+                  // Plan options are category-scoped — a stale plan from the
+                  // previous category could point at a plan this category isn't
+                  // even attached to.
+                  form.setValue(`${f.key}.${idx}.planId` as never, "" as never);
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Pick a category" /></SelectTrigger>
                 <SelectContent>
-                  {cats.map((o) => (
+                  {compositionCategories.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          )}
+        />
+        <Controller
+          control={form.control}
+          name={`${f.key}.${idx}.planId`}
+          render={({ field }) => (
+            <label className="grid gap-1">
+              <span className="text-muted-foreground text-xs">Plan</span>
+              <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={!category}>
+                <SelectTrigger><SelectValue placeholder={category ? "Pick a plan" : "Pick a category first"} /></SelectTrigger>
+                <SelectContent>
+                  {planOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {o.label}
                     </SelectItem>
@@ -264,21 +293,39 @@ function CompositionRow({
 }
 
 function FieldControl({
-  f, form, options, isNew, categoriesByPlan,
+  f, form, options, isNew, categoriesByPlan, compositionCategories, plansByCategory,
 }: {
   f: FieldDef;
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
   options: Options;
   isNew: boolean;
   categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
+  compositionCategories?: CompositionCategoryOption[];
+  plansByCategory?: Record<string, { value: string; label: string }[]>;
 }) {
-  if (f.type === "composition") return <CompositionField f={f} form={form} options={options} categoriesByPlan={categoriesByPlan} />;
+  if (f.type === "composition") {
+    return (
+      <CompositionField
+        f={f}
+        form={form}
+        compositionCategories={compositionCategories ?? []}
+        plansByCategory={plansByCategory ?? {}}
+      />
+    );
+  }
   // Discount targets are per-kind: show only the selected kind's rows (+ "All").
   // eslint-disable-next-line react-hooks/purity -- reads live form state
   const kindNow = f.optionsSource === "discount-targets" ? form.watch("kind") : undefined;
-  const opts = f.optionsSource
-    ? (options[f.key] ?? []).filter((o) => !o.group || o.group === kindNow)
-    : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
+  // A dish's category is scoped to its own plan — the same reason meal-size
+  // composition rows scope by plan: a category not attached to this dish's plan
+  // could never appear on that plan's menu anyway.
+  // eslint-disable-next-line react-hooks/purity -- reads live form state
+  const dishPlanId = f.key === "category" && categoriesByPlan ? (form.watch("planId") as string | undefined) : undefined;
+  const opts = dishPlanId !== undefined
+    ? (dishPlanId ? (categoriesByPlan?.[dishPlanId] ?? []) : [])
+    : f.optionsSource
+      ? (options[f.key] ?? []).filter((o) => !o.group || o.group === kindNow)
+      : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
   const keyFrozen = f.readOnlyOnEdit && !isNew;
   // discountValue's unit depends on the sibling discountType field's live value ("%" vs "$") —
   // the only field whose unit isn't static, so this is a targeted override rather than a new
@@ -301,8 +348,21 @@ function FieldControl({
           </FormLabel>
           {f.help ? <p className="text-muted-foreground text-xs">{f.help}</p> : null}
           {f.type === "select" ? (
-            <Select value={(field.value as string) ?? ""} onValueChange={field.onChange}>
-              <FormControl><SelectTrigger><SelectValue placeholder={`Select ${f.label.toLowerCase()}`} /></SelectTrigger></FormControl>
+            <Select
+              value={(field.value as string) ?? ""}
+              onValueChange={(v) => {
+                field.onChange(v);
+                // Plan changed: the category field is plan-scoped, so a category
+                // picked under the old plan may not exist under the new one.
+                if (f.key === "planId" && categoriesByPlan) form.setValue("category" as never, "" as never);
+              }}
+              disabled={dishPlanId === undefined ? false : !dishPlanId}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={dishPlanId === undefined ? `Select ${f.label.toLowerCase()}` : dishPlanId ? `Select ${f.label.toLowerCase()}` : "Pick a plan first"} />
+                </SelectTrigger>
+              </FormControl>
               <SelectContent>{opts.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
           ) : f.type === "multiselect" ? (
@@ -507,7 +567,7 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
 }
 
 function EditorDialog({
-  resource, def, options, editing, onClose, categoriesByPlan,
+  resource, def, options, editing, onClose, categoriesByPlan, compositionCategories, plansByCategory,
 }: {
   resource: string;
   def: ResourceDef;
@@ -515,6 +575,8 @@ function EditorDialog({
   editing: { id: string; row: Row | null };
   onClose: () => void;
   categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
+  compositionCategories?: CompositionCategoryOption[];
+  plansByCategory?: Record<string, { value: string; label: string }[]>;
 }) {
   const router = useRouter();
   const isNew = editing.id === "__new__";
@@ -551,8 +613,8 @@ function EditorDialog({
       open
       onOpenChange={(o) => !o && onClose()}
       title={isNew ? `New ${def.singular}` : `Edit ${def.singular}`}
-      description="Typed fields, validated before saving."
-      contentClassName="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      description={def.fields.some((f) => f.section) ? undefined : "Typed fields, validated before saving."}
+      contentClassName={cn("flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0", resource === "meal-sizes" ? "sm:max-w-3xl" : "sm:max-w-2xl")}
       footer={
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="min-h-11 sm:min-h-9">Cancel</Button>
@@ -567,20 +629,37 @@ function EditorDialog({
         <form id="resource-editor-form" onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
             {def.note ? <p className="text-muted-foreground text-sm sm:col-span-2">{def.note}</p> : null}
-            {def.fields.map((f) => (
-              <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
-                <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} />
-                {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs transition-colors"
-                    onClick={() => setKeyManual(true)}
-                  >
-                    <PencilIcon className="size-3" /> Edit key
-                  </button>
-                ) : null}
-              </div>
-            ))}
+            {def.fields.map((f, i) => {
+              const prevSection = i > 0 ? def.fields[i - 1].section : undefined;
+              const showSectionHeader = f.section && f.section !== prevSection;
+              return (
+                <Fragment key={f.key}>
+                  {showSectionHeader ? (
+                    <h3
+                      key={`${f.key}-section`}
+                      className={cn(
+                        "text-muted-foreground text-xs font-semibold tracking-wide uppercase sm:col-span-2",
+                        i > 0 ? "mt-2 border-t pt-5" : "",
+                      )}
+                    >
+                      {f.section}
+                    </h3>
+                  ) : null}
+                  <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
+                    <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} compositionCategories={compositionCategories} plansByCategory={plansByCategory} />
+                    {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs transition-colors"
+                        onClick={() => setKeyManual(true)}
+                      >
+                        <PencilIcon className="size-3" /> Edit key
+                      </button>
+                    ) : null}
+                  </div>
+                </Fragment>
+              );
+            })}
             {form.formState.errors.root ? (
               <p className="text-destructive text-sm sm:col-span-2" role="alert">
                 {form.formState.errors.root.message as string}
@@ -645,14 +724,17 @@ export interface DiscountCtx {
 }
 
 export function ResourceEditor({
-  discountCtx, resource, rows, dynamicOptions, sort, spec, total, page, size, categoriesByPlan,
+  discountCtx, resource, rows, dynamicOptions, sort, spec, total, page, size, categoriesByPlan, compositionCategories, plansByCategory,
 }: {
   resource: string;
   rows: Row[];
   dynamicOptions: Options;
   sort: SortState<string>;
-  // Slots per plan, so the composition editor can scope to the selected plan.
+  // Dishes: category options scoped by the dish's own plan.
   categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
+  // Meal-size composition rows: category comes first, plan options scoped to it.
+  compositionCategories?: CompositionCategoryOption[];
+  plansByCategory?: Record<string, { value: string; label: string }[]>;
   discountCtx?: DiscountCtx;
   // Same server-side facet framework the orders and inquiries lists use.
   spec: FacetDef[];
@@ -787,6 +869,8 @@ export function ResourceEditor({
           def={def}
           options={dynamicOptions}
           categoriesByPlan={categoriesByPlan}
+          compositionCategories={compositionCategories}
+          plansByCategory={plansByCategory}
           editing={editing}
           onClose={() => setEditing(null)}
         />

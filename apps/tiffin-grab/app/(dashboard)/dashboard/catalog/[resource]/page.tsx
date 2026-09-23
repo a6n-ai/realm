@@ -165,11 +165,11 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   }
 
   const sp = await searchParams;
-  // Composition rows offer the slots of the plan the meal size is scoped to, so
-  // a veg meal size can't be built out of healthy-plan slots. Sent as a map
-  // rather than fetched per change, so switching the plan dropdown is instant.
+  // Dishes: category options are scoped by the dish's own plan, so a category not
+  // attached to that plan is never offered. Sent as a map rather than fetched per
+  // change, so switching the plan dropdown is instant.
   let categoriesByPlan: Record<string, { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string }[]> | undefined;
-  if (resource === "meal-sizes") {
+  if (resource === "dishes") {
     const entries = await Promise.all(
       planRows.map(async (p) => [
         p.publicId,
@@ -183,6 +183,26 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       ] as const),
     );
     categoriesByPlan = Object.fromEntries(entries);
+  }
+
+  // Meal-size composition rows: category comes FIRST (not every category is
+  // attached to every plan), then the plan select is scoped to whichever plans
+  // that category actually belongs to (category_plans, via plansByCategoryKey).
+  let compositionCategories: { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string }[] | undefined;
+  let plansByCategory: Record<string, { value: string; label: string }[]> | undefined;
+  if (resource === "meal-sizes") {
+    compositionCategories = categoryRows.map((c) => ({
+      value: c.key, label: c.label, tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel,
+    }));
+    const planPublicIdsByCategoryKey = await dishCategoriesService.plansByCategoryKey();
+    const planByPublicId = new Map(planRows.map((p) => [p.publicId, p]));
+    plansByCategory = {};
+    for (const c of categoryRows) {
+      plansByCategory[c.key] = (planPublicIdsByCategoryKey.get(c.key) ?? []).flatMap((pubId) => {
+        const p = planByPublicId.get(pubId);
+        return p ? [{ value: p.publicId, label: p.name }] : [];
+      });
+    }
   }
 
   const allowed = sortableColumns(def);
@@ -270,6 +290,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       bucket.push({
         name: it.name,
         category: it.category,
+        planId: planPublicById.get(it.planId) ?? "",
         // numeric column ⇒ string in Drizzle; blank the null so the Input renders empty.
         tuAmount: String(it.tuAmount),
         maxTuAmount: it.maxTuAmount == null ? "" : String(it.maxTuAmount),
@@ -319,6 +340,8 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       dynamicOptions={dynamicOptions}
       sort={sort}
       categoriesByPlan={categoriesByPlan}
+      compositionCategories={compositionCategories}
+      plansByCategory={plansByCategory}
       spec={spec}
       total={total}
       page={page.page}

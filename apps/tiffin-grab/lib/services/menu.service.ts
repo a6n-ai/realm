@@ -313,7 +313,7 @@ export const menuService = {
    * is not an error, but a Monday built for non-veg only is worth a warning.
    */
   async releaseProblems(weekPublicId: string): Promise<
-    { kind: "missing" | "extra"; day: DayOfWeek; planName: string; categoryKey: string; categoryLabel: string; dishNames: string[] }[]
+    { kind: "missing" | "extra"; day: DayOfWeek; planName: string; planPublicId: string; categoryKey: string; categoryLabel: string; dishNames: string[] }[]
   > {
     const [week] = await db.select({ id: menuWeeks.id })
       .from(menuWeeks).where(eq(menuWeeks.publicId, weekPublicId)).limit(1);
@@ -329,13 +329,14 @@ export const menuService = {
     const daysWithItems = [...new Set(items.map((i) => i.dayOfWeek))] as DayOfWeek[];
 
     // Every active plan: one week now serves all of them, so a hole for any plan is a hole.
-    const planRows = await db.select({ id: plans.id, name: plans.name })
+    const planRows = await db.select({ id: plans.id, name: plans.name, publicId: plans.publicId })
       .from(plans).where(eq(plans.active, true));
 
     const problems: {
       kind: "missing" | "extra";
       day: DayOfWeek;
       planName: string;
+      planPublicId: string;
       categoryKey: string;
       categoryLabel: string;
       dishNames: string[];
@@ -343,12 +344,14 @@ export const menuService = {
     for (const plan of planRows) {
       const [categories, requiredRows, membership] = await Promise.all([
         dishCategoriesService.forPlan(plan.id),
-        // How much of each category this plan's biggest active meal size asks for. A
-        // category nobody orders is not required, so it cannot block a release.
+        // How much of each category this plan's biggest active meal size asks for. Keyed by
+        // the ITEM's own planId, not its parent meal size's — an item can independently
+        // target a different plan than the meal size it's on. A category nobody orders is
+        // not required, so it cannot block a release.
         db.select({ category: mealSizeItems.category })
           .from(mealSizeItems)
           .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
-          .where(and(eq(mealSizes.planId, plan.id), eq(mealSizes.active, true))),
+          .where(and(eq(mealSizeItems.planId, plan.id), eq(mealSizes.active, true))),
         db.select({ dishId: dishes.id }).from(dishes).where(eq(dishes.planId, plan.id)),
       ]);
       const required = new Set(requiredRows.map((r) => r.category));
@@ -364,7 +367,7 @@ export const menuService = {
             (i) => i.dayOfWeek === day && i.slot === category.key && planDishIds.has(i.dishId),
           );
           if (served.length === 0) {
-            problems.push({ kind: "missing", day, planName: plan.name, categoryKey: category.key, categoryLabel: category.label, dishNames: [] });
+            problems.push({ kind: "missing", day, planName: plan.name, planPublicId: plan.publicId, categoryKey: category.key, categoryLabel: category.label, dishNames: [] });
           } else if (!category.selectable && served.length > 1) {
             // A fixed category serves exactly one dish per subscriber (the default, else the
             // lowest position), so anything past the first never reaches this plan's plate.
@@ -372,6 +375,7 @@ export const menuService = {
               kind: "extra",
               day,
               planName: plan.name,
+              planPublicId: plan.publicId,
               categoryKey: category.key,
               categoryLabel: category.label,
               dishNames: served.map((i) => i.dishName),

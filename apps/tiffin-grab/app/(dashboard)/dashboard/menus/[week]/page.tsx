@@ -5,15 +5,16 @@ import { asc, eq } from "drizzle-orm";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { ArrowLeft, CalendarIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { dishes, mealSizeItems, mealSizes } from "@/db/schema";
+import { dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
 import { getMealTypes } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { maxQtyByCategory } from "@/lib/menu/category-hint";
+import { maxQtyBySlot } from "@/lib/menu/category-hint";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder, MenuBuilderSkeleton } from "../menu-builder";
+import type { Slot } from "../menu-grid";
 
 type Params = Promise<{ week: string }>;
 
@@ -55,14 +56,19 @@ async function WeekData({ params }: { params: Params }) {
   // ?week=<bogus> silently fell back to "create a new week", which read as data loss.
   if (!result.week) notFound();
 
-  const [mealTypes, activeDishes, weeks, categories, sizeItemRows, problems] = await Promise.all([
+  const [mealTypes, activeDishes, weeks, categories, planRows, sizeItemRows, problems] = await Promise.all([
     getMealTypes(),
-    db.select({ id: dishes.publicId, name: dishes.name, category: dishes.category })
-      .from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
+    db.select({ id: dishes.publicId, name: dishes.name, category: dishes.category, planId: plans.publicId })
+      .from(dishes).innerJoin(plans, eq(plans.id, dishes.planId))
+      .where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
     menuService.listWeekMenus(),
     dishCategoriesService.enabledCategories(),
-    // "N needed" hint: the largest quantity any active meal size asks for in a category.
-    db.select({ mealSizeId: mealSizeItems.mealSizeId, category: mealSizeItems.category })
+    db.select({ id: plans.id, publicId: plans.publicId, name: plans.name })
+      .from(plans).where(eq(plans.active, true)),
+    // "N needed" hint + slot list source: every (category, plan) pair any active meal
+    // size's composition actually asks for. Keyed by the ITEM's own planId, not its
+    // parent meal size's — an item can independently target a different plan.
+    db.select({ mealSizeId: mealSizeItems.mealSizeId, category: mealSizeItems.category, planId: mealSizeItems.planId })
       .from(mealSizeItems)
       .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
       .where(eq(mealSizes.active, true)),
@@ -85,6 +91,36 @@ async function WeekData({ params }: { params: Params }) {
     updatedAt: result.week.updatedAt,
   };
 
+  const planPublicById = new Map(planRows.map((p) => [p.id, p.publicId]));
+  const categoryByKey = new Map(categories.map((c) => [c.key, c]));
+  const planByPublicId = new Map(planRows.map((p) => [p.publicId, p]));
+
+  // One slot per (category, plan) pair actually present in an active meal size's
+  // composition — the same source releaseProblems checks, so the grid asks for exactly
+  // what a release would flag as missing.
+  const slotMap = new Map<string, Slot>();
+  for (const row of sizeItemRows) {
+    const planPublicId = planPublicById.get(row.planId);
+    const category = categoryByKey.get(row.category);
+    const plan = planPublicId ? planByPublicId.get(planPublicId) : undefined;
+    if (!planPublicId || !category || !plan) continue;
+    const key = `${row.category}|${planPublicId}`;
+    if (!slotMap.has(key)) {
+      slotMap.set(key, {
+        key,
+        categoryKey: category.key,
+        categoryLabel: category.label,
+        selectable: category.selectable,
+        sortOrder: category.sortOrder,
+        planPublicId,
+        planName: plan.name,
+      });
+    }
+  }
+  const slots = [...slotMap.values()].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.planName.localeCompare(b.planName),
+  );
+
   return (
     <SectionCard title={weekRange(week.weekStart)}>
       {activeDishes.length === 0 && (
@@ -94,8 +130,9 @@ async function WeekData({ params }: { params: Params }) {
       )}
       <MenuBuilder
         mealType={mealTypes.tiffin}
-        categories={categories}
-        categoryCounts={maxQtyByCategory(sizeItemRows)}
+        slots={slots}
+        plans={planRows.map((p) => ({ publicId: p.publicId, name: p.name }))}
+        categoryCounts={maxQtyBySlot(sizeItemRows, planPublicById)}
         dishes={activeDishes}
         week={week}
         items={items}

@@ -127,7 +127,7 @@ ON CONFLICT (key) DO NOTHING;
 -- so "2 roti" is 2 rows at 0.25 TU each (a row IS one dish pick, there's no qty column);
 -- rice has no weight, 1 unit/TU, 1 row per pick.
 -- meal_size_id is NOT NULL so a mistyped meal_size_key fails the insert loudly instead of orphaning a row.)
-DELETE FROM meal_size_items;
+DELETE FROM meal_size_items WHERE id > 0;
 INSERT INTO meal_size_items
   (public_id, created_at, updated_at, meal_size_id, name, category, plan_id, tu_amount, max_tu_amount, sort_order)
 SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1, 10),
@@ -292,7 +292,8 @@ UPDATE meal_sizes ms SET components = COALESCE((
     FROM meal_size_items WHERE meal_size_id = ms.id
     GROUP BY name
   ) g
-), '[]'::json)::jsonb;
+), '[]'::json)::jsonb
+WHERE ms.id > 0;
 
 -- ============ DELIVERY FREQUENCIES ============
 INSERT INTO delivery_frequencies (public_id, created_at, updated_at, key, name, days_per_week, courier_discount_pct, weekdays)
@@ -350,8 +351,7 @@ VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EP
 ON CONFLICT (name) DO NOTHING;
 
 -- ============ PRICING TIERS ============ (no unique key -> wipe + reinsert, matches seed)
-DELETE
-FROM pricing_tiers;
+DELETE FROM pricing_tiers WHERE id > 0;
 INSERT INTO pricing_tiers (public_id, created_at, updated_at, min_qty, max_qty, uplift_pct)
 VALUES ('ptr_1', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 1, 11, 20.00),
        ('ptr_2', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 12, 19, 10.00),
@@ -458,13 +458,17 @@ WHERE NOT EXISTS (
 -- be dead. This is also what keeps the two exclusive — a customer can stack up to
 -- maxTuAmount(=2) raita via repeated salad->raita swaps, but can never ALSO hold salad,
 -- since there is no pair that ever moves TU back out of raita.
-DELETE FROM category_swap_pairs;
-INSERT INTO category_swap_pairs (public_id, created_at, updated_at, from_category_id, to_category_id)
-SELECT 'csp_' || SUBSTR(MD5(v.from_key || v.to_key), 1, 10),
+-- Each pair is plan-scoped (category_swap_pairs.plan_id) — every category below
+-- sits on both veg and non-veg (see category_plans above), so each direction
+-- becomes two rows, one per plan, same duplication pattern as dishes.
+DELETE FROM category_swap_pairs WHERE id > 0;
+INSERT INTO category_swap_pairs (public_id, created_at, updated_at, from_category_id, to_category_id, plan_id)
+SELECT 'csp_' || SUBSTR(MD5(v.from_key || v.to_key || p.key), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (SELECT id FROM dish_categories WHERE key = v.from_key),
-       (SELECT id FROM dish_categories WHERE key = v.to_key)
+       (SELECT id FROM dish_categories WHERE key = v.to_key),
+       p.id
 FROM (VALUES
   ('daal', 'sabzi'), ('sabzi', 'daal'),
   -- 5 Item Thali's "Daal/Salad/Raita" slot on the pricing sheet: the base
@@ -472,7 +476,8 @@ FROM (VALUES
   ('daal', 'salad'), ('daal', 'raita'),
   ('salad', 'raita'),
   ('roti', 'rice'), ('rice', 'roti')
-) AS v(from_key, to_key);
+) AS v(from_key, to_key)
+CROSS JOIN plans p;
 
 -- ============ CURRY -> SABZI MERGE ============ (repoints any already-seeded rows from a
 -- prior run before the category itself is retired below — a plain re-seed of the categories
@@ -502,22 +507,22 @@ SELECT v.public_id,
 FROM (VALUES
   -- "Items counted as Daal" on the pricing sheet — the daal slot's real rotation,
   -- not a single fixed dish. Shared across both tiffin plans (2 rows each).
-  ('dsh_dal_tadka_veg', 'Dal Tadka', 'Yellow lentils tempered with cumin and garlic', 'daal', 'veg'),
-  ('dsh_dal_tadka_nonveg', 'Dal Tadka', 'Yellow lentils tempered with cumin and garlic', 'daal', 'non-veg'),
-  ('dsh_lobia_masala_veg', 'Lobia Masala', 'Black-eyed peas simmered in a spiced onion-tomato masala', 'daal', 'veg'),
-  ('dsh_lobia_masala_nonveg', 'Lobia Masala', 'Black-eyed peas simmered in a spiced onion-tomato masala', 'daal', 'non-veg'),
-  ('dsh_rajma_veg', 'Rajma', 'Red kidney beans in a thick Punjabi-style curry', 'daal', 'veg'),
-  ('dsh_rajma_nonveg', 'Rajma', 'Red kidney beans in a thick Punjabi-style curry', 'daal', 'non-veg'),
-  ('dsh_kadhi_veg', 'Kadhi', 'Yoghurt-and-gram-flour curry tempered with cumin', 'daal', 'veg'),
-  ('dsh_kadhi_nonveg', 'Kadhi', 'Yoghurt-and-gram-flour curry tempered with cumin', 'daal', 'non-veg'),
-  ('dsh_chana_masala_veg', 'Chana Masala', 'Chickpeas simmered in a spiced tomato masala', 'daal', 'veg'),
-  ('dsh_chana_masala_nonveg', 'Chana Masala', 'Chickpeas simmered in a spiced tomato masala', 'daal', 'non-veg'),
-  ('dsh_tur_daal_veg', 'Tur Daal', 'Split pigeon peas tempered with cumin and garlic', 'daal', 'veg'),
-  ('dsh_tur_daal_nonveg', 'Tur Daal', 'Split pigeon peas tempered with cumin and garlic', 'daal', 'non-veg'),
-  ('dsh_paneer_butter_masala_veg', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'sabzi', 'veg'),
-  ('dsh_paneer_butter_masala_nonveg', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'sabzi', 'non-veg'),
-  ('dsh_aloo_gobi_veg', 'Aloo Gobi', 'Potato and cauliflower dry sabzi', 'sabzi', 'veg'),
-  ('dsh_aloo_gobi_nonveg', 'Aloo Gobi', 'Potato and cauliflower dry sabzi', 'sabzi', 'non-veg'),
+  ('dsh_dal_tadka_veg', 'Dal Tadka (Veg)', 'Yellow lentils tempered with cumin and garlic', 'daal', 'veg'),
+  ('dsh_dal_tadka_nonveg', 'Dal Tadka (Non-Veg)', 'Yellow lentils tempered with cumin and garlic', 'daal', 'non-veg'),
+  ('dsh_lobia_masala_veg', 'Lobia Masala (Veg)', 'Black-eyed peas simmered in a spiced onion-tomato masala', 'daal', 'veg'),
+  ('dsh_lobia_masala_nonveg', 'Lobia Masala (Non-Veg)', 'Black-eyed peas simmered in a spiced onion-tomato masala', 'daal', 'non-veg'),
+  ('dsh_rajma_veg', 'Rajma (Veg)', 'Red kidney beans in a thick Punjabi-style curry', 'daal', 'veg'),
+  ('dsh_rajma_nonveg', 'Rajma (Non-Veg)', 'Red kidney beans in a thick Punjabi-style curry', 'daal', 'non-veg'),
+  ('dsh_kadhi_veg', 'Kadhi (Veg)', 'Yoghurt-and-gram-flour curry tempered with cumin', 'daal', 'veg'),
+  ('dsh_kadhi_nonveg', 'Kadhi (Non-Veg)', 'Yoghurt-and-gram-flour curry tempered with cumin', 'daal', 'non-veg'),
+  ('dsh_chana_masala_veg', 'Chana Masala (Veg)', 'Chickpeas simmered in a spiced tomato masala', 'daal', 'veg'),
+  ('dsh_chana_masala_nonveg', 'Chana Masala (Non-Veg)', 'Chickpeas simmered in a spiced tomato masala', 'daal', 'non-veg'),
+  ('dsh_tur_daal_veg', 'Tur Daal (Veg)', 'Split pigeon peas tempered with cumin and garlic', 'daal', 'veg'),
+  ('dsh_tur_daal_nonveg', 'Tur Daal (Non-Veg)', 'Split pigeon peas tempered with cumin and garlic', 'daal', 'non-veg'),
+  ('dsh_paneer_butter_masala_veg', 'Paneer Butter Masala (Veg)', 'Paneer in a rich tomato-cream sauce', 'sabzi', 'veg'),
+  ('dsh_paneer_butter_masala_nonveg', 'Paneer Butter Masala (Non-Veg)', 'Paneer in a rich tomato-cream sauce', 'sabzi', 'non-veg'),
+  ('dsh_aloo_gobi_veg', 'Aloo Gobi (Veg)', 'Potato and cauliflower dry sabzi', 'sabzi', 'veg'),
+  ('dsh_aloo_gobi_nonveg', 'Aloo Gobi (Non-Veg)', 'Potato and cauliflower dry sabzi', 'sabzi', 'non-veg'),
   -- Non-veg-only dishes: one row, non-veg plan.
   ('dsh_chicken_curry', 'Chicken Curry', 'Tender chicken in a spiced onion-tomato gravy', 'sabzi', 'non-veg'),
   ('dsh_egg_bhurji', 'Egg Bhurji', 'Spiced scrambled eggs with onion and peppers', 'extra', 'non-veg'),
@@ -525,14 +530,14 @@ FROM (VALUES
   -- so without a dish in each of those categories no menu week can be released:
   -- menuService.release refuses a week that leaves a plan short of a category its
   -- meal sizes promise. These make the seeded catalog self-consistent on both plans.
-  ('dsh_jeera_rice_veg', 'Jeera Rice', 'Basmati rice tempered with cumin', 'rice', 'veg'),
-  ('dsh_jeera_rice_nonveg', 'Jeera Rice', 'Basmati rice tempered with cumin', 'rice', 'non-veg'),
-  ('dsh_roti_veg', 'Roti', 'Soft whole-wheat flatbread', 'roti', 'veg'),
-  ('dsh_roti_nonveg', 'Roti', 'Soft whole-wheat flatbread', 'roti', 'non-veg'),
-  ('dsh_boondi_raita_veg', 'Boondi Raita', 'Whisked yoghurt with crisp gram-flour pearls', 'raita', 'veg'),
-  ('dsh_boondi_raita_nonveg', 'Boondi Raita', 'Whisked yoghurt with crisp gram-flour pearls', 'raita', 'non-veg'),
-  ('dsh_kachumber_salad_veg', 'Kachumber Salad', 'Diced cucumber, tomato and onion with lemon', 'salad', 'veg'),
-  ('dsh_kachumber_salad_nonveg', 'Kachumber Salad', 'Diced cucumber, tomato and onion with lemon', 'salad', 'non-veg'),
+  ('dsh_jeera_rice_veg', 'Jeera Rice (Veg)', 'Basmati rice tempered with cumin', 'rice', 'veg'),
+  ('dsh_jeera_rice_nonveg', 'Jeera Rice (Non-Veg)', 'Basmati rice tempered with cumin', 'rice', 'non-veg'),
+  ('dsh_roti_veg', 'Roti (Veg)', 'Soft whole-wheat flatbread', 'roti', 'veg'),
+  ('dsh_roti_nonveg', 'Roti (Non-Veg)', 'Soft whole-wheat flatbread', 'roti', 'non-veg'),
+  ('dsh_boondi_raita_veg', 'Boondi Raita (Veg)', 'Whisked yoghurt with crisp gram-flour pearls', 'raita', 'veg'),
+  ('dsh_boondi_raita_nonveg', 'Boondi Raita (Non-Veg)', 'Whisked yoghurt with crisp gram-flour pearls', 'raita', 'non-veg'),
+  ('dsh_kachumber_salad_veg', 'Kachumber Salad (Veg)', 'Diced cucumber, tomato and onion with lemon', 'salad', 'veg'),
+  ('dsh_kachumber_salad_nonveg', 'Kachumber Salad (Non-Veg)', 'Diced cucumber, tomato and onion with lemon', 'salad', 'non-veg'),
   -- Egg Bhurji is the only other 'extra', and it is non-veg only, so the veg
   -- plan needs its own.
   ('dsh_masala_papad', 'Masala Papad', 'Roasted papad topped with onion, tomato and chaat masala', 'extra', 'veg')
@@ -581,20 +586,18 @@ FROM new_week nw
          CROSS JOIN (SELECT d.id,
                             dc.id AS category_id,
                             ROW_NUMBER() OVER (PARTITION BY d.category ORDER BY want.ord) AS rn
-                     -- Each row picks one (name, plan) dish variant explicitly — a dish
-                     -- name alone no longer identifies one row now that names can repeat
-                     -- once per plan.
-                     FROM (VALUES ('Dal Tadka', 'veg', 1),
-                                  ('Paneer Butter Masala', 'veg', 2),
-                                  ('Aloo Gobi', 'non-veg', 3),
-                                  ('Chicken Curry', 'non-veg', 4),
-                                  ('Egg Bhurji', 'non-veg', 5),
-                                  ('Jeera Rice', 'veg', 6),
-                                  ('Roti', 'veg', 7),
-                                  ('Boondi Raita', 'veg', 8),
-                                  ('Kachumber Salad', 'veg', 9),
-                                  ('Masala Papad', 'veg', 10)) AS want(name, plan_key, ord)
-                              JOIN dishes d ON d.name = want.name AND d.plan_id = (SELECT id FROM plans WHERE key = want.plan_key)
+                     -- dishes.name is globally unique now, so it alone identifies one row.
+                     FROM (VALUES ('Dal Tadka (Veg)', 1),
+                                  ('Paneer Butter Masala (Veg)', 2),
+                                  ('Aloo Gobi (Non-Veg)', 3),
+                                  ('Chicken Curry', 4),
+                                  ('Egg Bhurji', 5),
+                                  ('Jeera Rice (Veg)', 6),
+                                  ('Roti (Veg)', 7),
+                                  ('Boondi Raita (Veg)', 8),
+                                  ('Kachumber Salad (Veg)', 9),
+                                  ('Masala Papad', 10)) AS want(name, ord)
+                              JOIN dishes d ON d.name = want.name
                               JOIN dish_categories dc ON dc.key = d.category) AS dsh;
 
 

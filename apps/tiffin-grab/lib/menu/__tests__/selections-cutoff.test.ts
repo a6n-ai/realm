@@ -40,7 +40,10 @@ describe("setSelection per-day cutoff + span", () => {
     const userId = u?.id ?? (await db.select().from(users).where(eq(users.phone, "+15550000001")).limit(1))[0].id;
     const [plan] = await db.select().from(plans).where(eq(plans.key, "veg")).limit(1);
     const [freq] = await db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.key, "5_day")).limit(1);
-    const [mealSize] = await db.select().from((await import("@/db/schema")).mealSizes).limit(1);
+    // Scoped to the veg plan specifically — allowedDishIdsForMealSize derives
+    // eligible dishes from the meal size's own composition rows.
+    const mealSizesTable = (await import("@/db/schema")).mealSizes;
+    const [mealSize] = await db.select().from(mealSizesTable).where(eq(mealSizesTable.planId, plan.id)).limit(1);
     // Menu week starting a Monday far in the future so cutoffs are open.
     const [w] = await db.insert(menuWeeks).values({ weekStart: "2099-01-05", status: "released", orderCutoff: 4070000000000 }).returning(); // 2099 Mon
     week = w;

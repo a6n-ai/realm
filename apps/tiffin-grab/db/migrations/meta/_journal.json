@@ -253,6 +253,20 @@
       "when": 1790200000000,
       "tag": "0035_dish_single_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790300000000,
+      "tag": "0036_dish_name_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790400000000,
+      "tag": "0037_category_swap_pairs_plan",
+      "breakpoints": true
     }
   ]
 }

@@ -66,37 +66,37 @@ afterAll(cleanup);
 
 describe("Phase 8 swap-rule safeguards", () => {
   it("rejects duplicate directional pair; accepts reverse; allows self-swap", async () => {
-    const fwd = await dishCategoriesService.addSwapPair(CAT_A, CAT_B);
+    const fwd = await dishCategoriesService.addSwapPair(CAT_A, CAT_B, planPublicId);
     createdSwapIds.push(fwd.publicId);
 
-    await expect(dishCategoriesService.addSwapPair(CAT_A, CAT_B)).rejects.toThrow(
+    await expect(dishCategoriesService.addSwapPair(CAT_A, CAT_B, planPublicId)).rejects.toThrow(
       /already exists for this direction/i,
     );
 
-    const rev = await dishCategoriesService.addSwapPair(CAT_B, CAT_A);
+    const rev = await dishCategoriesService.addSwapPair(CAT_B, CAT_A, planPublicId);
     createdSwapIds.push(rev.publicId);
     expect(rev.publicId).not.toBe(fwd.publicId);
 
-    const self = await dishCategoriesService.addSwapPair(CAT_A, CAT_A);
+    const self = await dishCategoriesService.addSwapPair(CAT_A, CAT_A, planPublicId);
     createdSwapIds.push(self.publicId);
     expect(self.fromCategoryId).toBe(self.toCategoryId);
   });
 
   it("rejects disabled/missing categories and unknown plans; allows global rules", async () => {
-    await expect(dishCategoriesService.addSwapPair("no-such-cat", CAT_B)).rejects.toThrow(
+    await expect(dishCategoriesService.addSwapPair("no-such-cat", CAT_B, planPublicId)).rejects.toThrow(
       /disabled or not found/i,
     );
 
     const [row] = await db.select().from(dishCategories).where(eq(dishCategories.key, CAT_B)).limit(1);
     await db.update(dishCategories).set({ enabled: false }).where(eq(dishCategories.id, row!.id));
     try {
-      await expect(dishCategoriesService.addSwapPair(CAT_A, CAT_B)).rejects.toThrow(/disabled or not found/i);
+      await expect(dishCategoriesService.addSwapPair(CAT_A, CAT_B, planPublicId)).rejects.toThrow(/disabled or not found/i);
     } finally {
       await db.update(dishCategories).set({ enabled: true }).where(eq(dishCategories.id, row!.id));
     }
 
     // Global self-pair on B is supported.
-    const global = await dishCategoriesService.addSwapPair(CAT_B, CAT_B);
+    const global = await dishCategoriesService.addSwapPair(CAT_B, CAT_B, planPublicId);
     createdSwapIds.push(global.publicId);
   });
 });
@@ -175,8 +175,8 @@ describe("Phase 8 historical safety", () => {
     await mealSizeService.update(ms.publicId, {
       planId: planPublicId,
       items: [
-        { category: CAT_A, tuAmount: "1.00" },
-        { category: CAT_B, tuAmount: "0.50" },
+        { category: CAT_A, tuAmount: "1.00", planId: planPublicId },
+        { category: CAT_B, tuAmount: "0.50", planId: planPublicId },
       ],
     });
 
