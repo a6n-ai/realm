@@ -7,7 +7,7 @@ import { computeSwapOption } from "@/lib/menu/meal-validation";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryCategorySwaps, dishCategories, ledgerEntries, mealSizeItems, mealSizes, orders, payments, users } = await import("@/db/schema");
+const { deliveries, deliveryCategorySwaps, dishCategories, ledgerEntries, mealSizeItems, mealSizes, orders, payments, plans, users } = await import("@/db/schema");
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { applyDeliverySwap } = await import("../category-swaps.service");
@@ -104,10 +104,11 @@ async function firstDivisibleFromPicks(order: { mealSizeId: bigint; categoryCoun
 // salad/raita, ...), and mealSizeWithTwoCategories() can land on a meal size
 // whose two categories are one of those. Only track (for cleanup) a pair this
 // call actually created — never delete one that was already seeded.
-async function allowPair(from: string, to: string) {
-  const existing = await dishCategoriesService.swapPairExists(from, to);
+async function allowPair(from: string, to: string, planId: bigint) {
+  const existing = await dishCategoriesService.swapPairExists(from, to, planId);
   if (existing) return;
-  const pair = await dishCategoriesService.addSwapPair(from, to);
+  const [plan] = await db.select({ publicId: plans.publicId }).from(plans).where(eq(plans.id, planId)).limit(1);
+  const pair = await dishCategoriesService.addSwapPair(from, to, plan.publicId);
   createdPairIds.push(pair.publicId);
 }
 
@@ -122,7 +123,7 @@ describe("applyDeliverySwap", () => {
     const order = await fetchOrder(publicId);
     const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
     const { from, to, fromPicks } = await swappablePair(order, cats);
-    await allowPair(from, to);
+    await allowPair(from, to, size.planId);
 
     await applyDeliverySwap(delivery.publicId, from, to, fromPicks, null);
 
@@ -136,14 +137,15 @@ describe("applyDeliverySwap", () => {
   it("rejects a pair that isn't globally eligible", async () => {
     const size = await mealSizeWithTwoCategories();
     const snap = await loadCatalogSnapshot();
-    const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
+    const plan = snap.plans.find((p) => p.id === size.planId)!;
+    const planKey = plan.key;
     const [from, to] = [...new Set(size.items.map((i) => i.category))];
     // Deliberately no allowPair() call — but the seed already wires some pairs
-    // globally (roti/rice, salad/raita, ...), and this meal size's own pair
-    // might already be one of them. If so, remove it for this test only and
-    // restore the exact same row (by id) once done.
+    // for this plan (roti/rice, salad/raita, ...), and this meal size's own
+    // pair might already be one of them. If so, remove it for this test only
+    // and restore the exact same row (by id) once done.
     const pairs = await dishCategoriesService.listSwapPairs();
-    const seeded = pairs.find((p) => p.fromKey === from && p.toKey === to);
+    const seeded = pairs.find((p) => p.fromKey === from && p.toKey === to && p.planId === plan.publicId);
     if (seeded) await dishCategoriesService.removeSwapPair(seeded.id);
 
     try {
@@ -154,7 +156,7 @@ describe("applyDeliverySwap", () => {
       await expect(applyDeliverySwap(delivery.publicId, from, to, 1, null))
         .rejects.toThrow(/can't be swapped/i);
     } finally {
-      if (seeded) await dishCategoriesService.addSwapPair(from, to);
+      if (seeded) await dishCategoriesService.addSwapPair(from, to, seeded.planId);
     }
   });
 
@@ -172,14 +174,14 @@ describe("applyDeliverySwap", () => {
     await db.insert(dishCategories).values({ key: OFF_PLAN_KEY, label: "Off-plan fixture", enabled: true });
     await invalidateCatalogSnapshot();
     try {
-      await allowPair(from, OFF_PLAN_KEY);
+      await allowPair(from, OFF_PLAN_KEY, size.planId);
 
       const { publicId } = await createOrder(orderInput(size.publicId, planKey));
       const order = await fetchOrder(publicId);
       const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
 
       await expect(applyDeliverySwap(delivery.publicId, from, OFF_PLAN_KEY, 1, null))
-        .rejects.toThrow(/must be part of this plan/i);
+        .rejects.toThrow(/can't be swapped/i);
     } finally {
       for (const id of createdPairIds.splice(0)) await dishCategoriesService.removeSwapPair(id).catch(() => {});
       await db.delete(dishCategories).where(eq(dishCategories.key, OFF_PLAN_KEY));
@@ -191,7 +193,7 @@ describe("applyDeliverySwap", () => {
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
     const from = size.items[0].category;
-    await allowPair(from, from);
+    await allowPair(from, from, size.planId);
 
     const { publicId } = await createOrder(orderInput(size.publicId, planKey));
     const order = await fetchOrder(publicId);
@@ -239,7 +241,7 @@ describe("applyDeliverySwap", () => {
     if (from === to) {
       throw new Error("Seed meal size has no divisible cross-category swap for Max TU fixture");
     }
-    await allowPair(from, to);
+    await allowPair(from, to, size.planId);
 
     const [{ id: mealSizeId }] = await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.publicId, size.publicId)).limit(1);
     const toRows = await db.select({ id: mealSizeItems.id, tuAmount: mealSizeItems.tuAmount })

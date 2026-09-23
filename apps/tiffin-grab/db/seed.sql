@@ -458,13 +458,17 @@ WHERE NOT EXISTS (
 -- be dead. This is also what keeps the two exclusive — a customer can stack up to
 -- maxTuAmount(=2) raita via repeated salad->raita swaps, but can never ALSO hold salad,
 -- since there is no pair that ever moves TU back out of raita.
+-- Each pair is plan-scoped (category_swap_pairs.plan_id) — every category below
+-- sits on both veg and non-veg (see category_plans above), so each direction
+-- becomes two rows, one per plan, same duplication pattern as dishes.
 DELETE FROM category_swap_pairs WHERE id > 0;
-INSERT INTO category_swap_pairs (public_id, created_at, updated_at, from_category_id, to_category_id)
-SELECT 'csp_' || SUBSTR(MD5(v.from_key || v.to_key), 1, 10),
+INSERT INTO category_swap_pairs (public_id, created_at, updated_at, from_category_id, to_category_id, plan_id)
+SELECT 'csp_' || SUBSTR(MD5(v.from_key || v.to_key || p.key), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (SELECT id FROM dish_categories WHERE key = v.from_key),
-       (SELECT id FROM dish_categories WHERE key = v.to_key)
+       (SELECT id FROM dish_categories WHERE key = v.to_key),
+       p.id
 FROM (VALUES
   ('daal', 'sabzi'), ('sabzi', 'daal'),
   -- 5 Item Thali's "Daal/Salad/Raita" slot on the pricing sheet: the base
@@ -472,7 +476,8 @@ FROM (VALUES
   ('daal', 'salad'), ('daal', 'raita'),
   ('salad', 'raita'),
   ('roti', 'rice'), ('rice', 'roti')
-) AS v(from_key, to_key);
+) AS v(from_key, to_key)
+CROSS JOIN plans p;
 
 -- ============ CURRY -> SABZI MERGE ============ (repoints any already-seeded rows from a
 -- prior run before the category itself is retired below — a plain re-seed of the categories
