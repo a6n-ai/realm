@@ -3,12 +3,12 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeftRightIcon, ArrowRightIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ArrowLeftRightIcon, ArrowRightIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { SectionCard, DataTable, ResponsiveDialog, type Column } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { addSwapPair, removeSwapPair } from "./actions";
+import { addSwapPair, editSwapPair, removeSwapPair } from "./actions";
 import { naturalSwapConversion, type AdminTuCategory } from "../admin-tu-hints";
 
 export type CategoryOption = { key: string; label: string };
@@ -19,9 +19,14 @@ export type SwapPairRow = {
   fromLabel: string;
   toCategory: string;
   toLabel: string;
-  planId: string;
+  // Null = the rule applies to every plan.
+  planId: string | null;
   planName: string;
 };
+
+// Radix Select rejects an empty-string item value, so "all plans" needs a
+// real sentinel — translated back to null at the service-call boundary.
+const ALL_PLANS = "__all_plans__";
 
 type Cols = "pair" | "plan" | "exchange" | "actions";
 const COLUMNS: readonly Column<Cols>[] = [
@@ -45,12 +50,13 @@ export function SwapPairGrid({
   pairs: SwapPairRow[];
 }) {
   const [adding, setAdding] = React.useState(false);
+  const [editing, setEditing] = React.useState<SwapPairRow | null>(null);
   const tuByKey = React.useMemo(() => new Map(categoryTu.map((c) => [c.key, c])), [categoryTu]);
 
   return (
     <SectionCard
       title="Swap rules"
-      subtitle="One direction per row — Roti → Rice does not create Rice → Roti. Whether a swap actually runs on a given order's plan depends on that plan having a dish in the target category — see Dishes."
+      subtitle="One direction per row — Roti → Rice does not create Rice → Roti. A rule with no plan set applies to every plan; a rule scoped to one plan only works there. Whether a swap actually runs also depends on that plan having a dish in the target category — see Dishes."
       action={
         <Button size="sm" onClick={() => setAdding(true)}>
           <PlusIcon data-icon="inline-start" /> Add rule
@@ -89,16 +95,34 @@ export function SwapPairGrid({
               )}
             </TableCell>
             <TableCell className="text-right">
-              <RemoveButton pair={pair} />
+              <div className="flex justify-end gap-1">
+                <Button onClick={() => setEditing(pair)} size="icon-sm" variant="ghost" aria-label="Edit swap pair">
+                  <PencilIcon className="size-4" />
+                </Button>
+                <RemoveButton pair={pair} />
+              </div>
             </TableCell>
           </>
           );
         }}
       />
 
-      <AddSwapPairDialog
+      <SwapPairDialog
+        key="add"
+        mode="add"
         open={adding}
         onOpenChange={setAdding}
+        categoryOptions={categoryOptions}
+        categoryTu={categoryTu}
+        planOptions={planOptions}
+        plansByCategoryKey={plansByCategoryKey}
+      />
+      <SwapPairDialog
+        key={editing?.id ?? "edit"}
+        mode="edit"
+        pair={editing}
+        open={editing != null}
+        onOpenChange={(next) => !next && setEditing(null)}
         categoryOptions={categoryOptions}
         categoryTu={categoryTu}
         planOptions={planOptions}
@@ -131,7 +155,9 @@ function RemoveButton({ pair }: { pair: SwapPairRow }) {
   );
 }
 
-function AddSwapPairDialog({
+function SwapPairDialog({
+  mode,
+  pair,
   open,
   onOpenChange,
   categoryOptions,
@@ -139,6 +165,8 @@ function AddSwapPairDialog({
   planOptions,
   plansByCategoryKey,
 }: {
+  mode: "add" | "edit";
+  pair?: SwapPairRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categoryOptions: CategoryOption[];
@@ -148,15 +176,17 @@ function AddSwapPairDialog({
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
-  const [fromCategory, setFromCategory] = React.useState("");
-  const [toCategory, setToCategory] = React.useState("");
-  const [planId, setPlanId] = React.useState("");
+  const [fromCategory, setFromCategory] = React.useState(pair?.fromCategory ?? "");
+  const [toCategory, setToCategory] = React.useState(pair?.toCategory ?? "");
+  const [planId, setPlanId] = React.useState(pair ? (pair.planId ?? ALL_PLANS) : "");
   const tuByKey = React.useMemo(() => new Map(categoryTu.map((c) => [c.key, c])), [categoryTu]);
   const conversion = naturalSwapConversion(tuByKey.get(fromCategory), tuByKey.get(toCategory));
 
-  // A swap rule is scoped to one plan — only offer plans both categories are
-  // attached to, mirroring the composition editor's category-first, plan-second pattern.
-  const planChoices = React.useMemo(() => {
+  // A swap rule may be scoped to one plan, or left at "All plans". The
+  // per-plan choices are only the plans both categories are attached to,
+  // mirroring the composition editor's category-first, plan-second pattern —
+  // "All plans" is always offered once both categories are picked.
+  const scopedPlanChoices = React.useMemo(() => {
     if (!fromCategory || !toCategory) return [];
     const fromPlans = new Set(plansByCategoryKey[fromCategory] ?? []);
     const toPlans = new Set(plansByCategoryKey[toCategory] ?? []);
@@ -165,9 +195,11 @@ function AddSwapPairDialog({
 
   const close = () => {
     onOpenChange(false);
-    setFromCategory("");
-    setToCategory("");
-    setPlanId("");
+    if (mode === "add") {
+      setFromCategory("");
+      setToCategory("");
+      setPlanId("");
+    }
   };
 
   const save = () => {
@@ -175,18 +207,20 @@ function AddSwapPairDialog({
       toast.error("Select both categories");
       return;
     }
-    if (!planId) {
-      toast.error("Select a plan");
-      return;
-    }
+    const resolvedPlanId = planId === ALL_PLANS || !planId ? null : planId;
     start(async () => {
       try {
-        await addSwapPair({ fromCategory, toCategory, planId });
-        toast.success("Swap rule added");
+        if (mode === "add") {
+          await addSwapPair({ fromCategory, toCategory, planId: resolvedPlanId });
+          toast.success("Swap rule added");
+        } else if (pair) {
+          await editSwapPair({ id: pair.id, fromCategory, toCategory, planId: resolvedPlanId });
+          toast.success("Swap rule updated");
+        }
         router.refresh();
         close();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to add");
+        toast.error(e instanceof Error ? e.message : `Failed to ${mode === "add" ? "add" : "update"}`);
       }
     });
   };
@@ -195,7 +229,7 @@ function AddSwapPairDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(next) : close())}
-      title="Add swap rule"
+      title={mode === "add" ? "Add swap rule" : "Edit swap rule"}
       description="Choose which categories may exchange. Natural amounts are calculated from Dish Category settings — you do not enter a conversion ratio."
       footer={
         <div className="flex justify-end gap-2">
@@ -203,7 +237,7 @@ function AddSwapPairDialog({
             Cancel
           </Button>
           <Button onClick={save} disabled={pending}>
-            {pending ? "Adding…" : "Add rule"}
+            {pending ? "Saving…" : mode === "add" ? "Add rule" : "Save changes"}
           </Button>
         </div>
       }
@@ -240,19 +274,17 @@ function AddSwapPairDialog({
             </SelectContent>
           </Select>
         </div>
-        <Select value={planId} onValueChange={setPlanId} disabled={planChoices.length === 0}>
+        <Select value={planId} onValueChange={setPlanId} disabled={!fromCategory || !toCategory}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder={fromCategory && toCategory ? "Select plan" : "Pick both categories first"} />
+            <SelectValue placeholder={fromCategory && toCategory ? "All plans" : "Pick both categories first"} />
           </SelectTrigger>
           <SelectContent>
-            {planChoices.map((p) => (
+            <SelectItem value={ALL_PLANS}>All plans</SelectItem>
+            {scopedPlanChoices.map((p) => (
               <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {fromCategory && toCategory && planChoices.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No plan has both categories attached — nothing to scope this rule to.</p>
-        ) : null}
         {conversion ? (
           <div className="bg-muted/40 rounded-lg border px-3 py-2 text-sm">
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Based on current category configuration</p>

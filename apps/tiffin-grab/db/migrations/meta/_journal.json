@@ -267,6 +267,13 @@
       "when": 1790400000000,
       "tag": "0037_category_swap_pairs_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790500000000,
+      "tag": "0038_category_swap_pairs_null_plan",
+      "breakpoints": true
     }
   ]
 }
