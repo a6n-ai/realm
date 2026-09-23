@@ -1,4 +1,5 @@
 import { AppError } from "@foundry/commons";
+import { MealRuleViolationError } from "@/lib/menu/meal-rule-error";
 
 /**
  * Shared return shape for customer-facing "use server" mutations that can be
@@ -11,7 +12,15 @@ import { AppError } from "@foundry/commons";
  */
 export type ActionResult<T extends Record<string, unknown> = Record<string, never>> =
   | ({ ok: true; message?: string } & T)
-  | { error: string };
+  | {
+      error: string;
+      /**
+       * Set when a meal rule refused the change, so the picker can highlight
+       * that rule in the list it already shows. Optional and additive — every
+       * existing caller keeps reading `error` alone.
+       */
+      violatedRuleId?: string;
+    };
 
 /**
  * Runs `fn`, converting an expected `AppError` into `{ error }`. Success may
@@ -36,6 +45,7 @@ export async function runAction<T extends Record<string, unknown>>(
     if (typeof result === "string") return { ok: true, message: result } as ActionResult;
     return { ok: true, ...result } as ActionResult<T>;
   } catch (e) {
+    if (e instanceof MealRuleViolationError) return { error: e.message, violatedRuleId: e.rulePublicId };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }

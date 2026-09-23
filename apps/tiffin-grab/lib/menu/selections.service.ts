@@ -5,9 +5,12 @@
 import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orderActivities, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
 import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import { validateMealRules } from "@/lib/menu/meal-validation";
+import { MealRuleViolationError } from "@/lib/menu/meal-rule-error";
+import type { HydratedPick, MealRule } from "@/lib/menu/meal-rule-types";
+import type { RuleLabels } from "@/lib/menu/meal-rule-text";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { mealRulesService } from "@/lib/services/meal-rules.service";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
@@ -28,6 +31,61 @@ const DAY_KEYS = Object.keys(DAY_OFFSET) as DayOfWeek[];
  * filtering) and resolveDeliveryMeal (per-category filtering) so the three
  * can never disagree.
  */
+/**
+ * Adds the dish facts a rule condition can test: name, and the dish's own plan
+ * (the Diet axis — NOT the order's plan, which can differ when a meal size mixes
+ * categories across plans).
+ */
+async function hydratePicks(
+  picks: { category: string; dishId: bigint }[],
+): Promise<HydratedPick[]> {
+  if (picks.length === 0) return [];
+  const ids = [...new Set(picks.map((p) => p.dishId))];
+  const rows = await db
+    .select({ id: dishes.id, name: dishes.name, planId: dishes.planId })
+    .from(dishes)
+    .where(inArray(dishes.id, ids));
+  const byId = new Map(rows.map((r) => [r.id.toString(), r]));
+  return picks.flatMap((p) => {
+    const d = byId.get(p.dishId.toString());
+    // A pick whose dish no longer exists cannot be tested; skipping it is safer
+    // than inventing a name that a dish_name rule might match.
+    return d ? [{ dishId: p.dishId, dishName: d.name, dishPlanId: d.planId, category: p.category }] : [];
+  });
+}
+
+/**
+ * Names for generating a rule's sentence when an admin left `description` blank.
+ * Only loads what the rules actually reference.
+ */
+async function ruleLabelsFor(
+  rules: MealRule[],
+  cats: { key: string; label: string }[],
+): Promise<RuleLabels> {
+  const planIds = new Set<string>();
+  const dishIds = new Set<string>();
+  for (const r of rules) {
+    for (const c of r.conditions) {
+      for (const id of c.valueIds ?? []) {
+        (c.field === "dish_plan" ? planIds : dishIds).add(id.toString());
+      }
+    }
+  }
+  const [planRows, dishRows] = await Promise.all([
+    planIds.size
+      ? db.select({ id: plans.id, name: plans.name }).from(plans).where(inArray(plans.id, [...planIds].map(BigInt)))
+      : Promise.resolve([]),
+    dishIds.size
+      ? db.select({ id: dishes.id, name: dishes.name }).from(dishes).where(inArray(dishes.id, [...dishIds].map(BigInt)))
+      : Promise.resolve([]),
+  ]);
+  return {
+    category: Object.fromEntries(cats.map((c) => [c.key, c.label])),
+    plan: Object.fromEntries(planRows.map((r) => [r.id.toString(), r.name])),
+    dish: Object.fromEntries(dishRows.map((r) => [r.id.toString(), r.name])),
+  };
+}
+
 export async function dishIdsForPlan(planId: bigint): Promise<Set<bigint>> {
   const rows = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.planId, planId));
   return new Set(rows.map((r) => r.id));
@@ -123,35 +181,65 @@ export const selectionsService = {
     const max = applySwapsToCounts(order.categoryCounts ?? {}, daySwaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
 
-    // Meal rules (e.g. max exclusive_to_plan dishes in a category) against the
-    // proposed final meal for this person/day — shared validator, not UI logic.
-    const rules = await mealRulesService.listEnabledForPlan(order.planId);
-    if (rules.some((r) => r.categoryKey === slot)) {
-      const exclusiveDishIds = await exclusiveDishIdsForPlan(order.planId);
+    // Meal rules against the proposed final meal for this person/day.
+    //
+    // Evaluated over EVERY category, not just the one being edited: rules like
+    // "cannot coexist" or a dish-name limit span categories, so a per-category
+    // check cannot see them. The extra query only runs when rules exist.
+    const rules = await mealRulesService.listEnabledForOrder({
+      planId: order.planId,
+      mealSizeId: order.mealSizeId,
+    });
+    if (rules.length > 0) {
       const categoryIds = await requireCategoryIds(cats.map((c) => c.key));
       const catId = categoryIds.get(slot)!;
+      const idToKey = new Map([...categoryIds.entries()].map(([key, id]) => [id.toString(), key]));
+
       const existing = await db
-        .select({ pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
+        .select({
+          categoryId: mealSelections.categoryId,
+          pickIndex: mealSelections.pickIndex,
+          dishId: mealSelections.dishId,
+        })
         .from(mealSelections)
         .where(and(
           eq(mealSelections.orderId, order.id),
           eq(mealSelections.menuWeekId, menuWeek.id),
           eq(mealSelections.dayOfWeek, dayOfWeek),
-          eq(mealSelections.categoryId, catId),
           eq(mealSelections.personIndex, personIndex),
         ));
-      const byPick = new Map(existing.map((e) => [e.pickIndex, e.dishId]));
-      byPick.set(pickIndex, dishId);
-      const picks = [...byPick.entries()].map(([pi, id]) => ({ category: slot, dishId: id, pickIndex: pi }));
-      // Only count picks that still exist within the effective slot count.
-      const proposed = picks.filter((p) => p.pickIndex >= 1 && p.pickIndex <= max).map(({ category, dishId: id }) => ({ category, dishId: id }));
+
+      // Overlay the incoming pick on the stored meal, keyed by (category, pick).
+      const byKey = new Map<string, { category: string; pickIndex: number; dishId: bigint }>();
+      for (const e of existing) {
+        const key = idToKey.get(e.categoryId.toString());
+        if (!key) continue; // category no longer on this plan — not part of the proposed meal
+        byKey.set(`${key}:${e.pickIndex}`, { category: key, pickIndex: e.pickIndex, dishId: e.dishId });
+      }
+      byKey.set(`${slot}:${pickIndex}`, { category: slot, pickIndex, dishId });
+      void catId;
+
+      // Drop picks past each category's effective (post-swap) slot count, so a
+      // pick that a swap has already removed cannot trigger a phantom violation.
+      const effective = applySwapsToCounts(order.categoryCounts ?? {}, daySwaps);
+      const live = [...byKey.values()].filter(
+        (p) => p.pickIndex >= 1 && p.pickIndex <= (effective[p.category] ?? 0),
+      );
+
+      const picks = await hydratePicks(live);
+      const focus = picks.find((p) => p.dishId === dishId && p.category === slot);
       const ruleCheck = validateMealRules({
         rules,
-        exclusiveDishIds,
-        picks: proposed,
+        picks,
+        focus,
         labels: Object.fromEntries(cats.map((c) => [c.key, c.label])),
+        // Only needed to GENERATE a sentence; rules the admin already described
+        // need no lookups, so skip the two queries when every rule has text.
+        ruleLabels: rules.every((r) => r.description?.trim())
+          ? undefined
+          : await ruleLabelsFor(rules, cats),
       });
-      if (!ruleCheck.ok) throw new ValidationError(ruleCheck.reason);
+      if (!ruleCheck.ok) throw new MealRuleViolationError(ruleCheck.reason, ruleCheck.rulePublicId);
     }
 
     // Read the outgoing dish BEFORE the upsert overwrites it. Without this the log could
