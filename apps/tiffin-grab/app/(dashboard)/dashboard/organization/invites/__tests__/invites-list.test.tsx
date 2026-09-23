@@ -73,3 +73,23 @@ describe("InvitesList cancel failure", () => {
     expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/could not cancel/i));
   });
 });
+
+describe("InvitesList mobile card", () => {
+  it("renders email, status, role, and expires date in the mobile card", () => {
+    const { container } = render(
+      <InvitesList
+        rows={[
+          { id: "inv_4", userId: "user_4", email: "d@x.com", role: "member", status: "pending", expiresAt: new Date(Date.now() + 86400000).toISOString(), organizationId: "org_1" },
+        ]}
+      />,
+    );
+    const card = container.querySelector(".md\\:hidden");
+    expect(card).not.toBeNull();
+    const scope = within(card as HTMLElement);
+    expect(scope.getByText("d@x.com")).toBeTruthy();      // email
+    expect(scope.getByText("member")).toBeTruthy();       // role
+    expect(scope.getByText(/pending/i)).toBeTruthy();     // status badge
+    expect(scope.getByText("Role")).toBeTruthy();         // role label
+    expect(scope.getByText("Status")).toBeTruthy();       // status label
+  });
+});

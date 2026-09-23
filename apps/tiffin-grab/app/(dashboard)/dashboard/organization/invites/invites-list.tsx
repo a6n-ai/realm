@@ -36,6 +36,7 @@ export function InvitesList({ rows }: { rows: InviteRow[] }) {
       emptyMessage="No pending invites."
       emptySearchMessage="No invites match your search."
       renderRow={(r) => <InviteRowCells row={r} />}
+      mobileCard={(r) => <InviteRowCard row={r} />}
     />
   );
 }
@@ -79,5 +80,59 @@ function InviteRowCells({ row }: { row: InviteRow }) {
           ))}
       </TableCell>
     </>
+  );
+}
+
+// Mobile card variant — InviteRowCells returns <td>s (a component, so DataTable can't
+// auto-derive a card from it); this renders the same controls as card content.
+function InviteRowCard({ row }: { row: InviteRow }) {
+  const [pending, start] = useTransition();
+  const expired = row.status === "pending" && new Date(row.expiresAt).getTime() < Date.now();
+  const displayStatus = expired ? "expired" : row.status;
+
+  const onResend = () =>
+    start(async () => {
+      try {
+        await resendInvite(row.userId, row.organizationId);
+        toast.success("Invite resent");
+      } catch {
+        toast.error("Could not resend the invite.");
+      }
+    });
+  const onCancel = () =>
+    start(async () => {
+      try {
+        await cancelInvitation(row.id);
+        toast.success("Invitation canceled");
+      } catch {
+        toast.error("Could not cancel — it may have already been accepted or canceled.");
+      }
+    });
+
+  return (
+    <div className="space-y-3">
+      <div className="text-base font-medium">{row.email}</div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground text-sm">Role</span>
+        <span className="text-sm">{row.role}</span>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground text-sm">Status</span>
+        <Badge variant={displayStatus === "pending" ? "default" : "secondary"}>{displayStatus}</Badge>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground text-sm">Expires</span>
+        <span className="text-muted-foreground text-sm">{new Date(row.expiresAt).toLocaleDateString()}</span>
+      </div>
+      {(row.status === "pending" || expired) && (
+        <div className="flex items-center justify-between gap-3 pt-2">
+          {expired ? (
+            <Button variant="outline" size="sm" disabled={pending} onClick={onResend} className="w-full">Resend</Button>
+          ) : (
+            <Button variant="ghost" size="sm" disabled={pending} onClick={onCancel} className="w-full">Cancel</Button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
