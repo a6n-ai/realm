@@ -1,0 +1,83 @@
+"use client";
+import { useTransition } from "react";
+import { toast } from "sonner";
+import { MailIcon } from "lucide-react";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
+import { TableCell } from "@foundry/ui/table";
+import { DataTable, type Column } from "@/components/ds";
+import { cancelInvitation, resendInvite } from "../users/actions";
+
+export type InviteRow = {
+  id: string;
+  userId: string; // users.publicId, needed for resendInvite's signature
+  email: string;
+  role: string;
+  status: "pending" | "accepted" | "rejected" | "canceled";
+  expiresAt: string; // ISO
+  organizationId: string;
+};
+
+const COLUMNS: readonly Column<"email" | "role" | "status" | "expiresAt" | "actions">[] = [
+  { key: "email", label: "Email" },
+  { key: "role", label: "Role" },
+  { key: "status", label: "Status" },
+  { key: "expiresAt", label: "Expires" },
+  { key: "actions", label: "" },
+];
+
+export function InvitesList({ rows }: { rows: InviteRow[] }) {
+  return (
+    <DataTable
+      columns={COLUMNS}
+      rows={rows}
+      rowKey={(r) => r.id}
+      emptyIcon={MailIcon}
+      emptyMessage="No pending invites."
+      emptySearchMessage="No invites match your search."
+      renderRow={(r) => <InviteRowCells row={r} />}
+    />
+  );
+}
+
+function InviteRowCells({ row }: { row: InviteRow }) {
+  const [pending, start] = useTransition();
+  const expired = row.status === "pending" && new Date(row.expiresAt).getTime() < Date.now();
+  const displayStatus = expired ? "expired" : row.status;
+
+  const onResend = () =>
+    start(async () => {
+      try {
+        await resendInvite(row.userId, row.organizationId);
+        toast.success("Invite resent");
+      } catch {
+        toast.error("Could not resend the invite.");
+      }
+    });
+  const onCancel = () =>
+    start(async () => {
+      try {
+        await cancelInvitation(row.id);
+        toast.success("Invitation canceled");
+      } catch {
+        toast.error("Could not cancel — it may have already been accepted or canceled.");
+      }
+    });
+
+  return (
+    <>
+      <TableCell className="font-medium">{row.email}</TableCell>
+      <TableCell>{row.role}</TableCell>
+      <TableCell><Badge variant={displayStatus === "pending" ? "default" : "secondary"}>{displayStatus}</Badge></TableCell>
+      <TableCell className="text-muted-foreground">{new Date(row.expiresAt).toLocaleDateString()}</TableCell>
+      <TableCell>
+        {(row.status === "pending" || expired) &&
+          (expired ? (
+            <Button variant="outline" size="sm" disabled={pending} onClick={onResend}>Resend</Button>
+          ) : (
+            <Button variant="ghost" size="sm" disabled={pending} onClick={onCancel}>Cancel</Button>
+          ))}
+      </TableCell>
+    </>
+  );
+}
