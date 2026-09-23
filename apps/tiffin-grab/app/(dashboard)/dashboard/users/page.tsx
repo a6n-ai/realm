@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function LegacyUsersRedirect() {
-  redirect("/dashboard/organization/users");
+  redirect("/dashboard/organization/members");
 }

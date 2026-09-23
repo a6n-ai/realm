@@ -14,7 +14,7 @@ const ITEMS: { label: string; href: string; icon: LucideIcon }[] = [
 export function OrgNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-1 border-b pb-2 sm:w-48 sm:flex-col sm:border-b-0 sm:border-r sm:pr-4 sm:pb-0">
+    <nav className="flex gap-1 overflow-x-auto border-b pb-2 sm:w-48 sm:flex-col sm:border-b-0 sm:border-r sm:pr-4 sm:pb-0">
       {ITEMS.map((item) => {
         const active = pathname.startsWith(item.href);
         return (
@@ -23,7 +23,7 @@ export function OrgNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
               active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
             )}
           >

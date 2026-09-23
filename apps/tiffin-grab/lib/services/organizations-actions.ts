@@ -86,7 +86,7 @@ export async function createFranchise(
       return created.id;
     });
 
-    revalidatePath("/dashboard/organization/clients");
+    revalidatePath("/dashboard/organization/settings");
     return { ok: true, id: createdId };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Organization creation failed." };
@@ -101,7 +101,7 @@ export async function addMemberAction(
   await requireAdmin();
   try {
     await addMember(organizationId, userPublicId, role);
-    revalidatePath(`/dashboard/organization/clients/${organizationId}`);
+    revalidatePath(`/dashboard/organization/settings/${organizationId}`);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not add member." };
@@ -114,14 +114,14 @@ export async function updateOrganizationAction(
 ): Promise<UpdateOrganizationResult> {
   await requireAdmin();
   const result = await updateOrganization(id, fields);
-  if (result.ok) revalidatePath(`/dashboard/organization/clients/${id}`);
+  if (result.ok) revalidatePath(`/dashboard/organization/settings/${id}`);
   return result;
 }
 
 export async function removeMemberAction(organizationId: string, userPublicId: string): Promise<void> {
   await requireAdmin();
   await removeMember(organizationId, userPublicId);
-  revalidatePath(`/dashboard/organization/clients/${organizationId}`);
+  revalidatePath(`/dashboard/organization/settings/${organizationId}`);
 }
 
 export async function searchUsersByEmailAction(query: string): Promise<UserSearchRow[]> {
@@ -137,7 +137,7 @@ export async function updateMemberRoleAction(
   await requireAdmin();
   try {
     await updateMemberRole(organizationId, userPublicId, role);
-    revalidatePath(`/dashboard/organization/clients/${organizationId}`);
+    revalidatePath(`/dashboard/organization/settings/${organizationId}`);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not update role." };

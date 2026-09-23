@@ -107,7 +107,7 @@ export const SECTIONS: NavSection[] = [
   {
     label: "Administration",
     items: [
-      { title: "Organization", href: "/dashboard/organization/overview", icon: Building2Icon, roles: ["admin"] },
+      { title: "Organization", href: "/dashboard/organization", icon: Building2Icon, roles: ["admin"] },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, roles: ["admin"] },
       { title: "Design system", href: "/dashboard/design", icon: PaletteIcon, roles: ["admin"] },
     ],
