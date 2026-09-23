@@ -237,52 +237,53 @@ describe("multi-row Sabzi composition (actual row TU — Phase 7)", () => {
   });
 });
 
-describe("validateMealRules — exclusive_to_plan", () => {
-  const chicken = 101n;
-  const butter = 102n;
-  const aloo = 201n;
-  const bhindi = 202n;
-  const exclusive = new Set([chicken, butter]);
+// The legacy `exclusive_to_plan` rule is now expressed as
+// `dish_plan is <plan> AND category is <key>` with a max_qualifying action —
+// the same behaviour the migration backfills existing rows into. These cases
+// are kept verbatim in meaning so that equivalence is provable.
+describe("validateMealRules — plan-exclusive limit (migrated shape)", () => {
+  const NONVEG = 9n;
+  const VEG = 8n;
+  const chicken = { dishId: 101n, dishName: "Chicken Curry", dishPlanId: NONVEG, category: "sabzi" };
+  const butter = { dishId: 102n, dishName: "Butter Chicken", dishPlanId: NONVEG, category: "sabzi" };
+  const aloo = { dishId: 201n, dishName: "Aloo Gobi", dishPlanId: VEG, category: "sabzi" };
+  const bhindi = { dishId: 202n, dishName: "Bhindi Masala", dishPlanId: VEG, category: "sabzi" };
+
+  const rules = [{
+    publicId: "mlr_1",
+    matchMode: "all" as const,
+    action: "max_qualifying" as const,
+    actionValue: 1,
+    priority: 0,
+    conditions: [
+      { field: "dish_plan" as const, operator: "is" as const, valueIds: [NONVEG] },
+      { field: "category" as const, operator: "is" as const, valueKeys: ["sabzi"] },
+    ],
+  }];
 
   it("Chicken + Aloo = valid; Chicken + Chicken = invalid when max=1", () => {
-    const rules = [{ categoryKey: "sabzi", condition: "exclusive_to_plan" as const, maxCount: 1 }];
-    expect(validateMealRules({
-      rules, exclusiveDishIds: exclusive,
-      picks: [{ category: "sabzi", dishId: chicken }, { category: "sabzi", dishId: aloo }],
-    }).ok).toBe(true);
-    expect(validateMealRules({
-      rules, exclusiveDishIds: exclusive,
-      picks: [{ category: "sabzi", dishId: chicken }, { category: "sabzi", dishId: chicken }],
-    })).toMatchObject({ ok: false });
+    expect(validateMealRules({ rules, picks: [chicken, aloo] }).ok).toBe(true);
+    expect(validateMealRules({ rules, picks: [chicken, chicken] })).toMatchObject({ ok: false });
   });
 
-  it("three sabzi picks: Chicken + Aloo + Bhindi valid; two exclusive invalid", () => {
-    const rules = [{ categoryKey: "sabzi", condition: "exclusive_to_plan" as const, maxCount: 1 }];
-    expect(validateMealRules({
-      rules, exclusiveDishIds: exclusive,
-      picks: [
-        { category: "sabzi", dishId: chicken },
-        { category: "sabzi", dishId: aloo },
-        { category: "sabzi", dishId: bhindi },
-      ],
-    }).ok).toBe(true);
-    const bad = validateMealRules({
-      rules, exclusiveDishIds: exclusive,
-      picks: [
-        { category: "sabzi", dishId: chicken },
-        { category: "sabzi", dishId: butter },
-        { category: "sabzi", dishId: aloo },
-      ],
-    });
+  it("three sabzi picks: one non-veg valid; two non-veg invalid", () => {
+    expect(validateMealRules({ rules, picks: [chicken, aloo, bhindi] }).ok).toBe(true);
+    const bad = validateMealRules({ rules, picks: [chicken, butter, aloo] });
     expect(bad.ok).toBe(false);
-    if (!bad.ok) expect(bad.reason).toMatch(/only 1 sabzi exclusive/i);
+    // The message is the rule's own sentence, and it names which rule failed so
+    // the picker can highlight it.
+    if (!bad.ok) {
+      expect(bad.rulePublicId).toBe("mlr_1");
+      expect(bad.reason).toMatch(/at most 1/i);
+    }
+  });
+
+  it("does not constrain a category the rule does not name", () => {
+    const rice = { dishId: 301n, dishName: "Jeera Rice", dishPlanId: NONVEG, category: "rice" };
+    expect(validateMealRules({ rules, picks: [chicken, rice] }).ok).toBe(true);
   });
 
   it("no rules = always ok", () => {
-    expect(validateMealRules({
-      rules: [],
-      exclusiveDishIds: exclusive,
-      picks: [{ category: "sabzi", dishId: chicken }, { category: "sabzi", dishId: butter }],
-    }).ok).toBe(true);
+    expect(validateMealRules({ rules: [], picks: [chicken, butter] }).ok).toBe(true);
   });
 });

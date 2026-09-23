@@ -61,8 +61,17 @@ describe("mealRulesService + swap options", () => {
       maxCount: 1,
     });
     createdRuleIds.push(publicId);
-    const listed = await mealRulesService.listEnabledForPlan(plan!.id);
-    expect(listed).toEqual([{ categoryKey: "sabzi", condition: "exclusive_to_plan", maxCount: 1 }]);
+    // The legacy write also lays down the scope + conditions the engine reads,
+    // so a rule saved from the existing admin grid is still enforced.
+    const listed = await mealRulesService.listEnabledForOrder({ planId: plan!.id });
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toMatchObject({ action: "max_qualifying", actionValue: 1, matchMode: "all" });
+    expect(listed[0]!.conditions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: "category", operator: "is", valueKeys: ["sabzi"] }),
+        expect.objectContaining({ field: "dish_plan", operator: "is", valueIds: [plan!.id] }),
+      ]),
+    );
   });
 
   it("listValidSwapOptionsForDelivery only returns divisible bundles within Max TU", async () => {

@@ -280,17 +280,28 @@ describe("Phase 7.1 Case H — Max Picks", () => {
 
 describe("Phase 7.1 Case I — Meal Rules still independent of TU", () => {
   it("exclusive_to_plan max=1 rejects two exclusive dishes; valid config ok", () => {
-    const exclusive = new Set([101n, 102n]);
-    const rules = [{ categoryKey: "sabzi", condition: "exclusive_to_plan" as const, maxCount: 1 }];
+    const NONVEG = 9n;
+    const VEG = 8n;
+    const rules = [{
+      publicId: "mlr_1",
+      matchMode: "all" as const,
+      action: "max_qualifying" as const,
+      actionValue: 1,
+      priority: 0,
+      conditions: [
+        { field: "dish_plan" as const, operator: "is" as const, valueIds: [NONVEG] },
+        { field: "category" as const, operator: "is" as const, valueKeys: ["sabzi"] },
+      ],
+    }];
+    const pick = (dishId: bigint, planId: bigint) =>
+      ({ dishId, dishName: `d${dishId}`, dishPlanId: planId, category: "sabzi" });
     expect(validateMealRules({
       rules,
-      exclusiveDishIds: exclusive,
-      picks: [{ category: "sabzi", dishId: 101n }, { category: "sabzi", dishId: 102n }],
+      picks: [pick(101n, NONVEG), pick(102n, NONVEG)],
     }).ok).toBe(false);
     expect(validateMealRules({
       rules,
-      exclusiveDishIds: exclusive,
-      picks: [{ category: "sabzi", dishId: 101n }, { category: "sabzi", dishId: 201n }],
+      picks: [pick(101n, NONVEG), pick(201n, VEG)],
     }).ok).toBe(true);
   });
 });
