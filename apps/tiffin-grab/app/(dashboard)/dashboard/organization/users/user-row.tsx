@@ -11,7 +11,7 @@ import { Switch } from "@foundry/ui/switch";
 import { TableCell } from "@foundry/ui/table";
 import { RowActions } from "@foundry/design-system";
 import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
-import { resetStaffPassword, setUserFlag, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
+import { resendInvite, resetStaffPassword, setUserFlag, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
 import type { UserListRow } from "./users-list";
 
 const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
@@ -125,13 +125,52 @@ export function ResetPasswordButton({
   );
 }
 
+// Real resend, replacing the old fallback of re-mailing the reset-password OTP
+// for accounts with no credential yet: issues a fresh invitation row via
+// createInvitation, so a genuinely expired/stale invite gets a working link
+// again. Hidden once accepted — nothing left to resend.
+export function ResendInviteButton({
+  id,
+  organizationId,
+  invitationStatus,
+  variant = "icon",
+}: {
+  id: string;
+  organizationId: string;
+  invitationStatus: "none" | "pending" | "expired" | "accepted";
+  variant?: "icon" | "button";
+}) {
+  const [pending, start] = useTransition();
+  if (invitationStatus === "accepted") return null;
+
+  const label = invitationStatus === "none" ? "Send invite" : "Resend invite";
+  const onClick = () =>
+    start(async () => {
+      try {
+        const { email } = await resendInvite(id, organizationId);
+        toast.success("Invite sent", { description: `They'll get an invite link at ${email}.`, duration: 8000 });
+      } catch {
+        toast.error("Could not send the invite.");
+      }
+    });
+
+  if (variant === "button") {
+    return (
+      <Button variant="outline" size="sm" disabled={pending} onClick={onClick}>
+        {label}
+      </Button>
+    );
+  }
+  return <RowActionTooltipButton icon={SendHorizonal} label={label} disabled={pending} onClick={onClick} />;
+}
+
 export type FlagState = { id: string; key: string; label: string; enabled: boolean };
 
 // Returns only the <TableCell> children — DataTable supplies the wrapping
 // <TableRow>. Interactive role/flag controls stay client-side here.
 // Feature flags live on the user detail page only (this list row stays lean as
 // the flag set grows) — see [id]/page.tsx's own FlagToggles usage.
-export function UserRow({ id, name, email, phone, role, status, passwordSet }: UserListRow) {
+export function UserRow({ id, name, email, phone, role, status, passwordSet, organizationId, invitationStatus }: UserListRow) {
   return (
     <>
       <TableCell>
@@ -148,7 +187,12 @@ export function UserRow({ id, name, email, phone, role, status, passwordSet }: U
       <TableCell><StatusSelect id={id} status={status} /></TableCell>
       <TableCell>
         <RowActions>
-          <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
+          {role !== Role.USER &&
+            (passwordSet ? (
+              <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
+            ) : (
+              <ResendInviteButton id={id} organizationId={organizationId} invitationStatus={invitationStatus} />
+            ))}
         </RowActions>
       </TableCell>
     </>
@@ -157,7 +201,7 @@ export function UserRow({ id, name, email, phone, role, status, passwordSet }: U
 
 // Mobile card variant — UserRow returns <td>s (a component, so DataTable can't
 // auto-derive a card from it); this renders the same controls as card content.
-export function UserRowCard({ id, name, email, phone, role, status, passwordSet }: UserListRow) {
+export function UserRowCard({ id, name, email, phone, role, status, passwordSet, organizationId, invitationStatus }: UserListRow) {
   return (
     <div className="space-y-3">
       <Link href={`/dashboard/organization/users/${id}`} className="flex items-center gap-3">
@@ -178,7 +222,11 @@ export function UserRowCard({ id, name, email, phone, role, status, passwordSet 
       {role !== Role.USER && (
         <div className="flex items-center justify-between gap-3">
           <span className="text-muted-foreground text-sm">Password</span>
-          <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
+          {passwordSet ? (
+            <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
+          ) : (
+            <ResendInviteButton id={id} organizationId={organizationId} invitationStatus={invitationStatus} />
+          )}
         </div>
       )}
     </div>

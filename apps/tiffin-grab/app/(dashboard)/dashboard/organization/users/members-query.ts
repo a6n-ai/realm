@@ -12,6 +12,7 @@ export type MemberRow = {
   status: "active" | "inactive" | "suspended" | "deleted";
   passwordSet: boolean;
   invitationStatus: "none" | "pending" | "expired" | "accepted";
+  organizationId: string;
 };
 
 /**
@@ -34,6 +35,7 @@ export async function getMembersForOrgs(orgIds: string[]): Promise<MemberRow[]> 
       passwordSet: users.passwordSet,
       invitationStatus: invitation.status,
       invitationExpiresAt: invitation.expiresAt,
+      organizationId: member.organizationId,
     })
     .from(member)
     .innerJoin(users, eq(users.id, member.userId))
@@ -61,6 +63,7 @@ export async function getMembersForOrgs(orgIds: string[]): Promise<MemberRow[]> 
       status: r.status,
       passwordSet: r.passwordSet,
       invitationStatus,
+      organizationId: r.organizationId,
     };
   });
 }

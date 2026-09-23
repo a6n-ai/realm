@@ -2,7 +2,11 @@
 
 import type { RoleValue } from "@foundry/commons";
 import { ValidationError } from "@foundry/commons";
+import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { db } from "@/db/client";
+import { users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { requireAdmin, requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
@@ -56,6 +60,27 @@ export async function resetStaffPassword(userId: string): Promise<{ email: strin
   const email = await usersService.assertStaffEmail(userId);
   await auth.api.sendVerificationOTP({ body: { email, type: "forget-password" } });
   return { email };
+}
+
+// Real resend, unlike the old ResetPasswordButton fallback which just re-mailed
+// an OTP: createInvitation issues a fresh invitation row (extends expiry / makes
+// a first invite for accounts created before this plan that have none at all).
+export async function resendInvite(userId: string, organizationId: string): Promise<{ email: string }> {
+  await requireAdmin();
+  const [u] = await db.select({ email: users.email, role: users.role }).from(users).where(eq(users.publicId, userId)).limit(1);
+  if (!u?.email) throw new ValidationError("This user has no email address to send an invite to.");
+  await auth.api.createInvitation({
+    body: { email: u.email, role: u.role as "admin" | "member", organizationId, resend: true },
+    headers: await headers(),
+  });
+  revalidatePath("/dashboard/organization/users");
+  return { email: u.email };
+}
+
+export async function cancelInvitation(invitationId: string): Promise<void> {
+  await requireAdmin();
+  await auth.api.cancelInvitation({ body: { invitationId }, headers: await headers() });
+  revalidatePath("/dashboard/organization/users");
 }
 
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {

@@ -17,6 +17,7 @@ export type UserListRow = {
   status: UserStatusValue;
   passwordSet: boolean;
   invitationStatus: "none" | "pending" | "expired" | "accepted";
+  organizationId: string;
 };
 
 // Single source of truth for the table's columns. DataTable renders the header
