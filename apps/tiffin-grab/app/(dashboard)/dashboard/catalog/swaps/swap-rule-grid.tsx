@@ -45,7 +45,7 @@ export function SwapPairGrid({
   pairs: SwapPairRow[];
 }) {
   const [adding, setAdding] = React.useState(false);
-  const tuByKey = new Map(categoryTu.map((c) => [c.key, c]));
+  const tuByKey = React.useMemo(() => new Map(categoryTu.map((c) => [c.key, c])), [categoryTu]);
 
   return (
     <SectionCard
@@ -151,7 +151,7 @@ function AddSwapPairDialog({
   const [fromCategory, setFromCategory] = React.useState("");
   const [toCategory, setToCategory] = React.useState("");
   const [planId, setPlanId] = React.useState("");
-  const tuByKey = new Map(categoryTu.map((c) => [c.key, c]));
+  const tuByKey = React.useMemo(() => new Map(categoryTu.map((c) => [c.key, c])), [categoryTu]);
   const conversion = naturalSwapConversion(tuByKey.get(fromCategory), tuByKey.get(toCategory));
 
   // A swap rule is scoped to one plan — only offer plans both categories are

@@ -347,23 +347,46 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     }]));
   }
 
-  async planIdForMealSize(mealSizeId: bigint): Promise<bigint | null> {
-    const [size] = await db.select({ planId: mealSizes.planId }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
-    return size?.planId ?? null;
+  /**
+   * Every plan a meal size's own composition draws dishes from — the meal
+   * size's own planId plus whatever other plans its mealSizeItems rows
+   * independently target (e.g. a non-veg thali with a veg-tagged Sabzi row).
+   * Mirrors allowedDishIdsForMealSize in selections.service.ts, which unions
+   * dishes the same way; swap eligibility must see the same set meal
+   * selection does, or a rule scoped to a reachable plan silently does
+   * nothing. A veg meal size's composition never references the non-veg
+   * plan, so this set — and everything gated on it — stays one-directional
+   * with no extra guard needed.
+   */
+  async reachablePlanIdsForMealSize(mealSizeId: bigint): Promise<bigint[]> {
+    const rows = await db.selectDistinct({ planId: mealSizeItems.planId }).from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, mealSizeId));
+    return rows.map((r) => r.planId);
+  }
+
+  /** Is (fromKey, toKey) allowed to swap on ANY plan this meal size's composition reaches? */
+  async isSwapPairAllowedForMealSize(fromKey: string, toKey: string, mealSizeId: bigint): Promise<boolean> {
+    const planIds = await this.reachablePlanIdsForMealSize(mealSizeId);
+    for (const planId of planIds) {
+      if (await this.isSwapPairAllowed(fromKey, toKey, planId)) return true;
+    }
+    return false;
   }
 
   /** Pairs the swap drawer may offer for one meal size — the same gate applyDeliverySwap enforces. */
   async swapPairsForMealSize(mealSizeId: bigint): Promise<{ fromCategory: string; toCategory: string }[]> {
-    const [cats, all, planId] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.listSwapPairs(), this.planIdForMealSize(mealSizeId)]);
-    if (!planId) return [];
-    const [plan] = await db.select({ publicId: plans.publicId }).from(plans).where(eq(plans.id, planId)).limit(1);
-    if (!plan) return [];
-    const onPlan = all.filter((p) => p.planId === plan.publicId);
-    const results = await Promise.all(onPlan.map(async (p) => {
+    const [cats, all, planIds] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.listSwapPairs(), this.reachablePlanIdsForMealSize(mealSizeId)]);
+    if (!planIds.length) return [];
+    const reachablePlans = await db.select({ id: plans.id, publicId: plans.publicId }).from(plans).where(inArray(plans.id, planIds));
+    // publicId -> bigint id, so a matched pair's own plan (already known from
+    // the filter below) is checked directly instead of re-scanning every
+    // reachable plan per pair.
+    const idByPublicId = new Map(reachablePlans.map((p) => [p.publicId, p.id]));
+    const onReachablePlan = all.filter((p) => idByPublicId.has(p.planId));
+    const results = await Promise.all(onReachablePlan.map(async (p) => {
       const from = cats.get(p.fromKey);
       const to = cats.get(p.toKey);
       if (!from || !to || !swapPairFits(from, to)) return null;
-      const allowed = await this.isSwapPairAllowed(p.fromKey, p.toKey, planId);
+      const allowed = await this.isSwapPairAllowed(p.fromKey, p.toKey, idByPublicId.get(p.planId)!);
       return allowed ? { fromCategory: p.fromKey, toCategory: p.toKey } : null;
     }));
     return results.filter((r): r is { fromCategory: string; toCategory: string } => r !== null);
