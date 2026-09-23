@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import { requireAdmin } from "@/lib/auth/guards";
 import { resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
 import { getMembersForOrgs } from "../members/members-query";
+import { countPendingInvites } from "../invites/invites-query";
 import { StatCards } from "./stat-cards";
 import { RecentActivity, type ActivityItem } from "./recent-activity";
 
@@ -24,8 +25,9 @@ async function OverviewData() {
   const allOrgs = await listOrganizations();
   const orgIds = visible === "all" ? allOrgs.map((o) => o.id) : visible;
 
-  const [members, recentInvites, recentMembers] = await Promise.all([
+  const [members, pendingInviteCount, recentInvites, recentMembers] = await Promise.all([
     getMembersForOrgs(orgIds),
+    countPendingInvites(orgIds),
     orgIds.length === 0
       ? []
       : db
@@ -51,7 +53,6 @@ async function OverviewData() {
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 10);
 
   const franchiseCount = allOrgs.filter((o) => o.parentOrganizationId !== null && orgIds.includes(o.id)).length;
-  const pendingInviteCount = members.filter((m) => m.invitationStatus === "pending").length;
 
   return (
     <>

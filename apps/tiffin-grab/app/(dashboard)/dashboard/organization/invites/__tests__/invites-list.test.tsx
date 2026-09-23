@@ -28,6 +28,7 @@ describe("InvitesList", () => {
         rows={[
           { id: "inv_1", userId: "user_1", email: "a@x.com", role: "member", status: "pending", expiresAt: new Date(Date.now() + 86400000).toISOString(), organizationId: "org_1" },
         ]}
+        actionableOrgIds={["org_1"]}
       />,
     );
     const scope = desktopScope(container);
@@ -42,6 +43,7 @@ describe("InvitesList", () => {
         rows={[
           { id: "inv_2", userId: "user_2", email: "b@x.com", role: "member", status: "pending", expiresAt: new Date(Date.now() - 1000).toISOString(), organizationId: "org_1" },
         ]}
+        actionableOrgIds={["org_1"]}
       />,
     );
     const scope = desktopScope(container);
@@ -49,8 +51,23 @@ describe("InvitesList", () => {
     expect(scope.getByRole("button", { name: /resend/i })).toBeTruthy();
   });
 
+  it("hides Resend/Cancel for an org the viewer isn't a direct member of", () => {
+    const { container } = render(
+      <InvitesList
+        rows={[
+          { id: "inv_5", userId: "user_5", email: "e@x.com", role: "member", status: "pending", expiresAt: new Date(Date.now() + 86400000).toISOString(), organizationId: "org_2" },
+          { id: "inv_6", userId: "user_6", email: "f@x.com", role: "member", status: "pending", expiresAt: new Date(Date.now() - 1000).toISOString(), organizationId: "org_2" },
+        ]}
+        actionableOrgIds={["org_1"]}
+      />,
+    );
+    const scope = desktopScope(container);
+    expect(scope.getByText("e@x.com")).toBeTruthy();
+    expect(scope.queryByRole("button", { name: /cancel|resend/i })).toBeNull();
+  });
+
   it("shows an empty state with zero invitations", () => {
-    const { container } = render(<InvitesList rows={[]} />);
+    const { container } = render(<InvitesList rows={[]} actionableOrgIds={[]} />);
     const scope = desktopScope(container);
     expect(scope.getByText(/no pending invites/i)).toBeTruthy();
   });
@@ -66,6 +83,7 @@ describe("InvitesList cancel failure", () => {
         rows={[
           { id: "inv_3", userId: "user_3", email: "c@x.com", role: "member", status: "pending", expiresAt: new Date(Date.now() + 86400000).toISOString(), organizationId: "org_1" },
         ]}
+        actionableOrgIds={["org_1"]}
       />,
     );
     const scope = desktopScope(container);
@@ -81,6 +99,7 @@ describe("InvitesList mobile card", () => {
         rows={[
           { id: "inv_4", userId: "user_4", email: "d@x.com", role: "member", status: "pending", expiresAt: new Date(Date.now() + 86400000).toISOString(), organizationId: "org_1" },
         ]}
+        actionableOrgIds={["org_1"]}
       />,
     );
     const card = container.querySelector(".md\\:hidden");

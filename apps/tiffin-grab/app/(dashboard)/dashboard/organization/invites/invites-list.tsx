@@ -26,7 +26,10 @@ const COLUMNS: readonly Column<"email" | "role" | "status" | "expiresAt" | "acti
   { key: "actions", label: "" },
 ];
 
-export function InvitesList({ rows }: { rows: InviteRow[] }) {
+// actionableOrgIds: orgs the viewer is a direct member of — the only ones where
+// better-auth's createInvitation/cancelInvitation won't reject with MEMBER_NOT_FOUND.
+export function InvitesList({ rows, actionableOrgIds }: { rows: InviteRow[]; actionableOrgIds: string[] }) {
+  const canAct = (r: InviteRow) => actionableOrgIds.includes(r.organizationId);
   return (
     <DataTable
       columns={COLUMNS}
@@ -35,13 +38,13 @@ export function InvitesList({ rows }: { rows: InviteRow[] }) {
       emptyIcon={MailIcon}
       emptyMessage="No pending invites."
       emptySearchMessage="No invites match your search."
-      renderRow={(r) => <InviteRowCells row={r} />}
-      mobileCard={(r) => <InviteRowCard row={r} />}
+      renderRow={(r) => <InviteRowCells row={r} canAct={canAct(r)} />}
+      mobileCard={(r) => <InviteRowCard row={r} canAct={canAct(r)} />}
     />
   );
 }
 
-function InviteRowCells({ row }: { row: InviteRow }) {
+function InviteRowCells({ row, canAct }: { row: InviteRow; canAct: boolean }) {
   const [pending, start] = useTransition();
   const expired = row.status === "pending" && new Date(row.expiresAt).getTime() < Date.now();
   const displayStatus = expired ? "expired" : row.status;
@@ -72,7 +75,7 @@ function InviteRowCells({ row }: { row: InviteRow }) {
       <TableCell><Badge variant={displayStatus === "pending" ? "default" : "secondary"}>{displayStatus}</Badge></TableCell>
       <TableCell className="text-muted-foreground">{new Date(row.expiresAt).toLocaleDateString()}</TableCell>
       <TableCell>
-        {(row.status === "pending" || expired) &&
+        {canAct && (row.status === "pending" || expired) &&
           (expired ? (
             <Button variant="outline" size="sm" disabled={pending} onClick={onResend}>Resend</Button>
           ) : (
@@ -85,7 +88,7 @@ function InviteRowCells({ row }: { row: InviteRow }) {
 
 // Mobile card variant — InviteRowCells returns <td>s (a component, so DataTable can't
 // auto-derive a card from it); this renders the same controls as card content.
-function InviteRowCard({ row }: { row: InviteRow }) {
+function InviteRowCard({ row, canAct }: { row: InviteRow; canAct: boolean }) {
   const [pending, start] = useTransition();
   const expired = row.status === "pending" && new Date(row.expiresAt).getTime() < Date.now();
   const displayStatus = expired ? "expired" : row.status;
@@ -124,7 +127,7 @@ function InviteRowCard({ row }: { row: InviteRow }) {
         <span className="text-muted-foreground text-sm">Expires</span>
         <span className="text-muted-foreground text-sm">{new Date(row.expiresAt).toLocaleDateString()}</span>
       </div>
-      {(row.status === "pending" || expired) && (
+      {canAct && (row.status === "pending" || expired) && (
         <div className="flex items-center justify-between gap-3 pt-2">
           {expired ? (
             <Button variant="outline" size="sm" disabled={pending} onClick={onResend} className="w-full">Resend</Button>
