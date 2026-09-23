@@ -75,15 +75,16 @@ describe("mealRulesService + swap options", () => {
         return roti >= 4 && m.items.some((i) => i.category === "rice");
       });
     if (!size) throw new Error("Need a meal size with rice + ≥4 roti");
-    const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
+    const plan = snap.plans.find((p) => p.id === size.planId)!;
+    const planKey = plan.key;
 
     const [{ id: mealSizeId }] = await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.publicId, size.publicId)).limit(1);
     const [riceRow] = await db.select().from(mealSizeItems).where(and(eq(mealSizeItems.mealSizeId, mealSizeId), eq(mealSizeItems.category, "rice"))).limit(1);
     const prevMax = riceRow?.maxTuAmount ?? null;
     if (riceRow) await db.update(mealSizeItems).set({ maxTuAmount: "2" }).where(eq(mealSizeItems.id, riceRow.id));
 
-    if (!(await dishCategoriesService.swapPairExists("roti", "rice"))) {
-      await dishCategoriesService.addSwapPair("roti", "rice");
+    if (!(await dishCategoriesService.swapPairExists("roti", "rice", plan.id))) {
+      await dishCategoriesService.addSwapPair("roti", "rice", plan.publicId);
     }
 
     try {

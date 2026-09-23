@@ -214,13 +214,13 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return dedupeByKey(rows);
   }
 
-  /** Resolves (fromKey, toKey) to its category_swap_pairs row id, if configured at all. */
-  private async findSwapPairId(fromKey: string, toKey: string): Promise<bigint | null> {
+  /** Resolves (fromKey, toKey, planId) to its category_swap_pairs row id, if configured at all. */
+  private async findSwapPairId(fromKey: string, toKey: string, planId: bigint): Promise<bigint | null> {
     const rows = await db
       .select({ id: categorySwapPairs.id })
       .from(categorySwapPairs)
       .innerJoin(dishCategories, eq(dishCategories.id, categorySwapPairs.fromCategoryId))
-      .where(eq(dishCategories.key, fromKey))
+      .where(and(eq(dishCategories.key, fromKey), eq(categorySwapPairs.planId, planId)))
       .limit(1000);
     if (rows.length === 0) return null;
     // Two-step (rather than a single join on both sides) because we need both
@@ -235,19 +235,20 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return pair?.id ?? null;
   }
 
-  /** Is (fromKey, toKey) configured at all? For idempotent seeding checks. */
-  async swapPairExists(fromKey: string, toKey: string): Promise<boolean> {
-    return (await this.findSwapPairId(fromKey, toKey)) != null;
+  /** Is (fromKey, toKey) configured for planId? For idempotent seeding checks. */
+  async swapPairExists(fromKey: string, toKey: string, planId: bigint): Promise<boolean> {
+    return (await this.findSwapPairId(fromKey, toKey, planId)) != null;
   }
 
   /**
-   * Is (fromKey, toKey) allowed to swap on planId? Global eligibility
-   * (category_swap_pairs) plus: at least one dish exists in toKey on planId —
-   * a category with no dish on this plan can't receive a swap into it here,
-   * which replaces the old plans.restricted direction guard.
+   * Is (fromKey, toKey) allowed to swap on planId? Plan-scoped eligibility
+   * (category_swap_pairs row for this exact plan) plus: at least one dish
+   * exists in toKey on planId — a category with no dish on this plan can't
+   * receive a swap into it here, which replaces the old plans.restricted
+   * direction guard.
    */
   async isSwapPairAllowed(fromKey: string, toKey: string, planId: bigint): Promise<boolean> {
-    const pairId = await this.findSwapPairId(fromKey, toKey);
+    const pairId = await this.findSwapPairId(fromKey, toKey, planId);
     if (!pairId) return false;
     const [toDish] = await db.select({ id: dishes.id }).from(dishes).where(and(eq(dishes.category, toKey), eq(dishes.planId, planId))).limit(1);
     return Boolean(toDish);
@@ -257,36 +258,55 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     // Small table, admin-only read: resolve both sides against one category
     // lookup rather than joining dish_categories twice (drizzle needs an
     // explicit alias for a self-join, more ceremony than this is worth here).
-    const [pairs, cats] = await Promise.all([
-      db.select({ id: categorySwapPairs.id, publicId: categorySwapPairs.publicId, fromCategoryId: categorySwapPairs.fromCategoryId, toCategoryId: categorySwapPairs.toCategoryId }).from(categorySwapPairs),
+    const [pairs, cats, planRows] = await Promise.all([
+      db
+        .select({
+          id: categorySwapPairs.id,
+          publicId: categorySwapPairs.publicId,
+          fromCategoryId: categorySwapPairs.fromCategoryId,
+          toCategoryId: categorySwapPairs.toCategoryId,
+          planId: categorySwapPairs.planId,
+        })
+        .from(categorySwapPairs),
       db.select({ id: dishCategories.id, key: dishCategories.key, label: dishCategories.label }).from(dishCategories),
+      db.select({ id: plans.id, publicId: plans.publicId, name: plans.name }).from(plans),
     ]);
-    const byId = new Map(cats.map((c) => [c.id, c]));
+    const catById = new Map(cats.map((c) => [c.id, c]));
+    const planById = new Map(planRows.map((p) => [p.id, p]));
     return pairs.map((p) => ({
       id: p.publicId,
-      fromKey: byId.get(p.fromCategoryId)?.key ?? "",
-      fromLabel: byId.get(p.fromCategoryId)?.label ?? "",
-      toKey: byId.get(p.toCategoryId)?.key ?? "",
-      toLabel: byId.get(p.toCategoryId)?.label ?? "",
+      fromKey: catById.get(p.fromCategoryId)?.key ?? "",
+      fromLabel: catById.get(p.fromCategoryId)?.label ?? "",
+      toKey: catById.get(p.toCategoryId)?.key ?? "",
+      toLabel: catById.get(p.toCategoryId)?.label ?? "",
+      planId: planById.get(p.planId)?.publicId ?? "",
+      planName: planById.get(p.planId)?.name ?? "",
     }));
   }
 
-  async addSwapPair(fromKey: string, toKey: string) {
-    const rows = await db
-      .select({ key: dishCategories.key, id: dishCategories.id, enabled: dishCategories.enabled })
-      .from(dishCategories)
-      .where(inArray(dishCategories.key, [fromKey, toKey]));
+  async addSwapPair(fromKey: string, toKey: string, planPublicId: string) {
+    const [rows, [plan]] = await Promise.all([
+      db
+        .select({ key: dishCategories.key, id: dishCategories.id, enabled: dishCategories.enabled })
+        .from(dishCategories)
+        .where(inArray(dishCategories.key, [fromKey, toKey])),
+      db.select({ id: plans.id }).from(plans).where(eq(plans.publicId, planPublicId)).limit(1),
+    ]);
     const byKey = new Map(rows.map((r) => [r.key, r]));
     const from = byKey.get(fromKey);
     const to = byKey.get(toKey);
     if (!from || !from.enabled) throw new ValidationError(disabledCategoryMessage(fromKey));
     if (!to || !to.enabled) throw new ValidationError(disabledCategoryMessage(toKey));
+    if (!plan) throw new ValidationError("Plan not found");
     try {
-      const [created] = await db.insert(categorySwapPairs).values({ fromCategoryId: from.id, toCategoryId: to.id }).returning();
+      const [created] = await db
+        .insert(categorySwapPairs)
+        .values({ fromCategoryId: from.id, toCategoryId: to.id, planId: plan.id })
+        .returning();
       return created;
     } catch (e) {
       if (isDuplicateSwapPair(e)) {
-        throw new ValidationError("This swap rule already exists for this direction.");
+        throw new ValidationError("This swap rule already exists for this direction and plan.");
       }
       throw e;
     }
@@ -327,20 +347,46 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     }]));
   }
 
-  async planIdForMealSize(mealSizeId: bigint): Promise<bigint | null> {
-    const [size] = await db.select({ planId: mealSizes.planId }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
-    return size?.planId ?? null;
+  /**
+   * Every plan a meal size's own composition draws dishes from — the meal
+   * size's own planId plus whatever other plans its mealSizeItems rows
+   * independently target (e.g. a non-veg thali with a veg-tagged Sabzi row).
+   * Mirrors allowedDishIdsForMealSize in selections.service.ts, which unions
+   * dishes the same way; swap eligibility must see the same set meal
+   * selection does, or a rule scoped to a reachable plan silently does
+   * nothing. A veg meal size's composition never references the non-veg
+   * plan, so this set — and everything gated on it — stays one-directional
+   * with no extra guard needed.
+   */
+  async reachablePlanIdsForMealSize(mealSizeId: bigint): Promise<bigint[]> {
+    const rows = await db.selectDistinct({ planId: mealSizeItems.planId }).from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, mealSizeId));
+    return rows.map((r) => r.planId);
+  }
+
+  /** Is (fromKey, toKey) allowed to swap on ANY plan this meal size's composition reaches? */
+  async isSwapPairAllowedForMealSize(fromKey: string, toKey: string, mealSizeId: bigint): Promise<boolean> {
+    const planIds = await this.reachablePlanIdsForMealSize(mealSizeId);
+    for (const planId of planIds) {
+      if (await this.isSwapPairAllowed(fromKey, toKey, planId)) return true;
+    }
+    return false;
   }
 
   /** Pairs the swap drawer may offer for one meal size — the same gate applyDeliverySwap enforces. */
   async swapPairsForMealSize(mealSizeId: bigint): Promise<{ fromCategory: string; toCategory: string }[]> {
-    const [cats, all, planId] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.listSwapPairs(), this.planIdForMealSize(mealSizeId)]);
-    if (!planId) return [];
-    const results = await Promise.all(all.map(async (p) => {
+    const [cats, all, planIds] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.listSwapPairs(), this.reachablePlanIdsForMealSize(mealSizeId)]);
+    if (!planIds.length) return [];
+    const reachablePlans = await db.select({ id: plans.id, publicId: plans.publicId }).from(plans).where(inArray(plans.id, planIds));
+    // publicId -> bigint id, so a matched pair's own plan (already known from
+    // the filter below) is checked directly instead of re-scanning every
+    // reachable plan per pair.
+    const idByPublicId = new Map(reachablePlans.map((p) => [p.publicId, p.id]));
+    const onReachablePlan = all.filter((p) => idByPublicId.has(p.planId));
+    const results = await Promise.all(onReachablePlan.map(async (p) => {
       const from = cats.get(p.fromKey);
       const to = cats.get(p.toKey);
       if (!from || !to || !swapPairFits(from, to)) return null;
-      const allowed = await this.isSwapPairAllowed(p.fromKey, p.toKey, planId);
+      const allowed = await this.isSwapPairAllowed(p.fromKey, p.toKey, idByPublicId.get(p.planId)!);
       return allowed ? { fromCategory: p.fromKey, toCategory: p.toKey } : null;
     }));
     return results.filter((r): r is { fromCategory: string; toCategory: string } => r !== null);

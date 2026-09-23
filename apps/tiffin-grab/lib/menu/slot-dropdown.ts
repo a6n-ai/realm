@@ -111,3 +111,13 @@ export function buildSlotDropdownOptions(args: {
 
   return out;
 }
+
+/** True when admin swap pairs expose at least one live bundle from this category. */
+export function hasOutgoingSwapOptions(
+  categoryKey: string,
+  swapOptions: readonly SwapOption[],
+): boolean {
+  return swapOptions.some(
+    (o) => o.available && o.fromCategory === categoryKey && o.validBundles.length > 0,
+  );
+}

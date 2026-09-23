@@ -12,7 +12,7 @@ import { nextWeekday } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryCategorySwaps, ledgerEntries, orders, payments, users } = await import("@/db/schema");
+const { deliveries, deliveryCategorySwaps, ledgerEntries, orders, payments, plans, users } = await import("@/db/schema");
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { applyDeliverySwap } = await import("../category-swaps.service");
@@ -39,10 +39,11 @@ afterEach(async () => {
 // Idempotent, mirrors adhoc-swap.test.ts's helper: the seed already wires some
 // pairs globally (daal<->sabzi, salad->raita, roti<->rice) — only track (for
 // cleanup) a pair this call actually created.
-async function allowPair(from: string, to: string) {
-  const existing = await dishCategoriesService.swapPairExists(from, to);
+async function allowPair(from: string, to: string, planId: bigint) {
+  const existing = await dishCategoriesService.swapPairExists(from, to, planId);
   if (existing) return;
-  const pair = await dishCategoriesService.addSwapPair(from, to);
+  const [plan] = await db.select({ publicId: plans.publicId }).from(plans).where(eq(plans.id, planId)).limit(1);
+  const pair = await dishCategoriesService.addSwapPair(from, to, plan.publicId);
   createdPairIds.push(pair.publicId);
 }
 
@@ -101,7 +102,9 @@ describe("Sabzi Only (Veg) — freely interchangeable Sabzi/Daal pool, no NonVeg
     // No global pair exists for sabzi<->daal in the seed (only daal<->sabzi,
     // salad->raita, roti<->rice are wired) — this meal size has no separate
     // curry slot to reuse an existing pair from, so add one for this test.
-    await allowPair("sabzi", "daal");
+    const snap = await loadCatalogSnapshot();
+    const size = snap.mealSizes.find((s) => s.key === "sabzi_only_regular_veg")!;
+    await allowPair("sabzi", "daal", size.planId);
     const { delivery } = await orderFor("sabzi_only_regular_veg");
     await applyDeliverySwap(delivery.publicId, "sabzi", "daal", 1, null);
     const [swap] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, delivery.id));

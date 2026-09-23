@@ -12,17 +12,21 @@ import { addSwapPair, removeSwapPair } from "./actions";
 import { naturalSwapConversion, type AdminTuCategory } from "../admin-tu-hints";
 
 export type CategoryOption = { key: string; label: string };
+export type PlanOption = { value: string; label: string };
 export type SwapPairRow = {
   id: string; // pair publicId
   fromCategory: string;
   fromLabel: string;
   toCategory: string;
   toLabel: string;
+  planId: string;
+  planName: string;
 };
 
-type Cols = "pair" | "exchange" | "actions";
+type Cols = "pair" | "plan" | "exchange" | "actions";
 const COLUMNS: readonly Column<Cols>[] = [
   { key: "pair", label: "Swap" },
+  { key: "plan", label: "Plan" },
   { key: "exchange", label: "Natural exchange" },
   { key: "actions", label: "", align: "right" },
 ];
@@ -30,14 +34,18 @@ const COLUMNS: readonly Column<Cols>[] = [
 export function SwapPairGrid({
   categoryOptions,
   categoryTu,
+  planOptions,
+  plansByCategoryKey,
   pairs,
 }: {
   categoryOptions: CategoryOption[];
   categoryTu: AdminTuCategory[];
+  planOptions: PlanOption[];
+  plansByCategoryKey: Record<string, string[]>;
   pairs: SwapPairRow[];
 }) {
   const [adding, setAdding] = React.useState(false);
-  const tuByKey = new Map(categoryTu.map((c) => [c.key, c]));
+  const tuByKey = React.useMemo(() => new Map(categoryTu.map((c) => [c.key, c])), [categoryTu]);
 
   return (
     <SectionCard
@@ -68,6 +76,9 @@ export function SwapPairGrid({
               </span>
             </TableCell>
             <TableCell>
+              <span className="text-sm">{pair.planName}</span>
+            </TableCell>
+            <TableCell>
               {conv ? (
                 <div className="text-sm">
                   <div className="font-medium">{conv.naturalLine}</div>
@@ -90,6 +101,8 @@ export function SwapPairGrid({
         onOpenChange={setAdding}
         categoryOptions={categoryOptions}
         categoryTu={categoryTu}
+        planOptions={planOptions}
+        plansByCategoryKey={plansByCategoryKey}
       />
     </SectionCard>
   );
@@ -123,23 +136,38 @@ function AddSwapPairDialog({
   onOpenChange,
   categoryOptions,
   categoryTu,
+  planOptions,
+  plansByCategoryKey,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categoryOptions: CategoryOption[];
   categoryTu: AdminTuCategory[];
+  planOptions: PlanOption[];
+  plansByCategoryKey: Record<string, string[]>;
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
   const [fromCategory, setFromCategory] = React.useState("");
   const [toCategory, setToCategory] = React.useState("");
-  const tuByKey = new Map(categoryTu.map((c) => [c.key, c]));
+  const [planId, setPlanId] = React.useState("");
+  const tuByKey = React.useMemo(() => new Map(categoryTu.map((c) => [c.key, c])), [categoryTu]);
   const conversion = naturalSwapConversion(tuByKey.get(fromCategory), tuByKey.get(toCategory));
+
+  // A swap rule is scoped to one plan — only offer plans both categories are
+  // attached to, mirroring the composition editor's category-first, plan-second pattern.
+  const planChoices = React.useMemo(() => {
+    if (!fromCategory || !toCategory) return [];
+    const fromPlans = new Set(plansByCategoryKey[fromCategory] ?? []);
+    const toPlans = new Set(plansByCategoryKey[toCategory] ?? []);
+    return planOptions.filter((p) => fromPlans.has(p.value) && toPlans.has(p.value));
+  }, [fromCategory, toCategory, plansByCategoryKey, planOptions]);
 
   const close = () => {
     onOpenChange(false);
     setFromCategory("");
     setToCategory("");
+    setPlanId("");
   };
 
   const save = () => {
@@ -147,9 +175,13 @@ function AddSwapPairDialog({
       toast.error("Select both categories");
       return;
     }
+    if (!planId) {
+      toast.error("Select a plan");
+      return;
+    }
     start(async () => {
       try {
-        await addSwapPair({ fromCategory, toCategory });
+        await addSwapPair({ fromCategory, toCategory, planId });
         toast.success("Swap rule added");
         router.refresh();
         close();
@@ -178,7 +210,13 @@ function AddSwapPairDialog({
     >
       <div className="space-y-4 px-4 py-3">
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={fromCategory} onValueChange={setFromCategory}>
+          <Select
+            value={fromCategory}
+            onValueChange={(v) => {
+              setFromCategory(v);
+              setPlanId("");
+            }}
+          >
             <SelectTrigger className="w-40"><SelectValue placeholder="From category" /></SelectTrigger>
             <SelectContent>
               {categoryOptions.map((c) => (
@@ -187,7 +225,13 @@ function AddSwapPairDialog({
             </SelectContent>
           </Select>
           <ArrowRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
-          <Select value={toCategory} onValueChange={setToCategory}>
+          <Select
+            value={toCategory}
+            onValueChange={(v) => {
+              setToCategory(v);
+              setPlanId("");
+            }}
+          >
             <SelectTrigger className="w-40"><SelectValue placeholder="To category" /></SelectTrigger>
             <SelectContent>
               {categoryOptions.map((c) => (
@@ -196,6 +240,19 @@ function AddSwapPairDialog({
             </SelectContent>
           </Select>
         </div>
+        <Select value={planId} onValueChange={setPlanId} disabled={planChoices.length === 0}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder={fromCategory && toCategory ? "Select plan" : "Pick both categories first"} />
+          </SelectTrigger>
+          <SelectContent>
+            {planChoices.map((p) => (
+              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {fromCategory && toCategory && planChoices.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No plan has both categories attached — nothing to scope this rule to.</p>
+        ) : null}
         {conversion ? (
           <div className="bg-muted/40 rounded-lg border px-3 py-2 text-sm">
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Based on current category configuration</p>
