@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { invitation, member, users } from "@/db/schema";
 import type { RoleValue } from "@foundry/commons";
@@ -42,7 +42,7 @@ export async function getMembersForOrgs(orgIds: string[]): Promise<MemberRow[]> 
       and(eq(invitation.email, users.email), eq(invitation.organizationId, member.organizationId)),
     )
     .where(inArray(member.organizationId, orgIds))
-    .orderBy(users.id, invitation.createdAt);
+    .orderBy(users.id, desc(invitation.createdAt));
 
   const now = Date.now();
   return rows.map((r) => {

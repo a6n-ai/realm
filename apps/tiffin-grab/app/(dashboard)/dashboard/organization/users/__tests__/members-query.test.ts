@@ -90,4 +90,44 @@ describe("getMembersForOrgs", () => {
     const rows = await getMembersForOrgs([]);
     expect(rows).toEqual([]);
   });
+
+  it("picks the newest invitation when a user has multiple invitations for the same org", async () => {
+    const [org] = await db.insert(organization).values({ name: "Org E", clientCode: "members-query-test-orge" }).returning();
+    const [inviter] = await db
+      .insert(users)
+      .values({ email: "admin3-members-query-test@x.com", name: "Admin", role: "admin", passwordSet: true })
+      .returning();
+    const [invitee] = await db
+      .insert(users)
+      .values({ email: "invitee3-members-query-test@x.com", name: "Invitee3", role: "member", passwordSet: false })
+      .returning();
+    await db.insert(member).values({ organizationId: org.id, userId: invitee.id, role: "member" });
+    // Seed two invitations: older one (canceled), newer one (pending).
+    // Use explicit createdAt times to ensure proper ordering.
+    const now = Date.now();
+    await db.insert(invitation).values([
+      {
+        organizationId: org.id,
+        email: "invitee3-members-query-test@x.com",
+        role: "member",
+        status: "canceled",
+        expiresAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
+        inviterId: inviter.id,
+        createdAt: new Date(now - 3 * 24 * 60 * 60 * 1000), // oldest
+      },
+      {
+        organizationId: org.id,
+        email: "invitee3-members-query-test@x.com",
+        role: "member",
+        status: "pending",
+        expiresAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+        inviterId: inviter.id,
+        createdAt: new Date(now - 1 * 60 * 1000), // newest
+      },
+    ]);
+
+    const rows = await getMembersForOrgs([org.id]);
+
+    expect(rows.find((r) => r.email === "invitee3-members-query-test@x.com")?.invitationStatus).toBe("pending");
+  });
 });
