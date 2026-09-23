@@ -343,4 +343,45 @@ describe("PickSheet", () => {
     expect(screen.getByText(/Changes closed/)).toBeInTheDocument();
     expect(await screen.findByRole("radio", { name: /^Dal$/ })).toBeDisabled();
   });
+
+  it("renders Apply dishes to the whole week at the very bottom after all categories", async () => {
+    load.mockResolvedValue(
+      grid(
+        [
+          cell({ slot: "curry", selectable: true }),
+          cell({ slot: "rice", selectable: false, dishes: [{ id: "r1", name: "Jeera Rice", image: null }], selectedDishId: "r1" }),
+          cell({ slot: "roti", selectable: false, dishes: [{ id: "rt1", name: "Plain Roti", image: null }], selectedDishId: "rt1" }),
+        ],
+        1,
+        {
+          categories: [
+            { key: "curry", label: "Curry", selectable: true, sortOrder: 1 },
+            { key: "rice", label: "Rice", selectable: false, sortOrder: 2 },
+            { key: "roti", label: "Roti", selectable: false, sortOrder: 3 },
+          ],
+          portionsBySlot: { curry: ["8oz"], rice: ["1 unit"], roti: ["4 roti"] },
+        },
+      ),
+    );
+    show(trip({ coversDates: [mon] }));
+
+    const currySection = await screen.findByLabelText("Curry");
+    const riceSection = screen.getByLabelText("Rice");
+    const rotiSection = screen.getByLabelText("Roti");
+
+    // Must NOT be inside any individual category section
+    expect(within(currySection).queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
+    expect(within(riceSection).queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
+    expect(within(rotiSection).queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
+
+    // Appears exactly once in the entire sheet
+    const applyButtons = screen.getAllByRole("button", { name: "Apply dishes to the whole week" });
+    expect(applyButtons).toHaveLength(1);
+
+    // Verify DOM order: curry < rice < roti < applyButton
+    const applyButton = applyButtons[0]!;
+    expect(currySection.compareDocumentPosition(applyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(riceSection.compareDocumentPosition(applyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rotiSection.compareDocumentPosition(applyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
