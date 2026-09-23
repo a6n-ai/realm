@@ -5,7 +5,7 @@ import { invitation, member, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { requireAdmin } from "@/lib/auth/guards";
 import { resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
-import { getMembersForOrgs } from "../users/members-query";
+import { getMembersForOrgs } from "../members/members-query";
 import { StatCards } from "./stat-cards";
 import { RecentActivity, type ActivityItem } from "./recent-activity";
 

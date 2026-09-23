@@ -6,7 +6,7 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, type Column } from "@/components/ds";
-import { cancelInvitation, resendInvite } from "../users/actions";
+import { cancelInvitation, resendInvite } from "../members/actions";
 
 export type InviteRow = {
   id: string;

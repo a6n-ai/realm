@@ -5,7 +5,7 @@ import { userEvent } from "@testing-library/user-event";
 import { toast } from "sonner";
 import { InvitesList } from "../invites-list";
 
-vi.mock("../../users/actions", () => ({ cancelInvitation: vi.fn(), resendInvite: vi.fn() }));
+vi.mock("../../members/actions", () => ({ cancelInvitation: vi.fn(), resendInvite: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 // DataTable reads "q" URL state via next/navigation hooks; stub them for jsdom.
 vi.mock("next/navigation", () => ({
@@ -58,7 +58,7 @@ describe("InvitesList", () => {
 
 describe("InvitesList cancel failure", () => {
   it("toasts an error instead of throwing when cancelInvitation rejects (already-accepted race)", async () => {
-    const { cancelInvitation } = await import("../../users/actions");
+    const { cancelInvitation } = await import("../../members/actions");
     vi.mocked(cancelInvitation).mockRejectedValueOnce(new Error("already accepted"));
 
     const { container } = render(

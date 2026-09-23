@@ -55,7 +55,7 @@ export function ClientsList({
       rowKey={(r) => r.id}
       sort={sort}
       idAccessor={(r) => r.id}
-      idHref={(r) => `/dashboard/organization/clients/${r.id}`}
+      idHref={(r) => `/dashboard/organization/settings/${r.id}`}
       rowClassName={() => "group cursor-pointer"}
       search={{ placeholder: "Search clients…", shortPlaceholder: "Search…", keys: ["name", "clientCode"] }}
       filters={

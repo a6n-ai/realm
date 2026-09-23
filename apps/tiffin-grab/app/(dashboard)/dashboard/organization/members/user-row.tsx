@@ -175,7 +175,7 @@ export function UserRow({ id, name, email, phone, role, status, passwordSet, org
     <>
       <TableCell>
         <Link
-          href={`/dashboard/organization/users/${id}`}
+          href={`/dashboard/organization/members/${id}`}
           className="group flex items-center gap-3 font-medium underline-offset-4 hover:[&>span]:underline"
         >
           <UserAvatar name={name} fallbackText={email} presence={status === "active" ? "active" : "off"} size="sm" />
@@ -204,7 +204,7 @@ export function UserRow({ id, name, email, phone, role, status, passwordSet, org
 export function UserRowCard({ id, name, email, phone, role, status, passwordSet, organizationId, invitationStatus }: UserListRow) {
   return (
     <div className="space-y-3">
-      <Link href={`/dashboard/organization/users/${id}`} className="flex items-center gap-3">
+      <Link href={`/dashboard/organization/members/${id}`} className="flex items-center gap-3">
         <UserAvatar name={name} fallbackText={email} presence={status === "active" ? "active" : "off"} />
         <span className="text-base font-medium underline-offset-4 hover:underline">
           {name || email || (phone ? formatPhone(phone) : null) || "—"}
