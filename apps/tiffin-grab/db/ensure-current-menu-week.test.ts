@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { zonedDateIso, parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
-import { dishCategories, dishes, dishPlans, menuItems, menuWeeks } from "@/db/schema";
+import { dishCategories, dishes, menuItems, menuWeeks } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
@@ -61,16 +61,9 @@ describe("ensure current menu week", () => {
         (await db.select({ key: dishCategories.key, selectable: dishCategories.selectable }).from(dishCategories))
           .map((c) => [c.key, c.selectable]),
       );
-      const plansByDish = new Map<bigint, bigint[]>();
-      for (const r of await db.select({ dishId: dishPlans.dishId, planId: dishPlans.planId }).from(dishPlans)) {
-        plansByDish.set(r.dishId, [...(plansByDish.get(r.dishId) ?? []), r.planId]);
-      }
-      // Widest plan coverage first so one dish reaching several plans (e.g. Masala Papad:
-      // veg + non-veg) claims them before a narrower dish (Egg Bhurji: non-veg only) would
-      // double-book the same plan and leave a different plan uncovered.
-      const orderedDishes = [...dishRows].sort(
-        (a, b) => (plansByDish.get(b.id)?.length ?? 0) - (plansByDish.get(a.id)?.length ?? 0),
-      );
+      // A dish belongs to exactly one plan now — no ordering needed to prefer wide
+      // coverage, each dish only ever claims its own plan.
+      const orderedDishes = dishRows;
 
       const existing = await db.select({ id: menuItems.id }).from(menuItems).where(eq(menuItems.menuWeekId, row!.id)).limit(1);
       if (existing.length === 0) {
@@ -79,11 +72,11 @@ describe("ensure current menu week", () => {
           const filledPlansByFixedCategory = new Map<string, Set<bigint>>();
           for (const dish of orderedDishes) {
             const slot = dish.category ?? "curry";
-            const dishPlanIds = plansByDish.get(dish.id) ?? [];
+            const dishPlanId = dish.planId;
             if (!selectableByKey.get(slot)) {
               const filled = filledPlansByFixedCategory.get(slot) ?? new Set<bigint>();
-              if (dishPlanIds.some((p) => filled.has(p))) continue; // would double-book a plan
-              for (const p of dishPlanIds) filled.add(p);
+              if (filled.has(dishPlanId)) continue; // would double-book a plan
+              filled.add(dishPlanId);
               filledPlansByFixedCategory.set(slot, filled);
             }
             await menuService.addItem({

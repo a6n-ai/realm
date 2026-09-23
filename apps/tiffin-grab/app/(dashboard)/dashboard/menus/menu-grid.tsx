@@ -10,12 +10,22 @@ import { cn } from "@foundry/ui/cn";
 import { DAYS, DAY_LABELS, type DayOfWeek } from "@/lib/menu/poster";
 
 export type GridRow = { key: string; id: string | null; dayOfWeek: DayOfWeek; slot: string; dishId: string; isDefault: boolean };
-export type GridDish = { id: string; name: string; category: string | null };
-export type GridCategory = { key: string; label: string; selectable: boolean; sortOrder: number };
+export type GridDish = { id: string; name: string; category: string | null; planId: string };
+/** One (category, plan) pair a day's menu needs to fill — one grid cell per slot. */
+export type Slot = {
+  key: string; // `${categoryKey}|${planPublicId}`
+  categoryKey: string;
+  categoryLabel: string;
+  selectable: boolean;
+  sortOrder: number;
+  planPublicId: string;
+  planName: string;
+};
 export type GridProblem = {
   kind: "missing" | "extra";
   day: string;
   planName: string;
+  planPublicId: string;
   categoryKey: string;
   categoryLabel: string;
   dishNames: string[];
@@ -32,39 +42,43 @@ const ICON_BUTTON =
   "before:absolute before:-inset-1 before:content-[''] active:scale-[0.96] disabled:opacity-50";
 
 export function MenuGrid({
-  categories, rows, dishes, categoryCounts, problems, editable,
+  slots, rows, dishes, categoryCounts, problems, editable,
   onAdd, onRemove, onMove, onToggleDefault, onCopyAcrossDays, onCreateDish,
 }: {
-  categories: GridCategory[];
+  slots: Slot[];
   rows: GridRow[];
   dishes: GridDish[];
   categoryCounts: Record<string, number>;
   problems: GridProblem[];
   editable: boolean;
-  onAdd: (day: DayOfWeek, slot: string, dishId: string) => void;
+  onAdd: (day: DayOfWeek, slot: Slot, dishId: string) => void;
   onRemove: (key: string) => void;
   onMove: (key: string, dir: -1 | 1) => void;
   onToggleDefault: (key: string) => void;
-  onCopyAcrossDays: (day: DayOfWeek, slot: string) => void;
-  onCreateDish: (day: DayOfWeek, slot: string) => void;
+  onCopyAcrossDays: (day: DayOfWeek, slot: Slot) => void;
+  onCreateDish: (day: DayOfWeek, slot: Slot) => void;
 }) {
   const dishById = useMemo(() => new Map(dishes.map((d) => [d.id, d])), [dishes]);
 
-  // Server verdicts per cell, keyed for O(1) lookup while rendering 77 of them. Split by
-  // kind: "missing" is a plan that gets nothing here, "extra" is a fixed category holding
-  // more than one dish for the SAME plan (only that surplus is dead — see below).
+  // Server verdicts per cell, keyed for O(1) lookup while rendering ~150 of them (one per
+  // slot x day). Split by kind: "missing" is a plan that gets nothing here, "extra" is a
+  // fixed category holding more than one dish for the SAME plan (only that surplus is dead).
   const problemsByCell = useMemo(() => {
-    const map = new Map<string, { missing: string[]; extra: string[] }>();
+    const map = new Map<string, { missing: boolean; extra: boolean }>();
     for (const p of problems) {
-      const key = `${p.day}:${p.categoryKey}`;
-      const entry = map.get(key) ?? { missing: [], extra: [] };
-      entry[p.kind === "missing" ? "missing" : "extra"].push(p.planName);
+      const key = `${p.day}:${p.categoryKey}|${p.planPublicId}`;
+      const entry = map.get(key) ?? { missing: false, extra: false };
+      if (p.kind === "missing") entry.missing = true; else entry.extra = true;
       map.set(key, entry);
     }
     return map;
   }, [problems]);
 
-  const cellRows = (day: DayOfWeek, slot: string) => rows.filter((r) => r.dayOfWeek === day && r.slot === slot);
+  // A row's plan comes from its dish — menu_items carries no plan column of its own, it's
+  // always the dish's single plan. So a slot's rows are the category rows whose dish lands
+  // on that slot's plan.
+  const cellRows = (day: DayOfWeek, slot: Slot) =>
+    rows.filter((r) => r.dayOfWeek === day && r.slot === slot.categoryKey && dishById.get(r.dishId)?.planId === slot.planPublicId);
 
   return (
     // The grid is wider than a phone and must scroll inside its own container — the page
@@ -73,13 +87,13 @@ export function MenuGrid({
     <div className="max-h-[70vh] overflow-auto rounded-2xl border shadow-sm">
       <div
         className="grid min-w-max"
-        style={{ gridTemplateColumns: `minmax(9rem, 11rem) repeat(${DAYS.length}, minmax(12rem, 1fr))` }}
+        style={{ gridTemplateColumns: `minmax(9rem, 12rem) repeat(${DAYS.length}, minmax(12rem, 1fr))` }}
       >
         <div className="sticky left-0 top-0 z-20 border-b border-r bg-background p-3 text-xs font-medium text-muted-foreground">
-          Category
+          Category · Plan
         </div>
         {DAYS.map((day) => {
-          const count = categories.reduce((n, c) => n + cellRows(day, c.key).length, 0);
+          const count = slots.reduce((n, s) => n + cellRows(day, s).length, 0);
           return (
             <div key={day} className="sticky top-0 z-10 border-b bg-background p-3">
               <div className="flex items-baseline justify-between gap-2">
@@ -90,14 +104,15 @@ export function MenuGrid({
           );
         })}
 
-        {categories.map((category) => {
-          const needed = categoryCounts[category.key] ?? 0;
+        {slots.map((slot) => {
+          const needed = categoryCounts[slot.key] ?? 0;
           return (
-            <div key={category.key} className="contents">
+            <div key={slot.key} className="contents">
               <div className="sticky left-0 z-10 border-b border-r bg-background p-3">
-                <p className="text-sm font-medium text-pretty">{category.label}</p>
+                <p className="text-sm font-medium text-pretty">{slot.categoryLabel}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{slot.planName}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {category.selectable
+                  {slot.selectable
                     ? needed > 0 ? <>Customer picks <span className="tabular-nums">{needed}</span></> : "Customer picks"
                     : "Fixed"}
                 </p>
@@ -105,15 +120,15 @@ export function MenuGrid({
 
               {DAYS.map((day) => (
                 <Cell
-                  key={`${category.key}-${day}`}
+                  key={`${slot.key}-${day}`}
                   day={day}
-                  category={category}
+                  slot={slot}
                   needed={needed}
-                  rows={cellRows(day, category.key)}
+                  rows={cellRows(day, slot)}
                   dishes={dishes}
                   dishById={dishById}
-                  missingForPlans={problemsByCell.get(`${day}:${category.key}`)?.missing ?? []}
-                  surplusForPlans={problemsByCell.get(`${day}:${category.key}`)?.extra ?? []}
+                  missing={problemsByCell.get(`${day}:${slot.key}`)?.missing ?? false}
+                  hasSurplus={problemsByCell.get(`${day}:${slot.key}`)?.extra ?? false}
                   editable={editable}
                   onAdd={onAdd}
                   onRemove={onRemove}
@@ -132,46 +147,47 @@ export function MenuGrid({
 }
 
 function Cell({
-  day, category, needed, rows, dishes, dishById, missingForPlans, surplusForPlans, editable,
+  day, slot, needed, rows, dishes, dishById, missing, hasSurplus, editable,
   onAdd, onRemove, onMove, onToggleDefault, onCopyAcrossDays, onCreateDish,
 }: {
   day: DayOfWeek;
-  category: GridCategory;
+  slot: Slot;
   needed: number;
   rows: GridRow[];
   dishes: GridDish[];
   dishById: Map<string, GridDish>;
-  missingForPlans: string[];
-  surplusForPlans: string[];
+  missing: boolean;
+  hasSurplus: boolean;
   editable: boolean;
-  onAdd: (day: DayOfWeek, slot: string, dishId: string) => void;
+  onAdd: (day: DayOfWeek, slot: Slot, dishId: string) => void;
   onRemove: (key: string) => void;
   onMove: (key: string, dir: -1 | 1) => void;
   onToggleDefault: (key: string) => void;
-  onCopyAcrossDays: (day: DayOfWeek, slot: string) => void;
-  onCreateDish: (day: DayOfWeek, slot: string) => void;
+  onCopyAcrossDays: (day: DayOfWeek, slot: Slot) => void;
+  onCreateDish: (day: DayOfWeek, slot: Slot) => void;
 }) {
   const [open, setOpen] = useState(false);
 
-  // Each warning names what is wrong with THIS cell, in the order that matters: a plan
-  // getting nothing beats a shortfall, which beats dishes that will never be served.
+  // Each warning names what is wrong with THIS cell, in the order that matters: this plan
+  // getting nothing beats a shortfall, which beats dishes that will never be served. A cell
+  // is already one (category, plan) slot, so there's only ever one plan to name.
   const warning =
-    missingForPlans.length > 0
-      ? `No dish here for ${missingForPlans.join(", ")}`
-      : category.selectable && needed > 0 && rows.length > 0 && rows.length < needed
+    missing
+      ? `No dish here for ${slot.planName}`
+      : slot.selectable && needed > 0 && rows.length > 0 && rows.length < needed
         ? `Only ${rows.length} of ${needed} — customers have less to choose from than they ordered`
-        : category.selectable && rows.length === 1 && needed > 1
+        : slot.selectable && rows.length === 1 && needed > 1
           ? "One dish only — nothing to choose between"
-          : surplusForPlans.length > 0
-            // NOT a plain "more than one dish" check. A fixed category serves one dish per
-            // subscriber, but several rows here can be right — one per plan, since plan
-            // membership filters before the default is picked. Only dishes competing for the
-            // SAME plan are dead, and only the server knows membership.
-            ? `Only one is served to ${surplusForPlans.join(", ")} — the rest never reach a plate`
+          : hasSurplus
+            // A fixed category serves one dish per subscriber — anything past the first in
+            // this slot never reaches a plate.
+            ? `Only one is served — the rest never reach a plate`
             : null;
 
+  // Plan-scoped: a dish from the wrong plan is never offered here, even if it shares
+  // the category — that's the whole point of slotting by (category, plan).
   const addable = dishes.filter(
-    (d) => !rows.some((r) => r.dishId === d.id) && (d.category == null || d.category === category.key),
+    (d) => !rows.some((r) => r.dishId === d.id) && (d.category == null || d.category === slot.categoryKey) && d.planId === slot.planPublicId,
   );
 
   return (
@@ -239,7 +255,7 @@ function Cell({
                 type="button"
                 aria-haspopup="dialog"
                 aria-expanded={open}
-                aria-label={`Add a dish to ${category.label} on ${DAY_LABELS[day]}`}
+                aria-label={`Add a dish to ${slot.categoryLabel} (${slot.planName}) on ${DAY_LABELS[day]}`}
                 className="flex h-9 flex-1 items-center gap-1.5 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground active:scale-[0.96]"
               >
                 <Plus className="size-3.5" />
@@ -250,7 +266,7 @@ function Cell({
                 the arrow keys, so the whole cell is reachable without the mouse. */}
             <PopoverContent className="w-64 p-0" align="start">
               <Command>
-                <CommandInput placeholder={`Add to ${category.label}…`} />
+                <CommandInput placeholder={`Add to ${slot.categoryLabel} (${slot.planName})…`} />
                 <CommandList>
                   <CommandEmpty>No dish in this category.</CommandEmpty>
                   <CommandGroup>
@@ -258,7 +274,7 @@ function Cell({
                       <CommandItem
                         key={d.id}
                         value={d.name}
-                        onSelect={() => { onAdd(day, category.key, d.id); setOpen(false); }}
+                        onSelect={() => { onAdd(day, slot, d.id); setOpen(false); }}
                       >
                         {d.name}
                       </CommandItem>
@@ -266,7 +282,7 @@ function Cell({
                     <CommandItem
                       value={CREATE_VALUE}
                       className="text-primary"
-                      onSelect={() => { onCreateDish(day, category.key); setOpen(false); }}
+                      onSelect={() => { onCreateDish(day, slot); setOpen(false); }}
                     >
                       <Plus className="size-3.5" /> Create new dish…
                     </CommandItem>
@@ -280,9 +296,9 @@ function Cell({
             <button
               type="button"
               className={cn(ICON_BUTTON, "text-muted-foreground opacity-0 group-hover/cell:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-foreground")}
-              aria-label={`Copy ${DAY_LABELS[day]}'s ${category.label} to every day`}
+              aria-label={`Copy ${DAY_LABELS[day]}'s ${slot.categoryLabel} (${slot.planName}) to every day`}
               title="Copy to every day"
-              onClick={() => onCopyAcrossDays(day, category.key)}
+              onClick={() => onCopyAcrossDays(day, slot)}
             >
               <CopyPlus className="size-3.5" />
             </button>

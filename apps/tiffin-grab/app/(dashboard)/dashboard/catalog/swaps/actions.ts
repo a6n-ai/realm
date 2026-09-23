@@ -11,13 +11,12 @@ const PATH = "/dashboard/catalog/swaps";
 const addSchema = z.object({
   fromCategory: z.string().trim().min(1),
   toCategory: z.string().trim().min(1),
-  planIds: z.array(z.string().trim().min(1)).default([]),
 });
 
 export async function addSwapPair(input: unknown): Promise<void> {
   await requireAdmin();
   const data = addSchema.parse(input);
-  await dishCategoriesService.addSwapPair(data.fromCategory, data.toCategory, data.planIds);
+  await dishCategoriesService.addSwapPair(data.fromCategory, data.toCategory);
   // The wizard reads this off the cached snapshot — without invalidating, a
   // new pair can take up to the cache's TTL to reach it.
   await invalidateCatalogSnapshot();
@@ -30,19 +29,6 @@ export async function removeSwapPair(input: unknown): Promise<void> {
   await requireAdmin();
   const data = removeSchema.parse(input);
   await dishCategoriesService.removeSwapPair(data.id);
-  await invalidateCatalogSnapshot();
-  revalidatePath(PATH, "layout");
-}
-
-const setPlansSchema = z.object({
-  id: z.string().trim().min(1),
-  planIds: z.array(z.string().trim().min(1)).default([]),
-});
-
-export async function setSwapPairPlans(input: unknown): Promise<void> {
-  await requireAdmin();
-  const data = setPlansSchema.parse(input);
-  await dishCategoriesService.setSwapPairPlans(data.id, data.planIds);
   await invalidateCatalogSnapshot();
   revalidatePath(PATH, "layout");
 }

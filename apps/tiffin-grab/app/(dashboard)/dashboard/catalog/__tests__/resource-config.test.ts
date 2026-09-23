@@ -115,14 +115,19 @@ describe("blank numeric fields (form feeds \"\")", () => {
     // A row without a category is rejected — the category IS the item now, and
     // its label becomes the NOT NULL name on insert.
     expect(() => RESOURCES["meal-sizes"].schema.parse({
-      ...base, planId: "pln_test", items: [{ category: "" }],
+      ...base, planId: "pln_test", items: [{ category: "", planId: "pln_test" }],
+    })).toThrow();
+    // A row without its own plan is rejected too — each item picks its plan
+    // independently of the meal size's own planId now.
+    expect(() => RESOURCES["meal-sizes"].schema.parse({
+      ...base, planId: "pln_test", items: [{ category: "sabzi" }],
     })).toThrow();
     // A well-formed row parses; blank maxTuAmount round-trips to null, tuAmount defaults to 1.
     const out = RESOURCES["meal-sizes"].schema.parse({
       ...base, planId: "pln_test",
-      items: [{ category: "sabzi", maxTuAmount: "" }],
+      items: [{ category: "sabzi", planId: "pln_test", maxTuAmount: "" }],
     });
-    expect((out.items as Record<string, unknown>[])[0]).toMatchObject({ category: "sabzi", tuAmount: "1.00", maxTuAmount: null });
+    expect((out.items as Record<string, unknown>[])[0]).toMatchObject({ category: "sabzi", planId: "pln_test", tuAmount: "1.00", maxTuAmount: null });
   });
 
   it("required numeric blank is rejected rather than silently coerced to 0", () => {

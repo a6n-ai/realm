@@ -165,11 +165,11 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   }
 
   const sp = await searchParams;
-  // Composition rows offer the slots of the plan the meal size is scoped to, so
-  // a veg meal size can't be built out of healthy-plan slots. Sent as a map
-  // rather than fetched per change, so switching the plan dropdown is instant.
+  // Dishes: category options are scoped by the dish's own plan, so a category not
+  // attached to that plan is never offered. Sent as a map rather than fetched per
+  // change, so switching the plan dropdown is instant.
   let categoriesByPlan: Record<string, { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string }[]> | undefined;
-  if (resource === "meal-sizes") {
+  if (resource === "dishes") {
     const entries = await Promise.all(
       planRows.map(async (p) => [
         p.publicId,
@@ -185,6 +185,26 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     categoriesByPlan = Object.fromEntries(entries);
   }
 
+  // Meal-size composition rows: category comes FIRST (not every category is
+  // attached to every plan), then the plan select is scoped to whichever plans
+  // that category actually belongs to (category_plans, via plansByCategoryKey).
+  let compositionCategories: { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string }[] | undefined;
+  let plansByCategory: Record<string, { value: string; label: string }[]> | undefined;
+  if (resource === "meal-sizes") {
+    compositionCategories = categoryRows.map((c) => ({
+      value: c.key, label: c.label, tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel,
+    }));
+    const planPublicIdsByCategoryKey = await dishCategoriesService.plansByCategoryKey();
+    const planByPublicId = new Map(planRows.map((p) => [p.publicId, p]));
+    plansByCategory = {};
+    for (const c of categoryRows) {
+      plansByCategory[c.key] = (planPublicIdsByCategoryKey.get(c.key) ?? []).flatMap((pubId) => {
+        const p = planByPublicId.get(pubId);
+        return p ? [{ value: p.publicId, label: p.name }] : [];
+      });
+    }
+  }
+
   const allowed = sortableColumns(def);
   const sort = parseSort(sp, allowed, { column: allowed[0], dir: "asc" });
 
@@ -198,12 +218,9 @@ export async function CatalogData({ resource, searchParams }: { resource: string
 
   // Resolver over this resource's own columns, with two cases the generic map
   // can't express: `status` is whichever column this table uses for retire/
-  // restore, and plan membership lives in a join table, so it filters by
-  // existence rather than by a column on the row.
-  const joinFor: Record<string, { table: string; fk: string }> = {
-    dishes: { table: "dish_plans", fk: "dish_id" },
-    "dish-categories": { table: "category_plans", fk: "category_id" },
-  };
+  // restore, and dish-categories' plan membership lives in a join table, so it
+  // filters by existence rather than by a column on the row. Dishes has a direct
+  // planId FK now, so its planId filter falls through to baseResolver.
   const baseResolver = columnResolver(columns as Record<string, PgColumn>);
   const resolver: FilterResolver = (f) => {
     if (f.field === "status") {
@@ -211,14 +228,13 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       if (vals.length !== 1) return undefined; // both or neither → no constraint
       return eq(columns[statusField], vals[0] === "active");
     }
-    if (f.field === "planIds") {
+    if (f.field === "planIds" && resource === "dish-categories") {
       const vals = (Array.isArray(f.value) ? f.value : [f.value]) as string[];
-      const join = joinFor[resource];
-      if (!vals.length || !join) return undefined;
+      if (!vals.length) return undefined;
       return sql`exists (
-        select 1 from ${sql.identifier(join.table)} j
+        select 1 from category_plans j
         join plans p on p.id = j.plan_id
-        where j.${sql.identifier(join.fk)} = ${columns.id}
+        where j.category_id = ${columns.id}
           and p.public_id in ${vals}
       )`;
     }
@@ -274,6 +290,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       bucket.push({
         name: it.name,
         category: it.category,
+        planId: planPublicById.get(it.planId) ?? "",
         // numeric column ⇒ string in Drizzle; blank the null so the Input renders empty.
         tuAmount: String(it.tuAmount),
         maxTuAmount: it.maxTuAmount == null ? "" : String(it.maxTuAmount),
@@ -287,15 +304,18 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     });
   }
 
-  // Dishes and slots carry plan membership in a join table, so the generic
-  // column flatten can't see it. Hydrate planIds (plan publicIds — the same
-  // space the dropdown options use) so the multiselect preselects and the table
-  // can render which plans each row serves.
-  if (resource === "dishes" || resource === "dish-categories") {
-    const byRow =
-      resource === "dishes"
-        ? await dishesService.plansByDish()
-        : await dishCategoriesService.plansByCategory();
+  // Dishes has a direct planId FK (bigint), so hydrate it to the publicId space
+  // the select dropdown uses — same pattern as meal-sizes' planId above.
+  if (resource === "dishes") {
+    const planPublicById = new Map(allPlanRows.map((p) => [p.id, p.publicId]));
+    rows.forEach((dto, i) => {
+      dto.planId = planPublicById.get(raw[i].planId as bigint) ?? "";
+    });
+  }
+  // Slots carry plan membership in a join table, so the generic column flatten
+  // can't see it. Hydrate planIds (plan publicIds) so the multiselect preselects.
+  if (resource === "dish-categories") {
+    const byRow = await dishCategoriesService.plansByCategory();
     for (const dto of rows) dto.planIds = byRow.get(dto.publicId) ?? [];
   }
   if (resource === "dish-categories") {
@@ -320,6 +340,8 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       dynamicOptions={dynamicOptions}
       sort={sort}
       categoriesByPlan={categoriesByPlan}
+      compositionCategories={compositionCategories}
+      plansByCategory={plansByCategory}
       spec={spec}
       total={total}
       page={page.page}

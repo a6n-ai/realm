@@ -95,16 +95,9 @@ describe("Phase 8 swap-rule safeguards", () => {
       await db.update(dishCategories).set({ enabled: true }).where(eq(dishCategories.id, row!.id));
     }
 
-    await expect(dishCategoriesService.addSwapPair(CAT_A, CAT_B, ["not-a-plan"])).rejects.toThrow(
-      /Unknown plan/i,
-    );
-
-    // Global self-pair on B (no plan scope) remains supported.
+    // Global self-pair on B is supported.
     const global = await dishCategoriesService.addSwapPair(CAT_B, CAT_B);
     createdSwapIds.push(global.publicId);
-
-    // Plan-scoped pair that is not the A↔B directions already created.
-    await dishCategoriesService.setSwapPairPlans(global.publicId, [planPublicId]);
   });
 });
 

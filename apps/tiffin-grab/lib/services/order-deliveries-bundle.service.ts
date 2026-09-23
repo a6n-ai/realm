@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { deliveryCategorySwaps, mealSizeItems } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
+import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import {
   makeupSourceIdsForOrder,
@@ -45,6 +45,7 @@ export async function loadOrderDeliveriesBundle(
   const categoryLabels: Record<string, string> = {};
   for (const r of categoryRows) categoryLabels[r.key] = r.label;
   const categoryPortions = categoryPortionsForMealSize(catalog.mealSizes, selected.mealSizeId);
+  const categoryPortionSlots = categoryPortionSlotsForMealSize(catalog.mealSizes, selected.mealSizeId);
 
   const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
 
@@ -110,6 +111,7 @@ export async function loadOrderDeliveriesBundle(
     calendarCells,
     categoryLabels,
     categoryPortions,
+    categoryPortionSlots,
     tiffinCounts,
   };
 }

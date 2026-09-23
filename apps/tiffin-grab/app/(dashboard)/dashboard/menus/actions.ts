@@ -33,21 +33,23 @@ export async function upsertWeek(input: { weekStart: string }): Promise<ActionRe
 }
 
 export async function createDish(
-  input: { name: string; category?: string | null },
-): Promise<ActionResult<{ publicId: string; name: string; category: string | null }>> {
+  input: { name: string; category?: string | null; planId: string },
+): Promise<ActionResult<{ publicId: string; name: string; category: string | null; planId: string }>> {
   await requireAdmin();
   return runAction(async () => {
     const name = input.name.trim();
     if (!name) throw new ValidationError("Dish name is required");
+    if (!input.planId) throw new ValidationError("Plan is required");
     const row = await dishesService.create({
       name,
       description: null,
       category: input.category ?? null,
       image: null,
+      planId: input.planId,
     });
     revalidate();
     revalidatePath("/dashboard/catalog/dishes");
-    return { publicId: row.publicId, name: row.name, category: row.category };
+    return { publicId: row.publicId, name: row.name, category: row.category, planId: input.planId };
   });
 }
 

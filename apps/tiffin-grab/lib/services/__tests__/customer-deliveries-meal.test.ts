@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, dishes, menuItems, menuWeeks, orders, users } = await import("@/db/schema");
-const { attachDishToPlans, categoryIdFor } = await import("@/db/test-helpers");
+const { attachDishToPlans, categoryIdFor, testPlanId } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { myDeliveryMeal } = await import("../customer-deliveries.service");
 
@@ -37,9 +37,12 @@ describe("myDeliveryMeal (integration)", () => {
   it("resolves the delivered categories for a released week", async () => {
     const snap = await loadCatalogSnapshot();
     const plan = snap.plans.find((p) => p.key === "veg")!;
+    // A meal size scoped to the veg plan specifically — allowedDishIdsForMealSize
+    // derives eligible dishes from THIS meal size's own composition rows.
+    const mealSize = snap.mealSizes.find((m) => m.planId === plan.id)!;
     const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475559100", role: "user" }).returning();
     const [order] = await db.insert(orders).values({
-      userId: u.id, planId: plan.id, mealSizeId: snap.mealSizes[0].id,
+      userId: u.id, planId: plan.id, mealSizeId: mealSize.id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
       categoryCounts: { sabzi: 2, rice: 1 },
       durationWeeks: 1, startDate: FUTURE_MONDAY, tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
@@ -52,7 +55,7 @@ describe("myDeliveryMeal (integration)", () => {
     const [week] = await db.insert(menuWeeks).values({
       weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime(),
     }).returning();
-    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
     await attachDishToPlans(sabziDefault.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true });
 

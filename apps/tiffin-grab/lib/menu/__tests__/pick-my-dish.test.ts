@@ -9,7 +9,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 const { db } = await import("@/db/client");
 const { deliveries, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orderActivities, orders, payments, users } =
   await import("@/db/schema");
-const { attachDishToPlans, categoryIdFor } = await import("@/db/test-helpers");
+const { attachDishToPlans, categoryIdFor, testPlanId } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("@/lib/services/orders.service");
 const { pickMyDish } = await import("@/app/(customer)/me/meals/actions");
@@ -75,7 +75,7 @@ async function seedMenu(deliveryDateIso: string) {
   const weekStart = monday.toISOString().slice(0, 10);
 
   const [week] = await db.insert(menuWeeks).values({ weekStart, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
-  const [dish] = await db.insert(dishes).values({ name: "TEST_MEAL_DISH"}).returning();
+  const [dish] = await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_MEAL_DISH"}).returning();
     await attachDishToPlans(dish.id);
   await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek, categoryId: await categoryIdFor("sabzi"), dishId: dish.id, isDefault: true });
   return { week, dish, dayOfWeek };

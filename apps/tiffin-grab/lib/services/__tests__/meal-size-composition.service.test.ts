@@ -57,7 +57,7 @@ beforeEach(async () => {
   sizeId = m.id;
   sizePublicId = m.publicId;
   // A stale item that a full-replace save must delete.
-  await db.insert(mealSizeItems).values({ mealSizeId: m.id, name: "STALE", category: CAT_A, sortOrder: 0 });
+  await db.insert(mealSizeItems).values({ mealSizeId: m.id, name: "STALE", category: CAT_A, planId, sortOrder: 0 });
 });
 
 afterAll(cleanup);
@@ -73,8 +73,8 @@ describe("MealSizeService composition save", () => {
       kcalMax: "200",
       basePrice: "9.99",
       items: [
-        { category: CAT_A, tuAmount: "0.75" },
-        { category: CAT_B, tuAmount: "1" },
+        { category: CAT_A, planId: planPublicId, tuAmount: "0.75" },
+        { category: CAT_B, planId: planPublicId, tuAmount: "1" },
       ],
     });
 
@@ -101,7 +101,7 @@ describe("MealSizeService composition save", () => {
     await expect(
       mealSizeService.update(sizePublicId, {
         planId: planPublicId,
-        items: [{ category: "not-a-real-category" }],
+        items: [{ category: "not-a-real-category", planId: planPublicId }],
       }),
     ).rejects.toThrow();
 
@@ -129,8 +129,8 @@ describe("MealSizeService composition save", () => {
       mealSizeService.update(sizePublicId, {
         planId: planPublicId,
         items: [
-          { category: CAT_A, tuAmount: "1.50", maxTuAmount: "2.00" },
-          { category: CAT_A, tuAmount: "1.00", maxTuAmount: "2.00" },
+          { category: CAT_A, planId: planPublicId, tuAmount: "1.50", maxTuAmount: "2.00" },
+          { category: CAT_A, planId: planPublicId, tuAmount: "1.00", maxTuAmount: "2.00" },
         ],
       }),
     ).rejects.toThrow(/Max TU/);
@@ -140,9 +140,9 @@ describe("MealSizeService composition save", () => {
     await mealSizeService.update(sizePublicId, {
       planId: planPublicId,
       items: [
-        { category: CAT_A, tuAmount: "1.50" },
-        { category: CAT_A, tuAmount: "1.00" },
-        { category: CAT_B, tuAmount: "0.50" },
+        { category: CAT_A, planId: planPublicId, tuAmount: "1.50" },
+        { category: CAT_A, planId: planPublicId, tuAmount: "1.00" },
+        { category: CAT_B, planId: planPublicId, tuAmount: "0.50" },
       ],
     });
     const items = await db

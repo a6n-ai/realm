@@ -4,7 +4,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categoryIdFor } from "@/db/test-helpers";
+import { categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { dishCategories, dishes, mealSelections, menuItems, menuWeeks } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -44,9 +44,9 @@ async function positions(day: "mon" | "tue", categoryKey: string) {
 describe("menuService.saveWeek", () => {
   beforeEach(async () => {
     await reset();
-    const [a] = await db.insert(dishes).values({ name: "Paneer", category: "sabzi" }).returning();
-    const [b] = await db.insert(dishes).values({ name: "Bhindi", category: "sabzi" }).returning();
-    const [c] = await db.insert(dishes).values({ name: "Basmati", category: "rice" }).returning();
+    const [a] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer", category: "sabzi" }).returning();
+    const [b] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Bhindi", category: "sabzi" }).returning();
+    const [c] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Basmati", category: "rice" }).returning();
     paneer = a.publicId; bhindi = b.publicId; basmati = c.publicId;
     const w = await draftWeek("2099-06-01");
     weekId = w.id; updatedAt = w.updatedAt;
@@ -144,7 +144,7 @@ describe("menuService.saveWeek", () => {
 describe("menuService.copyWeek", () => {
   beforeEach(async () => {
     await reset();
-    const [a] = await db.insert(dishes).values({ name: "Paneer", category: "sabzi" }).returning();
+    const [a] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer", category: "sabzi" }).returning();
     paneer = a.publicId;
   });
   afterAll(reset);

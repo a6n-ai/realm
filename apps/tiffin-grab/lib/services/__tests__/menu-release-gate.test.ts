@@ -7,7 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, gte, inArray, like, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categoryIdFor } from "@/db/test-helpers";
-import { deliveryFrequencies, dishPlans, dishes, mealSelections, mealSizes, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
+import { deliveryFrequencies, dishes, mealSelections, mealSizes, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { menuService } = await import("../menu.service");
@@ -29,24 +29,25 @@ async function reset() {
   await db.delete(orders).where(like(orders.deploymentId, `${P}-%`));
   if (weekIds.length) await db.delete(menuWeeks).where(inArray(menuWeeks.id, weekIds));
 
-  const myDishes = await db.select({ id: dishes.id }).from(dishes).where(like(dishes.name, `${P} %`));
-  if (myDishes.length) {
-    const dishIds = myDishes.map((d) => d.id);
-    await db.delete(dishPlans).where(inArray(dishPlans.dishId, dishIds));
-    await db.delete(dishes).where(inArray(dishes.id, dishIds));
-  }
+  await db.delete(dishes).where(like(dishes.name, `${P} %`));
   await db.delete(users).where(like(users.email, `${P.toLowerCase()}-%`));
 }
 
-/** A dish in `category`, attached only to the named plans. Membership is the whole point. */
-async function dishOn(name: string, category: string, planKeys: string[]) {
-  const [dish] = await db.insert(dishes).values({ name: `${P} ${name}`, category }).returning();
+/**
+ * A dish in `category` on one plan. A dish "shared" across plans (e.g. Paneer on
+ * both veg and non-veg) is now two separate rows — call this once per plan key
+ * and build a menu_items row for each; see sharedOn below for that shorthand.
+ */
+async function dishOn(name: string, category: string, planKey: string) {
   const planRows = await db.select({ id: plans.id, key: plans.key }).from(plans);
-  for (const key of planKeys) {
-    const plan = planRows.find((p) => p.key === key)!;
-    await db.insert(dishPlans).values({ dishId: dish.id, planId: plan.id });
-  }
+  const plan = planRows.find((p) => p.key === planKey)!;
+  const [dish] = await db.insert(dishes).values({ planId: plan.id, name: `${P} ${name} (${planKey})`, category }).returning();
   return dish.publicId;
+}
+
+/** name/category dish on EVERY given plan — one row per plan, same conceptual dish. */
+async function sharedOn(name: string, category: string, planKeys: string[]) {
+  return Promise.all(planKeys.map((key) => dishOn(name, category, key)));
 }
 
 /** Selections for one week only — the seeded catalog shares these tables. */
@@ -63,7 +64,7 @@ describe("menuService release gate", () => {
   it("warns when a plan has no dish in a category its meal sizes require, but still releases", async () => {
     // Attached to non-veg only: the veg plan's Monday sabzi is empty even though the day
     // looks full in the builder.
-    const nonVegOnly = await dishOn("Chicken Curry", "sabzi", ["non-veg"]);
+    const nonVegOnly = await dishOn("Chicken Curry", "sabzi", "non-veg");
     const week = await menuService.upsertWeek({ weekStart: "2099-09-07" });
     await menuService.saveWeek({ menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt, items: [item(nonVegOnly, "sabzi")] });
 
@@ -76,7 +77,7 @@ describe("menuService release gate", () => {
   });
 
   it("does not flag a day that has no dishes at all — skipping a day is a choice, not a hole", async () => {
-    const shared = await dishOn("Paneer", "sabzi", ["veg", "non-veg"]);
+    const [shared] = await sharedOn("Paneer", "sabzi", ["veg", "non-veg"]);
     const week = await menuService.upsertWeek({ weekStart: "2099-09-14" });
     await menuService.saveWeek({ menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt, items: [item(shared, "sabzi", "mon")] });
 
@@ -91,8 +92,8 @@ describe("menuService release gate", () => {
     // "daal" (not "extra"): the TU redesign dropped Extra from every meal size's
     // composition, so releaseProblems no longer treats it as required by any plan —
     // daal still is, on both tiffin plans' seeded meal sizes.
-    const vegOnly = await dishOn("Papad", "daal", ["veg"]);
-    const nonVegOnly = await dishOn("Egg Bhurji", "daal", ["non-veg"]);
+    const vegOnly = await dishOn("Papad", "daal", "veg");
+    const nonVegOnly = await dishOn("Egg Bhurji", "daal", "non-veg");
     const week = await menuService.upsertWeek({ weekStart: "2099-09-28" });
     await menuService.saveWeek({
       menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt,
@@ -105,12 +106,12 @@ describe("menuService release gate", () => {
 
   it("flags a fixed category holding two dishes that reach the SAME plan", async () => {
     // Both are on the veg plan, so only one can ever be served to a veg subscriber.
-    const a = await dishOn("Papad", "daal", ["veg", "non-veg"]);
-    const b = await dishOn("Pickle", "daal", ["veg", "non-veg"]);
+    const [aVeg, aNonVeg] = await sharedOn("Papad", "daal", ["veg", "non-veg"]);
+    const [bVeg, bNonVeg] = await sharedOn("Pickle", "daal", ["veg", "non-veg"]);
     const week = await menuService.upsertWeek({ weekStart: "2099-10-26" });
     await menuService.saveWeek({
       menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt,
-      items: [item(a, "daal"), item(b, "daal")],
+      items: [item(aVeg, "daal"), item(bVeg, "daal"), item(aNonVeg, "daal"), item(bNonVeg, "daal")],
     });
 
     const surplus = (await menuService.releaseProblems(week.publicId)).filter((p) => p.kind === "extra");
@@ -134,7 +135,7 @@ describe("menuService draft → ready → released", () => {
     (await db.select({ status: menuWeeks.status }).from(menuWeeks).where(eq(menuWeeks.publicId, publicId)))[0].status;
 
   it("moves draft → ready → draft, and blocks edits while ready", async () => {
-    const shared = await dishOn("Paneer", "sabzi", ["veg", "non-veg"]);
+    const [shared] = await sharedOn("Paneer", "sabzi", ["veg", "non-veg"]);
     const week = await menuService.upsertWeek({ weekStart: "2099-10-05" });
     const saved = await menuService.saveWeek({ menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt, items: [item(shared, "sabzi")] });
 
@@ -164,8 +165,8 @@ describe("menuService amend", () => {
 
   /** A released week with one order holding an explicit pick on `pickedDish`. */
   async function releasedWeekWithPick() {
-    const keep = await dishOn("Paneer", "sabzi", ["veg", "non-veg"]);
-    const picked = await dishOn("Bhindi", "sabzi", ["veg", "non-veg"]);
+    const keep = await dishOn("Paneer", "sabzi", "veg");
+    const picked = await dishOn("Bhindi", "sabzi", "veg");
     const week = await menuService.upsertWeek({ weekStart: "2099-11-02" });
     const saved = await menuService.saveWeek({
       menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt,

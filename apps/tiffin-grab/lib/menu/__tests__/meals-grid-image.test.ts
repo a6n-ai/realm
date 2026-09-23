@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
 
@@ -31,8 +31,9 @@ async function makeOrder(planId: bigint) {
   const snap = await loadCatalogSnapshot();
   const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: `+1647555${Math.floor(Math.random() * 9000 + 1000)}`, role: "user" }).returning();
   const [freq] = await db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.key, "5_day")).limit(1);
+  const mealSize = snap.mealSizes.find((m) => m.planId === planId) ?? snap.mealSizes[0];
   const [o] = await db.insert(orders).values({
-    userId: u.id, planId, mealSizeId: snap.mealSizes[0].id, frequencyId: freq.id,
+    userId: u.id, planId, mealSizeId: mealSize.id, frequencyId: freq.id,
     persons: 1, mealSlots: ["lunch"], durationWeeks: 1, startDate: THIS_MONDAY,
     categoryCounts: { sabzi: 2, rice: 1 },
     tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
@@ -62,7 +63,7 @@ describe("buildMealsGrid — dish image on grid options", () => {
     await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
-    const [sabziWithImage] = await db.insert(dishes).values({ name: "Paneer", image: IMG }).returning();
+    const [sabziWithImage] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer", image: IMG }).returning();
     await attachDishToPlans(sabziWithImage.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziWithImage.id, isDefault: true });
 
