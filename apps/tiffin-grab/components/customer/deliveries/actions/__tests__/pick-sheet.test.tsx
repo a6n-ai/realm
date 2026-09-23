@@ -384,4 +384,58 @@ describe("PickSheet", () => {
     expect(riceSection.compareDocumentPosition(applyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(rotiSection.compareDocumentPosition(applyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it("renders 6 roti default portion in slot label and Your meal summary for a 6-roti plan", async () => {
+    load.mockResolvedValue(
+      grid(
+        [
+          cell({
+            slot: "roti",
+            selectable: false,
+            quantity: 6,
+            dishes: [{ id: "rt1", name: "Roti (Veg)", image: null }],
+            selectedDishId: "rt1",
+          }),
+        ],
+        1,
+        {
+          categories: [{ key: "roti", label: "Roti", selectable: false, sortOrder: 1 }],
+          portionsBySlot: { roti: ["6 roti"] },
+        },
+      ),
+    );
+    loadSwaps.mockResolvedValue({
+      options: [
+        {
+          fromCategory: "roti",
+          toCategory: "rice",
+          available: true,
+          reason: null,
+          validBundles: [{ fromPicks: 4, toPicks: 1, giveNatural: "4 roti", getNatural: "1 unit" }],
+          fromPicks: 4,
+          toPicks: 1,
+          maxFromPicks: 4,
+          bundleIncrement: 4,
+          giveNatural: "4 roti",
+          getNatural: "1 unit",
+        },
+      ],
+    });
+    const rotiPlan = {
+      ...plan,
+      categoryLabels: { roti: "Roti", rice: "Rice" },
+    } as unknown as PlanView;
+    render(<PickSheet trip={trip({ coversDates: [mon] })} plan={rotiPlan} open onDone={vi.fn()} />);
+
+    // Slot heading displays 6 roti
+    expect(await screen.findByRole("radiogroup", { name: "Roti · 6 roti" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^Roti \(Veg\)$/ })).toBeInTheDocument();
+
+    // Swap option available
+    expect(screen.getByRole("radio", { name: /Rice · 1 unit · uses 4 items/ })).toBeInTheDocument();
+
+    // Your meal summary displays 6 roti
+    expect(screen.getByRole("heading", { name: "Your meal" })).toBeInTheDocument();
+    expect(screen.getByText("Roti (Veg) · 6 roti")).toBeInTheDocument();
+  });
 });

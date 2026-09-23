@@ -113,6 +113,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
         tuUnitType: dishCategories.tuUnitType,
         tuUnitSize: dishCategories.tuUnitSize,
         tuUnitLabel: dishCategories.tuUnitLabel,
+        selectable: dishCategories.selectable,
       })
       .from(dishCategories),
     db
@@ -132,7 +133,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
   const tuByKey = new Map(
     tuRows.map((c) => [
       c.key,
-      { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel },
+      { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel, selectable: c.selectable },
     ]),
   );
 
