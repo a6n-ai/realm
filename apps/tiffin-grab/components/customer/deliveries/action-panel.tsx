@@ -37,16 +37,22 @@ export function TripActions({ model, layout, onAction, onGoTo }: Props) {
       size={bar ? "lg" : "md"}
       aria-label={ACTION_LABEL[k]}
       aria-disabled={!a.ok || undefined}
-      className={cn(bar ? "min-w-0 flex-1 px-1" : "px-5", !a.ok && "opacity-45")}
+      className={cn(bar ? "min-w-0 flex-1 px-1" : "shrink-0 px-5", !a.ok && "opacity-45")}
       onClick={() => fire(k, a)}
     >
       {label}
     </Button>
   );
+  // Card layout: a lone secondary action stacked below a full-width primary
+  // leaves it stranded on a wide desktop card — put primary + secondaries in
+  // one row instead (primary keeps the visual weight via flex-1, secondaries
+  // stay content-width), and only fall back to a stacked full-width primary
+  // when there is nothing else to sit beside it.
+  const cardRow = !bar && secondary.length > 0;
   return (
     <div className={cn(FONT, bar ? "space-y-2" : "space-y-3")}>
       {reason && <div role="status"><Reason>{reason}</Reason></div>}
-      <div className={cn("flex gap-2", !bar && "flex-col")}>
+      <div className={cn("flex gap-2", !bar && !cardRow && "flex-col")}>
         {model.primary === "vacation" && <Button variant="primary" size="lg" className={cn(bar ? "min-w-0 flex-[2]" : "w-full")} onClick={() => onAction("vacation")}>Resume deliveries</Button>}
         {primary && (
           <Button
@@ -54,13 +60,13 @@ export function TripActions({ model, layout, onAction, onGoTo }: Props) {
             size="lg"
             aria-label={ACTION_LABEL[primary.key]}
             aria-disabled={!primary.av.ok || undefined}
-            className={cn("whitespace-nowrap px-3", bar ? "min-w-0 flex-[2]" : "w-full", !primary.av.ok && "opacity-45")}
+            className={cn("min-w-0 whitespace-nowrap px-3", bar ? "flex-[2]" : cardRow ? "flex-1" : "w-full", !primary.av.ok && "opacity-45")}
             onClick={() => fire(primary.key, primary.av)}
           >
             {ACTION_SHORT[primary.key]}
           </Button>
         )}
-        <div className={cn("flex gap-2", bar && "contents")}>
+        <div className={cn("flex gap-2", (bar || cardRow) && "contents")}>
           {secondary.map((r) => btn(r.key, r.av, ACTION_SHORT[r.key]))}
         </div>
       </div>
