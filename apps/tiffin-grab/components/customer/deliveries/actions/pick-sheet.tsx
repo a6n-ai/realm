@@ -22,6 +22,7 @@ import {
 import {
   buildSlotDropdownOptions,
   dishOptionValue,
+  hasOutgoingSwapOptions,
   parseSlotOptionValue,
 } from "@/lib/menu/slot-dropdown";
 import { swapLabel } from "@/lib/menu/swap-rules";
@@ -207,6 +208,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     const parsed = parseSlotOptionValue(value);
     if (!parsed) return;
     if (parsed.kind === "dish") {
+      // Fixed (non-selectable) categories only expose a keep-dish radio so swaps can sit beside it.
+      if (!cell.selectable) return;
       if (effectiveDishId(cell, picked) === parsed.dishId) return;
       void persistDish(cell, parsed.dishId);
       return;
@@ -363,8 +366,11 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
 
               {groups.map((group) => {
                 const locked = dayLocked || group.cells.every((c) => c.locked);
+                // Dish-pickable OR admin swap pairs from this category — never hardcode rice/roti/…
+                const showRadios =
+                  group.selectable || hasOutgoingSwapOptions(group.key, liveSwapOptions);
 
-                if (!group.selectable) {
+                if (!showRadios) {
                   const dish = group.dishes[0];
                   const portion = group.portions[0];
                   return dish || portion ? (
@@ -394,7 +400,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         const selectedId = effectiveDishId(cell, picked);
                         const value = selectedId ? dishOptionValue(selectedId) : "";
                         const key = cellKey(cell);
-                        const cellLocked = locked || cell.locked;
+                        const cellLocked = locked || cell.locked || (!group.selectable && swapLocked);
                         const label = slotLabel(group, i);
                         const isDefault =
                           !!selectedId && cell.isDefaulted && picked[key] == null;
@@ -402,7 +408,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                           <div key={key} className="grid gap-2">
                             <div className="flex flex-wrap items-baseline justify-between gap-2">
                               <p className="text-[15px] font-semibold">{label}</p>
-                              {isDefault && <p className={`text-[13px] ${muted}`}>Default pick</p>}
+                              {isDefault && group.selectable && (
+                                <p className={`text-[13px] ${muted}`}>Default pick</p>
+                              )}
                             </div>
                             <ChoiceGroup
                               label={label}
@@ -432,7 +440,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         );
                       })}
                     </div>
-                    {!locked && (
+                    {!locked && group.selectable && (
                       <Button
                         variant="quiet"
                         className="w-full"

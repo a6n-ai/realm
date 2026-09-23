@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
@@ -211,6 +211,79 @@ describe("PickSheet", () => {
     expect(swapRadio).toHaveTextContent("Exchange");
     fireEvent.click(swapRadio);
     await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "curry", "daal", 1, mon));
+  });
+
+  it("shows Included for fixed categories with no admin outgoing swaps", async () => {
+    load.mockResolvedValue(
+      grid(
+        [
+          cell({
+            slot: "rice",
+            selectable: false,
+            dishes: [{ id: "r1", name: "Jeera Rice", image: null }],
+            selectedDishId: "r1",
+          }),
+        ],
+        1,
+        {
+          categories: [{ key: "rice", label: "Rice", selectable: false, sortOrder: 2 }],
+          portionsBySlot: { rice: ["1 unit"] },
+        },
+      ),
+    );
+    show(trip({ coversDates: [mon] }));
+    const riceSection = await screen.findByLabelText("Rice");
+    expect(within(riceSection).getByText("Included")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: /Rice/ })).toBeNull();
+  });
+
+  it("shows radios on fixed categories when admin swap pairs start from that category", async () => {
+    loadSwaps.mockResolvedValue({
+      options: [
+        {
+          fromCategory: "rice",
+          toCategory: "roti",
+          available: true,
+          reason: null,
+          validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "1 unit", getNatural: "2 roti" }],
+          minFromPicks: 1,
+          maxFromPicks: 1,
+          bundleIncrement: 1,
+          giveNatural: "1 unit",
+          getNatural: "2 roti",
+        },
+      ],
+    });
+    load.mockResolvedValue(
+      grid(
+        [
+          cell({
+            slot: "rice",
+            selectable: false,
+            dishes: [{ id: "r1", name: "Jeera Rice", image: null }],
+            selectedDishId: "r1",
+          }),
+        ],
+        1,
+        {
+          categories: [{ key: "rice", label: "Rice", selectable: false, sortOrder: 2 }],
+          portionsBySlot: { rice: ["1 unit"] },
+        },
+      ),
+    );
+    const ricePlan = {
+      ...plan,
+      categoryLabels: { rice: "Rice", roti: "Roti" },
+    } as unknown as PlanView;
+    render(<PickSheet trip={trip({ coversDates: [mon] })} plan={ricePlan} open onDone={vi.fn()} />);
+    expect(await screen.findByRole("radiogroup", { name: "Rice · 1 unit" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^Jeera Rice$/ })).toBeInTheDocument();
+    const swapRadio = screen.getByRole("radio", { name: /Roti · 2 roti/ });
+    expect(swapRadio).toHaveTextContent("Exchange");
+    expect(screen.queryByText("Included")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
+    fireEvent.click(swapRadio);
+    await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "rice", "roti", 1, mon));
   });
 
   it("disables Apply to week while a pick is saving", async () => {
