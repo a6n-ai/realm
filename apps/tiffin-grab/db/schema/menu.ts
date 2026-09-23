@@ -1,4 +1,5 @@
 import { updatableColumns } from "@foundry/database";
+import { sql } from "drizzle-orm";
 import { bigint, boolean, date, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { addonCategories, dishes, plans } from "./catalog";
 import { orders } from "./orders";
@@ -47,15 +48,16 @@ export const dishCategories = pgTable(
 );
 
 // Eligibility: is (from, to) allowed to swap, for a given plan? A row here is
-// the whole mechanism — there's no per-meal-size rule catalog any more. Scoped
-// to exactly one plan, same as dishes/meal_size_items: a pair that should hold
-// on both veg and non-veg is two rows, not one row with a nullable plan (a
-// null "applies everywhere" column would resurrect the ambiguity dishes.planId
-// was introduced to kill — see catalog.ts dishes comment). A swap always moves
-// N picks of `from` for however many `to` picks its own tuAmount works out to
-// (a flat 1 TU-for-1 TU trade, computed at apply time — see
-// category-swaps.service.ts), so this table carries no ratio, only the short
-// list of (pair, plan) combinations an admin has approved.
+// the whole mechanism — there's no per-meal-size rule catalog any more.
+// planId is nullable: null means the rule applies on every plan (the default
+// when an admin doesn't pick one); a specific plan restricts the rule to only
+// that plan's reachable meal sizes (see reachablePlanIdsForMealSize in
+// dish-categories.service.ts) — a pair that should hold everywhere is ONE
+// null-plan row, not one row duplicated per plan. A swap always moves N picks
+// of `from` for however many `to` picks its own tuAmount works out to (a flat
+// 1 TU-for-1 TU trade, computed at apply time — see category-swaps.service.ts),
+// so this table carries no ratio, only the short list of (pair, plan) rules
+// an admin has approved.
 export const categorySwapPairs = pgTable(
   "category_swap_pairs",
   {
@@ -66,13 +68,20 @@ export const categorySwapPairs = pgTable(
     toCategoryId: bigint("to_category_id", { mode: "bigint" })
       .notNull()
       .references(() => dishCategories.id, { onDelete: "cascade" }),
-    planId: bigint("plan_id", { mode: "bigint" })
-      .notNull()
-      .references(() => plans.id, { onDelete: "cascade" }),
+    // Null = all plans. Set = restricted to that one plan.
+    planId: bigint("plan_id", { mode: "bigint" }).references(() => plans.id, { onDelete: "cascade" }),
     // Client-scoping — see dishCategories.organizationId for the pattern.
     organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [uniqueIndex("category_swap_pairs_pair_unique").on(t.fromCategoryId, t.toCategoryId, t.planId)],
+  (t) => [
+    uniqueIndex("category_swap_pairs_pair_unique").on(t.fromCategoryId, t.toCategoryId, t.planId),
+    // Postgres treats NULL as distinct in a regular unique index, so the index
+    // above would let in unlimited duplicate null-plan rows for the same pair —
+    // this partial index is what actually enforces "at most one all-plans rule".
+    uniqueIndex("category_swap_pairs_pair_null_plan_unique")
+      .on(t.fromCategoryId, t.toCategoryId)
+      .where(sql`${t.planId} IS NULL`),
+  ],
 );
 
 /** Which plans a menu slot belongs to. Category stays many-to-many across plans
