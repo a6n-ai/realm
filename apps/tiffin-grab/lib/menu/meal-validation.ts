@@ -323,6 +323,16 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
     return { ok: false, reason: `${from.key} can't be swapped for ${to.key} on this meal size` };
   }
 
+  const opposing = applied.find(
+    (s) => s.fromCategory === next.toCategory && s.toCategory === next.fromCategory,
+  );
+  if (opposing) {
+    return {
+      ok: false,
+      reason: `An exchange between ${labelOf(next.toCategory, composition.labels)} and ${labelOf(next.fromCategory, composition.labels)} is already applied for this day. Undo the existing exchange to change it.`,
+    };
+  }
+
   const slots = slotsAfterSwaps(composition, applied);
   const fromSlots = slots.get(next.fromCategory) ?? [];
   if (fromSlots.length < next.fromPicks) {
@@ -445,6 +455,24 @@ export function computeSwapOption(args: {
     };
   }
 
+  const opposing = applied.find(
+    (s) => s.fromCategory === toCategory && s.toCategory === fromCategory,
+  );
+  if (opposing) {
+    return {
+      fromCategory,
+      toCategory,
+      available: false,
+      reason: `An exchange between ${labelOf(toCategory, composition.labels)} and ${labelOf(fromCategory, composition.labels)} is already applied for this day. Undo the existing exchange to change it.`,
+      validBundles: [],
+      minFromPicks: null,
+      maxFromPicks: null,
+      bundleIncrement: null,
+      giveNatural: null,
+      getNatural: null,
+    };
+  }
+
   const have = applySwapsToCounts(composition.baseCounts, applied)[fromCategory] ?? 0;
   if (have < 1) {
     return {
@@ -461,9 +489,18 @@ export function computeSwapOption(args: {
     };
   }
 
+  const slots = slotsAfterSwaps(composition, applied);
+  const fromSlots = slots.get(fromCategory) ?? [];
+  const uniformSlots = fromSlots.length <= 1 || fromSlots.every((tu) => Math.abs(tu - fromSlots[0]!) < 1e-9);
+
   const bundles: SwapBundle[] = [];
   let firstFail: string | null = null;
   for (let q = 1; q <= have; q++) {
+    // When 1 source item already produces a valid integer exchange and all available source slots
+    // have uniform TU, do not expose redundant multi-item bundles (q > 1) on slot-based UIs.
+    if (q > 1 && uniformSlots && bundles.some((b) => b.fromPicks === 1)) {
+      break;
+    }
     const r = validateProposedSwap({
       composition,
       applied,
