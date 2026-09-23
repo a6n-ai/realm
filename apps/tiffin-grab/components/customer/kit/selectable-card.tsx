@@ -25,7 +25,9 @@ export function OptionCard({ selected, className, children, type = "button", rol
         FOCUS,
         "cursor-pointer rounded-[20px] border-2 text-left [touch-action:manipulation] transition-[transform,background-color,border-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100",
         SPRING,
-        selected ? "border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]" : "border-[var(--border)] bg-[var(--card)]",
+        selected
+          ? "border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]"
+          : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--muted-foreground,#6E6558)] hover:bg-[var(--muted)]",
         className,
       )}
     >

@@ -58,6 +58,42 @@ function slotLabel(group: PickCategoryGroup, index: number): string {
   return group.label;
 }
 
+/**
+ * The meal rules for this order, in the admin's own words. Shown up front so a
+ * customer knows the limits before choosing; the rule that just refused a pick
+ * is called out rather than left for them to work out.
+ */
+function MealRuleNotes({
+  rules,
+  violatedRuleId,
+}: {
+  rules: { publicId: string; text: string }[];
+  violatedRuleId: string | null;
+}) {
+  if (rules.length === 0) return null;
+  return (
+    <section className="rounded-lg border p-3">
+      <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+        Good to know
+      </h3>
+      <ul className="mt-1.5 space-y-1">
+        {rules.map((r) => {
+          const hit = r.publicId === violatedRuleId;
+          return (
+            <li
+              key={r.publicId}
+              // Never renders the id — it only decides which line to emphasise.
+              className={hit ? "text-destructive text-sm font-medium text-pretty" : "text-muted-foreground text-sm text-pretty"}
+            >
+              {r.text}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }: ActionSheetProps) {
   const [now] = useState(() => Date.now());
   const av = actionAvailability(trip, now, plan.ctx);
@@ -78,6 +114,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Which rule refused the last pick, so its line stands out in the list above.
+  const [violatedRuleId, setViolatedRuleId] = useState<string | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [swapLoadKey, setSwapLoadKey] = useState(0);
@@ -155,6 +193,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     setPicked((p) => ({ ...p, [key]: dishId }));
     setBusy(key);
     setError(null);
+    setViolatedRuleId(null);
     setApplied(null);
     try {
       const r = await pickMyDish({
@@ -166,7 +205,12 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         pickIndex: cell.pickIndex,
         dishId,
       });
-      if ("error" in r) throw new Error(r.error);
+      if ("error" in r) {
+        // Highlights that rule in the list above; the message itself is the
+        // admin's own words, so it needs no extra explanation here.
+        setViolatedRuleId(r.violatedRuleId ?? null);
+        throw new Error(r.error);
+      }
       setTouched(true);
     } catch (e) {
       setPicked((p) => {
@@ -479,6 +523,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
             </div>
             {applied && <Notice>{applied}</Notice>}
             {error && <Notice tone="error">{error}</Notice>}
+            <MealRuleNotes rules={grid?.rules ?? []} violatedRuleId={violatedRuleId} />
           </>
         )}
       </div>

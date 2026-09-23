@@ -141,11 +141,12 @@ describe("applyDeliverySwap", () => {
     const planKey = plan.key;
     const [from, to] = [...new Set(size.items.map((i) => i.category))];
     // Deliberately no allowPair() call — but the seed already wires some pairs
-    // for this plan (roti/rice, salad/raita, ...), and this meal size's own
-    // pair might already be one of them. If so, remove it for this test only
-    // and restore the exact same row (by id) once done.
+    // reachable from this plan (roti/rice, salad/raita, ..., most now scoped to
+    // ALL plans rather than duplicated per plan), and this meal size's own pair
+    // might already be one of them. If so, remove it for this test only and
+    // restore the exact same row (by id) once done.
     const pairs = await dishCategoriesService.listSwapPairs();
-    const seeded = pairs.find((p) => p.fromKey === from && p.toKey === to && p.planId === plan.publicId);
+    const seeded = pairs.find((p) => p.fromKey === from && p.toKey === to && (p.planId === plan.publicId || p.planId === null));
     if (seeded) await dishCategoriesService.removeSwapPair(seeded.id);
 
     try {
