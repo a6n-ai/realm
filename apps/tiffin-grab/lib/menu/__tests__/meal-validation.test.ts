@@ -202,13 +202,13 @@ describe("multi-row Sabzi composition (actual row TU — Phase 7)", () => {
     });
     expect(r).toMatchObject({ ok: true, giveTu: 2.5, qtyTo: 2, getTu: 2.5 });
     const opt = computeSwapOption({ composition: peer, applied: [], fromCategory: "sabzi", toCategory: "daal" });
-    expect(opt.validBundles.find((b) => b.fromPicks === 2)?.giveNatural).toBe("20oz");
+    expect(opt.validBundles.find((b) => b.fromPicks === 2)?.giveNatural).toBe("12oz + 8oz");
     expect(opt.validBundles.find((b) => b.fromPicks === 2)?.giveNatural).not.toBe("24oz");
   });
 
-  it("Sabzi→Daal at 1.0: like-for-like keeps 12oz/20oz — no false 2→3 / 24oz bundle", () => {
+  it("Sabzi→Daal at 1.0: like-for-like keeps 12oz and 12oz + 8oz — no false 2→3 / 24oz bundle", () => {
     const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "sabzi", toCategory: "daal" });
-    expect(opt.validBundles.map((b) => [b.fromPicks, b.toPicks, b.getNatural])).toEqual([[1, 1, "12oz"], [2, 2, "20oz"]]);
+    expect(opt.validBundles.map((b) => [b.fromPicks, b.toPicks, b.getNatural])).toEqual([[1, 1, "12oz"], [2, 2, "12oz + 8oz"]]);
   });
 
   it("single-row Sabzi 1.5 behaves like before (compatibility)", () => {
@@ -413,7 +413,7 @@ describe("Swap engine: Opposing swaps & single-item bundle suppression (Fix 1 & 
     expect(opt.available).toBe(true);
     // 1 pick = 1.5 TU (12oz) → 3 daal; 2 picks = 2.5 TU (20oz) → 5 daal
     expect(opt.validBundles.find((b) => b.fromPicks === 1)?.giveNatural).toBe("12oz");
-    expect(opt.validBundles.find((b) => b.fromPicks === 2)?.giveNatural).toBe("20oz");
+    expect(opt.validBundles.find((b) => b.fromPicks === 2)?.giveNatural).toBe("12oz + 8oz");
   });
 
   // 8. Existing Undo behavior still works: Undoing A → B restores original state.

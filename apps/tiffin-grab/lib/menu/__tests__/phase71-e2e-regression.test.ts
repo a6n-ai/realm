@@ -169,9 +169,9 @@ describe("Phase 7.1 Case C — different-TU multi-row", () => {
       getNatural: "12oz",
     });
     expect(opt.validBundles.find((b) => b.fromPicks === 2)).toMatchObject({
-      giveNatural: "20oz",
+      giveNatural: "12oz + 8oz",
       toPicks: 2,
-      getNatural: "20oz",
+      getNatural: "12oz + 8oz",
     });
     expect(opt.validBundles.some((b) => b.giveNatural === "24oz")).toBe(false);
 

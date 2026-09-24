@@ -34,7 +34,7 @@ describe("Sabzi Only Large → Daal (like-for-like TU)", () => {
     const opt = computeSwapOption({ composition, applied: [], fromCategory: "sabzi", toCategory: "daal" });
     expect(opt.validBundles.map((b) => ({ from: b.fromPicks, to: b.toPicks, give: b.giveNatural, get: b.getNatural }))).toEqual([
       { from: 1, to: 1, give: "12oz", get: "12oz" },
-      { from: 2, to: 2, give: "20oz", get: "20oz" },
+      { from: 2, to: 2, give: "12oz + 8oz", get: "12oz + 8oz" },
     ]);
   });
 

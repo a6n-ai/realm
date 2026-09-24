@@ -9,6 +9,8 @@ import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { buildMealsGrid, type GridCell } from "@/lib/menu/meals-grid";
 import { listRuleTextsForOrder } from "@/lib/menu/rule-texts";
+import { mealRulesService } from "@/lib/services/meal-rules.service";
+import type { MealRule } from "@/lib/menu/meal-rule-types";
 import { categoryCountsFromItems, portionsByCategory, type PortionSwap } from "@/lib/menu/pick-size";
 import type { TuCategory } from "@/lib/menu/format-tu";
 import { swapAppliesTo } from "@/lib/menu/coverage";
@@ -34,6 +36,8 @@ export type PickGrid = {
    * by `publicId` when one of them refuses a pick.
    */
   rules: { publicId: string; text: string }[];
+  /** The same rules, structured, so the sheet can hide dishes a save would refuse. */
+  mealRules: MealRule[];
 };
 
 function mapPortions(portions: Map<string, (string | null)[]>): Record<string, (string | null)[]> {
@@ -63,6 +67,7 @@ export async function loadPickGrid(orderId: string, dates: string[]): Promise<{ 
       weekByDate: {},
       persons: row.persons,
       rules: await listRuleTextsForOrder(row.planId, row.mealSizeId),
+      mealRules: await mealRulesService.listEnabledForOrder({ planId: row.planId, mealSizeId: row.mealSizeId }),
     };
 
     // Natural portions from meal_size_items × category TU (formatTuHuman) — never hardcoded.

@@ -86,7 +86,7 @@ describe("Pick ↔ Swap multi-row Sabzi (1.5 + 1.0 TU)", () => {
       fromCategory: "sabzi",
       toCategory: "daal",
     });
-    expect(opt.validBundles.map((b) => b.getNatural)).toEqual(["12oz", "20oz"]);
+    expect(opt.validBundles.map((b) => b.getNatural)).toEqual(["12oz", "12oz + 8oz"]);
 
     // Dividing peer (daal 1.5): 1 pick gives actual 1.5 TU → 1 daal; remaining slot 8oz.
     const evenDaal: SwapCategory = { ...daalCat, pickTu: 1.5 };
