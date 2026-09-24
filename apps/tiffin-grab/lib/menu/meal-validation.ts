@@ -432,6 +432,11 @@ function naturalForTu(cat: SwapCategory | undefined, tu: number): string | null 
   );
 }
 
+function naturalForSlots(cat: SwapCategory, slots: number[]): string | null {
+  const parts = slots.map((tu) => naturalForTu(cat, tu));
+  return parts.every((p) => p != null) ? parts.join(" + ") : null;
+}
+
 /**
  * All valid exchange bundles for one directional pair on the current meal stack.
  * Pairs with zero valid bundles are returned as available:false with a reason.
@@ -519,8 +524,9 @@ export function computeSwapOption(args: {
     bundles.push({
       fromPicks: q,
       toPicks: r.qtyTo,
-      giveNatural: naturalForTu(from, r.giveTu),
-      getNatural: naturalForTu(to, r.getTu),
+      // Same-unit swaps move whole containers: "12oz + 8oz", never a summed "20oz".
+      giveNatural: sameUnit(from, to) ? naturalForSlots(from, fromSlots.slice(0, q)) : naturalForTu(from, r.giveTu),
+      getNatural: sameUnit(from, to) ? naturalForSlots(to, fromSlots.slice(0, q)) : naturalForTu(to, r.getTu),
     });
   }
 

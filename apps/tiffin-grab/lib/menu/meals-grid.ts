@@ -22,10 +22,13 @@ export type GridCell = {
   quantity: number;
   selectedDishId: string | null;
   isDefaulted: boolean;
-  dishes: { id: string; name: string; image: FileDetail | null }[];
+  dishes: GridDish[];
   locked: boolean;
   lockNote?: string | null;
 };
+
+/** `ruleId`/`planId` are dishes.id / dishes.planId as strings — what meal rules test; absent means untestable. */
+export type GridDish = { id: string; name: string; image: FileDetail | null; ruleId?: string; planId?: string };
 
 export type WeekDateView = DeliveryDate & { lockMs: number; locked: boolean; carriedBy?: string | null; lockNote?: string | null };
 
@@ -113,14 +116,17 @@ export async function buildMealsGrid(
     resolveDeliveryMealsForWeek(order, releasedWeek, order.persons),
     allDishBigintIds.length > 0
       ? db
-          .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, image: dishes.image })
+          .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, image: dishes.image, planId: dishes.planId })
           .from(dishes)
           .where(inArray(dishes.id, allDishBigintIds))
           .orderBy(asc(dishes.name))
       : Promise.resolve([]),
   ]);
 
-  const dishMap = new Map(dishRows.map((d) => [d.bigintId, { id: d.id, name: d.name, image: d.image ?? null }]));
+  const dishMap = new Map<bigint, GridDish>(dishRows.map((d) => [
+    d.bigintId,
+    { id: d.id, name: d.name, image: d.image ?? null, ruleId: d.bigintId.toString(), planId: d.planId.toString() },
+  ]));
 
   // Use each row's stored cutoffAt — never recomputed here. Missed-ness is decided once,
   // at materialization/reconciliation time, not re-derived at read time.
@@ -154,7 +160,7 @@ export async function buildMealsGrid(
       const slotItems = dayItems.filter((i) => i.slot === slot && planDishIds.has(i.dishId));
       const slotDishes = slotItems
         .map((i) => dishMap.get(i.dishId))
-        .filter((d): d is { id: string; name: string; image: FileDetail | null } => !!d);
+        .filter((d): d is GridDish => !!d);
 
       for (let p = 1; p <= order.persons; p++) {
         const resolved = weekResolved.get(resolvedMealsWeekKey(day, p))?.find((r) => r.category === slot);

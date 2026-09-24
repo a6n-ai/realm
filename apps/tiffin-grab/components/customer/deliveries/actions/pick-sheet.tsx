@@ -21,6 +21,8 @@ import {
 } from "@/lib/menu/pick-groups";
 import {
   buildSlotDropdownOptions,
+  dishesAllowedByRules,
+  swapOptionsAllowedByRules,
   dishOptionValue,
   hasOutgoingSwapOptions,
   parseSlotOptionValue,
@@ -185,7 +187,19 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     ? groupPickCells(cells, grid.categories, grid.portionsByDate[activeDay!] ?? grid.portionsBySlot)
     : [];
   const summary = buildMealSummary(groups, picked);
-  const liveSwapOptions = swapOptions ?? [];
+  // Every pick in this meal (fixed sides too) — what meal rules are evaluated against.
+  const mealPicks = cells.flatMap((c) => {
+    const id = effectiveDishId(c, picked);
+    const dish = id ? c.dishes.find((d) => d.id === id) : undefined;
+    return dish ? [{ key: cellKey(c), category: c.slot, pickIndex: c.pickIndex, dish }] : [];
+  });
+  // Hide swaps whose new slots no menu dish could fill without breaking a meal rule.
+  const liveSwapOptions = swapOptionsAllowedByRules({
+    rules: grid?.mealRules ?? [],
+    options: swapOptions ?? [],
+    mealPicks: [...mealPicks].sort((a, b) => a.pickIndex - b.pickIndex),
+    menuByCategory: new Map(groups.map((g) => [g.key, g.dishes])),
+  });
   const canApplyWeek =
     !dayLocked &&
     groups.some((g) => g.selectable && !g.cells.every((c) => c.locked));
@@ -455,16 +469,22 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                     <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{group.label}</h4>
                     <div className="grid gap-5">
                       {group.cells.map((cell, i) => {
+                        const selectedId = effectiveDishId(cell, picked);
+                        const key = cellKey(cell);
                         const options = buildSlotDropdownOptions({
                           cellIndexInCategory: i,
                           categoryKey: group.key,
-                          dishes: group.dishes,
+                          dishes: dishesAllowedByRules({
+                            rules: grid?.mealRules ?? [],
+                            category: group.key,
+                            dishes: group.dishes,
+                            selectedId,
+                            others: mealPicks.filter((p) => p.key !== key),
+                          }),
                           swapOptions: liveSwapOptions,
                           categoryLabel: labelOf,
                         });
-                        const selectedId = effectiveDishId(cell, picked);
                         const value = selectedId ? dishOptionValue(selectedId) : "";
-                        const key = cellKey(cell);
                         const cellLocked = locked || cell.locked || (!group.selectable && swapLocked);
                         const label = slotLabel(group, i);
                         const isDefault =

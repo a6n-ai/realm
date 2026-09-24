@@ -7,7 +7,82 @@
  * still appear there and remove multiple leading rows when applied.
  */
 
-import type { SwapOption } from "./meal-validation";
+import { validateMealRules, type SwapOption } from "./meal-validation";
+import type { HydratedPick, MealRule } from "./meal-rule-types";
+import type { GridDish } from "./meals-grid";
+
+function hydrate(category: string, dish: GridDish): HydratedPick | null {
+  if (!dish.ruleId || !dish.planId) return null;
+  return { dishId: BigInt(dish.ruleId), dishName: dish.name, dishPlanId: BigInt(dish.planId), category };
+}
+
+/**
+ * The dishes one cell may switch to without breaking a meal rule, given every other
+ * pick in that meal — the same focus check setSelection runs on save, so the sheet
+ * never offers a pick the server would refuse (e.g. a second non-veg Sabzi).
+ * The current pick always stays, so a meal already over a limit still renders.
+ */
+export function dishesAllowedByRules<D extends GridDish>(args: {
+  rules: MealRule[];
+  category: string;
+  dishes: D[];
+  selectedId: string | null;
+  others: { category: string; dish: GridDish }[];
+}): D[] {
+  const { rules, category, dishes, selectedId, others } = args;
+  if (rules.length === 0) return dishes;
+  const rest = others.flatMap((o) => hydrate(o.category, o.dish) ?? []);
+  return dishes.filter((d) => {
+    if (d.id === selectedId) return true;
+    const focus = hydrate(category, d);
+    if (!focus) return true;
+    return validateMealRules({ rules, picks: [...rest, focus], focus }).ok;
+  });
+}
+
+/**
+ * Swap bundles whose new slots can each still be filled with a dish from that day's
+ * menu without breaking a meal rule (e.g. no swap into a Chicken-only category when
+ * the meal already has its one Chicken dish). The given picks leave first, in the
+ * same front order the swap removes them. A category with no menu dishes is not a
+ * rule question, so it is left alone.
+ */
+export function swapOptionsAllowedByRules(args: {
+  rules: MealRule[];
+  options: SwapOption[];
+  /** Current picks of the meal, each category in pickIndex order. */
+  mealPicks: { category: string; dish: GridDish }[];
+  menuByCategory: Map<string, GridDish[]>;
+}): SwapOption[] {
+  const { rules, options, mealPicks, menuByCategory } = args;
+  if (rules.length === 0) return options;
+
+  const fillable = (from: string, fromPicks: number, to: string, toPicks: number): boolean => {
+    const menu = menuByCategory.get(to) ?? [];
+    if (menu.length === 0) return true;
+    let given = 0;
+    const picks = mealPicks.flatMap((p) => {
+      if (p.category === from && given < fromPicks) {
+        given++;
+        return [];
+      }
+      return hydrate(p.category, p.dish) ?? [];
+    });
+    for (let i = 0; i < toPicks; i++) {
+      const fit = menu
+        .map((d) => hydrate(to, d))
+        .find((focus) => !focus || validateMealRules({ rules, picks: [...picks, focus], focus }).ok);
+      if (fit === undefined) return false;
+      if (fit) picks.push(fit);
+    }
+    return true;
+  };
+
+  return options.flatMap((o) => {
+    const validBundles = o.validBundles.filter((b) => fillable(o.fromCategory, b.fromPicks, o.toCategory, b.toPicks));
+    return validBundles.length ? [{ ...o, validBundles }] : [];
+  });
+}
 
 export type SlotDishOption = {
   kind: "dish";
