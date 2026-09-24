@@ -1,3 +1,4 @@
+import { SectionCard } from "@/components/ds";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { listPayments } from "../payment-queries";
@@ -7,9 +8,11 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function AllPaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <Suspense fallback={<PaymentsTableSkeleton />}>
-      <AllPaymentsData searchParams={searchParams} />
-    </Suspense>
+    <SectionCard title="All payments">
+      <Suspense fallback={<PaymentsTableSkeleton />}>
+        <AllPaymentsData searchParams={searchParams} />
+      </Suspense>
+    </SectionCard>
   );
 }
 

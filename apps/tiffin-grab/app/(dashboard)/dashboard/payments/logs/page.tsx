@@ -5,7 +5,8 @@ import { db } from "@/db/client";
 import { orderActivities, orders, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
-import { parseFilterState } from "@/components/ds";
+import { parseFilterState, SectionCard } from "@/components/ds";
+import { dateRangeWhere } from "../payment-queries";
 import { LOG_EVENT_OPTIONS, LOG_SORT_KEYS } from "../payment-facets";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
@@ -13,9 +14,11 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function ProviderLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <Suspense fallback={<LogsTableSkeleton />}>
-      <LogsData searchParams={searchParams} />
-    </Suspense>
+    <SectionCard title="Provider logs">
+      <Suspense fallback={<LogsTableSkeleton />}>
+        <LogsData searchParams={searchParams} />
+      </Suspense>
+    </SectionCard>
   );
 }
 
@@ -33,6 +36,7 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
   const { page } = parseFilterState([], sp);
   const where = and(
     inArray(orderActivities.type, events.length ? (events as never[]) : ["payment_claimed", "payment_verified", "payment_rejected"]),
+    dateRangeWhere(orderActivities.createdAt, sp),
     q ? or(ilike(orders.publicId, `%${q}%`), ilike(orderActivities.note, `%${q}%`), ilike(actor.email, `%${q}%`)) : undefined,
   );
 

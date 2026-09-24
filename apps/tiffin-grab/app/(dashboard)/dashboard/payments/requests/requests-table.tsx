@@ -22,11 +22,16 @@ import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { rejectPaymentAction, verifyPaymentAction } from "../../orders/[id]/actions";
-import type { PaymentRow, PaymentSortKey } from "../payment-facets";
+import { PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "../payment-facets";
+import { PaymentStatusPill } from "../payment-status-pill";
 import { PaymentDetailDialog } from "../payment-detail-dialog";
 import type { SortState } from "@/lib/list/sort";
 
-const SPEC: FacetDef[] = [{ kind: "search", fields: [] }];
+const SPEC: FacetDef[] = [
+  { kind: "pills", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
+  { kind: "dateRange", field: "createdAt", label: "Submitted" },
+  { kind: "search", fields: [] },
+];
 
 // reference/proof/actions have no sort key in PAYMENT_SORT_KEYS, so they stay plain headers.
 const COLUMNS: readonly Column<PaymentSortKey | "reference" | "proof" | "actions">[] = [
@@ -35,6 +40,7 @@ const COLUMNS: readonly Column<PaymentSortKey | "reference" | "proof" | "actions
   { key: "order", label: "Order", sortable: true },
   { key: "reference", label: "Reference" },
   { key: "proof", label: "Proof" },
+  { key: "status", label: "Status", sortable: true },
   { key: "amount", label: "Amount", sortable: true, align: "right" },
   { key: "actions", label: "", align: "right" },
 ];
@@ -102,8 +108,8 @@ export function RequestsTable({
         sort={sort as SortState<PaymentSortKey | "reference" | "proof" | "actions">}
         filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
         emptyIcon={InboxIcon}
-        emptyMessage="Nothing waiting. New e-transfer claims land here for approval."
-        emptySearchMessage="No requests match your search."
+        emptyMessage="No e-transfers yet. Customer claims land here for approval."
+        emptySearchMessage="No e-transfers match your filters."
         renderRow={(r) => (
           <>
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
@@ -126,12 +132,19 @@ export function RequestsTable({
                 <span className="text-muted-foreground">-</span>
               )}
             </TableCell>
+            <TableCell>
+              <PaymentStatusPill status={r.status} />
+            </TableCell>
             <TableCell className="text-right tabular-nums">{formatMoney(Number(r.amount))}</TableCell>
             <TableCell className="text-right">
               <RowActions>
-                <RowActionTooltipButton icon={EyeIcon} label="View request" onClick={() => setViewing(r)} />
-                <RowActionTooltipButton icon={CheckIcon} label="Approve" disabled={pending} onClick={() => approve(r)} />
-                <RowActionTooltipButton icon={XIcon} label="Reject" disabled={pending} onClick={() => setRejecting(r)} />
+                <RowActionTooltipButton icon={EyeIcon} label="View e-transfer" onClick={() => setViewing(r)} />
+                {r.status === "pending_verification" && (
+                  <>
+                    <RowActionTooltipButton icon={CheckIcon} label="Approve" disabled={pending} onClick={() => approve(r)} />
+                    <RowActionTooltipButton icon={XIcon} label="Reject" disabled={pending} onClick={() => setRejecting(r)} />
+                  </>
+                )}
               </RowActions>
             </TableCell>
           </>
@@ -143,7 +156,7 @@ export function RequestsTable({
         payment={viewing}
         onOpenChange={(o) => !o && setViewing(null)}
         footer={
-          viewing && (
+          viewing?.status === "pending_verification" && (
             <div className="flex justify-end gap-2">
               <Button variant="outline" disabled={pending} onClick={() => setRejecting(viewing)} className="gap-1.5">
                 <XIcon className="size-4" /> Reject

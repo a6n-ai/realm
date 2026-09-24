@@ -24,6 +24,7 @@ type Row = {
 
 const SPEC: FacetDef[] = [
   { kind: "multi", field: "type", label: "Type", options: [...LEDGER_TYPE_OPTIONS] },
+  { kind: "dateRange", field: "createdAt", label: "Date" },
   { kind: "search", fields: [] },
 ];
 

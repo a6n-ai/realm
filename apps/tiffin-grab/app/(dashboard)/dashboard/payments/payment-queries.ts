@@ -1,4 +1,4 @@
-import { asc, desc, eq, ilike, inArray, or, sql, and, type SQL } from "drizzle-orm";
+import { asc, desc, eq, gte, ilike, inArray, lte, or, sql, and, type AnyColumn, type SQL } from "drizzle-orm";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
@@ -21,7 +21,18 @@ const SORT_COL = {
   amount: payments.amount,
 } as const;
 
-type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string };
+type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; from?: string; to?: string };
+
+/** The FacetFilters `dateRange` facet writes epoch-ms `from`/`to` params; either end may be open. */
+export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string }): SQL | undefined {
+  const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
+  const a = n(sp.from);
+  const b = n(sp.to);
+  if (a != null && b != null) return and(gte(col, Math.min(a, b)), lte(col, Math.max(a, b)));
+  if (a != null) return gte(col, a);
+  if (b != null) return lte(col, b);
+  return undefined;
+}
 
 const csv = (v: string | undefined, allowed: readonly { value: string }[]) =>
   (v ?? "")
@@ -43,6 +54,7 @@ export async function listPayments(
     opts.where,
     statuses.length ? inArray(payments.status, statuses as never[]) : undefined,
     methods.length ? inArray(payments.method, methods as never[]) : undefined,
+    dateRangeWhere(payments.createdAt, sp),
     q
       ? or(
           ilike(orders.publicId, `%${q}%`),

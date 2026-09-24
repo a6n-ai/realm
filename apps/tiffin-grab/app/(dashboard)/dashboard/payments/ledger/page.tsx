@@ -4,7 +4,8 @@ import { db } from "@/db/client";
 import { ledgerEntries, orders, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
-import { parseFilterState } from "@/components/ds";
+import { parseFilterState, SectionCard } from "@/components/ds";
+import { dateRangeWhere } from "../payment-queries";
 import { LEDGER_SORT_KEYS, LEDGER_TYPE_OPTIONS } from "../payment-facets";
 import { MoneyLedgerTable, MoneyLedgerTableSkeleton } from "./money-ledger-table";
 
@@ -20,9 +21,11 @@ const SORT_COL = {
 
 export default function MoneyLedgerPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <Suspense fallback={<MoneyLedgerTableSkeleton />}>
-      <MoneyLedgerData searchParams={searchParams} />
-    </Suspense>
+    <SectionCard title="Ledger">
+      <Suspense fallback={<MoneyLedgerTableSkeleton />}>
+        <MoneyLedgerData searchParams={searchParams} />
+      </Suspense>
+    </SectionCard>
   );
 }
 
@@ -36,6 +39,7 @@ async function MoneyLedgerData({ searchParams }: { searchParams: SearchParams })
   const { page } = parseFilterState([], sp);
   const where = and(
     types.length ? inArray(ledgerEntries.type, types as never[]) : undefined,
+    dateRangeWhere(ledgerEntries.createdAt, sp),
     q
       ? or(
           ilike(ledgerEntries.memo, `%${q}%`),

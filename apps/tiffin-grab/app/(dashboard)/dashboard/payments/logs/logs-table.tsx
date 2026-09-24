@@ -33,6 +33,7 @@ const EVENT_LABEL: Record<string, string> = {
 
 const SPEC: FacetDef[] = [
   { kind: "multi", field: "event", label: "Event", options: [...LOG_EVENT_OPTIONS] },
+  { kind: "dateRange", field: "createdAt", label: "Date" },
   { kind: "search", fields: [] },
 ];
 
