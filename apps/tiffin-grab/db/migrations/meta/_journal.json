@@ -316,13 +316,6 @@
       "when": 1790800001000,
       "tag": "0044_invitation_created_at",
       "breakpoints": true
-    },
-    {
-      "idx": 45,
-      "version": "7",
-      "when": 1790800002000,
-      "tag": "0045_sync_order_category_counts",
-      "breakpoints": true
     }
   ]
 }
