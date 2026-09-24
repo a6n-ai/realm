@@ -208,7 +208,7 @@ describe("PickSheet", () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
     const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
-    expect(swapRadio).toHaveTextContent("Exchange");
+    expect(swapRadio).toHaveTextContent("Choose this instead");
     fireEvent.click(swapRadio);
     await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "curry", "daal", 1, mon));
   });
@@ -279,7 +279,7 @@ describe("PickSheet", () => {
     expect(await screen.findByRole("radiogroup", { name: "Rice · 1 unit" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /^Jeera Rice$/ })).toBeInTheDocument();
     const swapRadio = screen.getByRole("radio", { name: /Roti · 2 roti/ });
-    expect(swapRadio).toHaveTextContent("Exchange");
+    expect(swapRadio).toHaveTextContent("Choose this instead");
     expect(screen.queryByText("Included")).toBeNull();
     expect(screen.queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
     fireEvent.click(swapRadio);

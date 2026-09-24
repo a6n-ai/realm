@@ -480,7 +480,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                                     <span className="block leading-snug">{o.label}</span>
                                     {o.kind === "swap" && (
                                       <span className={`mt-0.5 block text-[13px] font-normal ${muted}`}>
-                                        Exchange
+                                        Choose this instead
                                       </span>
                                     )}
                                   </span>

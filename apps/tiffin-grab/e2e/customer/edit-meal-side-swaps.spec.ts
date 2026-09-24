@@ -32,7 +32,7 @@ test("Edit meal shows swap radios on fixed side categories from admin pairs", as
   await expect(raitaRadios).toHaveCount(0);
 
   // Exchange radios from admin pairs (rice→roti, daal→…, salad→raita, …)
-  const exchanges = sheet.getByRole("radio", { name: /Exchange/i });
+  const exchanges = sheet.getByRole("radio", { name: /(Choose this instead|Exchange)/i });
   await expect(exchanges.first()).toBeVisible({ timeout: 10_000 });
   expect(await exchanges.count()).toBeGreaterThanOrEqual(2);
 

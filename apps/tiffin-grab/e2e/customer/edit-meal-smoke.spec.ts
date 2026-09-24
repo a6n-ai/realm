@@ -43,7 +43,7 @@ test("Edit meal shows per-slot radio options", async ({ page }) => {
   await expect(sheet.getByText("Sabzi · 8oz").first()).toBeVisible();
   await expect(sheet.getByRole("radio").first()).toBeVisible();
   // Swap destinations appear as radios (when valid), not buried in a <select>
-  const exchange = sheet.getByRole("radio", { name: /Exchange/i });
+  const exchange = sheet.getByRole("radio", { name: /(Choose this instead|Exchange)/i });
   if ((await exchange.count()) > 0) {
     await expect(exchange.first()).toBeVisible();
   }
