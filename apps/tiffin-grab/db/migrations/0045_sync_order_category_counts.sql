@@ -16,7 +16,7 @@ UPDATE orders o
 SET 
   category_counts = ic.new_counts,
   meal_slots = ic.new_slots,
-  updated_at = now()
+  updated_at = (extract(epoch from now()) * 1000)::bigint
 FROM item_counts ic
 WHERE o.meal_size_id = ic.meal_size_id
   AND o.status IN ('active', 'paused', 'pending');
