@@ -19,16 +19,21 @@ const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet
 /**
  * Rail + mobile bar for a trip. Swap is embedded in Edit meal (pick sheet), so
  * it is no longer a separate customer action — `canSwap` is ignored for listing.
+ * `locked`: payment unconfirmed, so only meal picking is offered.
  */
-export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean } = {}) {
+export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean } = {}) {
   const av = actionAvailability(trip, now, ctx);
   const held = trip.status === "hold" || trip.status === "rescheduled";
   const closed = CLOSED.has(trip.status);
   const pickAv: Availability = opts.menuOut && !closed ? MENU_NOT_RELEASED : av.pick;
   const keys: TripAction[] = closed
     ? []
-    : ["pick", ...(held ? (["resume"] as const) : []), "move", ...(av.pool.ok ? (["pool"] as const) : [])];
-  const primary: TripAction | null = trip.status === "vacation" ? "vacation" : held ? "resume" : trip.status === "upcoming" ? "pick" : null;
+    : opts.locked
+      ? ["pick"]
+      : ["pick", ...(held ? (["resume"] as const) : []), "move", ...(av.pool.ok ? (["pool"] as const) : [])];
+  const primary: TripAction | null = opts.locked
+    ? (trip.status === "upcoming" ? "pick" : null)
+    : trip.status === "vacation" ? "vacation" : held ? "resume" : trip.status === "upcoming" ? "pick" : null;
   return {
     av,
     primary,
@@ -37,7 +42,7 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
       label: key === "vacation" ? "Resume deliveries" : ACTION_LABEL[key],
       av: key === "pick" ? pickAv : (av[key] as Availability),
     })),
-    bar: (closed ? [] : (["pick", "move"] as TripAction[])),
+    bar: (closed || opts.locked ? [] : (["pick", "move"] as TripAction[])),
     closedReason: closed ? av.pick.why : null,
     goTo: trip.status === "combined-into" ? trip.mergedInto : null,
   };

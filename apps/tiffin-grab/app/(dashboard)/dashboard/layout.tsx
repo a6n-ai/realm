@@ -14,8 +14,7 @@ import { IdleLock } from "@/components/dashboard/idle-lock";
 import { LockButton } from "@/components/dashboard/lock-button";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { ModeToggle } from "@/components/mode-toggle";
-import { NotificationBell } from "@relay/engine/ui";
-import { subscribeNotifications } from "@/components/notifications/realtime";
+import { NotificationBellMount } from "@/components/dashboard/notification-bell-mount";
 import { CrmShell } from "@foundry/crm";
 import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
@@ -107,7 +106,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       actions={
         <>
           <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
-          <NotificationBell subscribe={subscribeNotifications} />
+          <NotificationBellMount userPublicId={session.user.id} />
           <LockButton hasPin={hasPin} />
           <ModeToggle />
         </>

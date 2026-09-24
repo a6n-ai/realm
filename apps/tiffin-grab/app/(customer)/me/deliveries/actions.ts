@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { currentUserId } from "@/lib/services/session-service";
-import { assertCanManageDelivery, assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
+import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
 import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
 import { formatMissedDays } from "@/lib/menu/coverage";
 import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
@@ -33,9 +33,17 @@ async function orderPublicIdForDelivery(deliveryPublicId: string): Promise<strin
   return row?.publicId ?? null;
 }
 
+// While an e-Transfer is unconfirmed the customer may only pick meals, so every action here
+// refuses. Staff bypass inside assertOrderUnlocked.
+async function assertDeliveryUnlocked(deliveryPublicId: string) {
+  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+  if (orderId) await assertOrderUnlocked(orderId);
+}
+
 export async function skipMyDelivery(deliveryPublicId: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
+    await assertDeliveryUnlocked(deliveryPublicId);
     const { missedDates } = await skipDelivery(deliveryPublicId, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
@@ -47,6 +55,7 @@ export async function skipMyDelivery(deliveryPublicId: string): Promise<ActionRe
 export async function unskipMyDelivery(deliveryPublicId: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
+    await assertDeliveryUnlocked(deliveryPublicId);
     await unskipDelivery(deliveryPublicId, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
@@ -60,6 +69,7 @@ export async function setMyDeliveryAddress(
 ): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
+    await assertDeliveryUnlocked(deliveryPublicId);
     await setDeliveryAddress(deliveryPublicId, input, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
@@ -70,6 +80,7 @@ export async function setMyDeliveryAddress(
 export async function clearMyDeliveryAddress(deliveryPublicId: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
+    await assertDeliveryUnlocked(deliveryPublicId);
     await clearDeliveryAddress(deliveryPublicId, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
@@ -83,6 +94,7 @@ export async function pauseMySubscription(
 ): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
+    await assertOrderUnlocked(orderPublicId);
     await pauseOrder(orderPublicId, window);
     await revalidateDeliverySurfaces(orderPublicId);
   });
@@ -92,6 +104,7 @@ export async function pauseMySubscription(
 export async function resumeMySubscription(orderPublicId: string, fromDate?: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
+    await assertOrderUnlocked(orderPublicId);
     await resumeOrder(orderPublicId, (await currentUserId()) ?? undefined, fromDate);
     await revalidateDeliverySurfaces(orderPublicId);
   });
@@ -105,6 +118,7 @@ export async function scheduleMyPooledTiffin(
 ): Promise<ActionResult<{ carriedOn: string; merged: boolean }>> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
+    await assertOrderUnlocked(orderPublicId);
     const result = await scheduleFromPool(orderPublicId, dateIso, await currentUserId());
     await revalidateDeliverySurfaces(orderPublicId);
     return { carriedOn: result.carriedOn, merged: result.merged };
@@ -135,6 +149,7 @@ export async function loadMySwapOptions(
 export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory: string, toCategory: string, fromPicks: number, forDate?: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
+    await assertDeliveryUnlocked(deliveryPublicId);
     await applyDeliverySwap(deliveryPublicId, fromCategory, toCategory, fromPicks, await currentUserId(), forDate);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
@@ -145,6 +160,7 @@ export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory
 export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwapPublicId: string, forDate?: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
+    await assertDeliveryUnlocked(deliveryPublicId);
     await removeDeliverySwap(deliveryPublicId, appliedSwapPublicId, await currentUserId(), forDate);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
@@ -160,6 +176,7 @@ export async function rescheduleMyDelivery(
 ): Promise<ActionResult<{ carriedOn: string; merged: boolean }>> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
+    await assertDeliveryUnlocked(deliveryPublicId);
     const result = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId(), sourceEatDateIso ?? null);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);

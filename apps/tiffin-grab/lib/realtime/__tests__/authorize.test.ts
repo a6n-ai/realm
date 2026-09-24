@@ -65,4 +65,10 @@ describe("authorizeChannel", () => {
       role: "staff",
     });
   });
+
+  it("lets a user subscribe to their own notify channel only", async () => {
+    session.user = { id: "usr_me", role: "admin" };
+    await expect(authorizeChannel("notify:usr_me")).resolves.toMatchObject({ channel: "notify:usr_me", userId: "usr_me" });
+    expect(await authorizeChannel("notify:usr_other")).toBeNull();
+  });
 });

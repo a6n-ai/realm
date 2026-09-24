@@ -33,7 +33,8 @@ import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type Pr
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
-import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
+import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
+import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { reservedEndDatesExclusive } from "./order-window";
 import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
@@ -644,6 +645,7 @@ export async function verifyPayment(
   paymentPublicId: string,
   opts: { actorId?: string | null } = {},
 ): Promise<void> {
+  let missedStops: OptimoSyncedRow[] = [];
   const award = await db.transaction(async (tx) => {
     const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
     if (!pay) throw new NotFoundError("Payment not found");
@@ -733,10 +735,14 @@ export async function verifyPayment(
         .where(eq(orders.id, order.id));
     }
 
+    if (order.status === "active") missedStops = await shiftMissedDeliveries(tx, order.id, actorInternalId);
+
     // Award coins only when the order is (still) active — waitlisted stays deferred
     // until activateOrder, which has its own award path.
     return order.status === "active" ? { userId: order.userId, orderPublicId: order.publicId } : null;
   });
+
+  await deleteFromOptimoRouteBestEffort(missedStops);
 
   if (award) {
     try {
@@ -854,25 +860,40 @@ export async function claimPayment(
     throw new ValidationError("Add a payment reference or upload a screenshot");
   }
 
-  await db
-    .update(payments)
-    .set({
-      reference,
-      proof,
-      claimedAt: Date.now(),
-      status: "pending_verification",
-      // Clear a prior reject note when re-claiming.
-      note: null,
-    })
-    .where(eq(payments.id, pay.id));
+  const claimedAt = Date.now();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(payments)
+      .set({
+        reference,
+        proof,
+        claimedAt,
+        status: "pending_verification",
+        // Clear a prior reject note when re-claiming.
+        note: null,
+      })
+      .where(eq(payments.id, pay.id));
 
-  // Re-claiming after a rejection wipes payments.note, so the rejection reason survives
-  // only here. Without this row a rejected-then-reclaimed payment has no history at all.
-  await db.insert(orderActivities).values({
-    orderId: pay.orderId,
-    type: "payment_claimed",
-    note: reference ? `${pay.method} · ref ${reference}` : `${pay.method} · proof attached`,
-    createdBy: actorId,
+    // Re-claiming after a rejection wipes payments.note, so the rejection reason survives
+    // only here. Without this row a rejected-then-reclaimed payment has no history at all.
+    await tx.insert(orderActivities).values({
+      orderId: pay.orderId,
+      type: "payment_claimed",
+      note: reference ? `${pay.method} · ref ${reference}` : `${pay.method} · proof attached`,
+      createdBy: actorId,
+    });
+
+    if (pay.method === "etransfer") {
+      const [order] = await tx.select({ publicId: orders.publicId }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
+      await enqueueStaffNotification(tx, {
+        // No event on purpose: in-app rows for an event render from an admin-authored DB
+        // template and are skipped when none exists. Without one the payload copy is used.
+        title: "New e-Transfer request",
+        body: `${pay.amount} awaiting approval${order ? ` · order ${order.publicId}` : ""}`,
+        href: "/dashboard/payments/requests",
+        dedupeKey: `etransfer_requested:${pay.publicId}:${claimedAt}`,
+      });
+    }
   });
 
   // Staff review queue + sidebar dot via payments:inbox SSE.
