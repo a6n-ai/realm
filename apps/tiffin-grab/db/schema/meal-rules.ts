@@ -1,5 +1,5 @@
 import { updatableColumns } from "@foundry/database";
-import { bigint, boolean, integer, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, integer, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { mealSizes, plans } from "./catalog";
 import { organization } from "./organizations";
 
@@ -94,7 +94,11 @@ export const mealRules = pgTable("meal_rules", {
   maxCount: integer("max_count"),
 
   organizationId: text("organization_id").references(() => organization.id),
-});
+}, (t) => [
+  index("meal_rules_scope_plan_idx").on(t.scopePlanId),
+  index("meal_rules_scope_meal_size_idx").on(t.scopeMealSizeId),
+  index("meal_rules_plan_idx").on(t.planId),
+]);
 
 /**
  * One WHEN clause. Rows rather than a JSON blob so each predicate can be
@@ -118,4 +122,4 @@ export const mealRuleConditions = pgTable("meal_rule_conditions", {
   valueKeys: text("value_keys").array(),
   valueText: text("value_text"),
   organizationId: text("organization_id").references(() => organization.id),
-});
+}, (t) => [index("meal_rule_conditions_rule_idx").on(t.ruleId)]);

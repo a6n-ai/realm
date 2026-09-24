@@ -3,6 +3,7 @@ import type { RealtimeRole } from "@foundry/realtime";
 import { getSession } from "@/lib/auth/session";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { PAYMENTS_INBOX, TICKETS_INBOX } from "./inbox";
+import { notifyChannel } from "./notify";
 
 function staffRole(role: RoleValue): RealtimeRole | null {
   if (role === Role.ADMIN || role === Role.MEMBER) return "staff";
@@ -27,6 +28,11 @@ export async function authorizeChannel(
   if (parts.length !== 2) return null;
   const [kind, publicId] = parts;
   if (!kind || !publicId) return null;
+
+  // A user's own bell stream and nobody else's: the channel name carries their public id.
+  if (kind === "notify") {
+    return publicId === userId ? { channel: notifyChannel(userId), userId, role: realtimeRole } : null;
+  }
 
   if (kind === "tickets" && publicId === "inbox") {
     if (!staffRole(role)) return null;

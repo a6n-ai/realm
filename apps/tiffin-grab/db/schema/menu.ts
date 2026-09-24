@@ -1,6 +1,6 @@
 import { updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, date, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, index, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { addonCategories, dishes, plans } from "./catalog";
 import { orders } from "./orders";
 import { organization } from "./organizations";
@@ -81,6 +81,8 @@ export const categorySwapPairs = pgTable(
     uniqueIndex("category_swap_pairs_pair_null_plan_unique")
       .on(t.fromCategoryId, t.toCategoryId)
       .where(sql`${t.planId} IS NULL`),
+    index("category_swap_pairs_to_category_idx").on(t.toCategoryId),
+    index("category_swap_pairs_plan_idx").on(t.planId),
   ],
 );
 
@@ -99,7 +101,10 @@ export const categoryPlans = pgTable(
     // Client-scoping — see dishCategories.organizationId for the pattern.
     organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [uniqueIndex("category_plans_category_plan_unique").on(t.categoryId, t.planId)],
+  (t) => [
+    uniqueIndex("category_plans_category_plan_unique").on(t.categoryId, t.planId),
+    index("category_plans_plan_idx").on(t.planId),
+  ],
 );
 
 // Which add-on categories a dish category offers. An add-on only shows to the
@@ -119,7 +124,10 @@ export const dishCategoryAddonCategories = pgTable(
     // Client-scoping — see dishCategories.organizationId for the pattern.
     organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [uniqueIndex("dish_category_addon_categories_unique").on(t.dishCategoryId, t.addonCategoryId)],
+  (t) => [
+    uniqueIndex("dish_category_addon_categories_unique").on(t.dishCategoryId, t.addonCategoryId),
+    index("dish_category_addon_categories_addon_category_idx").on(t.addonCategoryId),
+  ],
 );
 
 // draft   — the admin's working copy; content is editable, invisible to the public.
@@ -170,7 +178,10 @@ export const menuItems = pgTable(
     // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
     organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.categoryId, t.dishId)],
+  (t) => [
+    uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.categoryId, t.dishId),
+    index("menu_items_dish_idx").on(t.dishId),
+  ],
 );
 
 export const mealSelections = pgTable(
@@ -198,5 +209,8 @@ export const mealSelections = pgTable(
       t.personIndex,
       t.pickIndex,
     ),
+    index("meal_selections_menu_week_idx").on(t.menuWeekId),
+    index("meal_selections_category_idx").on(t.categoryId),
+    index("meal_selections_dish_idx").on(t.dishId),
   ],
 );

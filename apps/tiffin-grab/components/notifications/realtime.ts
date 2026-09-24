@@ -5,16 +5,13 @@ import type { RealtimeNotification } from "@relay/engine/ui";
 export type { RealtimeNotification };
 
 /**
- * Real-time push transport for this app's bell. The Amplify/AppSync backend was
- * removed with the move to EC2; the self-hosted deploy will rewire this to the
- * SSE feed (puchkaman already passes an SSE subscriber of this shape).
- *
- * Until then this is a no-op and the bell works via the REST feed plus the
- * focus refetch. Kept wired rather than deleted so the seam stays visible.
- * ponytail: stub, replace body when the SSE transport lands.
+ * SSE transport for the bell. The frame carries no payload, so this calls back with nothing
+ * and the bell refetches its feed. Auth rides the session cookie (same-origin EventSource).
  */
-export async function subscribeNotifications(
-  _onEvent: (n?: RealtimeNotification) => void,
-): Promise<() => void> {
-  return () => {};
+export function makeSubscriber(userPublicId: string) {
+  return async (onEvent: (n?: RealtimeNotification) => void): Promise<() => void> => {
+    const source = new EventSource(`/api/realtime?channel=${encodeURIComponent(`notify:${userPublicId}`)}`);
+    source.onmessage = () => onEvent();
+    return () => source.close();
+  };
 }

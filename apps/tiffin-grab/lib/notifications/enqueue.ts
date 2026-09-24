@@ -1,4 +1,4 @@
-import { enqueue, type EnqueueInput } from "@relay/engine";
+import { enqueue, enqueueToRole, type EnqueueInput, type EnqueueToRoleInput } from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
 
@@ -26,5 +26,14 @@ export function enqueueNotification(tx: Tx, input: EnqueueInput & { event: Event
   return enqueue(tx, notificationTables, usersRef, {
     ...input,
     channels: input.channels ?? EVENT_CHANNELS[input.event],
+  });
+}
+
+/** Staff-facing fan-out: one in-app row per active admin/member. */
+export function enqueueStaffNotification(tx: Tx, input: Omit<EnqueueToRoleInput, "roles" | "event"> & { event?: Event }): Promise<void> {
+  return enqueueToRole(tx, notificationTables, usersRef, {
+    ...input,
+    roles: ["admin", "member"],
+    channels: input.channels ?? (input.event ? EVENT_CHANNELS[input.event] : undefined),
   });
 }

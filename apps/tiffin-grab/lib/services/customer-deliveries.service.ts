@@ -1,5 +1,5 @@
 import { loadExtraDates } from "@/lib/services/delivery-extras";
-import { NotFoundError, Role, weekdayKey, zonedDateIso } from "@foundry/commons";
+import { NotFoundError, Role, ValidationError, weekdayKey, zonedDateIso } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -17,6 +17,7 @@ import {
 import { allowedDishIdsForMealSize } from "@/lib/menu/selections.service";
 import { isHiddenFromCustomer, orderDisplayStatus } from "@/lib/orders/display-status";
 import { getSession } from "@/lib/auth/session";
+import { isPaymentReviewStatus } from "@/lib/orders/display-status";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
@@ -51,6 +52,25 @@ export async function assertCanManageDelivery(deliveryPublicId: string): Promise
   const userId = await currentUserId();
   if (userId == null) throw new NotFoundError("Delivery not found");
   await assertOwnsDelivery(userId, deliveryPublicId);
+}
+
+// True while any payment on the order is unconfirmed (awaiting, under review, or rejected and
+// awaiting a re-claim). Used to freeze customer schedule changes until staff approve.
+export async function orderPaymentLocked(orderPublicId: string): Promise<boolean> {
+  const rows = await db
+    .select({ status: payments.status })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .where(eq(orders.publicId, orderPublicId));
+  return rows.some((r) => isPaymentReviewStatus(r.status) || r.status === "rejected");
+}
+
+// Customers may only pick meals while payment is unconfirmed; staff can always act.
+export async function assertOrderUnlocked(orderPublicId: string): Promise<void> {
+  if (await callerIsStaff()) return;
+  if (await orderPaymentLocked(orderPublicId)) {
+    throw new ValidationError("Your plan changes unlock once we confirm your e-Transfer");
+  }
 }
 
 type Delivery = typeof deliveries.$inferSelect;

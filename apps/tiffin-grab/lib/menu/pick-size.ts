@@ -89,10 +89,21 @@ export function portionsByCategory(
   const out = new Map<string, (string | null)[]>();
   for (const [category, slots] of tus) {
     const converter = categoriesByKey.get(category) ?? null;
-    out.set(
-      category,
-      slots.map((tu) => (converter && tu != null ? formatTuHuman(converter, tu) : null)),
-    );
+    if (converter?.selectable === false) {
+      if (slots.length === 0) {
+        out.set(category, []);
+      } else if (!slots.some((tu) => tu != null)) {
+        out.set(category, [null]);
+      } else {
+        const totalTu = slots.reduce<number>((acc, tu) => acc + (tu ?? 0), 0);
+        out.set(category, [converter && totalTu > 0 ? formatTuHuman(converter, totalTu) : null]);
+      }
+    } else {
+      out.set(
+        category,
+        slots.map((tu) => (converter && tu != null ? formatTuHuman(converter, tu) : null)),
+      );
+    }
   }
   return out;
 }

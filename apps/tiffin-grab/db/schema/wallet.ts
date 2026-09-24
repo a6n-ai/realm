@@ -1,6 +1,6 @@
 import { updatableColumns } from "@foundry/database";
 import { makeWalletTables } from "@foundry/wallet/schema";
-import { bigint, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, index, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { ledgerDirection } from "./coupons";
 import { durationPackages, mealSizes } from "./catalog";
 import { orders } from "./orders";
@@ -54,4 +54,5 @@ export const mealPayout = pgTable("meal_payout", {
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   uniqueIndex("meal_payout_combo_unique").on(t.mealSizeId, t.durationPackageId),
+  index("meal_payout_duration_package_idx").on(t.durationPackageId),
 ]);

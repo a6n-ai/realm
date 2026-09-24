@@ -777,6 +777,55 @@ async function moveTrip(
 }
 
 /**
+ * Runs when staff approve an e-transfer: trips whose date passed while payment was unconfirmed
+ * are moved (whole, coverage kept) to the next plan weekdays after the current tail. Past-dated
+ * trips are found by date, so a second run finds nothing. Caller owns the tx and should delete
+ * the returned stops from OptimoRoute after commit.
+ */
+export async function shiftMissedDeliveries(
+  tx: Tx,
+  orderId: bigint,
+  actorId: bigint | null,
+): Promise<OptimoSyncedRow[]> {
+  const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  if (!order) return [];
+
+  const { timezone, cutoffHour } = await getAppSettings();
+  const today = zonedDateIso(Date.now(), timezone);
+
+  const missed = await tx.select().from(deliveries).where(and(
+    eq(deliveries.orderId, orderId),
+    eq(deliveries.status, "scheduled"),
+    isNull(deliveries.mergedIntoDeliveryId),
+    sql`${deliveries.deliveryDate} < ${today}`,
+  )).orderBy(asc(deliveries.deliveryDate));
+  if (missed.length === 0) return [];
+
+  const weekdays = new Set([...(await orderDeliveryDaySet(tx, order))].filter((d) => d !== "sat" && d !== "sun"));
+  const yesterday = parseIsoDateUtc(today);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const floor = yesterday.toISOString().slice(0, 10);
+
+  const stops: OptimoSyncedRow[] = [];
+  for (const row of missed) {
+    const [{ max }] = await tx.select({ max: sql<string | null>`max(${deliveries.deliveryDate})` })
+      .from(deliveries)
+      .where(and(eq(deliveries.orderId, orderId), eq(deliveries.status, "scheduled"), isNull(deliveries.mergedIntoDeliveryId)));
+    const tail = max && max > floor ? max : floor;
+    const target = nextDeliveryDateAfter(tail, weekdays);
+
+    await tx.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, row.id));
+    const moved = await moveTrip(tx, row, target, cutoffMsFor(target, cutoffHour, timezone), null, order.persons);
+    await tx.insert(orderActivities).values({
+      orderId, deliveryId: moved.id, type: "pool_scheduled", createdBy: actorId,
+      note: `Missed ${row.deliveryDate} while payment was unconfirmed; moved to ${target}`,
+    });
+    stops.push({ publicId: row.publicId, routeSyncedAt: row.routeSyncedAt });
+  }
+  return stops;
+}
+
+/**
  * Reschedule: customer picks the day they want to EAT (`eatingDateIso`). That date snaps to
  * its carrying trip (nearest earlier-or-equal frequency weekday — weekends → Friday). All
  * cutoff / past checks use the carrying trip. Existing trip on that date MERGES instead of

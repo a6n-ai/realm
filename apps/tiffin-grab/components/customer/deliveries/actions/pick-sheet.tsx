@@ -186,6 +186,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     : [];
   const summary = buildMealSummary(groups, picked);
   const liveSwapOptions = swapOptions ?? [];
+  const canApplyWeek =
+    !dayLocked &&
+    groups.some((g) => g.selectable && !g.cells.every((c) => c.locked));
 
   const persistDish = async (cell: GridCell, dishId: string) => {
     const key = cellKey(cell);
@@ -281,29 +284,33 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     }
   };
 
-  const applyWeekGroup = async (group: PickCategoryGroup) => {
-    if (dayLocked || !group.selectable || busy != null) return;
-    setBusy(`week:${group.key}`);
+  const applyWeekDishes = async () => {
+    if (dayLocked || busy != null) return;
+    const selectableGroups = groups.filter((g) => g.selectable && !g.cells.every((c) => c.locked));
+    if (selectableGroups.length === 0) return;
+    setBusy("week");
     setError(null);
     try {
       const notes: { dateIso: string; reason: string }[] = [];
-      for (const cell of group.cells) {
-        const dishId = effectiveDishId(cell, picked);
-        if (!dishId) continue;
-        const r = await applyMyDishToWeek({
-          orderId: plan.orderId,
-          menuWeekId: grid!.weekByDate[cell.dateIso],
-          slot: cell.slot,
-          personIndex: cell.personIndex,
-          pickIndex: cell.pickIndex,
-          dishId,
-        });
-        if ("error" in r) {
-          setError(r.error);
-          await refreshGrid();
-          return;
+      for (const group of selectableGroups) {
+        for (const cell of group.cells) {
+          const dishId = effectiveDishId(cell, picked);
+          if (!dishId) continue;
+          const r = await applyMyDishToWeek({
+            orderId: plan.orderId,
+            menuWeekId: grid!.weekByDate[cell.dateIso],
+            slot: cell.slot,
+            personIndex: cell.personIndex,
+            pickIndex: cell.pickIndex,
+            dishId,
+          });
+          if ("error" in r) {
+            setError(r.error);
+            await refreshGrid();
+            return;
+          }
+          if (r.skipped.length) notes.push(...r.skipped);
         }
-        if (r.skipped.length) notes.push(...r.skipped);
       }
       setTouched(true);
       setApplied(
@@ -484,17 +491,6 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         );
                       })}
                     </div>
-                    {!locked && group.selectable && (
-                      <Button
-                        variant="quiet"
-                        className="w-full"
-                        pending={busy === `week:${group.key}`}
-                        disabled={busy != null}
-                        onClick={() => void applyWeekGroup(group)}
-                      >
-                        Apply dishes to the whole week
-                      </Button>
-                    )}
                   </section>
                 );
               })}
@@ -519,6 +515,18 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                     ))}
                   </div>
                 </section>
+              )}
+
+              {canApplyWeek && (
+                <Button
+                  variant="quiet"
+                  className="w-full"
+                  pending={busy === "week" || busy?.startsWith("week:")}
+                  disabled={busy != null}
+                  onClick={() => void applyWeekDishes()}
+                >
+                  Apply dishes to the whole week
+                </Button>
               )}
             </div>
             {applied && <Notice>{applied}</Notice>}

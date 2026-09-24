@@ -45,11 +45,16 @@ export const inquiries = pgTable("inquiries", {
   index("inquiries_owner_idx").on(t.currentOwner),
   // One open lead per (phone, source): the DB-level half of the dedup rule
   // resolveForSource enforces in app code, closing the read-then-write race.
-  uniqueIndex("inquiries_open_phone_source_uq")
+  uniqueIndex("inquiries_open_phone_source_unique")
     .on(sql`lower(${t.phone})`, t.sourceId)
     .where(sql`${t.stage} not in ('converted', 'lost')`),
   index("inquiries_created_idx").on(t.createdAt),
   index("inquiries_organization_idx").on(t.organizationId),
+  index("inquiries_stage_created_idx").on(t.stage, t.createdAt),
+  index("inquiries_source_idx").on(t.sourceId),
+  index("inquiries_converted_order_idx").on(t.convertedOrderId),
+  index("inquiries_sub_source_idx").on(t.subSourceId),
+  index("inquiries_zone_idx").on(t.zoneId),
 ]);
 
 export const inquiryActivities = pgTable("inquiry_activities", {

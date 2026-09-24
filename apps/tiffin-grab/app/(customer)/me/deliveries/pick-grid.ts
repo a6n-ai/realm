@@ -88,6 +88,7 @@ export async function loadPickGrid(orderId: string, dates: string[]): Promise<{ 
         tuUnitType: c.tuUnitType,
         tuUnitSize: Number(c.tuUnitSize),
         tuUnitLabel: c.tuUnitLabel,
+        selectable: c.selectable,
       });
     }
     const basePortions = portionsByCategory(items, tuByKey);

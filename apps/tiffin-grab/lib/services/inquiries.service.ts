@@ -107,7 +107,7 @@ function isOpenLeadConflict(e: unknown): boolean {
   return layers.some(
     (l) =>
       l.code === "23505" &&
-      (l.constraint ?? l.constraint_name ?? "").includes("inquiries_open_phone_source_uq"),
+      (l.constraint ?? l.constraint_name ?? "").includes("inquiries_open_phone_source_unique"),
   );
 }
 
@@ -208,7 +208,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         zoneId,
       });
     } catch (e) {
-      // Partial unique index inquiries_open_phone_source_uq: one open lead per
+      // Partial unique index inquiries_open_phone_source_unique: one open lead per
       // (phone, source). A concurrent insert lost the race — reuse the existing
       // open inquiry rather than erroring (the dedup rule, enforced at the DB).
       if (isOpenLeadConflict(e)) {

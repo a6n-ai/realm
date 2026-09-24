@@ -41,6 +41,7 @@ export const tickets = pgTable("tickets", {
   index("tickets_status_idx").on(t.status),
   index("tickets_created_idx").on(t.createdAt),
   index("tickets_organization_idx").on(t.organizationId),
+  index("tickets_order_idx").on(t.orderId),
 ]);
 
 // A message may carry image attachments uploaded with the reply.
@@ -61,4 +62,5 @@ export const ticketMessages = pgTable("ticket_messages", {
   // (ticket_id, created_at) — same shape as inquiry_activities.
   index("ticket_messages_ticket_created_idx").on(t.ticketId, t.createdAt),
   index("ticket_messages_organization_idx").on(t.organizationId),
+  index("ticket_messages_author_idx").on(t.authorId),
 ]);

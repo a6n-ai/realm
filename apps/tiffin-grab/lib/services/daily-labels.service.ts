@@ -167,7 +167,13 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
       .from(mealSizeItems)
       .where(inArray(mealSizeItems.mealSizeId, [...new Set(rows.map((r) => r.order.mealSizeId))])),
     db
-      .select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel })
+      .select({
+        key: dishCategories.key,
+        tuUnitType: dishCategories.tuUnitType,
+        tuUnitSize: dishCategories.tuUnitSize,
+        tuUnitLabel: dishCategories.tuUnitLabel,
+        selectable: dishCategories.selectable,
+      })
       .from(dishCategories),
   ]);
 
@@ -189,7 +195,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
 
   const zoneName = new Map(zones.map((z) => [z.id, z.name]));
   const categoriesByKey = new Map(
-    categories.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]),
+    categories.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel, selectable: c.selectable }]),
   );
   // Per delivery and eating day, not per meal size: two orders on the same size differ once
   // one of them has a swap applied, and a carried day only gets its own for_date swaps.

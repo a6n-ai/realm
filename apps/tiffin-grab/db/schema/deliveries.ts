@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { updatableColumns } from "@foundry/database";
 import { bigint, date, index, integer, pgEnum, pgTable, text, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { deliveryZones } from "./catalog";
@@ -66,6 +67,9 @@ export const deliveries = pgTable("deliveries", {
 }, (t) => [
   uniqueIndex("deliveries_order_date_unique").on(t.orderId, t.deliveryDate),
   uniqueIndex("deliveries_makeup_unique").on(t.makeupForDeliveryId),
-  index("deliveries_order_date_idx").on(t.orderId, t.deliveryDate),
+  // Kitchen/dispatch/cutoff scans are date-range queries; the order-leading uniques cannot serve them.
+  index("deliveries_date_idx").on(t.deliveryDate),
+  index("deliveries_zone_idx").on(t.zoneId),
+  index("deliveries_merged_into_idx").on(t.mergedIntoDeliveryId).where(sql`${t.mergedIntoDeliveryId} is not null`),
   index("deliveries_organization_idx").on(t.organizationId),
 ]);

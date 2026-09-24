@@ -1,6 +1,6 @@
 import { updatableColumns } from "@foundry/database";
 import type { FileDetail } from "@foundry/storage/model";
-import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization } from "./organizations";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
@@ -46,7 +46,10 @@ export const dishes = pgTable("dishes", {
   // Globally unique, not per-plan: a dish shared across plans (Aloo Gobi on veg
   // AND non-veg) is two rows, so the name alone must disambiguate them for the
   // admin UI — "Aloo Gobi (Veg)" / "Aloo Gobi (Non-Veg)", not two identical rows.
-}, (t) => [uniqueIndex("dishes_name_unique").on(t.name)]);
+}, (t) => [
+  uniqueIndex("dishes_name_unique").on(t.name),
+  index("dishes_plan_idx").on(t.planId),
+]);
 
 export const mealSizes = pgTable("meal_sizes", {
   ...updatableColumns("msz"),
@@ -72,7 +75,7 @@ export const mealSizes = pgTable("meal_sizes", {
   active: boolean("active").notNull().default(true),
   // Client-scoping — see dishes.organizationId for the pattern.
   organizationId: text("organization_id").references(() => organization.id),
-});
+}, (t) => [index("meal_sizes_plan_idx").on(t.planId)]);
 
 export const mealSizeItems = pgTable("meal_size_items", {
   ...updatableColumns("msi"),
@@ -102,7 +105,10 @@ export const mealSizeItems = pgTable("meal_size_items", {
   // (bounded only by the meal size's overall composition). Checked at swap-apply time.
   maxTuAmount: numeric("max_tu_amount", { precision: 6, scale: 2 }),
   sortOrder: integer("sort_order").notNull().default(0),
-});
+}, (t) => [
+  index("meal_size_items_meal_size_idx").on(t.mealSizeId),
+  index("meal_size_items_plan_idx").on(t.planId),
+]);
 
 // Groups add-ons for the admin form and for gating which dish categories may
 // offer them (see dishCategoryAddonCategories in menu.ts). Mirrors dishCategories'

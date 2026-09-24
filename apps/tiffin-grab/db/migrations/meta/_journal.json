@@ -285,15 +285,36 @@
     {
       "idx": 40,
       "version": "7",
-      "when": 1790700000000,
-      "tag": "0040_staff_invitation_event",
+      "when": 1790500002000,
+      "tag": "0040_index_fk_and_naming",
       "breakpoints": true
     },
     {
       "idx": 41,
       "version": "7",
-      "when": 1790700001000,
-      "tag": "0041_invitation_created_at",
+      "when": 1790500003000,
+      "tag": "0041_log_indexes_and_checks",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790500004000,
+      "tag": "0042_fk_index_sweep",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790800000000,
+      "tag": "0043_staff_invitation_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1790800001000,
+      "tag": "0044_invitation_created_at",
       "breakpoints": true
     }
   ]

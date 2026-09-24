@@ -53,6 +53,76 @@ describe("portionsByCategory", () => {
     const portions = portionsByCategory([item("roti", null, 1), item("roti", "0.25", 2)], cats);
     expect(portions.get("roti")).toEqual([null, "1 roti"]);
   });
+
+  it("rolls up non-selectable category portions (e.g. 6 roti rows @ 0.25 TU -> 6 roti)", () => {
+    const fixedCats = new Map<string, TuCategory>([
+      ["roti", { ...ROTI, selectable: false }],
+      ["rice", { tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "unit", selectable: false }],
+      ["sabzi", { ...WEIGHT, selectable: true }],
+    ]);
+    const items = [
+      item("roti", "0.25", 1),
+      item("roti", "0.25", 2),
+      item("roti", "0.25", 3),
+      item("roti", "0.25", 4),
+      item("roti", "0.25", 5),
+      item("roti", "0.25", 6),
+      item("rice", "1.00", 1),
+      item("sabzi", "1.50", 1),
+      item("sabzi", "1.00", 2),
+    ];
+    const portions = portionsByCategory(items, fixedCats);
+    expect(portions.get("roti")).toEqual(["6 roti"]);
+    expect(portions.get("rice")).toEqual(["1 unit"]);
+    expect(portions.get("sabzi")).toEqual(["12oz", "8oz"]);
+  });
+
+  it("rolls up non-selectable category portions after swaps (4 roti -> 1 rice)", () => {
+    const fixedCats = new Map<string, TuCategory>([
+      ["roti", { ...ROTI, selectable: false }],
+      ["rice", { tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "unit", selectable: false }],
+    ]);
+    const items = [
+      item("roti", "0.25", 1),
+      item("roti", "0.25", 2),
+      item("roti", "0.25", 3),
+      item("roti", "0.25", 4),
+      item("roti", "0.25", 5),
+      item("roti", "0.25", 6),
+      item("rice", "1.00", 1),
+    ];
+    const afterSwap = portionsByCategory(items, fixedCats, [
+      { fromCategory: "roti", toCategory: "rice", qtyFrom: 4, qtyTo: 1 },
+    ]);
+    expect(afterSwap.get("roti")).toEqual(["2 roti"]);
+    expect(afterSwap.get("rice")).toEqual(["2 unit"]);
+  });
+
+  it("yields [] for non-selectable category when all slots are swapped away", () => {
+    const fixedCats = new Map<string, TuCategory>([
+      ["roti", { ...ROTI, selectable: false }],
+      ["rice", { tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "unit", selectable: false }],
+    ]);
+    const items = [
+      item("roti", "0.25", 1),
+      item("roti", "0.25", 2),
+      item("roti", "0.25", 3),
+      item("roti", "0.25", 4),
+    ];
+    const afterSwap = portionsByCategory(items, fixedCats, [
+      { fromCategory: "roti", toCategory: "rice", qtyFrom: 4, qtyTo: 1 },
+    ]);
+    expect(afterSwap.get("roti")).toEqual([]);
+  });
+
+  it("yields [null] for non-selectable category when all slots have null TU", () => {
+    const fixedCats = new Map<string, TuCategory>([
+      ["roti", { ...ROTI, selectable: false }],
+    ]);
+    const items = [item("roti", null, 1), item("roti", null, 2)];
+    const portions = portionsByCategory(items, fixedCats);
+    expect(portions.get("roti")).toEqual([null]);
+  });
 });
 
 describe("sumTuForPicks", () => {

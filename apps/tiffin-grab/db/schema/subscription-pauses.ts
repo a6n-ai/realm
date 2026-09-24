@@ -23,6 +23,7 @@ export const subscriptionPauses = pgTable("subscription_pauses", {
   // index only supported app-level checks (assertPauseAllowed), which race under
   // concurrent pause requests. The unique constraint makes a second OPEN row for
   // the same order impossible, independent of any app-level TOCTOU.
-  uniqueIndex("subscription_pauses_one_open_uniq").on(t.orderId).where(sql`resumed_at is null`),
+  uniqueIndex("subscription_pauses_one_open_unique").on(t.orderId).where(sql`resumed_at is null`),
   index("subscription_pauses_organization_idx").on(t.organizationId),
+  index("subscription_pauses_resumed_by_idx").on(t.resumedBy),
 ]);
