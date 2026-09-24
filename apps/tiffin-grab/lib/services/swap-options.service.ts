@@ -13,6 +13,7 @@ import {
   type SwapOption,
 } from "@/lib/menu/meal-validation";
 import { swapAppliesTo } from "@/lib/menu/coverage";
+import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import type { SwapRow } from "@/lib/menu/swap-rules";
 import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
@@ -40,7 +41,8 @@ export async function loadCompositionContext(mealSizeId: bigint, baseCounts: Rec
   }));
   const labelMap: Record<string, string> = {};
   for (const l of labels) labelMap[l.key] = l.label;
-  return { baseCounts, mealSizeItems: mealSizeItemRows, categories: cats, labels: labelMap };
+  const effectiveBaseCounts = items.length > 0 ? categoryCountsFromItems(items) : baseCounts;
+  return { baseCounts: effectiveBaseCounts, mealSizeItems: mealSizeItemRows, categories: cats, labels: labelMap };
 }
 
 export async function listValidSwapOptionsForDelivery(

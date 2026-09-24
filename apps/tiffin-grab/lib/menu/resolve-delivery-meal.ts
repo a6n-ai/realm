@@ -116,39 +116,41 @@ function resolveCategoriesForDay(
   return out;
 }
 
-async function maxTuPickByCategory(mealSizeId: bigint): Promise<Map<string, number>> {
-  const rows = await db
-    .select({
-      category: mealSizeItems.category,
-      tuAmount: mealSizeItems.tuAmount,
-      sortOrder: mealSizeItems.sortOrder,
-    })
-    .from(mealSizeItems)
-    .where(eq(mealSizeItems.mealSizeId, mealSizeId));
-  const byCat = new Map<string, typeof rows>();
-  for (const row of rows) {
-    const list = byCat.get(row.category);
-    if (list) list.push(row);
-    else byCat.set(row.category, [row]);
-  }
-  const out = new Map<string, number>();
-  for (const [category, list] of byCat) {
-    const idx = maxTuPickIndex(list);
-    if (idx != null) out.set(category, idx);
-  }
-  return out;
-}
-
 async function defaultPickContext(order: Order) {
-  const [planDishIds, exclusiveDishIds, maxTuByCat] = await Promise.all([
+  const [planDishIds, exclusiveDishIds, itemRows] = await Promise.all([
     // The union of every plan this meal size's OWN composition rows target — not
     // just the order's own plan. A meal size can carry two sabzi rows (one veg,
     // one non-veg), and both must be servable to the subscriber.
     allowedDishIdsForMealSize(order.mealSizeId),
     exclusiveDishIdsForPlan(order.planId),
-    maxTuPickByCategory(order.mealSizeId),
+    db
+      .select({
+        category: mealSizeItems.category,
+        tuAmount: mealSizeItems.tuAmount,
+        sortOrder: mealSizeItems.sortOrder,
+      })
+      .from(mealSizeItems)
+      .where(eq(mealSizeItems.mealSizeId, order.mealSizeId)),
   ]);
-  return { planDishIds, exclusiveDishIds, maxTuByCat };
+  const byCat = new Map<string, typeof itemRows>();
+  const liveCounts: Record<string, number> = {};
+  for (const row of itemRows) {
+    liveCounts[row.category] = (liveCounts[row.category] ?? 0) + 1;
+    const list = byCat.get(row.category);
+    if (list) list.push(row);
+    else byCat.set(row.category, [row]);
+  }
+  const maxTuByCat = new Map<string, number>();
+  for (const [category, list] of byCat) {
+    const idx = maxTuPickIndex(list);
+    if (idx != null) maxTuByCat.set(category, idx);
+  }
+  return {
+    planDishIds,
+    exclusiveDishIds,
+    maxTuByCat,
+    liveCounts: itemRows.length > 0 ? liveCounts : null,
+  };
 }
 
 export async function resolveDeliveryMeal(
@@ -194,12 +196,13 @@ export async function resolveDeliveryMeal(
     swaps = tripDate && eatingDate ? rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatingDate)) : rows;
   }
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat } = await defaultPickContext(order);
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts } = await defaultPickContext(order);
+  const baseCounts = liveCounts ?? order.categoryCounts ?? {};
   return resolveCategoriesForDay(
     items,
     picks,
     cats,
-    applySwapsToCounts(order.categoryCounts ?? {}, swaps),
+    applySwapsToCounts(baseCounts, swaps),
     planDishIds,
     exclusiveDishIds,
     maxTuByCat,
@@ -229,8 +232,8 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id)));
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat } = await defaultPickContext(order);
-  const baseCounts = order.categoryCounts ?? {};
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts } = await defaultPickContext(order);
+  const baseCounts = liveCounts ?? order.categoryCounts ?? {};
 
   // Batch-fetch this week's delivery rows (to map date -> delivery id) and every
   // swap applied to any of them, in two queries total rather than one lookup per

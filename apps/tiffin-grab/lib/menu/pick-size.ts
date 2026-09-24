@@ -14,6 +14,18 @@ export type MealSizeItemRow = {
   sortOrder: number;
 };
 
+/**
+ * Counts rows per category from meal_size_items rows — canonical derivation of
+ * categoryCounts from composition items.
+ */
+export function categoryCountsFromItems(items: { category: string }[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of items) {
+    counts[item.category] = (counts[item.category] ?? 0) + 1;
+  }
+  return counts;
+}
+
 /** e.g. "12oz" or "4 roti", or null when the catalog line carries no TU amount. */
 export function formatPortion(tuAmount: string | null, category: TuCategory | null): string | null {
   if (tuAmount == null || category == null) return null;

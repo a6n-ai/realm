@@ -7,6 +7,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
 import { applySwapsToCounts } from "@/lib/menu/swap-rules";
+import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { validateMealRules } from "@/lib/menu/meal-validation";
 import { MealRuleViolationError } from "@/lib/menu/meal-rule-error";
 import type { HydratedPick, MealRule } from "@/lib/menu/meal-rule-types";
@@ -178,7 +179,12 @@ export const selectionsService = {
       .where(eq(deliveryCategorySwaps.deliveryId, deliveryRow.id))
       .orderBy(asc(deliveryCategorySwaps.id));
     const daySwaps = swaps.filter((s) => swapAppliesTo(s.forDate, deliveryRow.deliveryDate, deliveryDateIso));
-    const max = applySwapsToCounts(order.categoryCounts ?? {}, daySwaps)[slot] ?? 0;
+    const mealItems = await db
+      .select({ category: mealSizeItems.category })
+      .from(mealSizeItems)
+      .where(eq(mealSizeItems.mealSizeId, order.mealSizeId));
+    const baseCounts = mealItems.length > 0 ? categoryCountsFromItems(mealItems) : (order.categoryCounts ?? {});
+    const max = applySwapsToCounts(baseCounts, daySwaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
 
     // Meal rules against the proposed final meal for this person/day.
@@ -221,7 +227,7 @@ export const selectionsService = {
 
       // Drop picks past each category's effective (post-swap) slot count, so a
       // pick that a swap has already removed cannot trigger a phantom violation.
-      const effective = applySwapsToCounts(order.categoryCounts ?? {}, daySwaps);
+      const effective = applySwapsToCounts(baseCounts, daySwaps);
       const live = [...byKey.values()].filter(
         (p) => p.pickIndex >= 1 && p.pickIndex <= (effective[p.category] ?? 0),
       );

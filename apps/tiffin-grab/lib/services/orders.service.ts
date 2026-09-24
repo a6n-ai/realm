@@ -28,6 +28,7 @@ import {
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/lib/catalog/load";
+import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
@@ -215,10 +216,7 @@ export async function createOrder(
   // Dish selection happens per-delivery after subscribing, not at checkout —
   // order.categoryCounts/mealSlots are derived from the chosen meal size's own
   // server-loaded items, never trusted from the client-submitted selections.
-  const categoryCounts = mealSize.items.reduce<Record<string, number>>((acc, i) => {
-    acc[i.category] = (acc[i.category] ?? 0) + 1;
-    return acc;
-  }, {});
+  const categoryCounts = categoryCountsFromItems(mealSize.items);
   const mealSlots = Object.keys(categoryCounts);
   if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
   validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
@@ -1484,10 +1482,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
     // Same derivation createOrder uses: categoryCounts/mealSlots come from the
     // meal size's own server-loaded items, never trusted from caller input.
-    const categoryCounts = mealSize.items.reduce<Record<string, number>>((acc, i) => {
-      acc[i.category] = (acc[i.category] ?? 0) + 1;
-      return acc;
-    }, {});
+    const categoryCounts = categoryCountsFromItems(mealSize.items);
     const mealSlots = Object.keys(categoryCounts);
     if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
 

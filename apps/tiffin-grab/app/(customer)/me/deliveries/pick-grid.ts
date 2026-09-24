@@ -9,7 +9,7 @@ import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { buildMealsGrid, type GridCell } from "@/lib/menu/meals-grid";
 import { listRuleTextsForOrder } from "@/lib/menu/rule-texts";
-import { portionsByCategory, type PortionSwap } from "@/lib/menu/pick-size";
+import { categoryCountsFromItems, portionsByCategory, type PortionSwap } from "@/lib/menu/pick-size";
 import type { TuCategory } from "@/lib/menu/format-tu";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
@@ -64,14 +64,6 @@ export async function loadPickGrid(orderId: string, dates: string[]): Promise<{ 
       persons: row.persons,
       rules: await listRuleTextsForOrder(row.planId, row.mealSizeId),
     };
-    for (const monday of new Set(dates.map(mondayOfIso))) {
-      const r = await buildMealsGrid(row, settings, monday);
-      if (r.empty !== null) continue;
-      grid.categories = r.categories;
-      for (const d of r.weekDatesView) if (dates.includes(d.dateIso)) grid.weekByDate[d.dateIso] = r.releasedWeek.publicId;
-      grid.cells.push(...r.grid.filter((c) => dates.includes(c.dateIso)));
-    }
-    if (!grid.cells.length) return { ok: true, grid: null };
 
     // Natural portions from meal_size_items × category TU (formatTuHuman) — never hardcoded.
     const [items, planCats] = await Promise.all([
@@ -93,6 +85,34 @@ export async function loadPickGrid(orderId: string, dates: string[]): Promise<{ 
     }
     const basePortions = portionsByCategory(items, tuByKey);
     grid.portionsBySlot = mapPortions(basePortions);
+
+    // Option A: Active subscriptions dynamically reflect the current admin composition.
+    // If live meal_size_items differ from stored categoryCounts (e.g. admin updated composition),
+    // sync row.categoryCounts to the live composition so grid cells and portion slots match 1:1.
+    if (items.length > 0) {
+      const liveCounts = categoryCountsFromItems(items);
+      const isMismatch =
+        Object.keys(liveCounts).length !== Object.keys(row.categoryCounts ?? {}).length ||
+        Object.entries(liveCounts).some(([k, v]) => row.categoryCounts?.[k] !== v);
+      if (isMismatch) {
+        row.categoryCounts = liveCounts;
+        row.mealSlots = Object.keys(liveCounts);
+        void db
+          .update(orders)
+          .set({ categoryCounts: liveCounts, mealSlots: row.mealSlots, updatedAt: Date.now() })
+          .where(eq(orders.id, row.id))
+          .catch(() => {});
+      }
+    }
+
+    for (const monday of new Set(dates.map(mondayOfIso))) {
+      const r = await buildMealsGrid(row, settings, monday);
+      if (r.empty !== null) continue;
+      grid.categories = r.categories;
+      for (const d of r.weekDatesView) if (dates.includes(d.dateIso)) grid.weekByDate[d.dateIso] = r.releasedWeek.publicId;
+      grid.cells.push(...r.grid.filter((c) => dates.includes(c.dateIso)));
+    }
+    if (!grid.cells.length) return { ok: true, grid: null };
 
     // Per eating day: fold that day's applied swaps so Pick portions match Swap / labels.
     const eatingDates = [...new Set(grid.cells.map((c) => c.dateIso))];

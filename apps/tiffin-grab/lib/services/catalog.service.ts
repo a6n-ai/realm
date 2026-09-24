@@ -1,10 +1,11 @@
 import { ValidationError, cutoffMsFor } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
-import { eq, or } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { db } from "@/db/client";
-import { addonCategories, addons, deliveryFrequencies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { addonCategories, addons, deliveryFrequencies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans, pricingTiers } from "@/db/schema";
+import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { RESOURCES, slug } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import {
   emptyActiveCompositionMessage,
@@ -144,9 +145,28 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
 
     if (rows !== undefined) {
       const itemRows = rows;
+      const newCategoryCounts = categoryCountsFromItems(itemRows);
+      const newMealSlots = Object.keys(newCategoryCounts);
+
       await db.transaction(async (tx) => {
         await tx.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, mealSizeId));
         if (itemRows.length) await tx.insert(mealSizeItems).values(itemRows.map((r) => ({ ...r, mealSizeId })));
+
+        // Option A: Active subscriptions dynamically reflect the current admin composition.
+        // Sync active, paused, and pending subscriptions to the updated category counts and slots.
+        await tx
+          .update(orders)
+          .set({
+            categoryCounts: newCategoryCounts,
+            mealSlots: newMealSlots,
+            updatedAt: Date.now(),
+          })
+          .where(
+            and(
+              eq(orders.mealSizeId, mealSizeId),
+              inArray(orders.status, ["active", "paused", "pending"]),
+            ),
+          );
       });
     }
     return parent;

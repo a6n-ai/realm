@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPortion, portionForPick, portionsByCategory, sumTuForPicks } from "../pick-size";
+import { categoryCountsFromItems, formatPortion, portionForPick, portionsByCategory, sumTuForPicks } from "../pick-size";
 import type { TuCategory } from "@/lib/menu/format-tu";
 
 const WEIGHT: TuCategory = { tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" };
@@ -155,5 +155,26 @@ describe("portionForPick", () => {
     // categoryCounts can outrun the meal size if the catalog was edited after checkout.
     expect(portionForPick(portions, "sabzi", 4)).toBeNull();
     expect(portionForPick(portions, "raita", 1)).toBeNull();
+  });
+});
+
+describe("categoryCountsFromItems", () => {
+  it("derives category counts by counting composition rows per category", () => {
+    const items = [
+      item("sabzi", "1.50", 1),
+      item("daal", "1.50", 2),
+      item("sabzi", "1.00", 3),
+      item("roti", "0.25", 4),
+      item("roti", "0.25", 5),
+    ];
+    expect(categoryCountsFromItems(items)).toEqual({
+      sabzi: 2,
+      daal: 1,
+      roti: 2,
+    });
+  });
+
+  it("returns empty object for empty composition", () => {
+    expect(categoryCountsFromItems([])).toEqual({});
   });
 });
