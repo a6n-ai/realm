@@ -200,7 +200,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
             const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
             const pick = cat.picks[0]!;
             const mealItems = sizeItems.filter((i) => i.mealSizeId === row.mealSizeId);
-            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity, daySwaps);
+            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity, daySwaps, tuByKey);
             const portion =
               converter && tuTotal > 0
                 ? formatTuHuman(converter, tuTotal)

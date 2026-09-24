@@ -152,7 +152,7 @@ describe("multi-row Sabzi composition (actual row TU — Phase 7)", () => {
       applied: [],
       next: { fromCategory: "sabzi", toCategory: "daal", fromPicks: 1 },
     });
-    expect(r).toMatchObject({ ok: true, giveTu: 1.5, qtyTo: 3, getTu: 1.5 });
+    expect(r).toMatchObject({ ok: true, giveTu: 1.5, qtyTo: 1, getTu: 1.5 }); // same unit: one 12oz daal
   });
 
   it("Case B — after first row gone, giving the remaining row accounts for 1.0 TU", () => {
@@ -178,7 +178,7 @@ describe("multi-row Sabzi composition (actual row TU — Phase 7)", () => {
       applied: afterFirst,
       next: { fromCategory: "sabzi", toCategory: "daal", fromPicks: 1 },
     });
-    expect(r).toMatchObject({ ok: true, giveTu: 1.0, qtyTo: 2, getTu: 1.0 });
+    expect(r).toMatchObject({ ok: true, giveTu: 1.0, qtyTo: 1, getTu: 1.0 });
   });
 
   it("Case C — give both rows = 2.5 TU, not 3.0 TU", () => {
@@ -200,17 +200,15 @@ describe("multi-row Sabzi composition (actual row TU — Phase 7)", () => {
       applied: [],
       next: { fromCategory: "sabzi", toCategory: "daal", fromPicks: 2 },
     });
-    expect(r).toMatchObject({ ok: true, giveTu: 2.5, qtyTo: 5, getTu: 2.5 });
+    expect(r).toMatchObject({ ok: true, giveTu: 2.5, qtyTo: 2, getTu: 2.5 });
     const opt = computeSwapOption({ composition: peer, applied: [], fromCategory: "sabzi", toCategory: "daal" });
     expect(opt.validBundles.find((b) => b.fromPicks === 2)?.giveNatural).toBe("20oz");
     expect(opt.validBundles.find((b) => b.fromPicks === 2)?.giveNatural).not.toBe("24oz");
   });
 
-  it("Sabzi→Daal at 1.0: 2.5 TU does not divide — no false 2→3 / 24oz bundle", () => {
+  it("Sabzi→Daal at 1.0: like-for-like keeps 12oz/20oz — no false 2→3 / 24oz bundle", () => {
     const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "sabzi", toCategory: "daal" });
-    // 1.5/1.0 and 2.5/1.0 are both non-integer — correctly unavailable.
-    expect(opt.available).toBe(false);
-    expect(opt.validBundles).toEqual([]);
+    expect(opt.validBundles.map((b) => [b.fromPicks, b.toPicks, b.getNatural])).toEqual([[1, 1, "12oz"], [2, 2, "20oz"]]);
   });
 
   it("single-row Sabzi 1.5 behaves like before (compatibility)", () => {

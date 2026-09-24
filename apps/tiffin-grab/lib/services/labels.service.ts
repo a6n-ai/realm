@@ -170,6 +170,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
           category,
           pickCount,
           daySwaps,
+          tuByKey,
         );
         const qty = converter ? tuToNatural(converter, tuTotal) : pickCount;
         return {

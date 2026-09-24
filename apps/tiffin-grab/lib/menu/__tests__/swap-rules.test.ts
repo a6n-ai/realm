@@ -17,8 +17,10 @@ describe("swapPairFits", () => {
   it("fits when both categories are on the meal size", () => {
     expect(swapPairFits(curry8, daal8)).toBe(true);
   });
-  it("fits a same-unit category the meal size lacks (non-veg 4-item: curry -> sabzi)", () => {
-    expect(swapPairFits(curry8, sabziAbsent)).toBe(true);
+  it("rejects a destination the meal size lacks, even in the same unit (no Salad on Sabzi Only)", () => {
+    expect(swapPairFits(curry8, sabziAbsent)).toBe(false);
+  });
+  it("lets a same-unit pick received earlier be given on (from side absent)", () => {
     expect(swapPairFits(sabziAbsent, daal8)).toBe(true);
   });
   it("rejects a missing category measured in a different unit", () => {
@@ -30,8 +32,12 @@ describe("swapPairFits", () => {
 });
 
 describe("swapQuantities", () => {
-  it("trades like-for-like into a missing category (12oz curry -> one 12oz sabzi)", () => {
-    expect(swapQuantities(curry12, sabziAbsent, 1)).toEqual({ ok: true, qtyTo: 1 });
+  it("refuses a destination the meal size lacks", () => {
+    expect(swapQuantities(curry12, sabziAbsent, 1)).toMatchObject({ ok: false });
+  });
+  it("same unit is like-for-like, one pick for one (12oz curry -> one daal)", () => {
+    expect(swapQuantities(curry12, daal8, 1)).toEqual({ ok: true, qtyTo: 1 });
+    expect(swapQuantities(curry12, daal8, 2)).toEqual({ ok: true, qtyTo: 2 });
   });
   it("converts across TU sizes (1 rice -> 4 roti, 4 roti -> 1 rice)", () => {
     expect(swapQuantities(rice, roti, 1)).toEqual({ ok: true, qtyTo: 4 });
@@ -40,8 +46,8 @@ describe("swapQuantities", () => {
   it("refuses a trade that does not divide evenly", () => {
     expect(swapQuantities(roti, rice, 1)).toMatchObject({ ok: false, reason: "This swap requires an even portion exchange." });
   });
-  it("refuses 1 TU for half a pick — a swap only ever moves whole picks, never a fraction", () => {
-    const doubleTu = cat("bigportion", 2);
+  it("refuses 1 TU for half a pick across units — a swap only ever moves whole picks", () => {
+    const doubleTu = cat("bigportion", 2, { unitType: "count", unitLabel: "unit" });
     expect(swapQuantities(daal8, doubleTu, 1)).toMatchObject({ ok: false });
   });
 });

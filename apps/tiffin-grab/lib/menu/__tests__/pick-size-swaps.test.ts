@@ -71,8 +71,9 @@ describe("portionsByCategory with swaps", () => {
       { fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 },
     ]);
     // Front-remove first row (1.5 TU / 12oz); remaining is the 1.0 TU row (=8oz).
+    // Like-for-like: the received daal keeps the given 12oz.
     expect(after.get("sabzi")).toEqual(["8oz"]);
-    expect(after.get("daal")).toEqual(["8oz", "8oz"]);
+    expect(after.get("daal")).toEqual(["8oz", "12oz"]);
   });
 });
 

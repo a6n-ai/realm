@@ -37,10 +37,16 @@ export type SwapCategory = {
   unitSize?: number;
 };
 
-export function swapPairFits(from: SwapCategory, to: SwapCategory): boolean {
-  if (from.pickTu != null && to.pickTu != null) return true;
-  if (from.pickTu == null && to.pickTu == null) return false;
+/** Same natural unit (oz ↔ oz): each given pick becomes one received pick of the same TU. */
+export function sameUnit(from: SwapCategory, to: SwapCategory): boolean {
   return from.unitType === to.unitType && from.unitLabel === to.unitLabel;
+}
+
+// The destination must be on this meal size — a Sabzi Only meal can't swap into Salad.
+// The from side may be absent only when it was received by an earlier same-unit swap.
+export function swapPairFits(from: SwapCategory, to: SwapCategory): boolean {
+  if (to.pickTu == null) return false;
+  return from.pickTu != null || sameUnit(from, to);
 }
 
 export function swapQuantities(
@@ -49,6 +55,7 @@ export function swapQuantities(
   fromPicks: number,
 ): { ok: true; qtyTo: number } | { ok: false; reason: string } {
   if (!swapPairFits(from, to)) return { ok: false, reason: `${from.key} can't be swapped for ${to.key} on this meal size` };
+  if (sameUnit(from, to)) return { ok: true, qtyTo: fromPicks };
   const fromTu = from.pickTu ?? to.pickTu!;
   const toTu = to.pickTu ?? from.pickTu!;
   const ratio = (fromPicks * fromTu) / toTu;
@@ -80,7 +87,8 @@ export function swapAmounts(
   const toTu = to.pickTu ?? from.pickTu;
   if (fromTu == null || toTu == null) return null;
   const fmt = (c: SwapCategory, tu: number) => formatTuHuman({ tuUnitType: c.unitType, tuUnitSize: c.unitSize!, tuUnitLabel: c.unitLabel }, tu);
-  return { give: fmt(from, qtyFrom * fromTu), get: fmt(to, qtyTo * toTu) };
+  const giveTu = qtyFrom * fromTu;
+  return { give: fmt(from, giveTu), get: fmt(to, sameUnit(from, to) ? giveTu : qtyTo * toTu) };
 }
 
 /** "Rice 6oz → Roti 4 roti"; falls back to pick counts when units are unknown. */

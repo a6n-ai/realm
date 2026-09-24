@@ -76,7 +76,8 @@ describe("Universal Container Slots (1 slot = 1 physical container item)", () =>
     expect(diffPortions.get("daal")).toEqual(["12oz", "8oz"]);
     expect(diffPortions.get("daal")).not.toContain("20oz");
 
-    // Case B: Swapped Daal with 12oz base Daal gives two 12oz slots, not 24oz
+    // Case B: an 8oz Sabzi swapped into a meal with a 12oz base Daal gives Daal 12oz + 8oz
+    // (same-unit swaps are like-for-like), each its own container, never one 20oz.
     const mealItems = [
       { category: "sabzi", tuAmount: "1.00", sortOrder: 0 },
       { category: "daal", tuAmount: "1.50", sortOrder: 1 }, // 12oz base daal
@@ -84,8 +85,8 @@ describe("Universal Container Slots (1 slot = 1 physical container item)", () =>
     const swaps: SwapRow[] = [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 }];
     const portions = portionsByCategory(mealItems, tuByKey, swaps);
 
-    expect(portions.get("daal")).toEqual(["12oz", "12oz"]);
-    expect(portions.get("daal")).not.toContain("24oz");
+    expect(portions.get("daal")).toEqual(["12oz", "8oz"]);
+    expect(portions.get("daal")).not.toContain("20oz");
   });
 
   // Scenario 4: Customer pick summary displays separate lines for container categories

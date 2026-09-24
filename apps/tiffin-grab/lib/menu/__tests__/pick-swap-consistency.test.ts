@@ -79,14 +79,14 @@ describe("Pick ↔ Swap multi-row Sabzi (1.5 + 1.0 TU)", () => {
   });
 
   it("engine uses actual row TU; Pick portions after swap match front-splice remaining slots", () => {
-    // Against 1.0 TU daal, neither 1.5 nor 2.5 divides — no false 24oz bundle.
+    // Against 1.0 TU daal, same unit is like-for-like: 12oz and 20oz, never a false 24oz bundle.
     const opt = computeSwapOption({
       composition,
       applied: [],
       fromCategory: "sabzi",
       toCategory: "daal",
     });
-    expect(opt.available).toBe(false);
+    expect(opt.validBundles.map((b) => b.getNatural)).toEqual(["12oz", "20oz"]);
 
     // Dividing peer (daal 1.5): 1 pick gives actual 1.5 TU → 1 daal; remaining slot 8oz.
     const evenDaal: SwapCategory = { ...daalCat, pickTu: 1.5 };

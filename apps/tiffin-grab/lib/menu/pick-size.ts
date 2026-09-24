@@ -50,12 +50,13 @@ export type PortionSwap = {
 
 /**
  * Per-category TU slot arrays after front-splice swaps (same mutation as portionsByCategory).
- * Receive-side slots use toCategory's first catalog TU (pair-fit receive rate).
+ * Receive side: same-unit swaps (per categoriesByKey) keep each given size; others use toCategory's first catalog TU.
  * `null` preserves catalog rows with no TU (formatted as null portions).
  */
 export function slotTuAfterSwaps(
   items: MealSizeItemRow[],
   swaps: PortionSwap[] = [],
+  categoriesByKey?: Map<string, TuCategory>,
 ): Map<string, (number | null)[]> {
   const byCategory = new Map<string, MealSizeItemRow[]>();
   for (const item of items) {
@@ -81,15 +82,24 @@ export function slotTuAfterSwaps(
 
   for (const s of swaps) {
     const from = out.get(s.fromCategory) ?? [];
-    from.splice(0, s.qtyFrom);
+    const given = from.splice(0, s.qtyFrom);
     out.set(s.fromCategory, from);
 
     const to = out.get(s.toCategory) ?? [];
-    const receiveTu = catalogFirst.get(s.toCategory) ?? 1.0;
-    for (let i = 0; i < s.qtyTo; i++) to.push(receiveTu);
+    // Same rule as slotsAfterSwaps: same-unit swaps are like-for-like, keep each given size.
+    if (sameUnitTu(categoriesByKey?.get(s.fromCategory), categoriesByKey?.get(s.toCategory)) && given.length === s.qtyTo) {
+      to.push(...given);
+    } else {
+      const receiveTu = catalogFirst.get(s.toCategory) ?? 1.0;
+      for (let i = 0; i < s.qtyTo; i++) to.push(receiveTu);
+    }
     out.set(s.toCategory, to);
   }
   return out;
+}
+
+function sameUnitTu(a: TuCategory | undefined, b: TuCategory | undefined): boolean {
+  return !!a && !!b && a.tuUnitType === b.tuUnitType && a.tuUnitLabel === b.tuUnitLabel;
 }
 
 export function portionsByCategory(
@@ -97,7 +107,7 @@ export function portionsByCategory(
   categoriesByKey: Map<string, TuCategory>,
   swaps: PortionSwap[] = [],
 ): Map<string, (string | null)[]> {
-  const tus = slotTuAfterSwaps(items, swaps);
+  const tus = slotTuAfterSwaps(items, swaps, categoriesByKey);
   const out = new Map<string, (string | null)[]>();
   for (const [category, slots] of tus) {
     const converter = categoriesByKey.get(category) ?? null;
@@ -141,9 +151,10 @@ export function sumTuForPicks(
   category: string,
   pickCount: number,
   swaps: PortionSwap[] = [],
+  categoriesByKey?: Map<string, TuCategory>,
 ): number {
   if (pickCount <= 0) return 0;
-  const slots = slotTuAfterSwaps(items, swaps).get(category) ?? [];
+  const slots = slotTuAfterSwaps(items, swaps, categoriesByKey).get(category) ?? [];
   if (slots.length === 0) return 0;
   const num = (v: number | null) => (v == null ? 0 : v);
   let tu = 0;

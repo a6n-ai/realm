@@ -4,12 +4,13 @@
  *
  * Composition-row TU (Phase 7):
  *   Each meal_size_items row is one pick with its own tuAmount. Swaps remove the
- *   first N remaining rows of fromCategory (same order as portionsByCategory) and
- *   append destination picks at the destination's first-row TU. Never multiply
- *   fromPicks × first-row pickTu when rows differ (e.g. Sabzi 1.5+1.0 ≠ 2×1.5).
+ *   first N remaining rows of fromCategory (same order as portionsByCategory).
+ *   Same-unit swaps (oz ↔ oz) are like-for-like: each given row becomes one
+ *   destination pick of the same TU (Sabzi 12oz + 8oz → Daal 12oz + 8oz).
+ *   Cross-unit swaps (rice ↔ roti) split the given TU into destination
+ *   first-row picks and must divide evenly.
  *
- * pickTu on SwapCategory remains the first-row rate for pair-fit / absent-side
- * fallbacks and single-row meals (unchanged behavior).
+ * The destination must have a row on the meal size (swapPairFits).
  */
 
 import { formatTuHuman } from "./format-tu";
@@ -24,6 +25,7 @@ import { ruleText, type RuleLabels } from "./meal-rule-text";
 import {
   applySwapsToCounts,
   capViolation,
+  sameUnit,
   swapPairFits,
   type SwapCategory,
   type SwapRow,
@@ -94,18 +96,9 @@ export function baseTuSlots(ctx: CompositionContext, category: string): number[]
     .map((i) => i.tuAmount);
 }
 
-/**
- * TU per received pick when swapping into `toKey`: destination's first composition
- * row, else its pickTu, else the from-side first row / pickTu (absent-side swaps).
- */
-export function receivePickTu(ctx: CompositionContext, toKey: string, fromKey: string): number | null {
-  const toBase = baseTuSlots(ctx, toKey);
-  if (toBase.length) return toBase[0]!;
-  const to = ctx.categories.get(toKey);
-  if (to?.pickTu != null) return to.pickTu;
-  const fromBase = baseTuSlots(ctx, fromKey);
-  if (fromBase.length) return fromBase[0]!;
-  return ctx.categories.get(fromKey)?.pickTu ?? null;
+/** TU per received pick for a cross-unit swap into `toKey`: its first composition row. */
+export function receivePickTu(ctx: CompositionContext, toKey: string): number | null {
+  return baseTuSlots(ctx, toKey)[0] ?? ctx.categories.get(toKey)?.pickTu ?? null;
 }
 
 /** Build per-category TU slot lists from composition, then fold applied swaps in order. */
@@ -121,12 +114,19 @@ export function slotsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Ma
   }
   for (const s of applied) {
     const from = map.get(s.fromCategory) ?? [];
-    from.splice(0, s.qtyFrom);
+    const given = from.splice(0, s.qtyFrom);
     map.set(s.fromCategory, from);
 
     const to = map.get(s.toCategory) ?? [];
-    const rate = receivePickTu(ctx, s.toCategory, s.fromCategory) ?? 0;
-    for (let i = 0; i < s.qtyTo; i++) to.push(rate);
+    const fromCat = ctx.categories.get(s.fromCategory);
+    const toCat = ctx.categories.get(s.toCategory);
+    // Same-unit swaps are like-for-like (validateProposedSwap): keep each given size.
+    if (fromCat && toCat && sameUnit(fromCat, toCat) && given.length === s.qtyTo) {
+      to.push(...given);
+    } else {
+      const rate = receivePickTu(ctx, s.toCategory) ?? 0;
+      for (let i = 0; i < s.qtyTo; i++) to.push(rate);
+    }
     map.set(s.toCategory, to);
   }
   return map;
@@ -343,17 +343,23 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
   }
 
   const giveTu = sumTu(fromSlots.slice(0, next.fromPicks));
-  const toRate = receivePickTu(composition, next.toCategory, next.fromCategory);
-  if (toRate == null || toRate <= 0) {
-    return { ok: false, reason: "This swap requires an even portion exchange." };
+  let qtyTo: number;
+  let getTu: number;
+  if (sameUnit(from, to)) {
+    qtyTo = next.fromPicks;
+    getTu = giveTu;
+  } else {
+    const toRate = receivePickTu(composition, next.toCategory);
+    if (toRate == null || toRate <= 0) {
+      return { ok: false, reason: "This swap requires an even portion exchange." };
+    }
+    const ratio = giveTu / toRate;
+    if (Math.abs(ratio - Math.round(ratio)) > 1e-9) {
+      return { ok: false, reason: "This swap requires an even portion exchange." };
+    }
+    qtyTo = Math.round(ratio);
+    getTu = qtyTo * toRate;
   }
-
-  const ratio = giveTu / toRate;
-  if (Math.abs(ratio - Math.round(ratio)) > 1e-9) {
-    return { ok: false, reason: "This swap requires an even portion exchange." };
-  }
-  const qtyTo = Math.round(ratio);
-  const getTu = qtyTo * toRate;
 
   const proposed: SwapRow = {
     fromCategory: next.fromCategory,

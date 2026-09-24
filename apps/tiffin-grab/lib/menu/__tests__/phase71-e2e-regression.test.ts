@@ -165,11 +165,13 @@ describe("Phase 7.1 Case C — different-TU multi-row", () => {
     const opt = assertOptionsMatchApply(composition, "sabzi", "daal");
     expect(opt.validBundles.find((b) => b.fromPicks === 1)).toMatchObject({
       giveNatural: "12oz",
-      toPicks: 3,
+      toPicks: 1,
+      getNatural: "12oz",
     });
     expect(opt.validBundles.find((b) => b.fromPicks === 2)).toMatchObject({
       giveNatural: "20oz",
-      toPicks: 5,
+      toPicks: 2,
+      getNatural: "20oz",
     });
     expect(opt.validBundles.some((b) => b.giveNatural === "24oz")).toBe(false);
 
@@ -182,7 +184,7 @@ describe("Phase 7.1 Case C — different-TU multi-row", () => {
     expect(c1).toMatchObject({ ok: true, giveTu: 1.5 });
 
     // C2 after C1
-    const afterC1: SwapRow[] = [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 3 }];
+    const afterC1: SwapRow[] = [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 }];
     expect(resultingCategoryTu(composition, "sabzi", { sabzi: 1 }, afterC1)).toBe(1.0);
     const c2 = validateProposedSwap({
       composition,

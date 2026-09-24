@@ -361,8 +361,9 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * Plan membership is the gate — Curry is attached only to the non-veg plan, so a
    * veg subscriber can never swap into it.
    *
-   * pickTu = FIRST meal_size_items row for that category (sortOrder). Used as
-   * pair-fit / absent-side fallback and as the receive rate for inbound picks.
+   * pickTu = FIRST meal_size_items row for that category (sortOrder); null means the
+   * meal size has no row, so swapPairFits never offers it as a destination. Also the
+   * receive rate for cross-unit swaps (rice ↔ roti); same-unit swaps keep given TU.
    * Give-side TU for multi-row categories comes from actual composition rows in
    * meal-validation (slotsAfterSwaps) — not from fromPicks × pickTu.
    * Multi-row compositions with different tuAmount (Sabzi 1.5 + Sabzi 1.0) remain
