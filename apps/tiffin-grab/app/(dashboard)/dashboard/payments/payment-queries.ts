@@ -3,6 +3,7 @@ import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
+import { attachmentHref } from "@/lib/services/ticket-attachments";
 import {
   PAYMENT_METHOD_OPTIONS,
   PAYMENT_SORT_KEYS,
@@ -68,8 +69,12 @@ export async function listPayments(
       amount: payments.amount,
       reference: payments.reference,
       proof: payments.proof,
+      claimedAt: payments.claimedAt,
+      capturedAt: payments.capturedAt,
       note: payments.note,
+      name: users.name,
       email: users.email,
+      phone: users.phone,
       orderPublicId: orders.publicId,
     })
     .from(payments)
@@ -81,7 +86,14 @@ export async function listPayments(
     .offset(page.page * page.size);
 
   return {
-    rows: rows.map(({ proof, ...r }) => ({ ...r, proofThumb: proof?.thumbUrl ?? null })),
+    rows: await Promise.all(
+      rows.map(async ({ proof, ...r }) => ({
+        ...r,
+        proofThumb: proof?.thumbUrl ?? null,
+        proofHref: proof ? await attachmentHref(proof) : null,
+        proofName: proof?.name ?? null,
+      })),
+    ),
     total,
     page: page.page,
     size: page.size,

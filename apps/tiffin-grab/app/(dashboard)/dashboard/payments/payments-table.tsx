@@ -1,25 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { ReceiptTextIcon } from "lucide-react";
+import { useState } from "react";
+import { EyeIcon, ReceiptTextIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, ListPagination, type Column } from "@/components/ds";
+import { DataTable, ListPagination, RowActions, RowActionTooltipButton, type Column } from "@/components/ds";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import type { FacetDef } from "@/components/ds";
 import { PaymentStatusPill } from "./payment-status-pill";
+import { PaymentDetailDialog } from "./payment-detail-dialog";
 import { PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "./payment-facets";
 import type { SortState } from "@/lib/list/sort";
 
-const COLUMNS: readonly Column<PaymentSortKey>[] = [
+const COLUMNS: readonly Column<PaymentSortKey | "actions">[] = [
   { key: "time", label: "Time", sortable: true },
   { key: "customer", label: "Customer", sortable: true },
   { key: "order", label: "Order", sortable: true },
   { key: "method", label: "Method", sortable: true },
   { key: "status", label: "Status", sortable: true },
   { key: "amount", label: "Amount", sortable: true, align: "right" },
+  { key: "actions", label: "", align: "right" },
 ];
 
 const SPEC: FacetDef[] = [
@@ -42,16 +45,17 @@ export function PaymentsTable({
   sort: SortState<PaymentSortKey>;
 }) {
   const tz = useTimezone();
+  const [viewing, setViewing] = useState<PaymentRow | null>(null);
   return (
     <div className="space-y-4">
     <DataTable
       columns={COLUMNS}
       rows={rows}
       rowKey={(r) => r.publicId}
-      sort={sort}
+      sort={sort as SortState<PaymentSortKey | "actions">}
       idAccessor={(r) => r.publicId}
-      idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
-      rowClassName={() => "group cursor-pointer"}
+      onRowClick={setViewing}
+      rowClassName={() => "group/row"}
       filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
       emptyIcon={ReceiptTextIcon}
       emptyMessage="No payments yet."
@@ -63,7 +67,7 @@ export function PaymentsTable({
           </TableCell>
           <TableCell className="text-muted-foreground">{r.email ?? "-"}</TableCell>
           <TableCell className="font-medium">
-            <Link href={`/dashboard/orders/${r.orderPublicId}`} className="group-hover:underline">
+            <Link href={`/dashboard/orders/${r.orderPublicId}`} className="hover:underline">
               {r.orderPublicId}
             </Link>
           </TableCell>
@@ -72,10 +76,16 @@ export function PaymentsTable({
             <PaymentStatusPill status={r.status} />
           </TableCell>
           <TableCell className="text-right tabular-nums">{formatMoney(Number(r.amount))}</TableCell>
+          <TableCell className="text-right">
+            <RowActions>
+              <RowActionTooltipButton icon={EyeIcon} label="View payment" onClick={() => setViewing(r)} />
+            </RowActions>
+          </TableCell>
         </>
       )}
     />
       <ListPagination page={page} size={size} total={total} />
+      <PaymentDetailDialog payment={viewing} onOpenChange={(o) => !o && setViewing(null)} />
     </div>
   );
 }

@@ -7,8 +7,15 @@ export type PaymentRow = {
   amount: string;
   reference: string | null;
   proofThumb: string | null;
+  /** Short-lived signed link to the full-size original; thumbs are public, originals are not. */
+  proofHref: string | null;
+  proofName: string | null;
+  claimedAt: number | null;
+  capturedAt: number | null;
   note: string | null;
+  name: string | null;
   email: string | null;
+  phone: string | null;
   orderPublicId: string;
 };
 

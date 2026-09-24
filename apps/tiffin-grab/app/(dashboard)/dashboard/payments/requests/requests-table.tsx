@@ -3,19 +3,27 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, InboxIcon, XIcon } from "lucide-react";
+import { CheckIcon, EyeIcon, InboxIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { Textarea } from "@foundry/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
-import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
+import {
+  DataTable,
+  ListPagination,
+  RowActions,
+  RowActionTooltipButton,
+  type Column,
+  type FacetDef,
+} from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { rejectPaymentAction, verifyPaymentAction } from "../../orders/[id]/actions";
 import type { PaymentRow, PaymentSortKey } from "../payment-facets";
+import { PaymentDetailDialog } from "../payment-detail-dialog";
 import type { SortState } from "@/lib/list/sort";
 
 const SPEC: FacetDef[] = [{ kind: "search", fields: [] }];
@@ -47,6 +55,7 @@ export function RequestsTable({
   const tz = useTimezone();
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [viewing, setViewing] = useState<PaymentRow | null>(null);
   const [rejecting, setRejecting] = useState<PaymentRow | null>(null);
   const [note, setNote] = useState("");
 
@@ -58,6 +67,7 @@ export function RequestsTable({
         return;
       }
       toast.success(`Approved ${formatMoney(Number(r.amount))} for ${r.orderPublicId}`);
+      setViewing(null);
       router.refresh();
     });
   }
@@ -74,6 +84,7 @@ export function RequestsTable({
       }
       toast("Request rejected");
       setRejecting(null);
+      setViewing(null);
       setNote("");
       router.refresh();
     });
@@ -86,7 +97,8 @@ export function RequestsTable({
         rows={rows}
         rowKey={(r) => r.publicId}
         idAccessor={(r) => r.publicId}
-        idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
+        onRowClick={setViewing}
+        rowClassName={() => "group/row"}
         sort={sort as SortState<PaymentSortKey | "reference" | "proof" | "actions">}
         filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
         emptyIcon={InboxIcon}
@@ -116,19 +128,33 @@ export function RequestsTable({
             </TableCell>
             <TableCell className="text-right tabular-nums">{formatMoney(Number(r.amount))}</TableCell>
             <TableCell className="text-right">
-              <div className="flex justify-end gap-2">
-                <Button size="sm" disabled={pending} onClick={() => approve(r)} className="gap-1.5">
-                  <CheckIcon className="size-4" /> Approve
-                </Button>
-                <Button size="sm" variant="outline" disabled={pending} onClick={() => setRejecting(r)} className="gap-1.5">
-                  <XIcon className="size-4" /> Reject
-                </Button>
-              </div>
+              <RowActions>
+                <RowActionTooltipButton icon={EyeIcon} label="View request" onClick={() => setViewing(r)} />
+                <RowActionTooltipButton icon={CheckIcon} label="Approve" disabled={pending} onClick={() => approve(r)} />
+                <RowActionTooltipButton icon={XIcon} label="Reject" disabled={pending} onClick={() => setRejecting(r)} />
+              </RowActions>
             </TableCell>
           </>
         )}
       />
       <ListPagination page={page} size={size} total={total} />
+
+      <PaymentDetailDialog
+        payment={viewing}
+        onOpenChange={(o) => !o && setViewing(null)}
+        footer={
+          viewing && (
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" disabled={pending} onClick={() => setRejecting(viewing)} className="gap-1.5">
+                <XIcon className="size-4" /> Reject
+              </Button>
+              <Button disabled={pending} onClick={() => approve(viewing)} className="gap-1.5">
+                <CheckIcon className="size-4" /> Approve
+              </Button>
+            </div>
+          )
+        }
+      />
 
       <Dialog open={rejecting != null} onOpenChange={(o) => !o && setRejecting(null)}>
         <DialogContent>
