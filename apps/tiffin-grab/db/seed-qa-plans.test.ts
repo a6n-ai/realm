@@ -79,15 +79,16 @@ describe("seed QA plans", () => {
     const catRows = await db.select({ id: dishCategories.id, key: dishCategories.key }).from(dishCategories);
     const catId = new Map(catRows.map((c) => [c.key, c.id]));
 
-    // ---- dishes: one row per (name, plan) pair
+    // ---- dishes: one row per (name, plan) pair. dishes.name is globally unique (0036),
+    // so a dish shared by both plans gets a plan suffix on its non-veg row.
     const dishId = new Map<string, bigint>(); // keyed "name|planKey"
     for (const d of DISHES) {
       for (const planKey of d.plans) {
         const pid = planId[planKey];
-        let [row] = await db.select({ id: dishes.id }).from(dishes)
-          .where(and(eq(dishes.name, d.name), eq(dishes.planId, pid))).limit(1);
-        if (row) await db.update(dishes).set({ category: d.category, description: d.description, active: true }).where(eq(dishes.id, row.id));
-        else [row] = await db.insert(dishes).values({ name: d.name, category: d.category, description: d.description, planId: pid }).returning({ id: dishes.id });
+        const name = d.plans.length > 1 && planKey === "non-veg" ? `${d.name} (Non-Veg)` : d.name;
+        let [row] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.name, name)).limit(1);
+        if (row) await db.update(dishes).set({ category: d.category, description: d.description, planId: pid, active: true }).where(eq(dishes.id, row.id));
+        else [row] = await db.insert(dishes).values({ name, category: d.category, description: d.description, planId: pid }).returning({ id: dishes.id });
         dishId.set(`${d.name}|${planKey}`, row.id);
       }
     }

@@ -63,6 +63,43 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 - **Next.js 16:** route protection lives in `proxy.ts` (renamed `middleware.ts`).
   Read `node_modules/next/dist/docs/` before writing framework code.
 
+## Migrations — strict rules
+
+drizzle's migrator applies a journal entry **only if its `when` is later than the
+newest `created_at` already recorded** in `drizzle.__drizzle_migrations`. It never
+compares hashes. Anything that breaks that ordering makes a migration get **skipped
+silently** on deploy and still print "migrations applied successfully". Every rule
+below comes from an incident (2026-09-24/25).
+
+1. **Schema only.** Migrations change structure. Data backfills and corrections run
+   once as SQL against the target DB and are not committed as migrations. (0045
+   `sync_order_category_counts` shipped as a migration and was removed.)
+2. **Never edit a migration after it is pushed.** The migrator will not re-run it
+   anywhere it already ran. Fix forward with a new migration. If the pushed one is
+   broken (for example `now()` into a `bigint` column), it failed and rolled back,
+   so replacing it is allowed only when prod has no row for it. Check prod first.
+3. **Never hand-edit `when` in `meta/_journal.json`.** Keep the value
+   `drizzle-kit generate` wrote. Never use round or future values (0043–0045 were set
+   to 2026-09-30, which silently blocked every migration generated before that date).
+4. **`when` must be strictly increasing and in the past.** When renumbering after a
+   merge from main, move your migration to the end **and** re-stamp its `when` to now,
+   above every existing entry. A lower `when` is skipped in any DB that already ran
+   the later ones. (0027 landed below 0026.)
+5. **`db/__tests__/migration-journal.test.ts` must pass** in both apps. Never add to
+   its `GRANDFATHERED` set to make a new migration pass; fix the `when` instead.
+6. **Every migration is generated with `drizzle-kit generate`**, reviewed, and applied
+   locally with `pnpm db:migrate` before it is pushed. Use the `/new-migration` skill.
+7. **Never apply a migration by hand** (psql, IDE console). A DB that ran an older
+   or renumbered version ends up with a different hash or `created_at`, and later
+   migrations get skipped. (Local tiffin-grab silently missed 0036, and puchkaman
+   missed 0032, until both DBs were rebuilt.) If a local DB drifts, reset it and
+   reseed; do not patch it.
+8. **Touching prod bookkeeping (`__drizzle_migrations`) needs explicit owner
+   approval.** Say which row and why, and record the hash so it can be restored.
+9. **Verify after deploy.** Row count and newest `created_at` in prod
+   `__drizzle_migrations` must match the repo journal. The deploy log alone proves
+   nothing.
+
 ## Learned User Preferences
 
 - Prefer customer Finances as a hub at `/me/wallet` (tabs), not a bottom-nav item; keep money billing (monthly bills/transactions) under Finances, not Deliveries History; mobile bottom nav uses Account, with wallet and theme controls in the header; on mobile admin/customer shells prefer top-left brand and More/bottom nav over a persistent sidebar; tiffin-grab customer `/me` uses Apple HIG (warm neutrals + saffron), not Puchkaman brutalism.
