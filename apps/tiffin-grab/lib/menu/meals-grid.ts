@@ -10,6 +10,7 @@ import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { carryingTrips } from "./trip-lookup";
 import { fullDayName } from "./coverage";
+import { isContainerCategory } from "./format-tu";
 
 export type GridCell = {
   day: DayOfWeek;
@@ -158,16 +159,28 @@ export async function buildMealsGrid(
       for (let p = 1; p <= order.persons; p++) {
         const resolved = weekResolved.get(resolvedMealsWeekKey(day, p))?.find((r) => r.category === slot);
         if (!cat.selectable) {
-          // Fixed category: a single read-only cell — no picker, quantity is the plan's count.
-          // `dishes` carries just the resolved dish (not the full slot menu) so the UI can
-          // render its name without offering a picker.
-          const pick = resolved?.picks[0];
-          const pickDish = pick ? dishMap.get(pick.dishId) : undefined;
-          grid.push({
-            day, dateIso, slot, personIndex: p, pickIndex: 1, selectable: false, quantity: repResolved.quantity,
-            selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
-            dishes: pickDish ? [pickDish] : [], locked, lockNote,
-          });
+          if (isContainerCategory(cat)) {
+            for (let pickIndex = 1; pickIndex <= repResolved.quantity; pickIndex++) {
+              const pick = resolved?.picks[pickIndex - 1];
+              const pickDish = pick ? dishMap.get(pick.dishId) : undefined;
+              grid.push({
+                day, dateIso, slot, personIndex: p, pickIndex, selectable: false, quantity: 1,
+                selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
+                dishes: pickDish ? [pickDish] : [], locked, lockNote,
+              });
+            }
+          } else {
+            // Fixed bulk category (e.g. roti): a single read-only cell — no picker, quantity is the plan's count.
+            // `dishes` carries just the resolved dish (not the full slot menu) so the UI can
+            // render its name without offering a picker.
+            const pick = resolved?.picks[0];
+            const pickDish = pick ? dishMap.get(pick.dishId) : undefined;
+            grid.push({
+              day, dateIso, slot, personIndex: p, pickIndex: 1, selectable: false, quantity: repResolved.quantity,
+              selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
+              dishes: pickDish ? [pickDish] : [], locked, lockNote,
+            });
+          }
           continue;
         }
         // Selectable category: one picker cell per pickIndex, resolved pick → isDefault fallback.

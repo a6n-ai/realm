@@ -22,7 +22,7 @@ import {
   formatItemCell,
   type PackingItemLine,
 } from "@/lib/menu/packing-requirement";
-import { formatTuHuman } from "@/lib/menu/format-tu";
+import { formatTuHuman, isContainerCategory } from "@/lib/menu/format-tu";
 import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 
@@ -178,31 +178,8 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
         );
         for (const cat of ordered) {
           if (cat.picks.length === 0) continue;
-          if (!cat.selectable) {
-            // Non-selectable (roti/rice/…): one pick name, quantity = slot count. Do NOT loop
-            // portionForPick(i) — meal_size may have one TU line for the whole count (or N
-            // lines); missing indices used to invent "portion" and explode Item columns.
-            const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
-            const pick = cat.picks[0]!;
-            const mealItems = sizeItems.filter((i) => i.mealSizeId === row.mealSizeId);
-            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity, daySwaps);
-            const converter = tuByKey.get(cat.category);
-            const portion =
-              converter && tuTotal > 0
-                ? formatTuHuman(converter, tuTotal)
-                : (portionForPick(portions, cat.category, 1) ?? "").trim();
-            if (!portion) continue;
-            const slotKey = `${cat.category}:fixed`;
-            addOrBumpLine(
-              lineBySlot,
-              slotKey,
-              pick.name,
-              portion,
-              1,
-              categorySort.get(cat.category) ?? 0,
-            );
-            addDishPortion(dayDishTotals, pick.name, portion, 1);
-          } else {
+          const converter = tuByKey.get(cat.category);
+          if (isContainerCategory(converter) || cat.selectable) {
             cat.picks.forEach((pick, i) => {
               const pickIndex = i + 1;
               const portion = (portionForPick(portions, cat.category, pickIndex) ?? "").trim();
@@ -218,6 +195,27 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
               );
               addDishPortion(dayDishTotals, pick.name, portion, 1);
             });
+          } else {
+            // Count/bulk categories (roti/rice): one pick name, quantity = slot count.
+            const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
+            const pick = cat.picks[0]!;
+            const mealItems = sizeItems.filter((i) => i.mealSizeId === row.mealSizeId);
+            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity, daySwaps);
+            const portion =
+              converter && tuTotal > 0
+                ? formatTuHuman(converter, tuTotal)
+                : (portionForPick(portions, cat.category, 1) ?? "").trim();
+            if (!portion) continue;
+            const slotKey = `${cat.category}:fixed`;
+            addOrBumpLine(
+              lineBySlot,
+              slotKey,
+              pick.name,
+              portion,
+              1,
+              (categorySort.get(cat.category) ?? 0) * 100,
+            );
+            addDishPortion(dayDishTotals, pick.name, portion, 1);
           }
         }
       }

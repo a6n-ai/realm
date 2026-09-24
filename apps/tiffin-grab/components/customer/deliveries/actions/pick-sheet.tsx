@@ -423,17 +423,31 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
 
                 if (!showRadios) {
                   const dish = group.dishes[0];
-                  const portion = group.portions[0];
-                  return dish || portion ? (
+                  if (!dish && group.portions.length === 0) return null;
+                  return (
                     <section key={group.key} aria-label={group.label} className="grid gap-1">
                       <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{group.label}</h4>
-                      <p className="text-[15px]">
-                        {dish?.name ?? group.label}
-                        {portion ? <span className={muted}> · {portion}</span> : null}
-                        <span className={`ml-2 ${muted}`}>Included</span>
-                      </p>
+                      {group.portions.length > 1 ? (
+                        group.portions.map((portion, i) => {
+                          const cell = group.cells[i] ?? group.cells[0];
+                          const cellDish = cell ? group.dishes.find((d) => d.id === effectiveDishId(cell, picked)) ?? group.dishes[0] : group.dishes[0];
+                          return (
+                            <p key={i} className="text-[15px]">
+                              {cellDish?.name ?? group.label}
+                              {portion ? <span className={muted}> · {portion}</span> : null}
+                              <span className={`ml-2 ${muted}`}>Included</span>
+                            </p>
+                          );
+                        })
+                      ) : (
+                        <p className="text-[15px]">
+                          {dish?.name ?? group.label}
+                          {group.portions[0] ? <span className={muted}> · {group.portions[0]}</span> : null}
+                          <span className={`ml-2 ${muted}`}>Included</span>
+                        </p>
+                      )}
                     </section>
-                  ) : null;
+                  );
                 }
 
                 return (

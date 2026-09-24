@@ -24,3 +24,14 @@ export function formatTuHuman(category: TuCategory, tuAmount: number): string {
 export function mealChipLabel(qty: number, label: string, portion?: string | null): string {
   return portion ? `${qty}× ${label} · ${portion}` : `${qty}× ${label}`;
 }
+
+/**
+ * Container-based categories (Sabzi, Daal, Salad, Raita, Curry, etc.) where each slot
+ * represents a physical container (e.g. 12oz, 8oz).
+ * In contrast to bulk/count categories (Roti) where multiple units (e.g. 4 or 8 rotis)
+ * are packed together in a single pack/pouch.
+ */
+export function isContainerCategory(category?: { tuUnitType?: string } | null): boolean {
+  return category?.tuUnitType === "weight";
+}
+

@@ -98,6 +98,91 @@ describe("portionsByCategory", () => {
     expect(afterSwap.get("rice")).toEqual(["2 unit"]);
   });
 
+  it("keeps two identical Daal slots as two separate 12oz items (never collapsed into 24oz)", () => {
+    const fixedDaalCats = new Map<string, TuCategory>([
+      ["daal", { ...WEIGHT, selectable: false }],
+    ]);
+    const items = [
+      item("daal", "1.50", 1),
+      item("daal", "1.50", 2),
+    ];
+    const portions = portionsByCategory(items, fixedDaalCats);
+    expect(portions.get("daal")).toEqual(["12oz", "12oz"]);
+  });
+
+  it("keeps differently-sized Daal slots separate (12oz and 8oz)", () => {
+    const fixedDaalCats = new Map<string, TuCategory>([
+      ["daal", { ...WEIGHT, selectable: false }],
+    ]);
+    const items = [
+      item("daal", "1.50", 1),
+      item("daal", "1.00", 2),
+    ];
+    const portions = portionsByCategory(items, fixedDaalCats);
+    expect(portions.get("daal")).toEqual(["12oz", "8oz"]);
+  });
+
+  it("keeps two identical Sabzi slots as two separate portions", () => {
+    const items = [
+      item("sabzi", "1.50", 1),
+      item("sabzi", "1.50", 2),
+    ];
+    const portions = portionsByCategory(items, cats);
+    expect(portions.get("sabzi")).toEqual(["12oz", "12oz"]);
+  });
+
+  it("keeps two identical Salad slots as two separate portions", () => {
+    const saladCats = new Map<string, TuCategory>([
+      ["salad", { ...WEIGHT, selectable: false }],
+    ]);
+    const items = [
+      item("salad", "1.00", 1),
+      item("salad", "1.00", 2),
+    ];
+    const portions = portionsByCategory(items, saladCats);
+    expect(portions.get("salad")).toEqual(["8oz", "8oz"]);
+  });
+
+  it("keeps two identical Raita slots as two separate portions", () => {
+    const raitaCats = new Map<string, TuCategory>([
+      ["raita", { ...WEIGHT, selectable: false }],
+    ]);
+    const items = [
+      item("raita", "1.00", 1),
+      item("raita", "1.00", 2),
+    ];
+    const portions = portionsByCategory(items, raitaCats);
+    expect(portions.get("raita")).toEqual(["8oz", "8oz"]);
+  });
+
+  it("preserves container slots after multiple swaps without collapsing", () => {
+    const fixedCats = new Map<string, TuCategory>([
+      ["sabzi", { ...WEIGHT, selectable: true }],
+      ["daal", { ...WEIGHT, selectable: false }],
+      ["rice", { tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "unit", selectable: false }],
+    ]);
+    const items = [
+      item("sabzi", "1.50", 1),
+      item("sabzi", "1.50", 2),
+      item("daal", "1.50", 3),
+    ];
+    // Swap 1 Sabzi -> Daal (now 2 Daal 12oz + 1 Sabzi 12oz)
+    const afterSwap1 = portionsByCategory(items, fixedCats, [
+      { fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 },
+    ]);
+    expect(afterSwap1.get("daal")).toEqual(["12oz", "12oz"]);
+    expect(afterSwap1.get("sabzi")).toEqual(["12oz"]);
+
+    // Swap 1 Sabzi -> Rice (now 2 Daal 12oz + 1 Rice)
+    const afterSwap2 = portionsByCategory(items, fixedCats, [
+      { fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 },
+      { fromCategory: "sabzi", toCategory: "rice", qtyFrom: 1, qtyTo: 1 },
+    ]);
+    expect(afterSwap2.get("daal")).toEqual(["12oz", "12oz"]);
+    expect(afterSwap2.get("sabzi")).toEqual([]);
+    expect(afterSwap2.get("rice")).toEqual(["1 unit"]);
+  });
+
   it("yields [] for non-selectable category when all slots are swapped away", () => {
     const fixedCats = new Map<string, TuCategory>([
       ["roti", { ...ROTI, selectable: false }],

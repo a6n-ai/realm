@@ -41,5 +41,6 @@ export async function resolveTripDay(
     day,
     person,
     null,
+    { forDate: dateIso, swaps: daySwaps },
   );
 }

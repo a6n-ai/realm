@@ -11,6 +11,7 @@ import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
+import { isContainerCategory } from "@/lib/menu/format-tu";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -53,7 +54,7 @@ export function validateSwapStack(
 
 type Item = { slot: string; dishId: bigint; isDefault: boolean; name: string; publicId: string };
 type Pick_ = { slot: string; pickIndex: number; dishId: bigint };
-type Category = { key: string; selectable: boolean; label: string };
+type Category = { key: string; selectable: boolean; label: string; tuUnitType?: string };
 
 export type ResolvedCategory = {
   category: string;
@@ -89,11 +90,34 @@ function resolveCategoriesForDay(
     const maxTuPi = maxTuByCategory.get(c.key) ?? 1;
 
     if (!c.selectable) {
-      const def = defaultMenuItem(slotItems, 1, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!;
-      out.push({
-        category: c.key, selectable: false, label: c.label, quantity: count,
-        picks: [{ dishId: def.dishId, dishPublicId: def.publicId, name: def.name, isDefaulted: true }],
-      });
+      if (isContainerCategory(c)) {
+        const picks: ResolvedCategory["picks"] = [];
+        for (let pi = 1; pi <= count; pi++) {
+          const def = defaultMenuItem(slotItems, pi, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!;
+          picks.push({
+            dishId: def.dishId,
+            dishPublicId: def.publicId,
+            name: def.name,
+            isDefaulted: true,
+          });
+        }
+        out.push({
+          category: c.key,
+          selectable: false,
+          label: c.label,
+          quantity: count,
+          picks,
+        });
+      } else {
+        const def = defaultMenuItem(slotItems, 1, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!;
+        out.push({
+          category: c.key,
+          selectable: false,
+          label: c.label,
+          quantity: count,
+          picks: [{ dishId: def.dishId, dishPublicId: def.publicId, name: def.name, isDefaulted: true }],
+        });
+      }
       continue;
     }
 
@@ -164,7 +188,9 @@ export async function resolveDeliveryMeal(
   deliveryId: bigint | null,
   // The eating date being resolved. Omit for the trip's own date; pass `forDate` (or the explicit
   // `eatingDate` + `tripDate` pair) for a carried day so that day's swaps (for_date) are used.
-  options: { forDate?: string; eatingDate?: string; tripDate?: string } = {},
+  // Explicit `swaps` may be passed directly (e.g. from resolveTripDay) so they take effect
+  // even when deliveryId is null.
+  options: { forDate?: string; eatingDate?: string; tripDate?: string; swaps?: SwapRow[] } = {},
 ): Promise<ResolvedCategory[]> {
   // forPlan, never forPlanType: buildMealsGrid decides which categories to render with
   // forPlan(order.planId), so resolving against the plan_type union made the two disagree —
@@ -183,8 +209,8 @@ export async function resolveDeliveryMeal(
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id), eq(mealSelections.dayOfWeek, dayOfWeek), eq(mealSelections.personIndex, person)));
 
-  let swaps: SwapRow[] = [];
-  if (deliveryId != null) {
+  let swaps: SwapRow[] = options.swaps ?? [];
+  if (options.swaps == null && deliveryId != null) {
     const [trip] = await db.select({ deliveryDate: deliveries.deliveryDate }).from(deliveries).where(eq(deliveries.id, deliveryId)).limit(1);
     const tripDate = options.tripDate ?? trip?.deliveryDate;
     const eatingDate = options.eatingDate ?? options.forDate ?? tripDate;

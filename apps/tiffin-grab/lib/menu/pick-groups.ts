@@ -58,7 +58,7 @@ export function groupPickCells(
       key: cat.key,
       label: cat.label,
       selectable: cat.selectable && mine.some((c) => c.selectable),
-      chooseCount: mine[0]!.selectable ? mine.length : mine[0]!.quantity,
+      chooseCount: mine[0]!.selectable || mine.length > 1 ? mine.length : mine[0]!.quantity,
       cells: mine,
       portions: mine.map((c, i) => portions[c.pickIndex - 1] ?? portions[i] ?? null),
       dishes: mine.find((c) => c.selectable)?.dishes ?? mine[0]!.dishes,
@@ -93,12 +93,24 @@ export function buildMealSummary(
   for (const g of groups) {
     const lines: string[] = [];
     if (!g.selectable) {
-      const dish = g.cells[0] ? effectiveDishId(g.cells[0], picked) : null;
-      const name = g.dishes.find((d) => d.id === dish)?.name ?? g.dishes[0]?.name;
-      const portion = g.portions[0];
-      if (name && portion) lines.push(`${name} · ${portion}`);
-      else if (portion) lines.push(portion);
-      else if (name) lines.push(name);
+      if (g.portions.length > 1) {
+        for (let i = 0; i < g.portions.length; i++) {
+          const cell = g.cells[i] ?? g.cells[0];
+          const dish = cell ? effectiveDishId(cell, picked) : null;
+          const name = g.dishes.find((d) => d.id === dish)?.name ?? g.dishes[0]?.name;
+          const portion = g.portions[i];
+          if (name && portion) lines.push(`${name} · ${portion}`);
+          else if (name) lines.push(name);
+          else if (portion) lines.push(portion);
+        }
+      } else {
+        const dish = g.cells[0] ? effectiveDishId(g.cells[0], picked) : null;
+        const name = g.dishes.find((d) => d.id === dish)?.name ?? g.dishes[0]?.name;
+        const portion = g.portions[0];
+        if (name && portion) lines.push(`${name} · ${portion}`);
+        else if (portion) lines.push(portion);
+        else if (name) lines.push(name);
+      }
     } else {
       for (let i = 0; i < g.cells.length; i++) {
         const cell = g.cells[i]!;

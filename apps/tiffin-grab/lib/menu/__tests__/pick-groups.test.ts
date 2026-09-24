@@ -130,4 +130,75 @@ describe("buildMealSummary", () => {
       { categoryLabel: "Roti", lines: ["Roti · 6 roti"] },
     ]);
   });
+
+  it("shows separate container items for multi-slot non-selectable categories (e.g. Daal 12oz + 12oz, never 24oz)", () => {
+    const groups = groupPickCells(
+      [
+        cell({
+          slot: "daal",
+          pickIndex: 1,
+          selectable: false,
+          quantity: 2,
+          selectedDishId: "d-dal",
+          dishes: [{ id: "d-dal", name: "Dal Tadka", image: null }],
+        }),
+        cell({
+          slot: "daal",
+          pickIndex: 2,
+          selectable: false,
+          quantity: 2,
+          selectedDishId: "d-dal",
+          dishes: [{ id: "d-dal", name: "Dal Tadka", image: null }],
+        }),
+        cell({
+          slot: "sabzi",
+          pickIndex: 1,
+          selectable: true,
+          quantity: 1,
+          selectedDishId: "d-paneer",
+          dishes: [{ id: "d-paneer", name: "Paneer Makhani", image: null }],
+        }),
+      ],
+      [
+        { key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 0 },
+        { key: "daal", label: "Daal", selectable: false, sortOrder: 1 },
+      ],
+      { sabzi: ["8oz"], daal: ["12oz", "12oz"] },
+    );
+    const summary = buildMealSummary(groups, {});
+    expect(summary).toEqual([
+      { categoryLabel: "Sabzi", lines: ["Paneer Makhani · 8oz"] },
+      { categoryLabel: "Daal", lines: ["Dal Tadka · 12oz", "Dal Tadka · 12oz"] },
+    ]);
+  });
+
+  it("shows separate container items for multi-slot Salad and Raita", () => {
+    const groups = groupPickCells(
+      [
+        cell({
+          slot: "salad",
+          pickIndex: 1,
+          selectable: false,
+          quantity: 2,
+          selectedDishId: "d-salad",
+          dishes: [{ id: "d-salad", name: "Green Salad", image: null }],
+        }),
+        cell({
+          slot: "salad",
+          pickIndex: 2,
+          selectable: false,
+          quantity: 2,
+          selectedDishId: "d-salad",
+          dishes: [{ id: "d-salad", name: "Green Salad", image: null }],
+        }),
+      ],
+      [{ key: "salad", label: "Salad", selectable: false, sortOrder: 0 }],
+      { salad: ["8oz", "8oz"] },
+    );
+    const summary = buildMealSummary(groups, {});
+    expect(summary).toEqual([
+      { categoryLabel: "Salad", lines: ["Green Salad · 8oz", "Green Salad · 8oz"] },
+    ]);
+  });
 });
+
