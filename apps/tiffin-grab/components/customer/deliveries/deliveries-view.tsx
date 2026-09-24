@@ -39,6 +39,8 @@ interface Props {
   now: number;
   /** Account name for the page heading. */
   customerName?: string | null;
+  /** An e-Transfer is unconfirmed: only meal picking is allowed. */
+  locked?: boolean;
   initialTrip: string | null;
   initialAction?: string | null;
 }
@@ -48,7 +50,7 @@ function PlanTab({ selected, className, ...rest }: React.ButtonHTMLAttributes<HT
 }
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "hold" ? 1 : 2);
 
-export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, initialTrip, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
   const multi = subs.length > 1;
@@ -85,8 +87,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // The menu of this week isn't out: pick/swap are disabled, everything else (dates, move, info) still shows.
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
-  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd }) : null;
-  const vacAv = trip ? actionAvailability(trip, now, ctx).vacation : null;
+  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked }) : null;
+  const vacAv = locked ? { ok: false as const, why: "Available once your payment is confirmed" } : trip ? actionAvailability(trip, now, ctx).vacation : null;
 
   const dots = useMemo(() => {
     const out: Record<string, { orderId: string; status: DeliveryStatus; truck: boolean }[]> = {};
@@ -141,6 +143,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         onVacation={!!ctx.onVacation}
         onVacationClick={() => setActive("vacation")}
       />
+
+      {locked && <Notice>We are confirming your e-Transfer. You can pick meals until the cutoff; holds, swaps, moves and vacation unlock once it is approved.</Notice>}
 
       {multi && (
         <nav aria-label="Your plans" className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap">

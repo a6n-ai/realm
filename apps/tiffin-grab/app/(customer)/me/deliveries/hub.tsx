@@ -18,6 +18,7 @@ import { currentUserId } from "@/lib/services/session-service";
 import {
   makeupSourceIdsForOrder,
   myActiveSubscriptions,
+  orderPaymentLocked,
   myCalendar,
   myDeliveries,
   myPausePanel,
@@ -81,7 +82,8 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const from = addDays(weekStart, -3);
   const until = addDays(weekStart, 6);
 
-  const [rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories] = await Promise.all([
+  const [locked, rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories] = await Promise.all([
+    orderPaymentLocked(sub.publicId),
     myDeliveries(userId, from, until),
     loadCatalogSnapshot(),
     myCalendar(userId, sub.publicId, { from, until }),
@@ -123,6 +125,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
         lastWeek={lastWeek}
         now={now}
         customerName={userRow?.name ?? null}
+        locked={locked}
         initialTrip={initialTrip}
         initialAction={actionParam ?? null}
       />
