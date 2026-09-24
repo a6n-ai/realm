@@ -111,6 +111,8 @@ export const payments = pgTable("payments", {
 }, (t) => [
   index("payments_order_idx").on(t.orderId),
   index("payments_organization_idx").on(t.organizationId),
+  // section-seen.service.ts filters status='pending_verification' alone.
+  index("payments_status_idx").on(t.status),
 ]);
 
 // One row per add-on picked on an order, priced at order time — the structured
