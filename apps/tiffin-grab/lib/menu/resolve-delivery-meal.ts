@@ -6,7 +6,9 @@ import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { allowedDishIdsForMealSize, exclusiveDishIdsForPlan } from "@/lib/menu/selections.service";
-import { defaultMenuItem, maxTuPickIndex } from "@/lib/menu/default-pick";
+import { defaultMenuItem, keepDefaultsWithinRules, maxTuPickIndex } from "@/lib/menu/default-pick";
+import { mealRulesService } from "@/lib/services/meal-rules.service";
+import type { MealRule } from "@/lib/menu/meal-rule-types";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
 import { swapAppliesTo } from "@/lib/menu/coverage";
@@ -52,7 +54,7 @@ export function validateSwapStack(
   return { ok: true };
 }
 
-type Item = { slot: string; dishId: bigint; isDefault: boolean; name: string; publicId: string };
+type Item = { slot: string; dishId: bigint; isDefault: boolean; name: string; publicId: string; planId: bigint };
 type Pick_ = { slot: string; pickIndex: number; dishId: bigint };
 type Category = { key: string; selectable: boolean; label: string; tuUnitType?: string };
 
@@ -78,6 +80,7 @@ function resolveCategoriesForDay(
   planDishIds: Set<bigint>,
   exclusiveDishIds: Set<bigint>,
   maxTuByCategory: Map<string, number>,
+  rules: MealRule[] = [],
 ): ResolvedCategory[] {
   const out: ResolvedCategory[] = [];
   for (const c of cats) {
@@ -137,11 +140,15 @@ function resolveCategoriesForDay(
     }
     out.push({ category: c.key, selectable: true, label: c.label, quantity: picks.length, picks });
   }
-  return out;
+  return keepDefaultsWithinRules(
+    out,
+    (category) => dayItems.filter((i) => i.slot === category && planDishIds.has(i.dishId)),
+    rules,
+  );
 }
 
 async function defaultPickContext(order: Order) {
-  const [planDishIds, exclusiveDishIds, itemRows] = await Promise.all([
+  const [planDishIds, exclusiveDishIds, itemRows, rules] = await Promise.all([
     // The union of every plan this meal size's OWN composition rows target — not
     // just the order's own plan. A meal size can carry two sabzi rows (one veg,
     // one non-veg), and both must be servable to the subscriber.
@@ -155,6 +162,7 @@ async function defaultPickContext(order: Order) {
       })
       .from(mealSizeItems)
       .where(eq(mealSizeItems.mealSizeId, order.mealSizeId)),
+    mealRulesService.listEnabledForOrder({ planId: order.planId, mealSizeId: order.mealSizeId }),
   ]);
   const byCat = new Map<string, typeof itemRows>();
   const liveCounts: Record<string, number> = {};
@@ -174,6 +182,7 @@ async function defaultPickContext(order: Order) {
     exclusiveDishIds,
     maxTuByCat,
     liveCounts: itemRows.length > 0 ? liveCounts : null,
+    rules,
   };
 }
 
@@ -198,7 +207,7 @@ export async function resolveDeliveryMeal(
   // then dropped by the grid. One scope, one source.
   const cats = await dishCategoriesService.forPlan(order.planId);
   const items = await db
-    .select({ slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId })
+    .select({ slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId, planId: dishes.planId })
     .from(menuItems)
     .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
     .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
@@ -222,7 +231,7 @@ export async function resolveDeliveryMeal(
     swaps = tripDate && eatingDate ? rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatingDate)) : rows;
   }
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts } = await defaultPickContext(order);
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules } = await defaultPickContext(order);
   const baseCounts = liveCounts ?? order.categoryCounts ?? {};
   return resolveCategoriesForDay(
     items,
@@ -232,6 +241,7 @@ export async function resolveDeliveryMeal(
     planDishIds,
     exclusiveDishIds,
     maxTuByCat,
+    rules,
   );
 }
 
@@ -247,7 +257,7 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
   const result: ResolvedMealsWeek = new Map();
   const cats = await dishCategoriesService.forPlan(order.planId);
   const items = await db
-    .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId })
+    .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId, planId: dishes.planId })
     .from(menuItems)
     .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
     .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
@@ -258,7 +268,7 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id)));
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts } = await defaultPickContext(order);
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules } = await defaultPickContext(order);
   const baseCounts = liveCounts ?? order.categoryCounts ?? {};
 
   // Batch-fetch this week's delivery rows (to map date -> delivery id) and every
@@ -292,7 +302,7 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
       const dayPersonPicks = picks.filter((p) => p.dayOfWeek === day && p.personIndex === person);
       result.set(
         resolvedMealsWeekKey(day, person),
-        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat),
+        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules),
       );
     }
   }
