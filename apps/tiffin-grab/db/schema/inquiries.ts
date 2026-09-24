@@ -53,6 +53,8 @@ export const inquiries = pgTable("inquiries", {
   index("inquiries_stage_created_idx").on(t.stage, t.createdAt),
   index("inquiries_source_idx").on(t.sourceId),
   index("inquiries_converted_order_idx").on(t.convertedOrderId),
+  index("inquiries_sub_source_idx").on(t.subSourceId),
+  index("inquiries_zone_idx").on(t.zoneId),
 ]);
 
 export const inquiryActivities = pgTable("inquiry_activities", {

@@ -85,6 +85,8 @@ export const orders = pgTable("orders", {
   // FK columns: plan/zone filters on the admin list and kitchen roll-ups.
   index("orders_plan_idx").on(t.planId),
   index("orders_zone_idx").on(t.zoneId),
+  index("orders_meal_size_idx").on(t.mealSizeId),
+  index("orders_frequency_idx").on(t.frequencyId),
 ]);
 
 // A customer-submitted proof image for a manual payment claim (same shape as ticket

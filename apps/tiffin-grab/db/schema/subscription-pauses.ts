@@ -25,4 +25,5 @@ export const subscriptionPauses = pgTable("subscription_pauses", {
   // the same order impossible, independent of any app-level TOCTOU.
   uniqueIndex("subscription_pauses_one_open_unique").on(t.orderId).where(sql`resumed_at is null`),
   index("subscription_pauses_organization_idx").on(t.organizationId),
+  index("subscription_pauses_resumed_by_idx").on(t.resumedBy),
 ]);

@@ -81,6 +81,8 @@ export const categorySwapPairs = pgTable(
     uniqueIndex("category_swap_pairs_pair_null_plan_unique")
       .on(t.fromCategoryId, t.toCategoryId)
       .where(sql`${t.planId} IS NULL`),
+    index("category_swap_pairs_to_category_idx").on(t.toCategoryId),
+    index("category_swap_pairs_plan_idx").on(t.planId),
   ],
 );
 
@@ -99,7 +101,10 @@ export const categoryPlans = pgTable(
     // Client-scoping — see dishCategories.organizationId for the pattern.
     organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [uniqueIndex("category_plans_category_plan_unique").on(t.categoryId, t.planId)],
+  (t) => [
+    uniqueIndex("category_plans_category_plan_unique").on(t.categoryId, t.planId),
+    index("category_plans_plan_idx").on(t.planId),
+  ],
 );
 
 // Which add-on categories a dish category offers. An add-on only shows to the
@@ -119,7 +124,10 @@ export const dishCategoryAddonCategories = pgTable(
     // Client-scoping — see dishCategories.organizationId for the pattern.
     organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [uniqueIndex("dish_category_addon_categories_unique").on(t.dishCategoryId, t.addonCategoryId)],
+  (t) => [
+    uniqueIndex("dish_category_addon_categories_unique").on(t.dishCategoryId, t.addonCategoryId),
+    index("dish_category_addon_categories_addon_category_idx").on(t.addonCategoryId),
+  ],
 );
 
 // draft   — the admin's working copy; content is editable, invisible to the public.
@@ -202,5 +210,7 @@ export const mealSelections = pgTable(
       t.pickIndex,
     ),
     index("meal_selections_menu_week_idx").on(t.menuWeekId),
+    index("meal_selections_category_idx").on(t.categoryId),
+    index("meal_selections_dish_idx").on(t.dishId),
   ],
 );
