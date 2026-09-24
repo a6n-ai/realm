@@ -14,7 +14,7 @@ import {
   resolvedMealsWeekKey,
   type ResolvedCategory,
 } from "@/lib/menu/resolve-delivery-meal";
-import { dishIdsForPlan } from "@/lib/menu/selections.service";
+import { allowedDishIdsForMealSize } from "@/lib/menu/selections.service";
 import { isHiddenFromCustomer, orderDisplayStatus } from "@/lib/orders/display-status";
 import { getSession } from "@/lib/auth/session";
 import { dishCategoriesService } from "./dish-categories.service";
@@ -703,7 +703,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   // A category the plan doesn't include (categoryCounts[key] absent or 0) is never offered,
   // even if it's marked selectable in general — matches resolveCategoriesForDay's own count gate.
   const selectableCats = cats.filter((c) => c.selectable && (order.categoryCounts?.[c.key] ?? 0) > 0);
-  const planDishIds = await dishIdsForPlan(order.planId);
+  const planDishIds = await allowedDishIdsForMealSize(order.mealSizeId);
 
   // Per-week caches: myDeliveries can return many days across the same released week, so batch
   // the resolution and the day's menu items once per week instead of once per delivery row.

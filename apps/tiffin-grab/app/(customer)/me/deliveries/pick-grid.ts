@@ -8,6 +8,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { buildMealsGrid, type GridCell } from "@/lib/menu/meals-grid";
+import { listRuleTextsForOrder } from "@/lib/menu/rule-texts";
 import { portionsByCategory, type PortionSwap } from "@/lib/menu/pick-size";
 import type { TuCategory } from "@/lib/menu/format-tu";
 import { swapAppliesTo } from "@/lib/menu/coverage";
@@ -27,6 +28,12 @@ export type PickGrid = {
   /** Menu week public id per eating date; the pick actions need it. */
   weekByDate: Record<string, string>;
   persons: number;
+  /**
+   * The meal rules that apply to this order, as sentences. Shown together above
+   * the picker so a customer knows the limits before choosing, and highlighted
+   * by `publicId` when one of them refuses a pick.
+   */
+  rules: { publicId: string; text: string }[];
 };
 
 function mapPortions(portions: Map<string, (string | null)[]>): Record<string, (string | null)[]> {
@@ -55,6 +62,7 @@ export async function loadPickGrid(orderId: string, dates: string[]): Promise<{ 
       portionsByDate: {},
       weekByDate: {},
       persons: row.persons,
+      rules: await listRuleTextsForOrder(row.planId, row.mealSizeId),
     };
     for (const monday of new Set(dates.map(mondayOfIso))) {
       const r = await buildMealsGrid(row, settings, monday);
@@ -80,6 +88,7 @@ export async function loadPickGrid(orderId: string, dates: string[]): Promise<{ 
         tuUnitType: c.tuUnitType,
         tuUnitSize: Number(c.tuUnitSize),
         tuUnitLabel: c.tuUnitLabel,
+        selectable: c.selectable,
       });
     }
     const basePortions = portionsByCategory(items, tuByKey);

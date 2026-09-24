@@ -124,7 +124,7 @@ describe("Pick ↔ Swap multi-row Sabzi (1.5 + 1.0 TU)", () => {
     expect(groups[0]!.portions).toEqual(["8oz"]);
   });
 
-  it("does not offer intermediate picks when only even bundles divide (Rice→Roti style)", () => {
+  it("offers single-pick bundle and suppresses redundant multi-item bundles when 1 item divides evenly (Rice→Roti style)", () => {
     const rice: SwapCategory = { key: "rice", pickTu: 1, unitType: "count", unitLabel: "rice", unitSize: 1, maxPicksPerTiffin: null };
     const roti: SwapCategory = { key: "roti", pickTu: 0.25, unitType: "count", unitLabel: "roti", unitSize: 4, maxPicksPerTiffin: null };
     const ctx: CompositionContext = {
@@ -137,8 +137,8 @@ describe("Pick ↔ Swap multi-row Sabzi (1.5 + 1.0 TU)", () => {
       categories: new Map([["rice", rice], ["roti", roti]]),
     };
     const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "rice", toCategory: "roti" });
-    expect(opt.validBundles.every((b) => b.fromPicks === 1 || b.fromPicks === 2)).toBe(true);
-    expect(opt.validBundles.find((b) => b.fromPicks === 1)?.toPicks).toBe(4);
-    expect(opt.validBundles.find((b) => b.fromPicks === 2)?.toPicks).toBe(8);
+    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([1]);
+    expect(opt.validBundles[0]?.toPicks).toBe(4);
+    expect(opt.validBundles.some((b) => b.fromPicks === 2)).toBe(false);
   });
 });

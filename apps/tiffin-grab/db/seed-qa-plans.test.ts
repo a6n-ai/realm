@@ -2,7 +2,7 @@
  * Local QA seed: fills the catalog that db/seed.sql already loads (the "New Plans & Pricing" sheet)
  * with dishes, releases a dummy menu for this week and next, and creates one customer with a live
  * 20-day (4 x Mon-Fri) subscription per meal size. It does NOT touch categories, meal sizes or swap
- * pairs: seed.sql owns those. Idempotent by dish name / week / email.
+ * pairs: seed.sql owns those. Idempotent by (dish name, plan) / week / email.
  * A seeding SCRIPT, not a test — excluded from the default run (see vitest.config.ts):
  *   pnpm --filter tiffin-grab exec vitest run --config vitest.seed.config.ts db/seed-qa-plans.test.ts
  *
@@ -15,7 +15,7 @@ import { cutoffMsFor, nextWeekday, parseIsoDateUtc, zonedDateIso } from "@foundr
 import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/db/client";
 import {
-  account, dishCategories, dishPlans, dishes, menuItems, menuWeeks, orders, plans, users,
+  account, dishCategories, dishes, menuItems, menuWeeks, orders, plans, users,
 } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
@@ -30,8 +30,9 @@ assertLocalDb("seed-qa-plans");
 const PASSWORD = "Customer123!";
 type Diet = "veg" | "non-veg";
 const BOTH: Diet[] = ["veg", "non-veg"];
-// Non-veg curries are Sabzi dishes attached only to the non-veg plan (seed.sql merged the old
-// Curry category into Sabzi; diet now lives on dish_plans).
+// A dish belongs to exactly one plan now — "shared" dishes (Sabzi that both diets
+// eat) are two rows, one per plan, same name+category. Non-veg curries are Sabzi
+// dishes on the non-veg plan only (seed.sql merged the old Curry category into Sabzi).
 const DISHES: { name: string; category: string; description: string; plans: Diet[] }[] = [
   { name: "Aloo Gobi", category: "sabzi", description: "Potato and cauliflower dry sabzi", plans: BOTH },
   { name: "Paneer Butter Masala", category: "sabzi", description: "Paneer in a rich tomato-cream sauce", plans: BOTH },
@@ -78,15 +79,17 @@ describe("seed QA plans", () => {
     const catRows = await db.select({ id: dishCategories.id, key: dishCategories.key }).from(dishCategories);
     const catId = new Map(catRows.map((c) => [c.key, c.id]));
 
-    // ---- dishes
-    const dishId = new Map<string, bigint>();
+    // ---- dishes: one row per (name, plan) pair
+    const dishId = new Map<string, bigint>(); // keyed "name|planKey"
     for (const d of DISHES) {
-      let [row] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.name, d.name)).limit(1);
-      if (row) await db.update(dishes).set({ category: d.category, description: d.description, active: true }).where(eq(dishes.id, row.id));
-      else [row] = await db.insert(dishes).values({ name: d.name, category: d.category, description: d.description }).returning({ id: dishes.id });
-      await db.delete(dishPlans).where(eq(dishPlans.dishId, row.id));
-      await db.insert(dishPlans).values(d.plans.map((p) => ({ dishId: row.id, planId: planId[p] })));
-      dishId.set(d.name, row.id);
+      for (const planKey of d.plans) {
+        const pid = planId[planKey];
+        let [row] = await db.select({ id: dishes.id }).from(dishes)
+          .where(and(eq(dishes.name, d.name), eq(dishes.planId, pid))).limit(1);
+        if (row) await db.update(dishes).set({ category: d.category, description: d.description, active: true }).where(eq(dishes.id, row.id));
+        else [row] = await db.insert(dishes).values({ name: d.name, category: d.category, description: d.description, planId: pid }).returning({ id: dishes.id });
+        dishId.set(`${d.name}|${planKey}`, row.id);
+      }
     }
 
     // ---- menu: this week + next, Mon–Fri
@@ -111,7 +114,12 @@ describe("seed QA plans", () => {
             ...(perDay > 3 && nonVegOnly.length ? [nonVegOnly[dayIdx % nonVegOnly.length]] : []),
           ];
           for (const [i, dish] of picks.entries()) {
-            rows.push({ menuWeekId: week.id, dayOfWeek: day, categoryId: catId.get(category)!, dishId: dishId.get(dish.name)!, isDefault: i === 0, position: i });
+            for (const planKey of dish.plans) {
+              rows.push({
+                menuWeekId: week.id, dayOfWeek: day, categoryId: catId.get(category)!,
+                dishId: dishId.get(`${dish.name}|${planKey}`)!, isDefault: i === 0, position: i,
+              });
+            }
           }
         }
       });

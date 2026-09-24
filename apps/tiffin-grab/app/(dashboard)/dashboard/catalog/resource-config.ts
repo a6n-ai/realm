@@ -15,6 +15,10 @@ export interface FieldDef {
   readOnlyOnEdit?: boolean;
   // Edited in the dialog but kept out of the list table to keep it scannable.
   tableHidden?: boolean;
+  // Groups this field under a labeled section in the edit dialog — a header
+  // renders once, before the first field carrying a new section name. Fields
+  // with no section render in one unlabeled leading group, as before.
+  section?: string;
 }
 
 export interface ResourceDef {
@@ -69,9 +73,6 @@ const plansSchema = z.object({
   tagLabel: z.string().trim().max(24).optional().nullable(),
   tagColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Pick a colour").optional().nullable(),
   allowedStartDays: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).default([]),
-  // Drives the swap-direction guard in dish-categories.service.ts: a restricted
-  // plan's customers must never receive a category unreachable from this plan.
-  restricted: z.boolean().default(false),
   active,
 });
 
@@ -83,6 +84,9 @@ const plansSchema = z.object({
 // category" is two rows, not a qty field on one.
 const compositionItem = z.object({
   category: z.string().trim().min(1, "Pick a category"),
+  // Plan publicId, independently selectable per row — not forced to the meal
+  // size's own planId. Lets one meal size's composition span multiple plans.
+  planId: z.string().trim().min(1, "Plan is required"),
   // Portion size of ONE pick, in tiffin units (TU) — the shared currency swaps move
   // between categories. See lib/menu/format-tu.ts for how this renders to the kitchen.
   tuAmount: reqNum(z.coerce.number().positive().default(1).transform((n) => n.toFixed(2))),
@@ -192,10 +196,10 @@ const optCategory = z.preprocess(
 const dishesSchema = z.object({
   name,
   description: z.string().trim().optional().nullable(),
-  // Plan public_ids. Replaces the old `diet` enum: which plans a dish may appear
-  // on is explicit membership, and at least one is required because a dish
-  // attached to nothing is invisible on every menu.
-  planIds: z.array(z.string()).min(1, "Pick at least one plan"),
+  // Plan public_id. Replaces the old `diet` enum and the old planIds many-to-many:
+  // a dish belongs to exactly one plan, which is what a swap needs to be able to
+  // decide "is this dish veg or non-veg" without ambiguity.
+  planId: z.string().trim().min(1, "Plan is required"),
   // Soft ref to dish_categories.key; nullable so an uncategorized dish stays
   // placeable in any menu slot (I5). Enforced server-side via dishesService.
   category: optCategory,
@@ -227,7 +231,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     key: "dishes", label: "Dishes", singular: "dish", keyed: false, schema: dishesSchema,
     fields: [
       { key: "name", label: "Name", type: "text" },
-      { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
+      { key: "planId", label: "Plan", type: "select", optionsSource: "plans" },
       { key: "category", label: "Category", type: "select", optionsSource: "categories", optional: true },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
     ],
@@ -260,26 +264,25 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "tagLabel", label: "Tag", type: "text", optional: true },
       { key: "tagColor", label: "Tag colour", type: "color", optional: true },
       { key: "allowedStartDays", label: "Allowed start days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
-      { key: "restricted", label: "Restricted (can't receive swapped-in categories it doesn't offer)", type: "boolean" },
     ],
   },
   "meal-sizes": {
     key: "meal-sizes", label: "Meal sizes", singular: "meal size", keyed: true, schema: mealSizesSchema,
     fields: [
-      { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
-      { key: "name", label: "Name", type: "text" },
-      { key: "planId", label: "Plan", type: "select", optionsSource: "plans" },
-      { key: "tier", label: "Tier", type: "select", options: ["budget", "medium", "premium"], optionLabels: ENUM_LABELS },
-      { key: "items", label: "Composition", type: "composition", optionsSource: "categories", tableHidden: true },
-      { key: "kcalMin", label: "kcal min", type: "number", unit: "kcal" },
-      { key: "kcalMax", label: "kcal max", type: "number", unit: "kcal" },
-      { key: "proteinG", label: "Protein", type: "number", unit: "g", optional: true, tableHidden: true },
-      { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true, tableHidden: true },
-      { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true, tableHidden: true },
-      { key: "basePrice", label: "Base price", type: "number", unit: "$" },
-      { key: "discountType", label: "Discount type", type: "select", options: ["none", "percent", "flat"], optionLabels: { none: "No discount", percent: "Percent", flat: "Flat $" } },
-      { key: "discountValue", label: "Discount value", type: "number", unit: "" },
-      { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
+      { key: "key", label: "Key", type: "text", readOnlyOnEdit: true, section: "Basics" },
+      { key: "name", label: "Name", type: "text", section: "Basics" },
+      { key: "planId", label: "Plan", type: "select", optionsSource: "plans", section: "Basics" },
+      { key: "tier", label: "Tier", type: "select", options: ["budget", "medium", "premium"], optionLabels: ENUM_LABELS, section: "Basics" },
+      { key: "description", label: "Description", type: "text", optional: true, tableHidden: true, section: "Basics" },
+      { key: "items", label: "Composition", type: "composition", optionsSource: "categories", tableHidden: true, section: "Composition" },
+      { key: "kcalMin", label: "kcal min", type: "number", unit: "kcal", section: "Nutrition" },
+      { key: "kcalMax", label: "kcal max", type: "number", unit: "kcal", section: "Nutrition" },
+      { key: "proteinG", label: "Protein", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
+      { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
+      { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
+      { key: "basePrice", label: "Base price", type: "number", unit: "$", section: "Pricing" },
+      { key: "discountType", label: "Discount type", type: "select", options: ["none", "percent", "flat"], optionLabels: { none: "No discount", percent: "Percent", flat: "Flat $" }, section: "Pricing" },
+      { key: "discountValue", label: "Discount value", type: "number", unit: "", section: "Pricing" },
     ],
   },
   "delivery-frequencies": {

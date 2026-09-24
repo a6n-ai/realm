@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeAllSwapOptions,
   computeSwapOption,
   maxTuForCategory,
   resultingCategoryTu,
@@ -237,52 +238,198 @@ describe("multi-row Sabzi composition (actual row TU — Phase 7)", () => {
   });
 });
 
-describe("validateMealRules — exclusive_to_plan", () => {
-  const chicken = 101n;
-  const butter = 102n;
-  const aloo = 201n;
-  const bhindi = 202n;
-  const exclusive = new Set([chicken, butter]);
+// The legacy `exclusive_to_plan` rule is now expressed as
+// `dish_plan is <plan> AND category is <key>` with a max_qualifying action —
+// the same behaviour the migration backfills existing rows into. These cases
+// are kept verbatim in meaning so that equivalence is provable.
+describe("validateMealRules — plan-exclusive limit (migrated shape)", () => {
+  const NONVEG = 9n;
+  const VEG = 8n;
+  const chicken = { dishId: 101n, dishName: "Chicken Curry", dishPlanId: NONVEG, category: "sabzi" };
+  const butter = { dishId: 102n, dishName: "Butter Chicken", dishPlanId: NONVEG, category: "sabzi" };
+  const aloo = { dishId: 201n, dishName: "Aloo Gobi", dishPlanId: VEG, category: "sabzi" };
+  const bhindi = { dishId: 202n, dishName: "Bhindi Masala", dishPlanId: VEG, category: "sabzi" };
+
+  const rules = [{
+    publicId: "mlr_1",
+    matchMode: "all" as const,
+    action: "max_qualifying" as const,
+    actionValue: 1,
+    priority: 0,
+    conditions: [
+      { field: "dish_plan" as const, operator: "is" as const, valueIds: [NONVEG] },
+      { field: "category" as const, operator: "is" as const, valueKeys: ["sabzi"] },
+    ],
+  }];
 
   it("Chicken + Aloo = valid; Chicken + Chicken = invalid when max=1", () => {
-    const rules = [{ categoryKey: "sabzi", condition: "exclusive_to_plan" as const, maxCount: 1 }];
-    expect(validateMealRules({
-      rules, exclusiveDishIds: exclusive,
-      picks: [{ category: "sabzi", dishId: chicken }, { category: "sabzi", dishId: aloo }],
-    }).ok).toBe(true);
-    expect(validateMealRules({
-      rules, exclusiveDishIds: exclusive,
-      picks: [{ category: "sabzi", dishId: chicken }, { category: "sabzi", dishId: chicken }],
-    })).toMatchObject({ ok: false });
+    expect(validateMealRules({ rules, picks: [chicken, aloo] }).ok).toBe(true);
+    expect(validateMealRules({ rules, picks: [chicken, chicken] })).toMatchObject({ ok: false });
   });
 
-  it("three sabzi picks: Chicken + Aloo + Bhindi valid; two exclusive invalid", () => {
-    const rules = [{ categoryKey: "sabzi", condition: "exclusive_to_plan" as const, maxCount: 1 }];
-    expect(validateMealRules({
-      rules, exclusiveDishIds: exclusive,
-      picks: [
-        { category: "sabzi", dishId: chicken },
-        { category: "sabzi", dishId: aloo },
-        { category: "sabzi", dishId: bhindi },
-      ],
-    }).ok).toBe(true);
-    const bad = validateMealRules({
-      rules, exclusiveDishIds: exclusive,
-      picks: [
-        { category: "sabzi", dishId: chicken },
-        { category: "sabzi", dishId: butter },
-        { category: "sabzi", dishId: aloo },
-      ],
-    });
+  it("three sabzi picks: one non-veg valid; two non-veg invalid", () => {
+    expect(validateMealRules({ rules, picks: [chicken, aloo, bhindi] }).ok).toBe(true);
+    const bad = validateMealRules({ rules, picks: [chicken, butter, aloo] });
     expect(bad.ok).toBe(false);
-    if (!bad.ok) expect(bad.reason).toMatch(/only 1 sabzi exclusive/i);
+    // The message is the rule's own sentence, and it names which rule failed so
+    // the picker can highlight it.
+    if (!bad.ok) {
+      expect(bad.rulePublicId).toBe("mlr_1");
+      expect(bad.reason).toMatch(/at most 1/i);
+    }
+  });
+
+  it("does not constrain a category the rule does not name", () => {
+    const rice = { dishId: 301n, dishName: "Jeera Rice", dishPlanId: NONVEG, category: "rice" };
+    expect(validateMealRules({ rules, picks: [chicken, rice] }).ok).toBe(true);
   });
 
   it("no rules = always ok", () => {
-    expect(validateMealRules({
-      rules: [],
-      exclusiveDishIds: exclusive,
-      picks: [{ category: "sabzi", dishId: chicken }, { category: "sabzi", dishId: butter }],
-    }).ok).toBe(true);
+    expect(validateMealRules({ rules: [], picks: [chicken, butter] }).ok).toBe(true);
   });
 });
+
+describe("Swap engine: Opposing swaps & single-item bundle suppression (Fix 1 & Fix 2)", () => {
+  const rice = cat("rice", 1);
+  const roti = cat("roti", 0.25);
+  const sabzi = cat("sabzi", 1.0, { unitType: "weight", unitLabel: "oz", unitSize: 8 });
+  const daal = cat("daal", 1.0, { unitType: "weight", unitLabel: "oz", unitSize: 8 });
+
+  const ctx = composition({
+    baseCounts: { rice: 1, roti: 8, sabzi: 2, daal: 1 },
+    mealSizeItems: [
+      { category: "rice", tuAmount: 1, maxTuAmount: 2, sortOrder: 0 },
+      ...Array.from({ length: 8 }, (_, i) => ({ category: "roti", tuAmount: 0.25, maxTuAmount: null, sortOrder: i + 1 })),
+      { category: "sabzi", tuAmount: 1, maxTuAmount: null, sortOrder: 10 },
+      { category: "sabzi", tuAmount: 1, maxTuAmount: null, sortOrder: 11 },
+      { category: "daal", tuAmount: 1, maxTuAmount: null, sortOrder: 12 },
+    ],
+    categories: new Map([["rice", rice], ["roti", roti], ["sabzi", sabzi], ["daal", daal]]),
+    labels: { rice: "Rice", roti: "Roti", sabzi: "Sabzi", daal: "Daal" },
+  });
+
+  // 1. Roti → Rice: 4 Roti → 1 Rice remains available.
+  it("1. Roti → Rice: 4 Roti → 1 Rice remains available", () => {
+    const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "roti", toCategory: "rice" });
+    expect(opt.available).toBe(true);
+    expect(opt.validBundles).toContainEqual(
+      expect.objectContaining({ fromPicks: 4, toPicks: 1, giveNatural: "4 roti", getNatural: "1 unit" }),
+    );
+  });
+
+  // 2. Rice → Roti: 1 Rice → 4 Roti remains available.
+  it("2. Rice → Roti: 1 Rice → 4 Roti remains available", () => {
+    const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "rice", toCategory: "roti" });
+    expect(opt.available).toBe(true);
+    expect(opt.validBundles).toContainEqual(
+      expect.objectContaining({ fromPicks: 1, toPicks: 4, giveNatural: "1 unit", getNatural: "4 roti" }),
+    );
+  });
+
+  // 3. After Roti → Rice is applied: Rice → Roti is NOT offered as an opposing swap.
+  it("3. After Roti → Rice is applied: Rice → Roti is NOT offered as an opposing swap", () => {
+    const applied = [{ fromCategory: "roti", toCategory: "rice", qtyFrom: 4, qtyTo: 1 }];
+    const opt = computeSwapOption({ composition: ctx, applied, fromCategory: "rice", toCategory: "roti" });
+    expect(opt.available).toBe(false);
+    expect(opt.validBundles).toEqual([]);
+    expect(opt.reason).toMatch(/already applied/i);
+
+    const check = validateProposedSwap({
+      composition: ctx,
+      applied,
+      next: { fromCategory: "rice", toCategory: "roti", fromPicks: 1 },
+    });
+    expect(check.ok).toBe(false);
+    if (!check.ok) expect(check.reason).toMatch(/already applied/i);
+
+    // computeAllSwapOptions hides it when hideUnavailable: true
+    const all = computeAllSwapOptions({
+      composition: ctx,
+      applied,
+      pairs: [{ fromCategory: "rice", toCategory: "roti" }, { fromCategory: "roti", toCategory: "rice" }],
+      hideUnavailable: true,
+    });
+    expect(all.some((o) => o.fromCategory === "rice" && o.toCategory === "roti")).toBe(false);
+  });
+
+  // 4. After Roti → Rice is applied / with multiple rice available: 1 Rice → 4 Roti is not duplicated by 2 Rice → 8 Roti.
+  it("4. When Rice has multiple units available: 1 Rice → 4 Roti is not duplicated by 2 Rice → 8 Roti", () => {
+    const multiRiceCtx = composition({
+      ...ctx,
+      baseCounts: { ...ctx.baseCounts, rice: 2, roti: 4 },
+      mealSizeItems: [
+        { category: "rice", tuAmount: 1, maxTuAmount: 3, sortOrder: 0 },
+        { category: "rice", tuAmount: 1, maxTuAmount: 3, sortOrder: 1 },
+        ...Array.from({ length: 4 }, (_, i) => ({ category: "roti", tuAmount: 0.25, maxTuAmount: null, sortOrder: i + 2 })),
+      ],
+    });
+    const opt = computeSwapOption({ composition: multiRiceCtx, applied: [], fromCategory: "rice", toCategory: "roti" });
+    expect(opt.available).toBe(true);
+    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([1]);
+    expect(opt.validBundles[0]?.toPicks).toBe(4);
+    expect(opt.validBundles.some((b) => b.fromPicks === 2)).toBe(false);
+  });
+
+  // 5. Generic opposing swap: If A → B exists, B → A is unavailable.
+  it("5. Generic opposing swap: If Sabzi → Daal exists, Daal → Sabzi is unavailable", () => {
+    const applied = [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 }];
+    const opt = computeSwapOption({ composition: ctx, applied, fromCategory: "daal", toCategory: "sabzi" });
+    expect(opt.available).toBe(false);
+    expect(opt.reason).toMatch(/already applied/i);
+
+    const check = validateProposedSwap({
+      composition: ctx,
+      applied,
+      next: { fromCategory: "daal", toCategory: "sabzi", fromPicks: 1 },
+    });
+    expect(check.ok).toBe(false);
+    if (!check.ok) expect(check.reason).toMatch(/already applied/i);
+  });
+
+  // 6. Multi-item exchange: A category requiring multiple source items to reach target TU still generates required bundle.
+  it("6. Multi-item exchange: Roti → Rice requiring 4 source items still generates the required bundle", () => {
+    const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "roti", toCategory: "rice" });
+    expect(opt.available).toBe(true);
+    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([4]);
+    expect(opt.validBundles[0]?.toPicks).toBe(1);
+    expect(opt.minFromPicks).toBe(4);
+    expect(opt.bundleIncrement).toBe(4);
+  });
+
+  // 7. Existing TU/multi-row swap tests remain green (verified by the full suite, and explicit test here).
+  it("7. Existing TU/multi-row swap with heterogeneous rows generates multi-row bundles", () => {
+    const peer = composition({
+      baseCounts: { sabzi: 2, daal: 1 },
+      mealSizeItems: [
+        { category: "sabzi", tuAmount: 1.5, maxTuAmount: null, sortOrder: 0 },
+        { category: "sabzi", tuAmount: 1.0, maxTuAmount: null, sortOrder: 1 },
+        { category: "daal", tuAmount: 0.5, maxTuAmount: null, sortOrder: 2 },
+      ],
+      categories: new Map([
+        ["sabzi", cat("sabzi", 1.5, { unitType: "weight", unitLabel: "oz", unitSize: 8 })],
+        ["daal", cat("daal", 0.5, { unitType: "weight", unitLabel: "oz", unitSize: 8 })],
+      ]),
+      labels: { sabzi: "Sabzi", daal: "Daal" },
+    });
+    const opt = computeSwapOption({ composition: peer, applied: [], fromCategory: "sabzi", toCategory: "daal" });
+    expect(opt.available).toBe(true);
+    // 1 pick = 1.5 TU (12oz) → 3 daal; 2 picks = 2.5 TU (20oz) → 5 daal
+    expect(opt.validBundles.find((b) => b.fromPicks === 1)?.giveNatural).toBe("12oz");
+    expect(opt.validBundles.find((b) => b.fromPicks === 2)?.giveNatural).toBe("20oz");
+  });
+
+  // 8. Existing Undo behavior still works: Undoing A → B restores original state.
+  it("8. Existing Undo behavior: removing applied A → B restores availability of B → A", () => {
+    let applied = [{ fromCategory: "roti", toCategory: "rice", qtyFrom: 4, qtyTo: 1 }];
+    expect(computeSwapOption({ composition: ctx, applied, fromCategory: "rice", toCategory: "roti" }).available).toBe(false);
+
+    // Simulate undo (removing the applied swap row)
+    applied = [];
+    const restored = computeSwapOption({ composition: ctx, applied, fromCategory: "rice", toCategory: "roti" });
+    expect(restored.available).toBe(true);
+    expect(restored.validBundles).toContainEqual(
+      expect.objectContaining({ fromPicks: 1, toPicks: 4 }),
+    );
+  });
+});
+

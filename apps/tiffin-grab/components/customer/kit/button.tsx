@@ -10,10 +10,10 @@ const VARIANT: Record<ButtonVariant, string> = {
   primary: "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)] hover:bg-[var(--primary-hover,var(--primary))]",
   hero:
     "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground,#fff)] shadow-[0_12px_30px_-8px_color-mix(in_oklch,var(--primary)_70%,transparent)] hover:bg-[var(--primary-hover,var(--primary))]",
-  outline: "border-[var(--foreground)] bg-transparent text-[var(--foreground)]",
-  quiet: "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]",
+  outline: "border-[var(--foreground)] bg-transparent text-[var(--foreground)] hover:bg-[var(--muted)]",
+  quiet: "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--muted)]",
   ghost: "border-transparent bg-transparent text-[var(--foreground)] hover:bg-[var(--muted)]",
-  danger: "border-[#be123c] bg-transparent text-[#be123c] dark:border-[#fda4af] dark:text-[#fda4af]",
+  danger: "border-[#be123c] bg-transparent text-[#be123c] hover:bg-[#be123c1a] dark:border-[#fda4af] dark:text-[#fda4af] dark:hover:bg-[#fda4af1a]",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

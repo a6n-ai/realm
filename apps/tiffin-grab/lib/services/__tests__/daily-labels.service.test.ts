@@ -13,7 +13,7 @@ import {
   payments,
   users,
 } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -31,6 +31,7 @@ let week: typeof menuWeeks.$inferSelect;
 let paneerId: bigint;
 let bhindiPublicId: string;
 let mealSizeId: bigint;
+let mealSizePlanId: bigint;
 
 // Scoped to this suite's own rows, never a global wipe: these suites run in parallel against
 // one database, and `delete from orders` also trips payments' FK on any seed data present.
@@ -71,6 +72,7 @@ describe("dailyLabelSheet (integration)", () => {
     await reset();
     const snap = await loadCatalogSnapshot();
     mealSizeId = snap.mealSizes[0].id;
+    mealSizePlanId = snap.mealSizes[0].planId;
 
     const [u] = await db
       .insert(users)
@@ -133,9 +135,9 @@ describe("dailyLabelSheet (integration)", () => {
       .returning();
     week = w;
 
-    const [paneer] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Paneer` }).returning();
+    const [paneer] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Paneer` }).returning();
     await attachDishToPlans(paneer.id);
-    const [bhindi] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Bhindi` }).returning();
+    const [bhindi] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Bhindi` }).returning();
     await attachDishToPlans(bhindi.id);
     paneerId = paneer.id;
     bhindiPublicId = bhindi.publicId;
@@ -152,8 +154,8 @@ describe("dailyLabelSheet (integration)", () => {
     // mapping load-bearing rather than cosmetic.
     await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, mealSizeId));
     await db.insert(mealSizeItems).values([
-      { mealSizeId, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 1 },
-      { mealSizeId, name: "Side", category: "sabzi", tuAmount: "1.00", sortOrder: 2 },
+      { mealSizeId, planId: mealSizePlanId, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 1 },
+      { mealSizeId, planId: mealSizePlanId, name: "Side", category: "sabzi", tuAmount: "1.00", sortOrder: 2 },
     ]);
   });
   afterAll(reset);
@@ -210,14 +212,14 @@ describe("dailyLabelSheet (integration)", () => {
 
   it("after a sabzi→daal swap, kitchen labels keep the remaining 8oz row (not 12oz or 24oz)", async () => {
     const { deliveryCategorySwaps } = await import("@/db/schema");
-    const [dal] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Dal` }).returning();
+    const [dal] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Dal` }).returning();
     await attachDishToPlans(dal.id);
     const daal = await categoryIdFor("daal");
     await db.insert(menuItems).values({
       menuWeekId: week.id, dayOfWeek: "mon", categoryId: daal, dishId: dal.id, isDefault: true,
     });
     await db.insert(mealSizeItems).values({
-      mealSizeId, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 3,
+      mealSizeId, planId: mealSizePlanId, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 3,
     });
 
     const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));

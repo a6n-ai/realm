@@ -18,6 +18,8 @@ export type PlanView = {
   days: CalendarDay[];
   categoryLabels: Record<string, string>;
   categoryPortions: Record<string, string>;
+  /** Per-composition-row portions (catalog order). Prefer over categoryPortions for dish lines. */
+  categoryPortionSlots: Record<string, string[]>;
   /** Per-category pick size, unit and cap for this meal size; with sub.categoryCounts it lets the swap sheet mirror the server rules. */
   swapCategories: Record<string, SwapCategory>;
 };

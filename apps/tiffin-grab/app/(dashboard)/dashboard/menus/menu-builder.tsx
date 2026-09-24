@@ -12,21 +12,22 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAYS, DAY_LABELS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig } from "@/lib/menu/meal-types";
-import { MenuGrid } from "./menu-grid";
+import { MenuGrid, type Slot } from "./menu-grid";
 import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek } from "./actions";
 import { cn } from "@foundry/ui/cn";
 
 const AUTOSAVE_MS = 1500;
 
-type Dish = { id: string; name: string; category: string | null };
+type Dish = { id: string; name: string; category: string | null; planId: string };
 type Week = { id: string; weekStart: string; status: string; updatedAt: number };
 type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean };
-type Category = { key: string; label: string; selectable: boolean; sortOrder: number };
+type Plan = { publicId: string; name: string };
 type CopySource = { id: string; weekStart: string };
 type ReleaseProblem = {
   kind: "missing" | "extra";
   day: string;
   planName: string;
+  planPublicId: string;
   categoryKey: string;
   categoryLabel: string;
   dishNames: string[];
@@ -47,10 +48,11 @@ const toRows = (items: Item[]): Row[] =>
 const signature = (rows: Row[]) => JSON.stringify(rows.map((r) => [r.id, r.dayOfWeek, r.slot, r.dishId, r.isDefault]));
 
 export function MenuBuilder({
-  mealType, categories, categoryCounts, dishes, week, items, copySources, problems,
+  mealType, slots, plans, categoryCounts, dishes, week, items, copySources, problems,
 }: {
   mealType: MealTypeConfig;
-  categories: Category[];
+  slots: Slot[];
+  plans: Plan[];
   categoryCounts: Record<string, number>;
   dishes: Dish[];
   week: Week;
@@ -61,9 +63,9 @@ export function MenuBuilder({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [createTarget, setCreateTarget] = useState<{ storeDay: DayOfWeek; slot: string } | null>(null);
+  const [createTarget, setCreateTarget] = useState<{ storeDay: DayOfWeek; slot: Slot } | null>(null);
   const [newName, setNewName] = useState("");
-  const [newDiet, setNewDiet] = useState<"veg" | "nonveg">("veg");
+  const [newPlanId, setNewPlanId] = useState("");
 
   // The working copy. Seeded once per mounted week — the page re-renders on every server
   // action, and re-seeding from props would throw away edits the admin has not saved yet.
@@ -179,6 +181,14 @@ export function MenuBuilder({
 
   const gapCount = problems.filter((p) => p.kind === "missing").length;
 
+  // The customer-facing poster groups by category only, not per plan — it's a public
+  // preview of "what's in the sabzi slot this week", not an admin tool.
+  const posterSlots = useMemo(() => {
+    const byKey = new Map<string, { key: string; label: string }>();
+    for (const s of slots) if (!byKey.has(s.categoryKey)) byKey.set(s.categoryKey, { key: s.categoryKey, label: s.categoryLabel });
+    return [...byKey.values()];
+  }, [slots]);
+
   const posterItems: PosterItem[] = rows.flatMap((r, index) => {
     const d = dishById.get(r.dishId);
     return d ? [{ dayOfWeek: r.dayOfWeek, slot: r.slot, dishName: d.name, position: index }] : [];
@@ -228,20 +238,20 @@ export function MenuBuilder({
 
   const handleCreateDish = () => {
     const t = createTarget;
-    if (!t || !week || !newName.trim()) return;
+    if (!t || !week || !newName.trim() || !newPlanId) return;
     run(async () => {
-      // Default the new dish's category to the slot it was created in, so the
+      // Default the new dish's category and plan to the slot it was created in, so the
       // category guard accepts it and it stays scoped to that slot.
-      const d = await createDish({ name: newName, category: t.slot });
+      const d = await createDish({ name: newName, category: t.slot.categoryKey, planId: newPlanId });
       if ("error" in d) {
         setError(d.error);
         return;
       }
-      setCreatedDishes((prev) => [...prev, { id: d.publicId, name: d.name, category: d.category }]);
-      addRow(t.storeDay, t.slot, d.publicId);
+      setCreatedDishes((prev) => [...prev, { id: d.publicId, name: d.name, category: d.category, planId: d.planId }]);
+      addRow(t.storeDay, t.slot.categoryKey, d.publicId);
       setCreateTarget(null);
       setNewName("");
-      setNewDiet("veg");
+      setNewPlanId("");
     });
   };
 
@@ -448,24 +458,24 @@ export function MenuBuilder({
       {(
         <div className={cn("grid gap-6", showPreview && "lg:grid-cols-[minmax(0,1fr)_24rem]")}>
           <MenuGrid
-            categories={categories}
+            slots={slots}
             rows={rows}
             dishes={allDishes}
             categoryCounts={categoryCounts}
             problems={isReleased ? [] : problems}
             editable={editable}
-            onAdd={addRow}
+            onAdd={(day, slot, dishId) => addRow(day, slot.categoryKey, dishId)}
             onRemove={removeRow}
             onMove={moveRow}
             onToggleDefault={toggleDefault}
-            onCopyAcrossDays={copyAcrossDays}
-            onCreateDish={(storeDay, slot) => { setNewName(""); setNewDiet("veg"); setCreateTarget({ storeDay, slot }); }}
+            onCopyAcrossDays={(day, slot) => copyAcrossDays(day, slot.categoryKey)}
+            onCreateDish={(storeDay, slot) => { setNewName(""); setNewPlanId(slot.planPublicId); setCreateTarget({ storeDay, slot }); }}
           />
 
           {showPreview && (
             <div className="lg:sticky lg:top-4 lg:self-start">
               <p className="mb-3 text-xs font-medium text-muted-foreground">Live preview</p>
-              <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={week.weekStart} slots={categories} items={posterItems} accent={mealType.accent} />
+              <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={week.weekStart} slots={posterSlots} items={posterItems} accent={mealType.accent} />
             </div>
           )}
         </div>
@@ -516,18 +526,21 @@ export function MenuBuilder({
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleCreateDish(); }}
             />
-            <Select value={newDiet} onValueChange={(d) => setNewDiet(d as "veg" | "nonveg")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            {/* Defaults to the slot's own plan — a dish belongs to exactly one plan, so this
+                is what actually decides which subscribers can ever be served it. */}
+            <Select value={newPlanId} onValueChange={setNewPlanId}>
+              <SelectTrigger><SelectValue placeholder="Pick a plan" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="veg">Veg</SelectItem>
-                <SelectItem value="nonveg">Non-veg</SelectItem>
+                {plans.map((p) => (
+                  <SelectItem key={p.publicId} value={p.publicId}>{p.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">Tip: include &quot;Egg&quot; in the name for a yellow indicator.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateTarget(null)} disabled={pending}>Cancel</Button>
-            <Button onClick={handleCreateDish} disabled={pending || !newName.trim()} className="transition-transform active:scale-[0.96]">Create &amp; add</Button>
+            <Button onClick={handleCreateDish} disabled={pending || !newName.trim() || !newPlanId} className="transition-transform active:scale-[0.96]">Create &amp; add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

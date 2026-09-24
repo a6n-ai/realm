@@ -31,10 +31,6 @@ SELECT v.id,
          "tiffin": {
            "accent": "#F0820A",
            "titlePrefix": "Tiffin Menu"
-         },
-         "healthy": {
-           "accent": "#1FAE54",
-           "titlePrefix": "Healthy Menu"
          }
        }'::jsonb
 FROM (SELECT next_id() AS id) v
@@ -72,22 +68,18 @@ FROM (VALUES ('lss_web_direct', 'website', 'direct', 'Direct'),
 WHERE NOT EXISTS (SELECT 1 FROM lead_subsources s WHERE s.key = v.key);
 
 -- ============ PLANS ============
--- 'restricted' drives the generic swap-direction guard in dish-categories.service.ts
--- (a restricted plan's customers must never receive a category it can't reach) —
--- only the veg plan is restricted today, non-veg and healthy are not.
+-- Healthy plan dropped for now (pre-launch, veg/non-veg only). plans.restricted
+-- dropped too: diet-direction eligibility now comes from dishes.plan_id directly
+-- (a dish belongs to exactly one plan), not a per-plan restriction flag.
 INSERT INTO plans (public_id, created_at, updated_at, key, name, description, plan_type,
-                   allowed_start_days, restricted)
+                   allowed_start_days)
 VALUES ('pln_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'veg',
         'Pure Vegetarian Plan', 'Seasonal vegetables, paneer, daal, rotis, raitas.', 'tiffin',
-        ARRAY ['mon','tue','wed','thu','fri'], TRUE),
+        ARRAY ['mon','tue','wed','thu','fri']),
        ('pln_halal_nonveg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'non-veg', 'Non-Veg Plan', 'Poultry, mutton, egg masalas, daals, chapatis.', 'tiffin',
-        ARRAY ['mon','tue','wed','thu','fri'], FALSE),
-       ('pln_healthy', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'healthy', 'Healthy Plan', 'Breakfast, lunch, and dinner — pick the slots you want.', 'healthy',
-        ARRAY ['mon','tue','wed','thu','fri'], FALSE)
+        ARRAY ['mon','tue','wed','thu','fri'])
 ON CONFLICT (key) DO NOTHING;
-UPDATE plans SET restricted = TRUE WHERE key = 'veg' AND NOT restricted;
 
 -- ============ MEAL SIZES ============ (17 sizes, read verbatim off the tiffingrab.ca pricing
 -- plan sheet — docs/tiffingrab pricing image — not invented: 9 thalis × veg/non-veg, except
@@ -135,9 +127,17 @@ ON CONFLICT (key) DO NOTHING;
 -- so "2 roti" is 2 rows at 0.25 TU each (a row IS one dish pick, there's no qty column);
 -- rice has no weight, 1 unit/TU, 1 row per pick.
 -- meal_size_id is NOT NULL so a mistyped meal_size_key fails the insert loudly instead of orphaning a row.)
-DELETE FROM meal_size_items;
+DELETE FROM meal_size_items WHERE id > 0;
+-- item_plan_key overrides the item's own plan when it differs from the meal
+-- size's own plan (NULL = inherit the meal size's plan, the common case). A
+-- non-veg meal size with 2+ Sabzi rows keeps only its largest-tuAmount row as
+-- non-veg and retags the rest veg — one non-veg meal can then offer both a
+-- meat-adjacent sabzi and a veg sabzi, per reachablePlanIdsForMealSize in
+-- dish-categories.service.ts, which is what makes a veg-scoped dish or swap
+-- rule reachable from a non-veg order. A veg meal size never gets a
+-- non-veg-tagged row, so this stays one-directional by construction.
 INSERT INTO meal_size_items
-  (public_id, created_at, updated_at, meal_size_id, name, category, tu_amount, max_tu_amount, sort_order)
+  (public_id, created_at, updated_at, meal_size_id, name, category, plan_id, tu_amount, max_tu_amount, sort_order)
 SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
@@ -152,142 +152,151 @@ SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1,
          WHEN 'Salad' THEN 'salad'
          WHEN 'Raita' THEN 'raita'
        END,
+       COALESCE((SELECT id FROM plans WHERE key = v.item_plan_key), (SELECT plan_id FROM meal_sizes WHERE key = v.meal_size_key)),
        v.tu_amount, v.max_tu_amount, v.sort_order
 FROM (VALUES
   -- Small Thali: 1×12oz Sabzi + Rice + 2 Rotis
-  ('small_thali', 'Sabzi', 1.5, NULL, 0),
-  ('small_thali', 'Rice', 1, NULL, 1),
-  ('small_thali', 'Roti', 0.25, NULL, 2),
-  ('small_thali', 'Roti', 0.25, NULL, 3),
+  ('small_thali', 'Sabzi', 1.5, NULL, 0, NULL),
+  ('small_thali', 'Rice', 1, NULL, 1, NULL),
+  ('small_thali', 'Roti', 0.25, NULL, 2, NULL),
+  ('small_thali', 'Roti', 0.25, NULL, 3, NULL),
   -- Sabzi Only — Regular: 2 Sabzi(8oz) + 1 Daal(8oz)
-  ('sabzi_only_regular_veg', 'Sabzi', 1, NULL, 0),
-  ('sabzi_only_regular_veg', 'Sabzi', 1, NULL, 1),
-  ('sabzi_only_regular_veg', 'Daal', 1, NULL, 2),
-  ('sabzi_only_regular_nonveg', 'Sabzi', 1, NULL, 0),
-  ('sabzi_only_regular_nonveg', 'Sabzi', 1, NULL, 1),
-  ('sabzi_only_regular_nonveg', 'Daal', 1, NULL, 2),
+  ('sabzi_only_regular_veg', 'Sabzi', 1, NULL, 0, NULL),
+  ('sabzi_only_regular_veg', 'Sabzi', 1, NULL, 1, NULL),
+  ('sabzi_only_regular_veg', 'Daal', 1, NULL, 2, NULL),
+  -- Equal-weight (1, 1) Sabzi pair: first stays non-veg, second retags veg.
+  ('sabzi_only_regular_nonveg', 'Sabzi', 1, NULL, 0, 'non-veg'),
+  ('sabzi_only_regular_nonveg', 'Sabzi', 1, NULL, 1, 'veg'),
+  ('sabzi_only_regular_nonveg', 'Daal', 1, NULL, 2, 'veg'),
   -- Sabzi Only — Large: 2 Sabzi(12oz) + 1 Sabzi(8oz) — no Daal, per the sheet
-  ('sabzi_only_large_veg', 'Sabzi', 1.5, NULL, 0),
-  ('sabzi_only_large_veg', 'Sabzi', 1.5, NULL, 1),
-  ('sabzi_only_large_veg', 'Sabzi', 1, NULL, 2),
-  ('sabzi_only_large_nonveg', 'Sabzi', 1.5, NULL, 0),
-  ('sabzi_only_large_nonveg', 'Sabzi', 1.5, NULL, 1),
-  ('sabzi_only_large_nonveg', 'Sabzi', 1, NULL, 2),
+  ('sabzi_only_large_veg', 'Sabzi', 1.5, NULL, 0, NULL),
+  ('sabzi_only_large_veg', 'Sabzi', 1.5, NULL, 1, NULL),
+  ('sabzi_only_large_veg', 'Sabzi', 1, NULL, 2, NULL),
+  -- Only the single largest (1.5, sort_order 0) stays non-veg; the other two retag veg.
+  ('sabzi_only_large_nonveg', 'Sabzi', 1.5, NULL, 0, 'non-veg'),
+  ('sabzi_only_large_nonveg', 'Sabzi', 1.5, NULL, 1, 'veg'),
+  ('sabzi_only_large_nonveg', 'Sabzi', 1, NULL, 2, 'veg'),
   -- 4 Item Thali — Regular: 1 Sabzi(8oz) + 1 Daal(8oz) + Rice + 2 Rotis
-  ('item4_regular_veg', 'Sabzi', 1, NULL, 0),
-  ('item4_regular_veg', 'Daal', 1, NULL, 1),
-  ('item4_regular_veg', 'Rice', 1, NULL, 2),
-  ('item4_regular_veg', 'Roti', 0.25, NULL, 3),
-  ('item4_regular_veg', 'Roti', 0.25, NULL, 4),
-  ('item4_regular_nonveg', 'Sabzi', 1, NULL, 0),
-  ('item4_regular_nonveg', 'Daal', 1, NULL, 1),
-  ('item4_regular_nonveg', 'Rice', 1, NULL, 2),
-  ('item4_regular_nonveg', 'Roti', 0.25, NULL, 3),
-  ('item4_regular_nonveg', 'Roti', 0.25, NULL, 4),
+  ('item4_regular_veg', 'Sabzi', 1, NULL, 0, NULL),
+  ('item4_regular_veg', 'Daal', 1, NULL, 1, NULL),
+  ('item4_regular_veg', 'Rice', 1, NULL, 2, NULL),
+  ('item4_regular_veg', 'Roti', 0.25, NULL, 3, NULL),
+  ('item4_regular_veg', 'Roti', 0.25, NULL, 4, NULL),
+  -- Only 1 Sabzi row — nothing to split, stays non-veg only.
+  ('item4_regular_nonveg', 'Sabzi', 1, NULL, 0, NULL),
+  ('item4_regular_nonveg', 'Daal', 1, NULL, 1, 'veg'),
+  ('item4_regular_nonveg', 'Rice', 1, NULL, 2, 'veg'),
+  ('item4_regular_nonveg', 'Roti', 0.25, NULL, 3, 'veg'),
+  ('item4_regular_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
   -- 4 Item Thali — Large: 1 Sabzi(12oz) + 1 Daal(12oz) + Rice + 4 Rotis
-  ('item4_large_veg', 'Sabzi', 1.5, NULL, 0),
-  ('item4_large_veg', 'Daal', 1.5, NULL, 1),
-  ('item4_large_veg', 'Rice', 1, NULL, 2),
-  ('item4_large_veg', 'Roti', 0.25, NULL, 3),
-  ('item4_large_veg', 'Roti', 0.25, NULL, 4),
-  ('item4_large_veg', 'Roti', 0.25, NULL, 5),
-  ('item4_large_veg', 'Roti', 0.25, NULL, 6),
-  ('item4_large_nonveg', 'Sabzi', 1.5, NULL, 0),
-  ('item4_large_nonveg', 'Daal', 1.5, NULL, 1),
-  ('item4_large_nonveg', 'Rice', 1, NULL, 2),
-  ('item4_large_nonveg', 'Roti', 0.25, NULL, 3),
-  ('item4_large_nonveg', 'Roti', 0.25, NULL, 4),
-  ('item4_large_nonveg', 'Roti', 0.25, NULL, 5),
-  ('item4_large_nonveg', 'Roti', 0.25, NULL, 6),
+  ('item4_large_veg', 'Sabzi', 1.5, NULL, 0, NULL),
+  ('item4_large_veg', 'Daal', 1.5, NULL, 1, NULL),
+  ('item4_large_veg', 'Rice', 1, NULL, 2, NULL),
+  ('item4_large_veg', 'Roti', 0.25, NULL, 3, NULL),
+  ('item4_large_veg', 'Roti', 0.25, NULL, 4, NULL),
+  ('item4_large_veg', 'Roti', 0.25, NULL, 5, NULL),
+  ('item4_large_veg', 'Roti', 0.25, NULL, 6, NULL),
+  -- Only 1 Sabzi row — nothing to split, stays non-veg only.
+  ('item4_large_nonveg', 'Sabzi', 1.5, NULL, 0, NULL),
+  ('item4_large_nonveg', 'Daal', 1.5, NULL, 1, 'veg'),
+  ('item4_large_nonveg', 'Rice', 1, NULL, 2, 'veg'),
+  ('item4_large_nonveg', 'Roti', 0.25, NULL, 3, 'veg'),
+  ('item4_large_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
+  ('item4_large_nonveg', 'Roti', 0.25, NULL, 5, 'veg'),
+  ('item4_large_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
   -- 5 Item Thali — Regular: 2 Sabzi(8oz) + 1 Daal(8oz)/Salad/Raita + Rice + 3 Rotis.
   -- The "/Salad/Raita" alternative is the existing daal<->salad / daal<->raita swap
   -- pairs below, not a separate composition row — the sheet's base is Daal.
-  ('item5_regular_veg', 'Sabzi', 1, NULL, 0),
-  ('item5_regular_veg', 'Sabzi', 1, NULL, 1),
-  ('item5_regular_veg', 'Daal', 1, NULL, 2),
-  ('item5_regular_veg', 'Rice', 1, NULL, 3),
-  ('item5_regular_veg', 'Roti', 0.25, NULL, 4),
-  ('item5_regular_veg', 'Roti', 0.25, NULL, 5),
-  ('item5_regular_veg', 'Roti', 0.25, NULL, 6),
-  ('item5_regular_nonveg', 'Sabzi', 1, NULL, 0),
-  ('item5_regular_nonveg', 'Sabzi', 1, NULL, 1),
-  ('item5_regular_nonveg', 'Daal', 1, NULL, 2),
-  ('item5_regular_nonveg', 'Rice', 1, NULL, 3),
-  ('item5_regular_nonveg', 'Roti', 0.25, NULL, 4),
-  ('item5_regular_nonveg', 'Roti', 0.25, NULL, 5),
-  ('item5_regular_nonveg', 'Roti', 0.25, NULL, 6),
+  ('item5_regular_veg', 'Sabzi', 1, NULL, 0, NULL),
+  ('item5_regular_veg', 'Sabzi', 1, NULL, 1, NULL),
+  ('item5_regular_veg', 'Daal', 1, NULL, 2, NULL),
+  ('item5_regular_veg', 'Rice', 1, NULL, 3, NULL),
+  ('item5_regular_veg', 'Roti', 0.25, NULL, 4, NULL),
+  ('item5_regular_veg', 'Roti', 0.25, NULL, 5, NULL),
+  ('item5_regular_veg', 'Roti', 0.25, NULL, 6, NULL),
+  -- Equal-weight (1, 1) Sabzi pair: first stays non-veg, second retags veg.
+  ('item5_regular_nonveg', 'Sabzi', 1, NULL, 0, 'non-veg'),
+  ('item5_regular_nonveg', 'Sabzi', 1, NULL, 1, 'veg'),
+  ('item5_regular_nonveg', 'Daal', 1, NULL, 2, 'veg'),
+  ('item5_regular_nonveg', 'Rice', 1, NULL, 3, 'veg'),
+  ('item5_regular_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
+  ('item5_regular_nonveg', 'Roti', 0.25, NULL, 5, 'veg'),
+  ('item5_regular_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
   -- New Thali Plan — Regular: 1 Sabzi(8oz) + 1 Daal(8oz) + 8 Rotis — no rice
-  ('new_thali_veg', 'Sabzi', 1, NULL, 0),
-  ('new_thali_veg', 'Daal', 1, NULL, 1),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 2),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 3),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 4),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 5),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 6),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 7),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 8),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 9),
-  ('new_thali_nonveg', 'Sabzi', 1, NULL, 0),
-  ('new_thali_nonveg', 'Daal', 1, NULL, 1),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 2),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 3),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 4),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 5),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 6),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 7),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 8),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 9),
+  ('new_thali_veg', 'Sabzi', 1, NULL, 0, NULL),
+  ('new_thali_veg', 'Daal', 1, NULL, 1, NULL),
+  ('new_thali_veg', 'Roti', 0.25, NULL, 2, NULL),
+  ('new_thali_veg', 'Roti', 0.25, NULL, 3, NULL),
+  ('new_thali_veg', 'Roti', 0.25, NULL, 4, NULL),
+  ('new_thali_veg', 'Roti', 0.25, NULL, 5, NULL),
+  ('new_thali_veg', 'Roti', 0.25, NULL, 6, NULL),
+  ('new_thali_veg', 'Roti', 0.25, NULL, 7, NULL),
+  ('new_thali_veg', 'Roti', 0.25, NULL, 8, NULL),
+  ('new_thali_veg', 'Roti', 0.25, NULL, 9, NULL),
+  -- Only 1 Sabzi row — nothing to split, stays non-veg only.
+  ('new_thali_nonveg', 'Sabzi', 1, NULL, 0, NULL),
+  ('new_thali_nonveg', 'Daal', 1, NULL, 1, 'veg'),
+  ('new_thali_nonveg', 'Roti', 0.25, NULL, 2, 'veg'),
+  ('new_thali_nonveg', 'Roti', 0.25, NULL, 3, 'veg'),
+  ('new_thali_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
+  ('new_thali_nonveg', 'Roti', 0.25, NULL, 5, 'veg'),
+  ('new_thali_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
+  ('new_thali_nonveg', 'Roti', 0.25, NULL, 7, 'veg'),
+  ('new_thali_nonveg', 'Roti', 0.25, NULL, 8, 'veg'),
+  ('new_thali_nonveg', 'Roti', 0.25, NULL, 9, 'veg'),
   -- 5 Item Thali — Large: 1 Sabzi(12oz) + 1 Daal(12oz) + 1 Sabzi(8oz)/Salad/Raita + Rice + 6 Rotis
-  ('item5_large_veg', 'Sabzi', 1.5, NULL, 0),
-  ('item5_large_veg', 'Daal', 1.5, NULL, 1),
-  ('item5_large_veg', 'Sabzi', 1, NULL, 2),
-  ('item5_large_veg', 'Rice', 1, NULL, 3),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 4),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 5),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 6),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 7),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 8),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 9),
-  ('item5_large_nonveg', 'Sabzi', 1.5, NULL, 0),
-  ('item5_large_nonveg', 'Daal', 1.5, NULL, 1),
-  ('item5_large_nonveg', 'Sabzi', 1, NULL, 2),
-  ('item5_large_nonveg', 'Rice', 1, NULL, 3),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 4),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 5),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 6),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 7),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 8),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 9),
+  ('item5_large_veg', 'Sabzi', 1.5, NULL, 0, NULL),
+  ('item5_large_veg', 'Daal', 1.5, NULL, 1, NULL),
+  ('item5_large_veg', 'Sabzi', 1, NULL, 2, NULL),
+  ('item5_large_veg', 'Rice', 1, NULL, 3, NULL),
+  ('item5_large_veg', 'Roti', 0.25, NULL, 4, NULL),
+  ('item5_large_veg', 'Roti', 0.25, NULL, 5, NULL),
+  ('item5_large_veg', 'Roti', 0.25, NULL, 6, NULL),
+  ('item5_large_veg', 'Roti', 0.25, NULL, 7, NULL),
+  ('item5_large_veg', 'Roti', 0.25, NULL, 8, NULL),
+  ('item5_large_veg', 'Roti', 0.25, NULL, 9, NULL),
+  -- Larger Sabzi (1.5, sort_order 0) stays non-veg; smaller (1, sort_order 2) retags veg.
+  ('item5_large_nonveg', 'Sabzi', 1.5, NULL, 0, 'non-veg'),
+  ('item5_large_nonveg', 'Daal', 1.5, NULL, 1, 'veg'),
+  ('item5_large_nonveg', 'Sabzi', 1, NULL, 2, 'veg'),
+  ('item5_large_nonveg', 'Rice', 1, NULL, 3, 'veg'),
+  ('item5_large_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
+  ('item5_large_nonveg', 'Roti', 0.25, NULL, 5, 'veg'),
+  ('item5_large_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
+  ('item5_large_nonveg', 'Roti', 0.25, NULL, 7, 'veg'),
+  ('item5_large_nonveg', 'Roti', 0.25, NULL, 8, 'veg'),
+  ('item5_large_nonveg', 'Roti', 0.25, NULL, 9, 'veg'),
   -- Maharaja Thali: 1 Sabzi(12oz) + 1 Daal(12oz) + 1 Sabzi(8oz) + Salad + Raita + Rice + 8 Rotis
-  ('maharaja_veg', 'Sabzi', 1.5, NULL, 0),
-  ('maharaja_veg', 'Daal', 1.5, NULL, 1),
-  ('maharaja_veg', 'Sabzi', 1, NULL, 2),
-  ('maharaja_veg', 'Salad', 1, 2, 3),
-  ('maharaja_veg', 'Raita', 1, 2, 4),
-  ('maharaja_veg', 'Rice', 1, NULL, 5),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 6),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 7),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 8),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 9),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 10),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 11),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 12),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 13),
-  ('maharaja_nonveg', 'Sabzi', 1.5, NULL, 0),
-  ('maharaja_nonveg', 'Daal', 1.5, NULL, 1),
-  ('maharaja_nonveg', 'Sabzi', 1, NULL, 2),
-  ('maharaja_nonveg', 'Salad', 1, 2, 3),
-  ('maharaja_nonveg', 'Raita', 1, 2, 4),
-  ('maharaja_nonveg', 'Rice', 1, NULL, 5),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 6),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 7),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 8),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 9),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 10),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 11),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 12),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 13)
-) AS v(meal_size_key, name, tu_amount, max_tu_amount, sort_order);
+  ('maharaja_veg', 'Sabzi', 1.5, NULL, 0, NULL),
+  ('maharaja_veg', 'Daal', 1.5, NULL, 1, NULL),
+  ('maharaja_veg', 'Sabzi', 1, NULL, 2, NULL),
+  ('maharaja_veg', 'Salad', 1, 2, 3, NULL),
+  ('maharaja_veg', 'Raita', 1, 2, 4, NULL),
+  ('maharaja_veg', 'Rice', 1, NULL, 5, NULL),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 6, NULL),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 7, NULL),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 8, NULL),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 9, NULL),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 10, NULL),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 11, NULL),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 12, NULL),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 13, NULL),
+  -- Larger Sabzi (1.5, sort_order 0) stays non-veg; smaller (1, sort_order 2) retags veg.
+  ('maharaja_nonveg', 'Sabzi', 1.5, NULL, 0, 'non-veg'),
+  ('maharaja_nonveg', 'Daal', 1.5, NULL, 1, 'veg'),
+  ('maharaja_nonveg', 'Sabzi', 1, NULL, 2, 'veg'),
+  ('maharaja_nonveg', 'Salad', 1, 2, 3, 'veg'),
+  ('maharaja_nonveg', 'Raita', 1, 2, 4, 'veg'),
+  ('maharaja_nonveg', 'Rice', 1, NULL, 5, 'veg'),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 7, 'veg'),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 8, 'veg'),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 9, 'veg'),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 10, 'veg'),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 11, 'veg'),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 12, 'veg'),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 13, 'veg')
+) AS v(meal_size_key, name, tu_amount, max_tu_amount, sort_order, item_plan_key);
 
 -- Derive human-readable components[] from the structured items (single source of truth).
 -- Runs unconditionally: the meal_sizes INSERT above uses ON CONFLICT DO NOTHING and seeds
@@ -299,7 +308,8 @@ UPDATE meal_sizes ms SET components = COALESCE((
     FROM meal_size_items WHERE meal_size_id = ms.id
     GROUP BY name
   ) g
-), '[]'::json)::jsonb;
+), '[]'::json)::jsonb
+WHERE ms.id > 0;
 
 -- ============ DELIVERY FREQUENCIES ============
 INSERT INTO delivery_frequencies (public_id, created_at, updated_at, key, name, days_per_week, courier_discount_pct, weekdays)
@@ -357,8 +367,7 @@ VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EP
 ON CONFLICT (name) DO NOTHING;
 
 -- ============ PRICING TIERS ============ (no unique key -> wipe + reinsert, matches seed)
-DELETE
-FROM pricing_tiers;
+DELETE FROM pricing_tiers WHERE id > 0;
 INSERT INTO pricing_tiers (public_id, created_at, updated_at, min_qty, max_qty, uplift_pct)
 VALUES ('ptr_1', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 1, 11, 20.00),
        ('ptr_2', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 12, 19, 10.00),
@@ -427,21 +436,12 @@ VALUES ('slt_tiffin_sabzi', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT
        -- still carry it as their dishes.category soft-ref — keep the row so that FK isn't
        -- orphaned, harmless since nothing composes a meal with it.
        ('slt_tiffin_extra', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'extra', 'Extra', TRUE, FALSE, 8, 'weight', 8, 'oz'),
-       ('slt_healthy_protein', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'protein', 'Protein', TRUE, FALSE, 1, 'weight', 8, 'oz'),
-       ('slt_healthy_grain', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'grain', 'Grain', TRUE, FALSE, 2, 'weight', 8, 'oz'),
-       ('slt_healthy_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'veg', 'Veg', TRUE, TRUE, 3, 'weight', 8, 'oz')
--- No second 'salad' row: `key` is unique now, and the one salad slot is attached
--- to the tiffin AND healthy plans below instead of being duplicated per type.
+        'extra', 'Extra', TRUE, FALSE, 8, 'weight', 8, 'oz')
 ON CONFLICT (key) DO NOTHING;
 
 -- ============ CATEGORY -> PLANS ============
 -- Which plans each slot belongs to. Tiffin slots go to both tiffin plans (a
--- non-veg thali still has sabzi/daal/roti); healthy slots to the healthy plan.
--- `salad` belongs to all three, which is what lets it be a single row.
+-- non-veg thali still has sabzi/daal/roti).
 INSERT INTO category_plans (public_id, created_at, updated_at, category_id, plan_id)
 SELECT 'cpl_' || SUBSTR(MD5(v.cat_key || v.plan_key), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
@@ -455,8 +455,7 @@ FROM (VALUES
   ('raita','veg'),('raita','non-veg'),
   ('daal','veg'),('daal','non-veg'),
   ('extra','veg'),('extra','non-veg'),
-  ('salad','veg'),('salad','non-veg'),('salad','healthy'),
-  ('protein','healthy'),('grain','healthy'),('veg','healthy')
+  ('salad','veg'),('salad','non-veg')
 ) AS v(cat_key, plan_key)
 WHERE NOT EXISTS (
   SELECT 1 FROM category_plans cp
@@ -475,13 +474,18 @@ WHERE NOT EXISTS (
 -- be dead. This is also what keeps the two exclusive — a customer can stack up to
 -- maxTuAmount(=2) raita via repeated salad->raita swaps, but can never ALSO hold salad,
 -- since there is no pair that ever moves TU back out of raita.
-DELETE FROM category_swap_pairs;
-INSERT INTO category_swap_pairs (public_id, created_at, updated_at, from_category_id, to_category_id)
+-- plan_id is null (applies to every plan): every pair below holds identically
+-- on veg and non-veg, so one row each — not the two-rows-per-plan duplication
+-- pattern dishes uses, since these rules aren't diet-specific like a dish is.
+-- An admin can still narrow one to a single plan later via the swaps page.
+DELETE FROM category_swap_pairs WHERE id > 0;
+INSERT INTO category_swap_pairs (public_id, created_at, updated_at, from_category_id, to_category_id, plan_id)
 SELECT 'csp_' || SUBSTR(MD5(v.from_key || v.to_key), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (SELECT id FROM dish_categories WHERE key = v.from_key),
-       (SELECT id FROM dish_categories WHERE key = v.to_key)
+       (SELECT id FROM dish_categories WHERE key = v.to_key),
+       NULL
 FROM (VALUES
   ('daal', 'sabzi'), ('sabzi', 'daal'),
   -- 5 Item Thali's "Daal/Salad/Raita" slot on the pricing sheet: the base
@@ -504,79 +508,200 @@ UPDATE category_swap_pairs SET to_category_id = (SELECT id FROM dish_categories 
 DELETE FROM category_plans WHERE category_id = (SELECT id FROM dish_categories WHERE key = 'curry');
 DELETE FROM dish_categories WHERE key = 'curry';
 
--- ============ MENU: DISHES ============ (no unique key -> guard with NOT EXISTS on name)
-INSERT INTO dishes (public_id, created_at, updated_at, name, description, category)
+-- ============ MENU: DISHES ============ (unique on (name, plan_id) now — a dish
+-- belongs to exactly one plan, so a dish shared across veg and non-veg thalis
+-- (e.g. Dal Tadka) is TWO rows here, one per plan, not one row with two
+-- dish_plans memberships. public_id carries the plan suffix to keep both unique.
+-- Real business menu, imported from docs/Menu_Unique_Items.xlsx (Veg/Dal/Non-Veg
+-- sheets). Every name is globally unique on its own (no shared dish needed a
+-- plan suffix this time), one row per (name), one plan each. Dal items are
+-- veg-only (no dal dish is ever non-veg) — non-veg orders reach them through
+-- the Daal composition row being retagged veg below, same mechanism the
+-- Sabzi split uses. A handful of items classified 'extra' (Kulcha, Pao Bhaji,
+-- Noodles, Pasta) have no meal_size_items row targeting 'extra' yet, so they
+-- are seeded but not yet reachable from any meal size's composition — add a
+-- composition row referencing 'extra' when ready to surface them.
+INSERT INTO dishes (public_id, created_at, updated_at, name, description, category, plan_id)
 SELECT v.public_id,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        v.name,
        v.description,
-       v.category
-FROM (VALUES ('dsh_dal_tadka', 'Dal Tadka', 'Yellow lentils tempered with cumin and garlic', 'veg', 'daal'),
-             -- "Items counted as Daal" on the pricing sheet — the daal slot's real
-             -- rotation, not a single fixed dish.
-             ('dsh_lobia_masala', 'Lobia Masala', 'Black-eyed peas simmered in a spiced onion-tomato masala', 'veg', 'daal'),
-             ('dsh_rajma', 'Rajma', 'Red kidney beans in a thick Punjabi-style curry', 'veg', 'daal'),
-             ('dsh_kadhi', 'Kadhi', 'Yoghurt-and-gram-flour curry tempered with cumin', 'veg', 'daal'),
-             ('dsh_chana_masala', 'Chana Masala', 'Chickpeas simmered in a spiced tomato masala', 'veg', 'daal'),
-             ('dsh_tur_daal', 'Tur Daal', 'Split pigeon peas tempered with cumin and garlic', 'veg', 'daal'),
-             ('dsh_paneer_butter_masala', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'veg', 'sabzi'),
-             ('dsh_aloo_gobi', 'Aloo Gobi', 'Potato and cauliflower dry sabzi', 'veg', 'sabzi'),
-             ('dsh_chicken_curry', 'Chicken Curry', 'Tender chicken in a spiced onion-tomato gravy', 'nonveg', 'sabzi'),
-             ('dsh_egg_bhurji', 'Egg Bhurji', 'Spiced scrambled eggs with onion and peppers', 'nonveg', 'extra'),
-             -- Staples. Both tiffin plans' meal sizes ask for rice, roti, raita and salad,
-             -- so without a dish in each of those categories no menu week can be released:
-             -- menuService.release refuses a week that leaves a plan short of a category its
-             -- meal sizes promise. These four make the seeded catalog self-consistent.
-             ('dsh_jeera_rice', 'Jeera Rice', 'Basmati rice tempered with cumin', 'veg', 'rice'),
-             ('dsh_roti', 'Roti', 'Soft whole-wheat flatbread', 'veg', 'roti'),
-             ('dsh_boondi_raita', 'Boondi Raita', 'Whisked yoghurt with crisp gram-flour pearls', 'veg', 'raita'),
-             ('dsh_kachumber_salad', 'Kachumber Salad', 'Diced cucumber, tomato and onion with lemon', 'veg', 'salad'),
-             -- Egg Bhurji is the only other 'extra', and it is non-veg only, so the veg
-             -- plan needs its own.
-             ('dsh_masala_papad', 'Masala Papad', 'Roasted papad topped with onion, tomato and chaat masala', 'veg', 'extra')) AS v(public_id, name, description, diet, category)
-WHERE NOT EXISTS (SELECT 1 FROM dishes d WHERE d.name = v.name);
-
--- ============ DISH -> PLANS ============
--- Replaces the old dishes.diet column. A vegetarian dish is attached to BOTH the
--- veg and non-veg plans, because a non-veg thali still contains sabzi, daal and
--- roti. A non-veg dish is attached only to the non-veg plan, which is what stops
--- it ever reaching a vegetarian subscriber — every menu query joins through here.
-INSERT INTO dish_plans (public_id, created_at, updated_at, dish_id, plan_id)
-SELECT 'dpl_' || SUBSTR(MD5(v.dish_public_id || v.plan_key), 1, 10),
-       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-       (SELECT id FROM dishes WHERE public_id = v.dish_public_id),
+       v.category,
        (SELECT id FROM plans WHERE key = v.plan_key)
 FROM (VALUES
-  ('dsh_dal_tadka','veg'),            ('dsh_dal_tadka','non-veg'),
-  ('dsh_lobia_masala','veg'),         ('dsh_lobia_masala','non-veg'),
-  ('dsh_rajma','veg'),                ('dsh_rajma','non-veg'),
-  ('dsh_kadhi','veg'),                ('dsh_kadhi','non-veg'),
-  ('dsh_chana_masala','veg'),         ('dsh_chana_masala','non-veg'),
-  ('dsh_tur_daal','veg'),             ('dsh_tur_daal','non-veg'),
-  ('dsh_paneer_butter_masala','veg'), ('dsh_paneer_butter_masala','non-veg'),
-  ('dsh_aloo_gobi','veg'),            ('dsh_aloo_gobi','non-veg'),
-  ('dsh_chicken_curry','non-veg'),
-  ('dsh_egg_bhurji','non-veg'),
-  -- Staples reach both tiffin plans: a non-veg thali still contains rice, roti,
-  -- raita and salad.
-  ('dsh_jeera_rice','veg'),           ('dsh_jeera_rice','non-veg'),
-  ('dsh_roti','veg'),                 ('dsh_roti','non-veg'),
-  ('dsh_boondi_raita','veg'),         ('dsh_boondi_raita','non-veg'),
-  ('dsh_kachumber_salad','veg'),      ('dsh_kachumber_salad','non-veg'),
-  ('dsh_masala_papad','veg'),         ('dsh_masala_papad','non-veg')
-) AS v(dish_public_id, plan_key)
-WHERE NOT EXISTS (
-  SELECT 1 FROM dish_plans dp
-  WHERE dp.dish_id = (SELECT id FROM dishes WHERE public_id = v.dish_public_id)
-    AND dp.plan_id = (SELECT id FROM plans WHERE key = v.plan_key)
-);
+  ('dsh_achari_paneer', 'Achari Paneer', NULL, 'sabzi', 'veg'),
+  ('dsh_aloo_beans', 'Aloo Beans', NULL, 'sabzi', 'veg'),
+  ('dsh_aloo_dahiwale', 'Aloo Dahiwale', NULL, 'sabzi', 'veg'),
+  ('dsh_aloo_jeera', 'Aloo Jeera', NULL, 'sabzi', 'veg'),
+  ('dsh_aloo_matar', 'Aloo Matar', NULL, 'sabzi', 'veg'),
+  ('dsh_aloo_methi', 'Aloo Methi', NULL, 'sabzi', 'veg'),
+  ('dsh_aloo_palak', 'Aloo Palak', NULL, 'sabzi', 'veg'),
+  ('dsh_aloo_soya_vadi', 'Aloo Soya Vadi', NULL, 'sabzi', 'veg'),
+  ('dsh_aloo_zeera', 'Aloo Zeera', NULL, 'sabzi', 'veg'),
+  ('dsh_aloo_with_kulcha', 'Aloo with Kulcha', NULL, 'extra', 'veg'),
+  ('dsh_baigan_aloo', 'Baigan Aloo', NULL, 'sabzi', 'veg'),
+  ('dsh_baingan_aloo_salan', 'Baingan Aloo Salan', NULL, 'sabzi', 'veg'),
+  ('dsh_baingan_bhartha', 'Baingan Bhartha', NULL, 'sabzi', 'veg'),
+  ('dsh_baingan_patiala', 'Baingan Patiala', NULL, 'sabzi', 'veg'),
+  ('dsh_bhartha', 'Bhartha', NULL, 'sabzi', 'veg'),
+  ('dsh_bhartha_matar', 'Bhartha Matar', NULL, 'sabzi', 'veg'),
+  ('dsh_bhindi', 'Bhindi', NULL, 'sabzi', 'veg'),
+  ('dsh_bhindi_aloo', 'Bhindi Aloo', NULL, 'sabzi', 'veg'),
+  ('dsh_bhindi_do_piyaza', 'Bhindi Do Piyaza', NULL, 'sabzi', 'veg'),
+  ('dsh_bhindi_masala', 'Bhindi Masala', NULL, 'sabzi', 'veg'),
+  ('dsh_cabbage', 'Cabbage', NULL, 'sabzi', 'veg'),
+  ('dsh_cabbage_matar', 'Cabbage Matar', NULL, 'sabzi', 'veg'),
+  ('dsh_chana_kulcha', 'Chana Kulcha', NULL, 'extra', 'veg'),
+  ('dsh_chicken_biryani', 'Chicken Biryani', NULL, 'rice', 'non-veg'),
+  ('dsh_chicken_fried_rice', 'Chicken Fried Rice', NULL, 'rice', 'non-veg'),
+  ('dsh_chicken_keema_pulao', 'Chicken Keema Pulao', NULL, 'rice', 'non-veg'),
+  ('dsh_dahi_wale_aloo', 'Dahi Wale Aloo', NULL, 'sabzi', 'veg'),
+  ('dsh_gajar_aloo', 'Gajar Aloo', NULL, 'sabzi', 'veg'),
+  ('dsh_gajar_matar', 'Gajar Matar', NULL, 'sabzi', 'veg'),
+  ('dsh_gobhi', 'Gobhi', NULL, 'sabzi', 'veg'),
+  ('dsh_gobhi_aloo', 'Gobhi Aloo', NULL, 'sabzi', 'veg'),
+  ('dsh_gobhi_matar', 'Gobhi Matar', NULL, 'sabzi', 'veg'),
+  ('dsh_kadai_paneer', 'Kadai Paneer', NULL, 'sabzi', 'veg'),
+  ('dsh_kala_chana_biryani', 'Kala Chana Biryani', NULL, 'rice', 'veg'),
+  ('dsh_kashmiri_dum_aloo', 'Kashmiri Dum Aloo', NULL, 'sabzi', 'veg'),
+  ('dsh_kulcha_aloo_bhaji', 'Kulcha, Aloo Bhaji', NULL, 'extra', 'veg'),
+  ('dsh_lauki_chanadal', 'Lauki Chanadal', NULL, 'sabzi', 'veg'),
+  ('dsh_lauki_kofta', 'Lauki Kofta', NULL, 'sabzi', 'veg'),
+  ('dsh_matar_paneer', 'Matar Paneer', NULL, 'sabzi', 'veg'),
+  ('dsh_methi_aloo_kashmiri', 'Methi Aloo Kashmiri', NULL, 'sabzi', 'veg'),
+  ('dsh_mixed_veg', 'Mixed Veg', NULL, 'sabzi', 'veg'),
+  ('dsh_mixed_vegs', 'Mixed vegs', NULL, 'sabzi', 'veg'),
+  ('dsh_okra', 'Okra', NULL, 'sabzi', 'veg'),
+  ('dsh_palak_paneer', 'Palak Paneer', NULL, 'sabzi', 'veg'),
+  ('dsh_paneer_veg_pulao', 'Paneer & Veg Pulao', NULL, 'rice', 'veg'),
+  ('dsh_paneer_korma', 'Paneer Korma', NULL, 'sabzi', 'veg'),
+  ('dsh_paneer_makhani', 'Paneer Makhani', NULL, 'sabzi', 'veg'),
+  ('dsh_paneer_masala', 'Paneer Masala', NULL, 'sabzi', 'veg'),
+  ('dsh_paneer_tikka_masala', 'Paneer Tikka Masala', NULL, 'sabzi', 'veg'),
+  ('dsh_pao_bhaji', 'Pao Bhaji', NULL, 'extra', 'veg'),
+  ('dsh_pao_keema', 'Pao Keema', NULL, 'extra', 'non-veg'),
+  ('dsh_pao_keema_matar', 'Pao Keema Matar', NULL, 'extra', 'non-veg'),
+  ('dsh_patta_gobhi_matar', 'Patta Gobhi Matar', NULL, 'sabzi', 'veg'),
+  ('dsh_patta_gobhi', 'Patta gobhi', NULL, 'sabzi', 'veg'),
+  ('dsh_pepper_aloo_masala', 'Pepper Aloo Masala', NULL, 'sabzi', 'veg'),
+  ('dsh_saag', 'Saag', NULL, 'sabzi', 'veg'),
+  ('dsh_shimla_mirch_paneer', 'Shimla Mirch Paneer', NULL, 'sabzi', 'veg'),
+  ('dsh_soya_chaap', 'Soya Chaap', NULL, 'sabzi', 'veg'),
+  ('dsh_soya_keema', 'Soya Keema', NULL, 'sabzi', 'veg'),
+  ('dsh_soya_vadi', 'Soya Vadi', NULL, 'sabzi', 'veg'),
+  ('dsh_spicy_paneer', 'Spicy Paneer', NULL, 'sabzi', 'veg'),
+  ('dsh_veg_fried_rice', 'Veg Fried Rice', NULL, 'rice', 'veg'),
+  ('dsh_veg_jalfrezi', 'Veg Jalfrezi', NULL, 'sabzi', 'veg'),
+  ('dsh_veg_kofta_curry', 'Veg Kofta Curry', NULL, 'sabzi', 'veg'),
+  ('dsh_veg_korma', 'Veg Korma', NULL, 'sabzi', 'veg'),
+  ('dsh_veg_noodles', 'Veg Noodles', NULL, 'extra', 'veg'),
+  ('dsh_veg_pasta', 'Veg Pasta', NULL, 'extra', 'veg'),
+  ('dsh_vegetable_jalfrezi', 'Vegetable Jalfrezi', NULL, 'sabzi', 'veg'),
+  ('dsh_zucchini', 'Zucchini', NULL, 'sabzi', 'veg'),
+  ('dsh_chana', 'Chana', NULL, 'daal', 'veg'),
+  ('dsh_chana_dal', 'Chana Dal', NULL, 'daal', 'veg'),
+  ('dsh_chana_dal_palak', 'Chana Dal Palak', NULL, 'daal', 'veg'),
+  ('dsh_chana_masala', 'Chana Masala', NULL, 'daal', 'veg'),
+  ('dsh_chicken_keema_kulcha', 'Chicken Keema/Kulcha', NULL, 'extra', 'non-veg'),
+  ('dsh_chicken_noodles', 'Chicken Noodles', NULL, 'extra', 'non-veg'),
+  ('dsh_chicken_pulao', 'Chicken Pulao', NULL, 'rice', 'non-veg'),
+  ('dsh_chicken_pasta', 'Chicken pasta', NULL, 'extra', 'non-veg'),
+  ('dsh_chilli_chicken_steamed_rice', 'Chilli chicken/steamed rice', NULL, 'sabzi', 'non-veg'),
+  ('dsh_dal_tadka', 'Dal Tadka', NULL, 'daal', 'veg'),
+  ('dsh_kadi', 'Kadi', NULL, 'daal', 'veg'),
+  ('dsh_kadi_pakora', 'Kadi Pakora', NULL, 'daal', 'veg'),
+  ('dsh_kala_chana', 'Kala Chana', NULL, 'daal', 'veg'),
+  ('dsh_kala_chana_masaledar', 'Kala Chana Masaledar', NULL, 'daal', 'veg'),
+  ('dsh_kali_dal', 'Kali Dal', NULL, 'daal', 'veg'),
+  ('dsh_keema_pao', 'Keema Pao', NULL, 'sabzi', 'non-veg'),
+  ('dsh_lal_masoor_tadka', 'Lal Masoor Tadka', NULL, 'daal', 'veg'),
+  ('dsh_lauki_chana_dal', 'Lauki Chana Dal', NULL, 'daal', 'veg'),
+  ('dsh_mah_chhole_dal', 'Mah Chhole Dal', NULL, 'daal', 'veg'),
+  ('dsh_makhani_dal', 'Makhani Dal', NULL, 'daal', 'veg'),
+  ('dsh_masoor_dal', 'Masoor Dal', NULL, 'daal', 'veg'),
+  ('dsh_masoor_dal_tadka', 'Masoor Dal Tadka', NULL, 'daal', 'veg'),
+  ('dsh_mixed_dal', 'Mixed Dal', NULL, 'daal', 'veg'),
+  ('dsh_moong_dal', 'Moong Dal', NULL, 'daal', 'veg'),
+  ('dsh_moong_dal_tadka', 'Moong Dal Tadka', NULL, 'daal', 'veg'),
+  ('dsh_moong_tadka', 'Moong Tadka', NULL, 'daal', 'veg'),
+  ('dsh_pasta_minced_chicken', 'Pasta Minced Chicken', NULL, 'extra', 'non-veg'),
+  ('dsh_punjabi_kadi', 'Punjabi Kadi', NULL, 'daal', 'veg'),
+  ('dsh_pyaz_masoor_dal', 'Pyaz Masoor Dal', NULL, 'daal', 'veg'),
+  ('dsh_rajma', 'Rajma', NULL, 'daal', 'veg'),
+  ('dsh_rongi', 'Rongi', NULL, 'daal', 'veg'),
+  ('dsh_rongi_dal', 'Rongi Dal', NULL, 'daal', 'veg'),
+  ('dsh_rongi_masala', 'Rongi Masala', NULL, 'daal', 'veg'),
+  ('dsh_rongi_onion_tadka', 'Rongi Onion Tadka', NULL, 'daal', 'veg'),
+  ('dsh_rongi_onion_masala', 'Rongi Onion masala', NULL, 'daal', 'veg'),
+  ('dsh_rongi_tadka', 'Rongi Tadka', NULL, 'daal', 'veg'),
+  ('dsh_rongi_urd_dal', 'Rongi Urd Dal', NULL, 'daal', 'veg'),
+  ('dsh_urad_dal', 'Urad Dal', NULL, 'daal', 'veg'),
+  ('dsh_urad_whole', 'Urad Whole', NULL, 'daal', 'veg'),
+  ('dsh_urad_rongi_mixed_dal', 'Urad+ Rongi Mixed Dal', NULL, 'daal', 'veg'),
+  ('dsh_urd_chana_dal', 'Urd & Chana Dal', NULL, 'daal', 'veg'),
+  ('dsh_white_chana', 'White Chana', NULL, 'daal', 'veg'),
+  ('dsh_whole_masoor', 'Whole Masoor', NULL, 'daal', 'veg'),
+  ('dsh_yellow_dal', 'Yellow Dal', NULL, 'daal', 'veg'),
+  ('dsh_yellow_dal_masala', 'Yellow Dal Masala', NULL, 'daal', 'veg'),
+  ('dsh_achari_chicken', 'Achari Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_achari_fish', 'Achari Fish', NULL, 'sabzi', 'non-veg'),
+  ('dsh_butter_chicken', 'Butter Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken', 'Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_capsicum_onion', 'Chicken Capsicum Onion', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_cooked_homestyle', 'Chicken Cooked Homestyle', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_curry', 'Chicken Curry', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_curry_patta_flavor', 'Chicken Curry Patta Flavor', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_home_style', 'Chicken Home Style', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_kofta_curry', 'Chicken Kofta Curry', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_korma', 'Chicken Korma', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_korma_spicy', 'Chicken Korma Spicy', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_makhani', 'Chicken Makhani', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_masala', 'Chicken Masala', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_methi', 'Chicken Methi', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_methiwala', 'Chicken Methiwala', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_tikka_masala', 'Chicken Tikka Masala', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_vindaloo', 'Chicken Vindaloo', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_kofta', 'Chicken kofta', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chicken_pepper_masala', 'Chicken pepper masala', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chilli_chicken', 'Chilli Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chilli_chicken_spicy', 'Chilli Chicken Spicy', NULL, 'sabzi', 'non-veg'),
+  ('dsh_chilli_chicken_wings', 'Chilli Chicken wings', NULL, 'sabzi', 'non-veg'),
+  ('dsh_curry_chicken_homestyle', 'Curry Chicken Homestyle', NULL, 'sabzi', 'non-veg'),
+  ('dsh_egg_curry', 'Egg Curry', NULL, 'sabzi', 'non-veg'),
+  ('dsh_fish_curry', 'Fish Curry', NULL, 'sabzi', 'non-veg'),
+  ('dsh_fish_masala', 'Fish Masala', NULL, 'sabzi', 'non-veg'),
+  ('dsh_kadai_chicken', 'Kadai Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_keema_chicken', 'Keema Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_keema_kofta_kashmiri', 'Keema Kofta Kashmiri', NULL, 'sabzi', 'non-veg'),
+  ('dsh_madras_chicken', 'Madras Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_methi_chicken', 'Methi Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_methi_chicken_curry', 'Methi Chicken Curry', NULL, 'sabzi', 'non-veg'),
+  ('dsh_murg_do_piyaza', 'Murg do Piyaza', NULL, 'sabzi', 'non-veg'),
+  ('dsh_palak_chicken', 'Palak Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_saag_chicken', 'Saag Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_spicy_butter_chicken', 'Spicy Butter Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_spicy_chicken', 'Spicy Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_spicy_makhani_chicken', 'Spicy Makhani Chicken', NULL, 'sabzi', 'non-veg'),
+  ('dsh_vindaloo_spicy_chicken', 'Vindaloo Spicy Chicken', NULL, 'sabzi', 'non-veg'),
+  -- Staples the real menu spreadsheet doesn't cover at all (no roti, plain
+  -- rice, raita, or salad items in any of its sheets) — every meal size's
+  -- composition still needs one dish in each of these categories per plan,
+  -- or menuService.release refuses the week for being short a category.
+  ('dsh_jeera_rice_veg', 'Jeera Rice (Veg)', 'Basmati rice tempered with cumin', 'rice', 'veg'),
+  ('dsh_jeera_rice_nonveg', 'Jeera Rice (Non-Veg)', 'Basmati rice tempered with cumin', 'rice', 'non-veg'),
+  ('dsh_roti_veg', 'Roti (Veg)', 'Soft whole-wheat flatbread', 'roti', 'veg'),
+  ('dsh_roti_nonveg', 'Roti (Non-Veg)', 'Soft whole-wheat flatbread', 'roti', 'non-veg'),
+  ('dsh_boondi_raita_veg', 'Boondi Raita (Veg)', 'Whisked yoghurt with crisp gram-flour pearls', 'raita', 'veg'),
+  ('dsh_boondi_raita_nonveg', 'Boondi Raita (Non-Veg)', 'Whisked yoghurt with crisp gram-flour pearls', 'raita', 'non-veg'),
+  ('dsh_kachumber_salad_veg', 'Kachumber Salad (Veg)', 'Diced cucumber, tomato and onion with lemon', 'salad', 'veg'),
+  ('dsh_kachumber_salad_nonveg', 'Kachumber Salad (Non-Veg)', 'Diced cucumber, tomato and onion with lemon', 'salad', 'non-veg')
+) AS v(public_id, name, description, category, plan_key)
+WHERE NOT EXISTS (SELECT 1 FROM dishes d WHERE d.name = v.name);
 
 -- ============ PLAN DISPLAY TAGS ============ (rendered verbatim; no code reads them)
 UPDATE plans SET tag_label = 'Veg',      tag_color = '#16a34a' WHERE key = 'veg'      AND tag_label IS NULL;
 UPDATE plans SET tag_label = 'Non-veg',  tag_color = '#dc2626' WHERE key = 'non-veg'  AND tag_label IS NULL;
-UPDATE plans SET tag_label = 'Healthy',  tag_color = '#0d9488' WHERE key = 'healthy'  AND tag_label IS NULL;
 
 -- ============ MENU: WEEK + ITEMS ============ (next Monday UTC; guard week+items on week_start existing)
 WITH next_monday AS (SELECT d + (CASE WHEN dow = 0 THEN 1 ELSE 8 - dow END) AS week_start
@@ -614,16 +739,17 @@ FROM new_week nw
          CROSS JOIN (SELECT d.id,
                             dc.id AS category_id,
                             ROW_NUMBER() OVER (PARTITION BY d.category ORDER BY want.ord) AS rn
+                     -- dishes.name is globally unique now, so it alone identifies one row.
                      FROM (VALUES ('Dal Tadka', 1),
-                                  ('Paneer Butter Masala', 2),
-                                  ('Aloo Gobi', 3),
+                                  ('Paneer Makhani', 2),
+                                  ('Gobhi Aloo', 3),
                                   ('Chicken Curry', 4),
-                                  ('Egg Bhurji', 5),
-                                  ('Jeera Rice', 6),
-                                  ('Roti', 7),
-                                  ('Boondi Raita', 8),
-                                  ('Kachumber Salad', 9),
-                                  ('Masala Papad', 10)) AS want(name, ord)
+                                  ('Egg Curry', 5),
+                                  ('Jeera Rice (Veg)', 6),
+                                  ('Roti (Veg)', 7),
+                                  ('Boondi Raita (Veg)', 8),
+                                  ('Kachumber Salad (Veg)', 9),
+                                  ('Achari Paneer', 10)) AS want(name, ord)
                               JOIN dishes d ON d.name = want.name
                               JOIN dish_categories dc ON dc.key = d.category) AS dsh;
 

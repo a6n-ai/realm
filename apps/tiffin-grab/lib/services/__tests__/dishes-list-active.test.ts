@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { dishes } = await import("@/db/schema");
+const { testPlanId } = await import("@/db/test-helpers");
 
 const IMG = { url: "/api/files/x.jpg", filePath: "x.jpg", fileName: "x.jpg", name: "x.jpg", type: "image/jpeg", isDirectory: false, size: 1 };
 
@@ -20,9 +21,9 @@ describe("dishesService.listActiveWithImages", () => {
   it("returns only active dishes that have an image", async () => {
     const { dishesService } = await import("../dishes.service");
 
-    await db.insert(dishes).values({ name: "TEST_DISH_A", image: IMG, active: true });
-    await db.insert(dishes).values({ name: "TEST_DISH_B", image: null, active: true });
-    await db.insert(dishes).values({ name: "TEST_DISH_C", image: IMG, active: false });
+    await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_DISH_A", image: IMG, active: true });
+    await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_DISH_B", image: null, active: true });
+    await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_DISH_C", image: IMG, active: false });
 
     const rows = await dishesService.listActiveWithImages();
     const names = rows.map((r) => r.name);
@@ -40,9 +41,9 @@ describe("dishesService.listActive", () => {
   it("returns active dishes including those without an image", async () => {
     const { dishesService } = await import("../dishes.service");
 
-    await db.insert(dishes).values({ name: "TEST_DISH_A", image: IMG, active: true });
-    await db.insert(dishes).values({ name: "TEST_DISH_B", image: null, active: true });
-    await db.insert(dishes).values({ name: "TEST_DISH_C", image: IMG, active: false });
+    await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_DISH_A", image: IMG, active: true });
+    await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_DISH_B", image: null, active: true });
+    await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_DISH_C", image: IMG, active: false });
 
     const rows = await dishesService.listActive();
     const names = rows.map((r) => r.name);

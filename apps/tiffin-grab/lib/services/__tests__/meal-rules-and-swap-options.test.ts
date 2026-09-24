@@ -61,8 +61,17 @@ describe("mealRulesService + swap options", () => {
       maxCount: 1,
     });
     createdRuleIds.push(publicId);
-    const listed = await mealRulesService.listEnabledForPlan(plan!.id);
-    expect(listed).toEqual([{ categoryKey: "sabzi", condition: "exclusive_to_plan", maxCount: 1 }]);
+    // The legacy write also lays down the scope + conditions the engine reads,
+    // so a rule saved from the existing admin grid is still enforced.
+    const listed = await mealRulesService.listEnabledForOrder({ planId: plan!.id });
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toMatchObject({ action: "max_qualifying", actionValue: 1, matchMode: "all" });
+    expect(listed[0]!.conditions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: "category", operator: "is", valueKeys: ["sabzi"] }),
+        expect.objectContaining({ field: "dish_plan", operator: "is", valueIds: [plan!.id] }),
+      ]),
+    );
   });
 
   it("listValidSwapOptionsForDelivery only returns divisible bundles within Max TU", async () => {
@@ -75,15 +84,16 @@ describe("mealRulesService + swap options", () => {
         return roti >= 4 && m.items.some((i) => i.category === "rice");
       });
     if (!size) throw new Error("Need a meal size with rice + ≥4 roti");
-    const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
+    const plan = snap.plans.find((p) => p.id === size.planId)!;
+    const planKey = plan.key;
 
     const [{ id: mealSizeId }] = await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.publicId, size.publicId)).limit(1);
     const [riceRow] = await db.select().from(mealSizeItems).where(and(eq(mealSizeItems.mealSizeId, mealSizeId), eq(mealSizeItems.category, "rice"))).limit(1);
     const prevMax = riceRow?.maxTuAmount ?? null;
     if (riceRow) await db.update(mealSizeItems).set({ maxTuAmount: "2" }).where(eq(mealSizeItems.id, riceRow.id));
 
-    if (!(await dishCategoriesService.swapPairExists("roti", "rice"))) {
-      await dishCategoriesService.addSwapPair("roti", "rice");
+    if (!(await dishCategoriesService.swapPairExists("roti", "rice", plan.id))) {
+      await dishCategoriesService.addSwapPair("roti", "rice", plan.publicId);
     }
 
     try {

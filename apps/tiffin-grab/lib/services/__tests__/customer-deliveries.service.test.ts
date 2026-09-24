@@ -6,7 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orderActivities, orders, payments, users } = await import("@/db/schema");
-const { attachDishToPlans, categoryIdFor } = await import("@/db/test-helpers");
+const { attachDishToPlans, categoryIdFor, testPlanId } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder, cancelOrder } = await import("../orders.service");
 const {
@@ -45,10 +45,11 @@ async function makeOrder(phone: string, fullName: string, startOffsetWeeks = 0) 
   const snap = await loadCatalogSnapshot();
   const startDate = nextWeekday(new Date());
   startDate.setUTCDate(startDate.getUTCDate() + startOffsetWeeks * 7);
+  const mealSize = snap.mealSizes.find((m) => m.planId === snap.plans[0].id) ?? snap.mealSizes[0];
   const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
-      mealSizeId: snap.mealSizes[0].publicId,
+      mealSizeId: mealSize.publicId,
       frequencyKey: "5_day",
       persons: 1,
       mealSlots: ["lunch"],
@@ -272,9 +273,10 @@ describe("myCalendar (integration)", () => {
   async function seedOrder(phone: string) {
     const snap = await loadCatalogSnapshot();
     const plan = snap.plans.find((p) => p.key === "veg")!;
+    const mealSize = snap.mealSizes.find((m) => m.planId === plan.id)!;
     const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone, role: "user" }).returning();
     const [order] = await db.insert(orders).values({
-      userId: u.id, planId: plan.id, mealSizeId: snap.mealSizes[0].id,
+      userId: u.id, planId: plan.id, mealSizeId: mealSize.id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
       categoryCounts: { sabzi: 2, rice: 1 },
       durationWeeks: 2, startDate: THIS_MONDAY, tiffinCount: 10, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "100.00", status: "active",
@@ -287,11 +289,11 @@ describe("myCalendar (integration)", () => {
     const [week] = await db.insert(menuWeeks).values({
       weekStart: THIS_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
     }).returning();
-    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer Sabzi"}).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer Sabzi"}).returning();
     await attachDishToPlans(sabziDefault.id);
-    const [sabziAlt] = await db.insert(dishes).values({ name: "Aloo Sabzi"}).returning();
+    const [sabziAlt] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Aloo Sabzi"}).returning();
     await attachDishToPlans(sabziAlt.id);
-    const [riceDefault] = await db.insert(dishes).values({ name: "Jeera Rice"}).returning();
+    const [riceDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Jeera Rice"}).returning();
     await attachDishToPlans(riceDefault.id);
     await db.insert(menuItems).values([
       { menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true },
@@ -356,7 +358,7 @@ describe("myCalendar (integration)", () => {
       const [week] = await db.insert(menuWeeks).values({
         weekStart: NEXT_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
       }).returning();
-      const [sabziDefault] = await db.insert(dishes).values({ name: "Bhindi Sabzi"}).returning();
+      const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Bhindi Sabzi"}).returning();
     await attachDishToPlans(sabziDefault.id);
       await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true });
       return { week, sabziDefault };

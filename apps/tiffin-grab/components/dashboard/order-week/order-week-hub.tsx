@@ -243,7 +243,11 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
   const source = plan.days.find((x) => x.date === t.date);
   const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
   const cats = (meal ?? []).filter((c) => c.picks.length > 0);
-  const portion = (k: string) => plan.categoryPortions[k];
+  const slotPortion = (category: string, pickIndex: number): string | null => {
+    const slots = plan.categoryPortionSlots?.[category];
+    if (slots?.length) return slots[pickIndex] ?? slots[slots.length - 1] ?? null;
+    return plan.categoryPortions[category] ?? null;
+  };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
@@ -252,11 +256,17 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
           <ul className="divide-y rounded-md border text-sm" aria-label="Meal">
             {cats.map((c) => (
               <li key={c.category} className="px-3 py-2.5">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">{c.label}</span>
-                  <span className="text-muted-foreground text-xs">{[c.quantity > 1 ? `${c.quantity}×` : null, portion(c.category)].filter(Boolean).join(" ")}</span>
-                </div>
-                {c.picks.map((p, i) => <div key={`${p.dishPublicId}-${i}`} className="font-medium">{p.name}{p.isDefaulted && c.selectable && <span className="text-muted-foreground ml-2 text-xs font-normal">default pick</span>}</div>)}
+                <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">{c.label}</span>
+                {c.picks.map((p, i) => {
+                  const oz = slotPortion(c.category, i);
+                  return (
+                    <div key={`${p.dishPublicId}-${i}`} className="font-medium">
+                      {p.name}
+                      {oz ? <span className="text-muted-foreground font-normal"> · {oz}</span> : null}
+                      {p.isDefaulted && c.selectable && <span className="text-muted-foreground ml-2 text-xs font-normal">default pick</span>}
+                    </div>
+                  );
+                })}
               </li>
             ))}
           </ul>

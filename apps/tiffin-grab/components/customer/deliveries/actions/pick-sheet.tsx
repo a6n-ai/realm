@@ -8,7 +8,7 @@ import {
   removeMyDeliverySwap,
 } from "@/app/(customer)/me/deliveries/actions";
 import { applyMyDishToWeek, pickMyDish } from "@/app/(customer)/me/meals/actions";
-import { Button, Chip, Notice, Reason, Select, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
+import { Button, Chip, Choice, ChoiceGroup, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
 import type { SwapOption } from "@/lib/menu/meal-validation";
@@ -22,6 +22,7 @@ import {
 import {
   buildSlotDropdownOptions,
   dishOptionValue,
+  hasOutgoingSwapOptions,
   parseSlotOptionValue,
 } from "@/lib/menu/slot-dropdown";
 import { swapLabel } from "@/lib/menu/swap-rules";
@@ -57,6 +58,42 @@ function slotLabel(group: PickCategoryGroup, index: number): string {
   return group.label;
 }
 
+/**
+ * The meal rules for this order, in the admin's own words. Shown up front so a
+ * customer knows the limits before choosing; the rule that just refused a pick
+ * is called out rather than left for them to work out.
+ */
+function MealRuleNotes({
+  rules,
+  violatedRuleId,
+}: {
+  rules: { publicId: string; text: string }[];
+  violatedRuleId: string | null;
+}) {
+  if (rules.length === 0) return null;
+  return (
+    <section className="rounded-lg border p-3">
+      <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+        Good to know
+      </h3>
+      <ul className="mt-1.5 space-y-1">
+        {rules.map((r) => {
+          const hit = r.publicId === violatedRuleId;
+          return (
+            <li
+              key={r.publicId}
+              // Never renders the id — it only decides which line to emphasise.
+              className={hit ? "text-destructive text-sm font-medium text-pretty" : "text-muted-foreground text-sm text-pretty"}
+            >
+              {r.text}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }: ActionSheetProps) {
   const [now] = useState(() => Date.now());
   const av = actionAvailability(trip, now, plan.ctx);
@@ -77,6 +114,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Which rule refused the last pick, so its line stands out in the list above.
+  const [violatedRuleId, setViolatedRuleId] = useState<string | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [swapLoadKey, setSwapLoadKey] = useState(0);
@@ -147,6 +186,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     : [];
   const summary = buildMealSummary(groups, picked);
   const liveSwapOptions = swapOptions ?? [];
+  const canApplyWeek =
+    !dayLocked &&
+    groups.some((g) => g.selectable && !g.cells.every((c) => c.locked));
 
   const persistDish = async (cell: GridCell, dishId: string) => {
     const key = cellKey(cell);
@@ -154,6 +196,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     setPicked((p) => ({ ...p, [key]: dishId }));
     setBusy(key);
     setError(null);
+    setViolatedRuleId(null);
     setApplied(null);
     try {
       const r = await pickMyDish({
@@ -165,7 +208,12 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         pickIndex: cell.pickIndex,
         dishId,
       });
-      if ("error" in r) throw new Error(r.error);
+      if ("error" in r) {
+        // Highlights that rule in the list above; the message itself is the
+        // admin's own words, so it needs no extra explanation here.
+        setViolatedRuleId(r.violatedRuleId ?? null);
+        throw new Error(r.error);
+      }
       setTouched(true);
     } catch (e) {
       setPicked((p) => {
@@ -207,6 +255,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     const parsed = parseSlotOptionValue(value);
     if (!parsed) return;
     if (parsed.kind === "dish") {
+      // Fixed (non-selectable) categories only expose a keep-dish radio so swaps can sit beside it.
+      if (!cell.selectable) return;
       if (effectiveDishId(cell, picked) === parsed.dishId) return;
       void persistDish(cell, parsed.dishId);
       return;
@@ -234,29 +284,33 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     }
   };
 
-  const applyWeekGroup = async (group: PickCategoryGroup) => {
-    if (dayLocked || !group.selectable || busy != null) return;
-    setBusy(`week:${group.key}`);
+  const applyWeekDishes = async () => {
+    if (dayLocked || busy != null) return;
+    const selectableGroups = groups.filter((g) => g.selectable && !g.cells.every((c) => c.locked));
+    if (selectableGroups.length === 0) return;
+    setBusy("week");
     setError(null);
     try {
       const notes: { dateIso: string; reason: string }[] = [];
-      for (const cell of group.cells) {
-        const dishId = effectiveDishId(cell, picked);
-        if (!dishId) continue;
-        const r = await applyMyDishToWeek({
-          orderId: plan.orderId,
-          menuWeekId: grid!.weekByDate[cell.dateIso],
-          slot: cell.slot,
-          personIndex: cell.personIndex,
-          pickIndex: cell.pickIndex,
-          dishId,
-        });
-        if ("error" in r) {
-          setError(r.error);
-          await refreshGrid();
-          return;
+      for (const group of selectableGroups) {
+        for (const cell of group.cells) {
+          const dishId = effectiveDishId(cell, picked);
+          if (!dishId) continue;
+          const r = await applyMyDishToWeek({
+            orderId: plan.orderId,
+            menuWeekId: grid!.weekByDate[cell.dateIso],
+            slot: cell.slot,
+            personIndex: cell.personIndex,
+            pickIndex: cell.pickIndex,
+            dishId,
+          });
+          if ("error" in r) {
+            setError(r.error);
+            await refreshGrid();
+            return;
+          }
+          if (r.skipped.length) notes.push(...r.skipped);
         }
-        if (r.skipped.length) notes.push(...r.skipped);
       }
       setTouched(true);
       setApplied(
@@ -363,8 +417,11 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
 
               {groups.map((group) => {
                 const locked = dayLocked || group.cells.every((c) => c.locked);
+                // Dish-pickable OR admin swap pairs from this category — never hardcode rice/roti/…
+                const showRadios =
+                  group.selectable || hasOutgoingSwapOptions(group.key, liveSwapOptions);
 
-                if (!group.selectable) {
+                if (!showRadios) {
                   const dish = group.dishes[0];
                   const portion = group.portions[0];
                   return dish || portion ? (
@@ -380,9 +437,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                 }
 
                 return (
-                  <section key={group.key} aria-label={group.label} className="grid gap-3">
+                  <section key={group.key} aria-label={group.label} className="grid gap-4">
                     <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{group.label}</h4>
-                    <div className="grid gap-3">
+                    <div className="grid gap-5">
                       {group.cells.map((cell, i) => {
                         const options = buildSlotDropdownOptions({
                           cellIndexInCategory: i,
@@ -394,33 +451,46 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         const selectedId = effectiveDishId(cell, picked);
                         const value = selectedId ? dishOptionValue(selectedId) : "";
                         const key = cellKey(cell);
-                        const cellLocked = locked || cell.locked;
+                        const cellLocked = locked || cell.locked || (!group.selectable && swapLocked);
+                        const label = slotLabel(group, i);
+                        const isDefault =
+                          !!selectedId && cell.isDefaulted && picked[key] == null;
                         return (
-                          <Select
-                            key={key}
-                            label={slotLabel(group, i)}
-                            value={value}
-                            disabled={cellLocked || busy != null}
-                            options={options.map((o) => ({ value: o.value, label: o.label }))}
-                            onChange={(e) => onSlotChange(cell, i, e.target.value)}
-                            hint={
-                              selectedId && cell.isDefaulted && picked[key] == null ? "Default pick" : undefined
-                            }
-                          />
+                          <div key={key} className="grid gap-2">
+                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                              <p className="text-[15px] font-semibold">{label}</p>
+                              {isDefault && group.selectable && (
+                                <p className={`text-[13px] ${muted}`}>Default pick</p>
+                              )}
+                            </div>
+                            <ChoiceGroup
+                              label={label}
+                              value={value}
+                              onChange={(v) => onSlotChange(cell, i, v)}
+                              className="grid gap-2 sm:grid-cols-2"
+                            >
+                              {options.map((o) => (
+                                <Choice
+                                  key={o.value}
+                                  value={o.value}
+                                  disabled={cellLocked || busy != null}
+                                  className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold"
+                                >
+                                  <span className="min-w-0 flex-1 text-left">
+                                    <span className="block leading-snug">{o.label}</span>
+                                    {o.kind === "swap" && (
+                                      <span className={`mt-0.5 block text-[13px] font-normal ${muted}`}>
+                                        Exchange
+                                      </span>
+                                    )}
+                                  </span>
+                                </Choice>
+                              ))}
+                            </ChoiceGroup>
+                          </div>
                         );
                       })}
                     </div>
-                    {!locked && (
-                      <Button
-                        variant="quiet"
-                        className="w-full"
-                        pending={busy === `week:${group.key}`}
-                        disabled={busy != null}
-                        onClick={() => void applyWeekGroup(group)}
-                      >
-                        Apply dishes to the whole week
-                      </Button>
-                    )}
                   </section>
                 );
               })}
@@ -446,9 +516,22 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                   </div>
                 </section>
               )}
+
+              {canApplyWeek && (
+                <Button
+                  variant="quiet"
+                  className="w-full"
+                  pending={busy === "week" || busy?.startsWith("week:")}
+                  disabled={busy != null}
+                  onClick={() => void applyWeekDishes()}
+                >
+                  Apply dishes to the whole week
+                </Button>
+              )}
             </div>
             {applied && <Notice>{applied}</Notice>}
             {error && <Notice tone="error">{error}</Notice>}
+            <MealRuleNotes rules={grid?.rules ?? []} violatedRuleId={violatedRuleId} />
           </>
         )}
       </div>

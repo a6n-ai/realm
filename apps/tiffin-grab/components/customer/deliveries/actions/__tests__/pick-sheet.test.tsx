@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
@@ -106,7 +106,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("PickSheet", () => {
-  it("shows one dropdown per composition row with portion labels", async () => {
+  it("shows radio groups per composition row with portion labels", async () => {
     load.mockResolvedValue(
       grid([cell({ pickIndex: 1 }), cell({ pickIndex: 2 })], 1, {
         categories: [{ key: "curry", label: "Curry", selectable: true, sortOrder: 1 }],
@@ -114,15 +114,15 @@ describe("PickSheet", () => {
       }),
     );
     show(trip({ coversDates: [mon] }));
-    expect(await screen.findByLabelText("Curry · 12oz")).toBeInTheDocument();
-    expect(screen.getByLabelText("Curry · 8oz")).toBeInTheDocument();
+    expect(await screen.findByRole("radiogroup", { name: "Curry · 12oz" })).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
   });
 
   it("asks for the grid of every covered eating day", async () => {
     load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue", lockNote: "Locks with Monday's delivery" })]));
     show();
-    expect(await screen.findByLabelText("Curry · 8oz")).toBeInTheDocument();
+    expect(await screen.findByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
     expect(load).toHaveBeenCalledWith("o1", [mon, tue]);
   });
 
@@ -143,7 +143,7 @@ describe("PickSheet", () => {
   it("single-day trip has no day tabs", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
-    await screen.findByLabelText("Curry · 8oz");
+    await screen.findByRole("radiogroup", { name: "Curry · 8oz" });
     expect(screen.queryByRole("tab", { name: /Mon/ })).toBeNull();
   });
 
@@ -151,8 +151,7 @@ describe("PickSheet", () => {
     load.mockResolvedValue(grid([cell({}), cell({ personIndex: 2, selectedDishId: "d1" })], 2));
     show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("tab", { name: "Person 2" }));
-    const select = screen.getByLabelText("Curry · 8oz");
-    fireEvent.change(select, { target: { value: "dish:d2" } });
+    fireEvent.click(screen.getByRole("radio", { name: /^Dal$/ }));
     await waitFor(() =>
       expect(pick).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -189,7 +188,7 @@ describe("PickSheet", () => {
     expect(await screen.findByText(/except Tue.*not on menu/i)).toBeInTheDocument();
   });
 
-  it("embeds valid swap destinations in the leading row dropdown", async () => {
+  it("embeds valid swap destinations as radios on the leading row", async () => {
     loadSwaps.mockResolvedValue({
       options: [
         {
@@ -208,10 +207,83 @@ describe("PickSheet", () => {
     });
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
-    const select = await screen.findByLabelText("Curry · 8oz");
-    expect(select).toContainHTML("Swap to Daal · 8oz");
-    fireEvent.change(select, { target: { value: "swap:curry>daal:1" } });
+    const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
+    expect(swapRadio).toHaveTextContent("Exchange");
+    fireEvent.click(swapRadio);
     await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "curry", "daal", 1, mon));
+  });
+
+  it("shows Included for fixed categories with no admin outgoing swaps", async () => {
+    load.mockResolvedValue(
+      grid(
+        [
+          cell({
+            slot: "rice",
+            selectable: false,
+            dishes: [{ id: "r1", name: "Jeera Rice", image: null }],
+            selectedDishId: "r1",
+          }),
+        ],
+        1,
+        {
+          categories: [{ key: "rice", label: "Rice", selectable: false, sortOrder: 2 }],
+          portionsBySlot: { rice: ["1 unit"] },
+        },
+      ),
+    );
+    show(trip({ coversDates: [mon] }));
+    const riceSection = await screen.findByLabelText("Rice");
+    expect(within(riceSection).getByText("Included")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: /Rice/ })).toBeNull();
+  });
+
+  it("shows radios on fixed categories when admin swap pairs start from that category", async () => {
+    loadSwaps.mockResolvedValue({
+      options: [
+        {
+          fromCategory: "rice",
+          toCategory: "roti",
+          available: true,
+          reason: null,
+          validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "1 unit", getNatural: "2 roti" }],
+          minFromPicks: 1,
+          maxFromPicks: 1,
+          bundleIncrement: 1,
+          giveNatural: "1 unit",
+          getNatural: "2 roti",
+        },
+      ],
+    });
+    load.mockResolvedValue(
+      grid(
+        [
+          cell({
+            slot: "rice",
+            selectable: false,
+            dishes: [{ id: "r1", name: "Jeera Rice", image: null }],
+            selectedDishId: "r1",
+          }),
+        ],
+        1,
+        {
+          categories: [{ key: "rice", label: "Rice", selectable: false, sortOrder: 2 }],
+          portionsBySlot: { rice: ["1 unit"] },
+        },
+      ),
+    );
+    const ricePlan = {
+      ...plan,
+      categoryLabels: { rice: "Rice", roti: "Roti" },
+    } as unknown as PlanView;
+    render(<PickSheet trip={trip({ coversDates: [mon] })} plan={ricePlan} open onDone={vi.fn()} />);
+    expect(await screen.findByRole("radiogroup", { name: "Rice · 1 unit" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^Jeera Rice$/ })).toBeInTheDocument();
+    const swapRadio = screen.getByRole("radio", { name: /Roti · 2 roti/ });
+    expect(swapRadio).toHaveTextContent("Exchange");
+    expect(screen.queryByText("Included")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
+    fireEvent.click(swapRadio);
+    await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "rice", "roti", 1, mon));
   });
 
   it("disables Apply to week while a pick is saving", async () => {
@@ -223,18 +295,17 @@ describe("PickSheet", () => {
     );
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
-    fireEvent.change(await screen.findByLabelText("Curry · 8oz"), { target: { value: "dish:d2" } });
+    fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
     const applyBtn = screen.getByRole("button", { name: "Apply dishes to the whole week" });
     expect(applyBtn).toHaveAttribute("aria-disabled", "true");
     resolvePick({ ok: true });
     await waitFor(() => expect(applyBtn).not.toHaveAttribute("aria-disabled"));
   });
 
-  it("locked day disables selects and hides apply", async () => {
+  it("locked day disables radios and hides apply", async () => {
     load.mockResolvedValue(grid([cell({ locked: true })]));
     show(trip({ coversDates: [mon] }));
-    const select = await screen.findByLabelText("Curry · 8oz");
-    expect(select).toBeDisabled();
+    expect(await screen.findByRole("radio", { name: /^Dal$/ })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
     expect(screen.getByText(/Locked/)).toBeInTheDocument();
   });
@@ -243,7 +314,7 @@ describe("PickSheet", () => {
     pick.mockResolvedValue({ error: "You can select only 1 sabzi exclusive to this plan in this meal." });
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
-    fireEvent.change(await screen.findByLabelText("Curry · 8oz"), { target: { value: "dish:d2" } });
+    fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
     expect(await screen.findByText(/only 1 sabzi exclusive/i)).toBeInTheDocument();
   });
 
@@ -259,7 +330,7 @@ describe("PickSheet", () => {
   it("Done closes with a toast only after a change", async () => {
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
-    fireEvent.change(await screen.findByLabelText("Curry · 8oz"), { target: { value: "dish:d2" } });
+    fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
     await waitFor(() => expect(pick).toHaveBeenCalled());
     await waitFor(() => screen.getByRole("button", { name: "Done" }));
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
@@ -270,6 +341,101 @@ describe("PickSheet", () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ cutoffAt: Date.now() - 1000 }));
     expect(screen.getByText(/Changes closed/)).toBeInTheDocument();
-    expect(await screen.findByLabelText("Curry · 8oz")).toBeDisabled();
+    expect(await screen.findByRole("radio", { name: /^Dal$/ })).toBeDisabled();
+  });
+
+  it("renders Apply dishes to the whole week at the very bottom after all categories", async () => {
+    load.mockResolvedValue(
+      grid(
+        [
+          cell({ slot: "curry", selectable: true }),
+          cell({ slot: "rice", selectable: false, dishes: [{ id: "r1", name: "Jeera Rice", image: null }], selectedDishId: "r1" }),
+          cell({ slot: "roti", selectable: false, dishes: [{ id: "rt1", name: "Plain Roti", image: null }], selectedDishId: "rt1" }),
+        ],
+        1,
+        {
+          categories: [
+            { key: "curry", label: "Curry", selectable: true, sortOrder: 1 },
+            { key: "rice", label: "Rice", selectable: false, sortOrder: 2 },
+            { key: "roti", label: "Roti", selectable: false, sortOrder: 3 },
+          ],
+          portionsBySlot: { curry: ["8oz"], rice: ["1 unit"], roti: ["4 roti"] },
+        },
+      ),
+    );
+    show(trip({ coversDates: [mon] }));
+
+    const currySection = await screen.findByLabelText("Curry");
+    const riceSection = screen.getByLabelText("Rice");
+    const rotiSection = screen.getByLabelText("Roti");
+
+    // Must NOT be inside any individual category section
+    expect(within(currySection).queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
+    expect(within(riceSection).queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
+    expect(within(rotiSection).queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
+
+    // Appears exactly once in the entire sheet
+    const applyButtons = screen.getAllByRole("button", { name: "Apply dishes to the whole week" });
+    expect(applyButtons).toHaveLength(1);
+
+    // Verify DOM order: curry < rice < roti < applyButton
+    const applyButton = applyButtons[0]!;
+    expect(currySection.compareDocumentPosition(applyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(riceSection.compareDocumentPosition(applyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rotiSection.compareDocumentPosition(applyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("renders 6 roti default portion in slot label and Your meal summary for a 6-roti plan", async () => {
+    load.mockResolvedValue(
+      grid(
+        [
+          cell({
+            slot: "roti",
+            selectable: false,
+            quantity: 6,
+            dishes: [{ id: "rt1", name: "Roti (Veg)", image: null }],
+            selectedDishId: "rt1",
+          }),
+        ],
+        1,
+        {
+          categories: [{ key: "roti", label: "Roti", selectable: false, sortOrder: 1 }],
+          portionsBySlot: { roti: ["6 roti"] },
+        },
+      ),
+    );
+    loadSwaps.mockResolvedValue({
+      options: [
+        {
+          fromCategory: "roti",
+          toCategory: "rice",
+          available: true,
+          reason: null,
+          validBundles: [{ fromPicks: 4, toPicks: 1, giveNatural: "4 roti", getNatural: "1 unit" }],
+          fromPicks: 4,
+          toPicks: 1,
+          maxFromPicks: 4,
+          bundleIncrement: 4,
+          giveNatural: "4 roti",
+          getNatural: "1 unit",
+        },
+      ],
+    });
+    const rotiPlan = {
+      ...plan,
+      categoryLabels: { roti: "Roti", rice: "Rice" },
+    } as unknown as PlanView;
+    render(<PickSheet trip={trip({ coversDates: [mon] })} plan={rotiPlan} open onDone={vi.fn()} />);
+
+    // Slot heading displays 6 roti
+    expect(await screen.findByRole("radiogroup", { name: "Roti · 6 roti" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^Roti \(Veg\)$/ })).toBeInTheDocument();
+
+    // Swap option available
+    expect(screen.getByRole("radio", { name: /Rice · 1 unit · uses 4 items/ })).toBeInTheDocument();
+
+    // Your meal summary displays 6 roti
+    expect(screen.getByRole("heading", { name: "Your meal" })).toBeInTheDocument();
+    expect(screen.getByText("Roti (Veg) · 6 roti")).toBeInTheDocument();
   });
 });

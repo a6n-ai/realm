@@ -3,6 +3,7 @@ import type { SwapOption } from "../meal-validation";
 import {
   buildSlotDropdownOptions,
   dishOptionValue,
+  hasOutgoingSwapOptions,
   parseSlotOptionValue,
   swapOptionValue,
 } from "../slot-dropdown";
@@ -51,8 +52,8 @@ describe("slot-dropdown", () => {
     expect(leading.map((o) => o.label)).toEqual([
       "Aloo gobi",
       "Bhindi",
-      "Swap to Daal · 12oz",
-      "Swap to Daal · 24oz (uses 2 items)",
+      "Daal · 12oz",
+      "Daal · 24oz · uses 2 items",
     ]);
 
     const trailing = buildSlotDropdownOptions({
@@ -78,5 +79,11 @@ describe("slot-dropdown", () => {
     });
     expect(opts).toHaveLength(1);
     expect(opts[0]!.kind).toBe("dish");
+  });
+
+  it("hasOutgoingSwapOptions follows admin pairs for any from-category", () => {
+    expect(hasOutgoingSwapOptions("sabzi", [sabziDaal])).toBe(true);
+    expect(hasOutgoingSwapOptions("roti", [sabziDaal])).toBe(false);
+    expect(hasOutgoingSwapOptions("sabzi", [{ ...sabziDaal, available: false, validBundles: [] }])).toBe(false);
   });
 });

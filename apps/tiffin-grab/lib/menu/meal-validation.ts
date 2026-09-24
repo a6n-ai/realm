@@ -13,6 +13,14 @@
  */
 
 import { formatTuHuman } from "./format-tu";
+import type {
+  HydratedPick,
+  MealRule,
+  MealRuleCondition,
+  MealRuleOperator,
+} from "./meal-rule-types";
+import { OPERATORS_BY_FIELD } from "./meal-rule-types";
+import { ruleText, type RuleLabels } from "./meal-rule-text";
 import {
   applySwapsToCounts,
   capViolation,
@@ -20,12 +28,6 @@ import {
   type SwapCategory,
   type SwapRow,
 } from "./swap-rules";
-
-export type MealRuleRow = {
-  categoryKey: string;
-  condition: "exclusive_to_plan";
-  maxCount: number;
-};
 
 export type MealSizeItemRow = {
   category: string;
@@ -51,12 +53,29 @@ export type CompositionContext = {
 };
 
 export type MealRuleContext = {
-  rules: MealRuleRow[];
-  /** Dish ids that match exclusive_to_plan for this order's plan. */
-  exclusiveDishIds: Set<bigint>;
-  /** Optional category → dish ids currently selected (for rule checks). */
-  picks: ProposedDishPick[];
+  rules: MealRule[];
+  /**
+   * The WHOLE proposed meal for this person/day, every category — not just the
+   * category being edited. Rules like "cannot coexist" and dish-name limits span
+   * categories, so evaluating one category at a time cannot see them.
+   */
+  picks: HydratedPick[];
   labels?: Record<string, string>;
+  /** Labels for generating a message when a rule has no admin description. */
+  ruleLabels?: RuleLabels;
+  /**
+   * The pick being added/changed right now, when this is a single edit.
+   *
+   * Whole-meal evaluation means a meal that ALREADY breaks a rule (a rule added
+   * after the picks, or picks made before it) would otherwise block every later
+   * edit — including edits to unrelated categories, leaving the customer stuck.
+   * With a focus pick, a rule can only refuse the edit if the edited pick itself
+   * matches that rule: the customer can still change anything else, and can
+   * still fix the offending category, but cannot add to or preserve the breach.
+   *
+   * Omit it to validate a complete meal on its own terms (e.g. a batch check).
+   */
+  focus?: HydratedPick;
 };
 
 function labelOf(key: string, labels?: Record<string, string>): string {
@@ -162,22 +181,118 @@ export function maxTuViolation(
   return `This swap would exceed the maximum ${name} allowed in this meal.`;
 }
 
-export function validateMealRules(ctx: MealRuleContext): { ok: true } | { ok: false; reason: string } {
-  for (const rule of ctx.rules) {
-    if (rule.condition !== "exclusive_to_plan") {
-      const _exhaustive: never = rule.condition;
-      void _exhaustive;
-      continue;
-    }
-    const matching = ctx.picks.filter(
-      (p) => p.category === rule.categoryKey && ctx.exclusiveDishIds.has(p.dishId),
-    ).length;
-    if (matching > rule.maxCount) {
-      const name = labelOf(rule.categoryKey, ctx.labels);
-      return {
-        ok: false,
-        reason: `You can select only ${rule.maxCount} ${name.toLowerCase()} exclusive to this plan in this meal.`,
-      };
+/** Does one pick satisfy one condition? */
+export function conditionMatches(c: MealRuleCondition, pick: HydratedPick): boolean {
+  // An operator that is not legal for this field cannot be evaluated. Returning
+  // false (rather than falling through to a lookalike branch) stops e.g.
+  // `category contains "x"` from quietly behaving like `category is "x"`.
+  if (!OPERATORS_BY_FIELD[c.field]?.includes(c.operator)) return false;
+  switch (c.field) {
+    case "dish_plan":
+      return inIdSet(c, pick.dishPlanId);
+    case "dish":
+      return inIdSet(c, pick.dishId);
+    case "category":
+      return inKeySet(c, pick.category);
+    case "dish_name":
+      return nameMatches(c, pick.dishName);
+    default:
+      return false;
+  }
+}
+
+function negated(op: MealRuleOperator): boolean {
+  return op === "is_not" || op === "is_not_one_of" || op === "not_contains";
+}
+
+function inIdSet(c: MealRuleCondition, value: bigint): boolean {
+  // A condition with no values can never be satisfied; it is rejected at write
+  // time, but a stale rule (its dish or plan deleted) must degrade to "no match"
+  // rather than blocking every pick.
+  const ids = c.valueIds ?? [];
+  if (ids.length === 0) return false;
+  const hit = ids.some((id) => id === value);
+  return negated(c.operator) ? !hit : hit;
+}
+
+function inKeySet(c: MealRuleCondition, value: string): boolean {
+  const keys = c.valueKeys ?? [];
+  if (keys.length === 0) return false;
+  const hit = keys.includes(value);
+  return negated(c.operator) ? !hit : hit;
+}
+
+function nameMatches(c: MealRuleCondition, name: string): boolean {
+  const needle = (c.valueText ?? "").trim().toLowerCase();
+  if (!needle) return false;
+  const hay = name.toLowerCase();
+  switch (c.operator) {
+    case "contains":
+      return hay.includes(needle);
+    case "not_contains":
+      return !hay.includes(needle);
+    case "equals":
+      return hay === needle;
+    case "starts_with":
+      return hay.startsWith(needle);
+    case "ends_with":
+      return hay.endsWith(needle);
+    default:
+      return false;
+  }
+}
+
+/**
+ * Matching is PER PICK: a rule's conditions are evaluated against one pick at a
+ * time, then the matching picks are counted. This is what makes `is_not`
+ * intuitive — "Diet is not Veg" marks each non-veg pick, rather than asking
+ * whether the meal as a whole contains a non-veg dish.
+ */
+export function pickMatchesRule(rule: MealRule, pick: HydratedPick): boolean {
+  if (rule.conditions.length === 0) return false;
+  return rule.matchMode === "any"
+    ? rule.conditions.some((c) => conditionMatches(c, pick))
+    : rule.conditions.every((c) => conditionMatches(c, pick));
+}
+
+export type MealRuleFailure = { ok: false; reason: string; rulePublicId: string };
+
+export function validateMealRules(ctx: MealRuleContext): { ok: true } | MealRuleFailure {
+  // Deterministic message when several rules could fire on the same pick.
+  const rules = [...ctx.rules].sort((a, b) => b.priority - a.priority || a.publicId.localeCompare(b.publicId));
+
+  for (const rule of rules) {
+    // See `focus` above: an edit that cannot make this rule worse is not its business.
+    if (ctx.focus && !pickMatchesRule(rule, ctx.focus)) continue;
+
+    const matching = ctx.picks.filter((p) => pickMatchesRule(rule, p));
+    if (matching.length === 0) continue;
+
+    const fail = (): MealRuleFailure => ({
+      ok: false,
+      reason: ruleText(rule, ctx.ruleLabels),
+      rulePublicId: rule.publicId,
+    });
+
+    switch (rule.action) {
+      case "forbid":
+        return fail();
+      case "cannot_coexist": {
+        // Distinct dishes: picking the same dish twice is a quantity question
+        // (owned by max picks per category), not a coexistence violation.
+        const distinct = new Set(matching.map((p) => p.dishId));
+        if (distinct.size > 1) return fail();
+        break;
+      }
+      case "max_qualifying": {
+        const cap = rule.actionValue ?? 0;
+        if (matching.length > cap) return fail();
+        break;
+      }
+      default: {
+        const _exhaustive: never = rule.action;
+        void _exhaustive;
+      }
     }
   }
   return { ok: true };
@@ -206,6 +321,16 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
   }
   if (!swapPairFits(from, to)) {
     return { ok: false, reason: `${from.key} can't be swapped for ${to.key} on this meal size` };
+  }
+
+  const opposing = applied.find(
+    (s) => s.fromCategory === next.toCategory && s.toCategory === next.fromCategory,
+  );
+  if (opposing) {
+    return {
+      ok: false,
+      reason: `An exchange between ${labelOf(next.toCategory, composition.labels)} and ${labelOf(next.fromCategory, composition.labels)} is already applied for this day. Undo the existing exchange to change it.`,
+    };
   }
 
   const slots = slotsAfterSwaps(composition, applied);
@@ -330,6 +455,24 @@ export function computeSwapOption(args: {
     };
   }
 
+  const opposing = applied.find(
+    (s) => s.fromCategory === toCategory && s.toCategory === fromCategory,
+  );
+  if (opposing) {
+    return {
+      fromCategory,
+      toCategory,
+      available: false,
+      reason: `An exchange between ${labelOf(toCategory, composition.labels)} and ${labelOf(fromCategory, composition.labels)} is already applied for this day. Undo the existing exchange to change it.`,
+      validBundles: [],
+      minFromPicks: null,
+      maxFromPicks: null,
+      bundleIncrement: null,
+      giveNatural: null,
+      getNatural: null,
+    };
+  }
+
   const have = applySwapsToCounts(composition.baseCounts, applied)[fromCategory] ?? 0;
   if (have < 1) {
     return {
@@ -346,9 +489,18 @@ export function computeSwapOption(args: {
     };
   }
 
+  const slots = slotsAfterSwaps(composition, applied);
+  const fromSlots = slots.get(fromCategory) ?? [];
+  const uniformSlots = fromSlots.length <= 1 || fromSlots.every((tu) => Math.abs(tu - fromSlots[0]!) < 1e-9);
+
   const bundles: SwapBundle[] = [];
   let firstFail: string | null = null;
   for (let q = 1; q <= have; q++) {
+    // When 1 source item already produces a valid integer exchange and all available source slots
+    // have uniform TU, do not expose redundant multi-item bundles (q > 1) on slot-based UIs.
+    if (q > 1 && uniformSlots && bundles.some((b) => b.fromPicks === 1)) {
+      break;
+    }
     const r = validateProposedSwap({
       composition,
       applied,

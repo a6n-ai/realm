@@ -250,15 +250,50 @@
     {
       "idx": 35,
       "version": "7",
-      "when": 1790107552458,
-      "tag": "0035_index_fk_and_naming",
+      "when": 1790200000000,
+      "tag": "0035_dish_single_plan",
       "breakpoints": true
     },
     {
       "idx": 36,
       "version": "7",
-      "when": 1790107553458,
-      "tag": "0036_log_indexes_and_checks",
+      "when": 1790300000000,
+      "tag": "0036_dish_name_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790400000000,
+      "tag": "0037_category_swap_pairs_plan",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790500000000,
+      "tag": "0038_category_swap_pairs_null_plan",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790500001000,
+      "tag": "0039_meal_rule_conditions",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790500002000,
+      "tag": "0040_index_fk_and_naming",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790500003000,
+      "tag": "0041_log_indexes_and_checks",
       "breakpoints": true
     }
   ]

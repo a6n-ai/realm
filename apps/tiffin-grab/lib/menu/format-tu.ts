@@ -1,6 +1,11 @@
 // Converts a TU (tiffin unit) amount back into the category's natural unit for
 // display — kitchen labels and customer UI show "6 roti" / "12oz", never raw TU.
-export type TuCategory = { tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string };
+export type TuCategory = {
+  tuUnitType: "weight" | "count";
+  tuUnitSize: number;
+  tuUnitLabel: string;
+  selectable?: boolean;
+};
 
 export function tuToNatural(category: TuCategory, tuAmount: number): number {
   const natural = tuAmount * category.tuUnitSize;

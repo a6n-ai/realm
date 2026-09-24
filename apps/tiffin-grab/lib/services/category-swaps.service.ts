@@ -53,9 +53,7 @@ export async function applyDeliverySwap(
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order) throw new ValidationError("Order not found");
 
-    const planId = await dishCategoriesService.planIdForMealSize(order.mealSizeId);
-    if (!planId) throw new ValidationError("Order not found");
-    const allowed = await dishCategoriesService.isSwapPairAllowed(fromCategory, toCategory, planId);
+    const allowed = await dishCategoriesService.isSwapPairAllowedForMealSize(fromCategory, toCategory, order.mealSizeId);
     if (!allowed) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory} on this plan`);
 
     const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {});
