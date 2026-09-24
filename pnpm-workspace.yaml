@@ -8,11 +8,6 @@ packages:
 blockExoticSubdeps: false
 
 overrides:
-  # TEMP: pins @foundry/auth to the in-progress org-foundation branch so this
-  # worktree can typecheck/test against Task 1's factory before it merges to
-  # foundry main. Revert to plain github:a6n-ai/foundry#path:packages/auth
-  # (or drop the override) once wt/84eb49b2-foundry-org-foundation is merged.
-  "@foundry/auth": "github:a6n-ai/foundry#wt/84eb49b2-foundry-org-foundation&path:packages/auth"
   "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons"
   "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config"
   "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm"
