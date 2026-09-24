@@ -40,11 +40,14 @@ export function NewTicketForm({
   orders,
   defaultOrderId,
   defaultCategory,
+  onCancel,
 }: {
   categories: readonly TicketCategoryValue[];
   orders: OrderOption[];
   defaultOrderId?: string;
   defaultCategory?: TicketCategoryValue;
+  /** Closes the enclosing sheet instead of navigating, when the form runs inside one. */
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -153,7 +156,7 @@ export function NewTicketForm({
         <Button type="submit" variant="primary" size="lg" pending={pending}>
           {pending ? "Sending…" : "Submit ticket"}
         </Button>
-        <Button variant="quiet" size="lg" disabled={pending} onClick={() => router.push("/me/support")}>
+        <Button variant="quiet" size="lg" disabled={pending} onClick={onCancel ?? (() => router.push("/me/support"))}>
           Cancel
         </Button>
       </div>
