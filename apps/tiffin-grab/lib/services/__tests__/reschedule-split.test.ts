@@ -46,9 +46,20 @@ describe("rescheduleDelivery: splitting one eating day off a multi-day trip", ()
     expect(source.status).toBe("skipped");
     expect(source.mergedIntoDeliveryId).toBeNull();
     const [target] = await db.select().from(deliveries).where(eq(deliveries.deliveryDate, res.carriedOn));
-    // Same eating days, just re-delivered on a different date — coversDates are never remapped.
-    expect(target.coversDates).toEqual(["2030-01-11", "2030-01-12", "2030-01-13"]);
+    // The Friday the customer picked replaces the old Friday; Sat and Sun still ride along.
+    expect(target.coversDates).toEqual(["2030-01-12", "2030-01-13", "2030-01-18"]);
     expect(target.makeupForDeliveryId).toBe(fri.id);
+  });
+
+  it("moving Friday to a later Thursday records that Thursday, not the old Friday", async () => {
+    const { fri } = await makeTripOrder(DEP, PFX);
+    const thu = "2030-01-17";
+    const res = await rescheduleDelivery(fri.publicId, thu, 1n, "2030-01-11");
+    expect(res.merged).toBe(false);
+    expect(res.carriedOn).toBe("2030-01-16");
+
+    const [carrier] = await db.select().from(deliveries).where(eq(deliveries.deliveryDate, res.carriedOn));
+    expect(carrier.coversDates).toEqual(["2030-01-12", "2030-01-13", thu]);
   });
 
   it("moving the anchor day (Friday itself) on a 5-day plan splits only Friday's tiffin off, leaving Sat+Sun on Friday", async () => {

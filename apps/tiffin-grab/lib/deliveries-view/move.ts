@@ -61,7 +61,7 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
     else if (target && trip.pooled) disabledReason = `${humanDate(carriedOn)} already has a delivery. Pick an open day for a pooled tiffin.`;
     let merge: MoveOption["merge"] = null;
     if (target?.status === "scheduled" && carriedOn !== trip.date) {
-      const carried = split ? [sourceDate] : (trip.coversDates.length === 1 ? [date] : trip.coversDates);
+      const carried = split ? [sourceDate] : [...new Set(trip.coversDates.map((d) => (d === trip.date ? date : d)))].sort();
       const movingExtras = split ? splitExtras : (trip.extraDates ?? []);
       if (!disabledReason) {
         const incoming = new Map<string, number>();

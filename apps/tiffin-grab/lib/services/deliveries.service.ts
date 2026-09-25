@@ -667,12 +667,24 @@ function carriedExtras(extras: string[], eatingDateIso: string | null, own: stri
   return eatingDateIso && own.length === 1 ? extras.map(() => eatingDateIso) : extras;
 }
 
+/** The day the customer picked replaces the trip's own eating day. Other days on the bundle stay. */
+function retargetAnchor(dates: string[], from: string, to: string | null): string[] {
+  if (!to || to === from) return [...dates].sort();
+  return [...new Set(dates.map((d) => (d === from ? to : d)))].sort();
+}
+
 async function replaceExtras(tx: Tx, deliveryId: bigint, eatDates: string[]): Promise<void> {
   await tx.delete(deliveryExtraTiffins).where(eq(deliveryExtraTiffins.deliveryId, deliveryId));
   if (eatDates.length) await tx.insert(deliveryExtraTiffins).values(eatDates.map((eatDate) => ({ deliveryId, eatDate })));
 }
 
 /** Moves only the swaps that apply to `eatDate` (never the whole delivery's swaps) from one delivery to another. */
+/** A whole-trip move rewrites the anchor eating day; swaps that belonged to it follow. */
+async function remapAnchorSwaps(tx: Tx, deliveryId: bigint, from: string, to: string | null): Promise<void> {
+  if (!to || to === from) return;
+  await tx.update(deliveryCategorySwaps).set({ forDate: to }).where(and(eq(deliveryCategorySwaps.deliveryId, deliveryId), eq(deliveryCategorySwaps.forDate, from)));
+}
+
 async function moveDeliverySwapsForDate(tx: Tx, fromDeliveryId: bigint, toDeliveryId: bigint, tripDate: string, eatDate: string): Promise<void> {
   const rows = await tx.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, fromDeliveryId));
   const moving = rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatDate));
@@ -705,12 +717,14 @@ async function moveTrip(
   const own = coveredDates(source);
   const split = sourceEatDate != null && own.length > 1 && own.includes(sourceEatDate) && (sourceEatDate !== source.deliveryDate || canSplitLeadDay);
   const remaining = split ? own.filter((d) => d !== sourceEatDate) : [];
-  const carried = split ? [sourceEatDate!] : (eatingDateIso && own.length === 1 ? [eatingDateIso] : own);
+  // A one-day trip and a bundled Friday both land on the day the customer picked.
+  // Weekend riders stay; only the anchor date (the trip's own day) is rewritten.
+  const carried = split ? [sourceEatDate!] : retargetAnchor(own, source.deliveryDate, eatingDateIso);
   const [target] = await tx.select().from(deliveries)
     .where(and(eq(deliveries.orderId, source.orderId), eq(deliveries.deliveryDate, targetDate))).limit(1);
   // Legacy rows (no covers_dates) keep their stored units: a bundled Friday must not drop to one day.
   const srcExtraDates = (await loadExtraDates(tx, [source.id])).get(source.id) ?? [];
-  const movingExtras = split ? srcExtraDates.filter((d) => d === sourceEatDate) : carriedExtras(srcExtraDates, eatingDateIso, own);
+  const movingExtras = split ? srcExtraDates.filter((d) => d === sourceEatDate) : retargetAnchor(carriedExtras(srcExtraDates, eatingDateIso, own), source.deliveryDate, eatingDateIso);
   const stayingExtras = split ? srcExtraDates.filter((d) => d !== sourceEatDate) : [];
   const explicit = (d: Delivery, extraCount: number) => (d.coversDates ? (coveredDates(d).length + extraCount) * Math.max(1, persons) : d.tiffinUnits);
   // Swaps written for the trip's own date (NULL for_date) must follow the day they were for.
@@ -738,6 +752,7 @@ async function moveTrip(
     } else {
       await replaceExtras(tx, source.id, []);
       await copyDeliverySwaps(tx, source.id, inserted.id, source.coversDates ? source.deliveryDate : (eatingDateIso ?? undefined));
+      await remapAnchorSwaps(tx, inserted.id, source.deliveryDate, eatingDateIso);
     }
     return { id: inserted.id, merged: false, coversDates: covers };
   }
@@ -772,6 +787,7 @@ async function moveTrip(
   } else {
     await replaceExtras(tx, source.id, []);
     await copyDeliverySwaps(tx, source.id, target.id, nullFollows);
+    await remapAnchorSwaps(tx, target.id, source.deliveryDate, eatingDateIso);
     await tx.update(deliveries).set({ mergedIntoDeliveryId: target.id }).where(eq(deliveries.id, source.id));
   }
   return { id: target.id, merged: true, coversDates: covers };

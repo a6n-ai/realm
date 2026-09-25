@@ -25,6 +25,13 @@ export function buildEatingDays(trips: Trip[]): EatingRow[] {
       if (trip.status === "combined-into" && covered.has(e.date)) continue;
       rows.push({ orderId: trip.orderId, date: e.date, trip, dish: moved ? null : e.dishSummary, swaps: moved ? [] : e.swaps, own: e.date === trip.date });
     }
+    // The truck can land on a day that isn't one of the eating dates (Friday's tiffin
+    // arrives Thursday). That day must be a row, or tapping it says nothing is planned.
+    const live = trip.status !== "rescheduled" && trip.status !== "combined-into";
+    if (live && !trip.eatingDays.some((e) => e.date === trip.date) && !covered.has(trip.date)) {
+      const dishes = trip.eatingDays.map((e) => e.dishSummary).filter((d): d is string => !!d);
+      rows.push({ orderId: trip.orderId, date: trip.date, trip, dish: dishes.length ? dishes.join(", ") : null, swaps: [], own: true });
+    }
   }
   return rows.sort((a, b) => a.date.localeCompare(b.date));
 }

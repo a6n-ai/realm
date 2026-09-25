@@ -47,6 +47,24 @@ describe("prod shape: plan eating Mon/Tue/Fri/Sat/Sun", () => {
   });
 });
 
+describe("truck day that is not an eating day", () => {
+  it("Friday's tiffin arriving Thursday shows on Thursday too", () => {
+    const moved = trip({
+      date: "2026-10-29",
+      coversDates: ["2026-10-30"],
+      coversLabel: null,
+      units: 1,
+      eatingDays: [day("2026-10-30", "Chicken Curry")],
+    });
+    const rows = buildEatingDays([moved]);
+    expect(rows.map((r) => [r.date, deliveryLine(r)])).toEqual([
+      ["2026-10-29", "Arrives Thu, Oct 29"],
+      ["2026-10-30", "Arrives Thu, Oct 29 with Thu"],
+    ]);
+    expect(rows[0]!.dish).toBe("Chicken Curry");
+  });
+});
+
 describe("deliveryLine", () => {
   it("names the truck day and 'with' for carried days", () => {
     const [mon, tue] = buildEatingDays([trip({})]);
