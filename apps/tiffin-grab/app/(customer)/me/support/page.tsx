@@ -35,7 +35,7 @@ async function SupportHeader({ searchParams }: { searchParams: SearchParams }) {
   const dashboard = await getCustomerDashboard(session.user.id);
   const orderOptions = dashboard.orders.map((o) => ({
     value: o.publicId,
-    label: `${o.deploymentId} · ${o.planName}`,
+    label: [o.deploymentId, o.planName, o.mealSizeName].filter(Boolean).join(" · "),
   }));
   // A valid ?orderId= preselects the plan/order and defaults the category to "order".
   const preselected = orderId && orderOptions.some((o) => o.value === orderId) ? orderId : undefined;
