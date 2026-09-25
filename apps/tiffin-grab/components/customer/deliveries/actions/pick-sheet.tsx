@@ -7,7 +7,7 @@ import {
   loadMySwapOptions,
   removeMyDeliverySwap,
 } from "@/app/(customer)/me/deliveries/actions";
-import { pickMyDish } from "@/app/(customer)/me/meals/actions";
+import { saveMyMealSelections, type PickItem } from "@/app/(customer)/me/meals/actions";
 import { Button, Chip, Choice, ChoiceGroup, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
@@ -103,6 +103,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const [applied, setApplied] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [swapLoadKey, setSwapLoadKey] = useState(0);
+  const [saving, setSaving] = useState(false);
 
   const labelOf = useCallback((k: string) => plan.categoryLabels[k] ?? k, [plan.categoryLabels]);
   const source = plan.days.find((d) => d.date === trip.date);
@@ -149,7 +150,15 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         return;
       }
       setState({ grid: r.grid });
-      setPicked({});
+      setPicked((prev) => {
+        if (!r.grid) return {};
+        const validKeys = new Set(r.grid.cells.map(cellKey));
+        const next: Record<string, string> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          if (validKeys.has(k)) next[k] = v;
+        }
+        return next;
+      });
       reloadSwapOptions();
     } catch {
       setError("Couldn't refresh the menu. Try again.");
@@ -183,44 +192,6 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     menuByCategory: new Map(groups.map((g) => [g.key, g.dishes])),
   });
 
-  const persistDish = async (cell: GridCell, dishId: string) => {
-    const key = cellKey(cell);
-    const prev = picked[key];
-    setPicked((p) => ({ ...p, [key]: dishId }));
-    setBusy(key);
-    setError(null);
-    setViolatedRuleId(null);
-    setApplied(null);
-    try {
-      const r = await pickMyDish({
-        orderId: plan.orderId,
-        menuWeekId: grid!.weekByDate[cell.dateIso],
-        dayOfWeek: cell.day,
-        slot: cell.slot,
-        personIndex: cell.personIndex,
-        pickIndex: cell.pickIndex,
-        dishId,
-      });
-      if ("error" in r) {
-        // Highlights that rule in the list above; the message itself is the
-        // admin's own words, so it needs no extra explanation here.
-        setViolatedRuleId(r.violatedRuleId ?? null);
-        throw new Error(r.error);
-      }
-      setTouched(true);
-    } catch (e) {
-      setPicked((p) => {
-        const next = { ...p };
-        if (prev == null) delete next[key];
-        else next[key] = prev;
-        return next;
-      });
-      setError(sanitizeClientError(e, "Couldn't save that pick. Try again."));
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const persistSwap = async (fromCategory: string, toCategory: string, fromPicks: number) => {
     if (!trip.deliveryId || swapLocked) return;
     const key = `swap:${fromCategory}>${toCategory}:${fromPicks}`;
@@ -244,14 +215,19 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   };
 
   const onSlotChange = (cell: GridCell, cellIndexInCategory: number, value: string) => {
-    if (dayLocked || busy != null) return;
+    if (dayLocked || busy != null || saving) return;
     const parsed = parseSlotOptionValue(value);
     if (!parsed) return;
     if (parsed.kind === "dish") {
       // Fixed (non-selectable) categories only expose a keep-dish radio so swaps can sit beside it.
       if (!cell.selectable) return;
       if (effectiveDishId(cell, picked) === parsed.dishId) return;
-      void persistDish(cell, parsed.dishId);
+      const key = cellKey(cell);
+      setPicked((p) => ({ ...p, [key]: parsed.dishId }));
+      setTouched(true);
+      setError(null);
+      setViolatedRuleId(null);
+      setApplied(null);
       return;
     }
     // Swaps only from the leading row — ignore stale option values.
@@ -277,14 +253,67 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     }
   };
 
+  const handleDone = async () => {
+    if (saving || busy != null) return;
+    const changedPicks: PickItem[] = [];
+    if (grid) {
+      for (const c of grid.cells) {
+        if (!c.selectable) continue;
+        const key = cellKey(c);
+        const chosenDishId = picked[key];
+        if (chosenDishId && chosenDishId !== c.selectedDishId) {
+          changedPicks.push({
+            menuWeekId: grid.weekByDate[c.dateIso],
+            dayOfWeek: c.day,
+            slot: c.slot,
+            personIndex: c.personIndex,
+            pickIndex: c.pickIndex,
+            dishId: chosenDishId,
+          });
+        }
+      }
+    }
+
+    if (changedPicks.length > 0) {
+      setSaving(true);
+      setError(null);
+      setViolatedRuleId(null);
+      try {
+        const r = await saveMyMealSelections({
+          orderId: plan.orderId,
+          picks: changedPicks,
+        });
+        if ("error" in r) {
+          setViolatedRuleId(r.violatedRuleId ?? null);
+          throw new Error(r.error);
+        }
+        if (onChanged) onChanged("Meals saved");
+        onDone("Meals saved");
+      } catch (e) {
+        setError(sanitizeClientError(e, "Couldn't save that pick. Try again."));
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      onDone(touched ? "Meals saved" : undefined);
+    }
+  };
+
   const footer = (
-    <Button variant="primary" size="lg" className="w-full" onClick={() => onDone(touched ? "Meals saved" : undefined)}>
+    <Button
+      variant="primary"
+      size="lg"
+      className="w-full"
+      pending={saving}
+      disabled={saving || busy != null}
+      onClick={() => void handleDone()}
+    >
       Done
     </Button>
   );
 
   return (
-    <Sheet open={open} onClose={() => onDone(touched ? "Meals saved" : undefined)} title="Edit meal" footer={footer}>
+    <Sheet open={open} onClose={() => onDone()} title="Edit meal" footer={footer}>
       <div className="flex flex-col gap-4 pb-2">
         {reason ? (
           <Notice>{reason}</Notice>
@@ -446,7 +475,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                                 <Choice
                                   key={o.value}
                                   value={o.value}
-                                  disabled={cellLocked || busy != null}
+                                  disabled={cellLocked || busy != null || saving}
                                   className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold"
                                 >
                                   <span className="min-w-0 flex-1 text-left">

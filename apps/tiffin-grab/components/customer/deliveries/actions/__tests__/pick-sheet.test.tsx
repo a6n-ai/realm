@@ -9,6 +9,7 @@ import { PickSheet } from "../pick-sheet";
 
 const load = vi.fn();
 const pick = vi.fn();
+const savePicks = vi.fn();
 const applyWeek = vi.fn();
 const loadSwaps = vi.fn();
 const applySwap = vi.fn();
@@ -17,6 +18,7 @@ const removeSwap = vi.fn();
 vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: (...a: unknown[]) => load(...a) }));
 vi.mock("@/app/(customer)/me/meals/actions", () => ({
   pickMyDish: (...a: unknown[]) => pick(...a),
+  saveMyMealSelections: (...a: unknown[]) => savePicks(...a),
   applyMyDishToWeek: (...a: unknown[]) => applyWeek(...a),
 }));
 vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
@@ -98,6 +100,7 @@ const show = (t = trip()) => {
 beforeEach(() => {
   load.mockReset();
   pick.mockReset().mockResolvedValue({ ok: true });
+  savePicks.mockReset().mockResolvedValue({ ok: true, saved: 1 });
   applyWeek.mockReset().mockResolvedValue({ applied: 3, skipped: [] });
   loadSwaps.mockReset().mockResolvedValue({ options: [] });
   applySwap.mockReset().mockResolvedValue({ ok: true });
@@ -147,22 +150,26 @@ describe("PickSheet", () => {
     expect(screen.queryByRole("tab", { name: /Mon/ })).toBeNull();
   });
 
-  it("picks per person with the chosen person index", async () => {
+  it("picks per person with the chosen person index on Done", async () => {
     load.mockResolvedValue(grid([cell({}), cell({ personIndex: 2, selectedDishId: "d1" })], 2));
     show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("tab", { name: "Person 2" }));
     fireEvent.click(screen.getByRole("radio", { name: /^Dal$/ }));
+    expect(savePicks).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     await waitFor(() =>
-      expect(pick).toHaveBeenCalledWith(
-        expect.objectContaining({
-          orderId: "o1",
-          menuWeekId: "wk1",
-          personIndex: 2,
-          slot: "curry",
-          dishId: "d2",
-          dayOfWeek: "mon",
-        }),
-      ),
+      expect(savePicks).toHaveBeenCalledWith({
+        orderId: "o1",
+        picks: [
+          expect.objectContaining({
+            menuWeekId: "wk1",
+            personIndex: 2,
+            slot: "curry",
+            dishId: "d2",
+            dayOfWeek: "mon",
+          }),
+        ],
+      }),
     );
   });
 
@@ -278,11 +285,13 @@ describe("PickSheet", () => {
     expect(screen.getByText(/Locked/)).toBeInTheDocument();
   });
 
-  it("rolls back and shows the server error when a pick is rejected (Meal Rules / validation)", async () => {
-    pick.mockResolvedValue({ error: "You can select only 1 sabzi exclusive to this plan in this meal." });
+  it("shows the server error when a pick is rejected on Done (Meal Rules / validation)", async () => {
+    savePicks.mockResolvedValue({ error: "You can select only 1 sabzi exclusive to this plan in this meal." });
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
+    expect(savePicks).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(await screen.findByText(/only 1 sabzi exclusive/i)).toBeInTheDocument();
   });
 
@@ -299,9 +308,9 @@ describe("PickSheet", () => {
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
-    await waitFor(() => expect(pick).toHaveBeenCalled());
-    await waitFor(() => screen.getByRole("button", { name: "Done" }));
+    expect(savePicks).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(savePicks).toHaveBeenCalled());
     expect(onDone).toHaveBeenCalledWith("Meals saved");
   });
 
@@ -366,11 +375,11 @@ describe("PickSheet", () => {
     expect(screen.getByText("Roti (Veg) · 6 roti")).toBeInTheDocument();
   });
 
-  it("sanitizes Minified React error #441 if thrown when clicking to pick a dish", async () => {
+  it("sanitizes Minified React error #441 if thrown when saving picks on Done", async () => {
     load.mockResolvedValue(
       grid([cell({ day: "mon", dateIso: mon, slot: "curry", dishes, selectedDishId: "d1" })]),
     );
-    pick.mockResolvedValueOnce({
+    savePicks.mockResolvedValueOnce({
       error: "Minified React error #441; visit https://reactjs.org/docs/error-decoder.html?invariant=441",
     });
 
@@ -378,6 +387,9 @@ describe("PickSheet", () => {
 
     const dalRadio = await screen.findByRole("radio", { name: /^Dal$/ });
     fireEvent.click(dalRadio);
+    expect(savePicks).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
 
     await waitFor(() => {
       // Must NOT render Minified React error #441
@@ -385,6 +397,21 @@ describe("PickSheet", () => {
       expect(screen.queryByText(/invariant=441/)).not.toBeInTheDocument();
       expect(screen.getByText("Couldn't save that pick. Try again.")).toBeInTheDocument();
     });
+  });
+
+  it("does not save picks and discards draft choices when closed via close button", async () => {
+    load.mockResolvedValue(grid([cell({})]));
+    const onDone = show(trip({ coversDates: [mon] }));
+    const dalRadio = await screen.findByRole("radio", { name: /^Dal$/ });
+    fireEvent.click(dalRadio);
+    expect(dalRadio).toBeChecked();
+    expect(savePicks).not.toHaveBeenCalled();
+
+    const closeBtn = screen.getByRole("button", { name: "Close" });
+    fireEvent.click(closeBtn);
+
+    expect(savePicks).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledWith();
   });
 
   it("sanitizes Minified React error #441 if thrown when clicking to apply a swap", async () => {
