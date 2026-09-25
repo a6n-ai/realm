@@ -365,4 +365,62 @@ describe("PickSheet", () => {
     expect(screen.getByRole("heading", { name: "Your meal" })).toBeInTheDocument();
     expect(screen.getByText("Roti (Veg) · 6 roti")).toBeInTheDocument();
   });
+
+  it("sanitizes Minified React error #441 if thrown when clicking to pick a dish", async () => {
+    load.mockResolvedValue(
+      grid([cell({ day: "mon", dateIso: mon, slot: "curry", dishes, selectedDishId: "d1" })]),
+    );
+    pick.mockResolvedValueOnce({
+      error: "Minified React error #441; visit https://reactjs.org/docs/error-decoder.html?invariant=441",
+    });
+
+    render(<PickSheet trip={trip({ coversDates: [mon] })} plan={plan} open onDone={vi.fn()} />);
+
+    const dalRadio = await screen.findByRole("radio", { name: /^Dal$/ });
+    fireEvent.click(dalRadio);
+
+    await waitFor(() => {
+      // Must NOT render Minified React error #441
+      expect(screen.queryByText(/Minified React error/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/invariant=441/)).not.toBeInTheDocument();
+      expect(screen.getByText("Couldn't save that pick. Try again.")).toBeInTheDocument();
+    });
+  });
+
+  it("sanitizes Minified React error #441 if thrown when clicking to apply a swap", async () => {
+    load.mockResolvedValue(
+      grid([cell({ day: "mon", dateIso: mon, slot: "curry", dishes, selectedDishId: "d1" })]),
+    );
+    loadSwaps.mockResolvedValue({
+      options: [
+        {
+          fromCategory: "curry",
+          toCategory: "daal",
+          available: true,
+          reason: null,
+          validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "8oz", getNatural: "8oz" }],
+          fromPicks: 1,
+          toPicks: 1,
+          maxFromPicks: 1,
+          bundleIncrement: 1,
+          giveNatural: "8oz",
+          getNatural: "8oz",
+        },
+      ],
+    });
+    applySwap.mockResolvedValueOnce({
+      error: "Minified React error #441; visit https://reactjs.org/docs/error-decoder.html?invariant=441",
+    });
+
+    show(trip({ coversDates: [mon] }));
+
+    const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
+    fireEvent.click(swapRadio);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Minified React error/)).not.toBeInTheDocument();
+      expect(screen.getByText("Couldn't apply that swap. Try again.")).toBeInTheDocument();
+    });
+  });
 });
+
