@@ -1,6 +1,7 @@
 import { baseColumns, updatableColumns } from "@foundry/database";
 import { bigint, boolean, date, doublePrecision, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
+import { deliveryTypes, addressTags } from "./delivery-charges";
 import { users } from "./auth";
 import { organization } from "./organizations";
 
@@ -60,6 +61,9 @@ export const orders = pgTable("orders", {
   // single instructions field rather than a separate buzzer-code field.
   addressUnit: text("address_unit"),
   deliveryInstructions: text("delivery_instructions"),
+  deliveryCharge: numeric("delivery_charge", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  deliveryTypeId: bigint("delivery_type_id", { mode: "bigint" }).references(() => deliveryTypes.id),
+  addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
   city: text("city").notNull(),
   postalCode: text("postal_code").notNull(),
   // Geocoded coordinates for the map display, resolved via @foundry/places'
@@ -87,6 +91,8 @@ export const orders = pgTable("orders", {
   index("orders_zone_idx").on(t.zoneId),
   index("orders_meal_size_idx").on(t.mealSizeId),
   index("orders_frequency_idx").on(t.frequencyId),
+  index("orders_delivery_type_idx").on(t.deliveryTypeId),
+  index("orders_address_tag_idx").on(t.addressTagId),
 ]);
 
 // A customer-submitted proof image for a manual payment claim (same shape as ticket

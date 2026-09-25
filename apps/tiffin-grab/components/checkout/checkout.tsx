@@ -56,6 +56,13 @@ const emptyContact: Contact = {
   deliveryInstructions: "",
 };
 
+function formatChargeHint(item: { chargeType: "none" | "fixed" | "percent"; chargeValue: number }) {
+  if (item.chargeType === "none" || item.chargeValue === 0) return "Free";
+  if (item.chargeType === "fixed") return `+$${item.chargeValue.toFixed(2)}`;
+  if (item.chargeType === "percent") return `+${item.chargeValue}%`;
+  return "";
+}
+
 export function Checkout({
   defaultCountry,
   closeHref = "/me",
@@ -217,6 +224,20 @@ export function Checkout({
     await refreshPrice(selections, appliedCode ?? undefined, id, appliedCoins || undefined);
   };
 
+  const handleAddressTagSelect = (tagId: string) => {
+    if (!selections) return;
+    const next = { ...selections, addressTagId: tagId === selections.addressTagId ? null : tagId };
+    setSelections(next);
+    void refreshPrice(next, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined);
+  };
+
+  const handleDeliveryTypeSelect = (typeId: string) => {
+    if (!selections) return;
+    const next = { ...selections, deliveryTypeId: typeId === selections.deliveryTypeId ? null : typeId };
+    setSelections(next);
+    void refreshPrice(next, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined);
+  };
+
   const confirm = async () => {
     if (!selections) return;
     if (paymentMethods.length > 0 && !paymentMethodId) {
@@ -358,6 +379,75 @@ export function Checkout({
                     </div>
                   }
                 />
+                {catalog?.deliveryCharges && (catalog.deliveryCharges.addressTags.length > 0 || catalog.deliveryCharges.deliveryTypes.length > 0) && (
+                  <div className="space-y-4 pt-1" data-testid="delivery-charge-options">
+                    {catalog.deliveryCharges.addressTags.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Address type
+                        </Label>
+                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Address type">
+                          {catalog.deliveryCharges.addressTags.map((tag) => {
+                            const isSelected = selections?.addressTagId === tag.id;
+                            const hint = formatChargeHint(tag);
+                            return (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={isSelected}
+                                onClick={() => handleAddressTagSelect(tag.id)}
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:bg-muted"
+                                }`}
+                              >
+                                <span>{tag.name}</span>
+                                <span className={`text-[11px] ${isSelected ? "opacity-90" : "text-muted-foreground"}`}>
+                                  {hint}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {catalog.deliveryCharges.deliveryTypes.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Delivery location
+                        </Label>
+                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Delivery location">
+                          {catalog.deliveryCharges.deliveryTypes.map((type) => {
+                            const isSelected = selections?.deliveryTypeId === type.id;
+                            const hint = formatChargeHint(type);
+                            return (
+                              <button
+                                key={type.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={isSelected}
+                                onClick={() => handleDeliveryTypeSelect(type.id)}
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:bg-muted"
+                                }`}
+                              >
+                                <span>{type.name}</span>
+                                <span className={`text-[11px] ${isSelected ? "opacity-90" : "text-muted-foreground"}`}>
+                                  {hint}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="grid gap-2 empty:hidden">
                   {zone?.served && (
                     <StatusBanner tone="success" icon={<MapPin className="mt-0.5 size-4 shrink-0" />}>

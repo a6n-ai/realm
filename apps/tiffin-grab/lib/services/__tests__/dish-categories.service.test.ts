@@ -49,11 +49,34 @@ describe("dishCategoriesService.enabledCategories", () => {
   });
 });
 
+async function ensureHealthyPlan() {
+  const [existing] = await db.select({ id: plans.id }).from(plans).where(eq(plans.key, "healthy")).limit(1);
+  if (!existing) {
+    await db.insert(plans).values({
+      publicId: "pln_test_healthy",
+      key: "healthy",
+      name: "Healthy Plan",
+      planType: "healthy",
+      allowedStartDays: ["mon", "tue", "wed", "thu", "fri"],
+    }).onConflictDoNothing();
+  }
+}
+
+async function cleanupHealthyPlan() {
+  await db.delete(plans).where(eq(plans.key, "healthy"));
+}
+
 // `key` is globally unique now: a slot used by several plans is ONE row attached
 // to each, rather than a duplicate row per plan type. These cover membership.
 describe("dishCategoriesService plan membership", () => {
-  beforeEach(reset);
-  afterAll(reset);
+  beforeEach(async () => {
+    await ensureHealthyPlan();
+    await reset();
+  });
+  afterAll(async () => {
+    await reset();
+    await cleanupHealthyPlan();
+  });
 
   async function seedSlots() {
     const rows = await db

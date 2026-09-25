@@ -323,6 +323,20 @@
       "when": 1790500004003,
       "tag": "0045_payments_status_index",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1790500004004,
+      "tag": "0046_configurable_delivery_charges",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790500004005,
+      "tag": "0047_delivery_charges_app_id",
+      "breakpoints": true
     }
   ]
 }

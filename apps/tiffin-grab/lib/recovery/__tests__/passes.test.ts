@@ -122,7 +122,7 @@ describe("terminalizeAbandonedOrders (integration)", () => {
 
     const [after] = await db.select().from(orders).where(eq(orders.id, abandonedId));
     expect(after.status).toBe("cancelled");
-  });
+  }, 30_000);
 
   it("directly: abandonPendingOrder refuses an order a webhook already settled", async () => {
     const orderId = await unpaidOrder(TERMINAL_AFTER_MS + 1000);

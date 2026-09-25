@@ -15,7 +15,7 @@ async function reset() { await db.delete(dishes).where(eq(dishes.name, DISH_NAME
 describe("dishesService soft-delete", () => {
   beforeEach(async () => {
     await reset();
-    const [d] = await db.insert(dishes).values({ planId: await testPlanId(), name: DISH_NAME}).returning();
+    const [d] = await db.insert(dishes).values({ planId: await testPlanId(), name: DISH_NAME, category: "sabzi" }).returning();
     await attachDishToPlans(d.id);
     publicId = d.publicId;
     bigintId = d.id;

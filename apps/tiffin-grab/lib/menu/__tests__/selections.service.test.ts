@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq, inArray, ne } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders, users } from "@/db/schema";
@@ -16,6 +16,8 @@ const FUTURE_MONDAY = (() => {
   return d.toISOString().slice(0, 10);
 })();
 
+const TEST_DISH_NAMES = ["Paneer", "Bhindi", "Chicken"];
+
 let order: typeof orders.$inferSelect;
 let week: typeof menuWeeks.$inferSelect;
 let vegDishPublicId: string;
@@ -25,7 +27,7 @@ let vegDishBigintId: bigint;
 
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
-  await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
+  await db.delete(orders); await db.delete(dishes).where(inArray(dishes.name, TEST_DISH_NAMES)); await db.delete(users).where(ne(users.isSystem, true));
 }
 
 // A scheduled row for FUTURE_MONDAY, far from its cutoff — day-membership and cutoff both now
@@ -46,7 +48,7 @@ describe("selectionsService.setSelection", () => {
     // A meal size scoped to the veg plan specifically — snap.mealSizes[0] isn't
     // guaranteed to be one, and allowedDishIdsForMealSize now derives eligible
     // dishes from THIS meal size's own composition rows, not order.planId alone.
-    const vegMealSize = snap.mealSizes.find((m) => m.planId === vegPlanId)!;
+    const vegMealSize = snap.mealSizes.find((m) => m.planId === vegPlanId && m.key === "item5_regular_veg") ?? snap.mealSizes.find((m) => m.planId === vegPlanId)!;
     const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475557000", role: "user" }).returning();
     const [o] = await db.insert(orders).values({
       userId: u.id, planId: vegPlanId, mealSizeId: vegMealSize.id,
@@ -60,11 +62,11 @@ describe("selectionsService.setSelection", () => {
     await seedDelivery(o.id);
     const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
     week = w;
-    const [vd] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
+    const [vd] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer", category: "sabzi" }).returning();
     await attachDishToPlans(vd.id);
-    const [vd2] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Bhindi"}).returning();
+    const [vd2] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Bhindi", category: "sabzi" }).returning();
     await attachDishToPlans(vd2.id);
-    const [nd] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Chicken"}).returning();
+    const [nd] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Chicken", category: "sabzi" }).returning();
     await attachDishToPlans(nd.id);
     vegDishPublicId = vd.publicId;
     vegDishPublicId2 = vd2.publicId;

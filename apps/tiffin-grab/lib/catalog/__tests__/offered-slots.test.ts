@@ -35,10 +35,10 @@ describe("catalog offeredSlots derives from dish categories", () => {
   });
   afterAll(reset);
 
-  it("healthy plans expose the configured healthy categories", async () => {
+  it("tiffin plans expose the configured categories", async () => {
     const snap = await loadCatalogSnapshot();
-    const healthy = snap.plans.find((p) => p.planType === "healthy");
-    expect(healthy).toBeDefined();
-    expect(healthy!.offeredSlots).toEqual(["lunch", "dinner"]);
+    const tiffin = snap.plans.find((p) => p.planType === "tiffin");
+    expect(tiffin).toBeDefined();
+    expect(tiffin!.offeredSlots).toEqual(["lunch", "dinner"]);
   });
 });

@@ -25,6 +25,8 @@ const {
 const FROM = "2000-01-01";
 const UNTIL = "2100-12-31";
 
+const TEST_DISH_NAMES = ["Paneer Sabzi", "Aloo Sabzi", "Jeera Rice", "Bhindi Sabzi"];
+
 async function reset() {
   await db.delete(mealSelections);
   await db.delete(menuItems);
@@ -34,7 +36,7 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orders);
   await db.delete(menuWeeks);
-  await db.delete(dishes);
+  await db.delete(dishes).where(inArray(dishes.name, TEST_DISH_NAMES));
   await db.delete(users).where(ne(users.isSystem, true));
 }
 
@@ -273,7 +275,7 @@ describe("myCalendar (integration)", () => {
   async function seedOrder(phone: string) {
     const snap = await loadCatalogSnapshot();
     const plan = snap.plans.find((p) => p.key === "veg")!;
-    const mealSize = snap.mealSizes.find((m) => m.planId === plan.id)!;
+    const mealSize = snap.mealSizes.find((m) => m.key === "item5_regular_veg") ?? snap.mealSizes.find((m) => m.planId === plan.id)!;
     const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone, role: "user" }).returning();
     const [order] = await db.insert(orders).values({
       userId: u.id, planId: plan.id, mealSizeId: mealSize.id,
@@ -289,11 +291,11 @@ describe("myCalendar (integration)", () => {
     const [week] = await db.insert(menuWeeks).values({
       weekStart: THIS_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
     }).returning();
-    const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer Sabzi"}).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer Sabzi", category: "sabzi" }).returning();
     await attachDishToPlans(sabziDefault.id);
-    const [sabziAlt] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Aloo Sabzi"}).returning();
+    const [sabziAlt] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Aloo Sabzi", category: "sabzi" }).returning();
     await attachDishToPlans(sabziAlt.id);
-    const [riceDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Jeera Rice"}).returning();
+    const [riceDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Jeera Rice", category: "rice" }).returning();
     await attachDishToPlans(riceDefault.id);
     await db.insert(menuItems).values([
       { menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true },
@@ -358,7 +360,7 @@ describe("myCalendar (integration)", () => {
       const [week] = await db.insert(menuWeeks).values({
         weekStart: NEXT_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
       }).returning();
-      const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Bhindi Sabzi"}).returning();
+      const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Bhindi Sabzi", category: "sabzi" }).returning();
     await attachDishToPlans(sabziDefault.id);
       await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true });
       return { week, sabziDefault };

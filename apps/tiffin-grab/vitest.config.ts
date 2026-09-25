@@ -7,7 +7,7 @@ export default defineConfig({
     // pnpm installs two physical `next` copies (differing peer sets), so the app
     // and @foundry/* packages import different `next/navigation` modules — a
     // `vi.mock("next/navigation")` would only patch one. Dedupe to a single copy.
-    dedupe: ["next"],
+    dedupe: ["next", "@foundry/commons"],
   },
   test: {
     environment: "node",

@@ -29,6 +29,8 @@ export const ROUTE_LABELS: Record<string, string> = {
   "delivery-notes": "Delivery notes",
   notifications: "Notifications",
   security: "Security",
+  delivery: "Delivery",
+  charges: "Charges",
 };
 
 export function labelForSegment(segment: string): string {

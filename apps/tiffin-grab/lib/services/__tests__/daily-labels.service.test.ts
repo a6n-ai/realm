@@ -135,9 +135,9 @@ describe("dailyLabelSheet (integration)", () => {
       .returning();
     week = w;
 
-    const [paneer] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Paneer` }).returning();
+    const [paneer] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Paneer`, category: "sabzi" }).returning();
     await attachDishToPlans(paneer.id);
-    const [bhindi] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Bhindi` }).returning();
+    const [bhindi] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Bhindi`, category: "sabzi" }).returning();
     await attachDishToPlans(bhindi.id);
     paneerId = paneer.id;
     bhindiPublicId = bhindi.publicId;
@@ -212,7 +212,7 @@ describe("dailyLabelSheet (integration)", () => {
 
   it("after a sabzi→daal swap, kitchen labels keep the remaining 8oz row (not 12oz or 24oz)", async () => {
     const { deliveryCategorySwaps } = await import("@/db/schema");
-    const [dal] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Dal` }).returning();
+    const [dal] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Dal`, category: "daal" }).returning();
     await attachDishToPlans(dal.id);
     const daal = await categoryIdFor("daal");
     await db.insert(menuItems).values({

@@ -2,7 +2,20 @@ import { and, eq, isNull, lte, gte, or, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
-import { deliveryFrequencies, deliveryZones, discounts, dishCategories, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
+import {
+  addressTags,
+  deliveryChargeConfigs,
+  deliveryFrequencies,
+  deliveryTypes,
+  deliveryZones,
+  discounts,
+  dishCategories,
+  durationPackages,
+  mealSizeItems,
+  mealSizes,
+  plans,
+  pricingTiers,
+} from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -32,7 +45,24 @@ export function scopedTo(column: AnyPgColumn, orgId: string | null | undefined):
 
 async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnapshot> {
   const nowMs = Date.now();
-  const [planRows, mealRows, itemRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots, categoryRows, addonsByCategory, settings, discountRows] = await Promise.all([
+  const [
+    planRows,
+    mealRows,
+    itemRows,
+    freqRows,
+    durRows,
+    zoneRows,
+    tierRows,
+    tiffinSlots,
+    healthySlots,
+    categoryRows,
+    addonsByCategory,
+    settings,
+    discountRows,
+    configRows,
+    typeRows,
+    tagRows,
+  ] = await Promise.all([
     db.select().from(plans).where(and(eq(plans.active, true), scopedTo(plans.organizationId, orgId))),
     db.select().from(mealSizes).where(and(eq(mealSizes.active, true), scopedTo(mealSizes.organizationId, orgId))),
     db.select().from(mealSizeItems).orderBy(mealSizeItems.sortOrder),
@@ -46,6 +76,9 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     dishCategoriesService.addonsByDishCategory(),
     getAppSettings(),
     db.select().from(discounts).where(and(eq(discounts.active, true), scopedTo(discounts.organizationId, orgId), or(isNull(discounts.startsAt), lte(discounts.startsAt, nowMs)), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)))),
+    db.select().from(deliveryChargeConfigs).where(scopedTo(deliveryChargeConfigs.organizationId, orgId)).limit(1),
+    db.select().from(deliveryTypes).where(and(eq(deliveryTypes.active, true), scopedTo(deliveryTypes.organizationId, orgId))).orderBy(deliveryTypes.sortOrder, deliveryTypes.name),
+    db.select().from(addressTags).where(and(eq(addressTags.active, true), scopedTo(addressTags.organizationId, orgId))).orderBy(addressTags.sortOrder, addressTags.name),
   ]);
   const publicIdByTarget = new Map<string, string>([
     ...freqRows.map((f) => [`delivery:${f.id}`, f.publicId] as [string, string]),
@@ -96,6 +129,29 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
       return targetPublicId === undefined ? [] : [{ key: d.key, name: d.name, kind: d.kind, targetPublicId, percent: Number(d.percent), minWeeks: d.minWeeks }];
     }),
     maxDiscountPct: settings.maxDiscountPct,
+    deliveryCharges: {
+      baseCharge: configRows[0] ? Number(configRows[0].baseCharge) : 0,
+      deliveryTypes: typeRows.map((t) => ({
+        id: t.id,
+        publicId: t.publicId,
+        name: t.name,
+        description: t.description,
+        chargeType: t.chargeType,
+        chargeValue: Number(t.chargeValue),
+        active: t.active,
+        sortOrder: t.sortOrder,
+      })),
+      addressTags: tagRows.map((a) => ({
+        id: a.id,
+        publicId: a.publicId,
+        name: a.name,
+        description: a.description,
+        chargeType: a.chargeType,
+        chargeValue: Number(a.chargeValue),
+        active: a.active,
+        sortOrder: a.sortOrder,
+      })),
+    },
   };
 }
 

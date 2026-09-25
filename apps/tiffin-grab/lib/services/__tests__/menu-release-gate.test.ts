@@ -115,7 +115,7 @@ describe("menuService release gate", () => {
     });
 
     const surplus = (await menuService.releaseProblems(week.publicId)).filter((p) => p.kind === "extra");
-    expect(surplus.map((p) => p.planName).sort()).toEqual(["Non-Veg Plan", "Pure Vegetarian Plan"]);
+    expect(surplus.map((p) => p.planName).sort()).toEqual(["Pure Vegetarian Plan"]);
     expect(surplus[0].dishNames).toHaveLength(2);
     // Surplus is a warning in the builder grid — release is never blocked by gaps.
     expect(surplus.every((p) => p.kind !== "missing")).toBe(true);

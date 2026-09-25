@@ -73,8 +73,8 @@ async function seedMenu(deliveryDateIso: string) {
   const weekStart = monday.toISOString().slice(0, 10);
 
   const [week] = await db.insert(menuWeeks).values({ weekStart, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
-  const [dish1] = await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_BATCH_DISH_1" }).returning();
-  const [dish2] = await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_BATCH_DISH_2" }).returning();
+  const [dish1] = await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_BATCH_DISH_1", category: "sabzi" }).returning();
+  const [dish2] = await db.insert(dishes).values({ planId: await testPlanId(), name: "TEST_BATCH_DISH_2", category: "sabzi" }).returning();
   await attachDishToPlans(dish1.id);
   await attachDishToPlans(dish2.id);
 

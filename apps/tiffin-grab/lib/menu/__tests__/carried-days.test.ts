@@ -19,7 +19,7 @@ describe("carried eating days", () => {
     await resetTrips(DEPLOY, "carried");
     await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
     [week] = await db.insert(menuWeeks).values({ weekStart: "2030-01-07", status: "released", orderCutoff: 4070000000000 }).returning();
-    const [d] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Carried Dal", active: true }).returning();
+    const [d] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Carried Dal", category: "sabzi", active: true }).returning();
     await attachDishToPlans(d.id);
     dishPublicId = d.publicId;
     for (const day of ["mon", "tue"] as const) {
@@ -30,6 +30,7 @@ describe("carried eating days", () => {
   afterAll(async () => {
     await resetTrips(DEPLOY, "carried");
     await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
+    await db.delete(dishes).where(eq(dishes.name, "Carried Dal"));
   });
 
   it("setSelection accepts Tuesday, carried by Monday's trip", async () => {

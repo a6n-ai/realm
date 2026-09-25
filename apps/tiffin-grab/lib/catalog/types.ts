@@ -58,6 +58,29 @@ export interface CatalogSnapshot {
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
   maxDiscountPct?: number;
+  deliveryCharges?: {
+    baseCharge: number;
+    deliveryTypes: {
+      id: bigint;
+      publicId: string;
+      name: string;
+      description: string | null;
+      chargeType: "none" | "fixed" | "percent";
+      chargeValue: number;
+      active: boolean;
+      sortOrder: number;
+    }[];
+    addressTags: {
+      id: bigint;
+      publicId: string;
+      name: string;
+      description: string | null;
+      chargeType: "none" | "fixed" | "percent";
+      chargeValue: number;
+      active: boolean;
+      sortOrder: number;
+    }[];
+  };
 }
 
 // Client-facing snapshot: no internal bigint id crosses the wire. Client
@@ -79,6 +102,23 @@ export interface ClientCatalogSnapshot {
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
   maxDiscountPct?: number;
+  deliveryCharges?: {
+    baseCharge: number;
+    deliveryTypes: {
+      id: string; // publicId
+      name: string;
+      description: string | null;
+      chargeType: "none" | "fixed" | "percent";
+      chargeValue: number;
+    }[];
+    addressTags: {
+      id: string; // publicId
+      name: string;
+      description: string | null;
+      chargeType: "none" | "fixed" | "percent";
+      chargeValue: number;
+    }[];
+  };
 }
 
 export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapshot {
@@ -103,5 +143,28 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     maxTiffinsPerWeek: snapshot.maxTiffinsPerWeek,
     discounts: snapshot.discounts,
     maxDiscountPct: snapshot.maxDiscountPct,
+    deliveryCharges: snapshot.deliveryCharges
+      ? {
+          baseCharge: snapshot.deliveryCharges.baseCharge,
+          deliveryTypes: snapshot.deliveryCharges.deliveryTypes
+            .filter((d) => d.active)
+            .map((d) => ({
+              id: d.publicId,
+              name: d.name,
+              description: d.description,
+              chargeType: d.chargeType,
+              chargeValue: d.chargeValue,
+            })),
+          addressTags: snapshot.deliveryCharges.addressTags
+            .filter((a) => a.active)
+            .map((a) => ({
+              id: a.publicId,
+              name: a.name,
+              description: a.description,
+              chargeType: a.chargeType,
+              chargeValue: a.chargeValue,
+            })),
+        }
+      : undefined,
   };
 }

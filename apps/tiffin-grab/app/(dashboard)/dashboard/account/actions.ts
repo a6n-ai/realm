@@ -18,11 +18,14 @@ export async function updateMyAddress(input: {
   city?: string;
   postalCode?: string;
   province?: string;
+  deliveryTypeId?: string | null;
+  addressTagId?: string | null;
 }) {
   const session = await getSession();
   if (!session?.user?.id) throw new AuthError();
   await usersService.updateAddress(session.user.id, input);
   revalidatePath("/dashboard/account");
+  revalidatePath("/me/account");
 }
 
 export async function updateMyPreferences(input: {

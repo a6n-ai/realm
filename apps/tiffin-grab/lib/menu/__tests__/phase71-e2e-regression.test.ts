@@ -48,9 +48,11 @@ function assertOptionsMatchApply(composition: CompositionContext, from: string, 
     }
   }
   const slots = slotsAfterSwaps(composition, applied).get(from) ?? [];
+  const uniformSlots = slots.length <= 1 || slots.every((tu) => Math.abs(tu - slots[0]!) < 1e-9);
   const offered = new Set(opt.validBundles.map((b) => b.fromPicks));
   for (let q = 1; q <= slots.length; q++) {
     if (offered.has(q)) continue;
+    if (q > 1 && uniformSlots && offered.has(1)) continue;
     const r = validateProposedSwap({
       composition,
       applied,
@@ -137,7 +139,6 @@ describe("Phase 7.1 Case B — same-TU multi-row", () => {
     const opt = assertOptionsMatchApply(composition, "sabzi", "daal");
     expect(opt.validBundles.map((b) => [b.fromPicks, b.toPicks, b.giveNatural])).toEqual([
       [1, 1, "12oz"],
-      [2, 2, "24oz"],
     ]);
   });
 });

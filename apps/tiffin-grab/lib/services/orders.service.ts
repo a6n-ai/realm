@@ -477,7 +477,7 @@ export async function createOrder(
 
     // Snapshot is the immutable receipt. For deferred settlement, pending
     // redemptions ride along until staff verify — then redeem + clear.
-    const snapshot: OrderPricingSnapshot = {
+    const pricingSnapshot: OrderPricingSnapshot = {
       ...pricing,
       paymentMethodId,
       taxProvince,
@@ -502,6 +502,13 @@ export async function createOrder(
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
 
+    const selectedDeliveryType = input.selections.deliveryTypeId
+      ? snapshot.deliveryCharges?.deliveryTypes.find((t) => t.publicId === input.selections.deliveryTypeId)
+      : null;
+    const selectedAddressTag = input.selections.addressTagId
+      ? snapshot.deliveryCharges?.addressTags.find((a) => a.publicId === input.selections.addressTagId)
+      : null;
+
     const [order] = await tx
       .insert(orders)
       .values({
@@ -520,8 +527,11 @@ export async function createOrder(
         startDate: input.selections.startDate,
         tiffinCount: pricing.tiffinCount,
         perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
-        pricingSnapshot: snapshot,
+        pricingSnapshot,
         total: pricing.total.toFixed(2),
+        deliveryCharge: (pricing.deliveryCharge?.totalDeliveryCharge ?? 0).toFixed(2),
+        deliveryTypeId: selectedDeliveryType?.id ?? null,
+        addressTagId: selectedAddressTag?.id ?? null,
         status,
         deploymentId,
         zoneId: zoneRow?.id ?? null,

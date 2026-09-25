@@ -1,5 +1,6 @@
-import { beforeEach } from "vitest";
+import { afterAll, beforeEach } from "vitest";
 import { getRedis } from "./lib/redis";
+import { ensureSeededCatalog } from "./db/test-helpers";
 
 // input-otp (and other measure-on-mount UI) needs ResizeObserver, which jsdom
 // lacks. Stub it globally; harmless in the node-env test files.
@@ -26,3 +27,9 @@ if (typeof document !== "undefined") {
 beforeEach(async () => {
   await getRedis().flushdb();
 });
+
+// Restore the seeded catalog if a suite blanket-deleted dishes in its cleanup.
+afterAll(async () => {
+  await ensureSeededCatalog();
+});
+

@@ -14,6 +14,26 @@ async function TiffinsPerWeekData() {
   return <TiffinsPerWeekForm min={s.minTiffinsPerWeek} max={s.maxTiffinsPerWeek} />;
 }
 
+async function DeliveryChargesData() {
+  await requireAdmin();
+  const { deliveryChargesService } = await import("@/lib/services/delivery-charges.service");
+  const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
+  const { DeliveryChargesManager } = await import("@/components/dashboard/delivery-charges/delivery-charges-manager");
+  const orgId = await resolveRequestOrg();
+  const [baseCharge, deliveryTypes, addressTags] = await Promise.all([
+    deliveryChargesService.getBaseDeliveryCharge(orgId),
+    deliveryChargesService.listDeliveryTypes({ includeInactive: true, orgId }),
+    deliveryChargesService.listAddressTags({ includeInactive: true, orgId }),
+  ]);
+  return (
+    <DeliveryChargesManager
+      initialBaseCharge={baseCharge}
+      initialDeliveryTypes={deliveryTypes}
+      initialAddressTags={addressTags}
+    />
+  );
+}
+
 // Combines "delivery-frequencies", "duration-packages" and "delivery-zones"
 // into one tabbed "Delivery settings" card — same pattern as dishes/page.tsx
 // and addons/page.tsx; each stays a distinct RESOURCES entry, only the page
@@ -59,6 +79,15 @@ export default function DeliverySettingsPage({ searchParams }: { searchParams: S
               content: (
                 <Suspense fallback={<TiffinsPerWeekSkeleton />}>
                   <TiffinsPerWeekData />
+                </Suspense>
+              ),
+            },
+            {
+              value: "delivery-charges",
+              label: "Delivery charges",
+              content: (
+                <Suspense fallback={<div className="h-48 animate-pulse rounded-lg bg-muted" />}>
+                  <DeliveryChargesData />
                 </Suspense>
               ),
             },

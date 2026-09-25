@@ -1,6 +1,6 @@
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, orderActivities, orders, users } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, orderActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { materializeDeliveries } from "../deliveries.service";
 
@@ -17,6 +17,7 @@ export async function resetTrips(deploymentId: string, userPrefix: string) {
     // makeup / merge links are self-references: clear before deleting
     await db.update(deliveries).set({ makeupForDeliveryId: null, mergedIntoDeliveryId: null }).where(inArray(deliveries.orderId, ids));
     await db.delete(deliveries).where(inArray(deliveries.orderId, ids));
+    await db.delete(payments).where(inArray(payments.orderId, ids));
     await db.delete(orders).where(inArray(orders.id, ids));
   }
   await db.delete(users).where(like(users.email, `${userPrefix}%@test.invalid`));
@@ -29,7 +30,7 @@ export async function makeTripOrder(deploymentId: string, userPrefix: string, pe
   // A meal size scoped to the veg plan specifically — snap.mealSizes[0] isn't
   // guaranteed to be one, and allowedDishIdsForMealSize derives eligible dishes
   // from THIS meal size's own composition rows, not order.planId alone.
-  const vegMealSize = snap.mealSizes.find((m) => m.planId === vegPlanId)!;
+  const vegMealSize = snap.mealSizes.find((m) => m.key === "small_thali") ?? snap.mealSizes.find((m) => m.planId === vegPlanId)!;
   const [u] = await db.insert(users).values({ email: `${userPrefix}${Math.random().toString(36).slice(2)}@test.invalid`, role: "user" }).returning();
   const [o] = await db.insert(orders).values({
     userId: u.id,
@@ -53,6 +54,12 @@ export async function makeTripOrder(deploymentId: string, userPrefix: string, pe
     city: "Toronto",
     postalCode: "M5J 2T3",
   }).returning();
+  await db.insert(payments).values({
+    orderId: o.id,
+    amount: "70.00",
+    method: "simulated",
+    status: "paid",
+  });
   await db.transaction((tx) => materializeDeliveries(tx, o));
   const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
   const byDate = (d: string) => rows.find((r) => r.deliveryDate === d)!;

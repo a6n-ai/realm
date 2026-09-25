@@ -56,6 +56,29 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     percent: d.percent,
   }));
 
+  let deliveryChargeConfig: PricingCatalog["deliveryChargeConfig"] = undefined;
+  if (snapshot.deliveryCharges) {
+    const dt = selections.deliveryTypeId
+      ? snapshot.deliveryCharges.deliveryTypes.find((t) => t.publicId === selections.deliveryTypeId && t.active)
+      : null;
+    if (selections.deliveryTypeId && !dt) {
+      throw new ValidationError("Invalid delivery type");
+    }
+
+    const at = selections.addressTagId
+      ? snapshot.deliveryCharges.addressTags.find((a) => a.publicId === selections.addressTagId && a.active)
+      : null;
+    if (selections.addressTagId && !at) {
+      throw new ValidationError("Invalid address tag");
+    }
+
+    deliveryChargeConfig = {
+      baseCharge: snapshot.deliveryCharges.baseCharge,
+      deliveryType: dt ? { id: dt.publicId, name: dt.name, chargeType: dt.chargeType, chargeValue: dt.chargeValue } : null,
+      addressTag: at ? { id: at.publicId, name: at.name, chargeType: at.chargeType, chargeValue: at.chargeValue } : null,
+    };
+  }
+
   return {
     mealSize: { id: mealSize.publicId, basePrice: effectivePrice(mealSize.basePrice, mealSize) },
     frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek },
@@ -63,5 +86,6 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     addons,
     discounts,
     maxDiscountPct: snapshot.maxDiscountPct ?? 25,
+    deliveryChargeConfig,
   };
 }

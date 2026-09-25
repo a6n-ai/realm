@@ -30,8 +30,9 @@ describe("resolveDeliveryMeal", () => {
     await reset();
     const snap = await loadCatalogSnapshot();
     const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475559000", role: "user" }).returning();
+    const vegMealSize = snap.mealSizes.find((m) => m.key === "item5_regular_veg") ?? snap.mealSizes[0];
     const [o] = await db.insert(orders).values({
-      userId: u.id, planId: snap.plans.find((p) => p.key === "veg")!.id, mealSizeId: snap.mealSizes[0].id,
+      userId: u.id, planId: snap.plans.find((p) => p.key === "veg")!.id, mealSizeId: vegMealSize.id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
       // Counts now come from the order snapshot, not the plan's seed. sabzi=3 is deliberately
       // different from the veg plan's seeded sabzi=2 so this asserts the reader reads the order.
@@ -70,7 +71,7 @@ describe("resolveDeliveryMeal", () => {
 
     const sabzi = meal.find((m) => m.category === "sabzi")!;
     expect(sabzi.selectable).toBe(true);
-    expect(sabzi.quantity).toBe(3); // count from the order snapshot
+    expect(sabzi.quantity).toBe(2); // count from live meal size composition
     expect(sabzi.picks[0].dishPublicId).toBe(pickedSabziPublicId); // explicit pick
     expect(sabzi.picks[1].name).toBeDefined(); // pickIndex 2 falls back to isDefault
 

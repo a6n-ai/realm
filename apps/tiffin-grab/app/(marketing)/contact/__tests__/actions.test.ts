@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { inquiries, inquiryActivities, leadSources } from "@/db/schema";
+import { inquiries, inquiryActivities, leadSources, users } from "@/db/schema";
 
 // Contact action transitively imports the session service (NextAuth) — stub it.
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -16,6 +16,10 @@ function testEmail() {
 async function reset() {
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
+  const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
+  if (!sys) {
+    await db.insert(users).values({ name: "System", email: "system@tiffingrab.internal", role: "admin", isSystem: true });
+  }
 }
 
 describe("createWebsiteInquiry", () => {

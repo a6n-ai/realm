@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -21,12 +21,14 @@ const OTHER_MONDAY = (() => {
   return d.toISOString().slice(0, 10);
 })();
 
+const TEST_DISH_NAME = "CDM_Paneer";
+
 async function reset() {
   await db.delete(menuItems);
   await db.delete(menuWeeks);
   await db.delete(deliveries);
   await db.delete(orders);
-  await db.delete(dishes);
+  await db.delete(dishes).where(eq(dishes.name, TEST_DISH_NAME));
   await db.delete(users).where(ne(users.isSystem, true));
 }
 
@@ -55,7 +57,7 @@ describe("myDeliveryMeal (integration)", () => {
     const [week] = await db.insert(menuWeeks).values({
       weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime(),
     }).returning();
-    const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Paneer"}).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ planId: await testPlanId(), name: TEST_DISH_NAME, category: "sabzi" }).returning();
     await attachDishToPlans(sabziDefault.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true });
 

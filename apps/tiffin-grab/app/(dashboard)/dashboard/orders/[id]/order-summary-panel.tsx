@@ -95,6 +95,16 @@ export function OrderSummaryPanel({
           {order.addressLine}
           {order.addressUnit ? `, Unit ${order.addressUnit}` : ""}, {order.city} {order.postalCode}
         </DetailRow>
+        {snap && isPricingSnapshot(snap) && (snap.deliveryCharge?.addressTag || snap.deliveryCharge?.deliveryType) ? (
+          <DetailRow label="Delivery details">
+            {[
+              snap.deliveryCharge.addressTag ? `Address tag: ${snap.deliveryCharge.addressTag.name}` : null,
+              snap.deliveryCharge.deliveryType ? `Delivery location: ${snap.deliveryCharge.deliveryType.name}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </DetailRow>
+        ) : null}
         {order.deliveryInstructions ? (
           <DetailRow label="Delivery instructions">{order.deliveryInstructions}</DetailRow>
         ) : null}

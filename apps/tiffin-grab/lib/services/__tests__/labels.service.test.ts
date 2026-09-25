@@ -83,13 +83,13 @@ describe("getPackingLabels (customer pick + plan defaults)", () => {
     }).returning();
     week = w;
 
-    const [paneer] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Saag Paneer` }).returning();
+    const [paneer] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Saag Paneer`, category: "sabzi" }).returning();
     await attachDishToPlans(paneer.id);
-    const [chicken] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Chilli Chicken` }).returning();
+    const [chicken] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Chilli Chicken`, category: "curry" }).returning();
     await attachDishToPlans(chicken.id, ["non-veg"]);
-    const [dal] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Kali Dal` }).returning();
+    const [dal] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Kali Dal`, category: "daal" }).returning();
     await attachDishToPlans(dal.id);
-    const [rice] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Jeera Rice` }).returning();
+    const [rice] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Jeera Rice`, category: "rice" }).returning();
     await attachDishToPlans(rice.id);
 
     const sabzi = await categoryIdFor("sabzi");

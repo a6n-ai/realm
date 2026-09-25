@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { count, eq, inArray } from "drizzle-orm";
 import { db } from "./client";
 import { categoryPlans, dishCategories, dishes, plans } from "./schema";
 
@@ -56,4 +56,25 @@ export async function categoryIdFor(key: string): Promise<bigint> {
   const [row] = await db.select({ id: dishCategories.id }).from(dishCategories).where(eq(dishCategories.key, key)).limit(1);
   if (!row) throw new Error(`categoryIdFor: no dish_categories row with key "${key}" — is the catalog seeded?`);
   return row.id;
+}
+
+/**
+ * Ensures the seeded catalog (plans, meal sizes, dish categories, dishes) is
+ * present in the local test DB. If an earlier suite's reset wiped dishes, this
+ * restores it from db/seed.sql idempotently.
+ */
+export async function ensureSeededCatalog(): Promise<void> {
+  const [row] = await db.select({ count: count() }).from(dishes);
+  if (Number(row?.count ?? 0) >= 10) return;
+  const dbUrl = process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin_v2";
+  const postgres = (await import("postgres")).default;
+  const raw = postgres(dbUrl, { prepare: false, max: 1 });
+  try {
+    const { readFileSync } = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    const sqlPath = fileURLToPath(new URL("./seed.sql", import.meta.url));
+    await raw.unsafe(readFileSync(sqlPath, "utf8"));
+  } finally {
+    await raw.end();
+  }
 }

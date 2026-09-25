@@ -2,6 +2,7 @@ import type { TaxLine } from "@foundry/payments";
 import { resolveCatalogDiscounts } from "@foundry/discounts";
 import { assertValidTiers, findTier } from "./tiers";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
+import { calculateDeliveryCharge, type DeliveryChargeCalculationResult } from "./delivery-charges";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -41,7 +42,22 @@ export function priceSubscription(
   }
   addonSubtotal = round2(addonSubtotal);
 
-  const subtotal = round2(tiffinSubtotal + addonSubtotal);
+  let deliveryCalc: DeliveryChargeCalculationResult | undefined = undefined;
+  let deliveryTotal = 0;
+  if (catalog.deliveryChargeConfig) {
+    deliveryCalc = calculateDeliveryCharge({
+      baseCharge: catalog.deliveryChargeConfig.baseCharge,
+      deliveryType: catalog.deliveryChargeConfig.deliveryType,
+      addressTag: catalog.deliveryChargeConfig.addressTag,
+      planPrice: tiffinSubtotal,
+    });
+    deliveryTotal = deliveryCalc.totalDeliveryCharge;
+    for (const line of deliveryCalc.lines) {
+      lineItems.push(line);
+    }
+  }
+
+  const subtotal = round2(tiffinSubtotal + addonSubtotal + deliveryTotal);
 
   const labels = new Map((catalog.discounts ?? []).map((d) => [d.key, d.label]));
   const cadenceDiscount: PricingLine[] = resolveCatalogDiscounts(
@@ -65,5 +81,16 @@ export function priceSubscription(
   const taxTotal = round2(taxLines.reduce((s, l) => s + l.amount, 0));
   const total = round2(taxableBase + taxTotal);
 
-  return { lineItems, adjustments: allAdjustments, taxLines, taxTotal, tiffinCount, perTiffinPrice, tier, subtotal, total };
+  return {
+    lineItems,
+    adjustments: allAdjustments,
+    taxLines,
+    taxTotal,
+    tiffinCount,
+    perTiffinPrice,
+    tier,
+    subtotal,
+    total,
+    deliveryCharge: deliveryCalc,
+  };
 }

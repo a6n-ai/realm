@@ -1,6 +1,7 @@
 import type { ComputedTaxLine } from "@foundry/payments";
 import type { DayOfWeek } from "../menu/delivery-days";
 import type { PricingTier } from "./tiers";
+import type { DeliveryChargeCalculationResult, DeliveryChargeItemLike } from "./delivery-charges";
 
 export interface PricingSelections {
   mealSizeId: string;
@@ -19,6 +20,8 @@ export interface PricingSelections {
   // Add-ons picked in the wizard, with quantity. Optional — omitted/empty means
   // no add-ons, so existing callers built before add-ons existed keep working.
   addonSelections?: { key: string; qty: number }[];
+  deliveryTypeId?: string | null;
+  addressTagId?: string | null;
 }
 
 export interface PricingCatalog {
@@ -33,6 +36,11 @@ export interface PricingCatalog {
   // Already filtered to those applicable to the selections; engine sums, caps, prints.
   discounts?: { key: string; label: string; percent: number }[];
   maxDiscountPct?: number;
+  deliveryChargeConfig?: {
+    baseCharge: number;
+    deliveryType?: DeliveryChargeItemLike | null;
+    addressTag?: DeliveryChargeItemLike | null;
+  };
 }
 
 export interface PricingLine {
@@ -51,6 +59,7 @@ export interface PricingResult {
   tier: PricingTier;
   subtotal: number;
   total: number; // taxable base (subtotal − discounts, floored at 0) + taxTotal
+  deliveryCharge?: DeliveryChargeCalculationResult;
 }
 
 // Coupon rows deferred until staff verifies payment. Stored on the order's

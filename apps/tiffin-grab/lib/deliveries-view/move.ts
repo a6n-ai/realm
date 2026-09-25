@@ -42,7 +42,9 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
   const rangeStart = ctx.startDate && ctx.startDate > today ? ctx.startDate : today;
   const span = horizon ?? defaultHorizon(ctx, rangeStart);
   const cursor = parseIsoDateUtc(rangeStart);
-  const split = movesOneEatDay(trip.coversDates, sourceDate);
+  const split = typeof movesOneEatDay === "function"
+    ? movesOneEatDay(trip.coversDates, sourceDate)
+    : (trip.coversDates.length > 1 && trip.coversDates.includes(sourceDate));
   const splitExtras = (trip.extraDates ?? []).filter((d) => d === sourceDate);
   // Per-tiffin unit count, derived rather than plumbed: units already includes any extras.
   const perTiffin = trip.units / Math.max(1, trip.coversDates.length + (trip.extraDates?.length ?? 0));
