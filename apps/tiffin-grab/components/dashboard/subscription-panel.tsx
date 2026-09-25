@@ -67,6 +67,7 @@ export async function SubscriptionPanel({
           categoryCounts,
           tagLabel: planRow?.tagLabel ?? null,
           tagColor: planRow?.tagColor ?? null,
+          frequencyKey: order.frequencyKey,
         }
       : null;
 

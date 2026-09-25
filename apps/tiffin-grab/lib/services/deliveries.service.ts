@@ -700,9 +700,10 @@ async function moveTrip(
   persons: number,
   enforceCaps = true,
   sourceEatDate: string | null = null,
+  canSplitLeadDay = false,
 ): Promise<{ id: bigint; merged: boolean; coversDates: string[] }> {
   const own = coveredDates(source);
-  const split = sourceEatDate != null && own.length > 1 && own.includes(sourceEatDate) && sourceEatDate !== source.deliveryDate;
+  const split = sourceEatDate != null && own.length > 1 && own.includes(sourceEatDate) && (sourceEatDate !== source.deliveryDate || canSplitLeadDay);
   const remaining = split ? own.filter((d) => d !== sourceEatDate) : [];
   const carried = split ? [sourceEatDate!] : (eatingDateIso && own.length === 1 ? [eatingDateIso] : own);
   const [target] = await tx.select().from(deliveries)
@@ -870,10 +871,18 @@ export async function rescheduleDelivery(
       throw new ValidationError("This subscription can no longer be rescheduled");
     }
 
-    const deliveryDays = await orderDeliveryDaySet(tx, order);
+    const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
+      .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+    const deliveryDays = new Set(orderDeliveryDays({
+      frequencyKey: freq!.key,
+      weekdays: freq!.weekdays as DayOfWeek[] | null,
+      includeSaturday: !order.eatingDays?.length && order.includeSaturday,
+      includeSunday: !order.eatingDays?.length && order.includeSunday,
+    }));
     // Trip weekdays never include sat/sun — weekend food always rides Friday (one rule
     // for legacy weekend add-ons and eating_days orders).
     const deliveryWeekdays = [...deliveryDays].filter((d) => d !== "sat" && d !== "sun") as DayOfWeek[];
+    const canSplitLeadDay = freq?.key === "5_day" || deliveryWeekdays.length === 5;
     const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
     if (!carriedOn) throw new ValidationError("That day isn't on your plan");
     if (carriedOn === row.deliveryDate) {
@@ -896,7 +905,7 @@ export async function rescheduleDelivery(
     if (sourceEatDate != null && !own.includes(sourceEatDate)) {
       throw new ValidationError("That day isn't part of this trip anymore.");
     }
-    const willSplit = row.status === "scheduled" && sourceEatDate != null && sourceEatDate !== row.deliveryDate && own.length > 1;
+    const willSplit = row.status === "scheduled" && sourceEatDate != null && (sourceEatDate !== row.deliveryDate || canSplitLeadDay) && own.length > 1;
 
     if (row.status === "scheduled" && !willSplit) {
       const skipped = await tx.update(deliveries).set({ status: "skipped" })
@@ -905,7 +914,7 @@ export async function rescheduleDelivery(
       if (skipped.length === 0) throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
     }
 
-    const moved = await moveTrip(tx, row, carriedOn, newCutoff, eatingDateIso, order.persons, true, willSplit ? sourceEatDate : null);
+    const moved = await moveTrip(tx, row, carriedOn, newCutoff, eatingDateIso, order.persons, true, willSplit ? sourceEatDate : null, canSplitLeadDay);
 
     if (willSplit) {
       await tx.insert(orderActivities).values(

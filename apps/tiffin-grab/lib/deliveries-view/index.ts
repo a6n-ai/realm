@@ -44,6 +44,7 @@ export type PlanContext = {
   active?: boolean;
   onVacation?: boolean;
   vacationsLeft?: number | null;
+  frequencyKey?: string | null;
 };
 
 export type EatingDay = { date: string; dishSummary: string | null; swaps: string[]; locksWith: string | null };

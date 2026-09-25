@@ -96,6 +96,7 @@ export type Subscription = {
   /** Admin-set plan tag (same colour as dish plan chips). */
   tagLabel?: string | null;
   tagColor?: string | null;
+  frequencyKey?: string;
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
@@ -142,10 +143,12 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       categoryCounts: orders.categoryCounts,
       tagLabel: plans.tagLabel,
       tagColor: plans.tagColor,
+      frequencyKey: deliveryFrequencies.key,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
@@ -171,6 +174,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
         categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
         tagLabel: r.tagLabel,
         tagColor: r.tagColor,
+        frequencyKey: r.frequencyKey,
       };
     });
 }

@@ -23,7 +23,7 @@ export async function resetTrips(deploymentId: string, userPrefix: string) {
 }
 
 /** MWF order eating all 7 days for 1 week from MON, materialized: Mon [Mon,Tue], Wed [Wed,Thu], Fri [Fri,Sat,Sun]. */
-export async function makeTripOrder(deploymentId: string, userPrefix: string, persons = 1) {
+export async function makeTripOrder(deploymentId: string, userPrefix: string, persons = 1, frequencyKey: "mwf" | "5_day" = "mwf") {
   const snap = await loadCatalogSnapshot();
   const vegPlanId = snap.plans.find((p) => p.key === "veg")!.id;
   // A meal size scoped to the veg plan specifically — snap.mealSizes[0] isn't
@@ -35,7 +35,7 @@ export async function makeTripOrder(deploymentId: string, userPrefix: string, pe
     userId: u.id,
     planId: vegPlanId,
     mealSizeId: vegMealSize.id,
-    frequencyId: snap.frequencies.find((f) => f.key === "mwf")!.id,
+    frequencyId: snap.frequencies.find((f) => f.key === frequencyKey)!.id,
     persons,
     mealSlots: ["lunch"],
     categoryCounts: { sabzi: 1 },

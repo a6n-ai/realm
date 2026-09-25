@@ -61,4 +61,33 @@ describe("moveOptions", () => {
     expect(o.find((x) => x.date === "2026-09-30")!.disabledReason).toMatch(/after Fri, Oct 2/);
     expect(o.find((x) => x.date === "2026-10-05")!.disabledReason).toBeUndefined();
   });
+  it("splits Friday lead day (1 tiffin) when frequencyKey is 5_day", () => {
+    const friTrip = { date: "2026-09-25", units: 3, coversDates: ["2026-09-25", "2026-09-26", "2026-09-27"], pooled: false } as Trip;
+    const ctx5Day: PlanContext = { ...ctx, frequencyKey: "5_day", deliveryWeekdays: ["mon", "tue", "wed", "thu", "fri"] };
+    const monTarget = { date: "2026-09-28", status: "scheduled" as const, units: 1, covers: ["2026-09-28"] };
+    const o = moveOptions(friTrip, [monTarget], NOW, ctx5Day, "2026-09-22", 10, "2026-09-25");
+    const mon = o.find((x) => x.date === "2026-09-28")!;
+    expect(mon.disabledReason).toBeUndefined();
+    // Monday (1 unit) + split Friday (1 unit) = 2 units (not 1 + 3 = 4)
+    expect(mon.merge).toEqual({ units: 2, covers: ["2026-09-25", "2026-09-28"] });
+  });
+  it("keeps Friday bundled (3 tiffins) when frequencyKey is mwf", () => {
+    const friTrip = { date: "2026-09-25", units: 3, coversDates: ["2026-09-25", "2026-09-26", "2026-09-27"], pooled: false } as Trip;
+    const ctxMwf: PlanContext = { ...ctx, frequencyKey: "mwf", deliveryWeekdays: ["mon", "wed", "fri"] };
+    const monTarget = { date: "2026-09-28", status: "scheduled" as const, units: 1, covers: ["2026-09-28"] };
+    const o = moveOptions(friTrip, [monTarget], NOW, ctxMwf, "2026-09-22", 10, "2026-09-25");
+    const mon = o.find((x) => x.date === "2026-09-28")!;
+    // Monday (1 unit) + whole Friday batch (3 units) = 4 units -> blocked by max 3 tiffins limit
+    expect(mon.disabledReason).toMatch(/at most 3/);
+  });
+  it("splits Saturday off Friday (1 tiffin) even on mwf", () => {
+    const friTrip = { date: "2026-09-25", units: 3, coversDates: ["2026-09-25", "2026-09-26", "2026-09-27"], pooled: false } as Trip;
+    const ctxMwf: PlanContext = { ...ctx, frequencyKey: "mwf", deliveryWeekdays: ["mon", "wed", "fri"] };
+    const monTarget = { date: "2026-09-28", status: "scheduled" as const, units: 1, covers: ["2026-09-28"] };
+    const o = moveOptions(friTrip, [monTarget], NOW, ctxMwf, "2026-09-22", 10, "2026-09-26");
+    const mon = o.find((x) => x.date === "2026-09-28")!;
+    expect(mon.disabledReason).toBeUndefined();
+    // Monday (1 unit) + split Saturday (1 unit) = 2 units
+    expect(mon.merge).toEqual({ units: 2, covers: ["2026-09-26", "2026-09-28"] });
+  });
 });

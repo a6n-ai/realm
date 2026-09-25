@@ -43,7 +43,8 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
   const rangeStart = ctx.startDate && ctx.startDate > today ? ctx.startDate : today;
   const span = horizon ?? defaultHorizon(ctx, rangeStart);
   const cursor = parseIsoDateUtc(rangeStart);
-  const split = sourceDate !== trip.date && trip.coversDates.length > 1 && trip.coversDates.includes(sourceDate);
+  const canSplitLeadDay = ctx.frequencyKey === "5_day" || ctx.deliveryWeekdays.length === 5;
+  const split = trip.coversDates.length > 1 && trip.coversDates.includes(sourceDate) && (sourceDate !== trip.date || canSplitLeadDay);
   const splitExtras = (trip.extraDates ?? []).filter((d) => d === sourceDate);
   // Per-tiffin unit count, derived rather than plumbed: units already includes any extras.
   const perTiffin = trip.units / Math.max(1, trip.coversDates.length + (trip.extraDates?.length ?? 0));

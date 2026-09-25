@@ -67,6 +67,7 @@ export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; c
     active: true,
     onVacation: a.sub.status === "paused",
     vacationsLeft: max == null ? null : Math.max(max - a.pause.usage.count, 0),
+    frequencyKey: a.sub.frequencyKey ?? null,
   };
 }
 
