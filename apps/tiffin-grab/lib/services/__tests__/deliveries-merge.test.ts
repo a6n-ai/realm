@@ -121,6 +121,21 @@ describe("rescheduleDelivery merge", () => {
     expect(dots["2030-01-09"]!.every((d) => !d.moved)).toBe(true);
   });
 
+  it("5-day plan eating Mon/Tue/Thu: moving Thursday onto Wednesday puts the truck there and leaves Thursday blank", async () => {
+    const { order } = await makeTripOrder(DEP, PFX, 1, "5_day", 1, { days: ["mon", "tue", "thu"], tiffinCount: 3 });
+    const before = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+    expect(before.map((r) => r.deliveryDate).sort()).toEqual(["2030-01-07", "2030-01-08", "2030-01-10"]);
+    const thu = before.find((r) => r.deliveryDate === "2030-01-10")!;
+    // Wednesday 2030-01-09 is the next Wednesday on this 5-day plan; Thursday itself is not a carrier anymore.
+    await rescheduleDelivery(thu.publicId, "2030-01-09", 1n);
+
+    const dots = await myAgendaDots(order.userId!, "2030-01-01", "2030-02-01");
+    expect(dots["2030-01-09"]?.some((d) => d.truck && d.deliveryDate === "2030-01-09")).toBe(true);
+    expect(dots["2030-01-07"]?.some((d) => d.truck)).toBe(true);
+    expect(dots["2030-01-08"]?.some((d) => d.truck)).toBe(true);
+    expect(dots["2030-01-10"] ?? []).toEqual([]);
+  });
+
   it("myAgendaDots marks the arrival day when the eat dates stayed on the previous week", async () => {
     const { order, mon } = await makeTripOrder(DEP, PFX);
     await rescheduleDelivery(mon.publicId, "2030-01-14", 1n);

@@ -259,6 +259,11 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     .orderBy(asc(deliveries.deliveryDate));
   const out: Record<string, AgendaDay[]> = {};
   const extrasById = await loadExtraDates(db, rows.map((r) => r.d.id));
+  // A whole-trip reschedule leaves the old row skipped and inserts a makeup.
+  // The old day is no longer a delivery, so it must not keep a status dot.
+  const replacedByMakeup = new Set(
+    rows.flatMap(({ d }) => (d.makeupForDeliveryId == null ? [] : [d.makeupForDeliveryId.toString()])),
+  );
   // A merged source's OWN date is now moved: mark it on the target's dot instead of showing the target's live status there.
   const movedDatesByTarget = new Map<string, Set<string>>();
   for (const { d } of rows) {
@@ -268,7 +273,7 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     for (const date of coveredDates(d)) set.add(date);
   }
   for (const { d, orderId } of rows) {
-    if (d.mergedIntoDeliveryId != null) continue;
+    if (d.mergedIntoDeliveryId != null || replacedByMakeup.has(d.id.toString())) continue;
     const covers = coveredDates(d);
     const moved = movedDatesByTarget.get(d.id.toString());
     for (const date of covers) {

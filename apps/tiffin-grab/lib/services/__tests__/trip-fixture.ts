@@ -2,6 +2,7 @@ import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, orderActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { materializeDeliveries } from "../deliveries.service";
 
 // Monday, far enough out that no cutoff has passed. Mon trip [21,22]-style: Mon+Tue, Wed+Thu, Fri+Sat+Sun.
@@ -24,7 +25,14 @@ export async function resetTrips(deploymentId: string, userPrefix: string) {
 }
 
 /** MWF order eating all 7 days for 1 week from MON, materialized: Mon [Mon,Tue], Wed [Wed,Thu], Fri [Fri,Sat,Sun]. */
-export async function makeTripOrder(deploymentId: string, userPrefix: string, persons = 1, frequencyKey: "mwf" | "5_day" = "mwf", durationWeeks = 1) {
+export async function makeTripOrder(
+  deploymentId: string,
+  userPrefix: string,
+  persons = 1,
+  frequencyKey: "mwf" | "5_day" = "mwf",
+  durationWeeks = 1,
+  eating: { days: DayOfWeek[]; tiffinCount: number } | null = null,
+) {
   const snap = await loadCatalogSnapshot();
   const vegPlanId = snap.plans.find((p) => p.key === "veg")!.id;
   // A meal size scoped to the veg plan specifically — snap.mealSizes[0] isn't
@@ -40,10 +48,10 @@ export async function makeTripOrder(deploymentId: string, userPrefix: string, pe
     persons,
     mealSlots: ["lunch"],
     categoryCounts: { sabzi: 1 },
-    eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+    eatingDays: eating?.days ?? ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
     durationWeeks,
     startDate: MON,
-    tiffinCount: 7 * persons * durationWeeks,
+    tiffinCount: eating?.tiffinCount ?? 7 * persons * durationWeeks,
     perTiffinPrice: "10.00",
     pricingSnapshot: {},
     total: "70.00",

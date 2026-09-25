@@ -174,6 +174,25 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     expect(screen.getByText("Fri, Sep 18")).toBeInTheDocument();
     expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Fri, Sep 25");
   });
+  it("5-day Mon/Tue/Thu plan: after Thursday moves to Wednesday, only Wednesday shows the truck", () => {
+    const mon = "2026-09-28";
+    const tue = "2026-09-29";
+    const wed = "2026-09-30";
+    const thu = "2026-10-01";
+    const agenda = agendaOf(dot("o", mon, [mon]), dot("o", tue, [tue]), dot("o", wed, [wed]));
+    const moved = [
+      trip({ date: mon, coversDates: [mon] }),
+      trip({ date: tue, coversDates: [tue] }),
+      trip({ date: wed, coversDates: [wed] }),
+    ];
+    view(thu, moved, plan, { agenda, weekStart: mon, firstWeek: mon, lastWeek: "2026-10-12", initialTrip: thu });
+    const strip = within(screen.getByTestId("week-strip"));
+    expect(strip.getByRole("button", { name: /Wednesday, September 30, eating, Upcoming, delivery arrives/ })).toBeInTheDocument();
+    expect(strip.getByRole("button", { name: /Monday, September 28, eating, Upcoming, delivery arrives/ })).toBeInTheDocument();
+    expect(strip.getByRole("button", { name: /Tuesday, September 29, eating, Upcoming, delivery arrives/ })).toBeInTheDocument();
+    expect(strip.getByRole("button", { name: /Thursday, October 1, nothing planned/ })).toBeInTheDocument();
+    expect(screen.getByText("Nothing planned on Thu, Oct 1.")).toBeInTheDocument();
+  });
   it("tapping a no-delivery day says so", () => {
     multi();
     fireEvent.click(within(screen.getByTestId("week-strip")).getByRole("button", { name: /Saturday, September 26/ }));
