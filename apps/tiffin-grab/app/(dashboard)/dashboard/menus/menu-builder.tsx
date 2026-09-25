@@ -17,8 +17,6 @@ import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek,
 import { cn } from "@foundry/ui/cn";
 import { sanitizeClientError } from "@/lib/format/client-error";
 
-const AUTOSAVE_MS = 1500;
-
 type Dish = { id: string; name: string; category: string | null; planId: string };
 type Week = { id: string; weekStart: string; status: string; updatedAt: number };
 type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean };
@@ -144,22 +142,25 @@ export function MenuBuilder({
     }
   }, [week, expectedUpdatedAt, wireItems]);
 
-  // Autosave, drafts only. A released week under amend is never saved on a timer — that
-  // write changes what people are already eating, so it waits for an explicit confirm.
-  // A stale-week conflict also stops the loop: retrying every 1.5s would just fail
-  // repeatedly and bury the one message telling the admin to reload.
-  useEffect(() => {
-    if (!isDraft || !dirty || saving || staleConflict) return;
-    const t = setTimeout(() => { void save(); }, AUTOSAVE_MS);
-    return () => clearTimeout(t);
-  }, [isDraft, dirty, saving, staleConflict, save]);
-
+  // Drafts stay local until Save or Done. Released-week amend already waits for an
+  // explicit confirm — same rule for drafts so a half-built grid is not written by
+  // a timer while the admin is still arranging dishes.
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
+
+  const handleDone = () => {
+    run(async () => {
+      if (dirty) {
+        const saved = await save();
+        if (!saved) return;
+      }
+      router.push("/dashboard/menus");
+    });
+  };
 
   // One line per (plan, day) rather than per missing category — see the banner below.
   const problemGroups = useMemo(() => {
@@ -415,7 +416,7 @@ export function MenuBuilder({
               {showPreview ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               {showPreview ? "Hide preview" : "Preview"}
             </Button>
-            <Button variant="outline" className="transition-transform active:scale-[0.96]" onClick={() => router.push("/dashboard/menus")}>
+            <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={pending || saving} onClick={handleDone}>
               Done
             </Button>
           </div>

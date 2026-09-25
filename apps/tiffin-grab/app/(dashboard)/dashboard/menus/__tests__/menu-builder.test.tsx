@@ -9,9 +9,10 @@ const mockBackToDraft = vi.fn();
 const mockReleaseWeek = vi.fn();
 const mockSaveWeek = vi.fn();
 const mockRefresh = vi.fn();
+const mockPush = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: mockRefresh }),
+  useRouter: () => ({ refresh: mockRefresh, push: mockPush }),
 }));
 
 vi.mock("../actions", () => ({
@@ -124,5 +125,37 @@ describe("MenuBuilder rigorous button events & error handling", () => {
     await waitFor(() => {
       expect(screen.getByText("Unable to complete request. Please try again.")).toBeInTheDocument();
     });
+  });
+
+  it("keeps draft edits local until Save or Done — no autosave", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockSaveWeek.mockResolvedValue({
+      items: [],
+      updatedAt: Date.now(),
+    });
+
+    render(
+      <MenuBuilder
+        {...dummyProps}
+        dishes={[
+          ...dummyProps.dishes,
+          { id: "d2", name: "Dal Makhani", category: "sabji", planId: "p1" },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Shahi Paneer" }));
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(mockSaveWeek).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => {
+      expect(mockSaveWeek).toHaveBeenCalledTimes(1);
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/menus");
+    });
+
+    vi.useRealTimers();
   });
 });
