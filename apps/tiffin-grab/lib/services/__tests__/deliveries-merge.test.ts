@@ -121,6 +121,13 @@ describe("rescheduleDelivery merge", () => {
     expect(dots["2030-01-09"]!.every((d) => !d.moved)).toBe(true);
   });
 
+  it("myAgendaDots marks the arrival day when the eat dates stayed on the previous week", async () => {
+    const { order, mon } = await makeTripOrder(DEP, PFX);
+    await rescheduleDelivery(mon.publicId, "2030-01-14", 1n);
+    const dots = await myAgendaDots(order.userId!, "2030-01-01", "2030-02-01");
+    expect(dots["2030-01-14"]?.some((d) => d.truck && d.deliveryDate === "2030-01-14")).toBe(true);
+  });
+
   it("still rejects a target that is not one of the order's delivery days", async () => {
     const { mon } = await makeTripOrder(DEP, PFX);
     await expect(rescheduleDelivery(mon.publicId, "2030-01-08", 1n)).rejects.toBeInstanceOf(ValidationError);

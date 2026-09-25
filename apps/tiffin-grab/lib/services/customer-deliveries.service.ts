@@ -278,6 +278,10 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     for (const date of extrasById.get(d.id) ?? []) {
       (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true });
     }
+    // The eat dates stayed put and the truck moved: mark the arrival day, or that Friday looks empty.
+    if (d.status === "scheduled" && !covers.includes(d.deliveryDate)) {
+      (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers });
+    }
   }
   return out;
 }

@@ -1,4 +1,4 @@
-import { humanDate, type Trip } from "./index";
+import { humanDate, type Trip, type TripStatus } from "./index";
 
 /** The customer's unit of thought: one eating day, fed by the trip (delivery day) that carries it. */
 export type EatingRow = {
@@ -27,6 +27,20 @@ export function buildEatingDays(trips: Trip[]): EatingRow[] {
     }
   }
   return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+const ARRIVING: TripStatus[] = ["upcoming", "delivered", "cutoff-passed", "locked"];
+
+/**
+ * Eating rows for one calendar week. A moved tiffin keeps its original eat date and
+ * the truck moves, so a row whose eat date is last week still belongs in the week
+ * the truck arrives — otherwise that delivery day reads as nothing planned.
+ */
+export function eatingRowsInWeek(trips: Trip[], weekStart: string, weekEnd: string): EatingRow[] {
+  return buildEatingDays(trips).filter((r) => {
+    if (r.date >= weekStart && r.date <= weekEnd) return true;
+    return ARRIVING.includes(r.trip.status) && r.trip.date >= weekStart && r.trip.date <= weekEnd;
+  });
 }
 
 /** "Arrives Mon, Sep 21 with Mon" / "Delivered Mon, Sep 21": which truck feeds this eating day. */

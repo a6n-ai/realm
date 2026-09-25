@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEatingDays, deliveryLine } from "../eating";
+import { buildEatingDays, deliveryLine, eatingRowsInWeek } from "../eating";
 import type { Trip } from "../index";
 
 const day = (date: string, dish: string | null = null, locksWith: string | null = null) => ({ date, dishSummary: dish, swaps: [], locksWith });
@@ -44,6 +44,21 @@ describe("prod shape: plan eating Mon/Tue/Fri/Sat/Sun", () => {
     expect(rows.map((r) => r.date)).toEqual(["2026-09-21", "2026-09-22", "2026-09-25", "2026-09-26", "2026-09-27"]);
     expect(rows.filter((r) => r.own).map((r) => r.date)).toEqual(["2026-09-21", "2026-09-25"]);
     expect(deliveryLine(rows[4]!)).toBe("Arrives Fri, Sep 25 with Fri");
+  });
+});
+
+describe("eatingRowsInWeek", () => {
+  it("lists a moved tiffin in the week the truck arrives, even when the eat date is the week before", () => {
+    const moved = trip({
+      date: "2026-09-25",
+      coversDates: ["2026-09-18", "2026-09-19", "2026-09-20"],
+      units: 3,
+      eatingDays: [day("2026-09-18"), day("2026-09-19", null, "2026-09-25"), day("2026-09-20", null, "2026-09-25")],
+      status: "upcoming",
+    });
+    const rows = eatingRowsInWeek([moved], "2026-09-21", "2026-09-27");
+    expect(rows.map((r) => r.date)).toEqual(["2026-09-18", "2026-09-19", "2026-09-20"]);
+    expect(deliveryLine(rows[0]!)).toContain("Arrives Fri, Sep 25");
   });
 });
 

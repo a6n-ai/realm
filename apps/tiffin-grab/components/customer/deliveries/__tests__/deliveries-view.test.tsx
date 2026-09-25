@@ -162,6 +162,18 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
     expect(replace.mock.calls[0]![0]).toContain("trip=2026-10-05");
   });
+  it("a moved bundle shows on the Friday it arrives, not as nothing planned", () => {
+    const arriving = trip({
+      date: "2026-09-25",
+      units: 3,
+      coversDates: ["2026-09-18", "2026-09-19", "2026-09-20"],
+      coversLabel: "Covers Fri + Sat + Sun",
+    });
+    view("2026-09-25", [arriving]);
+    expect(screen.queryByText("Nothing planned on Fri, Sep 25.")).toBeNull();
+    expect(screen.getByText("Fri, Sep 18")).toBeInTheDocument();
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Fri, Sep 25");
+  });
   it("tapping a no-delivery day says so", () => {
     multi();
     fireEvent.click(within(screen.getByTestId("week-strip")).getByRole("button", { name: /Saturday, September 26/ }));

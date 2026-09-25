@@ -23,8 +23,9 @@ import {
 } from "@/app/(customer)/me/deliveries/actions";
 import { buildVacationPauseRequest } from "@/app/(customer)/me/deliveries/vacation-pause";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { buildEatingDays, deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, eatingRowsInWeek, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { moveOptions } from "@/lib/deliveries-view/move";
+import { movesOneEatDay } from "@/lib/menu/coverage";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
 import { applySwapsToCounts, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { OrderWeek } from "@/lib/services/order-week.service";
@@ -50,8 +51,8 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
   if (wk !== weekStart) (setWk(weekStart), setSel(null));
 
   const weekEnd = addDays(weekStart, 6);
-  const rows = useMemo(() => buildEatingDays(trips).filter((r) => r.date >= weekStart && r.date <= weekEnd), [trips, weekStart, weekEnd]);
-  const row: EatingRow | null = (sel ? rows.find((r) => r.date === sel) : null) ?? (sel ? null : [...rows].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
+  const rows = useMemo(() => eatingRowsInWeek(trips, weekStart, weekEnd), [trips, weekStart, weekEnd]);
+  const row: EatingRow | null = (sel ? rows.find((r) => r.date === sel) ?? rows.find((r) => r.trip.date === sel) : null) ?? (sel ? null : [...rows].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
   const trip = row?.trip ?? null;
   const av = trip ? actionAvailability(trip, now, plan.ctx) : null;
   const tz = plan.ctx.timezone;
@@ -292,8 +293,7 @@ const Err = ({ e }: { e: string | null }) => (e ? <p role="alert" className="tex
 function RescheduleDialog({ trip, day: sourceDate, data, onClose, onDone }: { trip: Trip; day?: string; data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
   const { plan, now } = data;
   const source = sourceDate ?? trip.date;
-  const canSplitLeadDay = plan.ctx.frequencyKey === "5_day" || plan.ctx.deliveryWeekdays.length === 5;
-  const split = trip.coversDates.length > 1 && trip.coversDates.includes(source) && (source !== trip.date || canSplitLeadDay);
+  const split = movesOneEatDay(trip.coversDates, source);
   const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today, undefined, source), [trip, plan, now, source]);
   const byDate = useMemo(() => new Map(options.map((o) => [o.date, o])), [options]);
   const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason; };

@@ -7,7 +7,7 @@ import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFreque
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
-import { MAX_TIFFINS_PER_TRIP, coveredDates, dateCounts, mergeBlockReason, mergeCoverage, swapAppliesTo, tripCoverage } from "@/lib/menu/coverage";
+import { MAX_TIFFINS_PER_TRIP, coveredDates, dateCounts, mergeBlockReason, mergeCoverage, movesOneEatDay, swapAppliesTo, tripCoverage } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { matchZone } from "@/lib/catalog/postal";
@@ -685,11 +685,11 @@ async function moveDeliverySwapsForDate(tx: Tx, fromDeliveryId: bigint, toDelive
 
 /**
  * Moves a trip onto `targetDate` (a delivery weekday). `sourceEatDate` says WHICH eating day is
- * moving: null/equal to the trip's own date moves the whole trip (weekend riders included — they
- * have nowhere else to ride). Any OTHER day the trip covers splits off just that one tiffin; the
- * source keeps the remaining days, still delivered on its own date, never skipped or merged.
- * If a SCHEDULED trip already sits on targetDate the moving day(s) merge into it (units add,
- * coverage unions); otherwise a make-up row is inserted. Never creates weekend delivery rows.
+ * moving. On a scheduled multi-day trip only that one tiffin leaves — even when it is the
+ * delivery day itself — and the source keeps the remaining days, still delivered on its own
+ * date. Null moves the whole trip. If a SCHEDULED trip already sits on targetDate the moving
+ * day merges into it (units add, coverage unions); otherwise a make-up row is inserted.
+ * Never creates weekend delivery rows.
  */
 async function moveTrip(
   tx: Tx,
@@ -700,10 +700,9 @@ async function moveTrip(
   persons: number,
   enforceCaps = true,
   sourceEatDate: string | null = null,
-  canSplitLeadDay = false,
 ): Promise<{ id: bigint; merged: boolean; coversDates: string[] }> {
   const own = coveredDates(source);
-  const split = sourceEatDate != null && own.length > 1 && own.includes(sourceEatDate) && (sourceEatDate !== source.deliveryDate || canSplitLeadDay);
+  const split = sourceEatDate != null && movesOneEatDay(own, sourceEatDate);
   const remaining = split ? own.filter((d) => d !== sourceEatDate) : [];
   const carried = split ? [sourceEatDate!] : (eatingDateIso && own.length === 1 ? [eatingDateIso] : own);
   const [target] = await tx.select().from(deliveries)
@@ -832,11 +831,11 @@ export async function shiftMissedDeliveries(
  * cutoff / past checks use the carrying trip. Existing trip on that date MERGES instead of
  * rejecting. Never writes a Saturday/Sunday delivery row.
  *
- * `sourceEatDate` says WHICH of the trip's eating days is moving. Left null (or equal to the
- * trip's own date), the whole trip moves. Any OTHER day the trip currently covers splits off
- * just that one tiffin — the trip keeps delivering its remaining days, unaffected, never marked
- * skipped or merged. Only meaningful on a still-scheduled trip: a held/paused trip has nothing
- * left to keep delivering, so it always moves whole regardless of sourceEatDate.
+ * `sourceEatDate` says WHICH of the trip's eating days is moving. On a still-scheduled
+ * multi-day trip only that tiffin leaves, even when it is the delivery day (Friday of
+ * Fri+Sat+Sun). The trip keeps delivering its remaining days, never marked skipped or merged.
+ * Left null, the whole trip moves. A held/paused trip always moves whole: nothing remains
+ * to keep delivering.
  */
 export async function rescheduleDelivery(
   deliveryPublicId: string,
@@ -882,7 +881,6 @@ export async function rescheduleDelivery(
     // Trip weekdays never include sat/sun — weekend food always rides Friday (one rule
     // for legacy weekend add-ons and eating_days orders).
     const deliveryWeekdays = [...deliveryDays].filter((d) => d !== "sat" && d !== "sun") as DayOfWeek[];
-    const canSplitLeadDay = freq?.key === "5_day" || deliveryWeekdays.length === 5;
     const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
     if (!carriedOn) throw new ValidationError("That day isn't on your plan");
     if (carriedOn === row.deliveryDate) {
@@ -905,7 +903,7 @@ export async function rescheduleDelivery(
     if (sourceEatDate != null && !own.includes(sourceEatDate)) {
       throw new ValidationError("That day isn't part of this trip anymore.");
     }
-    const willSplit = row.status === "scheduled" && sourceEatDate != null && (sourceEatDate !== row.deliveryDate || canSplitLeadDay) && own.length > 1;
+    const willSplit = row.status === "scheduled" && sourceEatDate != null && movesOneEatDay(own, sourceEatDate);
 
     if (row.status === "scheduled" && !willSplit) {
       const skipped = await tx.update(deliveries).set({ status: "skipped" })
@@ -914,7 +912,7 @@ export async function rescheduleDelivery(
       if (skipped.length === 0) throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
     }
 
-    const moved = await moveTrip(tx, row, carriedOn, newCutoff, eatingDateIso, order.persons, true, willSplit ? sourceEatDate : null, canSplitLeadDay);
+    const moved = await moveTrip(tx, row, carriedOn, newCutoff, eatingDateIso, order.persons, true, willSplit ? sourceEatDate : null);
 
     if (willSplit) {
       await tx.insert(orderActivities).values(

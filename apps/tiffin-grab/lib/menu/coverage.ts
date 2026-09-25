@@ -30,6 +30,16 @@ export function mergeCoverage(a: string[], b: string[]): string[] {
   return [...new Set([...a, ...b])].sort();
 }
 
+/**
+ * One eating day leaving a multi-day trip. The other days stay on the original
+ * delivery — including when the day leaving is the delivery day itself (Friday
+ * of a Fri+Sat+Sun bundle). Otherwise the whole bundle rides along and blows
+ * the 3-tiffin cap on the day it lands.
+ */
+export function movesOneEatDay(covers: readonly string[], sourceDate: string): boolean {
+  return covers.length > 1 && covers.includes(sourceDate);
+}
+
 /** A day holds at most 2 tiffins (its own + one moved in); a trip carries at most 3. */
 export const MAX_TIFFINS_PER_DAY = 2;
 export const MAX_TIFFINS_PER_TRIP = 3;

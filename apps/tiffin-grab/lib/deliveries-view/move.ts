@@ -1,5 +1,5 @@
 import { cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { dateCounts, mergeBlockReason, mergeCoverage } from "@/lib/menu/coverage";
+import { dateCounts, mergeBlockReason, mergeCoverage, movesOneEatDay } from "@/lib/menu/coverage";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from "./index";
@@ -30,10 +30,9 @@ export type MoveOption = {
  * trip (nearest plan weekday on or before it, so weekends ride Friday). Every check (past, cutoff,
  * held target, already-covered) runs on the carrying trip. The server stays authoritative.
  *
- * `sourceDate` is WHICH eating day the customer is moving. Left at the trip's own date (the
- * default), the whole trip moves — a multi-day trip's weekend riders have nowhere else to ride.
- * Any OTHER day the trip covers splits off just that one tiffin: the rest stays on the original
- * delivery, unaffected.
+ * `sourceDate` is WHICH eating day the customer is moving. On a multi-day trip only that
+ * tiffin leaves, even when it is the delivery day itself — weekend riders stay on the
+ * original Friday. The whole trip moves only when it covers just that one day.
  */
 export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon?: number, sourceDate: string = trip.date): MoveOption[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
@@ -43,8 +42,7 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
   const rangeStart = ctx.startDate && ctx.startDate > today ? ctx.startDate : today;
   const span = horizon ?? defaultHorizon(ctx, rangeStart);
   const cursor = parseIsoDateUtc(rangeStart);
-  const canSplitLeadDay = ctx.frequencyKey === "5_day" || ctx.deliveryWeekdays.length === 5;
-  const split = trip.coversDates.length > 1 && trip.coversDates.includes(sourceDate) && (sourceDate !== trip.date || canSplitLeadDay);
+  const split = movesOneEatDay(trip.coversDates, sourceDate);
   const splitExtras = (trip.extraDates ?? []).filter((d) => d === sourceDate);
   // Per-tiffin unit count, derived rather than plumbed: units already includes any extras.
   const perTiffin = trip.units / Math.max(1, trip.coversDates.length + (trip.extraDates?.length ?? 0));

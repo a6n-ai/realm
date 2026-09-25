@@ -8,7 +8,7 @@ import { weekdayShort } from "@/lib/deliveries-view/eating";
 import { mondayOf } from "@/lib/deliveries-view/week";
 import { WeekStrip } from "../week-strip";
 import { moveOptions } from "@/lib/deliveries-view/move";
-import { formatCoversLabel } from "@/lib/menu/coverage";
+import { formatCoversLabel, movesOneEatDay } from "@/lib/menu/coverage";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
 
@@ -19,8 +19,7 @@ export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionS
   const av = actionAvailability(trip, now, plan.ctx).move;
   // Which eating day is moving: the one the customer selected, or the trip's own date if none was passed.
   const source = sourceDate ?? trip.date;
-  const canSplitLeadDay = plan.ctx.frequencyKey === "5_day" || plan.ctx.deliveryWeekdays.length === 5;
-  const split = trip.coversDates.length > 1 && trip.coversDates.includes(source) && (source !== trip.date || canSplitLeadDay);
+  const split = movesOneEatDay(trip.coversDates, source);
   const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today, undefined, source), [trip, plan, now, source]);
   const [picked, setPickedRaw] = useState<string | null>(null);
   const [week, setWeek] = useState<string | null>(null);

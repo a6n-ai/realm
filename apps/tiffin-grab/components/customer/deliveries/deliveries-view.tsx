@@ -6,7 +6,7 @@ import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/c
 import { OrderStatusBadge } from "@/components/ds";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { buildEatingDays, deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, eatingRowsInWeek, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
 import { addDays, dotStatus, mondayOf, PLAN_COLORS, type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
@@ -69,9 +69,10 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const tz = ctx.timezone;
   const weekEnd = addDays(weekStart, 6);
 
-  const shown = useMemo(() => buildEatingDays(trips).filter((r) => r.date >= weekStart && r.date <= weekEnd), [trips, weekStart, weekEnd]);
+  const shown = useMemo(() => eatingRowsInWeek(trips, weekStart, weekEnd), [trips, weekStart, weekEnd]);
   const inWeek = !!sel && sel >= weekStart && sel <= weekEnd;
-  const row: EatingRow | null = (sel ? shown.find((r) => r.date === sel) : null) ?? (inWeek ? null : [...shown].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
+  // Tapping the truck day (the date a moved tiffin arrives) selects that meal even when its eat date is another week.
+  const row: EatingRow | null = (sel ? shown.find((r) => r.date === sel) ?? shown.find((r) => r.trip.date === sel) : null) ?? (inWeek ? null : [...shown].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
   const trip = row?.trip ?? null;
   const emptyDay = !row && inWeek ? sel : null;
   // Swap only when this eating day has a swap the customer can still make (same filter the swap sheet applies).
