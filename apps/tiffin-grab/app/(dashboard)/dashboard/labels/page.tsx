@@ -65,7 +65,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
       <StatGrid
         cols={4}
         items={[
-          { label: "Orders", value: packing.rows.length, hint: "one row per delivery" },
+          { label: "Orders", value: packing.rows.length, hint: "one row per tiffin (eating day)" },
           { label: "Item slots", value: packing.itemHeaders.length },
           { label: "Containers", value: containers },
           { label: "Menu week", value: sheet.menuWeekPublicId ? sheet.weekStart : "not released" },

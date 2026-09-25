@@ -45,7 +45,16 @@ function mapPortions(portions: Map<string, (string | null)[]>): Record<string, (
 }
 
 /** The meals grid for the eating days one trip covers (at most two menu weeks), trimmed so the sheet payload stays small. */
-export async function loadPickGrid(orderId: string, dates: string[]): Promise<{ ok: true; grid: PickGrid | null } | { error: string }> {
+export async function loadPickGrid(
+  orderId: string,
+  dates: string[],
+  opts: {
+    /** Swaps chosen in the sheet but not written yet — folded into portions only. */
+    provisionalSwaps?: { forDate: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number }[];
+    /** Applied swaps the sheet has marked for undo on Done — excluded from portions. */
+    omitSwapPublicIds?: string[];
+  } = {},
+): Promise<{ ok: true; grid: PickGrid | null } | { error: string }> {
   try {
     await assertCanManageOrder(orderId);
     const [row] = await db
@@ -133,6 +142,7 @@ export async function loadPickGrid(orderId: string, dates: string[]): Promise<{ 
       ? []
       : await db
         .select({
+          publicId: deliveryCategorySwaps.publicId,
           deliveryId: deliveryCategorySwaps.deliveryId,
           fromCategory: deliveryCategorySwaps.fromCategory,
           toCategory: deliveryCategorySwaps.toCategory,
@@ -143,19 +153,35 @@ export async function loadPickGrid(orderId: string, dates: string[]): Promise<{ 
         .from(deliveryCategorySwaps)
         .where(inArray(deliveryCategorySwaps.deliveryId, tripIds));
     const ownByDate = new Map(ownRows.map((d) => [d.deliveryDate, d]));
+    const omit = new Set(opts.omitSwapPublicIds ?? []);
+    const provisional = opts.provisionalSwaps ?? [];
 
     for (const date of eatingDates) {
       const trip = carrying.get(date) ?? ownByDate.get(date);
       const daySwaps: PortionSwap[] = trip == null
         ? []
         : swapRows
-          .filter((s) => s.deliveryId === trip.id && swapAppliesTo(s.forDate, trip.deliveryDate, date))
+          .filter((s) =>
+            s.deliveryId === trip.id
+            && !omit.has(s.publicId)
+            && swapAppliesTo(s.forDate, trip.deliveryDate, date),
+          )
           .map((s) => ({
             fromCategory: s.fromCategory,
             toCategory: s.toCategory,
             qtyFrom: s.qtyFrom,
             qtyTo: s.qtyTo,
           }));
+      for (const s of provisional) {
+        if (s.forDate === date) {
+          daySwaps.push({
+            fromCategory: s.fromCategory,
+            toCategory: s.toCategory,
+            qtyFrom: s.qtyFrom,
+            qtyTo: s.qtyTo,
+          });
+        }
+      }
       grid.portionsByDate[date] = mapPortions(portionsByCategory(items, tuByKey, daySwaps));
     }
 

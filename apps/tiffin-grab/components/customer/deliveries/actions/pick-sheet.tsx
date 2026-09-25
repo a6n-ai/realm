@@ -104,6 +104,12 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const [touched, setTouched] = useState(false);
   const [swapLoadKey, setSwapLoadKey] = useState(0);
   const [saving, setSaving] = useState(false);
+  // Category swaps stay local until Done — same batching as dish picks, so packing
+  // labels do not change while the sheet is still open.
+  const [pendingApplies, setPendingApplies] = useState<
+    { day: string; fromCategory: string; toCategory: string; fromPicks: number; toPicks: number }[]
+  >([]);
+  const [pendingRemoves, setPendingRemoves] = useState<string[]>([]);
 
   const labelOf = useCallback((k: string) => plan.categoryLabels[k] ?? k, [plan.categoryLabels]);
   const source = plan.days.find((d) => d.date === trip.date);
@@ -142,9 +148,21 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     };
   }, [open, swapLocked, trip.deliveryId, day, swapLoadKey]);
 
-  const refreshGrid = async () => {
+  const refreshGrid = async (
+    applies = pendingApplies,
+    removes = pendingRemoves,
+  ) => {
     try {
-      const r = await loadPickGrid(plan.orderId, dates);
+      const r = await loadPickGrid(plan.orderId, dates, {
+        provisionalSwaps: applies.map((p) => ({
+          forDate: p.day,
+          fromCategory: p.fromCategory,
+          toCategory: p.toCategory,
+          qtyFrom: p.fromPicks,
+          qtyTo: p.toPicks,
+        })),
+        omitSwapPublicIds: removes,
+      });
       if ("error" in r) {
         setError(sanitizeClientError(r.error));
         return;
@@ -192,23 +210,24 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     menuByCategory: new Map(groups.map((g) => [g.key, g.dishes])),
   });
 
-  const persistSwap = async (fromCategory: string, toCategory: string, fromPicks: number) => {
-    if (!trip.deliveryId || swapLocked) return;
-    const key = `swap:${fromCategory}>${toCategory}:${fromPicks}`;
-    setBusy(key);
+  const queueSwap = async (fromCategory: string, toCategory: string, fromPicks: number) => {
+    if (!trip.deliveryId || swapLocked || activeDay == null) return;
+    const option = (swapOptions ?? []).find((o) => o.fromCategory === fromCategory && o.toCategory === toCategory);
+    const bundle = option?.validBundles.find((b) => b.fromPicks === fromPicks) ?? option?.validBundles[0];
+    const toPicks = bundle?.toPicks ?? fromPicks;
+    const nextApplies = [
+      ...pendingApplies.filter(
+        (p) => !(p.day === activeDay && p.fromCategory === fromCategory && p.toCategory === toCategory),
+      ),
+      { day: activeDay, fromCategory, toCategory, fromPicks, toPicks },
+    ];
+    setPendingApplies(nextApplies);
+    setTouched(true);
     setError(null);
-    setApplied(null);
+    setApplied(`Swapped to ${labelOf(toCategory)}. Choose a dish if needed.`);
+    setBusy(`swap:${fromCategory}>${toCategory}:${fromPicks}`);
     try {
-      const r = await applyMyDeliverySwap(trip.deliveryId, fromCategory, toCategory, fromPicks, activeDay);
-      if ("error" in r) throw new Error(r.error);
-      setTouched(true);
-      const msg = `Swapped to ${labelOf(toCategory)}. Choose a dish if needed.`;
-      setApplied(msg);
-      if (onChanged) onChanged(msg);
-      await refreshGrid();
-    } catch (e) {
-      setError(sanitizeClientError(e, "Couldn't apply that swap. Try again."));
-      reloadSwapOptions();
+      await refreshGrid(nextApplies, pendingRemoves);
     } finally {
       setBusy(null);
     }
@@ -232,22 +251,29 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     }
     // Swaps only from the leading row — ignore stale option values.
     if (cellIndexInCategory !== 0) return;
-    void persistSwap(parsed.fromCategory, parsed.toCategory, parsed.fromPicks);
+    void queueSwap(parsed.fromCategory, parsed.toCategory, parsed.fromPicks);
   };
 
-  const removeSwap = async (publicId: string, text: string) => {
+  const queueRemoveSwap = async (publicId: string, text: string) => {
     if (!trip.deliveryId || busy != null) return;
     setBusy(publicId);
     setError(null);
     try {
-      const r = await removeMyDeliverySwap(trip.deliveryId, publicId, activeDay);
-      if ("error" in r) throw new Error(r.error);
+      if (publicId.startsWith("pending:")) {
+        const nextApplies = pendingApplies.filter(
+          (p) => `pending:${p.day}:${p.fromCategory}>${p.toCategory}:${p.fromPicks}` !== publicId,
+        );
+        setPendingApplies(nextApplies);
+        setTouched(true);
+        setApplied(`Removed ${text}`);
+        await refreshGrid(nextApplies, pendingRemoves);
+        return;
+      }
+      const nextRemoves = pendingRemoves.includes(publicId) ? pendingRemoves : [...pendingRemoves, publicId];
+      setPendingRemoves(nextRemoves);
       setTouched(true);
-      const msg = `Removed ${text}`;
-      if (onChanged) onChanged(msg);
-      await refreshGrid();
-    } catch (e) {
-      setError(sanitizeClientError(e, "Couldn't remove that swap. Try again."));
+      setApplied(`Removed ${text}`);
+      await refreshGrid(pendingApplies, nextRemoves);
     } finally {
       setBusy(null);
     }
@@ -274,11 +300,30 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       }
     }
 
-    if (changedPicks.length > 0) {
-      setSaving(true);
-      setError(null);
-      setViolatedRuleId(null);
-      try {
+    const hasSwapWork = pendingApplies.length > 0 || pendingRemoves.length > 0;
+    if (changedPicks.length === 0 && !hasSwapWork) {
+      onDone(touched ? "Meals saved" : undefined);
+      return;
+    }
+
+    if (!trip.deliveryId && hasSwapWork) {
+      setError("Couldn't save that exchange. Try again.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setViolatedRuleId(null);
+    try {
+      for (const publicId of pendingRemoves) {
+        const r = await removeMyDeliverySwap(trip.deliveryId!, publicId, activeDay);
+        if ("error" in r) throw new Error(r.error);
+      }
+      for (const p of pendingApplies) {
+        const r = await applyMyDeliverySwap(trip.deliveryId!, p.fromCategory, p.toCategory, p.fromPicks, p.day);
+        if ("error" in r) throw new Error(r.error);
+      }
+      if (changedPicks.length > 0) {
         const r = await saveMyMealSelections({
           orderId: plan.orderId,
           picks: changedPicks,
@@ -287,17 +332,31 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
           setViolatedRuleId(r.violatedRuleId ?? null);
           throw new Error(r.error);
         }
-        if (onChanged) onChanged("Meals saved");
-        onDone("Meals saved");
-      } catch (e) {
-        setError(sanitizeClientError(e, "Couldn't save that pick. Try again."));
-      } finally {
-        setSaving(false);
       }
-    } else {
-      onDone(touched ? "Meals saved" : undefined);
+      if (onChanged) onChanged("Meals saved");
+      onDone("Meals saved");
+    } catch (e) {
+      setError(sanitizeClientError(e, "Couldn't save that pick. Try again."));
+    } finally {
+      setSaving(false);
     }
   };
+
+  const visibleSwaps = [
+    ...appliedSwaps
+      .filter((s) => !pendingRemoves.includes(s.publicId))
+      .map((s) => ({ ...s, pending: false as const })),
+    ...pendingApplies
+      .filter((p) => p.day === activeDay)
+      .map((p) => ({
+        publicId: `pending:${p.day}:${p.fromCategory}>${p.toCategory}:${p.fromPicks}`,
+        fromCategory: p.fromCategory,
+        toCategory: p.toCategory,
+        qtyFrom: p.fromPicks,
+        qtyTo: p.toPicks,
+        pending: true as const,
+      })),
+  ];
 
   const footer = (
     <Button
@@ -368,10 +427,10 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                 {dayLocked && <p className={`text-[13px] ${muted}`}>Locked. Your picks for this day are final.</p>}
               </div>
 
-              {appliedSwaps.length > 0 && (
+              {visibleSwaps.length > 0 && (
                 <section aria-label="Applied swaps" className="flex flex-col gap-2">
                   <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>Exchanges today</h4>
-                  {appliedSwaps.map((s) => {
+                  {visibleSwaps.map((s) => {
                     const text = swapLabel(s, labelOf, plan.swapCategories);
                     return (
                       <div
@@ -385,7 +444,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                             pending={busy === s.publicId}
                             disabled={busy != null}
                             aria-label={`Remove swap ${text}`}
-                            onClick={() => void removeSwap(s.publicId, text)}
+                            onClick={() => void queueRemoveSwap(s.publicId, text)}
                           >
                             <X aria-hidden className="size-4" />
                             Undo

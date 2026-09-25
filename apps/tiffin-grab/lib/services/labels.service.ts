@@ -1,7 +1,8 @@
-// Per-day packing-label manifest for kitchen staff: one row per Tiffin-plan delivery on a
-// date, with the customer's phone/name/plan and up to 7 item/qty columns matching the physical
-// containers used to pack a box. Reuses resolveDeliveryMeal (the same "what a subscriber
-// receives" resolver the customer calendar uses) rather than re-deriving meal picks.
+// Per-day packing-label manifest for kitchen staff: one row per physical tiffin on a
+// delivery date (a multi-day trip expands to For Fri / For Sat / …), with the customer's
+// phone/name/plan and up to 7 item/qty columns matching the physical containers used to
+// pack a box. Reuses resolveDeliveryMeal (the same "what a subscriber receives" resolver
+// the customer calendar uses) rather than re-deriving meal picks.
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { parsePhoneNumberWithError } from "libphonenumber-js";
 import { parseIsoDateUtc } from "@foundry/commons";

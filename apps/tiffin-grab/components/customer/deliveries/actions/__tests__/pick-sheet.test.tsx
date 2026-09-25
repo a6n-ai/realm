@@ -202,7 +202,61 @@ describe("PickSheet", () => {
     const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
     expect(swapRadio).toHaveTextContent("Choose this instead");
     fireEvent.click(swapRadio);
+    await screen.findByText(/Swapped to Daal/);
+    expect(applySwap).not.toHaveBeenCalled();
+  });
+
+  it("persists a queued swap only when Done is pressed", async () => {
+    loadSwaps.mockResolvedValue({
+      options: [
+        {
+          fromCategory: "curry",
+          toCategory: "daal",
+          available: true,
+          reason: null,
+          validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "8oz", getNatural: "8oz" }],
+          minFromPicks: 1,
+          maxFromPicks: 1,
+          bundleIncrement: 1,
+          giveNatural: "8oz",
+          getNatural: "8oz",
+        },
+      ],
+    });
+    load.mockResolvedValue(grid([cell({})]));
+    const onDone = show(trip({ coversDates: [mon] }));
+    fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+    await screen.findByText(/Swapped to Daal/);
+    expect(applySwap).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "curry", "daal", 1, mon));
+    expect(onDone).toHaveBeenCalledWith("Meals saved");
+  });
+
+  it("discards a queued swap when the sheet closes without Done", async () => {
+    loadSwaps.mockResolvedValue({
+      options: [
+        {
+          fromCategory: "curry",
+          toCategory: "daal",
+          available: true,
+          reason: null,
+          validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "8oz", getNatural: "8oz" }],
+          minFromPicks: 1,
+          maxFromPicks: 1,
+          bundleIncrement: 1,
+          giveNatural: "8oz",
+          getNatural: "8oz",
+        },
+      ],
+    });
+    load.mockResolvedValue(grid([cell({})]));
+    const onDone = show(trip({ coversDates: [mon] }));
+    fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+    await screen.findByText(/Swapped to Daal/);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(applySwap).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledWith();
   });
 
   it("shows Included for fixed categories with no admin outgoing swaps", async () => {
@@ -275,7 +329,8 @@ describe("PickSheet", () => {
     expect(screen.queryByText("Included")).toBeNull();
     expect(screen.queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
     fireEvent.click(swapRadio);
-    await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "rice", "roti", 1, mon));
+    await screen.findByText(/Swapped to Roti/);
+    expect(applySwap).not.toHaveBeenCalled();
   });
 
   it("locked day disables radios", async () => {
@@ -414,7 +469,7 @@ describe("PickSheet", () => {
     expect(onDone).toHaveBeenCalledWith();
   });
 
-  it("sanitizes Minified React error #441 if thrown when clicking to apply a swap", async () => {
+  it("sanitizes Minified React error #441 if thrown when saving a swap on Done", async () => {
     load.mockResolvedValue(
       grid([cell({ day: "mon", dateIso: mon, slot: "curry", dishes, selectedDishId: "d1" })]),
     );
@@ -443,10 +498,12 @@ describe("PickSheet", () => {
 
     const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
     fireEvent.click(swapRadio);
+    await screen.findByText(/Swapped to Daal/);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
 
     await waitFor(() => {
       expect(screen.queryByText(/Minified React error/)).not.toBeInTheDocument();
-      expect(screen.getByText("Couldn't apply that swap. Try again.")).toBeInTheDocument();
+      expect(screen.getByText("Couldn't save that pick. Try again.")).toBeInTheDocument();
     });
   });
 });
