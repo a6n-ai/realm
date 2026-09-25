@@ -4,7 +4,7 @@
 // poisons every subsequent run's user-delete. Clearing once here at the shared
 // boundary keeps the DB FK-clean without touching every suite's reset().
 export async function setup() {
-  const dbUrl = (process.env.DATABASE_URL ??= "postgres://lawbringr@localhost:5432/tiffin");
+  const dbUrl = (process.env.DATABASE_URL ??= "postgres://lawbringr@localhost:5432/tiffin_v2");
   // PROD SAFETY, and this guard is load-bearing: the TRUNCATE below runs before
   // any test file, so without it a run whose DATABASE_URL points at a remote
   // environment wipes wallet_ledger (customer coin balances) and event_payout
@@ -46,7 +46,7 @@ export async function setup() {
 import { isLocalDb } from "./db/is-local-db";
 
 export async function teardown() {
-  const dbUrl = process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin";
+  const dbUrl = process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin_v2";
   if (!isLocalDb(dbUrl)) return; // never reseed prod
 
   const postgres = (await import("postgres")).default;

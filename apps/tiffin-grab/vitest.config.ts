@@ -31,7 +31,7 @@ export default defineConfig({
       "db/seed-qa-*.test.ts",
     ],
     env: {
-      DATABASE_URL: process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin",
+      DATABASE_URL: process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin_v2",
       // Dedicated Redis DB (index 15) for tests — vitest.setup flushes it between
       // tests so a prior suite's cached snapshot can't bleed into the next.
       REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379/15",
