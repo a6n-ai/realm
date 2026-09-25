@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@foundry/ui/button";
 import { WeekStartPicker } from "./week-start-picker";
 import { upsertWeek } from "./actions";
+import { sanitizeClientError } from "@/lib/format/client-error";
 
 /**
  * Starting a week is a decision, so it lives on the list page; building it is a workspace,
@@ -24,12 +25,12 @@ export function NewWeekCard({ takenWeekStarts }: { takenWeekStarts: string[] }) 
       try {
         const w = await upsertWeek({ weekStart });
         if ("error" in w) {
-          setError(w.error);
+          setError(sanitizeClientError(w.error));
           return;
         }
         router.push(`/dashboard/menus/${w.publicId}`);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not create the week");
+        setError(sanitizeClientError(e, "Could not create the week"));
       }
     });
   };

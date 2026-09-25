@@ -38,4 +38,21 @@ describe("menu actions", () => {
     const res = await markReadyAction("mw_test");
     expect(res).toEqual({ error: "Only a draft can be marked ready" });
   });
+
+  it("returns session expired error when requireAdmin throws AuthError", async () => {
+    const { requireAdmin } = await import("@/lib/auth/guards");
+    const { AuthError } = await import("@foundry/commons");
+    vi.mocked(requireAdmin).mockRejectedValueOnce(new AuthError());
+    const res = await releaseWeek("mw_test");
+    expect(res).toEqual({ error: "Session expired. Please log in again." });
+  });
+
+  it("returns safe friendly error when unexpected failure occurs", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    release.mockRejectedValueOnce(new Error("Unexpected DB connection lost"));
+    const res = await releaseWeek("mw_test");
+    expect(res).toEqual({ error: "Unable to complete request. Please try again." });
+    spy.mockRestore();
+  });
 });
+

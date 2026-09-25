@@ -34,21 +34,29 @@ export async function changePlan(orderId: string, mealSizePublicId: string) {
 }
 
 export async function verifyPaymentAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
-  await requireStaff();
-  const session = await getSession();
-  const res = await runAction(() => verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null }));
-  revalidatePath(`/dashboard/orders/${orderId}`);
-  revalidatePath("/dashboard/payments", "layout");
-  revalidatePath("/me/wallet");
+  const res = await runAction(async () => {
+    await requireStaff();
+    const session = await getSession();
+    await verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null });
+  });
+  if ("ok" in res) {
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/payments", "layout");
+    revalidatePath("/me/wallet");
+  }
   return res;
 }
 
 export async function rejectPaymentAction(orderId: string, paymentPublicId: string, note: string): Promise<ActionResult> {
-  await requireStaff();
-  const res = await runAction(async () => rejectPayment(paymentPublicId, note, await currentUserId()));
-  revalidatePath(`/dashboard/orders/${orderId}`);
-  revalidatePath("/dashboard/payments", "layout");
-  revalidatePath("/me/wallet");
+  const res = await runAction(async () => {
+    await requireStaff();
+    await rejectPayment(paymentPublicId, note, await currentUserId());
+  });
+  if ("ok" in res) {
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/payments", "layout");
+    revalidatePath("/me/wallet");
+  }
   return res;
 }
 
@@ -69,11 +77,13 @@ export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPu
 
 /** Driver could not deliver: moves the whole trip to the next delivery day (merging there); the pool is untouched. */
 export async function redeliverTripAction(orderId: string, deliveryPublicId: string): Promise<ActionResult> {
-  await requireStaff();
   const res = await runAction(async () => {
+    await requireStaff();
     const { targetDate } = await redeliverTrip(deliveryPublicId, await currentUserId());
     return `Re-delivering on ${targetDate}`;
   });
-  revalidatePath(`/dashboard/orders/${orderId}`);
+  if ("ok" in res) {
+    revalidatePath(`/dashboard/orders/${orderId}`);
+  }
   return res;
 }

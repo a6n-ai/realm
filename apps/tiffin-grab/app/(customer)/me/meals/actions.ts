@@ -57,6 +57,7 @@ export async function applyMyDishToWeek(input: {
     return { applied: result.applied, skipped: result.skipped };
   } catch (e) {
     if (e instanceof AppError) return { error: e.message };
-    throw e;
+    console.error("[applyMyDishToWeek unexpected error]", e);
+    return { error: "Unable to complete request. Please try again." };
   }
 }

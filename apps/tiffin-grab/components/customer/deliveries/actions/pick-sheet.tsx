@@ -7,7 +7,7 @@ import {
   loadMySwapOptions,
   removeMyDeliverySwap,
 } from "@/app/(customer)/me/deliveries/actions";
-import { applyMyDishToWeek, pickMyDish } from "@/app/(customer)/me/meals/actions";
+import { pickMyDish } from "@/app/(customer)/me/meals/actions";
 import { Button, Chip, Choice, ChoiceGroup, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
@@ -28,30 +28,12 @@ import {
   parseSlotOptionValue,
 } from "@/lib/menu/slot-dropdown";
 import { swapLabel } from "@/lib/menu/swap-rules";
+import { sanitizeClientError } from "@/lib/format/client-error";
 import type { ActionSheetProps } from "./types";
 
 const PREFIX = "pick";
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const muted = "text-[var(--muted-foreground,#6E6558)]";
-
-/** Map server skip reasons to short customer labels — never invent category-specific copy. */
-export function skipDayHint(reason: string): string {
-  const r = reason.toLowerCase();
-  if (r.includes("lock") || r.includes("cutoff") || r.includes("closed") || r.includes("prepared")) return "locked";
-  if (r.includes("menu") || r.includes("not available") || r.includes("no dish")) return "not on menu";
-  if (r.includes("invalid pick") || r.includes("swap")) return "after swaps";
-  if (r.includes("exclusive") || r.includes("at most") || r.includes("meal rule")) return "meal rules";
-  return "unavailable";
-}
-
-function formatApplyWeekSkips(skipped: { dateIso: string; reason: string }[]): string {
-  const unique = new Map<string, string>();
-  for (const s of skipped) {
-    const day = shortDay(s.dateIso);
-    if (!unique.has(day)) unique.set(day, skipDayHint(s.reason));
-  }
-  return [...unique.entries()].map(([day, hint]) => `${day} (${hint})`).join(", ");
-}
 
 function slotLabel(group: PickCategoryGroup, index: number): string {
   const portion = group.portions[index];
@@ -163,7 +145,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     try {
       const r = await loadPickGrid(plan.orderId, dates);
       if ("error" in r) {
-        setError(r.error);
+        setError(sanitizeClientError(r.error));
         return;
       }
       setState({ grid: r.grid });
@@ -200,9 +182,6 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     mealPicks: [...mealPicks].sort((a, b) => a.pickIndex - b.pickIndex),
     menuByCategory: new Map(groups.map((g) => [g.key, g.dishes])),
   });
-  const canApplyWeek =
-    !dayLocked &&
-    groups.some((g) => g.selectable && !g.cells.every((c) => c.locked));
 
   const persistDish = async (cell: GridCell, dishId: string) => {
     const key = cellKey(cell);
@@ -236,7 +215,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         else next[key] = prev;
         return next;
       });
-      setError(e instanceof Error && e.message ? e.message : "Couldn't save that pick. Try again.");
+      setError(sanitizeClientError(e, "Couldn't save that pick. Try again."));
     } finally {
       setBusy(null);
     }
@@ -257,7 +236,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       if (onChanged) onChanged(msg);
       await refreshGrid();
     } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : "Couldn't apply that swap. Try again.");
+      setError(sanitizeClientError(e, "Couldn't apply that swap. Try again."));
       reloadSwapOptions();
     } finally {
       setBusy(null);
@@ -292,47 +271,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       if (onChanged) onChanged(msg);
       await refreshGrid();
     } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : "Couldn't remove that swap. Try again.");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const applyWeekDishes = async () => {
-    if (dayLocked || busy != null) return;
-    const selectableGroups = groups.filter((g) => g.selectable && !g.cells.every((c) => c.locked));
-    if (selectableGroups.length === 0) return;
-    setBusy("week");
-    setError(null);
-    try {
-      const notes: { dateIso: string; reason: string }[] = [];
-      for (const group of selectableGroups) {
-        for (const cell of group.cells) {
-          const dishId = effectiveDishId(cell, picked);
-          if (!dishId) continue;
-          const r = await applyMyDishToWeek({
-            orderId: plan.orderId,
-            menuWeekId: grid!.weekByDate[cell.dateIso],
-            slot: cell.slot,
-            personIndex: cell.personIndex,
-            pickIndex: cell.pickIndex,
-            dishId,
-          });
-          if ("error" in r) {
-            setError(r.error);
-            await refreshGrid();
-            return;
-          }
-          if (r.skipped.length) notes.push(...r.skipped);
-        }
-      }
-      setTouched(true);
-      setApplied(
-        `Applied to the rest of the week${notes.length ? `, except ${formatApplyWeekSkips(notes)}` : ""}.`,
-      );
-      await refreshGrid();
-    } catch {
-      setError("Couldn't apply to the week. Try again.");
+      setError(sanitizeClientError(e, "Couldn't remove that swap. Try again."));
     } finally {
       setBusy(null);
     }
@@ -549,18 +488,6 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                     ))}
                   </div>
                 </section>
-              )}
-
-              {canApplyWeek && (
-                <Button
-                  variant="quiet"
-                  className="w-full"
-                  pending={busy === "week" || busy?.startsWith("week:")}
-                  disabled={busy != null}
-                  onClick={() => void applyWeekDishes()}
-                >
-                  Apply dishes to the whole week
-                </Button>
               )}
             </div>
             {applied && <Notice>{applied}</Notice>}

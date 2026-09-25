@@ -17,8 +17,10 @@ function revalidatePaymentPaths() {
 // "Minified React error #441" in prod. Shared Foundry rules: payee handle only
 // for enabled e-Transfer; cash needs no destination.
 export async function savePaymentConfig(cfg: PaymentConfig): Promise<ActionResult> {
-  await requireAdmin();
-  return runAction(() => savePaymentConfigUnsafe(cfg));
+  return runAction(async () => {
+    await requireAdmin();
+    await savePaymentConfigUnsafe(cfg);
+  });
 }
 
 async function savePaymentConfigUnsafe(cfg: PaymentConfig) {
@@ -34,8 +36,10 @@ async function savePaymentConfigUnsafe(cfg: PaymentConfig) {
 
 /** Install a catalog payment plugin (adds its method stub to payment_config). */
 export async function installPaymentPlugin(pluginId: string): Promise<ActionResult> {
-  await requireAdmin();
-  return runAction(() => installPaymentPluginUnsafe(pluginId));
+  return runAction(async () => {
+    await requireAdmin();
+    await installPaymentPluginUnsafe(pluginId);
+  });
 }
 
 async function installPaymentPluginUnsafe(pluginId: string) {
@@ -52,8 +56,10 @@ async function installPaymentPluginUnsafe(pluginId: string) {
 
 /** Uninstall a payment plugin and drop its method config. */
 export async function uninstallPaymentPlugin(pluginId: string): Promise<ActionResult> {
-  await requireAdmin();
-  return runAction(() => uninstallPaymentPluginUnsafe(pluginId));
+  return runAction(async () => {
+    await requireAdmin();
+    await uninstallPaymentPluginUnsafe(pluginId);
+  });
 }
 
 async function uninstallPaymentPluginUnsafe(pluginId: string) {

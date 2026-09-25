@@ -15,6 +15,7 @@ import type { MealTypeConfig } from "@/lib/menu/meal-types";
 import { MenuGrid, type Slot } from "./menu-grid";
 import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek } from "./actions";
 import { cn } from "@foundry/ui/cn";
+import { sanitizeClientError } from "@/lib/format/client-error";
 
 const AUTOSAVE_MS = 1500;
 
@@ -97,7 +98,7 @@ export function MenuBuilder({
   const run = (fn: () => Promise<void>) => start(async () => {
     setError(null);
     try { await fn(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Action failed"); }
+    catch (e) { setError(sanitizeClientError(e, "Action failed. Please try again.")); }
   });
 
   const wireItems = useCallback(
@@ -117,7 +118,7 @@ export function MenuBuilder({
         amend: opts?.amend,
       });
       if ("error" in result) {
-        setError(result.error);
+        setError(sanitizeClientError(result.error));
         if (/another tab|reload/i.test(result.error)) setStaleConflict(true);
         return;
       }
@@ -135,7 +136,7 @@ export function MenuBuilder({
       }
       return result;
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Could not save";
+      const message = sanitizeClientError(e, "Could not save");
       setError(message);
       if (/another tab|reload/i.test(message)) setStaleConflict(true);
     } finally {
@@ -244,7 +245,7 @@ export function MenuBuilder({
       // category guard accepts it and it stays scoped to that slot.
       const d = await createDish({ name: newName, category: t.slot.categoryKey, planId: newPlanId });
       if ("error" in d) {
-        setError(d.error);
+        setError(sanitizeClientError(d.error));
         return;
       }
       setCreatedDishes((prev) => [...prev, { id: d.publicId, name: d.name, category: d.category, planId: d.planId }]);
@@ -260,7 +261,7 @@ export function MenuBuilder({
     run(async () => {
       const res = await copyWeek({ fromWeekId, toWeekId: week.id });
       if ("error" in res) {
-        setError(res.error);
+        setError(sanitizeClientError(res.error));
         return;
       }
       // The copy rewrote the week's items server-side. A full reload re-seeds the working
@@ -278,7 +279,7 @@ export function MenuBuilder({
       }
       const res = await releaseWeek(week.id);
       if ("error" in res) {
-        setError(res.error);
+        setError(sanitizeClientError(res.error));
         return;
       }
       router.refresh();
@@ -292,7 +293,7 @@ export function MenuBuilder({
     run(async () => {
       const res = await amendImpact({ menuWeekId: week.id, items: wireItems() });
       if ("error" in res) {
-        setError(res.error);
+        setError(sanitizeClientError(res.error));
         return;
       }
       setAmendPreview(res);
@@ -368,7 +369,7 @@ export function MenuBuilder({
                 <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={pending || saving || dirty || rows.length === 0}
                   onClick={() => run(async () => {
                     const res = await markReady(week.id);
-                    if ("error" in res) { setError(res.error); return; }
+                    if ("error" in res) { setError(sanitizeClientError(res.error)); return; }
                     router.refresh();
                   })}>
                   Mark ready
@@ -380,7 +381,7 @@ export function MenuBuilder({
               <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={pending}
                 onClick={() => run(async () => {
                   const res = await backToDraft(week.id);
-                  if ("error" in res) { setError(res.error); return; }
+                  if ("error" in res) { setError(sanitizeClientError(res.error)); return; }
                   router.refresh();
                 })}>
                 Back to draft

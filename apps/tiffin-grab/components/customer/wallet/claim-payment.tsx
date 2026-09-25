@@ -10,6 +10,7 @@ import { Label } from "@foundry/ui/label";
 import { makeImageThumbnail } from "@/components/ds";
 import { claimPaymentAction } from "@/app/(customer)/me/wallet/actions";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
+import { sanitizeClientError } from "@/lib/format/client-error";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -102,14 +103,14 @@ export function ClaimPayment({
         }
         const res = await claimPaymentAction(ctx.paymentPublicId, form);
         if ("error" in res) {
-          setError(res.error);
+          setError(sanitizeClientError(res.error));
           return;
         }
         toast("Payment submitted — we'll confirm it shortly");
         onDone?.();
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not submit payment");
+        setError(sanitizeClientError(e, "Could not submit payment. Please try again."));
       }
     });
   }

@@ -20,12 +20,12 @@ function revalidatePublic() {
   revalidatePath("/");
 }
 
-// Expected ValidationErrors must be RETURNED (runAction): thrown errors are redacted
+// Expected ValidationErrors and AuthErrors must be RETURNED (runAction): thrown errors are redacted
 // to "Minified React error #441" in production and the builder can only show that.
 
 export async function upsertWeek(input: { weekStart: string }): Promise<ActionResult<{ publicId: string }>> {
-  await requireAdmin();
   return runAction(async () => {
+    await requireAdmin();
     const w = await menuService.upsertWeek(input);
     revalidate();
     return { publicId: w.publicId };
@@ -35,8 +35,8 @@ export async function upsertWeek(input: { weekStart: string }): Promise<ActionRe
 export async function createDish(
   input: { name: string; category?: string | null; planId: string },
 ): Promise<ActionResult<{ publicId: string; name: string; category: string | null; planId: string }>> {
-  await requireAdmin();
   return runAction(async () => {
+    await requireAdmin();
     const name = input.name.trim();
     if (!name) throw new ValidationError("Dish name is required");
     if (!input.planId) throw new ValidationError("Plan is required");
@@ -72,8 +72,8 @@ export async function saveWeek(input: {
     }[];
   }>
 > {
-  await requireAdmin();
   return runAction(async () => {
+    await requireAdmin();
     const result = await menuService.saveWeek(input);
     if (input.amend) revalidatePublic();
     else revalidate();
@@ -86,8 +86,8 @@ export async function amendImpact(input: {
   menuWeekId: string;
   items: DraftMenuItem[];
 }): Promise<ActionResult<{ resetPicks: number; affectedOrders: number; days: string[] }>> {
-  await requireAdmin();
   return runAction(async () => {
+    await requireAdmin();
     const { resetPicks, affectedOrders, days } = await menuService.amendImpact(input);
     return { resetPicks, affectedOrders, days };
   });
@@ -99,16 +99,16 @@ export async function releaseProblems(menuWeekId: string) {
 }
 
 export async function markReady(menuWeekId: string): Promise<ActionResult> {
-  await requireAdmin();
   return runAction(async () => {
+    await requireAdmin();
     await menuService.markReady(menuWeekId);
     revalidate();
   });
 }
 
 export async function backToDraft(menuWeekId: string): Promise<ActionResult> {
-  await requireAdmin();
   return runAction(async () => {
+    await requireAdmin();
     await menuService.backToDraft(menuWeekId);
     revalidate();
   });
@@ -118,16 +118,16 @@ export async function copyWeek(input: {
   fromWeekId: string;
   toWeekId: string;
 }): Promise<ActionResult> {
-  await requireAdmin();
   return runAction(async () => {
+    await requireAdmin();
     await menuService.copyWeek(input);
     revalidate();
   });
 }
 
 export async function releaseWeek(menuWeekId: string): Promise<ActionResult> {
-  await requireAdmin();
   return runAction(async () => {
+    await requireAdmin();
     await menuService.release(menuWeekId);
     revalidatePublic();
   });
