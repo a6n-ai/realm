@@ -202,3 +202,112 @@ describe("buildMealSummary", () => {
   });
 });
 
+/**
+ * Regression tests for provisional swap cell/portion alignment.
+ * The fix adjusts grid.cells to match portionsByCategory output after swaps,
+ * so groupPickCells never sees a mismatch between cell count and portions.
+ */
+describe("provisional swap — cells + portions aligned", () => {
+  const cats = [
+    { key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 0 },
+    { key: "daal", label: "Daal", selectable: true, sortOrder: 1 },
+  ];
+
+  // Test 1: swap X·12oz → Y·12oz, remaining X·8oz keeps its portion
+  it("Test 1 — swap Sabzi·12oz → Daal·12oz leaves Sabzi·8oz intact", () => {
+    // After the fix: cells are front-spliced too, so sabzi has 1 cell and daal has 2.
+    const cells = [
+      cell({ slot: "sabzi", pickIndex: 1 }), // remaining 8oz
+      cell({ slot: "daal", pickIndex: 1, dishes: [{ id: "d-dal", name: "Dal Tadka", image: null }], selectedDishId: "d-dal" }),
+      cell({ slot: "daal", pickIndex: 2, selectedDishId: null, isDefaulted: false }), // new from swap
+    ];
+    // portionsByCategory after swap: sabzi=["8oz"], daal=["8oz", "12oz"]
+    const groups = groupPickCells(cells, cats, { sabzi: ["8oz"], daal: ["8oz", "12oz"] });
+    expect(groups).toHaveLength(2);
+    const sabzi = groups.find((g) => g.key === "sabzi")!;
+    const daal = groups.find((g) => g.key === "daal")!;
+    expect(sabzi.chooseCount).toBe(1);
+    expect(sabzi.portions).toEqual(["8oz"]);
+    expect(daal.chooseCount).toBe(2);
+    expect(daal.portions).toEqual(["8oz", "12oz"]);
+  });
+
+  // Test 2: duplicate category — swap first X out, existing Y untouched
+  it("Test 2 — swap first Sabzi·12oz → Daal, existing Daal row untouched", () => {
+    const threeCats = [
+      { key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 0 },
+      { key: "daal", label: "Daal", selectable: true, sortOrder: 1 },
+    ];
+    // After swap of sabzi pick 1: sabzi has 1 cell (8oz), daal has 2 cells (8oz existing + 12oz new)
+    const cells = [
+      cell({ slot: "sabzi", pickIndex: 1 }), // remaining 8oz
+      cell({ slot: "daal", pickIndex: 1, dishes: [{ id: "d-dal", name: "Dal Tadka", image: null }], selectedDishId: "d-dal" }),
+      cell({ slot: "daal", pickIndex: 2, selectedDishId: null, isDefaulted: false }),
+    ];
+    const groups = groupPickCells(cells, threeCats, { sabzi: ["8oz"], daal: ["8oz", "12oz"] });
+    const sabzi = groups.find((g) => g.key === "sabzi")!;
+    const daal = groups.find((g) => g.key === "daal")!;
+    expect(sabzi.chooseCount).toBe(1);
+    expect(sabzi.portions).toEqual(["8oz"]);
+    expect(daal.chooseCount).toBe(2);
+    expect(daal.portions).toEqual(["8oz", "12oz"]);
+    // The existing daal cell still has its selected dish
+    expect(daal.cells[0]!.selectedDishId).toBe("d-dal");
+  });
+
+  // Test 3: second swap — X·8oz → Y·8oz after first swap already done
+  it("Test 3 — second swap: remaining Sabzi·8oz → Daal·8oz", () => {
+    // Both sabzi swapped away: sabzi has 0 cells, daal has 3 cells
+    const cells = [
+      cell({ slot: "daal", pickIndex: 1, dishes: [{ id: "d-dal", name: "Dal Tadka", image: null }], selectedDishId: "d-dal" }),
+      cell({ slot: "daal", pickIndex: 2, selectedDishId: null, isDefaulted: false }),
+      cell({ slot: "daal", pickIndex: 3, selectedDishId: null, isDefaulted: false }),
+    ];
+    const groups = groupPickCells(cells, cats, { daal: ["8oz", "12oz", "8oz"] });
+    expect(groups).toHaveLength(1);
+    const daal = groups[0]!;
+    expect(daal.key).toBe("daal");
+    expect(daal.chooseCount).toBe(3);
+    expect(daal.portions).toEqual(["8oz", "12oz", "8oz"]);
+  });
+
+  // Test 4: 3+ composition rows retain correct category and portion
+  it("Test 4 — 3+ rows: swap one middle-value out, others keep portions", () => {
+    const fourCats = [
+      { key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 0 },
+      { key: "daal", label: "Daal", selectable: true, sortOrder: 1 },
+      { key: "salad", label: "Salad", selectable: true, sortOrder: 2 },
+    ];
+    // Original: sabzi [16oz, 12oz, 8oz], daal [8oz], salad [4oz]
+    // After swapping sabzi·16oz → daal·16oz: sabzi [12oz, 8oz], daal [8oz, 16oz], salad [4oz]
+    const cells = [
+      cell({ slot: "sabzi", pickIndex: 1 }), // 12oz
+      cell({ slot: "sabzi", pickIndex: 2 }), // 8oz
+      cell({ slot: "daal", pickIndex: 1, selectedDishId: "d-dal", dishes: [{ id: "d-dal", name: "Dal", image: null }] }),
+      cell({ slot: "daal", pickIndex: 2, selectedDishId: null, isDefaulted: false }),
+      cell({ slot: "salad", pickIndex: 1, selectedDishId: "d-salad", dishes: [{ id: "d-salad", name: "Salad", image: null }] }),
+    ];
+    const groups = groupPickCells(cells, fourCats, {
+      sabzi: ["12oz", "8oz"],
+      daal: ["8oz", "16oz"],
+      salad: ["4oz"],
+    });
+    expect(groups).toHaveLength(3);
+    expect(groups.find((g) => g.key === "sabzi")!.portions).toEqual(["12oz", "8oz"]);
+    expect(groups.find((g) => g.key === "daal")!.portions).toEqual(["8oz", "16oz"]);
+    expect(groups.find((g) => g.key === "salad")!.portions).toEqual(["4oz"]);
+  });
+
+  // Test: no portion → fallback label still works for genuine multi-pick with no TU
+  it("no-portion multi-pick falls back to numbered label", () => {
+    const cells = [
+      cell({ slot: "sabzi", pickIndex: 1 }),
+      cell({ slot: "sabzi", pickIndex: 2 }),
+    ];
+    const groups = groupPickCells(cells, [{ key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 0 }], {});
+    expect(groups[0]!.chooseCount).toBe(2);
+    // Both portions are null when no portionsBySlot — numbered fallback is correct here
+    expect(groups[0]!.portions).toEqual([null, null]);
+  });
+});
+

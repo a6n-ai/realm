@@ -42,7 +42,14 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 # Cache mount persists Next's incremental build cache across CI runs (BuildKit gha
 # cache backend keeps it) — turns most rebuilds into incremental ones instead of
 # from-scratch compiles.
+# Version-skew protection: a tab opened before a deploy calls Server Actions and
+# chunks the new build no longer has ("Failed to find Server Action", surfaced to
+# customers as React error #441). With a per-build id Next sees the mismatch and
+# hard-reloads the page instead. CI passes the commit SHA; declared here, right
+# before the build, so a new value never busts the dependency layers above.
+ARG NEXT_DEPLOYMENT_ID
 RUN --mount=type=cache,id=next-cache-${APP},target=/app/apps/${APP}/.next/cache \
+    NEXT_DEPLOYMENT_ID="${NEXT_DEPLOYMENT_ID}" \
     DATABASE_URL="postgres://build:build@127.0.0.1:5432/build" \
     REDIS_URL="redis://127.0.0.1:6379" \
     BETTER_AUTH_SECRET="build-placeholder-not-used-at-runtime" \

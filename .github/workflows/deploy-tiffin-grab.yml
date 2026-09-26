@@ -56,6 +56,7 @@ jobs:
           target: runner
           build-args: |
             APP=tiffin-grab
+            NEXT_DEPLOYMENT_ID=${{ github.sha }}
           push: true
           tags: |
             ghcr.io/a6n-ai/tiffin-grab-web:${{ github.sha }}
@@ -71,6 +72,7 @@ jobs:
           target: build
           build-args: |
             APP=tiffin-grab
+            NEXT_DEPLOYMENT_ID=${{ github.sha }}
           push: true
           tags: |
             ghcr.io/a6n-ai/tiffin-grab-tools:${{ github.sha }}

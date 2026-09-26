@@ -10,7 +10,6 @@ import { PickSheet } from "../pick-sheet";
 const load = vi.fn();
 const pick = vi.fn();
 const savePicks = vi.fn();
-const applyWeek = vi.fn();
 const loadSwaps = vi.fn();
 const applySwap = vi.fn();
 const removeSwap = vi.fn();
@@ -19,7 +18,6 @@ vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: (...a
 vi.mock("@/app/(customer)/me/meals/actions", () => ({
   pickMyDish: (...a: unknown[]) => pick(...a),
   saveMyMealSelections: (...a: unknown[]) => savePicks(...a),
-  applyMyDishToWeek: (...a: unknown[]) => applyWeek(...a),
 }));
 vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
   loadMySwapOptions: (...a: unknown[]) => loadSwaps(...a),
@@ -101,7 +99,6 @@ beforeEach(() => {
   load.mockReset();
   pick.mockReset().mockResolvedValue({ ok: true });
   savePicks.mockReset().mockResolvedValue({ ok: true, saved: 1 });
-  applyWeek.mockReset().mockResolvedValue({ applied: 3, skipped: [] });
   loadSwaps.mockReset().mockResolvedValue({ options: [] });
   applySwap.mockReset().mockResolvedValue({ ok: true });
   removeSwap.mockReset().mockResolvedValue({ ok: true });
@@ -156,7 +153,7 @@ describe("PickSheet", () => {
     fireEvent.click(await screen.findByRole("tab", { name: "Person 2" }));
     fireEvent.click(screen.getByRole("radio", { name: /^Dal$/ }));
     expect(savePicks).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(savePicks).toHaveBeenCalledWith({
         orderId: "o1",
@@ -206,7 +203,7 @@ describe("PickSheet", () => {
     expect(applySwap).not.toHaveBeenCalled();
   });
 
-  it("persists a queued swap only when Done is pressed", async () => {
+  it("persists a queued swap only when Save is pressed", async () => {
     loadSwaps.mockResolvedValue({
       options: [
         {
@@ -228,7 +225,7 @@ describe("PickSheet", () => {
     fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
     await screen.findByText(/Swapped to Daal/);
     expect(applySwap).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "curry", "daal", 1, mon));
     expect(onDone).toHaveBeenCalledWith("Meals saved");
   });
@@ -346,7 +343,7 @@ describe("PickSheet", () => {
     show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
     expect(savePicks).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText(/only 1 sabzi exclusive/i)).toBeInTheDocument();
   });
 
@@ -359,12 +356,12 @@ describe("PickSheet", () => {
     expect(screen.getByText("Paneer · 8oz")).toBeInTheDocument();
   });
 
-  it("Done closes with a toast only after a change", async () => {
+  it("Save closes with a toast after a change", async () => {
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
     expect(savePicks).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(savePicks).toHaveBeenCalled());
     expect(onDone).toHaveBeenCalledWith("Meals saved");
   });
@@ -444,7 +441,7 @@ describe("PickSheet", () => {
     fireEvent.click(dalRadio);
     expect(savePicks).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
       // Must NOT render Minified React error #441
@@ -499,11 +496,68 @@ describe("PickSheet", () => {
     const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
     fireEvent.click(swapRadio);
     await screen.findByText(/Swapped to Daal/);
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
       expect(screen.queryByText(/Minified React error/)).not.toBeInTheDocument();
       expect(screen.getByText("Couldn't save that pick. Try again.")).toBeInTheDocument();
+    });
+  });
+
+  describe("unsaved swaps", () => {
+    const curryToDaal = {
+      fromCategory: "curry",
+      toCategory: "daal",
+      available: true,
+      reason: null,
+      validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "8oz", getNatural: "8oz" }],
+      minFromPicks: 1,
+      maxFromPicks: 1,
+      bundleIncrement: 1,
+      giveNatural: "8oz",
+      getNatural: "8oz",
+    };
+    const monSwap = { publicId: "s1", fromCategory: "curry", toCategory: "daal", qtyFrom: 1, qtyTo: 1 };
+    const planWithMonSwap = {
+      ...plan,
+      days: [{ date: mon, eatingDays: [{ date: mon, appliedSwaps: [monSwap] }, { date: tue, appliedSwaps: [] }] }],
+    } as unknown as PlanView;
+
+    it("labels the button Done until something changes, then Save with the swap marked Not saved", async () => {
+      loadSwaps.mockResolvedValue({ options: [curryToDaal] });
+      load.mockResolvedValue(grid([cell({})]));
+      show(trip({ coversDates: [mon] }));
+      const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
+      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+      fireEvent.click(swapRadio);
+      await screen.findByText(/press Save/);
+      expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+      expect(screen.getByText("Not saved")).toBeInTheDocument();
+      expect(applySwap).not.toHaveBeenCalled();
+    });
+
+    it("removes a swap with its own eating day even when another day's tab is open at Save", async () => {
+      load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue" })]));
+      render(<PickSheet trip={trip()} plan={planWithMonSwap} open onDone={vi.fn()} />);
+      fireEvent.click(await screen.findByRole("button", { name: /Remove swap/ }));
+      fireEvent.click(await screen.findByRole("tab", { name: /Tue/ }));
+      fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+      await waitFor(() => expect(removeSwap).toHaveBeenCalledWith("dlv1", "s1", mon));
+    });
+
+    it("retrying Save after a failed apply does not re-send the removal that already succeeded", async () => {
+      loadSwaps.mockResolvedValue({ options: [curryToDaal] });
+      load.mockResolvedValue(grid([cell({})]));
+      applySwap.mockResolvedValueOnce({ error: "Not enough Curry left to give up on this day." });
+      render(<PickSheet trip={trip({ coversDates: [mon] })} plan={planWithMonSwap} open onDone={vi.fn()} />);
+      fireEvent.click(await screen.findByRole("button", { name: /Remove swap/ }));
+      fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+      await screen.findByText("Not saved");
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await screen.findByText(/Not enough Curry/);
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(applySwap).toHaveBeenCalledTimes(2));
+      expect(removeSwap).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { toast } from "sonner";
 import { IDENTITY_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
@@ -44,6 +44,7 @@ const selections: WizardSelections = {
 };
 
 describe("Checkout confirm() error handling", () => {
+  afterEach(cleanup);
   beforeEach(() => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
@@ -63,5 +64,23 @@ describe("Checkout confirm() error handling", () => {
     fireEvent.click(screen.getByRole("button", { name: /confirm subscription/i }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Start date cannot be a weekend"));
+  });
+
+  it("shows a returned server error (e.g. staff email) and stays on checkout", async () => {
+    const { confirmSubscription } = await import("@/app/(public)/checkout/actions");
+    vi.mocked(confirmSubscription).mockResolvedValueOnce({ error: "This phone or email belongs to a staff account" });
+    render(<Checkout defaultCountry="CA" />);
+
+    await screen.findByLabelText(/full name/i);
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
+    fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "jane@example.com" } });
+    fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
+    fireEvent.click(screen.getByRole("button", { name: /continue to payment/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm subscription/i }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("This phone or email belongs to a staff account"));
+    expect(mockRouter.push).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(WIZARD_STORAGE_KEY)).not.toBeNull();
   });
 });

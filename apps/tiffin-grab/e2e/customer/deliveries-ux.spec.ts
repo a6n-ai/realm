@@ -118,8 +118,7 @@ test.describe("customer deliveries (trip timeline)", () => {
     await tiles.first().click();
     // The pick is optimistic in the sheet but "Meals saved" only fires once the server action returns (it re-renders every plan); Done before that closes silently.
     await page.waitForTimeout(4_000);
-    await expect(sheet.getByRole("button", { name: "Apply to the whole week" }).first()).toBeVisible({ timeout: 10_000 });
-    await sheet.getByRole("button", { name: "Done" }).click();
+    await sheet.getByRole("button", { name: "Save" }).click();
     await expect(sheet).toBeHidden();
     await expect(page.getByText("Meals saved")).toBeVisible();
   });

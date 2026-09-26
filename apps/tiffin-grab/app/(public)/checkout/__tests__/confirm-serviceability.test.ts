@@ -44,7 +44,7 @@ describe("confirmSubscription serviceability gate", () => {
   it("out-of-zone → waitlist inquiry, NO order/payment", async () => {
     matchZoneResult = null;
     const res = await confirmSubscription(input);
-    expect(res).toEqual({ waitlisted: true });
+    expect(res).toEqual({ ok: true, waitlisted: true });
     expect(createWebsiteInquiry).toHaveBeenCalledTimes(1);
     expect(createOrder).not.toHaveBeenCalled();
   });
@@ -52,7 +52,7 @@ describe("confirmSubscription serviceability gate", () => {
   it("in-zone → creates the order", async () => {
     matchZoneResult = { name: "Downtown" };
     const res = await confirmSubscription(input);
-    expect(res).toEqual({ waitlisted: false, deploymentId: "SUB-XXXXXX", publicId: "ord_x" });
+    expect(res).toEqual({ ok: true, waitlisted: false, deploymentId: "SUB-XXXXXX", publicId: "ord_x" });
     expect(createOrder).toHaveBeenCalledTimes(1);
     expect(createWebsiteInquiry).not.toHaveBeenCalled();
   });

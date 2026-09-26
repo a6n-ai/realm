@@ -54,6 +54,7 @@ jobs:
           target: runner
           build-args: |
             APP=xplorers
+            NEXT_DEPLOYMENT_ID=${{ github.sha }}
             NEXT_PUBLIC_SITE_URL=https://xplorers.a6n.ai
             NEXT_PUBLIC_BETTER_AUTH_URL=https://xplorers.a6n.ai
           push: true
@@ -71,6 +72,7 @@ jobs:
           target: build
           build-args: |
             APP=xplorers
+            NEXT_DEPLOYMENT_ID=${{ github.sha }}
             NEXT_PUBLIC_SITE_URL=https://xplorers.a6n.ai
             NEXT_PUBLIC_BETTER_AUTH_URL=https://xplorers.a6n.ai
           push: true
