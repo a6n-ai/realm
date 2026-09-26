@@ -277,11 +277,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     const bundle = option?.validBundles.find((b) => b.fromPicks === fromPicks) ?? option?.validBundles[0];
     const toPicks = bundle?.toPicks ?? fromPicks;
     const swapId = Math.random().toString(36).slice(2);
-    const nextApplies = [
-      ...pendingApplies,
-      { id: swapId, day: activeDay, fromCategory, toCategory, fromPicks, toPicks, fromRow },
-    ];
-    setPendingApplies(nextApplies);
+    // Functional update: one tap can queue several (undoing a multi-row saved swap re-adds its other rows).
+    setPendingApplies((prev) => [...prev, { id: swapId, day: activeDay, fromCategory, toCategory, fromPicks, toPicks, fromRow }]);
     if (toDishId) setPendingToPick({ swapId, dishId: toDishId });
     setTouched(true);
     setError(null);
@@ -537,7 +534,11 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                               if (row.givenRow != null && dishId !== "category") {
                                 setPendingPick({ day: activeDay!, person: who, category: group.key, row: row.givenRow, dishId });
                               }
+                              // One saved swap can cover several rows (old "uses 2 items"); undoing it from one
+                              // row keeps the others swapped, each as its own row swap.
+                              const keep = group.swapped.filter((sw) => sw.swap.publicId === row.swap.publicId && sw.part !== row.part);
                               void queueRemoveSwap(row.swap.publicId);
+                              for (const sw of keep) void queueSwap(sw.swap.fromCategory, sw.swap.toCategory, 1, sw.givenRow, null);
                             }}
                           >
                             {/* A swap bringing several picks: the first is on the row, the rest get their own. */}

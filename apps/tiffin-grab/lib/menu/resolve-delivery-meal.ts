@@ -1,7 +1,7 @@
 // Single source of truth for "what a subscriber receives" for a given order/week/day/person:
 // buildMealsGrid must show exactly what this resolves, so any fulfillment/kitchen read
 // reuses this instead of re-deriving the pick → isDefault fallback.
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -253,7 +253,13 @@ export function resolvedMealsWeekKey(day: DayOfWeek, personIndex: number): strin
 
 // Batched variant of resolveDeliveryMeal for a whole week/order — one set of queries instead of
 // one per (day, person). buildMealsGrid uses this rather than re-inlining the resolution.
-export async function resolveDeliveryMealsForWeek(order: Order, week: Week, persons: number): Promise<ResolvedMealsWeek> {
+export async function resolveDeliveryMealsForWeek(
+  order: Order,
+  week: Week,
+  persons: number,
+  /** Saved swaps to resolve as if already undone (Edit meal's pending removals). */
+  omitSwapPublicIds: string[] = [],
+): Promise<ResolvedMealsWeek> {
   const result: ResolvedMealsWeek = new Map();
   const cats = await dishCategoriesService.forPlan(order.planId);
   const items = await db
@@ -287,7 +293,9 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
   const swapRows = tripIds.length === 0 ? [] : await db
     .select({ deliveryId: deliveryCategorySwaps.deliveryId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
     .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, tripIds))
+    .where(omitSwapPublicIds.length
+      ? and(inArray(deliveryCategorySwaps.deliveryId, tripIds), notInArray(deliveryCategorySwaps.publicId, omitSwapPublicIds))
+      : inArray(deliveryCategorySwaps.deliveryId, tripIds))
     .orderBy(asc(deliveryCategorySwaps.id));
   const ownByDate = new Map(ownRows.map((d) => [d.deliveryDate, d]));
 

@@ -128,7 +128,8 @@ export async function loadPickGrid(
     }
 
     for (const monday of new Set(dates.map(mondayOfIso))) {
-      const r = await buildMealsGrid(row, settings, monday);
+      // Cells must drop the same saved swaps the portions below omit, or an undone swap's rows stay swapped.
+      const r = await buildMealsGrid(row, settings, monday, opts.omitSwapPublicIds ?? []);
       if (r.empty !== null) continue;
       grid.categories = r.categories;
       for (const d of r.weekDatesView) if (dates.includes(d.dateIso)) grid.weekByDate[d.dateIso] = r.releasedWeek.publicId;

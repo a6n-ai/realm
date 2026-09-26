@@ -72,6 +72,8 @@ export async function buildMealsGrid(
   settings: { timezone: string; cutoffHour: number },
   /** Monday of the week to build; default is the current (or order-start) week. */
   forWeekStart?: string,
+  /** Saved swaps to build the grid without (Edit meal previewing their removal). */
+  omitSwapPublicIds: string[] = [],
 ): Promise<MealsGridResult> {
   // cutoffHour is intentionally unused here: lockMs/locked come from each row's own
   // stored cutoffAt (snapshotted when the delivery schedule was written), not recomputed
@@ -118,7 +120,7 @@ export async function buildMealsGrid(
     dishCategoriesService.forPlan(planRow.id),
     // Single source of truth for selected/resolved dish per (day, person, category, pickIndex),
     // including stale-pick re-validation and plan filtering — buildMealsGrid must not re-derive it.
-    resolveDeliveryMealsForWeek(order, releasedWeek, order.persons),
+    resolveDeliveryMealsForWeek(order, releasedWeek, order.persons, omitSwapPublicIds),
     allDishBigintIds.length > 0
       ? db
           .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, image: dishes.image, planId: dishes.planId })
