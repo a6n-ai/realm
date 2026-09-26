@@ -255,6 +255,10 @@ export function Checkout({
         coins: appliedCoins || undefined,
         paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
       });
+      if ("error" in res) {
+        toast.error(res.error);
+        return;
+      }
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
       sessionStorage.removeItem(WIZARD_STEP_KEY);
       clearIdentity();

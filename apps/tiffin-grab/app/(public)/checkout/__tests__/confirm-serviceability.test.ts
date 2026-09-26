@@ -15,7 +15,7 @@ const resolveAndPersist = vi.fn(async (..._a: unknown[]) => ({
 let matchZoneResult: { name: string } | null = null;
 
 vi.mock("@/lib/catalog/load", () => ({ loadCatalogSnapshot: async () => ({ zones: [] }) }));
-vi.mock("@/lib/catalog/postal", () => ({ matchZone: () => matchZoneResult }));
+vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async () => matchZoneResult }));
 vi.mock("@/lib/services/orders.service", () => ({ createOrder: (...a: unknown[]) => createOrder(...a) }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: (...a: unknown[]) => resolveAndPersist(...a) }));
 vi.mock("@/app/(marketing)/contact/actions", () => ({ createWebsiteInquiry: (...a: unknown[]) => createWebsiteInquiry(...a) }));
@@ -44,7 +44,7 @@ describe("confirmSubscription serviceability gate", () => {
   it("out-of-zone → waitlist inquiry, NO order/payment", async () => {
     matchZoneResult = null;
     const res = await confirmSubscription(input);
-    expect(res).toEqual({ waitlisted: true });
+    expect(res).toEqual({ ok: true, waitlisted: true });
     expect(createWebsiteInquiry).toHaveBeenCalledTimes(1);
     expect(createOrder).not.toHaveBeenCalled();
   });
@@ -52,7 +52,7 @@ describe("confirmSubscription serviceability gate", () => {
   it("in-zone → creates the order", async () => {
     matchZoneResult = { name: "Downtown" };
     const res = await confirmSubscription(input);
-    expect(res).toEqual({ waitlisted: false, deploymentId: "SUB-XXXXXX", publicId: "ord_x" });
+    expect(res).toEqual({ ok: true, waitlisted: false, deploymentId: "SUB-XXXXXX", publicId: "ord_x" });
     expect(createOrder).toHaveBeenCalledTimes(1);
     expect(createWebsiteInquiry).not.toHaveBeenCalled();
   });

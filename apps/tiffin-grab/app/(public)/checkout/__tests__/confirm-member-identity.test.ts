@@ -10,7 +10,8 @@ let signedIn = true;
 let onFile: Record<string, string> | null = null;
 
 vi.mock("@/lib/catalog/load", () => ({ loadCatalogSnapshot: async () => ({ zones: [] }) }));
-vi.mock("@/lib/catalog/postal", () => ({ matchZone: (...a: unknown[]) => matchZone(...a) }));
+// Checkout gates on findZone (postal coverage, then radius); the stub stands in for both.
+vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async (...a: unknown[]) => matchZone(...a) }));
 vi.mock("@/lib/services/orders.service", () => ({ createOrder: (...a: unknown[]) => createOrder(...a) }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: async () => null }));
 const createWebsiteInquiry = vi.fn();
@@ -86,13 +87,13 @@ describe("confirmSubscription: a signed-in member keeps their account identity",
 
   it("runs zone matching on the ENTERED postal code", async () => {
     await confirmSubscription(submitted);
-    expect(matchZone.mock.calls.at(-1)![0]).toBe("V6B 1A1");
+    expect(matchZone.mock.calls.at(-1)![1]).toMatchObject({ postalCode: "V6B 1A1" });
   });
 
   it("waitlists an out-of-zone entered postal code under the account identity", async () => {
     matchZone.mockReturnValueOnce(null);
     const r = await confirmSubscription(submitted);
-    expect(r).toEqual({ waitlisted: true });
+    expect(r).toEqual({ ok: true, waitlisted: true });
     expect(createOrder).not.toHaveBeenCalled();
     expect(createWebsiteInquiry.mock.calls.at(-1)![0]).toMatchObject({ email: "priya@example.com", fullName: "Priya Shah" });
   });
@@ -103,7 +104,7 @@ describe("confirmSubscription: a signed-in member keeps their account identity",
   });
 
   it("rejects a member request with no delivery address", async () => {
-    await expect(confirmSubscription({ ...submitted, contact: { ...submitted.contact, addressLine: " " } })).rejects.toThrow(/delivery address/i);
+    expect(await confirmSubscription({ ...submitted, contact: { ...submitted.contact, addressLine: " " } })).toEqual({ error: expect.stringMatching(/delivery address/i) });
     expect(createOrder).not.toHaveBeenCalled();
   });
 
@@ -117,7 +118,7 @@ describe("confirmSubscription: a signed-in member keeps their account identity",
   it("refuses a renewal from a signed-out request", async () => {
     signedIn = false;
     userId = null;
-    await expect(confirmSubscription({ ...submitted, renewal: true })).rejects.toThrow(/sign in/i);
+    expect(await confirmSubscription({ ...submitted, renewal: true })).toEqual({ error: expect.stringMatching(/sign in/i) });
     expect(createOrder).not.toHaveBeenCalled();
   });
 });

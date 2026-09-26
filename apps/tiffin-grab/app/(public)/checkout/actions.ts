@@ -12,6 +12,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { findZone } from "@/lib/catalog/zone-match";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
+import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 
 export type ConfirmInput = CreateOrderInput & {
   /** Set by checkout when the customer came from /me/renew. */
@@ -69,7 +70,13 @@ async function resolveContact(input: ConfirmInput): Promise<CreateOrderInput["co
   return { ...input.contact, fullName, email: user.email };
 }
 
-export async function confirmSubscription(rawInput: ConfirmInput): Promise<ConfirmResult> {
+// Returned, never thrown: a thrown ValidationError (staff email, missing address,
+// weekend start, ...) reaches the browser as a message-less React error #441.
+export async function confirmSubscription(rawInput: ConfirmInput): Promise<ActionResult<ConfirmResult>> {
+  return runAction(() => placeSubscription(rawInput));
+}
+
+async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult> {
   // Resolve the contact FIRST: serviceability, geocoding and tax below must all
   // run against the identity and address the order will actually be placed with.
   const { renewal: _renewal, ...rest } = rawInput;
