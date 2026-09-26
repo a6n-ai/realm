@@ -1,6 +1,6 @@
 import type { DeliveryStatus } from "@/components/customer/kit";
 
-export type AgendaDot = { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; deliveryDate: string; truck: boolean; units: number; covers: string[]; moved?: boolean };
+export type AgendaDot = { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; deliveryDate: string; truck: boolean; units: number; covers: string[]; moved?: boolean; optimoCompletionStatus?: string | null };
 export type Agenda = Record<string, AgendaDot[]>;
 
 const DAY = 864e5;
@@ -28,6 +28,8 @@ export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
   if (d.moved) return "combined";
   if (d.status === "paused") return "vacation";
   if (d.status === "skipped") return "hold";
+  if (d.optimoCompletionStatus === "failed") return "hold";
+  if (d.optimoCompletionStatus === "success") return "delivered";
   return now >= d.cutoffAt ? "delivered" : "upcoming";
 }
 

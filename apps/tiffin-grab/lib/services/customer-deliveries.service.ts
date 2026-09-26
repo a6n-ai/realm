@@ -247,6 +247,7 @@ export type AgendaDay = {
   covers: string[];
   /** This date used to be its own trip, now merged into this one — render as "moved", not the trip's live status. */
   moved?: boolean;
+  optimoCompletionStatus?: string | null;
 };
 
 /**
@@ -280,15 +281,15 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     const covers = coveredDates(d);
     const moved = movedDatesByTarget.get(d.id.toString());
     for (const date of covers) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date) });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date), optimoCompletionStatus: d.optimoCompletionStatus });
     }
     // A doubled day (moved tiffin landed on an eating day) gets a second dot.
     for (const date of extrasById.get(d.id) ?? []) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true, optimoCompletionStatus: d.optimoCompletionStatus });
     }
     // The eat dates stayed put and the truck moved: mark the arrival day, or that Friday looks empty.
     if (d.status === "scheduled" && !covers.includes(d.deliveryDate)) {
-      (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers });
+      (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers, optimoCompletionStatus: d.optimoCompletionStatus });
     }
   }
   return out;
