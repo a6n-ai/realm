@@ -26,7 +26,23 @@ const CHART_COLORS = [
   "var(--color-chart-5)",
 ];
 
-function ChartTooltip({ active, payload, label }: TooltipContentProps) {
+// A string, not a formatter function: these charts are rendered from server
+// components, and functions cannot cross that boundary as props.
+type ValueFormat = "number" | "currency";
+
+const CURRENCY = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
+
+function formatValue(v: unknown, format: ValueFormat): string {
+  if (format === "currency" && typeof v === "number") return CURRENCY.format(v);
+  return String(v);
+}
+
+function ChartTooltip({
+  active,
+  payload,
+  label,
+  format = "number",
+}: TooltipContentProps & { format?: ValueFormat }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-popover text-popover-foreground rounded-md border px-3 py-2 text-xs shadow-md">
@@ -35,7 +51,7 @@ function ChartTooltip({ active, payload, label }: TooltipContentProps) {
         <div key={`${p.dataKey}`} className="flex items-center gap-2">
           <span className="size-2 rounded-full" style={{ background: p.color }} />
           <span>{p.name}</span>
-          <span className="ml-auto font-medium tabular-nums">{p.value}</span>
+          <span className="ml-auto font-medium tabular-nums">{formatValue(p.value, format)}</span>
         </div>
       ))}
     </div>
@@ -56,14 +72,20 @@ export function TrendLineChart({
   data,
   xKey,
   yKey,
+  series,
+  format = "number",
   height = 240,
 }: {
   data: Row[];
   xKey: string;
-  yKey: string;
+  yKey?: string;
+  /** Several named lines; takes precedence over `yKey`. */
+  series?: { key: string; label: string }[];
+  format?: ValueFormat;
   height?: number;
 }) {
   if (data.length === 0) return <EmptyChart height={height} />;
+  const lines = series ?? (yKey ? [{ key: yKey, label: yKey }] : []);
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -79,19 +101,23 @@ export function TrendLineChart({
           tick={{ fontSize: 12 }}
           tickLine={false}
           axisLine={false}
-          width={36}
+          width={format === "currency" ? 56 : 36}
           allowDecimals={false}
           className="fill-muted-foreground"
         />
-        <Tooltip content={(props) => <ChartTooltip {...props} />} />
-        <Line
-          type="monotone"
-          dataKey={yKey}
-          stroke={CHART_COLORS[0]}
-          strokeWidth={2}
-          dot={false}
-          activeDot={{ r: 4 }}
-        />
+        <Tooltip content={(props) => <ChartTooltip {...props} format={format} />} />
+        {lines.map((l, i) => (
+          <Line
+            key={l.key}
+            type="monotone"
+            dataKey={l.key}
+            name={l.label}
+            stroke={CHART_COLORS[i % CHART_COLORS.length]}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4 }}
+          />
+        ))}
       </LineChart>
     </ResponsiveContainer>
   );
@@ -101,11 +127,13 @@ export function BreakdownBarChart({
   data,
   xKey,
   yKey,
+  format = "number",
   height = 240,
 }: {
   data: Row[];
   xKey: string;
   yKey: string;
+  format?: ValueFormat;
   height?: number;
 }) {
   if (data.length === 0) return <EmptyChart height={height} />;
@@ -124,11 +152,14 @@ export function BreakdownBarChart({
           tick={{ fontSize: 12 }}
           tickLine={false}
           axisLine={false}
-          width={36}
+          width={format === "currency" ? 56 : 36}
           allowDecimals={false}
           className="fill-muted-foreground"
         />
-        <Tooltip content={(props) => <ChartTooltip {...props} />} cursor={{ fill: "var(--muted)", opacity: 0.4 }} />
+        <Tooltip
+          content={(props) => <ChartTooltip {...props} format={format} />}
+          cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+        />
         <Bar dataKey={yKey} fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>

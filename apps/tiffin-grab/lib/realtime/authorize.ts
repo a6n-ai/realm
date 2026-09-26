@@ -2,7 +2,7 @@ import { Role, type RoleValue } from "@foundry/commons";
 import type { RealtimeRole } from "@foundry/realtime";
 import { getSession } from "@/lib/auth/session";
 import { ticketsService } from "@/lib/services/tickets.service";
-import { PAYMENTS_INBOX, TICKETS_INBOX } from "./inbox";
+import { ANALYTICS_LIVE, PAYMENTS_INBOX, TICKETS_INBOX } from "./inbox";
 import { notifyChannel } from "./notify";
 
 function staffRole(role: RoleValue): RealtimeRole | null {
@@ -14,6 +14,7 @@ function staffRole(role: RoleValue): RealtimeRole | null {
 // - `ticket:<publicId>` — staff, or the customer who raised it (chat/presence)
 // - `tickets:inbox` — staff (new-ticket sidebar ping)
 // - `payments:inbox` — admin only (matches Payments nav; review-queue ping)
+// - `analytics:live` — admin only (Revenue/Profitability auto-refresh)
 export async function authorizeChannel(
   channel: string,
 ): Promise<{ channel: string; userId: string; role: RealtimeRole } | null> {
@@ -48,6 +49,12 @@ export async function authorizeChannel(
     // Payments nav is admin-only — members must not hold the review stream.
     if (role !== Role.ADMIN) return null;
     return { channel: PAYMENTS_INBOX, userId, role: "staff" };
+  }
+
+  if (kind === "analytics" && publicId === "live") {
+    // Analytics is admin-only (requireAdmin in its layout).
+    if (role !== Role.ADMIN) return null;
+    return { channel: ANALYTICS_LIVE, userId, role: "staff" };
   }
 
   if (kind !== "ticket") return null;

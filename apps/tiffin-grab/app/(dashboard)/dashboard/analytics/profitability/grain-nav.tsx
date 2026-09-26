@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
@@ -18,7 +19,7 @@ function href(view: Grain, month: string) {
   return `/dashboard/analytics/profitability?view=${view}&month=${month}`;
 }
 
-export function GrainNav({ view, month }: { view: Grain; month: string }) {
+export function GrainNav({ view, month, aside }: { view: Grain; month: string; aside?: ReactNode }) {
   const router = useRouter();
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -37,7 +38,8 @@ export function GrainNav({ view, month }: { view: Grain; month: string }) {
           </Link>
         ))}
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
+        {aside ? <div className="mr-2">{aside}</div> : null}
         <Button variant="ghost" size="icon" className="size-8" asChild>
           <Link href={href(view, addMonths(month, -1))} prefetch={false} aria-label="Previous month">
             <ChevronLeftIcon className="size-4" />
