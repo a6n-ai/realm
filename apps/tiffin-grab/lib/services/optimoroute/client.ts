@@ -55,9 +55,14 @@ export type OptimoOrderPayload = {
   customField5?: string;
   /** Tiffin count. Only sent when integrations_config.optimoroute.sendLoad is true. */
   load1?: number;
+  load2?: number;
+  load3?: number;
+  load4?: number;
+  boxes?: number;
   /**
    * Forces this order onto a specific driver's route. Omitted, OptimoRoute's own
    * optimizer chooses — set only when a dispatcher has explicitly overridden it.
+
    */
   selectedDriver?: { driverSerial?: string; driverExternalId?: string };
 };
