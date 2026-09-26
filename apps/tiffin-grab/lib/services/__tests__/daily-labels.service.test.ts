@@ -240,6 +240,29 @@ describe("dailyLabelSheet (integration)", () => {
     expect(label.lines.some((l) => l.category === "daal" && l.dish.includes("Dal"))).toBe(true);
   });
 
+  it("sizes a received pick from the swap's stored exchange override", async () => {
+    const { deliveryCategorySwaps } = await import("@/db/schema");
+    const [dal] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Dal`, category: "daal" }).returning();
+    await attachDishToPlans(dal.id);
+    await db.insert(menuItems).values({
+      menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("daal"), dishId: dal.id, isDefault: true,
+    });
+    await db.insert(mealSizeItems).values({
+      mealSizeId, planId: mealSizePlanId, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 3,
+    });
+
+    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+    // The 12oz Sabzi given up, received as 6oz Daal (override), not a like-for-like 12oz.
+    await db.insert(deliveryCategorySwaps).values({
+      deliveryId: delivery!.id, fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1, fromRow: 0, receiveTu: 0.75, forDate: null,
+    });
+
+    const [label] = (await dailyLabelSheet(MONDAY)).labels;
+    const portions = (c: string) => label.lines.filter((l) => l.category === c).map((l) => l.portion);
+    expect(portions("sabzi")).toEqual(["8oz"]);
+    expect(portions("daal")).toEqual(["8oz", "6oz"]);
+  });
+
   it("prints a label per person on a multi-person order", async () => {
     await db.update(orders).set({ persons: 2 }).where(eq(orders.id, order.id));
     const sheet = await dailyLabelSheet(MONDAY);

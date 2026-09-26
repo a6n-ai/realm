@@ -56,7 +56,7 @@ export async function loadPickGrid(
   dates: string[],
   opts: {
     /** Swaps chosen in the sheet but not written yet — folded into cells and portions. */
-    provisionalSwaps?: { forDate: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow?: number | null }[];
+    provisionalSwaps?: { forDate: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow?: number | null; receiveTu?: number | null }[];
     /** Applied swaps the sheet has marked for undo on Done — excluded from portions. */
     omitSwapPublicIds?: string[];
   } = {},
@@ -157,7 +157,7 @@ export async function loadPickGrid(
           fromCategory: deliveryCategorySwaps.fromCategory,
           toCategory: deliveryCategorySwaps.toCategory,
           qtyFrom: deliveryCategorySwaps.qtyFrom,
-          qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow,
+          qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, receiveTu: deliveryCategorySwaps.receiveTu,
           forDate: deliveryCategorySwaps.forDate,
         })
         .from(deliveryCategorySwaps)
@@ -183,6 +183,7 @@ export async function loadPickGrid(
             qtyFrom: s.qtyFrom,
             qtyTo: s.qtyTo,
             fromRow: s.fromRow,
+            receiveTu: s.receiveTu,
           })));
     }
 

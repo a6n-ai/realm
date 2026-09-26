@@ -123,7 +123,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
         fromCategory: deliveryCategorySwaps.fromCategory,
         toCategory: deliveryCategorySwaps.toCategory,
         qtyFrom: deliveryCategorySwaps.qtyFrom,
-        qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow,
+        qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, receiveTu: deliveryCategorySwaps.receiveTu,
       })
       .from(deliveryCategorySwaps)
       .where(inArray(deliveryCategorySwaps.deliveryId, deliveryRows.map((r) => r.deliveryId)))

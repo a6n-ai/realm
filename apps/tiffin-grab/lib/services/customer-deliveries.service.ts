@@ -770,7 +770,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
 
   const swapPairs = await dishCategoriesService.swapPairsForMealSize(order.mealSizeId);
   const swapRows = await db
-    .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate })
+    .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, receiveTu: deliveryCategorySwaps.receiveTu, forDate: deliveryCategorySwaps.forDate })
     .from(deliveryCategorySwaps)
     .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id))).orderBy(asc(deliveryCategorySwaps.id));
   const swapFields = (row: CustomerDelivery) => ({
@@ -779,7 +779,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       swapPairs,
       appliedSwaps: swapRows
         .filter((s) => s.deliveryId === row.id && swapAppliesTo(s.forDate, row.deliveryDate, date))
-        .map(({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow }) => ({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow })),
+        .map(({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow, receiveTu }) => ({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow, receiveTu })),
     })),
     swapAllowance: null,
   });

@@ -66,7 +66,7 @@ export async function loadOrderDeliveriesBundle(
       fromCategory: deliveryCategorySwaps.fromCategory,
       toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom,
-      qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow,
+      qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, receiveTu: deliveryCategorySwaps.receiveTu,
       forDate: deliveryCategorySwaps.forDate,
     })
     .from(deliveryCategorySwaps)

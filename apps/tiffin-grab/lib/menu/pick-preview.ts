@@ -5,9 +5,9 @@
  */
 import type { TuCategory } from "./format-tu";
 import type { GridCell } from "./meals-grid";
-import { computeAllSwapOptions, type CompositionContext, type MealSizeItemRow as SwapItemRow, type SwapOption } from "./meal-validation";
+import { computeAllSwapOptions, validateProposedSwap, type CompositionContext, type MealSizeItemRow as SwapItemRow, type SwapOption } from "./meal-validation";
 import { portionsByCategory, slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
-import type { SwapCategory } from "./swap-rules";
+import type { ExchangeOverride, SwapCategory } from "./swap-rules";
 
 export type ProvisionalSwap = PortionSwap & { forDate: string };
 
@@ -23,7 +23,7 @@ export type PreviewBase = {
     categories: [string, SwapCategory][];
     labels?: Record<string, string>;
   };
-  pairs: { fromCategory: string; toCategory: string }[];
+  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[] }[];
 };
 
 const keyOf = (c: GridCell) => `${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`;
@@ -106,10 +106,32 @@ export function previewPortions(
 
 /** Every configured swap for one eating day, unavailable ones included (shown greyed with their reason). */
 export function previewSwapOptions(base: PreviewBase, date: string, provisional: ProvisionalSwap[]): SwapOption[] {
+  const { composition, applied } = previewStack(base, date, provisional);
+  return computeAllSwapOptions({ composition, applied, pairs: base.pairs, hideUnavailable: false });
+}
+
+/**
+ * The override size a pending swap of this exact row gets, as applyDeliverySwap will
+ * store it; null = natural exchange. Bundles are sized from the leading row, so a
+ * pending swap of another row (the 8oz Daal, not the 12oz) must be sized on its own.
+ */
+export function previewOverride(
+  base: PreviewBase,
+  date: string,
+  provisional: ProvisionalSwap[],
+  next: { fromCategory: string; toCategory: string; fromPicks: number; fromRow: number | null },
+): { receiveTu: number; qtyTo: number } | null {
+  const overrides = base.pairs.find((p) => p.fromCategory === next.fromCategory && p.toCategory === next.toCategory)?.exchangeOverrides;
+  if (!overrides?.length) return null;
+  const r = validateProposedSwap({ ...previewStack(base, date, provisional), next, overrides });
+  return r.ok && r.receiveTu != null ? { receiveTu: r.receiveTu, qtyTo: r.qtyTo } : null;
+}
+
+function previewStack(base: PreviewBase, date: string, provisional: ProvisionalSwap[]) {
   const composition: CompositionContext = { ...base.composition, categories: new Map(base.composition.categories) };
   const applied = [
     ...(base.appliedByDate[date] ?? []),
     ...provisional.filter((s) => s.forDate === date && s.qtyFrom > 0).map(({ forDate: _, ...s }) => s),
   ];
-  return computeAllSwapOptions({ composition, applied, pairs: base.pairs, hideUnavailable: false });
+  return { composition, applied };
 }

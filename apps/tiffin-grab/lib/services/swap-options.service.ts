@@ -50,7 +50,7 @@ export async function listValidSwapOptionsForDelivery(
   opts?: { 
     forDate?: string; 
     hideUnavailable?: boolean;
-    provisionalSwaps?: { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow?: number | null }[];
+    provisionalSwaps?: { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow?: number | null; receiveTu?: number | null }[];
     omitSwapPublicIds?: string[];
   },
 ): Promise<SwapOption[]> {
@@ -74,7 +74,7 @@ export async function listValidSwapOptionsForDelivery(
           fromCategory: deliveryCategorySwaps.fromCategory,
           toCategory: deliveryCategorySwaps.toCategory,
           qtyFrom: deliveryCategorySwaps.qtyFrom,
-          qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow,
+          qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, receiveTu: deliveryCategorySwaps.receiveTu,
           forDate: deliveryCategorySwaps.forDate,
         })
         .from(deliveryCategorySwaps)
@@ -90,6 +90,7 @@ export async function listValidSwapOptionsForDelivery(
         qtyFrom: r.qtyFrom,
         qtyTo: r.qtyTo,
         fromRow: r.fromRow,
+        receiveTu: r.receiveTu,
       }));
 
     if (opts?.provisionalSwaps) {
@@ -101,6 +102,7 @@ export async function listValidSwapOptionsForDelivery(
             qtyFrom: p.qtyFrom,
             qtyTo: p.qtyTo,
             fromRow: p.fromRow ?? null,
+            receiveTu: p.receiveTu ?? null,
           });
         }
       }

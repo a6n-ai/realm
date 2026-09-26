@@ -49,6 +49,8 @@ export type PortionSwap = {
   qtyTo: number;
   /** Base row given up; null/undefined = leading rows. */
   fromRow?: number | null;
+  /** TU per received pick from the pair's override (delivery_category_swaps.receive_tu); null = natural. */
+  receiveTu?: number | null;
 };
 
 /**

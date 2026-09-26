@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { computeSwapOption, slotsAfterSwaps, validateProposedSwap, type CompositionContext } from "../meal-validation";
-import { portionsByCategory } from "../pick-size";
+import { portionsByCategory, sumTuForPicks } from "../pick-size";
 import type { TuCategory } from "../format-tu";
 import type { SwapCategory } from "../swap-rules";
+import { previewOverride, type PreviewBase } from "../pick-preview";
 
 const cat = (key: string, pickTu: number): SwapCategory => ({
   key, pickTu, unitType: "weight", unitLabel: "oz", maxPicksPerTiffin: null, unitSize: 8,
@@ -68,5 +69,27 @@ describe("exchange overrides at apply time", () => {
     ]);
     expect(portionsByCategory(items, tu, applied).get("sabzi")).toEqual(["12oz", "8oz"]);
     expect(portionsByCategory(items, tu, applied).get("daal")).toEqual(["8oz"]);
+    // Kitchen packing sheet totals go through sumTuForPicks with the same rows.
+    expect(sumTuForPicks(items, "sabzi", 2, applied, tu)).toBe(2.5);
+  });
+});
+
+describe("Edit meal sizes a pending swap by its own row", () => {
+  const base: PreviewBase = {
+    items: composition.mealSizeItems.map((i) => ({ category: i.category, tuAmount: String(i.tuAmount), sortOrder: i.sortOrder })),
+    tu: [],
+    appliedByDate: {},
+    composition: { ...composition, categories: [...composition.categories] },
+    pairs: [{ fromCategory: "daal", toCategory: "sabzi", exchangeOverrides: overrides }],
+  };
+  const next = (fromRow: number) => ({ ...daalToSabzi, fromRow });
+
+  it("the 12oz Daal row gets the override, the 8oz row stays natural", () => {
+    expect(previewOverride(base, "2026-10-05", [], next(0))).toEqual({ receiveTu: 1, qtyTo: 1 });
+    expect(previewOverride(base, "2026-10-05", [], next(1))).toBeNull();
+  });
+
+  it("a pair with no overrides never touches the pending swap", () => {
+    expect(previewOverride({ ...base, pairs: [{ fromCategory: "daal", toCategory: "sabzi" }] }, "2026-10-05", [], next(0))).toBeNull();
   });
 });

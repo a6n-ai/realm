@@ -105,7 +105,7 @@ export async function loadTripEatingDays(
       fromCategory: deliveryCategorySwaps.fromCategory,
       toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom,
-      qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow,
+      qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, receiveTu: deliveryCategorySwaps.receiveTu,
       forDate: deliveryCategorySwaps.forDate,
     })
     .from(deliveryCategorySwaps)
@@ -154,6 +154,7 @@ export async function loadTripEatingDays(
           qtyFrom: s.qtyFrom,
           qtyTo: s.qtyTo,
           fromRow: s.fromRow,
+          receiveTu: s.receiveTu,
           forDate: s.forDate,
         }));
 

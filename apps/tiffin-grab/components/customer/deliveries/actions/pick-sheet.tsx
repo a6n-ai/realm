@@ -10,7 +10,7 @@ import { Button, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/c
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
 import type { SwapOption } from "@/lib/menu/meal-validation";
-import { foldProvisionalCells, previewPortions, previewSwapOptions, type ProvisionalSwap } from "@/lib/menu/pick-preview";
+import { foldProvisionalCells, previewOverride, previewPortions, previewSwapOptions, type ProvisionalSwap } from "@/lib/menu/pick-preview";
 import {
   anchorSwaps,
   buildMealSummary,
@@ -112,7 +112,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   // Category swaps stay local until Done — same batching as dish picks, so packing
   // labels do not change while the sheet is still open.
   const [pendingApplies, setPendingApplies] = useState<
-    { id: string; day: string; fromCategory: string; toCategory: string; fromPicks: number; toPicks: number; fromRow: number | null }[]
+    { id: string; day: string; fromCategory: string; toCategory: string; fromPicks: number; toPicks: number; fromRow: number | null; receiveTu: number | null }[]
   >([]);
   // Each removal keeps its own eating day: the tab open at Save time may be another day.
   const [pendingRemoves, setPendingRemoves] = useState<{ publicId: string; day: string }[]>([]);
@@ -152,7 +152,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   };
 
   const provisional: ProvisionalSwap[] = pendingApplies.map((p) => ({
-    forDate: p.day, fromCategory: p.fromCategory, toCategory: p.toCategory, qtyFrom: p.fromPicks, qtyTo: p.toPicks, fromRow: p.fromRow,
+    forDate: p.day, fromCategory: p.fromCategory, toCategory: p.toCategory, qtyFrom: p.fromPicks, qtyTo: p.toPicks, fromRow: p.fromRow, receiveTu: p.receiveTu,
   }));
   const serverGrid = state && "grid" in state ? state.grid : null;
   const grid: PickGrid | null = !serverGrid || provisional.length === 0
@@ -201,6 +201,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         qtyFrom: p.fromPicks,
         qtyTo: p.toPicks,
         fromRow: p.fromRow,
+        receiveTu: p.receiveTu,
         pending: true as const,
       })),
   ];
@@ -275,10 +276,12 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     if (!trip.deliveryId || swapLocked || activeDay == null) return;
     const option = swapOptions.find((o) => o.fromCategory === fromCategory && o.toCategory === toCategory);
     const bundle = option?.validBundles.find((b) => b.fromPicks === fromPicks) ?? option?.validBundles[0];
-    const toPicks = bundle?.toPicks ?? fromPicks;
+    const override = serverGrid ? previewOverride(serverGrid.preview, activeDay, provisional, { fromCategory, toCategory, fromPicks, fromRow }) : null;
+    const toPicks = override?.qtyTo ?? bundle?.toPicks ?? fromPicks;
+    const receiveTu = override?.receiveTu ?? null;
     const swapId = Math.random().toString(36).slice(2);
     // Functional update: one tap can queue several (undoing a multi-row saved swap re-adds its other rows).
-    setPendingApplies((prev) => [...prev, { id: swapId, day: activeDay, fromCategory, toCategory, fromPicks, toPicks, fromRow }]);
+    setPendingApplies((prev) => [...prev, { id: swapId, day: activeDay, fromCategory, toCategory, fromPicks, toPicks, fromRow, receiveTu }]);
     if (toDishId) setPendingToPick({ swapId, dishId: toDishId });
     setTouched(true);
     setError(null);
