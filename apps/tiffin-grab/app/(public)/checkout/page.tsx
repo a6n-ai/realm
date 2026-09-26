@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { currentUserId } from "@/lib/services/session-service";
+import { getSession } from "@/lib/auth/session";
+import { isStaffRole } from "@/lib/auth/landing";
 import { getContactOnFile } from "@/lib/services/contact-on-file";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
@@ -12,6 +14,12 @@ import { dropOffsFor } from "@/lib/services/address-drop-off.service";
 export const dynamic = "force-dynamic";
 
 export default async function CheckoutPage() {
+  // Same gate as /subscribe. Staff can't own an order (createOrder refuses),
+  // and a staff invitee who hasn't set a password yet must not browse the
+  // customer flow as signed in — /dashboard sends them to /set-password first.
+  const session = await getSession();
+  if (session?.user && isStaffRole(session.user.role)) redirect("/dashboard");
+
   const [{ defaultCountry }, userId] = await Promise.all([getAppSettings(), currentUserId()]);
   // No guest checkout: every order needs a signed-in owner (payment proof upload on
   // /activate is owner-only). The /subscribe email step signs everyone in.
