@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { inArray } from "drizzle-orm";
+import { eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 import { usersService, tombstoneEmail } from "../users.service";
@@ -81,5 +81,60 @@ describe("queryUsers org membership (integration)", () => {
     const row = result.items.find((r) => r.publicId === user.publicId);
 
     expect(row?.orgNames?.split(", ").sort()).toEqual(["Org A", "Org B"]);
+  });
+});
+
+describe("setRole brand membership (integration)", () => {
+  const runId = Math.random().toString(36).slice(2);
+  let createdUserIds: bigint[] = [];
+  let createdOrgIds: string[] = [];
+
+  afterEach(async () => {
+    if (createdUserIds.length) await db.delete(users).where(inArray(users.id, createdUserIds));
+    if (createdOrgIds.length) await db.delete(organization).where(inArray(organization.id, createdOrgIds));
+    createdUserIds = [];
+    createdOrgIds = [];
+  });
+
+  async function brandId(): Promise<string> {
+    const [existing] = await db
+      .select({ id: organization.id })
+      .from(organization)
+      .where(isNull(organization.parentOrganizationId))
+      .orderBy(organization.createdAt)
+      .limit(1);
+    if (existing) return existing.id;
+    const [o] = await db.insert(organization).values({ name: "Brand", clientCode: `brand-${runId}` }).returning();
+    createdOrgIds.push(o.id);
+    return o.id;
+  }
+
+  async function seed(role: "user" | "member") {
+    const [u] = await db
+      .insert(users)
+      .values({ email: `role-${role}-${Math.random().toString(36).slice(2)}@test.invalid`, role })
+      .returning({ id: users.id, publicId: users.publicId });
+    createdUserIds.push(u.id);
+    return u;
+  }
+
+  const orgsOf = (id: bigint) =>
+    db.select({ org: member.organizationId, role: member.role }).from(member).where(eq(member.userId, id));
+
+  it("adds a newly promoted user to the brand org", async () => {
+    const brand = await brandId();
+    const u = await seed("user");
+    await usersService.setRole(u.publicId, "member");
+    expect(await orgsOf(u.id)).toEqual([{ org: brand, role: "member" }]);
+  });
+
+  it("leaves an existing franchise membership alone", async () => {
+    await brandId();
+    const [fr] = await db.insert(organization).values({ name: "Fr", clientCode: `fr-${runId}` }).returning();
+    createdOrgIds.push(fr.id);
+    const u = await seed("member");
+    await db.insert(member).values({ organizationId: fr.id, userId: u.id, role: "member" });
+    await usersService.setRole(u.publicId, "admin");
+    expect(await orgsOf(u.id)).toEqual([{ org: fr.id, role: "member" }]);
   });
 });
