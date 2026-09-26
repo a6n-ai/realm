@@ -75,6 +75,8 @@ export async function pullCompletionsAction(date: string): Promise<PullCompletio
 
   const result = await pullCompletions(date, await currentUserId());
   revalidatePath("/dashboard/dispatch");
+  revalidatePath("/dashboard/orders");
+  revalidatePath("/me", "layout");
   return result;
 }
 
