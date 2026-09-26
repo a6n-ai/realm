@@ -502,8 +502,8 @@ export async function createOrder(
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
 
-    const selectedDeliveryType = input.selections.deliveryTypeId
-      ? snapshot.deliveryCharges?.deliveryTypes.find((t) => t.publicId === input.selections.deliveryTypeId)
+    const selectedDeliveryStrategy = input.selections.deliveryStrategyId
+      ? snapshot.deliveryCharges?.deliveryStrategies.find((s) => s.publicId === input.selections.deliveryStrategyId)
       : null;
     const selectedAddressTag = input.selections.addressTagId
       ? snapshot.deliveryCharges?.addressTags.find((a) => a.publicId === input.selections.addressTagId)

@@ -6,7 +6,7 @@ import {
   addressTags,
   deliveryChargeConfigs,
   deliveryFrequencies,
-  deliveryTypes,
+  deliveryStrategies,
   deliveryZones,
   discounts,
   dishCategories,
@@ -60,7 +60,8 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     settings,
     discountRows,
     configRows,
-    typeRows,
+    optionRows,
+    strategyRows,
     tagRows,
   ] = await Promise.all([
     db.select().from(plans).where(and(eq(plans.active, true), scopedTo(plans.organizationId, orgId))),
@@ -77,7 +78,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     getAppSettings(),
     db.select().from(discounts).where(and(eq(discounts.active, true), scopedTo(discounts.organizationId, orgId), or(isNull(discounts.startsAt), lte(discounts.startsAt, nowMs)), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)))),
     db.select().from(deliveryChargeConfigs).where(scopedTo(deliveryChargeConfigs.organizationId, orgId)).limit(1),
-    db.select().from(deliveryTypes).where(and(eq(deliveryTypes.active, true), scopedTo(deliveryTypes.organizationId, orgId))).orderBy(deliveryTypes.sortOrder, deliveryTypes.name),
+    db.select().from(deliveryStrategies).where(and(eq(deliveryStrategies.active, true), scopedTo(deliveryStrategies.organizationId, orgId))).orderBy(deliveryStrategies.sortOrder, deliveryStrategies.name),
     db.select().from(addressTags).where(and(eq(addressTags.active, true), scopedTo(addressTags.organizationId, orgId))).orderBy(addressTags.sortOrder, addressTags.name),
   ]);
   const publicIdByTarget = new Map<string, string>([
@@ -131,15 +132,15 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     maxDiscountPct: settings.maxDiscountPct,
     deliveryCharges: {
       baseCharge: configRows[0] ? Number(configRows[0].baseCharge) : 0,
-      deliveryTypes: typeRows.map((t) => ({
-        id: t.id,
-        publicId: t.publicId,
-        name: t.name,
-        description: t.description,
-        chargeType: t.chargeType,
-        chargeValue: Number(t.chargeValue),
-        active: t.active,
-        sortOrder: t.sortOrder,
+      deliveryStrategies: strategyRows.map((s) => ({
+        id: s.id,
+        publicId: s.publicId,
+        name: s.name,
+        description: s.description,
+        chargeType: s.chargeType,
+        chargeValue: Number(s.chargeValue),
+        active: s.active,
+        sortOrder: s.sortOrder,
       })),
       addressTags: tagRows.map((a) => ({
         id: a.id,

@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import {
   addressTags,
   deliveryChargeConfigs,
-  deliveryTypes,
+  deliveryStrategies,
   orders,
   users,
 } from "@/db/schema";

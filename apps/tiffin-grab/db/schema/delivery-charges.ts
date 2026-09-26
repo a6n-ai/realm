@@ -13,8 +13,8 @@ export const deliveryChargeConfigs = pgTable("delivery_charge_configs", {
   index("delivery_charge_configs_org_idx").on(t.organizationId),
 ]);
 
-export const deliveryTypes = pgTable("delivery_types", {
-  ...updatableColumns("dtp"),
+export const deliveryStrategies = pgTable("delivery_strategies", {
+  ...updatableColumns("dsp"),
   name: text("name").notNull(),
   description: text("description"),
   chargeType: deliveryChargeType("charge_type").notNull().default("none"),
@@ -23,9 +23,9 @@ export const deliveryTypes = pgTable("delivery_types", {
   sortOrder: integer("sort_order").notNull().default(0),
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
-  uniqueIndex("delivery_types_name_unique").on(t.name),
-  index("delivery_types_active_idx").on(t.active),
-  index("delivery_types_org_idx").on(t.organizationId),
+  uniqueIndex("delivery_strategies_name_unique").on(t.name),
+  index("delivery_strategies_active_idx").on(t.active),
+  index("delivery_strategies_org_idx").on(t.organizationId),
 ]);
 
 export const addressTags = pgTable("address_tags", {

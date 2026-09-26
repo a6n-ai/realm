@@ -59,7 +59,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   let deliveryChargeConfig: PricingCatalog["deliveryChargeConfig"] = undefined;
   if (snapshot.deliveryCharges) {
     const dt = selections.deliveryTypeId
-      ? snapshot.deliveryCharges.deliveryTypes.find((t) => t.publicId === selections.deliveryTypeId && t.active)
+      ? snapshot.deliveryCharges.deliveryStrategies.find((s) => s.publicId === selections.deliveryTypeId && s.active)
       : null;
     if (selections.deliveryTypeId && !dt) {
       throw new ValidationError("Invalid delivery type");

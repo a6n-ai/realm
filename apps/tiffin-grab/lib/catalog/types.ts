@@ -60,7 +60,7 @@ export interface CatalogSnapshot {
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
-    deliveryTypes: {
+    deliveryStrategies: {
       id: bigint;
       publicId: string;
       name: string;
@@ -104,7 +104,7 @@ export interface ClientCatalogSnapshot {
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
-    deliveryTypes: {
+    deliveryStrategies: {
       id: string; // publicId
       name: string;
       description: string | null;
@@ -146,7 +146,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     deliveryCharges: snapshot.deliveryCharges
       ? {
           baseCharge: snapshot.deliveryCharges.baseCharge,
-          deliveryTypes: snapshot.deliveryCharges.deliveryTypes
+          deliveryStrategies: snapshot.deliveryCharges.deliveryStrategies
             .filter((d) => d.active)
             .map((d) => ({
               id: d.publicId,
