@@ -35,6 +35,7 @@ export function PlanHeader({ name, sub, counts, renew, onVacation, onVacationCli
         <h1 className="text-[clamp(28px,5vw,40px)] font-bold leading-[1.1] tracking-[-0.03em]">
           {first ? <>Hi, <em className="text-[var(--primary)]">{first}.</em></> : <>Your <em className="text-[var(--primary)]">trips.</em></>}
         </h1>
+        {/* Feature hidden for phase 1
         {onVacationClick && <button
           type="button"
           onClick={onVacationClick}
@@ -42,6 +43,7 @@ export function PlanHeader({ name, sub, counts, renew, onVacation, onVacationCli
         >
           {onVacation ? "On vacation · Resume" : "Vacation"}
         </button>}
+        */}
       </div>
       <p className="mt-3 text-[22px] font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeName}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">

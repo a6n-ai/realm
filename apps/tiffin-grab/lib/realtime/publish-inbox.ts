@@ -8,3 +8,8 @@ export function publishTicketsInbox(): void {
 export function publishPaymentsInbox(): void {
   memoryBus.publish(PAYMENTS_INBOX, { type: "message", channel: PAYMENTS_INBOX });
 }
+
+export function publishUserRefresh(userPublicId: string): void {
+  const channel = `refresh:${userPublicId}`;
+  memoryBus.publish(channel, { type: "message", channel });
+}

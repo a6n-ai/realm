@@ -34,6 +34,11 @@ export async function authorizeChannel(
     return publicId === userId ? { channel: notifyChannel(userId), userId, role: realtimeRole } : null;
   }
 
+  // A generic refresh stream for the user's active session.
+  if (kind === "refresh") {
+    return publicId === userId ? { channel: `refresh:${userId}`, userId, role: realtimeRole } : null;
+  }
+
   if (kind === "tickets" && publicId === "inbox") {
     if (!staffRole(role)) return null;
     return { channel: TICKETS_INBOX, userId, role: "staff" };

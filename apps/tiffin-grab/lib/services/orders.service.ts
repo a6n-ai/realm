@@ -53,7 +53,7 @@ import {
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import { eatingDaysError, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "./app-settings.service";
-import { publishPaymentsInbox } from "@/lib/realtime/publish-inbox";
+import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
 const log = createLogger("orders.service");
 
@@ -773,9 +773,22 @@ export async function verifyPayment(
 
     if (order.status === "active") missedStops = await shiftMissedDeliveries(tx, order.id, actorInternalId);
 
+    const [user] = await tx.select({ publicId: users.publicId, email: users.email }).from(users).where(eq(users.id, order.userId)).limit(1);
+    const [freq] = await tx.select({ weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+
     // Award coins only when the order is (still) active — waitlisted stays deferred
     // until activateOrder, which has its own award path.
-    return order.status === "active" ? { userId: order.userId, orderPublicId: order.publicId } : null;
+    return order.status === "active" ? { 
+      userId: order.userId, 
+      orderPublicId: order.publicId,
+      userPublicId: user.publicId,
+      userEmail: user.email,
+      startDate: order.startDate,
+      categoryCounts: order.categoryCounts,
+      eatingDays: order.eatingDays,
+      frequencyWeekdays: freq?.weekdays,
+      durationWeeks: order.durationWeeks,
+    } : null;
   });
 
   await deleteFromOptimoRouteBestEffort(missedStops);
@@ -785,6 +798,43 @@ export async function verifyPayment(
       await walletService.award(award.userId, "order_activated", { type: "order", id: award.orderPublicId });
     } catch (e) {
       log.error({ err: e }, "wallet award on payment verify failed");
+    }
+
+    // Trigger page refresh for the user
+    publishUserRefresh(award.userPublicId);
+
+    // Send confirmation email
+    if (award.userEmail) {
+      const { getEmailProvider } = await import("@/lib/email/provider");
+      const mealsHtml = award.categoryCounts ? Object.keys(award.categoryCounts).join(", ") : "";
+      const deliveryDaysHtml = (award.frequencyWeekdays || []).join(", ");
+      const eatingDaysHtml = (award.eatingDays || []).join(", ");
+      
+      const html = `
+        <div style="font-family: sans-serif; color: #333;">
+          <h2>Your payment has been confirmed!</h2>
+          <p>Your plan is active from the <strong>${award.startDate}</strong>.</p>
+          <hr />
+          <h3>Plan Details</h3>
+          <ul>
+            <li><strong>Meals:</strong> ${mealsHtml}</li>
+            <li><strong>Delivery days:</strong> ${deliveryDaysHtml}</li>
+            <li><strong>Eating days:</strong> ${eatingDaysHtml}</li>
+            <li><strong>Duration:</strong> ${award.durationWeeks} weeks</li>
+          </ul>
+        </div>
+      `;
+
+      try {
+        await getEmailProvider().send({
+          to: { email: award.userEmail },
+          subject: "Payment Confirmed - Plan Active",
+          html,
+          text: \`Your payment has been confirmed! Your plan is active from \${award.startDate}.\`,
+        });
+      } catch (e) {
+        log.error({ err: e }, "failed to send payment confirmation email");
+      }
     }
   }
 }

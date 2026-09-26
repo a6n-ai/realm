@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
@@ -89,7 +91,16 @@ export function StepSchedule({
       </section>
 
       <section aria-labelledby="sched-delivery">
-        <h2 id="sched-delivery" className={H}>How should we deliver?</h2>
+        <h2 id="sched-delivery" className={`${H} flex items-center gap-1.5`}>
+          How should we deliver?
+          <Tooltip>
+            <TooltipTrigger type="button" className="text-muted-foreground hover:text-foreground">
+              <Info className="size-[15px]" />
+              <span className="sr-only">Delivery info</span>
+            </TooltipTrigger>
+            <TooltipContent>You cannot change your delivery days until your plan is completed</TooltipContent>
+          </Tooltip>
+        </h2>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {frequencies.map((f) => {
             const active = f.key === selections.frequencyKey;
