@@ -8,7 +8,7 @@
  *   Same-unit swaps (oz ↔ oz) are like-for-like: each given row becomes one
  *   destination pick of the same TU (Sabzi 12oz + 8oz → Daal 12oz + 8oz).
  *   Cross-unit swaps (rice ↔ roti) split the given TU into destination
- *   first-row picks and must divide evenly.
+ *   first-row picks, rounded down (6 roti → 1 rice); 0 picks refuses the swap.
  *
  * The destination must have a row on the meal size (swapPairFits).
  */
@@ -25,6 +25,8 @@ import { ruleText, type RuleLabels } from "./meal-rule-text";
 import {
   applySwapsToCounts,
   capViolation,
+  crossUnitPicks,
+  NOT_ENOUGH_FOR_SWAP,
   sameUnit,
   swapPairFits,
   takeGiven,
@@ -376,15 +378,9 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
     qtyTo = next.fromPicks;
     getTu = giveTu;
   } else {
-    const toRate = receivePickTu(composition, next.toCategory);
-    if (toRate == null || toRate <= 0) {
-      return { ok: false, reason: "This swap requires an even portion exchange." };
-    }
-    const ratio = giveTu / toRate;
-    if (Math.abs(ratio - Math.round(ratio)) > 1e-9) {
-      return { ok: false, reason: "This swap requires an even portion exchange." };
-    }
-    qtyTo = Math.round(ratio);
+    const toRate = receivePickTu(composition, next.toCategory) ?? 0;
+    qtyTo = crossUnitPicks(giveTu, toRate);
+    if (qtyTo < 1) return { ok: false, reason: NOT_ENOUGH_FOR_SWAP };
     getTu = qtyTo * toRate;
   }
 
@@ -563,7 +559,7 @@ export function computeSwapOption(args: {
       fromCategory,
       toCategory,
       available: false,
-      reason: firstFail ?? "This swap requires an even portion exchange.",
+      reason: firstFail ?? NOT_ENOUGH_FOR_SWAP,
       validBundles: [],
       minFromPicks: null,
       maxFromPicks: null,

@@ -28,8 +28,8 @@ afterEach(async () => {
 async function setup() {
   const snap = await loadCatalogSnapshot();
   const size = snap.mealSizes.find((s) => {
-    const cats = new Set(s.items.map((i) => i.category));
-    return cats.has("rice") && cats.has("roti");
+    // Roti row of exactly 1 TU (4 roti), so 1 rice buys exactly 1 roti row.
+    return s.items.some((i) => i.category === "rice") && s.items.some((i) => i.category === "roti" && Number(i.tuAmount) === 1);
   })!;
   const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
   const { publicId } = await createOrder({
@@ -86,7 +86,7 @@ describe("per-eating-day swaps", () => {
 
   it("legacy NULL rows count as the trip's own date and remove works with forDate", async () => {
     const { trip, covers } = await setup();
-    await db.insert(deliveryCategorySwaps).values({ deliveryId: trip.id, fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 4 });
+    await db.insert(deliveryCategorySwaps).values({ deliveryId: trip.id, fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 1 });
     await expect(applyDeliverySwap(trip.publicId, "rice", "roti", 1, null)).rejects.toThrow();
     await applyDeliverySwap(trip.publicId, "rice", "roti", 1, null, covers[1]);
     const sat = (await swapsOf(trip.id)).find((r) => r.forDate === covers[1])!;
@@ -104,7 +104,7 @@ describe("per-eating-day swaps", () => {
     expect(day.eatingDays!.map((e) => e.date)).toEqual(covers);
     expect(day.eatingDays![0].appliedSwaps).toEqual([]);
     expect(day.eatingDays![1].appliedSwaps).toHaveLength(1);
-    expect(day.eatingDays![1].appliedSwaps[0]).toMatchObject({ fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 4 });
+    expect(day.eatingDays![1].appliedSwaps[0]).toMatchObject({ fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 1 });
     expect(day.eatingDays![0].swapPairs.some((p) => p.fromCategory === "rice" && p.toCategory === "roti")).toBe(true);
     expect(day.swapAllowance).toBeNull();
     await expect(myCalendar(order.userId! + 999999n, publicId, range)).rejects.toThrow();

@@ -42,8 +42,8 @@ async function fetchOrder(publicId: string) {
 async function mealSizeWithRiceAndRoti() {
   const snap = await loadCatalogSnapshot();
   const size = snap.mealSizes.find((s) => {
-    const cats = new Set(s.items.map((i) => i.category));
-    return cats.has("rice") && cats.has("roti");
+    // Roti row of exactly 1 TU (4 roti), so 1 rice buys exactly 1 roti row.
+    return s.items.some((i) => i.category === "rice") && s.items.some((i) => i.category === "roti" && Number(i.tuAmount) === 1);
   });
   if (!size) throw new Error("Seed has no meal size with both rice and roti — needed for this test");
   return size;
@@ -80,8 +80,7 @@ describe("delivery swap reschedule carry-over", () => {
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id))
       .orderBy(asc(deliveries.deliveryDate));
     const source = rows[0];
-    // Give up the single rice pick (1 TU) — roti is 0.25 TU/pick, so this buys
-    // exactly 4 roti picks (matches the real business ratio from the spreadsheet).
+    // Give up the single rice pick (1 TU) for the meal's one roti row (1 TU = 4 roti).
     await applyDeliverySwap(source.publicId, "rice", "roti", 1, null);
 
     // A day the order does not already cover, on the same weekday pattern.
@@ -99,6 +98,6 @@ describe("delivery swap reschedule carry-over", () => {
     expect(swaps[0].fromCategory).toBe("rice");
     expect(swaps[0].toCategory).toBe("roti");
     expect(swaps[0].qtyFrom).toBe(1);
-    expect(swaps[0].qtyTo).toBe(4);
+    expect(swaps[0].qtyTo).toBe(1);
   });
 });

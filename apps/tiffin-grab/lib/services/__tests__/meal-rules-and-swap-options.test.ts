@@ -74,14 +74,14 @@ describe("mealRulesService + swap options", () => {
     );
   });
 
-  it("listValidSwapOptionsForDelivery only returns divisible bundles within Max TU", async () => {
+  it("listValidSwapOptionsForDelivery rounds roti → rice down to whole rice within Max TU", async () => {
     const snap = await loadCatalogSnapshot();
-    // Need enough roti picks that 4-roti bundles exist (item4_regular only has 2).
+    // Roti is one row per meal size; 5 Item Large's is 6 roti (1.5 TU).
     const size = snap.mealSizes.find((m) => m.key === "item5_large_nonveg")
       ?? snap.mealSizes.find((m) => m.key === "maharaja_nonveg")
       ?? snap.mealSizes.find((m) => {
-        const roti = m.items.filter((i) => i.category === "roti").length;
-        return roti >= 4 && m.items.some((i) => i.category === "rice");
+        const roti = m.items.find((i) => i.category === "roti");
+        return Number(roti?.tuAmount ?? 0) >= 1 && m.items.some((i) => i.category === "rice");
       });
     if (!size) throw new Error("Need a meal size with rice + ≥4 roti");
     const plan = snap.plans.find((p) => p.id === size.planId)!;
@@ -106,11 +106,8 @@ describe("mealRulesService + swap options", () => {
       const options = await listValidSwapOptionsForDelivery(delivery.publicId, { hideUnavailable: true });
       const rotiRice = options.find((o) => o.fromCategory === "roti" && o.toCategory === "rice");
       expect(rotiRice?.available).toBe(true);
-      expect(rotiRice!.validBundles.every((b) => b.fromPicks % 4 === 0)).toBe(true);
-      expect(rotiRice!.validBundles.some((b) => b.fromPicks === 1)).toBe(false);
-      // Base rice = 1 TU, max = 2 → at most +1 rice pick from swaps.
-      expect(rotiRice!.validBundles.every((b) => b.toPicks <= 1)).toBe(true);
-      expect(rotiRice!.maxFromPicks).toBe(4);
+      // The one roti row (6 roti = 1.5 TU) rounds down to 1 rice; max 2 TU allows +1 rice.
+      expect(rotiRice!.validBundles.map((b) => [b.fromPicks, b.toPicks])).toEqual([[1, 1]]);
     } finally {
       if (riceRow) await db.update(mealSizeItems).set({ maxTuAmount: prevMax }).where(eq(mealSizeItems.id, riceRow.id));
     }

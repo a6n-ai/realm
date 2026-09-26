@@ -124,7 +124,7 @@ ON CONFLICT (key) DO NOTHING;
 -- ============ MEAL SIZE ITEMS ============ (FK by meal_sizes.key subquery; no unique key -> wipe+reinsert
 -- like pricing_tiers. TU (tiffin unit) is the shared currency swaps move between categories —
 -- see db/schema/menu.ts. Weighed categories default 8oz/TU (12oz -> 1.5 TU); roti is 4 pieces/TU,
--- so "2 roti" is 2 rows at 0.25 TU each (a row IS one dish pick, there's no qty column);
+-- and a meal's roti is ONE row (8 roti = 2 TU) — a row is one dish pick, not one piece;
 -- rice has no weight, 1 unit/TU, 1 row per pick.
 -- meal_size_id is NOT NULL so a mistyped meal_size_key fails the insert loudly instead of orphaning a row.)
 DELETE FROM meal_size_items WHERE id > 0;
@@ -158,8 +158,7 @@ FROM (VALUES
   -- Small Thali: 1×12oz Sabzi + Rice + 2 Rotis
   ('small_thali', 'Sabzi', 1.5, NULL, 0, NULL),
   ('small_thali', 'Rice', 1, NULL, 1, NULL),
-  ('small_thali', 'Roti', 0.25, NULL, 2, NULL),
-  ('small_thali', 'Roti', 0.25, NULL, 3, NULL),
+  ('small_thali', 'Roti', 0.5, NULL, 2, NULL),
   -- Sabzi Only — Regular: 2 Sabzi(8oz) + 1 Daal(8oz)
   ('sabzi_only_regular_veg', 'Sabzi', 1, NULL, 0, NULL),
   ('sabzi_only_regular_veg', 'Sabzi', 1, NULL, 1, NULL),
@@ -180,30 +179,22 @@ FROM (VALUES
   ('item4_regular_veg', 'Sabzi', 1, NULL, 0, NULL),
   ('item4_regular_veg', 'Daal', 1, NULL, 1, NULL),
   ('item4_regular_veg', 'Rice', 1, NULL, 2, NULL),
-  ('item4_regular_veg', 'Roti', 0.25, NULL, 3, NULL),
-  ('item4_regular_veg', 'Roti', 0.25, NULL, 4, NULL),
+  ('item4_regular_veg', 'Roti', 0.5, NULL, 3, NULL),
   -- Only 1 Sabzi row — nothing to split, stays non-veg only.
   ('item4_regular_nonveg', 'Sabzi', 1, NULL, 0, NULL),
   ('item4_regular_nonveg', 'Daal', 1, NULL, 1, 'veg'),
   ('item4_regular_nonveg', 'Rice', 1, NULL, 2, 'veg'),
-  ('item4_regular_nonveg', 'Roti', 0.25, NULL, 3, 'veg'),
-  ('item4_regular_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
+  ('item4_regular_nonveg', 'Roti', 0.5, NULL, 3, 'veg'),
   -- 4 Item Thali — Large: 1 Sabzi(12oz) + 1 Daal(12oz) + Rice + 4 Rotis
   ('item4_large_veg', 'Sabzi', 1.5, NULL, 0, NULL),
   ('item4_large_veg', 'Daal', 1.5, NULL, 1, NULL),
   ('item4_large_veg', 'Rice', 1, NULL, 2, NULL),
-  ('item4_large_veg', 'Roti', 0.25, NULL, 3, NULL),
-  ('item4_large_veg', 'Roti', 0.25, NULL, 4, NULL),
-  ('item4_large_veg', 'Roti', 0.25, NULL, 5, NULL),
-  ('item4_large_veg', 'Roti', 0.25, NULL, 6, NULL),
+  ('item4_large_veg', 'Roti', 1, NULL, 3, NULL),
   -- Only 1 Sabzi row — nothing to split, stays non-veg only.
   ('item4_large_nonveg', 'Sabzi', 1.5, NULL, 0, NULL),
   ('item4_large_nonveg', 'Daal', 1.5, NULL, 1, 'veg'),
   ('item4_large_nonveg', 'Rice', 1, NULL, 2, 'veg'),
-  ('item4_large_nonveg', 'Roti', 0.25, NULL, 3, 'veg'),
-  ('item4_large_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
-  ('item4_large_nonveg', 'Roti', 0.25, NULL, 5, 'veg'),
-  ('item4_large_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
+  ('item4_large_nonveg', 'Roti', 1, NULL, 3, 'veg'),
   -- 5 Item Thali — Regular: 2 Sabzi(8oz) + 1 Daal(8oz)/Salad/Raita + Rice + 3 Rotis.
   -- The "/Salad/Raita" alternative is the existing daal<->salad / daal<->raita swap
   -- pairs below, not a separate composition row — the sheet's base is Daal.
@@ -211,61 +202,33 @@ FROM (VALUES
   ('item5_regular_veg', 'Sabzi', 1, NULL, 1, NULL),
   ('item5_regular_veg', 'Daal', 1, NULL, 2, NULL),
   ('item5_regular_veg', 'Rice', 1, NULL, 3, NULL),
-  ('item5_regular_veg', 'Roti', 0.25, NULL, 4, NULL),
-  ('item5_regular_veg', 'Roti', 0.25, NULL, 5, NULL),
-  ('item5_regular_veg', 'Roti', 0.25, NULL, 6, NULL),
+  ('item5_regular_veg', 'Roti', 0.75, NULL, 4, NULL),
   -- Equal-weight (1, 1) Sabzi pair: first stays non-veg, second retags veg.
   ('item5_regular_nonveg', 'Sabzi', 1, NULL, 0, 'non-veg'),
   ('item5_regular_nonveg', 'Sabzi', 1, NULL, 1, 'veg'),
   ('item5_regular_nonveg', 'Daal', 1, NULL, 2, 'veg'),
   ('item5_regular_nonveg', 'Rice', 1, NULL, 3, 'veg'),
-  ('item5_regular_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
-  ('item5_regular_nonveg', 'Roti', 0.25, NULL, 5, 'veg'),
-  ('item5_regular_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
+  ('item5_regular_nonveg', 'Roti', 0.75, NULL, 4, 'veg'),
   -- New Thali Plan — Regular: 1 Sabzi(8oz) + 1 Daal(8oz) + 8 Rotis — no rice
   ('new_thali_veg', 'Sabzi', 1, NULL, 0, NULL),
   ('new_thali_veg', 'Daal', 1, NULL, 1, NULL),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 2, NULL),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 3, NULL),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 4, NULL),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 5, NULL),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 6, NULL),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 7, NULL),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 8, NULL),
-  ('new_thali_veg', 'Roti', 0.25, NULL, 9, NULL),
+  ('new_thali_veg', 'Roti', 2, NULL, 2, NULL),
   -- Only 1 Sabzi row — nothing to split, stays non-veg only.
   ('new_thali_nonveg', 'Sabzi', 1, NULL, 0, NULL),
   ('new_thali_nonveg', 'Daal', 1, NULL, 1, 'veg'),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 2, 'veg'),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 3, 'veg'),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 5, 'veg'),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 7, 'veg'),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 8, 'veg'),
-  ('new_thali_nonveg', 'Roti', 0.25, NULL, 9, 'veg'),
+  ('new_thali_nonveg', 'Roti', 2, NULL, 2, 'veg'),
   -- 5 Item Thali — Large: 1 Sabzi(12oz) + 1 Daal(12oz) + 1 Sabzi(8oz)/Salad/Raita + Rice + 6 Rotis
   ('item5_large_veg', 'Sabzi', 1.5, NULL, 0, NULL),
   ('item5_large_veg', 'Daal', 1.5, NULL, 1, NULL),
   ('item5_large_veg', 'Sabzi', 1, NULL, 2, NULL),
   ('item5_large_veg', 'Rice', 1, NULL, 3, NULL),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 4, NULL),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 5, NULL),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 6, NULL),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 7, NULL),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 8, NULL),
-  ('item5_large_veg', 'Roti', 0.25, NULL, 9, NULL),
+  ('item5_large_veg', 'Roti', 1.5, NULL, 4, NULL),
   -- Larger Sabzi (1.5, sort_order 0) stays non-veg; smaller (1, sort_order 2) retags veg.
   ('item5_large_nonveg', 'Sabzi', 1.5, NULL, 0, 'non-veg'),
   ('item5_large_nonveg', 'Daal', 1.5, NULL, 1, 'veg'),
   ('item5_large_nonveg', 'Sabzi', 1, NULL, 2, 'veg'),
   ('item5_large_nonveg', 'Rice', 1, NULL, 3, 'veg'),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 4, 'veg'),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 5, 'veg'),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 7, 'veg'),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 8, 'veg'),
-  ('item5_large_nonveg', 'Roti', 0.25, NULL, 9, 'veg'),
+  ('item5_large_nonveg', 'Roti', 1.5, NULL, 4, 'veg'),
   -- Maharaja Thali: 1 Sabzi(12oz) + 1 Daal(12oz) + 1 Sabzi(8oz) + Salad + Raita + Rice + 8 Rotis
   ('maharaja_veg', 'Sabzi', 1.5, NULL, 0, NULL),
   ('maharaja_veg', 'Daal', 1.5, NULL, 1, NULL),
@@ -273,14 +236,7 @@ FROM (VALUES
   ('maharaja_veg', 'Salad', 1, 2, 3, NULL),
   ('maharaja_veg', 'Raita', 1, 2, 4, NULL),
   ('maharaja_veg', 'Rice', 1, NULL, 5, NULL),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 6, NULL),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 7, NULL),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 8, NULL),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 9, NULL),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 10, NULL),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 11, NULL),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 12, NULL),
-  ('maharaja_veg', 'Roti', 0.25, NULL, 13, NULL),
+  ('maharaja_veg', 'Roti', 2, NULL, 6, NULL),
   -- Larger Sabzi (1.5, sort_order 0) stays non-veg; smaller (1, sort_order 2) retags veg.
   ('maharaja_nonveg', 'Sabzi', 1.5, NULL, 0, 'non-veg'),
   ('maharaja_nonveg', 'Daal', 1.5, NULL, 1, 'veg'),
@@ -288,14 +244,7 @@ FROM (VALUES
   ('maharaja_nonveg', 'Salad', 1, 2, 3, 'veg'),
   ('maharaja_nonveg', 'Raita', 1, 2, 4, 'veg'),
   ('maharaja_nonveg', 'Rice', 1, NULL, 5, 'veg'),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 6, 'veg'),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 7, 'veg'),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 8, 'veg'),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 9, 'veg'),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 10, 'veg'),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 11, 'veg'),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 12, 'veg'),
-  ('maharaja_nonveg', 'Roti', 0.25, NULL, 13, 'veg')
+  ('maharaja_nonveg', 'Roti', 2, NULL, 6, 'veg')
 ) AS v(meal_size_key, name, tu_amount, max_tu_amount, sort_order, item_plan_key);
 
 -- Derive human-readable components[] from the structured items (single source of truth).

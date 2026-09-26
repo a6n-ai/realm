@@ -43,8 +43,12 @@ describe("swapQuantities", () => {
     expect(swapQuantities(rice, roti, 1)).toEqual({ ok: true, qtyTo: 4 });
     expect(swapQuantities(roti, rice, 4)).toEqual({ ok: true, qtyTo: 1 });
   });
-  it("refuses a trade that does not divide evenly", () => {
-    expect(swapQuantities(roti, rice, 1)).toMatchObject({ ok: false, reason: "This swap requires an even portion exchange." });
+  it("refuses a cross-unit trade that rounds down to nothing", () => {
+    expect(swapQuantities(roti, rice, 1)).toMatchObject({ ok: false, reason: "Not enough to swap for a full portion." });
+  });
+  it("rounds a cross-unit trade down to whole picks: 6 roti (1.5 TU) buys 1 rice", () => {
+    const roti6 = cat("roti", 1.5, { unitType: "count", unitLabel: "roti" });
+    expect(swapQuantities(roti6, rice, 1)).toEqual({ ok: true, qtyTo: 1 });
   });
   it("refuses 1 TU for half a pick across units — a swap only ever moves whole picks", () => {
     const doubleTu = cat("bigportion", 2, { unitType: "count", unitLabel: "unit" });
@@ -84,9 +88,9 @@ describe("hasEvenPortionSwap (Swap entry gate)", () => {
     expect(hasEvenPortionSwap(roti, rice, 1)).toBe(false);
     expect(hasEvenPortionSwap(roti, rice, 4)).toBe(true);
   });
-  it("is false when leftover picks cannot form an even exchange", () => {
-    const awkward = cat("rice", 1.5, { unitType: "count", unitLabel: "unit" });
+  it("is false when the leftover picks round down to no destination pick", () => {
+    const small = cat("rice", 0.5, { unitType: "count", unitLabel: "unit" });
     const whole = cat("roti", 1, { unitType: "count", unitLabel: "roti" });
-    expect(hasEvenPortionSwap(awkward, whole, 1)).toBe(false);
+    expect(hasEvenPortionSwap(small, whole, 1)).toBe(false);
   });
 });

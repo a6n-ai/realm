@@ -322,7 +322,7 @@ describe("Phase 7.1 Case F — Rice↔Roti options≡apply", () => {
       categories: new Map([["rice", rice], ["roti", roti]]),
     });
     const opt = computeSwapOption({ composition, applied: [], fromCategory: "roti", toCategory: "rice" });
-    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([4, 8]);
+    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([4, 5, 6, 7, 8]);
     expect(opt.validBundles.some((b) => b.fromPicks === 1)).toBe(false);
     for (const b of opt.validBundles) {
       expect(validateProposedSwap({

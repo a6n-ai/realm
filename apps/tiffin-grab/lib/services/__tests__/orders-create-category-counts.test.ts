@@ -45,9 +45,9 @@ describe("createOrder snapshots category_counts from the meal size (integration)
   beforeEach(reset);
   afterAll(reset);
 
-  it("Small Thali order snapshots {sabzi:1,rice:1,roti:2}", async () => {
+  it("Small Thali order snapshots {sabzi:1,rice:1,roti:1} — roti is one row", async () => {
     const order = await makeOrder("small_thali", "+16475550121");
-    expect(order.categoryCounts).toEqual({ sabzi: 1, rice: 1, roti: 2 });
+    expect(order.categoryCounts).toEqual({ sabzi: 1, rice: 1, roti: 1 });
     // jsonb round-trips with a canonical (non-insertion-order) key order, so
     // compare mealSlots vs Object.keys(categoryCounts) as sets.
     expect(new Set(order.mealSlots)).toEqual(new Set(Object.keys(order.categoryCounts)));
@@ -61,7 +61,7 @@ describe("createOrder snapshots category_counts from the meal size (integration)
       salad: 1,
       raita: 1,
       rice: 1,
-      roti: 8,
+      roti: 1,
     });
     expect(new Set(order.mealSlots)).toEqual(new Set(Object.keys(order.categoryCounts)));
   });

@@ -64,13 +64,13 @@ describe("validateProposedSwap / computeSwapOption — Roti ↔ Rice", () => {
     if (!over.ok) expect(over.reason).toMatch(/maximum Rice/i);
   });
 
-  it("valid options never offer 1 roti → rice; Max TU caps at one rice add", () => {
+  it("never offers under 4 roti → rice; 5–7 roti round down to one rice; Max TU caps at one rice add", () => {
     const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "roti", toCategory: "rice" });
     expect(opt.available).toBe(true);
-    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([4]);
+    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([4, 5, 6, 7]);
+    expect(opt.validBundles.every((b) => b.toPicks === 1)).toBe(true);
     expect(opt.minFromPicks).toBe(4);
-    expect(opt.maxFromPicks).toBe(4);
-    expect(opt.bundleIncrement).toBe(4);
+    expect(opt.maxFromPicks).toBe(7);
     expect(opt.giveNatural).toBe("4 roti");
     expect(opt.getNatural).toBe("1 unit");
   });
@@ -85,14 +85,14 @@ describe("validateProposedSwap / computeSwapOption — Roti ↔ Rice", () => {
     });
     expect(validateProposedSwap({ composition: roomy, applied: [], next: { fromCategory: "roti", toCategory: "rice", fromPicks: 8 } })).toMatchObject({ ok: true, qtyTo: 2 });
     const opt = computeSwapOption({ composition: roomy, applied: [], fromCategory: "roti", toCategory: "rice" });
-    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([4, 8]);
+    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([4, 5, 6, 7, 8]);
   });
 });
 
 describe("Rice → Roti uneven pickTu (representative first-row)", () => {
-  // When roti pickTu is 1.5 (first of heterogeneous meal) and rice is 1,
-  // 1 rice does not divide into roti picks — options must start at 3 rice → 2 roti.
-  it("does not offer 1 rice when only 3 rice → 2 roti divides", () => {
+  // Roti pickTu 1.5, rice 1: 1 rice rounds down to 0 roti, so options start at
+  // 2 rice → 1 roti (floor 1.33); 3 rice → 2 roti.
+  it("does not offer 1 rice; 2 rice rounds down to 1 roti", () => {
     const rice = cat("rice", 1);
     const roti = cat("roti", 1.5, { unitSize: 4 });
     const ctx = composition({
@@ -108,7 +108,7 @@ describe("Rice → Roti uneven pickTu (representative first-row)", () => {
     });
     const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "rice", toCategory: "roti" });
     expect(opt.available).toBe(true);
-    expect(opt.validBundles.map((b) => [b.fromPicks, b.toPicks])).toEqual([[3, 2]]);
+    expect(opt.validBundles.map((b) => [b.fromPicks, b.toPicks])).toEqual([[2, 1], [3, 2]]);
     expect(opt.validBundles.some((b) => b.fromPicks === 1)).toBe(false);
   });
 });
@@ -388,10 +388,9 @@ describe("Swap engine: Opposing swaps & single-item bundle suppression (Fix 1 & 
   it("6. Multi-item exchange: Roti → Rice requiring 4 source items still generates the required bundle", () => {
     const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "roti", toCategory: "rice" });
     expect(opt.available).toBe(true);
-    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([4]);
+    expect(opt.validBundles.map((b) => b.fromPicks)).toEqual([4, 5, 6, 7]);
     expect(opt.validBundles[0]?.toPicks).toBe(1);
     expect(opt.minFromPicks).toBe(4);
-    expect(opt.bundleIncrement).toBe(4);
   });
 
   // 7. Existing TU/multi-row swap tests remain green (verified by the full suite, and explicit test here).

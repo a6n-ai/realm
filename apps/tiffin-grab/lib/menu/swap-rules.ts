@@ -79,14 +79,21 @@ export function swapQuantities(
   if (sameUnit(from, to)) return { ok: true, qtyTo: fromPicks };
   const fromTu = from.pickTu ?? to.pickTu!;
   const toTu = to.pickTu ?? from.pickTu!;
-  const ratio = (fromPicks * fromTu) / toTu;
-  // Epsilon, not `%`: TU amounts are decimals (0.25 roti) and float modulo lies.
-  if (Math.abs(ratio - Math.round(ratio)) > 1e-9) {
-    // Customer-facing: never mention pick counts / TU math. Valid-options must
-    // filter these quantities before the UI offers them.
-    return { ok: false, reason: "This swap requires an even portion exchange." };
-  }
-  return { ok: true, qtyTo: Math.round(ratio) };
+  const qtyTo = crossUnitPicks(fromPicks * fromTu, toTu);
+  // Customer-facing: never mention pick counts / TU math.
+  if (qtyTo < 1) return { ok: false, reason: NOT_ENOUGH_FOR_SWAP };
+  return { ok: true, qtyTo };
+}
+
+export const NOT_ENOUGH_FOR_SWAP = "Not enough to swap for a full portion.";
+
+/**
+ * Cross-unit swaps (roti ↔ rice) receive whole destination picks, rounded down:
+ * 6 roti (1.5 TU) → 1 rice. The remainder is forfeited. The epsilon absorbs float
+ * error on decimal TU (0.25 × 4 must floor to 1, not 0).
+ */
+export function crossUnitPicks(giveTu: number, toTu: number): number {
+  return toTu > 0 ? Math.floor(giveTu / toTu + 1e-9) : 0;
 }
 
 /** Reason the effective counts break `to`'s per-tiffin cap, or null when within it. */

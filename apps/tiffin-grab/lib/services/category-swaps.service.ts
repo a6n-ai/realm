@@ -8,9 +8,9 @@
 // TU trade, gated only by the global category_swap_pairs eligibility table
 // (dish-categories.service.ts). The customer picks HOW MANY PICKS of fromCategory
 // to give up (a whole number, the human-facing unit); the TU that buys is spent on
-// toCategory at that category's own per-pick tuAmount, which must divide evenly —
-// e.g. giving up 1 rice pick (1 TU) into roti (0.25 TU/pick) buys exactly 4 roti
-// picks, matching the pick-count-driven categoryCounts/pickIndex machinery
+// toCategory at that category's own per-pick tuAmount, rounded down to whole picks —
+// e.g. giving up 6 roti (1.5 TU) for rice (1 TU/pick) buys 1 rice. Picks keep
+// matching the pick-count-driven categoryCounts/pickIndex machinery
 // unchanged (see lib/menu/resolve-delivery-meal.ts).
 //
 // Final validation (divisibility, stack, maxPicksPerTiffin, maxTuAmount) lives in
