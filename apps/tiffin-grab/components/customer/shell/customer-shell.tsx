@@ -28,13 +28,14 @@ const THEMES = [
   { id: "dark", label: "Dark" },
 ];
 
-function Brand() {
+/** Mark + wordmark. `compact` fits a 44px chrome bar (public subscribe and checkout). */
+export function Brand({ href = "/me", compact = false }: { href?: string; compact?: boolean }) {
   return (
-    <Link href="/me" aria-label="TiffinGrab home" className={cn(FONT, FOCUS, "flex min-h-11 items-center gap-2 rounded-full")}>
-      <span aria-hidden className="grid size-9 place-items-center rounded-full bg-[var(--primary)] text-white">
-        <UtensilsCrossed className="size-[18px]" />
+    <Link href={href} aria-label="TiffinGrab home" className={cn(FONT, FOCUS, "flex min-h-11 items-center gap-2 rounded-full")}>
+      <span aria-hidden className={cn("grid place-items-center rounded-full bg-[var(--primary)] text-white", compact ? "size-8" : "size-9")}>
+        <UtensilsCrossed className={compact ? "size-4" : "size-[18px]"} />
       </span>
-      <span className="c-title">
+      <span className={compact ? "text-[20px] leading-none font-bold tracking-[-0.03em]" : "c-title"}>
         Tiffin<em className="text-[var(--primary)]">Grab</em>
       </span>
     </Link>

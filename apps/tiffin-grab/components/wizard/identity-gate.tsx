@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { checkExistingAccount, createCheckoutAccount } from "@/app/(public)/subscribe/actions";
-import { Button, Field, Label, Notice } from "@/components/customer/kit";
+import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
 import { CodeOtp } from "@foundry/auth-ui";
 import { emailDomainSuggestions } from "./email-domains";
 
@@ -26,11 +26,20 @@ import { emailDomainSuggestions } from "./email-domains";
 type Phase = "email" | "name" | "otp" | "staff";
 
 const COPY: Record<Phase, { title: string; body: string }> = {
-  email: { title: "Let's start with your email.", body: "We'll email you a code to sign in, or to set up your account if you're new." },
+  email: { title: "Start with your email.", body: "We'll send a 6-digit code to sign you in, or to set up your account if you're new." },
   name: { title: "Nice to meet you.", body: "Your orders, deliveries and payments will live in this account." },
   otp: { title: "Check your inbox.", body: "Enter the 6-digit code we just sent." },
   staff: { title: "That's a staff account.", body: "" },
 };
+
+// What the four wizard steps ask, in the wizard's own names (see wizard.tsx STEPS),
+// so the first screen shows the whole path instead of a lone input.
+const NEXT_STEPS = [
+  { name: "Baseline", hint: "The nutrition base your meals start from." },
+  { name: "Bundle", hint: "Your meal size." },
+  { name: "Schedule", hint: "The days your tiffins arrive." },
+  { name: "Start", hint: "A start date and how many weeks." },
+] as const;
 
 export function IdentityGate() {
   const router = useRouter();
@@ -124,14 +133,17 @@ export function IdentityGate() {
     if (await sendCode(email)) setResent(true);
   }
 
+  // Bottom-bar Back: on the email phase it leaves the flow; later phases step back to the email.
+  const back = () => (phase === "email" ? router.push("/") : changeEmail());
+
   const lockedEmail = phase !== "email";
   const cta = phase === "email" ? "Continue" : phase === "name" ? "Send my code" : "Verify and continue";
 
   return (
-    <form onSubmit={onSubmit} noValidate className="max-w-md">
+    <form onSubmit={onSubmit} noValidate className="max-w-md pb-40 sm:pb-0">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={phase} {...reveal} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
-          <h2 className="c-h2">{COPY[phase].title}</h2>
+          <h2 className="c-h2">{phase === "otp" && !isNew ? "Welcome back." : COPY[phase].title}</h2>
           {COPY[phase].body ? <p className="c-body mt-1.5 text-pretty text-[var(--muted-foreground)]">{COPY[phase].body}</p> : null}
         </motion.div>
       </AnimatePresence>
@@ -232,17 +244,45 @@ export function IdentityGate() {
 
         {error?.field === "form" ? <Notice tone="error">{error.message}</Notice> : null}
 
+      </div>
+
+      {phase === "email" || phase === "name" ? (
+        <section aria-labelledby="gate-next" className="mt-10">
+          <h3 id="gate-next" className="c-label">After you sign in</h3>
+          <ol className="mt-3 divide-y divide-[var(--border)] rounded-[var(--c-radius-card,24px)] border border-[var(--border)] bg-[var(--card)]">
+            {NEXT_STEPS.map((st, i) => (
+              <li key={st.name} className="flex items-center gap-3.5 px-4 py-3.5">
+                <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-[13px] font-bold text-[var(--primary)] tabular-nums">
+                  {i + 1}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-semibold">{st.name}</span>
+                  <span className="c-caption block text-pretty">{st.hint}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="c-caption mt-3 text-pretty">
+            Then you pick each day&apos;s meal from the weekly menu, and can skip, hold or pause a delivery before its cutoff.
+          </p>
+        </section>
+      ) : null}
+
+      {/* Same bar as the wizard steps: Back + one primary action, fixed on phones, inline from sm up. */}
+      <BottomBar alignEnd className="sm:sticky sm:mt-8 sm:px-0">
+        <Button variant="quiet" size="lg" className="w-24 shrink-0 sm:hidden" onClick={back}>
+          Back
+        </Button>
         {phase === "staff" ? (
-          <div className="flex flex-col gap-3">
-            <Button variant="hero" onClick={() => router.push("/login")}>Sign in to the dashboard</Button>
-            <Button variant="quiet" pill size="lg" onClick={changeEmail}>Use a different email</Button>
-          </div>
+          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" onClick={() => router.push("/login")}>
+            Sign in to the dashboard
+          </Button>
         ) : (
-          <Button type="submit" variant="hero" pending={pending} className="w-full">
+          <Button type="submit" variant="primary" size="lg" pending={pending} className="flex-1 sm:min-h-10 sm:flex-none sm:px-8">
             {cta}
           </Button>
         )}
-      </div>
+      </BottomBar>
     </form>
   );
 }

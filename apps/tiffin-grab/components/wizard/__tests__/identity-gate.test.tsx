@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -54,6 +54,19 @@ async function enterEmail(email: string) {
 }
 
 describe("IdentityGate", () => {
+  it("shows the four wizard steps that follow, so the first screen is not a lone input", () => {
+    render(<IdentityGate />);
+    expect(within(screen.getByRole("list")).getAllByRole("listitem")).toHaveLength(4);
+    for (const name of ["Baseline", "Bundle", "Schedule", "Start"]) expect(screen.getByText(name)).toBeInTheDocument();
+  });
+
+  it("bottom-bar Back leaves the flow from the email phase", async () => {
+    const user = userEvent.setup();
+    render(<IdentityGate />);
+    await user.click(screen.getByRole("button", { name: /^back$/i }));
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
   it("offers common email domains once @ is typed", async () => {
     const user = userEvent.setup();
     render(<IdentityGate />);

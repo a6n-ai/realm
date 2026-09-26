@@ -331,6 +331,7 @@ export function Checkout({
   return (
     <div className="space-y-4 pb-28 md:pb-8">
       <SubscribeChrome
+        brand
         closeHref={closeHref}
         onBack={goBack}
         backLabel={step > 1 ? "Back" : "Edit plan"}
