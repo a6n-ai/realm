@@ -15,6 +15,7 @@ import type { AddressInput, AddressScope } from "@foundry/address";
 import { addressService } from "@/lib/services/addresses.service";
 import { setAddressDropOff } from "./address-drop-off.service";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
+import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
 const log = createLogger("deliveries.service");
 
@@ -262,6 +263,7 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
   // reconcilePoolFromMisses opens its own transaction and takes its own advisory lock — must run
   // after this one commits, never nested inside it.
   await reconcilePoolFromMisses(orderId!);
+  if (updatedCount > 0) publishAnalyticsLive();
   return updatedCount;
 }
 
@@ -302,6 +304,7 @@ export async function resumeOrder(orderPublicId: string, fromDate?: string): Pro
   // cutoff), not just the past-cutoff ones reconcilePoolFromMisses would catch.
   if (fromDate) await poolAllPausedMisses(orderId!);
   await reconcilePoolFromMisses(orderId!);
+  publishAnalyticsLive();
   return updatedCount;
 }
 
@@ -383,6 +386,7 @@ export async function skipDelivery(
   });
   await deleteFromOptimoRouteBestEffort([syncedRow!]);
   await reconcilePoolFromMisses(orderId!);
+  publishAnalyticsLive();
   return { missedDates };
 }
 
@@ -547,7 +551,7 @@ export async function scheduleFromPool(
   const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
   if (!isoDateRegex.test(eatingDateIso)) throw new ValidationError("Schedule date must be ISO YYYY-MM-DD");
 
-  return db.transaction(async (tx) => {
+  const scheduled = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
@@ -644,6 +648,8 @@ export async function scheduleFromPool(
     });
     return { deliveryPublicId: inserted.publicId, carriedOn, merged: false };
   });
+  publishAnalyticsLive();
+  return scheduled;
 }
 
 /** First ISO date strictly after `afterIso` whose weekday is in `deliveryDays`. */
@@ -956,6 +962,7 @@ export async function rescheduleDelivery(
   if (oldStop) await deleteFromOptimoRouteBestEffort([oldStop]);
   if (splitSourceId) await refreshStopBestEffort(splitSourceId);
   if (result.merged) await refreshStopBestEffort(targetId!);
+  publishAnalyticsLive();
   return result;
 }
 
@@ -1044,6 +1051,7 @@ export async function redeliverTrip(
   });
   await deleteFromOptimoRouteBestEffort([syncedRow!]);
   if (result.merged) await refreshStopBestEffort(targetId!);
+  publishAnalyticsLive();
   return result;
 }
 
@@ -1072,6 +1080,7 @@ export async function unskipDelivery(deliveryPublicId: string, actorId: bigint |
     });
   });
   await reconcilePoolFromMisses(orderId!);
+  publishAnalyticsLive();
 }
 
 /** Postal zone first, then radius circles (active zones only). Rejects an unserviced postal code. */

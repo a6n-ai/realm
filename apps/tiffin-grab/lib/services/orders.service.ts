@@ -54,7 +54,7 @@ import {
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import { eatingDaysError, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "./app-settings.service";
-import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
+import { publishAnalyticsLive, publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
 const log = createLogger("orders.service");
 
@@ -667,6 +667,8 @@ export async function createOrder(
     };
   });
 
+  publishAnalyticsLive();
+
   try {
     if (txResult.awardUserId != null) {
       await walletService.award(txResult.awardUserId, "order_activated", { type: "order", id: txResult.publicId });
@@ -796,6 +798,7 @@ export async function verifyPayment(
     } : null;
   });
 
+  publishAnalyticsLive();
   await deleteFromOptimoRouteBestEffort(missedStops);
 
   if (award) {
@@ -887,6 +890,7 @@ export async function refundOrder(
       });
     }
   });
+  publishAnalyticsLive();
 }
 
 // Terminalize an order nobody ever paid. Unlike puchkaman's equivalent, this
@@ -899,7 +903,7 @@ export async function refundOrder(
 // earlier sweep run that landed between the caller's read and this call must
 // win, and re-running against an already-cancelled order must not re-cancel it.
 export async function abandonPendingOrder(orderId: bigint): Promise<boolean> {
-  return db.transaction(async (tx) => {
+  const abandoned = await db.transaction(async (tx) => {
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update").limit(1);
     if (!order || (order.status !== "active" && order.status !== "waitlisted")) return false;
 
@@ -918,6 +922,8 @@ export async function abandonPendingOrder(orderId: bigint): Promise<boolean> {
     });
     return true;
   });
+  if (abandoned) publishAnalyticsLive();
+  return abandoned;
 }
 
 // Customer (or staff-on-behalf) marks a manual payment as sent. Requires a transfer
@@ -993,6 +999,7 @@ export async function claimPayment(
 
   // Staff review queue + sidebar dot via payments:inbox SSE.
   publishPaymentsInbox();
+  publishAnalyticsLive();
 }
 
 // Staff rejects a submitted claim. pending_verification → rejected with a note;
@@ -1025,6 +1032,7 @@ export async function rejectPayment(
     note: reason,
     createdBy: actorId,
   });
+  publishAnalyticsLive();
 }
 
 // Serializable claim form context for activate / Finances UI.
@@ -1399,6 +1407,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       return row;
     });
 
+    publishAnalyticsLive();
+
     if (updated.userId != null) {
       // Real-method orders defer coins until payment verify — don't award here if
       // the payment is still unpaid/unverified.
@@ -1448,6 +1458,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         createdBy: actorId,
       });
     });
+    publishAnalyticsLive();
     // External API call, deliberately outside the tx — see walletService.award above for the
     // same reasoning: a synced stop OptimoRoute still has must not survive a cancelled order.
     await deleteFromOptimoRouteBestEffort(cancelledRows);
@@ -1678,6 +1689,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         organizationId: row.organizationId,
       });
     });
+    publishAnalyticsLive();
   }
 }
 

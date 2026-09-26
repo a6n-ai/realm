@@ -9,12 +9,14 @@ import { cn } from "@foundry/ui/cn";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
 import {
+  clockInZone,
   currentMonth,
   periodLabel,
   type Grain,
   type ProfitabilityKpis,
   type ProfitRow,
 } from "@/lib/analytics/profitability";
+import { LiveRefresh } from "@/components/analytics/live-refresh";
 import { AssumptionsForm } from "./assumptions-form";
 import { GrainNav } from "./grain-nav";
 
@@ -81,8 +83,14 @@ async function reportFrom(searchParams: SearchParams) {
 }
 
 async function Nav({ searchParams }: { searchParams: SearchParams }) {
-  const report = await reportFrom(searchParams);
-  return <GrainNav view={report.grain} month={report.month} />;
+  const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
+  return (
+    <GrainNav
+      view={report.grain}
+      month={report.month}
+      aside={<LiveRefresh updatedLabel={clockInZone(Date.now(), timezone)} refreshAt={report.nextCutoffAt} />}
+    />
+  );
 }
 
 async function Headline({ searchParams }: { searchParams: SearchParams }) {
@@ -102,7 +110,7 @@ function HeadlineCards({ kpis, grain }: { kpis: ProfitabilityKpis; grain: Grain 
             Cash collected
           </p>
           <p className="nums mt-1 text-2xl font-semibold tabular-nums">{money(kpis.cashCollected)}</p>
-          <p className="text-muted-foreground mt-0.5 text-xs">What customers actually paid. {rangeHint}.</p>
+          <p className="text-muted-foreground mt-0.5 text-xs">What customers actually paid, incl. tax. {rangeHint}.</p>
         </Card>
         <Card className="p-4">
           <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
@@ -110,7 +118,14 @@ function HeadlineCards({ kpis, grain }: { kpis: ProfitabilityKpis; grain: Grain 
             Revenue earned
           </p>
           <p className="nums mt-1 text-2xl font-semibold tabular-nums">{money(kpis.revenue)}</p>
-          <p className="text-muted-foreground mt-0.5 text-xs">Value of tiffins delivered. {rangeHint}.</p>
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            Value of paid tiffins delivered, excl. tax. {rangeHint}.
+          </p>
+          {kpis.unpaidRevenue > 0 ? (
+            <p className="text-warn mt-1 text-xs">
+              + {money(kpis.unpaidRevenue)} delivered on orders not paid yet, counted once payment is verified.
+            </p>
+          ) : null}
         </Card>
       </div>
       <StatGrid

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities } from "@/db/schema";
+import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-labels.service";
 import { redeliverTrip, skipDelivery } from "@/lib/services/deliveries.service";
 import { getCompletionDetails, getOrderDetails, getRoutes, type OptimoStop } from "./client";
@@ -213,5 +214,6 @@ export async function pullCompletions(
     });
   }
 
+  if (outcomes.length) publishAnalyticsLive();
   return { date, outcomes, ambiguous, pendingCount, unmatched };
 }

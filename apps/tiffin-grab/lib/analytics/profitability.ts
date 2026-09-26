@@ -3,6 +3,7 @@
  * a different number from revenue (plan total allocated onto delivered tiffins).
  * A 20-tiffin plan paid in January and delivered across January+February earns
  * half its value in each month — even though January's cash is the full amount.
+ * Revenue excludes tax; cash is what the customer paid, tax included.
  */
 
 export type ProfitabilityAssumptions = {
@@ -80,6 +81,16 @@ export function isoDateInZone(epochMs: number, timeZone: string): string {
   }).format(epochMs);
 }
 
+/** Wall-clock time of an instant in `timeZone`, e.g. "1:42:07 p.m.". */
+export function clockInZone(epochMs: number, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(epochMs);
+}
+
 export function monthBounds(monthIso: string): { from: string; to: string } {
   const [y, m] = monthIso.split("-").map(Number) as [number, number];
   const last = daysInMonth(y, m);
@@ -137,11 +148,18 @@ export function periodLabel(key: string, grain: Grain): string {
 export type DailyFacts = {
   date: string;
   tiffins: number;
+  /** Earned on orders whose payment has settled. Excludes tax. */
   revenue: number;
   cashCollected: number;
+  /**
+   * Value of tiffins delivered on orders that are not paid yet. Kept out of
+   * `revenue` and profit until the payment settles; their costs are already in.
+   */
+  unpaidRevenue?: number;
 };
 
-export type ProfitRow = DailyFacts & {
+export type ProfitRow = Omit<DailyFacts, "unpaidRevenue"> & {
+  unpaidRevenue: number;
   kitchen: number;
   driver: number;
   marketing: number;
@@ -176,6 +194,7 @@ export function decorateDay(facts: DailyFacts, assumptions: ProfitabilityAssumpt
     tiffins: facts.tiffins,
     revenue: round2(facts.revenue),
     cashCollected: round2(facts.cashCollected),
+    unpaidRevenue: round2(facts.unpaidRevenue ?? 0),
     kitchen: round2(kitchen),
     driver: round2(driver),
     marketing: round2(allocated.marketing),
@@ -205,6 +224,7 @@ function sumRows(date: string, group: ProfitRow[]): ProfitRow {
   const tiffins = group.reduce((s, r) => s + r.tiffins, 0);
   const revenue = round2(group.reduce((s, r) => s + r.revenue, 0));
   const cashCollected = round2(group.reduce((s, r) => s + r.cashCollected, 0));
+  const unpaidRevenue = round2(group.reduce((s, r) => s + r.unpaidRevenue, 0));
   const kitchen = round2(group.reduce((s, r) => s + r.kitchen, 0));
   const driver = round2(group.reduce((s, r) => s + r.driver, 0));
   const marketing = round2(group.reduce((s, r) => s + r.marketing, 0));
@@ -217,6 +237,7 @@ function sumRows(date: string, group: ProfitRow[]): ProfitRow {
     tiffins,
     revenue,
     cashCollected,
+    unpaidRevenue,
     kitchen,
     driver,
     marketing,
@@ -231,6 +252,7 @@ function sumRows(date: string, group: ProfitRow[]): ProfitRow {
 export type ProfitabilityKpis = {
   cashCollected: number;
   revenue: number;
+  unpaidRevenue: number;
   costs: number;
   profit: number;
   marginPct: number | null;
@@ -242,11 +264,13 @@ export function kpis(rows: ProfitRow[]): ProfitabilityKpis {
   const tiffins = rows.reduce((s, r) => s + r.tiffins, 0);
   const cashCollected = round2(rows.reduce((s, r) => s + r.cashCollected, 0));
   const revenue = round2(rows.reduce((s, r) => s + r.revenue, 0));
+  const unpaidRevenue = round2(rows.reduce((s, r) => s + r.unpaidRevenue, 0));
   const costs = round2(rows.reduce((s, r) => s + r.costs, 0));
   const profit = round2(revenue - costs);
   return {
     cashCollected,
     revenue,
+    unpaidRevenue,
     costs,
     profit,
     marginPct: revenue > 0 ? round2((profit / revenue) * 100) : null,
