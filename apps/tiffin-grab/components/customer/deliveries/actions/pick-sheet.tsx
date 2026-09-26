@@ -490,8 +490,21 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         const row = item.swapped;
                         const rowOff = locked || swapLocked || controlsOff;
                         const toName = row.toCells.length && !row.toCells[0]!.selectable
-                          ? row.toDishes.find((d) => d.id === row.toCells[0]!.selectedDishId)?.name ?? row.toDishes[0]?.name
+                          ? row.toDishes.find((d) => d.id === row.toCells[0]!.selectedDishId)?.name ?? row.toDishes[0]?.name ?? destinationName(row.swap.toCategory)
                           : undefined;
+                        // The row's other swap targets stay on it (greyed when refused), so a swap never shrinks the row.
+                        const otherSwaps = buildSlotDropdownOptions({
+                          cellIndexInCategory: 0,
+                          categoryKey: group.key,
+                          dishes: [],
+                          swapOptions: swapOptions.filter((o) => o.toCategory !== row.swap.toCategory),
+                          allowedSwaps,
+                          onePerRow: row.givenRow != null,
+                          fromRow: row.givenRow,
+                          categoryLabel: labelOf,
+                          destinationName,
+                          destinationDishes,
+                        }).filter((o) => o.kind === "swap");
                         // The row's own dishes stay choices: tapping one undoes the swap and picks it.
                         const blockedOwn = blockedDishes(group.key, ownDishes, null);
                         const into = row.toCells[0];
@@ -519,6 +532,12 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                               label: `${toName ?? labelOf(row.swap.toCategory)}${row.getPortion && row.getPortion !== row.givePortion ? ` · ${row.getPortion}` : ""}`,
                               disabled: rowOff,
                             }]),
+                          ...otherSwaps.map((o) => ({
+                            value: o.value,
+                            label: o.label,
+                            reason: o.reason,
+                            disabled: rowOff || !!o.disabled,
+                          })),
                         ];
                         return (
                           <ChoiceRow
@@ -529,6 +548,15 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                             onChange={(v) => {
                               if (rowOff) return;
                               if (v.startsWith("to:") && into) return onSlotChange(into, 1, dishOptionValue(v.slice("to:".length)));
+                              const next = otherSwaps.find((o) => o.value === v);
+                              if (next?.kind === "swap") {
+                                // Re-point the swap: drop this one, then take the new target from the same row.
+                                const keep = group.swapped.filter((sw) => sw.swap.publicId === row.swap.publicId && sw.part !== row.part);
+                                void queueRemoveSwap(row.swap.publicId);
+                                for (const sw of keep) void queueSwap(sw.swap.fromCategory, sw.swap.toCategory, 1, sw.givenRow, null);
+                                void queueSwap(next.fromCategory, next.toCategory, next.fromPicks, next.fromRow ?? row.givenRow, next.toDishId);
+                                return;
+                              }
                               if (!v.startsWith("was:")) return;
                               const dishId = v.slice("was:".length);
                               if (row.givenRow != null && dishId !== "category") {
