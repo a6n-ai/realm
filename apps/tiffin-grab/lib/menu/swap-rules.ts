@@ -17,6 +17,8 @@ export type SwapRow = {
   qtyTo: number;
   /** Base composition row given up (see delivery_category_swaps.from_row); null = first remaining. */
   fromRow?: number | null;
+  /** TU per received pick from the pair's exchange override, snapshotted at apply; null = natural exchange. */
+  receiveTu?: number | null;
 };
 
 /** One slot of a category; `row` is its base composition row, null when a swap brought it in. */
@@ -36,7 +38,8 @@ export function takeGiven<T>(from: SlotRow<T>[], s: { qtyFrom: number; fromRow?:
 /**
  * Folds applied swaps onto per-category slots, in order. The one received-row rule every
  * reader shares (swap options, apply validation, Edit meal, portions, labels, kitchen):
- * a same-unit swap keeps each given size; otherwise each received pick is `receiveTu(to)`.
+ * a snapshotted override (`s.receiveTu`) sizes each received pick; else a same-unit swap keeps
+ * each given size; otherwise each received pick is `receiveTu(to)`.
  * Mutates and returns `slots`.
  */
 export function foldSwaps<T>(
@@ -50,7 +53,9 @@ export function foldSwaps<T>(
     slots.set(s.fromCategory, from);
 
     const to = slots.get(s.toCategory) ?? [];
-    if (rules.sameUnit(s.fromCategory, s.toCategory) && given.length === s.qtyTo) {
+    if (s.receiveTu != null) {
+      for (let i = 0; i < s.qtyTo; i++) to.push({ row: null, value: s.receiveTu as T });
+    } else if (rules.sameUnit(s.fromCategory, s.toCategory) && given.length === s.qtyTo) {
       to.push(...given.map((g) => ({ row: null, value: g.value })));
     } else {
       const tu = rules.receiveTu(s.toCategory);

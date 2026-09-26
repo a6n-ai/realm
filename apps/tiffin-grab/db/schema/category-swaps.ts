@@ -30,7 +30,7 @@ export const deliveryCategorySwaps = pgTable("delivery_category_swaps", {
   forDate: date("for_date"),
   // TU per received pick, snapshotted at apply from the pair's exchange override so a
   // later override edit can't resize this swap. NULL = natural exchange (legacy rows).
-  receiveTu: numeric("receive_tu", { precision: 6, scale: 2 }),
+  receiveTu: numeric("receive_tu", { precision: 6, scale: 2, mode: "number" }),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [

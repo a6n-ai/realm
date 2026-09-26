@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryCategorySwaps, ledgerEntries, orders, payments, users } = await import("@/db/schema");
+const { categorySwapPairs, deliveries, deliveryCategorySwaps, dishCategories, ledgerEntries, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { rescheduleDelivery } = await import("../deliveries.service");
@@ -99,5 +99,43 @@ describe("delivery swap reschedule carry-over", () => {
     expect(swaps[0].toCategory).toBe("roti");
     expect(swaps[0].qtyFrom).toBe(1);
     expect(swaps[0].qtyTo).toBe(1);
+  });
+
+  it("snapshots the pair's exchange override, carries it, and ignores later override edits", async () => {
+    const size = await mealSizeWithRiceAndRoti();
+    const snap = await loadCatalogSnapshot();
+    const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
+    const riceTu = Number(size.items.find((i) => i.category === "rice")!.tuAmount);
+
+    const [rice] = await db.select({ id: dishCategories.id }).from(dishCategories).where(eq(dishCategories.key, "rice"));
+    const [roti] = await db.select({ id: dishCategories.id }).from(dishCategories).where(eq(dishCategories.key, "roti"));
+    const pairWhere = and(eq(categorySwapPairs.fromCategoryId, rice.id), eq(categorySwapPairs.toCategoryId, roti.id), isNull(categorySwapPairs.planId));
+    const [pair] = await db.select({ exchangeOverrides: categorySwapPairs.exchangeOverrides }).from(categorySwapPairs).where(pairWhere);
+    if (!pair) throw new Error("Seed has no all-plans rice -> roti pair");
+
+    try {
+      // One rice buys 8 roti (2 TU) instead of the natural round-down.
+      await db.update(categorySwapPairs).set({ exchangeOverrides: [{ giveTu: riceTu, receiveTu: 2 }] }).where(pairWhere);
+      const { publicId } = await createOrder(orderInput(size.publicId, planKey));
+      const order = await fetchOrder(publicId);
+      const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
+      const source = rows[0];
+      await applyDeliverySwap(source.publicId, "rice", "roti", 1, null);
+
+      const [applied] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, source.id));
+      expect(applied).toMatchObject({ qtyFrom: 1, qtyTo: 1, receiveTu: 2 });
+
+      // Editing the override later must not resize the swap already made.
+      await db.update(categorySwapPairs).set({ exchangeOverrides: [{ giveTu: riceTu, receiveTu: 3 }] }).where(pairWhere);
+
+      const next = new Date(`${rows[rows.length - 1].deliveryDate}T00:00:00.000Z`);
+      next.setUTCDate(next.getUTCDate() + 7);
+      await rescheduleDelivery(source.publicId, next.toISOString().slice(0, 10), null);
+      const [replacement] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, source.id)).limit(1);
+      const [carried] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, replacement.id));
+      expect(carried).toMatchObject({ fromCategory: "rice", toCategory: "roti", qtyTo: 1, receiveTu: 2 });
+    } finally {
+      await db.update(categorySwapPairs).set({ exchangeOverrides: pair.exchangeOverrides }).where(pairWhere);
+    }
   });
 });

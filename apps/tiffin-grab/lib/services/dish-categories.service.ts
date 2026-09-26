@@ -4,7 +4,7 @@ import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { addonCategories, addons, categoryPlans, categorySwapPairs, dishCategories, dishCategoryAddonCategories, dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { disabledCategoryMessage } from "@/lib/menu/admin-config-guards";
-import { swapPairFits, type SwapCategory } from "@/lib/menu/swap-rules";
+import { swapPairFits, type ExchangeOverride, type SwapCategory } from "@/lib/menu/swap-rules";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
 
@@ -411,14 +411,20 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * Every (from, to) pair allowed on ANY plan this meal size's composition reaches:
    * a pair rule for that plan (or for all plans) AND a dish in toKey on that plan —
    * isSwapPairAllowed's rule, run for every pair and plan in four queries instead of
-   * several per pair per plan. Keys are `from>to`, in pair-rule order.
+   * several per pair per plan. Keys are `from>to`, in pair-rule order, each with its
+   * exchange overrides: a plan-scoped rule's win over an all-plans rule for the same pair.
    */
-  private async allowedSwapPairKeys(mealSizeId: bigint): Promise<string[]> {
+  private async allowedSwapPairKeys(mealSizeId: bigint): Promise<Map<string, ExchangeOverride[]>> {
     const planIds = await this.reachablePlanIdsForMealSize(mealSizeId);
-    if (!planIds.length) return [];
+    if (!planIds.length) return new Map();
     const [pairs, cats, dishCats] = await Promise.all([
       db
-        .select({ fromCategoryId: categorySwapPairs.fromCategoryId, toCategoryId: categorySwapPairs.toCategoryId, planId: categorySwapPairs.planId })
+        .select({
+          fromCategoryId: categorySwapPairs.fromCategoryId,
+          toCategoryId: categorySwapPairs.toCategoryId,
+          planId: categorySwapPairs.planId,
+          exchangeOverrides: categorySwapPairs.exchangeOverrides,
+        })
         .from(categorySwapPairs)
         .where(or(isNull(categorySwapPairs.planId), inArray(categorySwapPairs.planId, planIds)))
         .orderBy(asc(categorySwapPairs.id)),
@@ -427,30 +433,42 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     ]);
     const keyOf = new Map(cats.map((c) => [c.id, c.key]));
     const hasDish = new Set(dishCats.map((d) => `${d.category}@${d.planId}`));
-    const out = new Set<string>();
+    const out = new Map<string, ExchangeOverride[]>();
+    const planScoped = new Set<string>();
     for (const p of pairs) {
       const from = keyOf.get(p.fromCategoryId);
       const to = keyOf.get(p.toCategoryId);
       if (!from || !to) continue;
       const plansForRule = p.planId == null ? planIds : [p.planId];
-      if (plansForRule.some((planId) => hasDish.has(`${to}@${planId}`))) out.add(`${from}>${to}`);
+      if (!plansForRule.some((planId) => hasDish.has(`${to}@${planId}`))) continue;
+      const key = `${from}>${to}`;
+      if (planScoped.has(key)) continue;
+      if (p.planId != null) planScoped.add(key);
+      if (p.planId != null || !out.has(key)) out.set(key, p.exchangeOverrides);
     }
-    return [...out];
+    return out;
   }
 
   /** Is (fromKey, toKey) allowed to swap on ANY plan this meal size's composition reaches? */
   async isSwapPairAllowedForMealSize(fromKey: string, toKey: string, mealSizeId: bigint): Promise<boolean> {
-    return (await this.allowedSwapPairKeys(mealSizeId)).includes(`${fromKey}>${toKey}`);
+    return (await this.allowedSwapPairKeys(mealSizeId)).has(`${fromKey}>${toKey}`);
+  }
+
+  /** The pair's exchange overrides on this meal size; null when the pair isn't allowed there. */
+  async swapPairOverridesForMealSize(fromKey: string, toKey: string, mealSizeId: bigint): Promise<ExchangeOverride[] | null> {
+    return (await this.allowedSwapPairKeys(mealSizeId)).get(`${fromKey}>${toKey}`) ?? null;
   }
 
   /** Pairs the swap drawer may offer for one meal size — the same gate applyDeliverySwap enforces. */
-  async swapPairsForMealSize(mealSizeId: bigint): Promise<{ fromCategory: string; toCategory: string }[]> {
+  async swapPairsForMealSize(
+    mealSizeId: bigint,
+  ): Promise<{ fromCategory: string; toCategory: string; exchangeOverrides: ExchangeOverride[] }[]> {
     const [cats, allowed] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.allowedSwapPairKeys(mealSizeId)]);
-    return allowed.flatMap((k) => {
+    return [...allowed].flatMap(([k, exchangeOverrides]) => {
       const [fromCategory, toCategory] = k.split(">") as [string, string];
       const from = cats.get(fromCategory);
       const to = cats.get(toCategory);
-      return from && to && swapPairFits(from, to) ? [{ fromCategory, toCategory }] : [];
+      return from && to && swapPairFits(from, to) ? [{ fromCategory, toCategory, exchangeOverrides }] : [];
     });
   }
 

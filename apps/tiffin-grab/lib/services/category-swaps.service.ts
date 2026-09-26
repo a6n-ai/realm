@@ -56,13 +56,14 @@ export async function applyDeliverySwap(
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order) throw new ValidationError("Order not found");
 
-    const allowed = await dishCategoriesService.isSwapPairAllowedForMealSize(fromCategory, toCategory, order.mealSizeId);
-    if (!allowed) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory} on this plan`);
+    const overrides = await dishCategoriesService.swapPairOverridesForMealSize(fromCategory, toCategory, order.mealSizeId);
+    if (!overrides) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory} on this plan`);
 
     const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {});
     const existing = await tx.select({
       fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate,
+      receiveTu: deliveryCategorySwaps.receiveTu,
     }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id)).orderBy(asc(deliveryCategorySwaps.id))
       .then((rs) => rs.filter((r) => swapAppliesTo(r.forDate, row.deliveryDate, eatingDate)));
 
@@ -74,8 +75,10 @@ export async function applyDeliverySwap(
         qtyFrom: r.qtyFrom,
         qtyTo: r.qtyTo,
         fromRow: r.fromRow,
+        receiveTu: r.receiveTu,
       })),
       next: { fromCategory, toCategory, fromPicks, fromRow },
+      overrides,
     });
     if (!check.ok) throw new ValidationError(check.reason);
     const qtyTo = check.qtyTo;
@@ -85,6 +88,7 @@ export async function applyDeliverySwap(
     // can't retroactively change a swap a customer already applied.
     await tx.insert(deliveryCategorySwaps).values({
       deliveryId: row.id, fromCategory, toCategory, qtyFrom: fromPicks, qtyTo, fromRow: fromRow ?? null, forDate: storedForDate,
+      receiveTu: check.receiveTu,
     });
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "category_swap_applied",

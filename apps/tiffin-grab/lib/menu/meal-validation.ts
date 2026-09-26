@@ -26,11 +26,13 @@ import {
   applySwapsToCounts,
   capViolation,
   crossUnitPicks,
+  exchangeOverride,
   foldSwaps,
   NOT_ENOUGH_FOR_SWAP,
   sameUnit,
   swapPairFits,
   takeGiven,
+  type ExchangeOverride,
   type SlotRow,
   type SwapCategory,
   type SwapRow,
@@ -317,10 +319,12 @@ export type ValidateSwapInput = {
   applied: SwapRow[];
   /** fromRow: the base row given up (one pick); omit for the leading `fromPicks` rows. */
   next: { fromCategory: string; toCategory: string; fromPicks: number; fromRow?: number | null };
+  /** The pair's exchange overrides (category_swap_pairs.exchange_overrides); none = natural exchange. */
+  overrides?: ExchangeOverride[];
 };
 
 export type ValidateSwapResult =
-  | { ok: true; qtyTo: number; effective: Record<string, number>; giveTu: number; getTu: number }
+  | { ok: true; qtyTo: number; effective: Record<string, number>; giveTu: number; getTu: number; receiveTu: number | null }
   | { ok: false; reason: string };
 
 /**
@@ -362,10 +366,20 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
     }
   }
 
-  const giveTu = sumTu(takeGiven([...fromRows], { qtyFrom: next.fromPicks, fromRow: next.fromRow }).map((r) => r.value));
+  const given = takeGiven([...fromRows], { qtyFrom: next.fromPicks, fromRow: next.fromRow });
+  const giveTu = sumTu(given.map((r) => r.value));
+  // An override line is matched per given portion and yields one received pick of its size.
+  const hits = given.map((r) => exchangeOverride(input.overrides, r.value));
   let qtyTo: number;
   let getTu: number;
-  if (sameUnit(from, to)) {
+  let receiveTu: number | null = null;
+  if (hits.some((h) => h != null)) {
+    // One snapshot TU per swap row, so a bundle must resolve to a single received size.
+    if (hits.some((h) => h !== hits[0])) return { ok: false, reason: "Swap one item at a time." };
+    receiveTu = hits[0]!;
+    qtyTo = next.fromPicks;
+    getTu = qtyTo * receiveTu;
+  } else if (sameUnit(from, to)) {
     qtyTo = next.fromPicks;
     getTu = giveTu;
   } else {
@@ -381,6 +395,7 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
     qtyFrom: next.fromPicks,
     qtyTo,
     fromRow: next.fromRow ?? null,
+    receiveTu,
   };
 
   const available = applySwapsToCounts(composition.baseCounts, applied);
@@ -405,7 +420,7 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
   const tuCap = maxTuViolation(composition, next.toCategory, effective, appliedNext);
   if (tuCap) return { ok: false, reason: tuCap };
 
-  return { ok: true, qtyTo, effective, giveTu, getTu };
+  return { ok: true, qtyTo, effective, giveTu, getTu, receiveTu };
 }
 
 export type SwapBundle = {
@@ -413,6 +428,8 @@ export type SwapBundle = {
   toPicks: number;
   giveNatural: string | null;
   getNatural: string | null;
+  /** TU per received pick when the pair's override sized it; carry it onto the pending swap. */
+  receiveTu?: number | null;
 };
 
 export type SwapOption = {
@@ -461,8 +478,9 @@ export function computeSwapOption(args: {
   applied: SwapRow[];
   fromCategory: string;
   toCategory: string;
+  overrides?: ExchangeOverride[];
 }): SwapOption {
-  const { composition, applied, fromCategory, toCategory } = args;
+  const { composition, applied, fromCategory, toCategory, overrides } = args;
   const from = composition.categories.get(fromCategory);
   const to = composition.categories.get(toCategory);
 
@@ -531,6 +549,7 @@ export function computeSwapOption(args: {
       composition,
       applied,
       next: { fromCategory, toCategory, fromPicks: q },
+      overrides,
     });
     if (!r.ok) {
       firstFail ??= r.reason;
@@ -541,7 +560,11 @@ export function computeSwapOption(args: {
       toPicks: r.qtyTo,
       // Same-unit swaps move whole containers: "12oz + 8oz", never a summed "20oz".
       giveNatural: sameUnit(from, to) ? naturalForSlots(from, fromSlots.slice(0, q)) : naturalForTu(from, r.giveTu),
-      getNatural: sameUnit(from, to) ? naturalForSlots(to, fromSlots.slice(0, q)) : naturalForTu(to, r.getTu),
+      getNatural:
+        r.receiveTu != null
+          ? naturalForSlots(to, Array<number>(q).fill(r.receiveTu))
+          : sameUnit(from, to) ? naturalForSlots(to, fromSlots.slice(0, q)) : naturalForTu(to, r.getTu),
+      receiveTu: r.receiveTu,
     });
   }
 
@@ -579,7 +602,7 @@ export function computeSwapOption(args: {
 export function computeAllSwapOptions(args: {
   composition: CompositionContext;
   applied: SwapRow[];
-  pairs: { fromCategory: string; toCategory: string }[];
+  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[] }[];
   /** When true, omit unavailable options (customer default). */
   hideUnavailable?: boolean;
 }): SwapOption[] {
@@ -589,6 +612,7 @@ export function computeAllSwapOptions(args: {
       applied: args.applied,
       fromCategory: p.fromCategory,
       toCategory: p.toCategory,
+      overrides: p.exchangeOverrides,
     }),
   );
   return args.hideUnavailable ? options.filter((o) => o.available) : options;
