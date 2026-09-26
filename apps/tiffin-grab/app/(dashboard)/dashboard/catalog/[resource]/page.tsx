@@ -26,7 +26,6 @@ const TABLES: Record<string, PgTable> = {
   "delivery-frequencies": deliveryFrequencies,
   "duration-packages": durationPackages,
   discounts,
-  "delivery-zones": deliveryZones,
   "pricing-tiers": pricingTiers,
   "addon-categories": addonCategories,
   addons,

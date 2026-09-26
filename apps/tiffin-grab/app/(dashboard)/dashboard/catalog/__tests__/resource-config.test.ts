@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RESOURCES, catalogIndexEntries, slug, rowToForm } from "../resource-config";
 
-const FOLDED = ["dish-categories", "addon-categories", "duration-packages", "delivery-zones"];
+const FOLDED = ["dish-categories", "addon-categories", "duration-packages"];
 
 describe("catalogIndexEntries", () => {
   it("omits dish-categories as a standalone card and folds it into the dishes card", () => {
@@ -12,9 +12,9 @@ describe("catalogIndexEntries", () => {
     expect(dishesEntry?.label).toBe("Dishes & Categories");
   });
 
-  it("omits addon-categories, duration-packages, delivery-zones and folds them into their grouped tabbed pages", () => {
+  it("omits addon-categories, duration-packages and folds them into their grouped tabbed pages", () => {
     const entries = catalogIndexEntries();
-    for (const key of ["addon-categories", "duration-packages", "delivery-zones"]) {
+    for (const key of ["addon-categories", "duration-packages"]) {
       expect(entries.some((e) => e.key === key)).toBe(false);
     }
     expect(entries.find((e) => e.key === "addons")?.label).toBe("Add-ons & Categories");

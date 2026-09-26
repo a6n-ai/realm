@@ -4,6 +4,8 @@ ALTER TABLE "delivery_zones" ALTER COLUMN "slot_window" DROP NOT NULL;
 --> statement-breakpoint
 ALTER TABLE "delivery_zones" ALTER COLUMN "postal_prefixes" SET DEFAULT '{}'::text[];
 --> statement-breakpoint
+ALTER TABLE "delivery_zones" DROP CONSTRAINT "delivery_zones_name_unique";
+--> statement-breakpoint
 ALTER TABLE "delivery_zones" ADD CONSTRAINT "delivery_zones_shape_check" CHECK (("radius_km" IS NULL) <> (cardinality("postal_prefixes") = 0));
 --> statement-breakpoint
 ALTER TABLE "delivery_charge_configs" ADD COLUMN "store_lat" numeric(9, 6);

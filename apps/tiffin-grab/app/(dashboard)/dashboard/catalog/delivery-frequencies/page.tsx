@@ -95,7 +95,7 @@ async function DeliveryTypesData() {
   );
 }
 
-// Combines "delivery-frequencies", "duration-packages" and "delivery-zones"
+// Combines "delivery-frequencies", "duration-packages", the @foundry/delivery zone/type/charge managers
 // into one tabbed "Delivery settings" card — same pattern as dishes/page.tsx
 // and addons/page.tsx; each stays a distinct RESOURCES entry, only the page
 // shell groups them. This static route shadows the dynamic [resource] route

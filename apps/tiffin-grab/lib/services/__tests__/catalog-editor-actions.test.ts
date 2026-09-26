@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryZones } from "@/db/schema";
+import { durationPackages } from "@/db/schema";
 
 // The editor actions go through requireAdmin() and revalidatePath(); stub both
 // so the action path runs outside a request scope. The point under test is that
@@ -14,36 +14,37 @@ const { retireItem, reactivateItem, saveItem } = await import(
   "@/app/(dashboard)/dashboard/catalog/actions"
 );
 
+// A weeks value no seed uses, so reset only ever touches this test's row.
+const WEEKS = 97;
 let publicId: string;
 async function reset() {
-  await db.delete(deliveryZones);
+  await db.delete(durationPackages).where(eq(durationPackages.weeks, WEEKS));
 }
 
 describe("catalog editor action round-trip (public_id resolves)", () => {
   beforeEach(async () => {
     await reset();
     const [z] = await db
-      .insert(deliveryZones)
-      .values({ name: "Round Trip Zone", postalPrefixes: ["X1"], slotWindow: "9:00 AM – 11:00 AM" })
+      .insert(durationPackages)
+      .values({ weeks: WEEKS, discountPct: 0 })
       .returning();
     publicId = z.publicId;
   });
   afterAll(reset);
 
   it("retire then reactivate via the action path flips active using the public_id", async () => {
-    await retireItem("delivery-zones", publicId);
-    let [row] = await db.select().from(deliveryZones).where(eq(deliveryZones.publicId, publicId));
+    await retireItem("duration-packages", publicId);
+    let [row] = await db.select().from(durationPackages).where(eq(durationPackages.publicId, publicId));
     expect(row.active).toBe(false);
 
-    await reactivateItem("delivery-zones", publicId);
-    [row] = await db.select().from(deliveryZones).where(eq(deliveryZones.publicId, publicId));
+    await reactivateItem("duration-packages", publicId);
+    [row] = await db.select().from(durationPackages).where(eq(durationPackages.publicId, publicId));
     expect(row.active).toBe(true);
   });
 
   it("saveItem with a public_id edits the existing row (not a no-op)", async () => {
-    await saveItem("delivery-zones", publicId, { name: "Renamed Zone", slotWindow: "1:00 PM – 3:00 PM" });
-    const [row] = await db.select().from(deliveryZones).where(eq(deliveryZones.publicId, publicId));
-    expect(row.name).toBe("Renamed Zone");
-    expect(row.slotWindow).toBe("1:00 PM – 3:00 PM");
+    await saveItem("duration-packages", publicId, { weeks: WEEKS, discountPct: 5 });
+    const [row] = await db.select().from(durationPackages).where(eq(durationPackages.publicId, publicId));
+    expect(row.discountPct).toBe(5);
   });
 });

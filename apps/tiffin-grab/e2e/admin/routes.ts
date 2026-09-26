@@ -120,7 +120,7 @@ export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
   },
   {
     // Its own static page (not the dynamic [resource] route the other catalog
-    // entries use) grouping frequencies/duration-packages/delivery-zones under
+    // entries use) grouping frequencies/duration-packages/zones/types/charges under
     // one "Delivery settings" title.
     id: "catalog-delivery-frequencies",
     path: "/dashboard/catalog/delivery-frequencies",
@@ -130,11 +130,6 @@ export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
     id: "catalog-duration-packages",
     path: "/dashboard/catalog/duration-packages",
     heading: /Duration/i,
-  },
-  {
-    id: "catalog-delivery-zones",
-    path: "/dashboard/catalog/delivery-zones",
-    heading: /Zone/i,
   },
   {
     id: "catalog-pricing-tiers",

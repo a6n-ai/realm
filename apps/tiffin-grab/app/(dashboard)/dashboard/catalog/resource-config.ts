@@ -156,13 +156,6 @@ const discountsSchema = z.object({
   active,
 });
 
-const deliveryZonesSchema = z.object({
-  name,
-  postalPrefixes: z.array(z.string()).default([]),
-  slotWindow: z.string().trim().min(1, "Slot window is required"),
-  active,
-});
-
 const pricingTiersSchema = z.object({
   minQty: reqNum(z.coerce.number().int().nonnegative()),
   maxQty: optNum(z.coerce.number().int().positive()),
@@ -317,14 +310,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "endsAt", label: "Ends", type: "date", optional: true },
     ],
   },
-  "delivery-zones": {
-    key: "delivery-zones", label: "Delivery zones", singular: "delivery zone", keyed: false, schema: deliveryZonesSchema,
-    fields: [
-      { key: "name", label: "Name", type: "text" },
-      { key: "postalPrefixes", label: "Postal prefixes", type: "csv" },
-      { key: "slotWindow", label: "Slot window", type: "text" },
-    ],
-  },
   "pricing-tiers": {
     key: "pricing-tiers", label: "Pricing tiers", singular: "pricing tier", keyed: false, schema: pricingTiersSchema,
     fields: [
@@ -356,9 +341,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
 // Index-grid cards: some resources have no standalone card — their editors
 // are folded into a tabbed sibling page. dish-categories -> "Dishes &
 // Categories" (/dashboard/catalog/dishes); addon-categories -> "Add-ons &
-// Categories" (/dashboard/catalog/addons); duration-packages/delivery-zones ->
+// Categories" (/dashboard/catalog/addons); duration-packages ->
 // "Delivery settings" (/dashboard/catalog/delivery-frequencies).
-const FOLDED_INTO_TAB = new Set(["dish-categories", "addon-categories", "duration-packages", "delivery-zones"]);
+const FOLDED_INTO_TAB = new Set(["dish-categories", "addon-categories", "duration-packages"]);
 const GROUP_LABELS: Record<string, string> = {
   dishes: "Dishes & Categories",
   addons: "Add-ons & Categories",

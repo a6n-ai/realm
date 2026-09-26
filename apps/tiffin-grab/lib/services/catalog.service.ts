@@ -237,6 +237,5 @@ export const addonCategoryService = new CatalogService(new UpdatableRepository(d
 export const addonService = new CatalogService(new UpdatableRepository(db, addons, addons.publicId, addons.id), RESOURCES.addons.schema);
 export const deliveryFrequencyService = new CatalogService(new UpdatableRepository(db, deliveryFrequencies, deliveryFrequencies.publicId, deliveryFrequencies.id), RESOURCES["delivery-frequencies"].schema);
 export const durationPackageService = new CatalogService(new UpdatableRepository(db, durationPackages, durationPackages.publicId, durationPackages.id), RESOURCES["duration-packages"].schema);
-export const deliveryZoneService = new CatalogService(new UpdatableRepository(db, deliveryZones, deliveryZones.publicId, deliveryZones.id), RESOURCES["delivery-zones"].schema);
 export const pricingTierService = new CatalogService(new UpdatableRepository(db, pricingTiers, pricingTiers.publicId, pricingTiers.id), RESOURCES["pricing-tiers"].schema);
 export const discountService = new DiscountService(new UpdatableRepository(db, discounts, discounts.publicId, discounts.id));
