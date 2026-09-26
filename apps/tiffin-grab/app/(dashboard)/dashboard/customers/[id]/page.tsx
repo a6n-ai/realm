@@ -7,7 +7,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getCustomer360, upcomingAddressChanges } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { walletService } from "@/lib/services/wallet.service";
-import { DataTable, PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
+import { DataTableSkeleton, PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { ResendInviteButton } from "./resend-invite-button";
@@ -190,13 +190,13 @@ Customer360Data.Skeleton = function Customer360DataSkeleton() {
       <SkeletonStatCards count={4} />
 
       <SectionCard title={SECTIONS.orders}>
-        <DataTable.Skeleton columns={CUSTOMER_ORDERS_COLUMNS} idLabel="Deployment" hasId />
+        <DataTableSkeleton columns={CUSTOMER_ORDERS_COLUMNS} idLabel="Deployment" hasId />
       </SectionCard>
       <SectionCard title={SECTIONS.addressChanges}>
         <Skeleton className="h-10 w-full" />
       </SectionCard>
       <SectionCard title={SECTIONS.inquiries}>
-        <DataTable.Skeleton columns={CUSTOMER_INQUIRIES_COLUMNS} />
+        <DataTableSkeleton columns={CUSTOMER_INQUIRIES_COLUMNS} />
       </SectionCard>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -219,7 +219,7 @@ Customer360Data.Skeleton = function Customer360DataSkeleton() {
       </SectionCard>
 
       <SectionCard title={SECTIONS.timeline}>
-        <DataTable.Skeleton columns={CUSTOMER_TIMELINE_COLUMNS} />
+        <DataTableSkeleton columns={CUSTOMER_TIMELINE_COLUMNS} />
       </SectionCard>
     </>
   );
