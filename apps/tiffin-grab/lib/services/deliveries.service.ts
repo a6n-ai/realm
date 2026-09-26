@@ -1130,12 +1130,21 @@ export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bi
   });
 }
 
-/** All-NULL override columns mean "inherit the order's address". */
+/** addressLine NULL means "inherit the order's address". */
 export function effectiveAddress(
   d: Delivery,
-  order: Pick<Order, "fullName" | "addressLine" | "city" | "postalCode" | "zoneId">,
+  order: Pick<Order, "fullName" | "addressLine" | "city" | "postalCode" | "zoneId"> &
+    Partial<Pick<Order, "addressUnit" | "deliveryInstructions" | "deliveryStrategyId">>,
 ) {
   return d.addressLine === null
-    ? { fullName: order.fullName, addressLine: order.addressLine, city: order.city, postalCode: order.postalCode, zoneId: order.zoneId }
-    : { fullName: d.fullName!, addressLine: d.addressLine, city: d.city!, postalCode: d.postalCode!, zoneId: d.zoneId };
+    ? {
+        fullName: order.fullName, addressLine: order.addressLine, addressUnit: order.addressUnit ?? null, city: order.city,
+        postalCode: order.postalCode, deliveryInstructions: order.deliveryInstructions ?? null, zoneId: order.zoneId,
+        deliveryStrategyId: order.deliveryStrategyId ?? null,
+      }
+    : {
+        fullName: d.fullName!, addressLine: d.addressLine, addressUnit: d.addressUnit, city: d.city!,
+        postalCode: d.postalCode!, deliveryInstructions: d.deliveryInstructions, zoneId: d.zoneId,
+        deliveryStrategyId: d.deliveryStrategyId ?? order.deliveryStrategyId ?? null,
+      };
 }

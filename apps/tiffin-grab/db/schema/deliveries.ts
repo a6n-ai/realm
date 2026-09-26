@@ -40,7 +40,7 @@ export const deliveries = pgTable("deliveries", {
   // reconcile). NULL = not yet accounted into the pool.
   pooledAt: bigint("pooled_at", { mode: "number" }),
   // addressLine NULL = inherit the order's address (and its unit/instructions/strategy).
-  addressId: bigint("address_id", { mode: "bigint" }).references(() => customerAddresses.id),
+  addressId: bigint("address_id", { mode: "bigint" }).references(() => customerAddresses.id, { onDelete: "set null" }),
   fullName: text("full_name"),
   addressLine: text("address_line"),
   addressUnit: text("address_unit"),

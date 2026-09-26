@@ -56,7 +56,7 @@ export const orders = pgTable("orders", {
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
   // The plan's main saved address. The snapshot columns below stay the source of truth for
   // what was delivered; this link lets an edit/delete of the saved address follow the plan.
-  addressId: bigint("address_id", { mode: "bigint" }).references(() => customerAddresses.id),
+  addressId: bigint("address_id", { mode: "bigint" }).references(() => customerAddresses.id, { onDelete: "set null" }),
   fullName: text("full_name").notNull(),
   addressLine: text("address_line").notNull(),
   // Google's formatted address/autocomplete has no reliable subpremise/unit

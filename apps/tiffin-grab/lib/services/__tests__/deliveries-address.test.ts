@@ -67,6 +67,9 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, orderId: order.id });
     const eff = effectiveAddress(d, order);
     expect(eff).toEqual({
+      addressUnit: null,
+      deliveryInstructions: null,
+      deliveryStrategyId: null,
       fullName: order.fullName,
       addressLine: order.addressLine,
       city: order.city,
@@ -93,6 +96,9 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
 
     const eff = effectiveAddress(row, order);
     expect(eff).toEqual({
+      addressUnit: null,
+      deliveryInstructions: null,
+      deliveryStrategyId: null,
       fullName: "New Name",
       addressLine: "2 Other St",
       city: "Toronto",
@@ -172,6 +178,9 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     expect(row.zoneId).toBeNull();
     const eff = effectiveAddress(row, order);
     expect(eff).toEqual({
+      addressUnit: null,
+      deliveryInstructions: null,
+      deliveryStrategyId: null,
       fullName: order.fullName,
       addressLine: order.addressLine,
       city: order.city,

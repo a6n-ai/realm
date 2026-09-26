@@ -351,6 +351,13 @@
       "when": 1790417329967,
       "tag": "0049_customer_addresses",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790417744187,
+      "tag": "0050_customer_addresses_user_cascade",
+      "breakpoints": true
     }
   ]
 }
