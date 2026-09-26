@@ -30,6 +30,7 @@ import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/lib/catalog/load";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { findZone } from "@/lib/catalog/zone-match";
+import { addressService } from "./addresses.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
@@ -116,6 +117,8 @@ export async function recordPayment(
 }
 
 export interface CreateOrderInput {
+  /** A saved address to use as the plan's main address (must belong to the customer). Omitted = save the typed contact address. */
+  addressPublicId?: string | null;
   selections: PricingSelections;
   planKey: string;
   contact: {
@@ -235,7 +238,7 @@ export async function createOrder(
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.
   const basePricing = priceSubscription(input.selections, pricingCatalog);
-  const zoneRow = await findZone(snapshot.zones, input.contact, orgId);
+  let zoneRow = await findZone(snapshot.zones, input.contact, orgId);
 
   const parsedPhone = phoneSchema().safeParse(input.contact.phone);
   if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
@@ -346,6 +349,28 @@ export async function createOrder(
       );
     }
     if (!userId) throw new ValidationError("Could not resolve a customer for this order");
+
+    // The plan's main address: a picked saved address (ownership-checked), else the typed
+    // contact address saved to the customer's book (first one becomes their default).
+    const addressScope = { userId, orgId };
+    const savedAddress = input.addressPublicId
+      ? await addressService.getRow(addressScope, input.addressPublicId, tx)
+      : await addressService.create(addressScope, input.contact, { tx });
+    if (input.addressPublicId) {
+      const movedPostal = savedAddress.postalCode !== input.contact.postalCode;
+      input.contact = {
+        ...input.contact,
+        fullName: savedAddress.fullName ?? input.contact.fullName,
+        addressLine: savedAddress.addressLine,
+        addressUnit: savedAddress.addressUnit,
+        city: savedAddress.city,
+        postalCode: savedAddress.postalCode,
+        deliveryInstructions: savedAddress.deliveryInstructions,
+        lat: savedAddress.lat == null ? null : Number(savedAddress.lat),
+        lng: savedAddress.lng == null ? null : Number(savedAddress.lng),
+      };
+      if (movedPostal) zoneRow = await findZone(snapshot.zones, input.contact, orgId);
+    }
 
     const organizationId = await resolveBrandOrgId(tx);
 
@@ -534,6 +559,7 @@ export async function createOrder(
         status,
         deploymentId,
         zoneId: zoneRow?.id ?? null,
+        addressId: savedAddress.id,
         fullName: input.contact.fullName,
         addressLine: input.contact.addressLine,
         addressUnit: input.contact.addressUnit?.trim() || null,

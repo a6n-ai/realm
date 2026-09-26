@@ -23,6 +23,8 @@ import { OrderSummary } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button, Input, Label, OptionCard, Pill } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
+import type { SavedAddress } from "@foundry/address";
+import { CheckoutAddressPicker } from "@/components/checkout/address-picker";
 import { Check, Coins, MapPin, ShieldCheck, Tag } from "lucide-react";
 import { Stepper } from "@/components/stepper";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
@@ -56,6 +58,17 @@ const emptyContact: Contact = {
   deliveryInstructions: "",
 };
 
+/** A saved address's fields in the checkout contact shape. */
+function addressFields(a: SavedAddress): Partial<Contact> {
+  return {
+    addressLine: a.addressLine,
+    addressUnit: a.addressUnit ?? "",
+    city: a.city,
+    postalCode: a.postalCode,
+    deliveryInstructions: a.deliveryInstructions ?? "",
+  };
+}
+
 function formatChargeHint(item: { chargeType: "none" | "fixed" | "percent"; chargeValue: number }) {
   if (item.chargeType === "none" || item.chargeValue === 0) return "Free";
   if (item.chargeType === "fixed") return `+$${item.chargeValue.toFixed(2)}`;
@@ -68,18 +81,28 @@ export function Checkout({
   closeHref = "/me",
   prefill,
   catalog,
+  savedAddresses = [],
 }: {
   defaultCountry: Country;
   closeHref?: string;
   /** Present only for a signed-in customer: their account's contact. */
   prefill?: Partial<Contact>;
   catalog?: ClientCatalogSnapshot;
+  /** Signed-in customer's saved addresses (default first); empty for guests. */
+  savedAddresses?: SavedAddress[];
 }) {
   const router = useRouter();
   const [selections, setSelections] = useState<WizardSelections | null>(null);
   const [result, setResult] = useState<PricingResult | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
-  const [contact, setContact] = useState<Contact>({ ...emptyContact, ...prefill });
+  const defaultAddress = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0] ?? null;
+  // null = the customer is typing a new address (always the case for guests).
+  const [addressPublicId, setAddressPublicId] = useState<string | null>(defaultAddress?.publicId ?? null);
+  const [contact, setContact] = useState<Contact>({
+    ...emptyContact,
+    ...prefill,
+    ...(defaultAddress ? addressFields(defaultAddress) : {}),
+  });
   const [zone, setZone] = useState<{ served: boolean; name?: string; slotWindow?: string | null } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [couponCode, setCouponCode] = useState("");
@@ -158,6 +181,15 @@ export function Checkout({
   };
 
   const set = (patch: Partial<Contact>) => setContact((c) => ({ ...c, ...patch }));
+
+  const pickAddress = (a: SavedAddress | null) => {
+    setAddressPublicId(a?.publicId ?? null);
+    set(a ? addressFields(a) : { addressLine: "", addressUnit: "", city: "", postalCode: "", deliveryInstructions: "" });
+    setZone(null);
+    if (a) validatePostal(a.postalCode).then((res) =>
+      setZone(res.served ? { served: true, name: res.zone!.name, slotWindow: res.zone!.slotWindow } : { served: false }),
+    );
+  };
 
   const joinWaitlist = async () => {
     try {
@@ -250,6 +282,7 @@ export function Checkout({
         selections,
         planKey: selections.planKey!,
         contact,
+        addressPublicId,
         renewal: lockContact,
         couponCode: appliedCode ?? undefined,
         coins: appliedCoins || undefined,
@@ -359,13 +392,14 @@ export function Checkout({
                     <p role="alert" className="text-[13px] text-destructive">Enter a valid email</p>
                   ) : null}
                 </div>
-                {lockContact ? (
+                <CheckoutAddressPicker addresses={savedAddresses} value={addressPublicId} onPick={pickAddress} />
+                {lockContact && savedAddresses.length === 0 ? (
                   <p className="-mb-2 text-xs text-muted-foreground text-pretty">
                     <Pill tone="neutral" size="sm" className="!px-2 !text-[11px] !font-medium">From your account</Pill>{" "}
                     Edit the address if this order goes elsewhere. Your saved address won&apos;t change; <Link href="/me/account?section=address" className="underline">update it in Account</Link>.
                   </p>
                 ) : null}
-                <AddressFields
+                {addressPublicId === null && <AddressFields
                   preset="delivery"
                   idPrefix="checkout"
                   fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
@@ -378,7 +412,7 @@ export function Checkout({
                       <Button pill variant="quiet" className="!min-h-11 !px-5 !text-sm" onClick={checkPostal}>Check area</Button>
                     </div>
                   }
-                />
+                />}
                 {catalog?.deliveryCharges && (catalog.deliveryCharges.addressTags.length > 0 || catalog.deliveryCharges.deliveryStrategies.length > 0) && (
                   <div className="space-y-4 pt-1" data-testid="delivery-charge-options">
                     {catalog.deliveryCharges.addressTags.length > 0 && (

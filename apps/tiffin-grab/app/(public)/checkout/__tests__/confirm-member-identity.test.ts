@@ -10,7 +10,8 @@ let signedIn = true;
 let onFile: Record<string, string> | null = null;
 
 vi.mock("@/lib/catalog/load", () => ({ loadCatalogSnapshot: async () => ({ zones: [] }) }));
-vi.mock("@/lib/catalog/postal", () => ({ matchZone: (...a: unknown[]) => matchZone(...a) }));
+// confirm matches zones via findZone (postal first, then circles); forward the postal code.
+vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async (_zones: unknown, at: { postalCode: string }) => matchZone(at.postalCode) }));
 vi.mock("@/lib/services/orders.service", () => ({ createOrder: (...a: unknown[]) => createOrder(...a) }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: async () => null }));
 const createWebsiteInquiry = vi.fn();
