@@ -284,7 +284,7 @@ function SwapPairDialog({
         </div>
       }
     >
-      <div className="space-y-4 px-4 py-3">
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <Select
             value={fromCategory}

@@ -175,6 +175,8 @@ export function NewCustomerSheet({
 
   return (
     <ResponsiveDialog
+      // Step bar and panels run edge to edge; each panel pads itself.
+      flush
       open={open}
       onOpenChange={onOpenChange}
       trigger={trigger}
@@ -206,7 +208,7 @@ export function NewCustomerSheet({
         sources.length === 0 ? (
           <NoSources noun="customer" />
         ) : (
-          <div className="relative min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+          <div className="relative min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
             {saving && (
               <div
                 className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm"
@@ -314,7 +316,7 @@ export function NewCustomerSheet({
           </div>
         )
       ) : (
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6">
             <button
               type="button"
               onClick={() => setStep(1)}

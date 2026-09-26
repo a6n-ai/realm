@@ -111,7 +111,7 @@ export function LogsTable({
         description={selected?.publicId}
       >
         {selected && (
-          <div className="space-y-4 p-4 text-sm">
+          <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Status">
                 <span className={STATUS_STYLE[selected.status] ?? "text-muted-foreground"}>

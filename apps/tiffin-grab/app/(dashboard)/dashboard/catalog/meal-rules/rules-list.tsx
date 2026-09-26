@@ -158,7 +158,7 @@ export function RulesList({
         description="Set constraints on dish combinations customers can select in a meal."
         contentClassName="sm:max-w-2xl"
         footer={
-          <div className="flex flex-col gap-3">
+          <div className="flex w-full flex-col gap-3">
             {formError ? (
               <p role="alert" className="text-destructive text-sm text-pretty">{formError}</p>
             ) : null}

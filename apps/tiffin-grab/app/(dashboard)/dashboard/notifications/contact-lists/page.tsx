@@ -58,7 +58,7 @@ export default function ContactListsPage({ searchParams }: { searchParams: Searc
               description="Snapshot customers matching filters (min orders, min spend) into a list. Doesn't update live — use Resync to pull in new matches."
               trigger={<Button variant="outline">Create from customers</Button>}
             >
-              <div className="p-4">
+              <div>
                 <ContactListFromSegment requiresVerifiedPhone />
               </div>
             </ResponsiveDialog>
@@ -70,7 +70,7 @@ export default function ContactListsPage({ searchParams }: { searchParams: Searc
               description="For a handful of people — no spreadsheet needed."
               trigger={<Button variant="outline">Add manually</Button>}
             >
-              <div className="p-4">
+              <div>
                 <ContactListManualAdd />
               </div>
             </ResponsiveDialog>

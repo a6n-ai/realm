@@ -72,7 +72,7 @@ export function CategoryEditDialog({
       description="Saved here and pushed to Clover, which owns the catalogue."
       contentClassName="sm:max-w-lg"
     >
-      <div className="grid gap-4 px-4 py-4">
+      <div className="grid gap-5">
         <div className="space-y-1.5">
           <Label htmlFor="cat-name">Name</Label>
           <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} />

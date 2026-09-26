@@ -34,7 +34,7 @@ export function PaymentDetailDialog({
       footer={payment && footer}
     >
       {payment && (
-        <div className="space-y-4 p-4">
+        <div className="space-y-4">
           <div className="flex items-center justify-between gap-3 rounded-lg border p-4">
             <div>
               <p className="text-muted-foreground text-xs">Amount</p>

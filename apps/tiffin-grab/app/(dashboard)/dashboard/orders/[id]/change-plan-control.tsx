@@ -53,7 +53,7 @@ export function ChangePlanControl({
       title="Change this order's plan"
       description="Price is recomputed from the new meal size's current rate — nothing is carried over from the old plan. This does not re-apply any coupon or coin discount the customer originally had."
       footer={
-        <div className="flex justify-end gap-2 px-4 pb-2 md:px-0">
+        <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
@@ -63,7 +63,7 @@ export function ChangePlanControl({
         </div>
       }
     >
-      <div className="px-4 md:px-0">
+      <div>
         <select
           className="w-full rounded-md border px-3 py-2 text-sm"
           value={selected}

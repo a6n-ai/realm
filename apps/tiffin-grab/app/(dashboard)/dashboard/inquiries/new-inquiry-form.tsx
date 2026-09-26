@@ -149,6 +149,8 @@ export function AddInquirySheet({
 
   return (
     <ResponsiveDialog
+      // Step bar and panels run edge to edge; each panel pads itself.
+      flush
       open={open}
       onOpenChange={handleOpenChange}
       trigger={trigger}
@@ -157,7 +159,7 @@ export function AddInquirySheet({
       contentClassName="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg md:max-h-[90vh]"
       footer={
         sources.length === 0 ? undefined : (
-          <div className="flex flex-row justify-between gap-2">
+          <div className="flex w-full flex-row justify-between gap-2">
             {step === 1 ? (
               <Button
                 type="button"
@@ -222,7 +224,7 @@ export function AddInquirySheet({
               </div>
             )}
             <StepHeader step={step} steps={["Contact", "Interest"]} />
-            <div className="space-y-6 px-5 py-5">
+            <div className="space-y-6 px-5 py-5 sm:px-6">
               {step === 1 ? (
                 <>
                   <section className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">

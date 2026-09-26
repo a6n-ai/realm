@@ -156,6 +156,8 @@ export function NewOrderSheet({
 
   return (
     <ResponsiveDialog
+      // Step bar and panels run edge to edge; each panel pads itself.
+      flush
       open={open}
       onOpenChange={resetAndClose}
       trigger={trigger}
@@ -183,7 +185,7 @@ export function NewOrderSheet({
           <StepHeader step={step} steps={["Contact", "Order"]} />
 
           {step === 1 ? (
-            <div className="space-y-6 px-5 py-5">
+            <div className="space-y-6 px-5 py-5 sm:px-6">
               <CustomerSearch onPick={pickCustomer} />
 
               <section className="grid gap-4">
@@ -309,7 +311,7 @@ export function NewOrderSheet({
               </section>
             </div>
           ) : (
-            <div className="space-y-4 px-5 py-5">
+            <div className="space-y-4 px-5 py-5 sm:px-6">
               <button
                 type="button"
                 onClick={() => setStep(1)}

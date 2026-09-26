@@ -37,7 +37,7 @@ export function ActivateCancelControls({ orderId, status }: { orderId: string; s
         title="Cancel this order?"
         description="This cancels the subscription and all its scheduled deliveries. This cannot be undone."
         footer={
-          <div className="flex justify-end gap-2 px-4 pb-2 md:px-0">
+          <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setConfirmCancel(false)}>
               Keep order
             </Button>
@@ -54,7 +54,7 @@ export function ActivateCancelControls({ orderId, status }: { orderId: string; s
           </div>
         }
       >
-        <div className="px-4 md:px-0" />
+        <div />
       </ResponsiveDialog>
     </div>
   );

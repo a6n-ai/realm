@@ -106,11 +106,11 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
         </div>
       }
     >
-      <form id="discount-dialog-form" noValidate onSubmit={submit} className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
+      <form id="discount-dialog-form" noValidate onSubmit={submit} className="grid gap-5 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="dd-kind">Applies to</Label>
           <Select value={kind} disabled={locked} onValueChange={(v) => { setKind(v as DiscountKind); setTarget("all"); }}>
-            <SelectTrigger id="dd-kind"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="dd-kind" className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               {(Object.keys(KIND_LABELS) as DiscountKind[]).map((k) => <SelectItem key={k} value={k}>{KIND_LABELS[k]}</SelectItem>)}
             </SelectContent>
@@ -120,7 +120,7 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
         <div className="grid gap-1.5">
           <Label htmlFor="dd-target">Target</Label>
           <Select value={target} disabled={locked} onValueChange={setTarget}>
-            <SelectTrigger id="dd-target"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="dd-target" className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{kind === "delivery" ? "All delivery frequencies" : "All plan lengths"}</SelectItem>
               {targets.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
