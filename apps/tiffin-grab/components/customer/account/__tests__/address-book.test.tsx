@@ -37,6 +37,18 @@ describe("AddressBook", () => {
     expect(screen.queryByRole("button", { name: /delete home/i })).toBeNull();
   });
 
+  it("the default's star is filled and inert; another star makes that address the default", async () => {
+    actions.setMyDefaultAddress.mockResolvedValue({ ok: true });
+    render(<AddressBook initial={BOOK} />);
+    const homeStar = screen.getByRole("button", { name: "Home is the default" });
+    expect(homeStar.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(homeStar);
+    expect(actions.setMyDefaultAddress).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /make work the default/i }));
+    expect((await screen.findByRole("button", { name: "Work is the default" })).getAttribute("aria-pressed")).toBe("true");
+    expect(actions.setMyDefaultAddress).toHaveBeenCalledWith("adr_work");
+  });
+
   it("confirms before deleting, naming where upcoming deliveries move", async () => {
     actions.archiveMyAddress.mockResolvedValue({ movedToDefault: true });
     render(<AddressBook initial={BOOK} />);
