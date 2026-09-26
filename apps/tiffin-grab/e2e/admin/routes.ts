@@ -48,7 +48,7 @@ export const ADMIN_SIDEBAR_ROUTES: AdminRoute[] = [
     heading: /Template|Notification|Email|Log|Analytics/i,
     finalPath: /\/dashboard\/notifications\//,
   },
-  { id: "users", path: "/dashboard/organization/users", heading: "Organization" },
+  { id: "users", path: "/dashboard/organization/members", heading: "Organization" },
   { id: "settings", path: "/dashboard/settings", heading: "Settings" },
   { id: "design", path: "/dashboard/design", heading: /Design/i },
   { id: "account", path: "/dashboard/account", heading: /Account|Profile/i },

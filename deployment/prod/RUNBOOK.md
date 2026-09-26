@@ -63,10 +63,30 @@ Or redeploy directly: `cd ~/realm/deployment/prod/tiffin-grab && ./deploy.sh`.
 Pin/rollback with a SHA: `IMAGE_TAG=<sha> ./deploy.sh` (all images share the
 commit-SHA tag).
 
+## Box sizing and swap
+
+Every Realm box (A, B, C) is a **`t2.micro`** (1 GiB, x86_64) with a **2 GiB swapfile** and
+`vm.swappiness=10`. Downsized from `t3.small` on 2026-09-14/15 (A, B) and 2026-09-26 (C) —
+roughly half the EC2 bill. Compose `mem_limit`s (web 450m) are sized for this; swap is the
+spike cushion, not working memory. Graviton (`t4g`) is out until CI also builds arm64 images.
+
+Swap, once per box (idempotent):
+
+```bash
+sudo bash -c '
+swapon --show | grep -q /swapfile || { [ -f /swapfile ] || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+  chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile; }
+grep -q "^/swapfile" /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab
+echo vm.swappiness=10 > /etc/sysctl.d/99-swappiness.conf; sysctl -q -w vm.swappiness=10'
+```
+
+Resize in place: stop → `aws ec2 modify-instance-attribute --instance-type Value=<type>` →
+start. EIP, root volume, and containers (`restart: unless-stopped`, docker enabled) survive.
+
 ## First-time box bring-up
 
 1. **EC2**: Amazon Linux 2023, **x86_64** (CI images are amd64 — Graviton breaks them),
-   `t3.small`, 30 GiB gp3 encrypted, IAM instance profile `realm-tiffin-grab-prod-role`
+   `t2.micro` + swap (see above), 30 GiB gp3 encrypted, IAM instance profile `realm-tiffin-grab-prod-role`
    (CloudWatch logs + SES + **SSM Parameter Store read**, see below). SG opens 22/80/443.
 
    The instance role needs this on top of logs/SES — `deploy.sh` reads config from SSM.
@@ -241,7 +261,7 @@ target `/*`. Omitting the bare ARN is the classic `AccessDenied` on `list()`:
 
 Access logging is deliberately **not** configured: SAL-to-CloudWatch needs a
 customer-managed KMS key plus ingest charges, and CloudTrail data events bill per
-request — not worth it for dish photos on a `t3.small`. Revisit on an incident.
+request — not worth it for dish photos on a `t2.micro`. Revisit on an incident.
 
 Lifecycle rule — **required because versioning is on**. A versioned bucket leaks storage
 three separate ways, and all three bill forever; one rule plugs all of them:
