@@ -1,5 +1,5 @@
 import { baseColumns } from "@foundry/database";
-import { bigint, date, index, integer, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, date, index, integer, numeric, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveries } from "./deliveries";
 import { organization } from "./organizations";
 
@@ -28,6 +28,9 @@ export const deliveryCategorySwaps = pgTable("delivery_category_swaps", {
   fromRow: integer("from_row"),
   // The eating day this swap applies to; NULL = the trip's own delivery date.
   forDate: date("for_date"),
+  // TU per received pick, snapshotted at apply from the pair's exchange override so a
+  // later override edit can't resize this swap. NULL = natural exchange (legacy rows).
+  receiveTu: numeric("receive_tu", { precision: 6, scale: 2 }),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [

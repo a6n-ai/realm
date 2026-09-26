@@ -1,6 +1,6 @@
 import { updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, date, index, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { addonCategories, dishes, plans } from "./catalog";
 import { orders } from "./orders";
 import { organization } from "./organizations";
@@ -72,6 +72,9 @@ export const categorySwapPairs = pgTable(
     planId: bigint("plan_id", { mode: "bigint" }).references(() => plans.id, { onDelete: "cascade" }),
     // Client-scoping — see dishCategories.organizationId for the pattern.
     organizationId: text("organization_id").references(() => organization.id),
+    // Given portion -> received portion, in TU (see receiveTuFor in lib/menu/swap-rules.ts).
+    // A given portion with no line uses the natural exchange.
+    exchangeOverrides: jsonb("exchange_overrides").$type<{ giveTu: number; receiveTu: number }[]>().notNull().default([]),
   },
   (t) => [
     uniqueIndex("category_swap_pairs_pair_unique").on(t.fromCategoryId, t.toCategoryId, t.planId),
