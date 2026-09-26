@@ -525,7 +525,7 @@ describe("PickSheet", () => {
       days: [{ date: mon, eatingDays: [{ date: mon, appliedSwaps: [monSwap] }, { date: tue, appliedSwaps: [] }] }],
     } as unknown as PlanView;
 
-    it("labels the button Done until something changes, then Save with the swap marked Not saved", async () => {
+    it("labels the button Done until something changes, then Save, keeping the swapped row in place", async () => {
       loadSwaps.mockResolvedValue({ options: [curryToDaal] });
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
@@ -534,14 +534,16 @@ describe("PickSheet", () => {
       fireEvent.click(swapRadio);
       await screen.findByText(/press Save/);
       expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-      expect(screen.getByText("Not saved")).toBeInTheDocument();
+      const daal = screen.getAllByRole("radio", { name: /^Daal/ });
+      expect(daal.some((r) => r.getAttribute("aria-checked") === "true")).toBe(true);
+      expect(screen.getByRole("radio", { name: /^Keep / })).toBeInTheDocument();
       expect(applySwap).not.toHaveBeenCalled();
     });
 
     it("removes a swap with its own eating day even when another day's tab is open at Save", async () => {
       load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue" })]));
       render(<PickSheet trip={trip()} plan={planWithMonSwap} open onDone={vi.fn()} />);
-      fireEvent.click(await screen.findByRole("button", { name: /Remove swap/ }));
+      fireEvent.click(await screen.findByRole("radio", { name: /^Keep / }));
       fireEvent.click(await screen.findByRole("tab", { name: /Tue/ }));
       fireEvent.click(await screen.findByRole("button", { name: "Save" }));
       await waitFor(() => expect(removeSwap).toHaveBeenCalledWith("dlv1", "s1", mon));
@@ -552,9 +554,9 @@ describe("PickSheet", () => {
       load.mockResolvedValue(grid([cell({})]));
       applySwap.mockResolvedValueOnce({ error: "Not enough Curry left to give up on this day." });
       render(<PickSheet trip={trip({ coversDates: [mon] })} plan={planWithMonSwap} open onDone={vi.fn()} />);
-      fireEvent.click(await screen.findByRole("button", { name: /Remove swap/ }));
+      fireEvent.click(await screen.findByRole("radio", { name: /^Keep / }));
       fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
-      await screen.findByText("Not saved");
+      await screen.findByText(/press Save/);
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
       await screen.findByText(/Not enough Curry/);
       fireEvent.click(screen.getByRole("button", { name: "Save" }));

@@ -483,38 +483,6 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                 {dayLocked && <p className={`text-[13px] ${muted}`}>Locked. Your picks for this day are final.</p>}
               </div>
 
-              {visibleSwaps.length > 0 && (
-                <section aria-label="Applied swaps" className="flex flex-col gap-2">
-                  <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>Exchanges today</h4>
-                  {visibleSwaps.map((s) => {
-                    const text = swapLabel(s, labelOf, plan.swapCategories);
-                    return (
-                      <div
-                        key={s.publicId}
-                        className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--muted)] py-1 pl-4 pr-1"
-                      >
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <Chip tone="swap">{text}</Chip>
-                          {s.pending && <span className={`text-[12px] font-medium ${muted}`}>Not saved</span>}
-                        </span>
-                        {!dayLocked && !swapLocked && (
-                          <Button
-                            variant="quiet"
-                            pending={busy === s.publicId}
-                            disabled={busy != null}
-                            aria-label={`Remove swap ${text}`}
-                            onClick={() => void queueRemoveSwap(s.publicId, text)}
-                          >
-                            <X aria-hidden className="size-4" />
-                            Undo
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </section>
-              )}
-
               {rows.map((group) => {
                 const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                 const controlsOff = busy != null || saving;
