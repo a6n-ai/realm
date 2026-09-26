@@ -216,7 +216,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       swaps: visibleSwaps,
       categories: grid.categories,
       basePortions: grid.portionsBySlot,
-      amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo),
+      amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu),
     })
     : [];
   if (pendingToPick) {

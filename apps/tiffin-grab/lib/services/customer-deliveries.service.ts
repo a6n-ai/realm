@@ -7,6 +7,7 @@ import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryStrateg
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
+import type { ExchangeOverride } from "@/lib/menu/swap-rules";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import {
   resolveDeliveryMeal,
@@ -673,13 +674,13 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
 export type ResolvedMeal = ResolvedCategory[];
 export type MealOption = { category: string; dishId: string; name: string; image: FileDetail | null };
 /** One category swap applied to one eating day of a trip. */
-export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow: number | null };
+export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow: number | null; receiveTu: number | null };
 /** Per-eating-day swap state for a trip; a plain day has a single entry (its own date). */
 export type EatingDaySwaps = {
   date: string;
   appliedSwaps: AppliedSwap[];
   /** Pairs the swap sheet may offer (already filtered to this meal size and plan); same for every day of the order. */
-  swapPairs: { fromCategory: string; toCategory: string }[];
+  swapPairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[] }[];
 };
 export type CalendarDay = {
   date: string;

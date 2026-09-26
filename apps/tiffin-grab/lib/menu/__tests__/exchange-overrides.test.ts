@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { computeSwapOption, slotsAfterSwaps, validateProposedSwap, type CompositionContext } from "../meal-validation";
 import { portionsByCategory, sumTuForPicks } from "../pick-size";
 import type { TuCategory } from "../format-tu";
-import type { SwapCategory } from "../swap-rules";
+import { swapLabel, type SwapCategory } from "../swap-rules";
+import { buildSlotDropdownOptions } from "../slot-dropdown";
 import { previewOverride, type PreviewBase } from "../pick-preview";
 
 const cat = (key: string, pickTu: number): SwapCategory => ({
@@ -91,5 +92,35 @@ describe("Edit meal sizes a pending swap by its own row", () => {
 
   it("a pair with no overrides never touches the pending swap", () => {
     expect(previewOverride({ ...base, pairs: [{ fromCategory: "daal", toCategory: "sabzi" }] }, "2026-10-05", [], next(0))).toBeNull();
+  });
+});
+
+describe("customer copy shows the overridden size", () => {
+  const cats = Object.fromEntries(composition.categories);
+  const label = (k: string) => composition.labels![k]!;
+
+  it("an applied swap's label uses its stored receiveTu", () => {
+    const s = { fromCategory: "daal", toCategory: "sabzi", qtyFrom: 1, qtyTo: 1 };
+    expect(swapLabel({ ...s, receiveTu: 1 }, label, cats)).toBe("Daal · 12oz → Sabzi · 8oz");
+    expect(swapLabel(s, label, cats)).toBe("Daal · 12oz → Sabzi · 12oz");
+  });
+
+  it("Edit meal labels each Daal row with what that row buys", () => {
+    const option = computeSwapOption({ composition, applied: [], fromCategory: "daal", toCategory: "sabzi", overrides });
+    expect(option.rowBundles?.[0]).toMatchObject({ giveNatural: "12oz", getNatural: "8oz", receiveTu: 1 });
+    expect(option.rowBundles?.[1]).toMatchObject({ giveNatural: "8oz", getNatural: "8oz", receiveTu: null });
+
+    const row = (fromRow: number) =>
+      buildSlotDropdownOptions({
+        cellIndexInCategory: fromRow, categoryKey: "daal", dishes: [], swapOptions: [option],
+        onePerRow: true, fromRow, categoryLabel: label,
+      }).map((o) => o.label);
+    expect(row(0)).toEqual(["Sabzi · 8oz"]);
+    // 8oz for 8oz is like-for-like: just the name, as before overrides existed.
+    expect(row(1)).toEqual(["Sabzi"]);
+  });
+
+  it("a pair with no overrides has no per-row bundles", () => {
+    expect(computeSwapOption({ composition, applied: [], fromCategory: "daal", toCategory: "sabzi" }).rowBundles).toBeUndefined();
   });
 });

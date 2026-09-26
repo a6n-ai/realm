@@ -446,6 +446,12 @@ export type SwapOption = {
   /** Natural amounts for the smallest valid bundle (convenience). */
   giveNatural: string | null;
   getNatural: string | null;
+  /**
+   * Only when the pair has exchange overrides: the one-item bundle for each remaining
+   * base row (null = that row can't swap). Overrides match per given portion, so the
+   * 8oz row can buy a different size than the leading 12oz row the bundles are sized from.
+   */
+  rowBundles?: Record<number, SwapBundle | null>;
 };
 
 function bundleIncrement(fromPicks: number[]): number | null {
@@ -585,6 +591,24 @@ export function computeSwapOption(args: {
 
   const fromPicks = bundles.map((b) => b.fromPicks);
   const smallest = bundles[0]!;
+  const rowBundles = overrides?.length
+    ? Object.fromEntries(
+        (rowsAfterSwaps(composition, applied).get(fromCategory) ?? []).flatMap((r) => {
+          if (r.row == null) return [];
+          const v = validateProposedSwap({ composition, applied, next: { fromCategory, toCategory, fromPicks: 1, fromRow: r.row }, overrides });
+          const bundle: SwapBundle | null = v.ok
+            ? {
+                fromPicks: 1,
+                toPicks: v.qtyTo,
+                giveNatural: naturalForTu(from, v.giveTu),
+                getNatural: naturalForSlots(to, Array<number>(v.qtyTo).fill(v.getTu / v.qtyTo)),
+                receiveTu: v.receiveTu,
+              }
+            : null;
+          return [[r.row, bundle]];
+        }),
+      )
+    : undefined;
   return {
     fromCategory,
     toCategory,
@@ -596,6 +620,7 @@ export function computeSwapOption(args: {
     bundleIncrement: bundleIncrement(fromPicks),
     giveNatural: smallest.giveNatural,
     getNatural: smallest.getNatural,
+    ...(rowBundles ? { rowBundles } : {}),
   };
 }
 

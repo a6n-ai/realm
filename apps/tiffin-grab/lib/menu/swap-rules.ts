@@ -170,6 +170,8 @@ export function swapAmounts(
   to: SwapCategory | undefined,
   qtyFrom: number,
   qtyTo: number,
+  /** The swap's snapshotted override TU per received pick; wins over the natural size. */
+  receiveTu?: number | null,
 ): { give: string; get: string } | null {
   if (!from?.unitSize || !to?.unitSize) return null;
   const fromTu = from.pickTu ?? to.pickTu;
@@ -177,12 +179,13 @@ export function swapAmounts(
   if (fromTu == null || toTu == null) return null;
   const fmt = (c: SwapCategory, tu: number) => formatTuHuman({ tuUnitType: c.unitType, tuUnitSize: c.unitSize!, tuUnitLabel: c.unitLabel }, tu);
   const giveTu = qtyFrom * fromTu;
-  return { give: fmt(from, giveTu), get: fmt(to, sameUnit(from, to) ? giveTu : qtyTo * toTu) };
+  const getTu = receiveTu != null ? qtyTo * receiveTu : sameUnit(from, to) ? giveTu : qtyTo * toTu;
+  return { give: fmt(from, giveTu), get: fmt(to, getTu) };
 }
 
 /** "Rice 6oz → Roti 4 roti"; falls back to pick counts when units are unknown. */
 export function swapLabel(s: SwapRow, label: (key: string) => string, cats?: Record<string, SwapCategory>): string {
-  const a = swapAmounts(cats?.[s.fromCategory], cats?.[s.toCategory], s.qtyFrom, s.qtyTo);
+  const a = swapAmounts(cats?.[s.fromCategory], cats?.[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu);
   return a ? `${label(s.fromCategory)} · ${a.give} → ${label(s.toCategory)} · ${a.get}` : `${s.qtyFrom} ${label(s.fromCategory)} → ${s.qtyTo} ${label(s.toCategory)}`;
 }
 

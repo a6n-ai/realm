@@ -27,7 +27,7 @@ import { deliveryLine, eatingRowsInWeek, weekdayShort, type EatingRow } from "@/
 import { moveOptions } from "@/lib/deliveries-view/move";
 import { movesOneEatDay } from "@/lib/menu/coverage";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
-import { applySwapsToCounts, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
+import { applySwapsToCounts, exchangeOverride, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { statusMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
@@ -376,7 +376,9 @@ function SwapDialog({ row, data, onClose, onDone }: { row: EatingRow; data: Orde
   const from = chosen ? plan.swapCategories[chosen.fromCategory] : undefined;
   const to = chosen ? plan.swapCategories[chosen.toCategory] : undefined;
   const r = from && to ? swapQuantities(from, to, qty) : null;
-  const amounts = chosen && r?.ok ? swapAmounts(from, to, qty, r.qtyTo) : null;
+  // Preview only (the server sizes the swap): an override line for the leading portion buys one pick of its size each.
+  const overrideTu = qty === 1 && from?.pickTu != null ? exchangeOverride(chosen?.exchangeOverrides, from.pickTu) : null;
+  const amounts = chosen && r?.ok ? swapAmounts(from, to, qty, overrideTu != null ? qty : r.qtyTo, overrideTu) : null;
   const { pending, error, run } = useRun(onDone);
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>

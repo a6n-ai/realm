@@ -173,6 +173,8 @@ export type AnchoredSwap = {
   qtyTo: number;
   /** Base composition row given up; null/undefined = the leading remaining row(s). */
   fromRow?: number | null;
+  /** The swap's snapshotted override TU per received pick; null/undefined = natural. */
+  receiveTu?: number | null;
   pending: boolean;
 };
 
