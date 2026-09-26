@@ -39,7 +39,7 @@ export default async function SubscribePage() {
           Hi! Let&apos;s build your <em className="c-accent">tiffin.</em>
         </h1>
         <p className="c-body text-pretty text-[var(--muted-foreground)]">
-          A plan that fits your diet, your schedule and your budget. Sign in with your email, then four quick steps.
+          Sign in with your email, then four quick steps to your weekly plan.
         </p>
       </header>
 

@@ -32,14 +32,6 @@ const COPY: Record<Phase, { title: string; body: string }> = {
   staff: { title: "That's a staff account.", body: "" },
 };
 
-// What the four wizard steps ask, in the wizard's own names (see wizard.tsx STEPS),
-// so the first screen shows the whole path instead of a lone input.
-const NEXT_STEPS = [
-  { name: "Baseline", hint: "The nutrition base your meals start from." },
-  { name: "Bundle", hint: "Your meal size." },
-  { name: "Schedule", hint: "The days your tiffins arrive." },
-  { name: "Start", hint: "A start date and how many weeks." },
-] as const;
 
 export function IdentityGate() {
   const router = useRouter();
@@ -105,7 +97,9 @@ export function IdentityGate() {
     if (!/^\d{6}$/.test(otp)) return setError({ field: "code", message: "Enter all 6 digits." });
     const result = await signIn.emailOtp({ email, otp });
     if (result?.error) return setError({ field: "code", message: "That code is wrong or expired. Try again or resend it." });
-    router.push("/me/renew");
+    // replace, not push: /subscribe redirects a signed-in customer back to /me/renew, so
+    // leaving it in history turns the wizard's Back (and the phone's back gesture) into a loop.
+    router.replace("/me/renew");
     router.refresh();
   }
 
@@ -247,25 +241,13 @@ export function IdentityGate() {
       </div>
 
       {phase === "email" || phase === "name" ? (
-        <section aria-labelledby="gate-next" className="mt-10">
-          <h3 id="gate-next" className="c-label">After you sign in</h3>
-          <ol className="mt-3 divide-y divide-[var(--border)] rounded-[var(--c-radius-card,24px)] border border-[var(--border)] bg-[var(--card)]">
-            {NEXT_STEPS.map((st, i) => (
-              <li key={st.name} className="flex items-center gap-3.5 px-4 py-3.5">
-                <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--primary-wash,#FBE3D2)] text-[13px] font-bold text-[var(--primary)] tabular-nums">
-                  {i + 1}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-semibold">{st.name}</span>
-                  <span className="c-caption block text-pretty">{st.hint}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
-          <p className="c-caption mt-3 text-pretty">
-            Then you pick each day&apos;s meal from the weekly menu, and can skip, hold or pause a delivery before its cutoff.
-          </p>
-        </section>
+        // The brand's own line (PRODUCT.md voice), not a customer quote: there are no reviews to cite.
+        <figure className="mt-12">
+          <blockquote className="text-[22px] leading-[1.25] font-bold tracking-[-0.02em] text-balance">
+            &ldquo;A good tiffin should fit your diet, your schedule, and your budget. <em className="c-accent">Not the other way around.</em>&rdquo;
+          </blockquote>
+          <figcaption className="c-caption mt-3">Home-style meals, cooked in small batches.</figcaption>
+        </figure>
       ) : null}
 
       {/* Same bar as the wizard steps: Back + one primary action, fixed on phones, inline from sm up. */}

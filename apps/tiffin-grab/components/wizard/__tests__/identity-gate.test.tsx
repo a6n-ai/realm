@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
+import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -12,9 +12,10 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
 }));
 
 const push = vi.fn();
+const replace = vi.fn();
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, refresh }),
+  useRouter: () => ({ push, replace, refresh }),
 }));
 
 const sendVerificationOtp = vi.fn();
@@ -54,10 +55,9 @@ async function enterEmail(email: string) {
 }
 
 describe("IdentityGate", () => {
-  it("shows the four wizard steps that follow, so the first screen is not a lone input", () => {
+  it("shows the brand line under the form on the email step", () => {
     render(<IdentityGate />);
-    expect(within(screen.getByRole("list")).getAllByRole("listitem")).toHaveLength(4);
-    for (const name of ["Baseline", "Bundle", "Schedule", "Start"]) expect(screen.getByText(name)).toBeInTheDocument();
+    expect(screen.getByText(/not the other way around/i)).toBeInTheDocument();
   });
 
   it("bottom-bar Back leaves the flow from the email phase", async () => {
@@ -87,7 +87,8 @@ describe("IdentityGate", () => {
     expect(sendVerificationOtp).toHaveBeenCalledWith({ email: "back@person.com", type: "sign-in" });
 
     await user.type(screen.getByLabelText(/code sent to/i), "123456");
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/me/renew"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/me/renew"));
+    expect(push).not.toHaveBeenCalledWith("/me/renew");
     expect(signInEmailOtp).toHaveBeenCalledWith({ email: "back@person.com", otp: "123456" });
   });
 
