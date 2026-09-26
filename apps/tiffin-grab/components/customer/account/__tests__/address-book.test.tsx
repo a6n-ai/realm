@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SavedAddress } from "@foundry/address";
 
@@ -55,5 +55,23 @@ describe("AddressBook", () => {
     await waitFor(() => expect(screen.getByText("Server said no")).toBeTruthy());
     const home = screen.getByText("Home").closest("[data-address]")!;
     expect(home.textContent).toContain("Default");
+  });
+
+  it("a refused save keeps the sheet open and shows the reason inside it", async () => {
+    actions.createMyAddress.mockResolvedValue({ error: "We don't deliver to K1A 0B1" });
+    render(<AddressBook initial={BOOK} />);
+    fireEvent.click(screen.getByRole("button", { name: /add address/i }));
+    const sheet = await screen.findByRole("dialog");
+    fireEvent.click(within(sheet).getByRole("button", { name: /save address/i }));
+    await waitFor(() => expect(within(sheet).getByText("We don't deliver to K1A 0B1")).toBeTruthy());
+  });
+
+  it("a refused delete shows the reason inside the confirm sheet", async () => {
+    actions.archiveMyAddress.mockResolvedValue({ error: "Upcoming deliveries still use this address" });
+    render(<AddressBook initial={BOOK} />);
+    fireEvent.click(screen.getByRole("button", { name: /delete work/i }));
+    const sheet = await screen.findByRole("dialog");
+    fireEvent.click(within(sheet).getByRole("button", { name: /^delete address$/i }));
+    await waitFor(() => expect(within(sheet).getByText("Upcoming deliveries still use this address")).toBeTruthy());
   });
 });

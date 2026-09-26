@@ -100,7 +100,8 @@ export function AddressBook({ initial }: { initial: SavedAddress[] }) {
         ))}
       </ul>
 
-      {book.error && <Notice tone="error">{book.error}</Notice>}
+      {/* Sheet actions show their error inside the sheet; this covers make-default. */}
+      {book.error && !editing && !deleting && <Notice tone="error">{book.error}</Notice>}
 
       <Button pill onClick={() => setEditing({ publicId: null, label: "", values: {} })}>
         <PlusIcon className="size-4" /> Add address
@@ -127,6 +128,7 @@ export function AddressBook({ initial }: { initial: SavedAddress[] }) {
               resolveUrl="/api/address/resolve"
               onChange={(patch) => setEditing({ ...editing, values: { ...editing.values, ...patch } })}
             />
+            {book.error && <Notice tone="error">{book.error}</Notice>}
           </div>
         )}
       </Sheet>
@@ -141,7 +143,10 @@ export function AddressBook({ initial }: { initial: SavedAddress[] }) {
           </Button>
         }
       >
-        <p className="text-sm">Upcoming deliveries here will move to {defaultLabel}.</p>
+        <div className="space-y-3">
+          <p className="text-sm">Upcoming deliveries here will move to {defaultLabel}.</p>
+          {book.error && <Notice tone="error">{book.error}</Notice>}
+        </div>
       </Sheet>
     </Card>
   );
