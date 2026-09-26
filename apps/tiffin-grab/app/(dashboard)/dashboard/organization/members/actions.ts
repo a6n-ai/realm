@@ -9,7 +9,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { requireAdmin, requirePermission } from "@/lib/auth/guards";
-import { sendStaffInvitation } from "@/lib/auth/security-events";
+import { sendStaffInviteLink, sendStaffSetupLink } from "@/lib/auth/invite-links";
 import { getSession } from "@/lib/auth/session";
 import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { userFeatureFlagsService } from "@/lib/services/user-feature-flags.service";
@@ -56,9 +56,9 @@ export async function setUserFlag(userId: string, flagId: string, enabled: boole
 // the admin never sees or issues a password, and the old one stays valid until
 // the reset completes. Without one: they already hold a member row, so
 // createInvitation would throw USER_IS_ALREADY_A_MEMBER; re-send the invite mail
-// pointing at /login instead — an email-code sign-in lands on /set-password via
-// the dashboard gate. A "password reset" mail to someone who never had a
-// password read as a mistake, which is why this is not one path.
+// with a sign-in link straight to /set-password instead. A "password reset" mail
+// to someone who never had a password read as a mistake, which is why this is
+// not one path.
 export async function sendStaffAccessEmail(userId: string): Promise<{ email: string; kind: "invite" | "reset" }> {
   await requireAdmin();
   const email = await usersService.assertStaffEmail(userId);
@@ -68,8 +68,7 @@ export async function sendStaffAccessEmail(userId: string): Promise<{ email: str
     .where(eq(users.publicId, userId))
     .limit(1);
   if (!u?.passwordSet) {
-    const inviteUrl = new URL("/login", process.env.BETTER_AUTH_URL).toString();
-    await sendStaffInvitation({ email, role: u?.role ?? "member", inviteUrl, sendKey: `login:${Date.now()}` });
+    await sendStaffSetupLink({ email, role: u?.role ?? "member" });
     return { email, kind: "invite" };
   }
   await auth.api.sendVerificationOTP({ body: { email, type: "forget-password" } });
@@ -83,10 +82,11 @@ export async function resendInvite(userId: string, organizationId: string): Prom
   await requireAdmin();
   const [u] = await db.select({ email: users.email, role: users.role }).from(users).where(eq(users.publicId, userId)).limit(1);
   if (!u?.email) throw new ValidationError("This user has no email address to send an invite to.");
-  await auth.api.createInvitation({
+  const invitation = await auth.api.createInvitation({
     body: { email: u.email, role: u.role as "admin" | "member", organizationId, resend: true },
     headers: await headers(),
   });
+  await sendStaffInviteLink({ email: u.email, role: u.role, invitationId: invitation.id });
   revalidatePath("/dashboard/organization/members");
   return { email: u.email };
 }

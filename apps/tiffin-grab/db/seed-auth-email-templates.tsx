@@ -97,6 +97,11 @@ const ITEMS: { event: string; subject: string; body: string }[] = [
     subject: `You've been invited to ${APP_NAME}`,
     body: `You've been invited to join the ${APP_NAME} team as **{{role}}**.\n\n[Accept invitation]({{inviteUrl}})\n\nThis invite expires in 7 days.`,
   },
+  {
+    event: "customer_invitation",
+    subject: `Welcome to ${APP_NAME}`,
+    body: `Welcome to ${APP_NAME}! Your account is ready — track your deliveries, manage your meals, and pause or reschedule anytime.\n\n[Open my account]({{url}})\n\nThis link signs you in and works once, for 7 days. After that, sign in anytime with a code sent to this email — no password needed.`,
+  },
 ];
 
 async function main() {

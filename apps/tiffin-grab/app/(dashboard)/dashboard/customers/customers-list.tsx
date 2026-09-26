@@ -65,7 +65,7 @@ export function CustomersList({
               {c.latestStatus ? <OrderStatusBadge status={c.latestStatus} /> : "—"}
             </TableCell>
             <TableCell>
-              <CustomerInviteCell email={c.email} hasPassword={c.hasPassword} />
+              <CustomerInviteCell email={c.email} joined={c.joined} />
             </TableCell>
           </>
         )}

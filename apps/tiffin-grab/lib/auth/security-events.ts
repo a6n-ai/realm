@@ -84,6 +84,40 @@ export async function sendStaffInvitation(input: {
   );
 }
 
+export type InviteLinkMetadata = { kind: "staff_invite"; role: string } | { kind: "customer_invite" };
+
+/**
+ * magicLink plugin callback. Links are only ever issued by lib/auth/invite-links
+ * (the public route is disabled), so anything without our metadata is refused
+ * rather than mailed with made-up copy. The url carries a fresh single-use
+ * token, so it doubles as the dedupe key: only an accidental double-invoke of
+ * the same link collapses.
+ */
+export async function sendInviteLinkEmail(email: string, url: string, metadata: unknown): Promise<void> {
+  const meta = metadata as InviteLinkMetadata | undefined;
+  if (meta?.kind === "staff_invite") {
+    return sendStaffInvitation({ email, role: meta.role, inviteUrl: url, sendKey: url });
+  }
+  if (meta?.kind === "customer_invite") {
+    await db.transaction((tx) =>
+      enqueueNotification(tx, {
+        event: "customer_invitation",
+        recipientEmail: email,
+        title: `Welcome to ${APP_NAME}`,
+        // Used only if the customer_invitation template row is missing (templates
+        // are seeded by hand) — an empty body would mail a welcome with no link.
+        body: `Your ${APP_NAME} account is ready. Open it here (the link signs you in and works once, for 7 days): ${url}`,
+        data: { url },
+        channels: ["email"],
+        kind: "transactional",
+        dedupeKey: `customer_invitation:${email.toLowerCase()}:${url}`,
+      }),
+    );
+    return;
+  }
+  throw new Error("magic link requested without invite metadata");
+}
+
 /** Confirm-link for account deletion (OAuth / no-password paths). */
 export async function sendDeleteVerify(user: { email?: string | null }, url: string): Promise<void> {
   if (!user.email) return;

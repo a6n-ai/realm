@@ -4,15 +4,16 @@ import { and, eq, like } from "drizzle-orm";
 // Real better-auth + DB end to end: inviteUserAction -> acting-org resolution ->
 // hasPermission pre-check -> createUser -> createInvitation. Only mail and the
 // Next request scope are stubbed.
-const sent = vi.hoisted(() => ({ otps: [] as { email: string; otp: string }[], invites: [] as string[] }));
+const sent = vi.hoisted(() => ({ otps: [] as { email: string; otp: string }[], invites: [] as string[], links: [] as string[] }));
 const requestHeaders = vi.hoisted(() => ({ current: new Headers() }));
 
 vi.mock("@/lib/auth/security-events", () => ({
   sendAuthOtp: async (email: string, otp: string) => {
     sent.otps.push({ email, otp });
   },
-  sendStaffInvitation: async ({ email }: { email: string }) => {
+  sendInviteLinkEmail: async (email: string, url: string) => {
     sent.invites.push(email);
+    sent.links.push(url);
   },
   sendVerification: async () => {},
   notifyPasswordChanged: async () => {},
@@ -52,6 +53,7 @@ beforeEach(async () => {
   vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
   sent.otps.length = 0;
   sent.invites.length = 0;
+  sent.links.length = 0;
   const [org] = await db
     .insert(organization)
     .values({ name: "Invite Action Org", clientCode: `${MARK}-org`, parentOrganizationId: null })
@@ -92,6 +94,28 @@ describe("inviteUserAction (integration)", () => {
 
     const [invitee] = await db.select({ passwordSet: users.passwordSet }).from(users).where(eq(users.email, INVITEE));
     expect(invitee.passwordSet).toBe(false);
+
+    // Click the emailed link: better-auth verifies it, signs the invitee in, and
+    // sends them to /complete, which accepts and forwards to /set-password.
+    const verify = await auth.handler(new Request(sent.links[0]));
+    expect(verify.status).toBe(302);
+    const completeUrl = new URL(verify.headers.get("location")!);
+    const invitationId = completeUrl.pathname.split("/")[2];
+    expect(completeUrl.pathname).toBe(`/accept-invitation/${invitationId}/complete`);
+    const cookie = verify.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
+    requestHeaders.current = new Headers({ cookie });
+    const { GET } = await import("@/app/(auth)/accept-invitation/[invitationId]/complete/route");
+    const done = await GET(new Request(completeUrl), { params: Promise.resolve({ invitationId }) });
+    expect(new URL(done.headers.get("location")!).pathname).toBe("/set-password");
+    const [joined] = await db
+      .select({ status: invitation.status })
+      .from(invitation)
+      .where(eq(invitation.id, invitationId));
+    expect(joined.status).toBe("accepted");
+
+    // Single-use: the same link can't sign anyone in twice.
+    const replay = await auth.handler(new Request(sent.links[0]));
+    expect(replay.headers.get("location")).toContain("error=INVALID_TOKEN");
   });
 
   it("refuses an org the admin isn't a direct member of without creating an orphan account", async () => {
