@@ -34,8 +34,11 @@ export async function applyDeliverySwap(
   actorId: bigint | null,
   /** Eating day (ISO) the swap is for; must be one the trip covers. Omitted = the trip's own date. */
   forDate?: string,
+  /** Base composition row of fromCategory given up (Sabzi 8oz = 1). Omitted = the leading row(s). */
+  fromRow?: number | null,
 ): Promise<void> {
   if (!Number.isInteger(fromPicks) || fromPicks <= 0) throw new ValidationError("Pick count must be a positive whole number");
+  if (fromRow != null && (!Number.isInteger(fromRow) || fromRow < 0)) throw new ValidationError("Row must be a whole number");
 
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
@@ -59,7 +62,7 @@ export async function applyDeliverySwap(
     const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {});
     const existing = await tx.select({
       fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
-      qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate,
+      qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate,
     }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id))
       .then((rs) => rs.filter((r) => swapAppliesTo(r.forDate, row.deliveryDate, eatingDate)));
 
@@ -70,8 +73,9 @@ export async function applyDeliverySwap(
         toCategory: r.toCategory,
         qtyFrom: r.qtyFrom,
         qtyTo: r.qtyTo,
+        fromRow: r.fromRow,
       })),
-      next: { fromCategory, toCategory, fromPicks },
+      next: { fromCategory, toCategory, fromPicks, fromRow },
     });
     if (!check.ok) throw new ValidationError(check.reason);
     const qtyTo = check.qtyTo;
@@ -80,7 +84,7 @@ export async function applyDeliverySwap(
     // meal_size_items after this, so a later admin edit to a category's tuAmount
     // can't retroactively change a swap a customer already applied.
     await tx.insert(deliveryCategorySwaps).values({
-      deliveryId: row.id, fromCategory, toCategory, qtyFrom: fromPicks, qtyTo, forDate: storedForDate,
+      deliveryId: row.id, fromCategory, toCategory, qtyFrom: fromPicks, qtyTo, fromRow: fromRow ?? null, forDate: storedForDate,
     });
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "category_swap_applied",

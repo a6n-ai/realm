@@ -37,6 +37,7 @@ describe("slot-dropdown", () => {
       fromCategory: "sabzi",
       toCategory: "daal",
       fromPicks: 2,
+      fromRow: null,
     });
     expect(parseSlotOptionValue("nope")).toBeNull();
   });
@@ -83,6 +84,24 @@ describe("slot-dropdown", () => {
       categoryLabel: (k) => (k === "daal" ? "Daal" : k),
     });
     expect(opts.filter((o) => o.kind === "swap").map((o) => o.label)).toEqual(["Daal · 12oz"]);
+  });
+
+  it("a later per-pick row swaps itself: live, its own size, carrying its row", () => {
+    const opts = buildSlotDropdownOptions({
+      cellIndexInCategory: 1,
+      categoryKey: "sabzi",
+      dishes: [],
+      swapOptions: [sabziDaal],
+      onePerRow: true,
+      fromRow: 1,
+      rowPortion: "8oz",
+      categoryLabel: (k) => (k === "daal" ? "Daal" : k),
+    });
+    expect(opts).toEqual([
+      expect.objectContaining({ label: "Daal · 8oz", fromRow: 1, value: "swap:sabzi>daal:1@1", note: "Choose this instead" }),
+    ]);
+    expect(opts[0]!.disabled).toBeFalsy();
+    expect(parseSlotOptionValue(opts[0]!.value)).toEqual({ kind: "swap", fromCategory: "sabzi", toCategory: "daal", fromPicks: 1, fromRow: 1 });
   });
 
   it("greys out unavailable swaps, rule-blocked dishes and swaps; ignores other from-categories", () => {

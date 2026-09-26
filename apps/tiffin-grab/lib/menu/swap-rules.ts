@@ -10,7 +10,28 @@
 
 import { formatTuHuman } from "./format-tu";
 
-export type SwapRow = { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+export type SwapRow = {
+  fromCategory: string;
+  toCategory: string;
+  qtyFrom: number;
+  qtyTo: number;
+  /** Base composition row given up (see delivery_category_swaps.from_row); null = first remaining. */
+  fromRow?: number | null;
+};
+
+/** One slot of a category; `row` is its base composition row, null when a swap brought it in. */
+export type SlotRow<T> = { row: number | null; value: T };
+
+/**
+ * Removes the slots a swap gives up — the row the customer picked, or the leading
+ * slots when the swap names no row. Every fold (TU checks, portions, labels, kitchen)
+ * goes through here so they agree on which container left.
+ */
+export function takeGiven<T>(from: SlotRow<T>[], s: { qtyFrom: number; fromRow?: number | null }): SlotRow<T>[] {
+  const at = s.fromRow == null ? 0 : from.findIndex((x) => x.row === s.fromRow);
+  // A row that is already gone falls back to the front so counts still match applySwapsToCounts.
+  return from.splice(Math.max(at, 0), s.qtyFrom);
+}
 
 // Folds every applied swap for a delivery onto a base counts map, in the order the
 // rows are given. Never clamps below 0 here — that's a service-layer invariant

@@ -109,7 +109,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   // Category swaps stay local until Done — same batching as dish picks, so packing
   // labels do not change while the sheet is still open.
   const [pendingApplies, setPendingApplies] = useState<
-    { id: string; day: string; fromCategory: string; toCategory: string; fromPicks: number; toPicks: number }[]
+    { id: string; day: string; fromCategory: string; toCategory: string; fromPicks: number; toPicks: number; fromRow: number | null }[]
   >([]);
   // Each removal keeps its own eating day: the tab open at Save time may be another day.
   const [pendingRemoves, setPendingRemoves] = useState<{ publicId: string; day: string }[]>([]);
@@ -146,6 +146,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         toCategory: p.toCategory,
         qtyFrom: p.fromPicks,
         qtyTo: p.toPicks,
+        fromRow: p.fromRow,
       }));
 
     loadMySwapOptions(trip.deliveryId, day, provisional, pendingRemoves.map((r) => r.publicId), true)
@@ -174,6 +175,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
           toCategory: p.toCategory,
           qtyFrom: p.fromPicks,
           qtyTo: p.toPicks,
+          fromRow: p.fromRow,
         })),
         omitSwapPublicIds: removes.map((r) => r.publicId),
       });
@@ -218,6 +220,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         toCategory: p.toCategory,
         qtyFrom: p.fromPicks,
         qtyTo: p.toPicks,
+        fromRow: p.fromRow,
         pending: true as const,
       })),
   ];
@@ -268,7 +271,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     return new Set(dishes.filter((d) => !allowed.has(d.id)).map((d) => d.id));
   };
 
-  const queueSwap = async (fromCategory: string, toCategory: string, fromPicks: number) => {
+  const queueSwap = async (fromCategory: string, toCategory: string, fromPicks: number, fromRow: number | null) => {
     if (!trip.deliveryId || swapLocked || activeDay == null) return;
     const option = (swapOptions ?? []).find((o) => o.fromCategory === fromCategory && o.toCategory === toCategory);
     const bundle = option?.validBundles.find((b) => b.fromPicks === fromPicks) ?? option?.validBundles[0];
@@ -276,7 +279,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     const swapId = Math.random().toString(36).slice(2);
     const nextApplies = [
       ...pendingApplies,
-      { id: swapId, day: activeDay, fromCategory, toCategory, fromPicks, toPicks },
+      { id: swapId, day: activeDay, fromCategory, toCategory, fromPicks, toPicks, fromRow },
     ];
     setPendingApplies(nextApplies);
     setTouched(true);
@@ -306,9 +309,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       setApplied(null);
       return;
     }
-    // Swaps only from the leading row — ignore stale option values.
-    if (cellIndexInCategory !== 0) return;
-    void queueSwap(parsed.fromCategory, parsed.toCategory, parsed.fromPicks);
+    // A swap without its own row takes the leading row — ignore stale option values elsewhere.
+    if (parsed.fromRow == null && cellIndexInCategory !== 0) return;
+    void queueSwap(parsed.fromCategory, parsed.toCategory, parsed.fromPicks, parsed.fromRow);
   };
 
   const queueRemoveSwap = async (publicId: string, text: string) => {
@@ -384,7 +387,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       }
       while (applies.length > 0) {
         const p = applies[0]!;
-        const r = await applyMyDeliverySwap(trip.deliveryId!, p.fromCategory, p.toCategory, p.fromPicks, p.day);
+        const r = await applyMyDeliverySwap(trip.deliveryId!, p.fromCategory, p.toCategory, p.fromPicks, p.day, p.fromRow);
         if ("error" in r) throw new Error(r.error);
         applies = applies.slice(1);
       }
@@ -490,7 +493,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                   <section key={group.key} aria-label={group.label} className="grid gap-4">
                     <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{group.label}</h4>
                     <div className="grid gap-5">
-                      {group.swapped.map((row) => {
+                      {group.items.map((item) => {
+                        if (item.kind === "swapped") {
+                          const row = item.swapped;
                         const text = swapLabel(row.swap, labelOf, plan.swapCategories);
                         const label = row.givePortion ? `${group.label} · ${row.givePortion}` : group.label;
                         const toName = row.toCells.length && !row.toCells[0]!.selectable
@@ -550,8 +555,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                             })}
                           </div>
                         );
-                      })}
-                      {group.cells.map((cell, i) => {
+                        }
+                        const { cell, index: i, row: baseRow } = item;
                         const selectedId = effectiveDishId(cell, picked);
                         const key = cellKey(cell);
                         const built = buildSlotDropdownOptions({
@@ -562,6 +567,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                           swapOptions: swapOptions ?? [],
                           allowedSwaps,
                           onePerRow: group.cells.every((c) => c.quantity === 1),
+                          fromRow: baseRow,
+                          rowPortion: group.portions[i] ?? null,
                           categoryLabel: labelOf,
                         });
                         // A fixed item with no dish on the menu still gets its (greyed) box.

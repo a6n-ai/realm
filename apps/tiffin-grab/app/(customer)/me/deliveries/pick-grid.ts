@@ -11,7 +11,7 @@ import { buildMealsGrid, type GridCell } from "@/lib/menu/meals-grid";
 import { listRuleTextsForOrder } from "@/lib/menu/rule-texts";
 import { mealRulesService } from "@/lib/services/meal-rules.service";
 import type { MealRule } from "@/lib/menu/meal-rule-types";
-import { categoryCountsFromItems, portionsByCategory, type PortionSwap } from "@/lib/menu/pick-size";
+import { categoryCountsFromItems, portionsByCategory, slotRowsAfterSwaps, type PortionSwap } from "@/lib/menu/pick-size";
 import type { TuCategory } from "@/lib/menu/format-tu";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
@@ -50,7 +50,7 @@ export async function loadPickGrid(
   dates: string[],
   opts: {
     /** Swaps chosen in the sheet but not written yet — folded into cells and portions. */
-    provisionalSwaps?: { forDate: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number }[];
+    provisionalSwaps?: { forDate: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow?: number | null }[];
     /** Applied swaps the sheet has marked for undo on Done — excluded from portions. */
     omitSwapPublicIds?: string[];
   } = {},
@@ -128,21 +128,75 @@ export async function loadPickGrid(
     }
     if (!grid.cells.length) return { ok: true, grid: null };
 
+    // Per eating day: fold that day's applied swaps so Pick portions match Swap / labels.
+    const eatingDates = [...new Set(grid.cells.map((c) => c.dateIso))];
+    const from = eatingDates.reduce((a, b) => (a < b ? a : b));
+    const until = eatingDates.reduce((a, b) => (a > b ? a : b));
+    const carrying = await carryingTrips(row.id, from, until);
+    const ownRows = await db
+      .select({ id: deliveries.id, deliveryDate: deliveries.deliveryDate })
+      .from(deliveries)
+      .where(and(eq(deliveries.orderId, row.id), gte(deliveries.deliveryDate, from), lte(deliveries.deliveryDate, until)));
+    const tripIds = [...new Set([...carrying.values()].map((t) => t.id).concat(ownRows.map((r) => r.id)))];
+    const swapRows = tripIds.length === 0
+      ? []
+      : await db
+        .select({
+          publicId: deliveryCategorySwaps.publicId,
+          deliveryId: deliveryCategorySwaps.deliveryId,
+          fromCategory: deliveryCategorySwaps.fromCategory,
+          toCategory: deliveryCategorySwaps.toCategory,
+          qtyFrom: deliveryCategorySwaps.qtyFrom,
+          qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow,
+          forDate: deliveryCategorySwaps.forDate,
+        })
+        .from(deliveryCategorySwaps)
+        .where(inArray(deliveryCategorySwaps.deliveryId, tripIds));
+    const ownByDate = new Map(ownRows.map((d) => [d.deliveryDate, d]));
+    const omit = new Set(opts.omitSwapPublicIds ?? []);
+    const provisional = opts.provisionalSwaps ?? [];
+
+    const appliedByDate = new Map<string, PortionSwap[]>();
+    for (const date of eatingDates) {
+      const trip = carrying.get(date) ?? ownByDate.get(date);
+      appliedByDate.set(date, trip == null
+        ? []
+        : swapRows
+          .filter((s) =>
+            s.deliveryId === trip.id
+            && !omit.has(s.publicId)
+            && swapAppliesTo(s.forDate, trip.deliveryDate, date),
+          )
+          .map((s) => ({
+            fromCategory: s.fromCategory,
+            toCategory: s.toCategory,
+            qtyFrom: s.qtyFrom,
+            qtyTo: s.qtyTo,
+            fromRow: s.fromRow,
+          })));
+    }
+
     // Provisional swaps: adjust cells to match the same front-splice that
     // portionsByCategory applies to portions, so cells and portions stay aligned.
-    const provisional = opts.provisionalSwaps ?? [];
     if (provisional.length > 0) {
       const catMeta = new Map(grid.categories.map((c) => [c.key, c]));
-      for (const ps of provisional) {
+      for (const [i, ps] of provisional.entries()) {
         const date = ps.forDate;
+        // Rows still in the meal before this swap: that day's saved swaps, then the earlier unsaved ones.
+        const rowsBefore = slotRowsAfterSwaps(
+          items,
+          [...(appliedByDate.get(date) ?? []), ...provisional.slice(0, i).filter((p) => p.forDate === date)],
+          tuByKey,
+        );
         // Gather persons present on this date.
         const persons = [...new Set(grid.cells.filter((c) => c.dateIso === date).map((c) => c.personIndex))];
         for (const person of persons) {
-          // Front-splice: remove leading qtyFrom cells from fromCategory.
+          // Remove the cells the swap gives up — at the named row's position, else the leading ones.
           const fromCells = grid.cells
             .filter((c) => c.dateIso === date && c.personIndex === person && c.slot === ps.fromCategory)
             .sort((a, b) => a.pickIndex - b.pickIndex);
-          const spliced = fromCells.slice(0, ps.qtyFrom);
+          const at = Math.max(0, ps.fromRow == null ? 0 : (rowsBefore.get(ps.fromCategory) ?? []).findIndex((r) => r.row === ps.fromRow));
+          const spliced = fromCells.slice(at, at + ps.qtyFrom);
           const splicedKeys = new Set(spliced.map((c) => `${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`));
           grid.cells = grid.cells.filter((c) => !splicedKeys.has(`${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`));
 
@@ -183,59 +237,19 @@ export async function loadPickGrid(
       }
     }
 
-    // Per eating day: fold that day's applied swaps so Pick portions match Swap / labels.
-    const eatingDates = [...new Set(grid.cells.map((c) => c.dateIso))];
-    const from = eatingDates.reduce((a, b) => (a < b ? a : b));
-    const until = eatingDates.reduce((a, b) => (a > b ? a : b));
-    const carrying = await carryingTrips(row.id, from, until);
-    const ownRows = await db
-      .select({ id: deliveries.id, deliveryDate: deliveries.deliveryDate })
-      .from(deliveries)
-      .where(and(eq(deliveries.orderId, row.id), gte(deliveries.deliveryDate, from), lte(deliveries.deliveryDate, until)));
-    const tripIds = [...new Set([...carrying.values()].map((t) => t.id).concat(ownRows.map((r) => r.id)))];
-    const swapRows = tripIds.length === 0
-      ? []
-      : await db
-        .select({
-          publicId: deliveryCategorySwaps.publicId,
-          deliveryId: deliveryCategorySwaps.deliveryId,
-          fromCategory: deliveryCategorySwaps.fromCategory,
-          toCategory: deliveryCategorySwaps.toCategory,
-          qtyFrom: deliveryCategorySwaps.qtyFrom,
-          qtyTo: deliveryCategorySwaps.qtyTo,
-          forDate: deliveryCategorySwaps.forDate,
-        })
-        .from(deliveryCategorySwaps)
-        .where(inArray(deliveryCategorySwaps.deliveryId, tripIds));
-    const ownByDate = new Map(ownRows.map((d) => [d.deliveryDate, d]));
-    const omit = new Set(opts.omitSwapPublicIds ?? []);
-
     for (const date of eatingDates) {
-      const trip = carrying.get(date) ?? ownByDate.get(date);
-      const daySwaps: PortionSwap[] = trip == null
-        ? []
-        : swapRows
-          .filter((s) =>
-            s.deliveryId === trip.id
-            && !omit.has(s.publicId)
-            && swapAppliesTo(s.forDate, trip.deliveryDate, date),
-          )
+      const daySwaps: PortionSwap[] = [
+        ...(appliedByDate.get(date) ?? []),
+        ...provisional
+          .filter((s) => s.forDate === date)
           .map((s) => ({
             fromCategory: s.fromCategory,
             toCategory: s.toCategory,
             qtyFrom: s.qtyFrom,
             qtyTo: s.qtyTo,
-          }));
-      for (const s of provisional) {
-        if (s.forDate === date) {
-          daySwaps.push({
-            fromCategory: s.fromCategory,
-            toCategory: s.toCategory,
-            qtyFrom: s.qtyFrom,
-            qtyTo: s.qtyTo,
-          });
-        }
-      }
+            fromRow: s.fromRow ?? null,
+          })),
+      ];
       grid.portionsByDate[date] = mapPortions(portionsByCategory(items, tuByKey, daySwaps));
     }
 

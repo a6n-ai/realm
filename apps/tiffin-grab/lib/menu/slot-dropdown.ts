@@ -2,8 +2,8 @@
  * Per-composition-row options for the customer Edit meal sheet (radio list).
  * Dish picks stay same-category; swap entries come only from backend validBundles.
  *
- * Swaps front-splice fromCategory rows, so exchange options are live only on the
- * first remaining cell of that category (index 0); later rows show them greyed.
+ * A per-pick row (Sabzi 12oz, Sabzi 8oz) swaps itself by naming its base row. A
+ * bulk row (8 roti) has no row identity, so its bundles take the leading slots.
  */
 
 import { validateMealRules, type SwapOption } from "./meal-validation";
@@ -104,6 +104,8 @@ export type SlotSwapOption = SlotOptionState & {
   fromCategory: string;
   toCategory: string;
   fromPicks: number;
+  /** Base row this swap gives up; null = the leading row(s). */
+  fromRow: number | null;
 };
 
 export type SlotDropdownOption = SlotDishOption | SlotSwapOption;
@@ -112,30 +114,32 @@ export function dishOptionValue(dishId: string): string {
   return `dish:${dishId}`;
 }
 
-export function swapOptionValue(fromCategory: string, toCategory: string, fromPicks: number): string {
-  return `swap:${fromCategory}>${toCategory}:${fromPicks}`;
+export function swapOptionValue(fromCategory: string, toCategory: string, fromPicks: number, fromRow?: number | null): string {
+  return `swap:${fromCategory}>${toCategory}:${fromPicks}${fromRow == null ? "" : `@${fromRow}`}`;
 }
 
 export function parseSlotOptionValue(value: string):
   | { kind: "dish"; dishId: string }
-  | { kind: "swap"; fromCategory: string; toCategory: string; fromPicks: number }
+  | { kind: "swap"; fromCategory: string; toCategory: string; fromPicks: number; fromRow: number | null }
   | null {
   if (value.startsWith("dish:")) {
     const dishId = value.slice("dish:".length);
     return dishId ? { kind: "dish", dishId } : null;
   }
   if (value.startsWith("swap:")) {
-    const body = value.slice("swap:".length);
-    const colon = body.lastIndexOf(":");
+    const [body, rowText] = value.slice("swap:".length).split("@");
+    const fromRow = rowText == null ? null : Number(rowText);
+    if (fromRow != null && (!Number.isInteger(fromRow) || fromRow < 0)) return null;
+    const colon = body!.lastIndexOf(":");
     if (colon < 0) return null;
-    const pair = body.slice(0, colon);
-    const fromPicks = Number(body.slice(colon + 1));
+    const pair = body!.slice(0, colon);
+    const fromPicks = Number(body!.slice(colon + 1));
     const gt = pair.indexOf(">");
     if (gt < 0 || !Number.isInteger(fromPicks) || fromPicks < 1) return null;
     const fromCategory = pair.slice(0, gt);
     const toCategory = pair.slice(gt + 1);
     if (!fromCategory || !toCategory) return null;
-    return { kind: "swap", fromCategory, toCategory, fromPicks };
+    return { kind: "swap", fromCategory, toCategory, fromPicks, fromRow };
   }
   return null;
 }
@@ -170,9 +174,14 @@ export function buildSlotDropdownOptions(args: {
    * multi-row bundles ("uses 2 items") are left out. Bulk rows (8 roti) keep them.
    */
   onePerRow?: boolean;
+  /** This cell's base composition row; with onePerRow, lets any row swap itself. */
+  fromRow?: number | null;
+  /** This row's own portion ("8oz"), for a like-for-like swap label. */
+  rowPortion?: string | null;
   categoryLabel: (key: string) => string;
 }): SlotDropdownOption[] {
-  const { cellIndexInCategory, categoryKey, dishes, disabledDishIds, swapOptions, allowedSwaps, onePerRow, categoryLabel } = args;
+  const { cellIndexInCategory, categoryKey, dishes, disabledDishIds, swapOptions, allowedSwaps, onePerRow, fromRow = null, rowPortion, categoryLabel } = args;
+  const ownRow = onePerRow && fromRow != null;
   const out: SlotDropdownOption[] = [];
 
   for (const d of dishes) {
@@ -189,7 +198,7 @@ export function buildSlotDropdownOptions(args: {
   for (const opt of swapOptions) {
     if (opt.fromCategory !== categoryKey) continue;
     const toLabel = categoryLabel(opt.toCategory);
-    const base = { kind: "swap" as const, fromCategory: opt.fromCategory, toCategory: opt.toCategory };
+    const base = { kind: "swap" as const, fromCategory: opt.fromCategory, toCategory: opt.toCategory, fromRow: ownRow ? fromRow : null };
     const bundles = opt.validBundles.filter((b) => !onePerRow || b.fromPicks === 1);
     if (!opt.available || bundles.length === 0) {
       out.push({
@@ -198,8 +207,8 @@ export function buildSlotDropdownOptions(args: {
       });
       continue;
     }
-    // Swaps take the leading row of a category, so later rows wait their turn.
-    if (cellIndexInCategory !== 0) {
+    // Without a row of its own, a swap takes the leading row, so later rows wait their turn.
+    if (!ownRow && cellIndexInCategory !== 0) {
       out.push({
         ...base, fromPicks: 1, value: swapOptionValue(opt.fromCategory, opt.toCategory, 1), label: toLabel,
         disabled: true, note: `Swap the ${categoryLabel(categoryKey)} above first`,
@@ -208,11 +217,13 @@ export function buildSlotDropdownOptions(args: {
     }
     for (const bundle of bundles) {
       const ok = !allowedSwaps || allowedSwaps.has(swapOptionValue(opt.fromCategory, opt.toCategory, bundle.fromPicks));
+      // Like-for-like (give == get): this row becomes its own size, not the leading row's.
+      const likeForLike = ownRow && rowPortion && bundle.giveNatural === bundle.getNatural;
       out.push({
         ...base,
         fromPicks: bundle.fromPicks,
-        value: swapOptionValue(opt.fromCategory, opt.toCategory, bundle.fromPicks),
-        label: swapLabel(toLabel, bundle),
+        value: swapOptionValue(opt.fromCategory, opt.toCategory, bundle.fromPicks, base.fromRow),
+        label: likeForLike ? `${toLabel} · ${rowPortion}` : swapLabel(toLabel, bundle),
         disabled: !ok || undefined,
         note: ok ? "Choose this instead" : "Not allowed with your other picks",
       });

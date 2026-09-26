@@ -52,6 +52,7 @@ export async function copyDeliverySwaps(
     toCategory: r.toCategory,
     qtyFrom: r.qtyFrom,
     qtyTo: r.qtyTo,
+    fromRow: r.fromRow,
     forDate: r.forDate ?? resolveNullTo ?? null,
   })));
 }
@@ -680,7 +681,7 @@ async function moveDeliverySwapsForDate(tx: Tx, fromDeliveryId: bigint, toDelive
   const moving = rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatDate));
   if (moving.length === 0) return;
   await tx.insert(deliveryCategorySwaps).values(moving.map((r) => ({
-    deliveryId: toDeliveryId, fromCategory: r.fromCategory, toCategory: r.toCategory, qtyFrom: r.qtyFrom, qtyTo: r.qtyTo, forDate: eatDate,
+    deliveryId: toDeliveryId, fromCategory: r.fromCategory, toCategory: r.toCategory, qtyFrom: r.qtyFrom, qtyTo: r.qtyTo, fromRow: r.fromRow, forDate: eatDate,
   })));
   await tx.delete(deliveryCategorySwaps).where(inArray(deliveryCategorySwaps.id, moving.map((r) => r.id)));
 }

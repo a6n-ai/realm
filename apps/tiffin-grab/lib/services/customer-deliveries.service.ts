@@ -672,7 +672,7 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
 export type ResolvedMeal = ResolvedCategory[];
 export type MealOption = { category: string; dishId: string; name: string; image: FileDetail | null };
 /** One category swap applied to one eating day of a trip. */
-export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow: number | null };
 /** Per-eating-day swap state for a trip; a plain day has a single entry (its own date). */
 export type EatingDaySwaps = {
   date: string;
@@ -769,7 +769,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
 
   const swapPairs = await dishCategoriesService.swapPairsForMealSize(order.mealSizeId);
   const swapRows = await db
-    .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
+    .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate })
     .from(deliveryCategorySwaps)
     .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id)));
   const swapFields = (row: CustomerDelivery) => ({
@@ -778,7 +778,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       swapPairs,
       appliedSwaps: swapRows
         .filter((s) => s.deliveryId === row.id && swapAppliesTo(s.forDate, row.deliveryDate, date))
-        .map(({ publicId, fromCategory, toCategory, qtyFrom, qtyTo }) => ({ publicId, fromCategory, toCategory, qtyFrom, qtyTo })),
+        .map(({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow }) => ({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow })),
     })),
     swapAllowance: null,
   });

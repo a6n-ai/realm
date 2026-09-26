@@ -226,7 +226,7 @@ describe("PickSheet", () => {
     await screen.findByText(/Swapped to Daal/);
     expect(applySwap).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "curry", "daal", 1, mon));
+    await waitFor(() => expect(applySwap).toHaveBeenCalledWith("dlv1", "curry", "daal", 1, mon, 0));
     expect(onDone).toHaveBeenCalledWith("Meals saved");
   });
 

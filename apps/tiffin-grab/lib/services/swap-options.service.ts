@@ -50,7 +50,7 @@ export async function listValidSwapOptionsForDelivery(
   opts?: { 
     forDate?: string; 
     hideUnavailable?: boolean;
-    provisionalSwaps?: { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number }[];
+    provisionalSwaps?: { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow?: number | null }[];
     omitSwapPublicIds?: string[];
   },
 ): Promise<SwapOption[]> {
@@ -74,7 +74,7 @@ export async function listValidSwapOptionsForDelivery(
           fromCategory: deliveryCategorySwaps.fromCategory,
           toCategory: deliveryCategorySwaps.toCategory,
           qtyFrom: deliveryCategorySwaps.qtyFrom,
-          qtyTo: deliveryCategorySwaps.qtyTo,
+          qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow,
           forDate: deliveryCategorySwaps.forDate,
         })
         .from(deliveryCategorySwaps)
@@ -89,6 +89,7 @@ export async function listValidSwapOptionsForDelivery(
         toCategory: r.toCategory,
         qtyFrom: r.qtyFrom,
         qtyTo: r.qtyTo,
+        fromRow: r.fromRow,
       }));
 
     if (opts?.provisionalSwaps) {
@@ -99,6 +100,7 @@ export async function listValidSwapOptionsForDelivery(
             toCategory: p.toCategory,
             qtyFrom: p.qtyFrom,
             qtyTo: p.qtyTo,
+            fromRow: p.fromRow ?? null,
           });
         }
       }

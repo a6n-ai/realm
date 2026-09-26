@@ -3,6 +3,7 @@
  * category for display without collapsing the underlying pickIndex model.
  */
 import type { GridCell } from "@/lib/menu/meals-grid";
+import { takeGiven, type SlotRow } from "@/lib/menu/swap-rules";
 
 export type PickCategoryMeta = {
   key: string;
@@ -166,6 +167,8 @@ export type AnchoredSwap = {
   toCategory: string;
   qtyFrom: number;
   qtyTo: number;
+  /** Base composition row given up; null/undefined = the leading remaining row(s). */
+  fromRow?: number | null;
   pending: boolean;
 };
 
@@ -181,25 +184,31 @@ export type SwappedRow = {
   toDishes: GridCell["dishes"];
 };
 
-export type AnchoredGroup = PickCategoryGroup & { swapped: SwappedRow[] };
+/** One line of a category, in composition order: a live cell or a row given away by a swap. */
+export type GroupItem =
+  /** `row`: the cell's base composition row (null when unknown, e.g. bulk roti); `index` among live cells. */
+  | { kind: "cell"; cell: GridCell; index: number; row: number | null }
+  | { kind: "swapped"; swapped: SwappedRow };
+
+export type AnchoredGroup = PickCategoryGroup & { swapped: SwappedRow[]; items: GroupItem[] };
 
 /**
- * Keep each exchanged row in its original category, in place. Swaps front-splice
- * fromCategory and append to toCategory, so the given rows are the leading base
- * portions and the received cells are toCategory's trailing per-pick cells.
+ * Keep each exchanged row in its original category and position. A swap removes its
+ * named row (else the leading one) and appends to toCategory, so the received cells are
+ * toCategory's trailing per-pick cells — the same fold as takeGiven on the server.
  */
 export function anchorSwaps(args: {
   groups: PickCategoryGroup[];
   swaps: AnchoredSwap[];
   categories: PickCategoryMeta[];
-  /** Base (pre-swap) portions per category. */
+  /** Base (pre-swap) portions per category: one per composition row, or one total for bulk. */
   basePortions: Record<string, (string | null)[]>;
   /** Amounts for bulk rows (roti count) where per-row portions don't exist. */
   amounts: (s: AnchoredSwap) => { give: string; get: string } | null;
 }): AnchoredGroup[] {
   const { groups, swaps, categories, basePortions, amounts } = args;
   const byKey = new Map<string, AnchoredGroup>(
-    groups.map((g) => [g.key, { ...g, cells: [...g.cells], portions: [...g.portions], swapped: [] }]),
+    groups.map((g) => [g.key, { ...g, cells: [...g.cells], portions: [...g.portions], swapped: [], items: [] }]),
   );
   for (const s of swaps) {
     if (byKey.has(s.fromCategory)) continue;
@@ -207,16 +216,17 @@ export function anchorSwaps(args: {
     if (!meta) continue;
     byKey.set(meta.key, {
       key: meta.key, label: meta.label, selectable: meta.selectable, chooseCount: 0,
-      cells: [], portions: [], dishes: [], swapped: [],
+      cells: [], portions: [], dishes: [], swapped: [], items: [],
     });
   }
+  // Bulk categories (8 roti in one cell) have no per-row identity.
+  const perRow = (key: string) => (byKey.get(key)?.cells ?? []).every((c) => c.quantity === 1);
 
   // Newest swap owns the newest trailing cells.
   const received = new Map<string, { cells: GridCell[]; portions: (string | null)[] }>();
   for (const s of [...swaps].reverse()) {
     const to = byKey.get(s.toCategory);
-    const perPick = to && to.cells.length >= s.qtyTo && to.cells.every((c) => c.quantity === 1);
-    if (!to || !perPick) {
+    if (!to || !perRow(s.toCategory) || to.cells.length < s.qtyTo) {
       received.set(s.publicId, { cells: [], portions: [] });
       continue;
     }
@@ -224,24 +234,44 @@ export function anchorSwaps(args: {
     received.set(s.publicId, { cells: to.cells.splice(at), portions: to.portions.splice(at) });
   }
 
-  const consumed = new Map<string, number>();
+  // Replay the swaps over base rows to learn which row each one took.
+  const remaining = new Map<string, SlotRow<string | null>[]>(
+    Object.entries(basePortions).map(([k, ps]) => [k, ps.map((value, row) => ({ row, value }))]),
+  );
+  const givenRow = new Map<string, number | null>();
   for (const s of swaps) {
-    const from = byKey.get(s.fromCategory);
-    if (!from) continue;
-    const start = consumed.get(s.fromCategory) ?? 0;
-    consumed.set(s.fromCategory, start + s.qtyFrom);
-    const base = (basePortions[s.fromCategory] ?? []).slice(start, start + s.qtyFrom);
+    const from = remaining.get(s.fromCategory) ?? [];
+    const given = perRow(s.fromCategory) ? takeGiven(from, s) : [];
+    givenRow.set(s.publicId, given[0]?.row ?? null);
     const got = received.get(s.publicId)!;
     const amt = amounts(s);
+    const base = given.map((g) => g.value);
     const give = base.length === s.qtyFrom && base.every(Boolean) ? base.join(" + ") : amt?.give ?? null;
     const get = got.portions.length && got.portions.every(Boolean) ? got.portions.join(" + ") : amt?.get ?? null;
-    from.swapped.push({
+    byKey.get(s.fromCategory)?.swapped.push({
       swap: s,
       givePortion: give,
       getPortion: get,
       toCells: got.cells,
       toDishes: got.cells[0]?.dishes ?? byKey.get(s.toCategory)?.dishes ?? [],
     });
+    const to = remaining.get(s.toCategory) ?? [];
+    for (let i = 0; i < s.qtyTo; i++) to.push({ row: null, value: null });
+    remaining.set(s.toCategory, to);
+  }
+
+  for (const g of byKey.values()) {
+    const rows = (remaining.get(g.key) ?? []).filter((r) => r.row != null).map((r) => r.row!);
+    const known = perRow(g.key) && rows.length === g.cells.length;
+    const lines: { at: number; item: GroupItem }[] = [
+      ...g.swapped.map((sw) => ({ at: givenRow.get(sw.swap.publicId) ?? -1, item: { kind: "swapped" as const, swapped: sw } })),
+      ...g.cells.map((cell, index) => {
+        const row = known ? rows[index]! : null;
+        return { at: row ?? Number.MAX_SAFE_INTEGER, item: { kind: "cell" as const, cell, index, row } };
+      }),
+    ];
+    // Stable sort keeps swaps (at -1) ahead of cells when rows are unknown.
+    g.items = lines.sort((a, b) => a.at - b.at).map((l) => l.item);
   }
 
   const order = new Map(categories.map((c) => [c.key, c.sortOrder]));

@@ -27,6 +27,8 @@ import {
   capViolation,
   sameUnit,
   swapPairFits,
+  takeGiven,
+  type SlotRow,
   type SwapCategory,
   type SwapRow,
 } from "./swap-rules";
@@ -101,12 +103,12 @@ export function receivePickTu(ctx: CompositionContext, toKey: string): number | 
   return baseTuSlots(ctx, toKey)[0] ?? ctx.categories.get(toKey)?.pickTu ?? null;
 }
 
-/** Build per-category TU slot lists from composition, then fold applied swaps in order. */
-export function slotsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Map<string, number[]> {
-  const map = new Map<string, number[]>();
+/** Per-category TU slots with their base composition row, after folding applied swaps in order. */
+export function rowsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Map<string, SlotRow<number>[]> {
+  const map = new Map<string, SlotRow<number>[]>();
   for (const item of [...ctx.mealSizeItems].sort((a, b) => a.sortOrder - b.sortOrder)) {
     const list = map.get(item.category) ?? [];
-    list.push(item.tuAmount);
+    list.push({ row: list.length, value: item.tuAmount });
     map.set(item.category, list);
   }
   for (const key of Object.keys(ctx.baseCounts)) {
@@ -114,7 +116,7 @@ export function slotsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Ma
   }
   for (const s of applied) {
     const from = map.get(s.fromCategory) ?? [];
-    const given = from.splice(0, s.qtyFrom);
+    const given = takeGiven(from, s);
     map.set(s.fromCategory, from);
 
     const to = map.get(s.toCategory) ?? [];
@@ -122,14 +124,19 @@ export function slotsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Ma
     const toCat = ctx.categories.get(s.toCategory);
     // Same-unit swaps are like-for-like (validateProposedSwap): keep each given size.
     if (fromCat && toCat && sameUnit(fromCat, toCat) && given.length === s.qtyTo) {
-      to.push(...given);
+      to.push(...given.map((g) => ({ row: null, value: g.value })));
     } else {
       const rate = receivePickTu(ctx, s.toCategory) ?? 0;
-      for (let i = 0; i < s.qtyTo; i++) to.push(rate);
+      for (let i = 0; i < s.qtyTo; i++) to.push({ row: null, value: rate });
     }
     map.set(s.toCategory, to);
   }
   return map;
+}
+
+/** Build per-category TU slot lists from composition, then fold applied swaps in order. */
+export function slotsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Map<string, number[]> {
+  return new Map([...rowsAfterSwaps(ctx, applied)].map(([k, rows]) => [k, rows.map((r) => r.value)]));
 }
 
 /**
@@ -301,7 +308,8 @@ export function validateMealRules(ctx: MealRuleContext): { ok: true } | MealRule
 export type ValidateSwapInput = {
   composition: CompositionContext;
   applied: SwapRow[];
-  next: { fromCategory: string; toCategory: string; fromPicks: number };
+  /** fromRow: the base row given up (one pick); omit for the leading `fromPicks` rows. */
+  next: { fromCategory: string; toCategory: string; fromPicks: number; fromRow?: number | null };
 };
 
 export type ValidateSwapResult =
@@ -333,16 +341,21 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
     };
   }
 
-  const slots = slotsAfterSwaps(composition, applied);
-  const fromSlots = slots.get(next.fromCategory) ?? [];
-  if (fromSlots.length < next.fromPicks) {
+  const fromRows = rowsAfterSwaps(composition, applied).get(next.fromCategory) ?? [];
+  if (fromRows.length < next.fromPicks) {
     return {
       ok: false,
       reason: `Not enough ${labelOf(next.fromCategory, composition.labels)} left to give up on this day.`,
     };
   }
+  if (next.fromRow != null) {
+    if (next.fromPicks !== 1) return { ok: false, reason: "Swap one item at a time." };
+    if (!fromRows.some((r) => r.row === next.fromRow)) {
+      return { ok: false, reason: `That ${labelOf(next.fromCategory, composition.labels)} is already swapped on this day.` };
+    }
+  }
 
-  const giveTu = sumTu(fromSlots.slice(0, next.fromPicks));
+  const giveTu = sumTu(takeGiven([...fromRows], { qtyFrom: next.fromPicks, fromRow: next.fromRow }).map((r) => r.value));
   let qtyTo: number;
   let getTu: number;
   if (sameUnit(from, to)) {
@@ -366,6 +379,7 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
     toCategory: next.toCategory,
     qtyFrom: next.fromPicks,
     qtyTo,
+    fromRow: next.fromRow ?? null,
   };
 
   const available = applySwapsToCounts(composition.baseCounts, applied);
