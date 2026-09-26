@@ -144,14 +144,12 @@ export async function loadMySwapOptions(
   forDate?: string,
   provisionalSwaps?: { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow?: number | null }[],
   omitSwapPublicIds?: string[],
-  /** Edit meal greys out swaps it can't offer instead of hiding them. */
-  includeUnavailable = false,
 ): Promise<ActionResult<{ options: SwapOption[] }>> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
     const options = await listValidSwapOptionsForDelivery(deliveryPublicId, {
       forDate,
-      hideUnavailable: !includeUnavailable,
+      hideUnavailable: true,
       provisionalSwaps,
       omitSwapPublicIds,
     });

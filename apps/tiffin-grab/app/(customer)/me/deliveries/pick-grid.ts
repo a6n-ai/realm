@@ -11,7 +11,9 @@ import { buildMealsGrid, type GridCell } from "@/lib/menu/meals-grid";
 import { listRuleTextsForOrder } from "@/lib/menu/rule-texts";
 import { mealRulesService } from "@/lib/services/meal-rules.service";
 import type { MealRule } from "@/lib/menu/meal-rule-types";
-import { categoryCountsFromItems, portionsByCategory, slotRowsAfterSwaps, type PortionSwap } from "@/lib/menu/pick-size";
+import { categoryCountsFromItems, portionsByCategory, type PortionSwap } from "@/lib/menu/pick-size";
+import { foldProvisionalCells, previewPortions, type PreviewBase } from "@/lib/menu/pick-preview";
+import { loadCompositionContext } from "@/lib/services/swap-options.service";
 import type { TuCategory } from "@/lib/menu/format-tu";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
@@ -38,6 +40,8 @@ export type PickGrid = {
   rules: { publicId: string; text: string }[];
   /** The same rules, structured, so the sheet can hide dishes a save would refuse. */
   mealRules: MealRule[];
+  /** Loaded once so the sheet previews swaps locally instead of reloading the grid per tap. */
+  preview: PreviewBase;
 };
 
 function mapPortions(portions: Map<string, (string | null)[]>): Record<string, (string | null)[]> {
@@ -77,6 +81,7 @@ export async function loadPickGrid(
       persons: row.persons,
       rules: await listRuleTextsForOrder(row.planId, row.mealSizeId),
       mealRules: await mealRulesService.listEnabledForOrder({ planId: row.planId, mealSizeId: row.mealSizeId }),
+      preview: { items: [], tu: [], appliedByDate: {}, composition: { baseCounts: {}, mealSizeItems: [], categories: [] }, pairs: [] },
     };
 
     // Natural portions from meal_size_items × category TU (formatTuHuman) — never hardcoded.
@@ -176,82 +181,20 @@ export async function loadPickGrid(
           })));
     }
 
-    // Provisional swaps: adjust cells to match the same front-splice that
-    // portionsByCategory applies to portions, so cells and portions stay aligned.
-    if (provisional.length > 0) {
-      const catMeta = new Map(grid.categories.map((c) => [c.key, c]));
-      for (const [i, ps] of provisional.entries()) {
-        const date = ps.forDate;
-        // Rows still in the meal before this swap: that day's saved swaps, then the earlier unsaved ones.
-        const rowsBefore = slotRowsAfterSwaps(
-          items,
-          [...(appliedByDate.get(date) ?? []), ...provisional.slice(0, i).filter((p) => p.forDate === date)],
-          tuByKey,
-        );
-        // Gather persons present on this date.
-        const persons = [...new Set(grid.cells.filter((c) => c.dateIso === date).map((c) => c.personIndex))];
-        for (const person of persons) {
-          // Remove the cells the swap gives up — at the named row's position, else the leading ones.
-          const fromCells = grid.cells
-            .filter((c) => c.dateIso === date && c.personIndex === person && c.slot === ps.fromCategory)
-            .sort((a, b) => a.pickIndex - b.pickIndex);
-          const at = Math.max(0, ps.fromRow == null ? 0 : (rowsBefore.get(ps.fromCategory) ?? []).findIndex((r) => r.row === ps.fromRow));
-          const spliced = fromCells.slice(at, at + ps.qtyFrom);
-          const splicedKeys = new Set(spliced.map((c) => `${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`));
-          grid.cells = grid.cells.filter((c) => !splicedKeys.has(`${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`));
-
-          // Renumber remaining fromCategory cells so pickIndex is contiguous from 1.
-          const remaining = grid.cells
-            .filter((c) => c.dateIso === date && c.personIndex === person && c.slot === ps.fromCategory)
-            .sort((a, b) => a.pickIndex - b.pickIndex);
-          remaining.forEach((c, i) => { c.pickIndex = i + 1; });
-
-          // Add qtyTo cells to toCategory.
-          const existingTo = grid.cells
-            .filter((c) => c.dateIso === date && c.personIndex === person && c.slot === ps.toCategory)
-            .sort((a, b) => a.pickIndex - b.pickIndex);
-          const toCatMeta = catMeta.get(ps.toCategory);
-          const toSelectable = toCatMeta?.selectable ?? true;
-          // Inherit dishes from existing toCategory cells, or from the spliced cells if toCategory had none.
-          const toDishes = existingTo[0]?.dishes ?? spliced[0]?.dishes ?? [];
-          const basePickIndex = existingTo.length > 0 ? Math.max(...existingTo.map((c) => c.pickIndex)) : 0;
-          for (let i = 0; i < ps.qtyTo; i++) {
-            const src = spliced[i] ?? spliced[0];
-            if (!src) break;
-            grid.cells.push({
-              day: src.day,
-              dateIso: src.dateIso,
-              slot: ps.toCategory,
-              personIndex: person,
-              pickIndex: basePickIndex + i + 1,
-              selectable: toSelectable,
-              quantity: 1,
-              selectedDishId: null,
-              isDefaulted: false,
-              dishes: toDishes,
-              locked: src.locked,
-              lockNote: src.lockNote,
-            });
-          }
-        }
-      }
-    }
-
-    for (const date of eatingDates) {
-      const daySwaps: PortionSwap[] = [
-        ...(appliedByDate.get(date) ?? []),
-        ...provisional
-          .filter((s) => s.forDate === date)
-          .map((s) => ({
-            fromCategory: s.fromCategory,
-            toCategory: s.toCategory,
-            qtyFrom: s.qtyFrom,
-            qtyTo: s.qtyTo,
-            fromRow: s.fromRow ?? null,
-          })),
-      ];
-      grid.portionsByDate[date] = mapPortions(portionsByCategory(items, tuByKey, daySwaps));
-    }
+    const appliedRecord = Object.fromEntries(appliedByDate);
+    const [composition, pairs] = await Promise.all([
+      loadCompositionContext(row.mealSizeId, row.categoryCounts ?? {}),
+      dishCategoriesService.swapPairsForMealSize(row.mealSizeId),
+    ]);
+    grid.preview = {
+      items,
+      tu: [...tuByKey],
+      appliedByDate: appliedRecord,
+      composition: { ...composition, categories: [...composition.categories] },
+      pairs,
+    };
+    grid.cells = foldProvisionalCells({ cells: grid.cells, categories: grid.categories, base: grid.preview, provisional });
+    for (const date of eatingDates) grid.portionsByDate[date] = previewPortions(grid.preview, date, provisional);
 
     return { ok: true, grid };
   } catch (e) {

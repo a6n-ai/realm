@@ -10,7 +10,8 @@ import { PickSheet } from "../pick-sheet";
 const load = vi.fn();
 const pick = vi.fn();
 const savePicks = vi.fn();
-const loadSwaps = vi.fn();
+// Swap options are computed in the sheet now (pick-preview); tests set them directly.
+const swapOptions = vi.fn((): unknown[] => []);
 const applySwap = vi.fn();
 const removeSwap = vi.fn();
 
@@ -19,8 +20,11 @@ vi.mock("@/app/(customer)/me/meals/actions", () => ({
   pickMyDish: (...a: unknown[]) => pick(...a),
   saveMyMealSelections: (...a: unknown[]) => savePicks(...a),
 }));
+vi.mock("@/lib/menu/pick-preview", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/menu/pick-preview")>()),
+  previewSwapOptions: () => swapOptions(),
+}));
 vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
-  loadMySwapOptions: (...a: unknown[]) => loadSwaps(...a),
   applyMyDeliverySwap: (...a: unknown[]) => applySwap(...a),
   removeMyDeliverySwap: (...a: unknown[]) => removeSwap(...a),
 }));
@@ -63,6 +67,9 @@ const grid = (
     portionsBySlot: extras.portionsBySlot ?? { curry: ["8oz"] },
     portionsByDate: extras.portionsByDate ?? {},
     weekByDate: { [mon]: "wk1", [tue]: "wk1" },
+    rules: [],
+    mealRules: [],
+    preview: { items: [], tu: [], appliedByDate: {}, composition: { baseCounts: {}, mealSizeItems: [], categories: [] }, pairs: [] },
   },
 });
 const trip = (o: Partial<Trip> = {}): Trip => ({
@@ -99,7 +106,7 @@ beforeEach(() => {
   load.mockReset();
   pick.mockReset().mockResolvedValue({ ok: true });
   savePicks.mockReset().mockResolvedValue({ ok: true, saved: 1 });
-  loadSwaps.mockReset().mockResolvedValue({ options: [] });
+  swapOptions.mockReset().mockReturnValue([]);
   applySwap.mockReset().mockResolvedValue({ ok: true });
   removeSwap.mockReset().mockResolvedValue({ ok: true });
 });
@@ -178,8 +185,7 @@ describe("PickSheet", () => {
   });
 
   it("embeds valid swap destinations as radios on the leading row", async () => {
-    loadSwaps.mockResolvedValue({
-      options: [
+    swapOptions.mockReturnValue(({ options: [
         {
           fromCategory: "curry",
           toCategory: "daal",
@@ -193,7 +199,7 @@ describe("PickSheet", () => {
           getNatural: "8oz",
         },
       ],
-    });
+    }).options);
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
     const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
@@ -204,8 +210,7 @@ describe("PickSheet", () => {
   });
 
   it("persists a queued swap only when Save is pressed", async () => {
-    loadSwaps.mockResolvedValue({
-      options: [
+    swapOptions.mockReturnValue(({ options: [
         {
           fromCategory: "curry",
           toCategory: "daal",
@@ -219,7 +224,7 @@ describe("PickSheet", () => {
           getNatural: "8oz",
         },
       ],
-    });
+    }).options);
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
@@ -231,8 +236,7 @@ describe("PickSheet", () => {
   });
 
   it("discards a queued swap when the sheet closes without Done", async () => {
-    loadSwaps.mockResolvedValue({
-      options: [
+    swapOptions.mockReturnValue(({ options: [
         {
           fromCategory: "curry",
           toCategory: "daal",
@@ -246,7 +250,7 @@ describe("PickSheet", () => {
           getNatural: "8oz",
         },
       ],
-    });
+    }).options);
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
     fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
@@ -283,8 +287,7 @@ describe("PickSheet", () => {
   });
 
   it("shows radios on fixed categories when admin swap pairs start from that category", async () => {
-    loadSwaps.mockResolvedValue({
-      options: [
+    swapOptions.mockReturnValue(({ options: [
         {
           fromCategory: "rice",
           toCategory: "roti",
@@ -298,7 +301,7 @@ describe("PickSheet", () => {
           getNatural: "2 roti",
         },
       ],
-    });
+    }).options);
     load.mockResolvedValue(
       grid(
         [
@@ -394,8 +397,7 @@ describe("PickSheet", () => {
         },
       ),
     );
-    loadSwaps.mockResolvedValue({
-      options: [
+    swapOptions.mockReturnValue(({ options: [
         {
           fromCategory: "roti",
           toCategory: "rice",
@@ -410,7 +412,7 @@ describe("PickSheet", () => {
           getNatural: "1 unit",
         },
       ],
-    });
+    }).options);
     const rotiPlan = {
       ...plan,
       categoryLabels: { roti: "Roti", rice: "Rice" },
@@ -472,8 +474,7 @@ describe("PickSheet", () => {
     load.mockResolvedValue(
       grid([cell({ day: "mon", dateIso: mon, slot: "curry", dishes, selectedDishId: "d1" })]),
     );
-    loadSwaps.mockResolvedValue({
-      options: [
+    swapOptions.mockReturnValue(({ options: [
         {
           fromCategory: "curry",
           toCategory: "daal",
@@ -488,7 +489,7 @@ describe("PickSheet", () => {
           getNatural: "8oz",
         },
       ],
-    });
+    }).options);
     applySwap.mockResolvedValueOnce({
       error: "Minified React error #441; visit https://reactjs.org/docs/error-decoder.html?invariant=441",
     });
@@ -526,7 +527,7 @@ describe("PickSheet", () => {
     } as unknown as PlanView;
 
     it("labels the button Done until something changes, then Save, keeping the swapped row in place", async () => {
-      loadSwaps.mockResolvedValue({ options: [curryToDaal] });
+      swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
       const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
@@ -536,25 +537,35 @@ describe("PickSheet", () => {
       expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
       const daal = screen.getAllByRole("radio", { name: /^Daal/ });
       expect(daal.some((r) => r.getAttribute("aria-checked") === "true")).toBe(true);
-      expect(screen.getByRole("radio", { name: /^Keep / })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^Undo swap/ })).toBeInTheDocument();
       expect(applySwap).not.toHaveBeenCalled();
+    });
+
+    it("folds a swap in locally: no grid reload, and Undo swap needs none either", async () => {
+      swapOptions.mockReturnValue([curryToDaal]);
+      load.mockResolvedValue(grid([cell({})]));
+      show(trip({ coversDates: [mon] }));
+      fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /^Undo swap/ }));
+      expect(await screen.findByText(/^Removed/)).toBeInTheDocument();
+      expect(load).toHaveBeenCalledTimes(1);
     });
 
     it("removes a swap with its own eating day even when another day's tab is open at Save", async () => {
       load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue" })]));
       render(<PickSheet trip={trip()} plan={planWithMonSwap} open onDone={vi.fn()} />);
-      fireEvent.click(await screen.findByRole("radio", { name: /^Keep / }));
+      fireEvent.click(await screen.findByRole("button", { name: /^Undo swap/ }));
       fireEvent.click(await screen.findByRole("tab", { name: /Tue/ }));
       fireEvent.click(await screen.findByRole("button", { name: "Save" }));
       await waitFor(() => expect(removeSwap).toHaveBeenCalledWith("dlv1", "s1", mon));
     });
 
     it("retrying Save after a failed apply does not re-send the removal that already succeeded", async () => {
-      loadSwaps.mockResolvedValue({ options: [curryToDaal] });
+      swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
       applySwap.mockResolvedValueOnce({ error: "Not enough Curry left to give up on this day." });
       render(<PickSheet trip={trip({ coversDates: [mon] })} plan={planWithMonSwap} open onDone={vi.fn()} />);
-      fireEvent.click(await screen.findByRole("radio", { name: /^Keep / }));
+      fireEvent.click(await screen.findByRole("button", { name: /^Undo swap/ }));
       fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
       await screen.findByText(/press Save/);
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
