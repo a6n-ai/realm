@@ -75,7 +75,10 @@ export async function sendStaffInvitation(input: {
       event: "staff_invitation",
       recipientEmail: input.email,
       title: `You've been invited to ${APP_NAME}`,
-      body: "",
+      // Used only when the staff_invitation template row is missing (templates
+      // are seeded by hand; prod had none as of 2026-09-27) — an empty body
+      // mailed an invite with no link.
+      body: `You've been invited to join the ${APP_NAME} team as ${input.role}. Accept here (the link signs you in): ${input.inviteUrl}`,
       data: { role: input.role, inviteUrl: input.inviteUrl },
       channels: ["email"],
       kind: "transactional",
