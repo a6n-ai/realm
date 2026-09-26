@@ -366,6 +366,8 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * receive rate for cross-unit swaps (rice ↔ roti); same-unit swaps keep given TU.
    * Give-side TU for multi-row categories comes from actual composition rows in
    * meal-validation (slotsAfterSwaps) — not from fromPicks × pickTu.
+   * slotTu = every composition-row TU in sortOrder so applied-swap labels can
+   * front-splice the real sizes (12oz then 8oz), matching meal columns.
    * Multi-row compositions with different tuAmount (Sabzi 1.5 + Sabzi 1.0) remain
    * separate picks for selection; Max TU uses the simulated slot sum after swaps.
    */
@@ -385,9 +387,22 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
         .orderBy(asc(mealSizeItems.sortOrder)),
     ]);
     const pickTu = new Map<string, number>();
-    for (const i of items) if (!pickTu.has(i.category)) pickTu.set(i.category, Number(i.tuAmount));
+    const slotTu = new Map<string, number[]>();
+    for (const i of items) {
+      const tu = Number(i.tuAmount);
+      if (!pickTu.has(i.category)) pickTu.set(i.category, tu);
+      const slots = slotTu.get(i.category) ?? [];
+      slots.push(tu);
+      slotTu.set(i.category, slots);
+    }
     return new Map(cats.map((c) => [c.key, {
-      key: c.key, pickTu: pickTu.get(c.key) ?? null, unitType: c.unitType, unitLabel: c.unitLabel, unitSize: Number(c.unitSize), maxPicksPerTiffin: c.maxPicksPerTiffin,
+      key: c.key,
+      pickTu: pickTu.get(c.key) ?? null,
+      slotTu: slotTu.get(c.key) ?? [],
+      unitType: c.unitType,
+      unitLabel: c.unitLabel,
+      unitSize: Number(c.unitSize),
+      maxPicksPerTiffin: c.maxPicksPerTiffin,
     }]));
   }
 

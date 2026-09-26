@@ -1,4 +1,4 @@
-import { swapLabel, type SwapCategory } from "@/lib/menu/swap-rules";
+import { labelAppliedSwaps, type SwapCategory } from "@/lib/menu/swap-rules";
 import type { CalendarDayInput, PlanContext, Trip } from "@/lib/deliveries-view";
 import type { CalendarDay, CustomerDelivery, Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 
@@ -48,7 +48,10 @@ export function toCalendarInputs(a: {
       movedTo: r && a.makeupSources instanceof Map ? a.makeupSources.get(r.id.toString()) : undefined,
       mealsByDate,
       appliedSwaps: Object.fromEntries(
-        (d.eatingDays ?? []).map((e) => [e.date, e.appliedSwaps.map((s) => ({ label: swapLabel(s, label, a.swapCategories) }))]),
+        (d.eatingDays ?? []).map((e) => {
+          const labels = labelAppliedSwaps(e.appliedSwaps, label, a.swapCategories);
+          return [e.date, e.appliedSwaps.map((_, i) => ({ label: labels[i]! }))];
+        }),
       ),
     };
   });

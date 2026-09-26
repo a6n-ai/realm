@@ -502,11 +502,14 @@ export async function createOrder(
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
 
-    const selectedDeliveryType = input.selections.deliveryTypeId
-      ? snapshot.deliveryCharges?.deliveryTypes.find((t) => t.publicId === input.selections.deliveryTypeId)
+    const optionId = input.selections.deliveryOptionId ?? input.selections.deliveryTypeId;
+    const tagId = input.selections.deliveryTagId ?? input.selections.addressTagId;
+
+    const selectedDeliveryType = optionId
+      ? (snapshot.deliveryCharges?.deliveryOptions ?? snapshot.deliveryCharges?.deliveryTypes ?? []).find((t) => t.publicId === optionId)
       : null;
-    const selectedAddressTag = input.selections.addressTagId
-      ? snapshot.deliveryCharges?.addressTags.find((a) => a.publicId === input.selections.addressTagId)
+    const selectedAddressTag = tagId
+      ? (snapshot.deliveryCharges?.deliveryTags ?? snapshot.deliveryCharges?.addressTags ?? []).find((a) => a.publicId === tagId)
       : null;
 
     const [order] = await tx
@@ -530,6 +533,8 @@ export async function createOrder(
         pricingSnapshot,
         total: pricing.total.toFixed(2),
         deliveryCharge: (pricing.deliveryCharge?.totalDeliveryCharge ?? 0).toFixed(2),
+        deliveryOptionId: selectedDeliveryType?.id ?? null,
+        deliveryTagId: selectedAddressTag?.id ?? null,
         deliveryTypeId: selectedDeliveryType?.id ?? null,
         addressTagId: selectedAddressTag?.id ?? null,
         status,

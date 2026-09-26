@@ -27,7 +27,7 @@ import { deliveryLine, eatingRowsInWeek, weekdayShort, type EatingRow } from "@/
 import { moveOptions } from "@/lib/deliveries-view/move";
 import { movesOneEatDay } from "@/lib/menu/coverage";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
-import { applySwapsToCounts, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
+import { applySwapsToCounts, labelAppliedSwaps, smallestSwapNote, swapAmounts, swapQuantities } from "@/lib/menu/swap-rules";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { statusMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { TableCell } from "@foundry/ui/table";
@@ -372,12 +372,15 @@ function SwapDialog({ row, data, onClose, onDone }: { row: EatingRow; data: Orde
         <DialogHeader><DialogTitle>Swap items · {humanDate(row.date)}</DialogTitle><DialogDescription>Swaps apply to this eating day only.</DialogDescription></DialogHeader>
         {applied.length > 0 && (
           <ul className="space-y-1 text-sm">
-            {applied.map((s) => (
-              <li key={s.publicId} className="flex items-center justify-between gap-2">
-                <Badge variant="secondary">{swapLabel(s, label, plan.swapCategories)}</Badge>
-                <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => removeMyDeliverySwap(trip.deliveryId!, s.publicId, row.date), "Swap removed.")}>Remove</Button>
-              </li>
-            ))}
+            {labelAppliedSwaps(applied, label, plan.swapCategories).map((text, i) => {
+              const s = applied[i]!;
+              return (
+                <li key={s.publicId} className="flex items-center justify-between gap-2">
+                  <Badge variant="secondary">{text}</Badge>
+                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => removeMyDeliverySwap(trip.deliveryId!, s.publicId, row.date), "Swap removed.")}>Remove</Button>
+                </li>
+              );
+            })}
           </ul>
         )}
         {pairs.length === 0 ? <p className="text-muted-foreground text-sm">No swaps are available for this meal size.</p> : (

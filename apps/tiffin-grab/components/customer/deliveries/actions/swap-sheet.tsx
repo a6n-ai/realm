@@ -6,7 +6,7 @@ import { Button, Chip, Notice, Reason, Segmented, Sheet, Skeleton, panelId } fro
 import { cn } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
 import type { SwapOption } from "@/lib/menu/meal-validation";
-import { swapLabel } from "@/lib/menu/swap-rules";
+import { labelAppliedSwaps } from "@/lib/menu/swap-rules";
 import type { ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 import type { ActionSheetProps } from "./types";
 
@@ -238,8 +238,8 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
               {applied.length > 0 && (
                 <section aria-label="Applied swaps" className="flex flex-col gap-2">
                   <h3 className="text-sm font-semibold">Applied on this day</h3>
-                  {applied.map((s) => {
-                    const text = swapLabel(s, label, cats);
+                  {labelAppliedSwaps(applied, label, cats).map((text, i) => {
+                    const s = applied[i]!;
                     return (
                       <div key={s.publicId} className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--muted)] py-1 pl-4 pr-1">
                         <Chip tone="swap">{text}</Chip>

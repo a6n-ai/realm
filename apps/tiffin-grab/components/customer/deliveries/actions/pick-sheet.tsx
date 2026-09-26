@@ -27,7 +27,7 @@ import {
   hasOutgoingSwapOptions,
   parseSlotOptionValue,
 } from "@/lib/menu/slot-dropdown";
-import { swapLabel } from "@/lib/menu/swap-rules";
+import { labelAppliedSwaps } from "@/lib/menu/swap-rules";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import type { ActionSheetProps } from "./types";
 
@@ -371,8 +371,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
               {appliedSwaps.length > 0 && (
                 <section aria-label="Applied swaps" className="flex flex-col gap-2">
                   <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>Exchanges today</h4>
-                  {appliedSwaps.map((s) => {
-                    const text = swapLabel(s, labelOf, plan.swapCategories);
+                  {labelAppliedSwaps(appliedSwaps, labelOf, plan.swapCategories).map((text, i) => {
+                    const s = appliedSwaps[i]!;
                     return (
                       <div
                         key={s.publicId}

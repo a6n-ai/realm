@@ -13,8 +13,8 @@ export const deliveryChargeConfigs = pgTable("delivery_charge_configs", {
   index("delivery_charge_configs_org_idx").on(t.organizationId),
 ]);
 
-export const deliveryTypes = pgTable("delivery_types", {
-  ...updatableColumns("dtp"),
+export const deliveryTags = pgTable("delivery_tags", {
+  ...updatableColumns("dtg"),
   name: text("name").notNull(),
   description: text("description"),
   chargeType: deliveryChargeType("charge_type").notNull().default("none"),
@@ -23,13 +23,14 @@ export const deliveryTypes = pgTable("delivery_types", {
   sortOrder: integer("sort_order").notNull().default(0),
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
-  uniqueIndex("delivery_types_name_unique").on(t.name),
-  index("delivery_types_active_idx").on(t.active),
-  index("delivery_types_org_idx").on(t.organizationId),
+  uniqueIndex("delivery_tags_name_unique").on(t.name),
+  index("delivery_tags_active_idx").on(t.active),
+  index("delivery_tags_org_idx").on(t.organizationId),
 ]);
 
-export const addressTags = pgTable("address_tags", {
-  ...updatableColumns("atg"),
+export const deliveryOptions = pgTable("delivery_options", {
+  ...updatableColumns("dop"),
+  tagId: bigint("tag_id", { mode: "bigint" }).references(() => deliveryTags.id),
   name: text("name").notNull(),
   description: text("description"),
   chargeType: deliveryChargeType("charge_type").notNull().default("none"),
@@ -38,7 +39,13 @@ export const addressTags = pgTable("address_tags", {
   sortOrder: integer("sort_order").notNull().default(0),
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
-  uniqueIndex("address_tags_name_unique").on(t.name),
-  index("address_tags_active_idx").on(t.active),
-  index("address_tags_org_idx").on(t.organizationId),
+  uniqueIndex("delivery_options_name_tag_unique").on(t.name, t.tagId),
+  index("delivery_options_tag_idx").on(t.tagId),
+  index("delivery_options_active_idx").on(t.active),
+  index("delivery_options_org_idx").on(t.organizationId),
 ]);
+
+// Backward compatibility exports during transition
+// Backward compatibility exports during transition
+export const addressTags = deliveryTags;
+

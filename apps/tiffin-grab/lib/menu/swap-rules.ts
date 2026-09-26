@@ -35,6 +35,12 @@ export type SwapCategory = {
   maxPicksPerTiffin: number | null;
   /** How many natural units one TU is (tu_unit_size); needed to show oz/roti instead of raw TU. */
   unitSize?: number;
+  /**
+   * All composition-row TUs in catalog sortOrder (e.g. Sabzi 1.5 + 1.0).
+   * Applied-swap labels front-splice these so "Exchanges today" matches meal columns —
+   * not fromPicks × first-row pickTu.
+   */
+  slotTu?: number[];
 };
 
 /** Same natural unit (oz ↔ oz): each given pick becomes one received pick of the same TU. */
@@ -95,6 +101,85 @@ export function swapAmounts(
 export function swapLabel(s: SwapRow, label: (key: string) => string, cats?: Record<string, SwapCategory>): string {
   const a = swapAmounts(cats?.[s.fromCategory], cats?.[s.toCategory], s.qtyFrom, s.qtyTo);
   return a ? `${label(s.fromCategory)} · ${a.give} → ${label(s.toCategory)} · ${a.get}` : `${s.qtyFrom} ${label(s.fromCategory)} → ${s.qtyTo} ${label(s.toCategory)}`;
+}
+
+function formatSlotNatural(cat: SwapCategory | undefined, tus: number[]): string | null {
+  if (!cat?.unitSize || tus.length === 0) return null;
+  const parts = tus.map((tu) =>
+    formatTuHuman({ tuUnitType: cat.unitType, tuUnitSize: cat.unitSize!, tuUnitLabel: cat.unitLabel }, tu),
+  );
+  return parts.join(" + ");
+}
+
+function workingSlots(cats: Record<string, SwapCategory>): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  for (const [key, cat] of Object.entries(cats)) {
+    if (cat.slotTu && cat.slotTu.length > 0) out.set(key, [...cat.slotTu]);
+    else if (cat.pickTu != null) out.set(key, [cat.pickTu]);
+    else out.set(key, []);
+  }
+  return out;
+}
+
+/**
+ * Human give/get for each applied swap in order, using the same front-splice
+ * like-for-like rules as meal columns. Prefer this over swapLabel when labeling
+ * a stack of applied swaps (heterogeneous Sabzi 12oz+8oz → two Daal chips).
+ */
+export function appliedSwapAmounts(
+  swaps: SwapRow[],
+  cats: Record<string, SwapCategory> | undefined,
+): ({ give: string; get: string } | null)[] {
+  if (!cats || swaps.length === 0) return swaps.map(() => null);
+
+  const slots = workingSlots(cats);
+  const catalogFirst = new Map<string, number | null>();
+  for (const [key, list] of slots) catalogFirst.set(key, list[0] ?? cats[key]?.pickTu ?? null);
+
+  return swaps.map((s) => {
+    const fromCat = cats[s.fromCategory];
+    const toCat = cats[s.toCategory];
+    const from = slots.get(s.fromCategory) ?? [];
+    const given = from.splice(0, s.qtyFrom);
+    slots.set(s.fromCategory, from);
+
+    const to = slots.get(s.toCategory) ?? [];
+    let received: number[];
+    if (fromCat && toCat && sameUnit(fromCat, toCat) && given.length === s.qtyTo) {
+      received = given;
+      to.push(...given);
+    } else {
+      const rate = catalogFirst.get(s.toCategory) ?? toCat?.pickTu ?? null;
+      received = rate == null ? [] : Array.from({ length: s.qtyTo }, () => rate);
+      to.push(...received);
+    }
+    slots.set(s.toCategory, to);
+
+    const give = formatSlotNatural(fromCat, given);
+    const get =
+      fromCat && toCat && sameUnit(fromCat, toCat)
+        ? formatSlotNatural(toCat, received)
+        : swapAmounts(fromCat, toCat, s.qtyFrom, s.qtyTo)?.get ?? formatSlotNatural(toCat, received);
+    if (give && get) return { give, get };
+
+    // Incomplete slot data — fall back to first-row pickTu math for this row only.
+    return swapAmounts(fromCat, toCat, s.qtyFrom, s.qtyTo);
+  });
+}
+
+/** Labels for an applied swap stack; each chip uses the slot sizes that swap actually moved. */
+export function labelAppliedSwaps(
+  swaps: SwapRow[],
+  label: (key: string) => string,
+  cats?: Record<string, SwapCategory>,
+): string[] {
+  const amounts = appliedSwapAmounts(swaps, cats);
+  return swaps.map((s, i) => {
+    const a = amounts[i];
+    return a
+      ? `${label(s.fromCategory)} · ${a.give} → ${label(s.toCategory)} · ${a.get}`
+      : swapLabel(s, label, cats);
+  });
 }
 
 /** True when some give-count in 1..availableFromPicks divides evenly into the destination (pair-fit only). */

@@ -1,7 +1,8 @@
 import { makePublicId, updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { deliveryTypes, addressTags } from "./delivery-charges";
+import { deliveryOptions, deliveryTags, addressTags } from "./delivery-charges";
+import { deliveryStrategies } from "@foundry/delivery";
 
 // better-auth (generateId:false) reads these ids as opaque strings and never
 // sets them — the DB default fills them. Keep the column text but derive from
@@ -58,7 +59,9 @@ export const users = pgTable(
     city: text("city"),
     postalCode: text("postal_code"),
     province: text("province"),
-    deliveryTypeId: bigint("delivery_type_id", { mode: "bigint" }).references(() => deliveryTypes.id),
+    deliveryOptionId: bigint("delivery_option_id", { mode: "bigint" }).references(() => deliveryOptions.id),
+    deliveryTagId: bigint("delivery_tag_id", { mode: "bigint" }).references(() => deliveryTags.id),
+    deliveryTypeId: bigint("delivery_type_id", { mode: "bigint" }).references(() => deliveryStrategies.id),
     addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
     dietaryNotes: text("dietary_notes"),
     allergens: text("allergens"),

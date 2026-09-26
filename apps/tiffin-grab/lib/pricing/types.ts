@@ -20,8 +20,9 @@ export interface PricingSelections {
   // Add-ons picked in the wizard, with quantity. Optional — omitted/empty means
   // no add-ons, so existing callers built before add-ons existed keep working.
   addonSelections?: { key: string; qty: number }[];
-  deliveryTypeId?: string | null;
-  addressTagId?: string | null;
+  deliveryOptionId?: string | null;
+  deliveryTagId?: string | null;
+
 }
 
 export interface PricingCatalog {
@@ -38,6 +39,8 @@ export interface PricingCatalog {
   maxDiscountPct?: number;
   deliveryChargeConfig?: {
     baseCharge: number;
+    deliveryOption?: DeliveryChargeItemLike | null;
+    deliveryTag?: DeliveryChargeItemLike | null;
     deliveryType?: DeliveryChargeItemLike | null;
     addressTag?: DeliveryChargeItemLike | null;
   };

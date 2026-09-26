@@ -37,6 +37,34 @@ describe("toCalendarInputs", () => {
     expect(out[0]!.mealsByDate!["2026-09-26"]).toBe(meal);
     expect(out[0]!.appliedSwaps!["2026-09-26"]).toEqual([{ label: "1 Rice → 4 Roti" }]);
   });
+
+  it("labels successive same-unit swaps from composition slot sizes (12oz then 8oz)", () => {
+    const out = toCalendarInputs({
+      days: [
+        day("2026-09-25", {
+          eatingDays: [{
+            date: "2026-09-25",
+            swapPairs: [],
+            appliedSwaps: [
+              { publicId: "a", fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 },
+              { publicId: "b", fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 },
+            ],
+          }],
+        }),
+      ],
+      rows: [row("a", "2026-09-25")],
+      makeupSources: new Set(),
+      categoryLabels: { sabzi: "Sabzi", daal: "Daal" },
+      swapCategories: {
+        sabzi: { key: "sabzi", pickTu: 1.5, slotTu: [1.5, 1.0], unitType: "weight", unitLabel: "oz", unitSize: 8, maxPicksPerTiffin: null },
+        daal: { key: "daal", pickTu: 1.5, slotTu: [1.5], unitType: "weight", unitLabel: "oz", unitSize: 8, maxPicksPerTiffin: null },
+      },
+    });
+    expect(out[0]!.appliedSwaps!["2026-09-25"]).toEqual([
+      { label: "Sabzi · 12oz → Daal · 12oz" },
+      { label: "Sabzi · 8oz → Daal · 8oz" },
+    ]);
+  });
 });
 
 describe("plan context", () => {

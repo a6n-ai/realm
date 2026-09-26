@@ -60,7 +60,41 @@ export interface CatalogSnapshot {
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
-    deliveryTypes: {
+    deliveryTags?: {
+      id: bigint;
+      publicId: string;
+      name: string;
+      description: string | null;
+      chargeType: "none" | "fixed" | "percent";
+      chargeValue: number;
+      active: boolean;
+      sortOrder: number;
+      options?: {
+        id: bigint;
+        publicId: string;
+        tagId: bigint | null;
+        name: string;
+        description: string | null;
+        chargeType: "none" | "fixed" | "percent";
+        chargeValue: number;
+        active: boolean;
+        sortOrder: number;
+      }[];
+    }[];
+    deliveryOptions?: {
+      id: bigint;
+      publicId: string;
+      tagId: bigint | null;
+      tagPublicId?: string | null;
+      tagName?: string | null;
+      name: string;
+      description: string | null;
+      chargeType: "none" | "fixed" | "percent";
+      chargeValue: number;
+      active: boolean;
+      sortOrder: number;
+    }[];
+    deliveryStrategies: {
       id: bigint;
       publicId: string;
       name: string;
@@ -104,7 +138,37 @@ export interface ClientCatalogSnapshot {
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
-    deliveryTypes: {
+    deliveryTags: {
+      id: string; // publicId
+      name: string;
+      description: string | null;
+      chargeType: "none" | "fixed" | "percent";
+      chargeValue: number;
+      active: boolean;
+      sortOrder: number;
+      options?: {
+        id: string; // publicId
+        tagId?: string | null;
+        name: string;
+        description: string | null;
+        chargeType: "none" | "fixed" | "percent";
+        chargeValue: number;
+        active: boolean;
+        sortOrder: number;
+      }[];
+    }[];
+    deliveryOptions: {
+      id: string; // publicId
+      tagId?: string | null;
+      tagName?: string | null;
+      name: string;
+      description: string | null;
+      chargeType: "none" | "fixed" | "percent";
+      chargeValue: number;
+      active: boolean;
+      sortOrder: number;
+    }[];
+    deliveryStrategies: {
       id: string; // publicId
       name: string;
       description: string | null;
@@ -146,7 +210,43 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     deliveryCharges: snapshot.deliveryCharges
       ? {
           baseCharge: snapshot.deliveryCharges.baseCharge,
-          deliveryTypes: snapshot.deliveryCharges.deliveryTypes
+          deliveryTags: (snapshot.deliveryCharges.deliveryTags ?? [])
+            .filter((t) => t.active)
+            .map((t) => ({
+              id: t.publicId,
+              name: t.name,
+              description: t.description,
+              chargeType: t.chargeType,
+              chargeValue: t.chargeValue,
+              active: t.active,
+              sortOrder: t.sortOrder,
+              options: (t.options ?? [])
+                .filter((o) => o.active)
+                .map((o) => ({
+                  id: o.publicId,
+                  tagId: t.publicId,
+                  name: o.name,
+                  description: o.description,
+                  chargeType: o.chargeType,
+                  chargeValue: o.chargeValue,
+                  active: o.active,
+                  sortOrder: o.sortOrder,
+                })),
+            })),
+          deliveryOptions: (snapshot.deliveryCharges.deliveryOptions ?? [])
+            .filter((o) => o.active)
+            .map((o) => ({
+              id: o.publicId,
+              tagId: o.tagPublicId ?? null,
+              tagName: o.tagName ?? null,
+              name: o.name,
+              description: o.description,
+              chargeType: o.chargeType,
+              chargeValue: o.chargeValue,
+              active: o.active,
+              sortOrder: o.sortOrder,
+            })),
+          deliveryStrategies: (snapshot.deliveryCharges.deliveryStrategies ?? [])
             .filter((d) => d.active)
             .map((d) => ({
               id: d.publicId,
@@ -155,7 +255,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
               chargeType: d.chargeType,
               chargeValue: d.chargeValue,
             })),
-          addressTags: snapshot.deliveryCharges.addressTags
+          addressTags: (snapshot.deliveryCharges.addressTags ?? [])
             .filter((a) => a.active)
             .map((a) => ({
               id: a.publicId,

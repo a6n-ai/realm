@@ -3,10 +3,12 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
 import {
-  addressTags,
   deliveryChargeConfigs,
   deliveryFrequencies,
-  deliveryTypes,
+  deliveryOptions,
+  deliveryStrategies,
+  deliveryTags,
+
   deliveryZones,
   discounts,
   dishCategories,
@@ -77,8 +79,8 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     getAppSettings(),
     db.select().from(discounts).where(and(eq(discounts.active, true), scopedTo(discounts.organizationId, orgId), or(isNull(discounts.startsAt), lte(discounts.startsAt, nowMs)), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)))),
     db.select().from(deliveryChargeConfigs).where(scopedTo(deliveryChargeConfigs.organizationId, orgId)).limit(1),
+    db.select().from(deliveryOptions).where(and(eq(deliveryOptions.active, true), scopedTo(deliveryOptions.organizationId, orgId))).orderBy(deliveryOptions.sortOrder, deliveryOptions.name),
     db.select().from(deliveryTypes).where(and(eq(deliveryTypes.active, true), scopedTo(deliveryTypes.organizationId, orgId))).orderBy(deliveryTypes.sortOrder, deliveryTypes.name),
-    db.select().from(addressTags).where(and(eq(addressTags.active, true), scopedTo(addressTags.organizationId, orgId))).orderBy(addressTags.sortOrder, addressTags.name),
   ]);
   const publicIdByTarget = new Map<string, string>([
     ...freqRows.map((f) => [`delivery:${f.id}`, f.publicId] as [string, string]),
@@ -97,6 +99,31 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     if (bucket) bucket.push(item);
     else itemsByMealSize.set(item.mealSizeId, [item]);
   }
+  const tagMap = new Map(tagRows.map((t) => [t.id, t]));
+  const mappedOptions = typeRows.map((t) => ({
+    id: t.id,
+    publicId: t.publicId,
+    tagId: t.tagId,
+    tagPublicId: t.tagId ? tagMap.get(t.tagId)?.publicId ?? null : null,
+    tagName: t.tagId ? tagMap.get(t.tagId)?.name ?? null : null,
+    name: t.name,
+    description: t.description,
+    chargeType: t.chargeType,
+    chargeValue: Number(t.chargeValue),
+    active: t.active,
+    sortOrder: t.sortOrder,
+  }));
+  const mappedTags = tagRows.map((a) => ({
+    id: a.id,
+    publicId: a.publicId,
+    name: a.name,
+    description: a.description,
+    chargeType: a.chargeType,
+    chargeValue: Number(a.chargeValue),
+    active: a.active,
+    sortOrder: a.sortOrder,
+    options: mappedOptions.filter((o) => o.tagId === a.id),
+  }));
   return {
     plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: slotKeys[p.planType as "tiffin" | "healthy"], allowedStartDays: p.allowedStartDays })),
     mealSizes: mealRows.map((m) => ({
@@ -131,26 +158,10 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     maxDiscountPct: settings.maxDiscountPct,
     deliveryCharges: {
       baseCharge: configRows[0] ? Number(configRows[0].baseCharge) : 0,
-      deliveryTypes: typeRows.map((t) => ({
-        id: t.id,
-        publicId: t.publicId,
-        name: t.name,
-        description: t.description,
-        chargeType: t.chargeType,
-        chargeValue: Number(t.chargeValue),
-        active: t.active,
-        sortOrder: t.sortOrder,
-      })),
-      addressTags: tagRows.map((a) => ({
-        id: a.id,
-        publicId: a.publicId,
-        name: a.name,
-        description: a.description,
-        chargeType: a.chargeType,
-        chargeValue: Number(a.chargeValue),
-        active: a.active,
-        sortOrder: a.sortOrder,
-      })),
+      deliveryTags: mappedTags,
+      deliveryOptions: mappedOptions,
+      deliveryTypes: mappedOptions,
+      addressTags: mappedTags,
     },
   };
 }

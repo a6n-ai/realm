@@ -2,7 +2,7 @@ import { UpdatableRepository } from "@foundry/database";
 import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { account, addressTags, deliveryTypes, session, users } from "@/db/schema";
+import { account, deliveryOptions, deliveryTags, deliveryStrategies, addressTags, session, users } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
@@ -218,6 +218,8 @@ class UsersService extends SessionUpdatableService<typeof users> {
       city?: string | null;
       postalCode?: string | null;
       province?: string | null;
+      deliveryOptionId?: string | null;
+      deliveryTagId?: string | null;
       deliveryTypeId?: string | null;
       addressTagId?: string | null;
     },
@@ -228,6 +230,8 @@ class UsersService extends SessionUpdatableService<typeof users> {
       city?: string | null;
       postalCode?: string | null;
       province?: string | null;
+      deliveryOptionId?: bigint | null;
+      deliveryTagId?: bigint | null;
       deliveryTypeId?: bigint | null;
       addressTagId?: bigint | null;
     } = {};
@@ -242,20 +246,26 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (input.postalCode !== undefined) patch.postalCode = norm(input.postalCode, 20, "Postal code");
     if (input.province !== undefined) patch.province = norm(input.province, 60, "Province");
 
-    if (input.deliveryTypeId !== undefined) {
-      if (!input.deliveryTypeId) {
+    if (input.deliveryOptionId !== undefined || input.deliveryTypeId !== undefined) {
+      const optId = input.deliveryOptionId ?? input.deliveryTypeId;
+      if (!optId) {
+        patch.deliveryOptionId = null;
         patch.deliveryTypeId = null;
       } else {
-        const [dt] = await db.select({ id: deliveryTypes.id }).from(deliveryTypes).where(eq(deliveryTypes.publicId, input.deliveryTypeId)).limit(1);
-        patch.deliveryTypeId = dt?.id ?? null;
+        const [dop] = await db.select({ id: deliveryOptions.id }).from(deliveryOptions).where(eq(deliveryOptions.publicId, optId)).limit(1);
+        patch.deliveryOptionId = dop?.id ?? null;
+        patch.deliveryTypeId = dop?.id ?? null;
       }
     }
-    if (input.addressTagId !== undefined) {
-      if (!input.addressTagId) {
+    if (input.deliveryTagId !== undefined || input.addressTagId !== undefined) {
+      const tagId = input.deliveryTagId ?? input.addressTagId;
+      if (!tagId) {
+        patch.deliveryTagId = null;
         patch.addressTagId = null;
       } else {
-        const [at] = await db.select({ id: addressTags.id }).from(addressTags).where(eq(addressTags.publicId, input.addressTagId)).limit(1);
-        patch.addressTagId = at?.id ?? null;
+        const [dtg] = await db.select({ id: deliveryTags.id }).from(deliveryTags).where(eq(deliveryTags.publicId, tagId)).limit(1);
+        patch.deliveryTagId = dtg?.id ?? null;
+        patch.addressTagId = dtg?.id ?? null;
       }
     }
 

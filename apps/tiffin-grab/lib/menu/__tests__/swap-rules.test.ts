@@ -78,6 +78,47 @@ describe("swapAmounts / swapLabel (human units, never TU)", () => {
   });
 });
 
+describe("labelAppliedSwaps (front-splice slot sizes, not first-row pickTu)", () => {
+  const sabzi: SwapCategory = {
+    key: "sabzi",
+    pickTu: 1.5,
+    slotTu: [1.5, 1.0],
+    unitType: "weight",
+    unitLabel: "oz",
+    unitSize: 8,
+    maxPicksPerTiffin: null,
+  };
+  const daal: SwapCategory = {
+    key: "daal",
+    pickTu: 1.5,
+    slotTu: [1.5],
+    unitType: "weight",
+    unitLabel: "oz",
+    unitSize: 8,
+    maxPicksPerTiffin: null,
+  };
+  const cats = { sabzi, daal };
+  const label = (k: string) => (k === "sabzi" ? "Sabzi" : k === "daal" ? "Daal" : k);
+
+  it("labels successive Sabzi→Daal swaps with the actual 12oz then 8oz slots", async () => {
+    const { labelAppliedSwaps } = await import("../swap-rules");
+    const swaps = [
+      { fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 },
+      { fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 },
+    ];
+    expect(labelAppliedSwaps(swaps, label, cats)).toEqual([
+      "Sabzi · 12oz → Daal · 12oz",
+      "Sabzi · 8oz → Daal · 8oz",
+    ]);
+  });
+
+  it("swapLabel alone still uses first-row pickTu (callers of applied stacks must use labelAppliedSwaps)", async () => {
+    const { swapLabel } = await import("../swap-rules");
+    const second = { fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 };
+    expect(swapLabel(second, label, cats)).toBe("Sabzi · 12oz → Daal · 12oz");
+  });
+});
+
 describe("hasEvenPortionSwap (Swap entry gate)", () => {
   it("is true when some give count in 1..available divides evenly", () => {
     expect(hasEvenPortionSwap(rice, roti, 1)).toBe(true);

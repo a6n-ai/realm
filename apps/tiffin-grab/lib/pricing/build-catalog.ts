@@ -58,24 +58,29 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
 
   let deliveryChargeConfig: PricingCatalog["deliveryChargeConfig"] = undefined;
   if (snapshot.deliveryCharges) {
-    const dt = selections.deliveryTypeId
-      ? snapshot.deliveryCharges.deliveryTypes.find((t) => t.publicId === selections.deliveryTypeId && t.active)
+    const optionId = selections.deliveryOptionId ?? selections.deliveryTypeId;
+    const tagId = selections.deliveryTagId ?? selections.addressTagId;
+
+    const opt = optionId
+      ? (snapshot.deliveryCharges.deliveryOptions ?? snapshot.deliveryCharges.deliveryTypes ?? []).find((t) => t.publicId === optionId && t.active)
       : null;
-    if (selections.deliveryTypeId && !dt) {
-      throw new ValidationError("Invalid delivery type");
+    if (optionId && !opt) {
+      throw new ValidationError("Invalid delivery option");
     }
 
-    const at = selections.addressTagId
-      ? snapshot.deliveryCharges.addressTags.find((a) => a.publicId === selections.addressTagId && a.active)
+    const tag = tagId
+      ? (snapshot.deliveryCharges.deliveryTags ?? snapshot.deliveryCharges.addressTags ?? []).find((a) => a.publicId === tagId && a.active)
       : null;
-    if (selections.addressTagId && !at) {
-      throw new ValidationError("Invalid address tag");
+    if (tagId && !tag) {
+      throw new ValidationError("Invalid delivery tag");
     }
 
     deliveryChargeConfig = {
       baseCharge: snapshot.deliveryCharges.baseCharge,
-      deliveryType: dt ? { id: dt.publicId, name: dt.name, chargeType: dt.chargeType, chargeValue: dt.chargeValue } : null,
-      addressTag: at ? { id: at.publicId, name: at.name, chargeType: at.chargeType, chargeValue: at.chargeValue } : null,
+      deliveryOption: opt ? { id: opt.publicId, name: opt.name, chargeType: opt.chargeType, chargeValue: opt.chargeValue } : null,
+      deliveryTag: tag ? { id: tag.publicId, name: tag.name, chargeType: tag.chargeType, chargeValue: tag.chargeValue } : null,
+      deliveryType: opt ? { id: opt.publicId, name: opt.name, chargeType: opt.chargeType, chargeValue: opt.chargeValue } : null,
+      addressTag: tag ? { id: tag.publicId, name: tag.name, chargeType: tag.chargeType, chargeValue: tag.chargeValue } : null,
     };
   }
 

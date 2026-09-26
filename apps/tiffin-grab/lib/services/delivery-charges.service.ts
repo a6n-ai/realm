@@ -1,9 +1,9 @@
 import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  addressTags,
   deliveryChargeConfigs,
-  deliveryTypes,
+  deliveryOptions,
+  deliveryTags,
   orders,
   users,
 } from "@/db/schema";
@@ -13,6 +13,8 @@ import {
   type DeliveryChargeCalculationResult,
   type DeliveryChargeItemLike,
   type DeliveryChargeType,
+  type DeliveryOptionItemLike,
+  type DeliveryTagItemLike,
 } from "@/lib/pricing/delivery-charges";
 
 export {
@@ -20,9 +22,11 @@ export {
   type DeliveryChargeCalculationResult,
   type DeliveryChargeItemLike,
   type DeliveryChargeType,
+  type DeliveryOptionItemLike,
+  type DeliveryTagItemLike,
 };
 
-export type DeliveryTypeDto = {
+export type DeliveryTagDto = {
   id: string; // publicId
   internalId: bigint;
   name: string;
@@ -33,7 +37,7 @@ export type DeliveryTypeDto = {
   sortOrder: number;
 };
 
-export type DeliveryTypeInput = {
+export type DeliveryTagInput = {
   id?: string;
   name: string;
   description?: string | null;
@@ -42,9 +46,12 @@ export type DeliveryTypeInput = {
   active?: boolean;
 };
 
-export type AddressTagDto = {
+export type DeliveryOptionDto = {
   id: string; // publicId
   internalId: bigint;
+  tagId: string | null; // tag publicId
+  tagInternalId: bigint | null;
+  tagName: string | null;
   name: string;
   description: string | null;
   chargeType: DeliveryChargeType;
@@ -53,14 +60,21 @@ export type AddressTagDto = {
   sortOrder: number;
 };
 
-export type AddressTagInput = {
+export type DeliveryOptionInput = {
   id?: string;
+  tagId?: string | null; // tag publicId
   name: string;
   description?: string | null;
   chargeType: DeliveryChargeType;
   chargeValue: number;
   active?: boolean;
 };
+
+// Backward-compatible type aliases
+export type DeliveryTypeDto = DeliveryOptionDto;
+export type DeliveryTypeInput = DeliveryOptionInput;
+export type AddressTagDto = DeliveryTagDto;
+export type AddressTagInput = DeliveryTagInput;
 
 export const deliveryChargesService = {
   async getBaseDeliveryCharge(orgId?: string | null): Promise<number> {
@@ -97,19 +111,19 @@ export const deliveryChargesService = {
     return Number(val);
   },
 
-  async listDeliveryTypes(options?: { includeInactive?: boolean; orgId?: string | null }): Promise<DeliveryTypeDto[]> {
+  async listDeliveryTags(options?: { includeInactive?: boolean; orgId?: string | null }): Promise<DeliveryTagDto[]> {
     const conditions = [];
     if (!options?.includeInactive) {
-      conditions.push(eq(deliveryTypes.active, true));
+      conditions.push(eq(deliveryTags.active, true));
     }
     if (options?.orgId) {
-      conditions.push(or(eq(deliveryTypes.organizationId, options.orgId), isNull(deliveryTypes.organizationId)));
+      conditions.push(or(eq(deliveryTags.organizationId, options.orgId), isNull(deliveryTags.organizationId)));
     }
     const rows = await db
       .select()
-      .from(deliveryTypes)
+      .from(deliveryTags)
       .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(asc(deliveryTypes.sortOrder), asc(deliveryTypes.name));
+      .orderBy(asc(deliveryTags.sortOrder), asc(deliveryTags.name));
 
     return rows.map((r) => ({
       id: r.publicId,
@@ -123,19 +137,12 @@ export const deliveryChargesService = {
     }));
   },
 
-  async saveDeliveryType(
-    input: {
-      id?: string; // publicId if updating
-      name: string;
-      description?: string | null;
-      chargeType: DeliveryChargeType;
-      chargeValue: number;
-      active?: boolean;
-    },
+  async saveDeliveryTag(
+    input: DeliveryTagInput,
     orgId?: string | null,
-  ): Promise<DeliveryTypeDto> {
+  ): Promise<DeliveryTagDto> {
     const name = input.name.trim();
-    if (!name) throw new ValidationError("Delivery type name is required");
+    if (!name) throw new ValidationError("Delivery tag name is required");
     if (!["none", "fixed", "percent"].includes(input.chargeType)) {
       throw new ValidationError("Invalid charge type");
     }
@@ -148,16 +155,15 @@ export const deliveryChargesService = {
     }
 
     if (input.id) {
-      // Check for name collisions
       const [duplicate] = await db
-        .select({ id: deliveryTypes.id })
-        .from(deliveryTypes)
-        .where(and(eq(deliveryTypes.name, name), sql`${deliveryTypes.publicId} != ${input.id}`))
+        .select({ id: deliveryTags.id })
+        .from(deliveryTags)
+        .where(and(eq(deliveryTags.name, name), sql`${deliveryTags.publicId} != ${input.id}`))
         .limit(1);
-      if (duplicate) throw new ValidationError("A delivery type with that name already exists");
+      if (duplicate) throw new ValidationError("A delivery tag with that name already exists");
 
       const [updated] = await db
-        .update(deliveryTypes)
+        .update(deliveryTags)
         .set({
           name,
           description: input.description?.trim() || null,
@@ -166,9 +172,9 @@ export const deliveryChargesService = {
           active: input.active !== undefined ? input.active : true,
           updatedAt: Date.now(),
         })
-        .where(eq(deliveryTypes.publicId, input.id))
+        .where(eq(deliveryTags.publicId, input.id))
         .returning();
-      if (!updated) throw new ValidationError("Delivery type not found");
+      if (!updated) throw new ValidationError("Delivery tag not found");
       return {
         id: updated.publicId,
         internalId: updated.id,
@@ -180,16 +186,15 @@ export const deliveryChargesService = {
         sortOrder: updated.sortOrder,
       };
     } else {
-      // Create
       const [duplicate] = await db
-        .select({ id: deliveryTypes.id })
-        .from(deliveryTypes)
-        .where(eq(deliveryTypes.name, name))
+        .select({ id: deliveryTags.id })
+        .from(deliveryTags)
+        .where(eq(deliveryTags.name, name))
         .limit(1);
-      if (duplicate) throw new ValidationError("A delivery type with that name already exists");
+      if (duplicate) throw new ValidationError("A delivery tag with that name already exists");
 
       const [created] = await db
-        .insert(deliveryTypes)
+        .insert(deliveryTags)
         .values({
           name,
           description: input.description?.trim() || null,
@@ -212,72 +217,80 @@ export const deliveryChargesService = {
     }
   },
 
-  async deleteDeliveryType(publicId: string): Promise<{ success: boolean; deactivatedInstead?: boolean }> {
+  async deleteDeliveryTag(publicId: string): Promise<{ success: boolean; deactivatedInstead?: boolean }> {
     const [row] = await db
-      .select({ id: deliveryTypes.id })
-      .from(deliveryTypes)
-      .where(eq(deliveryTypes.publicId, publicId))
+      .select({ id: deliveryTags.id })
+      .from(deliveryTags)
+      .where(eq(deliveryTags.publicId, publicId))
       .limit(1);
-    if (!row) throw new ValidationError("Delivery type not found");
+    if (!row) throw new ValidationError("Delivery tag not found");
 
-    // Check if referenced by existing orders or users
-    const [[orderRef], [userRef]] = await Promise.all([
-      db.select({ id: orders.id }).from(orders).where(eq(orders.deliveryTypeId, row.id)).limit(1),
-      db.select({ id: users.id }).from(users).where(eq(users.deliveryTypeId, row.id)).limit(1),
+    const [[orderRef], [userRef], [optionRef]] = await Promise.all([
+      db.select({ id: orders.id }).from(orders).where(or(eq(orders.deliveryTagId, row.id), eq(orders.addressTagId, row.id))).limit(1),
+      db.select({ id: users.id }).from(users).where(or(eq(users.deliveryTagId, row.id), eq(users.addressTagId, row.id))).limit(1),
+      db.select({ id: deliveryOptions.id }).from(deliveryOptions).where(eq(deliveryOptions.tagId, row.id)).limit(1),
     ]);
 
-    if (orderRef || userRef) {
-      // Deactivate instead of hard deleting to preserve historical data
+    if (orderRef || userRef || optionRef) {
       await db
-        .update(deliveryTypes)
+        .update(deliveryTags)
         .set({ active: false, updatedAt: Date.now() })
-        .where(eq(deliveryTypes.id, row.id));
+        .where(eq(deliveryTags.id, row.id));
       return { success: true, deactivatedInstead: true };
     }
 
-    await db.delete(deliveryTypes).where(eq(deliveryTypes.id, row.id));
+    await db.delete(deliveryTags).where(eq(deliveryTags.id, row.id));
     return { success: true, deactivatedInstead: false };
   },
 
-  async listAddressTags(options?: { includeInactive?: boolean; orgId?: string | null }): Promise<AddressTagDto[]> {
+  async listDeliveryOptions(options?: { tagId?: string | null; includeInactive?: boolean; orgId?: string | null }): Promise<DeliveryOptionDto[]> {
     const conditions = [];
     if (!options?.includeInactive) {
-      conditions.push(eq(addressTags.active, true));
+      conditions.push(eq(deliveryOptions.active, true));
     }
     if (options?.orgId) {
-      conditions.push(or(eq(addressTags.organizationId, options.orgId), isNull(addressTags.organizationId)));
+      conditions.push(or(eq(deliveryOptions.organizationId, options.orgId), isNull(deliveryOptions.organizationId)));
+    }
+    if (options?.tagId) {
+      const [tag] = await db.select({ id: deliveryTags.id }).from(deliveryTags).where(eq(deliveryTags.publicId, options.tagId)).limit(1);
+      if (tag) {
+        conditions.push(eq(deliveryOptions.tagId, tag.id));
+      }
     }
     const rows = await db
-      .select()
-      .from(addressTags)
+      .select({
+        opt: deliveryOptions,
+        tag: {
+          publicId: deliveryTags.publicId,
+          name: deliveryTags.name,
+        },
+      })
+      .from(deliveryOptions)
+      .leftJoin(deliveryTags, eq(deliveryOptions.tagId, deliveryTags.id))
       .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(asc(addressTags.sortOrder), asc(addressTags.name));
+      .orderBy(asc(deliveryOptions.sortOrder), asc(deliveryOptions.name));
 
-    return rows.map((r) => ({
-      id: r.publicId,
-      internalId: r.id,
-      name: r.name,
-      description: r.description,
-      chargeType: r.chargeType,
-      chargeValue: Number(r.chargeValue),
-      active: r.active,
-      sortOrder: r.sortOrder,
+    return rows.map(({ opt, tag }) => ({
+      id: opt.publicId,
+      internalId: opt.id,
+      tagId: tag?.publicId ?? null,
+      tagInternalId: opt.tagId,
+      tagName: tag?.name ?? null,
+      name: opt.name,
+      description: opt.description,
+      chargeType: opt.chargeType,
+      chargeValue: Number(opt.chargeValue),
+      active: opt.active,
+      sortOrder: opt.sortOrder,
     }));
   },
 
-  async saveAddressTag(
-    input: {
-      id?: string; // publicId if updating
-      name: string;
-      description?: string | null;
-      chargeType: DeliveryChargeType;
-      chargeValue: number;
-      active?: boolean;
-    },
+  async saveDeliveryOption(
+    input: DeliveryOptionInput,
     orgId?: string | null,
-  ): Promise<AddressTagDto> {
+  ): Promise<DeliveryOptionDto> {
     const name = input.name.trim();
-    if (!name) throw new ValidationError("Address tag name is required");
+    if (!name) throw new ValidationError("Delivery option name is required");
     if (!["none", "fixed", "percent"].includes(input.chargeType)) {
       throw new ValidationError("Invalid charge type");
     }
@@ -289,17 +302,37 @@ export const deliveryChargesService = {
       throw new ValidationError("Percentage charge cannot exceed 100%");
     }
 
+    let tagInternalId: bigint | null = null;
+    let tagName: string | null = null;
+    if (input.tagId) {
+      const [tagRow] = await db
+        .select({ id: deliveryTags.id, name: deliveryTags.name })
+        .from(deliveryTags)
+        .where(eq(deliveryTags.publicId, input.tagId))
+        .limit(1);
+      if (!tagRow) throw new ValidationError("Selected address tag not found");
+      tagInternalId = tagRow.id;
+      tagName = tagRow.name;
+    }
+
     if (input.id) {
       const [duplicate] = await db
-        .select({ id: addressTags.id })
-        .from(addressTags)
-        .where(and(eq(addressTags.name, name), sql`${addressTags.publicId} != ${input.id}`))
+        .select({ id: deliveryOptions.id })
+        .from(deliveryOptions)
+        .where(
+          and(
+            eq(deliveryOptions.name, name),
+            tagInternalId ? eq(deliveryOptions.tagId, tagInternalId) : isNull(deliveryOptions.tagId),
+            sql`${deliveryOptions.publicId} != ${input.id}`,
+          ),
+        )
         .limit(1);
-      if (duplicate) throw new ValidationError("An address tag with that name already exists");
+      if (duplicate) throw new ValidationError("A delivery option with that name already exists for this tag");
 
       const [updated] = await db
-        .update(addressTags)
+        .update(deliveryOptions)
         .set({
+          tagId: tagInternalId,
           name,
           description: input.description?.trim() || null,
           chargeType: input.chargeType,
@@ -307,12 +340,16 @@ export const deliveryChargesService = {
           active: input.active !== undefined ? input.active : true,
           updatedAt: Date.now(),
         })
-        .where(eq(addressTags.publicId, input.id))
+        .where(eq(deliveryOptions.publicId, input.id))
         .returning();
-      if (!updated) throw new ValidationError("Address tag not found");
+      if (!updated) throw new ValidationError("Delivery option not found");
+
       return {
         id: updated.publicId,
         internalId: updated.id,
+        tagId: input.tagId ?? null,
+        tagInternalId: updated.tagId,
+        tagName,
         name: updated.name,
         description: updated.description,
         chargeType: updated.chargeType,
@@ -322,15 +359,21 @@ export const deliveryChargesService = {
       };
     } else {
       const [duplicate] = await db
-        .select({ id: addressTags.id })
-        .from(addressTags)
-        .where(eq(addressTags.name, name))
+        .select({ id: deliveryOptions.id })
+        .from(deliveryOptions)
+        .where(
+          and(
+            eq(deliveryOptions.name, name),
+            tagInternalId ? eq(deliveryOptions.tagId, tagInternalId) : isNull(deliveryOptions.tagId),
+          ),
+        )
         .limit(1);
-      if (duplicate) throw new ValidationError("An address tag with that name already exists");
+      if (duplicate) throw new ValidationError("A delivery option with that name already exists for this tag");
 
       const [created] = await db
-        .insert(addressTags)
+        .insert(deliveryOptions)
         .values({
+          tagId: tagInternalId,
           name,
           description: input.description?.trim() || null,
           chargeType: input.chargeType,
@@ -339,9 +382,13 @@ export const deliveryChargesService = {
           organizationId: orgId ?? null,
         })
         .returning();
+
       return {
         id: created.publicId,
         internalId: created.id,
+        tagId: input.tagId ?? null,
+        tagInternalId: created.tagId,
+        tagName,
         name: created.name,
         description: created.description,
         chargeType: created.chargeType,
@@ -352,28 +399,48 @@ export const deliveryChargesService = {
     }
   },
 
-  async deleteAddressTag(publicId: string): Promise<{ success: boolean; deactivatedInstead?: boolean }> {
+  async deleteDeliveryOption(publicId: string): Promise<{ success: boolean; deactivatedInstead?: boolean }> {
     const [row] = await db
-      .select({ id: addressTags.id })
-      .from(addressTags)
-      .where(eq(addressTags.publicId, publicId))
+      .select({ id: deliveryOptions.id })
+      .from(deliveryOptions)
+      .where(eq(deliveryOptions.publicId, publicId))
       .limit(1);
-    if (!row) throw new ValidationError("Address tag not found");
+    if (!row) throw new ValidationError("Delivery option not found");
 
     const [[orderRef], [userRef]] = await Promise.all([
-      db.select({ id: orders.id }).from(orders).where(eq(orders.addressTagId, row.id)).limit(1),
-      db.select({ id: users.id }).from(users).where(eq(users.addressTagId, row.id)).limit(1),
+      db.select({ id: orders.id }).from(orders).where(or(eq(orders.deliveryOptionId, row.id), eq(orders.deliveryTypeId, row.id))).limit(1),
+      db.select({ id: users.id }).from(users).where(or(eq(users.deliveryOptionId, row.id), eq(users.deliveryTypeId, row.id))).limit(1),
     ]);
 
     if (orderRef || userRef) {
       await db
-        .update(addressTags)
+        .update(deliveryOptions)
         .set({ active: false, updatedAt: Date.now() })
-        .where(eq(addressTags.id, row.id));
+        .where(eq(deliveryOptions.id, row.id));
       return { success: true, deactivatedInstead: true };
     }
 
-    await db.delete(addressTags).where(eq(addressTags.id, row.id));
+    await db.delete(deliveryOptions).where(eq(deliveryOptions.id, row.id));
     return { success: true, deactivatedInstead: false };
+  },
+
+  // Backward compatibility alias methods
+  async listAddressTags(options?: { includeInactive?: boolean; orgId?: string | null }) {
+    return this.listDeliveryTags(options);
+  },
+  async saveAddressTag(input: AddressTagInput, orgId?: string | null) {
+    return this.saveDeliveryTag(input, orgId);
+  },
+  async deleteAddressTag(publicId: string) {
+    return this.deleteDeliveryTag(publicId);
+  },
+  async listDeliveryTypes(options?: { includeInactive?: boolean; orgId?: string | null }) {
+    return this.listDeliveryOptions(options);
+  },
+  async saveDeliveryType(input: DeliveryTypeInput, orgId?: string | null) {
+    return this.saveDeliveryOption(input, orgId);
+  },
+  async deleteDeliveryType(publicId: string) {
+    return this.deleteDeliveryOption(publicId);
   },
 };

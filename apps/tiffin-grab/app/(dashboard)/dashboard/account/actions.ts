@@ -18,6 +18,8 @@ export async function updateMyAddress(input: {
   city?: string;
   postalCode?: string;
   province?: string;
+  deliveryOptionId?: string | null;
+  deliveryTagId?: string | null;
   deliveryTypeId?: string | null;
   addressTagId?: string | null;
 }) {
