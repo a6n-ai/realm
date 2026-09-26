@@ -14,7 +14,7 @@ afterEach(async () => {
 describe("sendStaffInvitation", () => {
   it("enqueues a staff_invitation outbox row on the email channel with the invite url", async () => {
     const inviteUrl = "https://admin.puchkaman.ca/accept-invitation/inv_123";
-    await sendStaffInvitation({ email: EMAIL, role: "admin", inviteUrl });
+    await sendStaffInvitation({ email: EMAIL, role: "admin", inviteUrl, sendKey: "inv_123:1" });
 
     const rows = await db
       .select({
@@ -33,6 +33,6 @@ describe("sendStaffInvitation", () => {
     expect(row.channel).toBe("email");
     expect(row.kind).toBe("transactional");
     expect(row.payload).toMatchObject({ vars: { role: "admin", inviteUrl } });
-    expect(row.dedupeKey).toBe(`staff_invitation:${EMAIL.toLowerCase()}:email`);
+    expect(row.dedupeKey).toBe(`staff_invitation:${EMAIL.toLowerCase()}:inv_123:1:email`);
   });
 });

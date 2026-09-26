@@ -9,6 +9,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { requireAdmin, requirePermission } from "@/lib/auth/guards";
+import { sendStaffInviteLink, sendStaffSetupLink } from "@/lib/auth/invite-links";
 import { getSession } from "@/lib/auth/session";
 import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { userFeatureFlagsService } from "@/lib/services/user-feature-flags.service";
@@ -51,15 +52,27 @@ export async function setUserFlag(userId: string, flagId: string, enabled: boole
   revalidatePath("/dashboard/organization/members");
 }
 
-// Admin-initiated password reset for a staff member: mails them the normal
-// 6-digit OTP reset code. The admin never sees or issues a password — nothing
-// is shared out-of-band, and the existing password stays valid until the user
-// completes the reset (so a failed delivery can't lock them out).
-export async function resetStaffPassword(userId: string): Promise<{ email: string }> {
+// Members-row access mail. With a password: the normal 6-digit OTP reset code —
+// the admin never sees or issues a password, and the old one stays valid until
+// the reset completes. Without one: they already hold a member row, so
+// createInvitation would throw USER_IS_ALREADY_A_MEMBER; re-send the invite mail
+// with a sign-in link straight to /set-password instead. A "password reset" mail
+// to someone who never had a password read as a mistake, which is why this is
+// not one path.
+export async function sendStaffAccessEmail(userId: string): Promise<{ email: string; kind: "invite" | "reset" }> {
   await requireAdmin();
   const email = await usersService.assertStaffEmail(userId);
+  const [u] = await db
+    .select({ role: users.role, passwordSet: users.passwordSet })
+    .from(users)
+    .where(eq(users.publicId, userId))
+    .limit(1);
+  if (!u?.passwordSet) {
+    await sendStaffSetupLink({ email, role: u?.role ?? "member" });
+    return { email, kind: "invite" };
+  }
   await auth.api.sendVerificationOTP({ body: { email, type: "forget-password" } });
-  return { email };
+  return { email, kind: "reset" };
 }
 
 // Real resend, unlike the old ResetPasswordButton fallback which just re-mailed
@@ -69,10 +82,11 @@ export async function resendInvite(userId: string, organizationId: string): Prom
   await requireAdmin();
   const [u] = await db.select({ email: users.email, role: users.role }).from(users).where(eq(users.publicId, userId)).limit(1);
   if (!u?.email) throw new ValidationError("This user has no email address to send an invite to.");
-  await auth.api.createInvitation({
+  const invitation = await auth.api.createInvitation({
     body: { email: u.email, role: u.role as "admin" | "member", organizationId, resend: true },
     headers: await headers(),
   });
+  await sendStaffInviteLink({ email: u.email, role: u.role, invitationId: invitation.id });
   revalidatePath("/dashboard/organization/members");
   return { email: u.email };
 }

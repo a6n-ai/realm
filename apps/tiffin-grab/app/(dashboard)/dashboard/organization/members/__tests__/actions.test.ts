@@ -18,6 +18,7 @@ vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
       createInvitation: vi.fn().mockResolvedValue({ id: "inv_new" }),
+      signInMagicLink: vi.fn().mockResolvedValue({ status: true }),
       cancelInvitation: vi.fn().mockResolvedValue({ id: "inv_1", status: "canceled" }),
     },
   },
@@ -30,6 +31,13 @@ describe("resendInvite", () => {
     await resendInvite("user_pub_1", "org_1");
     expect(auth.api.createInvitation).toHaveBeenCalledWith(
       expect.objectContaining({ body: expect.objectContaining({ organizationId: "org_1", resend: true }) }),
+    );
+    // The resend itself mails nothing (no sendInvitationEmail hook); the magic
+    // link for the returned invitation is the email.
+    expect(auth.api.signInMagicLink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ callbackURL: "/accept-invitation/inv_new/complete" }),
+      }),
     );
   });
 });

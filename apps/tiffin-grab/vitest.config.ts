@@ -35,6 +35,10 @@ export default defineConfig({
       // Dedicated Redis DB (index 15) for tests — vitest.setup flushes it between
       // tests so a prior suite's cached snapshot can't bleed into the next.
       REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379/15",
+      // Always set in deployed envs. Without it better-auth has no baseURL for a
+      // server-side auth.api call (no request to infer one from), and magic-link
+      // issuance throws on `new URL("")`.
+      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
     },
     // Integration tests share one Postgres table; run files serially so their
     // truncate-in-beforeEach does not race across parallel workers.
