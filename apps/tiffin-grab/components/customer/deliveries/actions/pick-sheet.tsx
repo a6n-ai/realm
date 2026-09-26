@@ -134,7 +134,18 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       return;
     }
     let live = true;
-    loadMySwapOptions(trip.deliveryId, day)
+    
+    // Map pending applies to the format expected by loadMySwapOptions
+    const provisional = pendingApplies
+      .filter((p) => p.day === day)
+      .map((p) => ({
+        fromCategory: p.fromCategory,
+        toCategory: p.toCategory,
+        qtyFrom: p.fromPicks,
+        qtyTo: p.toPicks,
+      }));
+
+    loadMySwapOptions(trip.deliveryId, day, provisional, pendingRemoves)
       .then((r) => {
         if (!live) return;
         if ("error" in r) setSwapOptions([]);
@@ -146,7 +157,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     return () => {
       live = false;
     };
-  }, [open, swapLocked, trip.deliveryId, day, swapLoadKey]);
+  }, [open, swapLocked, trip.deliveryId, day, swapLoadKey, pendingApplies, pendingRemoves]);
 
   const refreshGrid = async (
     applies = pendingApplies,
