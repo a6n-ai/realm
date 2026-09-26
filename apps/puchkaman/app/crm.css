@@ -13,6 +13,7 @@
 @source "../../../node_modules/@foundry/crm/src";
 @source "../../../node_modules/@foundry/auth-ui/src";
 @source "../../../node_modules/@foundry/delivery/src/ui";
+@source "../../../node_modules/@foundry/address/src/ui";
 
 @custom-variant dark (&:is(.dark *));
 

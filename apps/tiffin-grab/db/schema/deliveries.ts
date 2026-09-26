@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
 import { updatableColumns } from "@foundry/database";
 import { bigint, date, index, integer, pgEnum, pgTable, text, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
-import { deliveryZones } from "./delivery";
+import { addressTags, deliveryStrategies, deliveryZones } from "./delivery";
+import { customerAddresses } from "./addresses";
 import { orders } from "./orders";
 import { organization } from "./organizations";
 
@@ -38,11 +39,16 @@ export const deliveries = pgTable("deliveries", {
   // Set once when this miss's tiffins were added to orders.pooled_tiffin_count (idempotent
   // reconcile). NULL = not yet accounted into the pool.
   pooledAt: bigint("pooled_at", { mode: "number" }),
-  // All four NULL = inherit the order's address.
+  // addressLine NULL = inherit the order's address (and its unit/instructions/strategy).
+  addressId: bigint("address_id", { mode: "bigint" }).references(() => customerAddresses.id),
   fullName: text("full_name"),
   addressLine: text("address_line"),
+  addressUnit: text("address_unit"),
   city: text("city"),
   postalCode: text("postal_code"),
+  deliveryInstructions: text("delivery_instructions"),
+  deliveryStrategyId: bigint("delivery_strategy_id", { mode: "bigint" }).references(() => deliveryStrategies.id),
+  addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
   // Route assignment, WRITTEN ONLY BY THE OPTIMOROUTE PULL — never by hand and never by
   // the app's own logic. OptimoRoute plans the routes; these columns are a cache of its
@@ -70,6 +76,9 @@ export const deliveries = pgTable("deliveries", {
   // Kitchen/dispatch/cutoff scans are date-range queries; the order-leading uniques cannot serve them.
   index("deliveries_date_idx").on(t.deliveryDate),
   index("deliveries_zone_idx").on(t.zoneId),
+  index("deliveries_address_idx").on(t.addressId),
+  index("deliveries_delivery_strategy_idx").on(t.deliveryStrategyId),
+  index("deliveries_address_tag_idx").on(t.addressTagId),
   index("deliveries_merged_into_idx").on(t.mergedIntoDeliveryId).where(sql`${t.mergedIntoDeliveryId} is not null`),
   index("deliveries_organization_idx").on(t.organizationId),
 ]);

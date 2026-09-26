@@ -3,6 +3,7 @@ import { bigint, boolean, date, doublePrecision, index, integer, jsonb, numeric,
 import { deliveryFrequencies, mealSizes, plans } from "./catalog";
 import { deliveryZones } from "./delivery";
 import { deliveryStrategies, addressTags } from "./delivery";
+import { customerAddresses } from "./addresses";
 import { users } from "./auth";
 import { organization } from "./organizations";
 
@@ -53,6 +54,9 @@ export const orders = pgTable("orders", {
   status: orderStatus("status").notNull().default("pending"),
   deploymentId: text("deployment_id").notNull().unique(),
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
+  // The plan's main saved address. The snapshot columns below stay the source of truth for
+  // what was delivered; this link lets an edit/delete of the saved address follow the plan.
+  addressId: bigint("address_id", { mode: "bigint" }).references(() => customerAddresses.id),
   fullName: text("full_name").notNull(),
   addressLine: text("address_line").notNull(),
   // Google's formatted address/autocomplete has no reliable subpremise/unit
@@ -94,6 +98,7 @@ export const orders = pgTable("orders", {
   index("orders_frequency_idx").on(t.frequencyId),
   index("orders_delivery_strategy_idx").on(t.deliveryStrategyId),
   index("orders_address_tag_idx").on(t.addressTagId),
+  index("orders_address_idx").on(t.addressId),
 ]);
 
 // A customer-submitted proof image for a manual payment claim (same shape as ticket

@@ -344,6 +344,13 @@
       "when": 1790412929713,
       "tag": "0048_foundry_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1790417329967,
+      "tag": "0049_customer_addresses",
+      "breakpoints": true
     }
   ]
 }

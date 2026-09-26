@@ -7,6 +7,7 @@ export * from "./inventory";
 export * from "./employees";
 export * from "./customers";
 export * from "./delivery";
+export * from "./addresses";
 export * from "./orders";
 export * from "./carts";
 export { reviewNudges } from "@foundry/google-reviews/db";

@@ -351,6 +351,13 @@
       "when": 1790500004007,
       "tag": "0049_foundry_delivery_zones_types",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790500004008,
+      "tag": "0050_customer_addresses",
+      "breakpoints": true
     }
   ]
 }
