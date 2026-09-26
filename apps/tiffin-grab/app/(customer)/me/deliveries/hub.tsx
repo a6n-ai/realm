@@ -30,6 +30,7 @@ import {
   myTiffinCounts,
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
+import { getClaimPaymentContextForOrder } from "@/lib/services/orders.service";
 import { addDays, defaultWeek, mondayOf, parseWeekParam, type Agenda } from "@/lib/deliveries-view/week";
 
 export type HubSearchParams = Promise<{ week?: string; sub?: string; trip?: string; action?: string }>;
@@ -49,7 +50,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   if (userId == null) redirect("/login");
 
   const { week: weekParam, sub: subParam, trip: tripParam, action: actionParam } = await searchParams;
-  const { timezone, cutoffHour } = await getAppSettings();
+  const { timezone, cutoffHour, currency } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();
   const today = zonedDateIso(now, timezone);
@@ -95,6 +96,8 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     dishCategoriesService.forPlanType(sub.planType),
     dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
   ]);
+  // Payment-review plans hide the calendar and show the claim form instead.
+  const claimPayment = locked ? await getClaimPaymentContextForOrder(sub.publicId) : null;
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
   const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first });
   const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
@@ -131,6 +134,8 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
         now={now}
         customerName={userRow?.name ?? null}
         locked={locked}
+        claimPayment={claimPayment}
+        currency={currency}
         initialTrip={initialTrip}
         initialAction={actionParam ?? null}
       />

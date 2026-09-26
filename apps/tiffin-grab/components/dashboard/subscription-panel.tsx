@@ -5,6 +5,7 @@ import { loadOrderWeek } from "@/lib/services/order-week.service";
 import { OrderWeekHub } from "@/components/dashboard/order-week/order-week-hub";
 import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
+import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { db } from "@/db/client";
 import { plans } from "@/db/schema";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -29,12 +30,15 @@ export async function SubscriptionPanel({
   orderPublicId,
   weekParam,
   visible,
+  paymentReview = false,
 }: {
   orderPublicId: string;
   /** ?week=YYYY-MM-DD from the host page. */
   weekParam?: string;
   /** Org visibility scope — same value the host page resolved via resolveSessionVisibleOrgIds. */
   visible: "all" | string[];
+  /** When true, payment is unconfirmed — match customer: hide schedule until verified. */
+  paymentReview?: boolean;
 }) {
   const [order, settings] = await Promise.all([readOrder(orderPublicId, visible), getAppSettings()]);
 
@@ -46,6 +50,10 @@ export async function SubscriptionPanel({
     .then((r) => r[0]);
   const planType = (planRow?.planType ?? "tiffin") as "tiffin" | "healthy";
   const categoryCounts = (order.categoryCounts as Record<string, number> | null) ?? {};
+  const displayStatus = orderDisplayStatus(
+    order.status,
+    order.payments.map((p) => p.status),
+  );
 
   const subscription: Subscription | null =
     order.status === "active" || order.status === "paused"
@@ -55,7 +63,7 @@ export async function SubscriptionPanel({
           planType,
           planKey: order.planKey,
           status: order.status,
-          displayStatus: order.status,
+          displayStatus,
           fullName: order.fullName,
           addressLine: order.addressLine,
           city: order.city,
@@ -72,21 +80,25 @@ export async function SubscriptionPanel({
       : null;
 
   const [week, grid] = await Promise.all([
-    subscription && order.userId != null ? loadOrderWeek(order.userId, subscription, weekParam) : Promise.resolve(null),
-    buildMealsGrid(
-      {
-        id: order.id,
-        publicId: order.publicId,
-        planId: order.planId,
-        mealSizeId: order.mealSizeId,
-        persons: order.persons,
-        categoryCounts,
-        mealSlots: order.mealSlots,
-        startDate: order.startDate,
-        durationWeeks: order.durationWeeks,
-      },
-      settings,
-    ),
+    !paymentReview && subscription && order.userId != null
+      ? loadOrderWeek(order.userId, subscription, weekParam)
+      : Promise.resolve(null),
+    !paymentReview
+      ? buildMealsGrid(
+          {
+            id: order.id,
+            publicId: order.publicId,
+            planId: order.planId,
+            mealSizeId: order.mealSizeId,
+            persons: order.persons,
+            categoryCounts,
+            mealSlots: order.mealSlots,
+            startDate: order.startDate,
+            durationWeeks: order.durationWeeks,
+          },
+          settings,
+        )
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -95,7 +107,12 @@ export async function SubscriptionPanel({
         title={SUBSCRIPTION_SECTIONS.deliveries.title}
         subtitle="Week view by eating day: delivery days, swaps, reschedule, vacation and make-up."
       >
-        {week ? (
+        {paymentReview ? (
+          <p className="text-muted-foreground text-sm" data-testid="payment-review-deliveries">
+            Payment is under review. Confirm payment above — the delivery calendar unlocks once it&apos;s verified
+            (same as the customer view).
+          </p>
+        ) : week ? (
           <OrderWeekHub data={week} />
         ) : (
           <p className="text-muted-foreground text-sm">
@@ -105,9 +122,13 @@ export async function SubscriptionPanel({
       </SectionCard>
 
       <SectionCard title={SUBSCRIPTION_SECTIONS.meals.title}>
-        {order.status === "cancelled" ? (
+        {paymentReview ? (
+          <p className="text-muted-foreground text-sm">
+            Meal picks unlock after payment is confirmed.
+          </p>
+        ) : order.status === "cancelled" ? (
           <p className="text-muted-foreground text-sm">This order is cancelled — meal selections are closed.</p>
-        ) : grid.empty === "no-week" ? (
+        ) : grid == null ? null : grid.empty === "no-week" ? (
           <p className="text-muted-foreground text-sm">This week&apos;s menu hasn&apos;t been published yet.</p>
         ) : grid.empty === "no-dates" ? (
           <p className="text-muted-foreground text-sm">No deliveries scheduled for this week on this order.</p>

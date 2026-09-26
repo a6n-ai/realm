@@ -30,6 +30,7 @@ import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/we
 import { applySwapsToCounts, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { statusMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
+import { OrderStatusBadge } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
 
@@ -73,7 +74,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
   return (
     <div className={cn("space-y-4", nav && "opacity-60 transition-opacity")}>
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Badge variant="secondary">{plan.sub.status}</Badge>
+        <OrderStatusBadge status={plan.sub.displayStatus} />
         <span className="font-medium">{plan.sub.mealSizeName}</span>
         <span className="text-muted-foreground tabular-nums">
           {plan.counts.remaining} of {plan.counts.total} tiffins left

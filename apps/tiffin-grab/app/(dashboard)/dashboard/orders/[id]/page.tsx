@@ -6,7 +6,8 @@ import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext } from "@/lib/services/orders.service";
+import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
@@ -115,6 +116,22 @@ async function OrderDetail({
     planKey: m.planKey,
   }));
 
+  // Staff-on-behalf claim form for payments that still need a reference/screenshot.
+  const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
+  await Promise.all(
+    order.payments
+      .filter((p) => p.status === "awaiting_payment" || p.status === "rejected")
+      .map(async (p) => {
+        const ctx = await getClaimPaymentContext(p.publicId);
+        if (ctx) claimContexts[p.publicId] = ctx;
+      }),
+  );
+  const paymentReview =
+    orderDisplayStatus(
+      order.status,
+      order.payments.map((p) => p.status),
+    ) === "payment_review";
+
   return (
     <>
       <PageHeader
@@ -151,6 +168,7 @@ async function OrderDetail({
               checkoutMethodLabel={checkoutMethodLabel}
               pricingSnapshot={order.pricingSnapshot}
               payments={order.payments}
+              claimContexts={claimContexts}
             />
           </SectionCard>
 
@@ -168,6 +186,7 @@ async function OrderDetail({
         orderPublicId={order.publicId}
         weekParam={week}
         visible={visible}
+        paymentReview={paymentReview}
       />
     </>
   );
