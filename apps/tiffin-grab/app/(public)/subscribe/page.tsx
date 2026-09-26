@@ -1,10 +1,7 @@
 import type { Viewport } from "next";
 import { redirect } from "next/navigation";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { toClientCatalog } from "@/lib/catalog/types";
-import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { Wizard } from "@/components/wizard/wizard";
 import { IdentityGate } from "@/components/wizard/identity-gate";
+import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { currentUserId } from "@/lib/services/session-service";
 import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/auth/landing";
@@ -26,22 +23,22 @@ export default async function SubscribePage() {
   const session = await getSession();
   if (session?.user && isStaffRole(session.user.role)) redirect("/dashboard");
 
-  // Logged-in customers already have an account — send them through the same
-  // four-step wizard on /me/renew (prefilled from their current plan). Checkout
-  // still auto-provisions an account by phone for anonymous first-time signup.
+  // The plan is always built signed in, on /me/renew. Signed-out visitors land
+  // on the email step, which signs them in (creating the account if new) and
+  // sends them there — so every order has an owner who can pay and upload proof.
   const userId = await currentUserId();
   if (userId != null) redirect("/me/renew");
 
-  const orgId = await resolveRequestOrg();
-  const [catalog, coupons] = await Promise.all([loadCatalogSnapshot(orgId), couponsService.listAvailable()]);
+  const coupons = await couponsService.listAvailable();
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-4 sm:py-10">
+      <SubscribeChrome closeHref="/" stepTag="Your account" />
       <header className="space-y-1 pb-2">
-        <h1 className="text-2xl font-bold tracking-[-0.03em] text-balance sm:text-4xl">
-          Build your <span className="text-primary italic">tiffin.</span>
+        <h1 className="c-title-page">
+          Build your <em className="c-accent">tiffin.</em>
         </h1>
-        <p className="text-muted-foreground text-sm text-pretty">
+        <p className="c-body text-pretty text-[var(--muted-foreground)]">
           Four quick steps to your weekly plan — fresh meals, delivered on your schedule.
         </p>
       </header>
@@ -49,10 +46,8 @@ export default async function SubscribePage() {
       <div className="mt-5">
         <SubscribeCouponsPreview coupons={coupons} />
       </div>
-      <div className="mt-4">
-        <IdentityGate>
-          <Wizard catalog={toClientCatalog(catalog)} closeHref="/" />
-        </IdentityGate>
+      <div className="mt-8">
+        <IdentityGate />
       </div>
     </main>
   );

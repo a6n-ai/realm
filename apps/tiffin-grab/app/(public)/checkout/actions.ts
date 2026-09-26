@@ -51,16 +51,14 @@ async function maybeSendAccountSetup(email: string | undefined | null): Promise<
  * and email are always re-taken from the session, so a crafted payload cannot
  * place an order under someone else's contact. Phone, address and delivery
  * instructions are accepted as entered (validated downstream by createOrder) and
- * apply to this order only; nothing is written back to the profile. Guests are
- * unchanged — they have no session to take identity from.
+ * apply to this order only; nothing is written back to the profile.
  */
 async function resolveContact(input: ConfirmInput): Promise<CreateOrderInput["contact"]> {
   const session = await getSession();
   const user = session?.user;
-  if (!user) {
-    if (input.renewal) throw new ValidationError("Sign in to renew your plan.");
-    return input.contact;
-  }
+  // No guest orders: the /subscribe email step signs everyone in first, so an
+  // order always has an owner who can see payment details and upload proof.
+  if (!user) throw new ValidationError("Sign in to place your order.");
   const userId = await currentUserId();
   const fullName = userId == null ? undefined : (await getContactOnFile(userId))?.fullName?.trim();
   if (!user.email || !fullName) throw new ValidationError("Your account is missing a name or email. Update it from Account.");

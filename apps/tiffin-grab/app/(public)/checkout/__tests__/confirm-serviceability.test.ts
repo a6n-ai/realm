@@ -19,7 +19,10 @@ vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async () => matchZoneResu
 vi.mock("@/lib/services/orders.service", () => ({ createOrder: (...a: unknown[]) => createOrder(...a) }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: (...a: unknown[]) => resolveAndPersist(...a) }));
 vi.mock("@/app/(marketing)/contact/actions", () => ({ createWebsiteInquiry: (...a: unknown[]) => createWebsiteInquiry(...a) }));
-vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
+vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_7", email: "j@x.com" } }) }));
+vi.mock("@/lib/services/customers.service", () => ({ sendAccountSetupEmail: vi.fn() }));
+vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
+vi.mock("@/lib/services/contact-on-file", () => ({ getContactOnFile: async () => ({ fullName: "Jane" }) }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { sendVerificationEmail: vi.fn() } } }));
 vi.mock("@/db/client", () => ({ db: { select: () => ({ from: () => ({ where: () => ({ limit: async () => [] }) }) }) } }));
 

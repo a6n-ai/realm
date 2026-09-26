@@ -108,11 +108,11 @@ describe("confirmSubscription: a signed-in member keeps their account identity",
     expect(createOrder).not.toHaveBeenCalled();
   });
 
-  it("leaves a guest checkout exactly as submitted", async () => {
+  it("refuses a signed-out checkout — every order needs an owner", async () => {
     signedIn = false;
     userId = null;
-    await confirmSubscription(submitted);
-    expect(sentContact()).toMatchObject({ fullName: "Priya S.", email: "attacker@example.com", postalCode: "V6B 1A1" });
+    expect(await confirmSubscription(submitted)).toEqual({ error: expect.stringMatching(/sign in/i) });
+    expect(createOrder).not.toHaveBeenCalled();
   });
 
   it("refuses a renewal from a signed-out request", async () => {
