@@ -7,6 +7,7 @@
 // pickIndex N is the Nth row. A sabzi category with two rows @ 1 TU each gives picks
 // 1 and 2 at that portion; a dal category with one row @ 1.5 TU gives pick 1 at that portion.
 import { formatTuHuman, isContainerCategory, type TuCategory } from "./format-tu";
+import { takeGiven, type SlotRow } from "./swap-rules";
 
 export type MealSizeItemRow = {
   category: string;
@@ -46,10 +47,13 @@ export type PortionSwap = {
   toCategory: string;
   qtyFrom: number;
   qtyTo: number;
+  /** Base row given up; null/undefined = leading rows. */
+  fromRow?: number | null;
 };
 
 /**
- * Per-category TU slot arrays after front-splice swaps (same mutation as portionsByCategory).
+ * Per-category TU slot arrays after swaps (same mutation as portionsByCategory): each swap
+ * removes its named row, or the leading rows when it names none (takeGiven).
  * Receive side: same-unit swaps (per categoriesByKey) keep each given size; others use toCategory's first catalog TU.
  * `null` preserves catalog rows with no TU (formatted as null portions).
  */
@@ -58,44 +62,57 @@ export function slotTuAfterSwaps(
   swaps: PortionSwap[] = [],
   categoriesByKey?: Map<string, TuCategory>,
 ): Map<string, (number | null)[]> {
+  const rows = slotRowsAfterSwaps(items, swaps, categoriesByKey);
+  return new Map([...rows].map(([k, list]) => [k, list.map((r) => r.value)]));
+}
+
+/** slotTuAfterSwaps keeping each slot's base row (null = received by a swap). */
+export function slotRowsAfterSwaps(
+  items: MealSizeItemRow[],
+  swaps: PortionSwap[] = [],
+  categoriesByKey?: Map<string, TuCategory>,
+): Map<string, SlotRow<number | null>[]> {
+  const out = new Map<string, SlotRow<number | null>[]>();
+  for (const [category, list] of byCategoryOf(items)) {
+    const slots = [...list]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((item, row) => {
+        if (item.tuAmount == null || item.tuAmount === "") return { row, value: null };
+        const n = Number(item.tuAmount);
+        return { row, value: Number.isFinite(n) ? n : null };
+      });
+    out.set(category, slots);
+  }
+
+  const catalogFirst = new Map<string, number | null>();
+  for (const [category, slots] of out) catalogFirst.set(category, slots[0]?.value ?? null);
+
+  for (const s of swaps) {
+    const from = out.get(s.fromCategory) ?? [];
+    const given = takeGiven(from, s);
+    out.set(s.fromCategory, from);
+
+    const to = out.get(s.toCategory) ?? [];
+    // Same rule as slotsAfterSwaps: same-unit swaps are like-for-like, keep each given size.
+    if (sameUnitTu(categoriesByKey?.get(s.fromCategory), categoriesByKey?.get(s.toCategory)) && given.length === s.qtyTo) {
+      to.push(...given.map((g) => ({ row: null, value: g.value })));
+    } else {
+      const receiveTu = catalogFirst.get(s.toCategory) ?? 1.0;
+      for (let i = 0; i < s.qtyTo; i++) to.push({ row: null, value: receiveTu });
+    }
+    out.set(s.toCategory, to);
+  }
+  return out;
+}
+
+function byCategoryOf(items: MealSizeItemRow[]): Map<string, MealSizeItemRow[]> {
   const byCategory = new Map<string, MealSizeItemRow[]>();
   for (const item of items) {
     const list = byCategory.get(item.category);
     if (list) list.push(item);
     else byCategory.set(item.category, [item]);
   }
-
-  const out = new Map<string, (number | null)[]>();
-  for (const [category, list] of byCategory) {
-    const slots = [...list]
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((item) => {
-        if (item.tuAmount == null || item.tuAmount === "") return null;
-        const n = Number(item.tuAmount);
-        return Number.isFinite(n) ? n : null;
-      });
-    out.set(category, slots);
-  }
-
-  const catalogFirst = new Map<string, number | null>();
-  for (const [category, slots] of out) catalogFirst.set(category, slots[0] ?? null);
-
-  for (const s of swaps) {
-    const from = out.get(s.fromCategory) ?? [];
-    const given = from.splice(0, s.qtyFrom);
-    out.set(s.fromCategory, from);
-
-    const to = out.get(s.toCategory) ?? [];
-    // Same rule as slotsAfterSwaps: same-unit swaps are like-for-like, keep each given size.
-    if (sameUnitTu(categoriesByKey?.get(s.fromCategory), categoriesByKey?.get(s.toCategory)) && given.length === s.qtyTo) {
-      to.push(...given);
-    } else {
-      const receiveTu = catalogFirst.get(s.toCategory) ?? 1.0;
-      for (let i = 0; i < s.qtyTo; i++) to.push(receiveTu);
-    }
-    out.set(s.toCategory, to);
-  }
-  return out;
+  return byCategory;
 }
 
 function sameUnitTu(a: TuCategory | undefined, b: TuCategory | undefined): boolean {

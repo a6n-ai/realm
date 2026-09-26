@@ -48,3 +48,46 @@ describe("anchorSwaps", () => {
     expect(daal!.cells.map((c) => c.pickIndex)).toEqual([1]);
   });
 });
+
+describe("anchorSwaps with a named row", () => {
+  it("shows the swapped 8oz Sabzi below the 12oz one it left alone", () => {
+    const groups = groupPickCells(
+      [cell("sabzi", 1, true), cell("daal", 1, false), cell("daal", 2, false)],
+      categories,
+      { sabzi: ["12oz"], daal: ["12oz", "8oz"] },
+    );
+    const [sabzi] = anchorSwaps({
+      groups,
+      swaps: [{ ...swap("a"), fromRow: 1 }],
+      categories,
+      basePortions,
+      amounts: () => null,
+    });
+    expect(sabzi!.items.map((i) => (i.kind === "cell" ? `cell:${i.row}` : `swapped:${i.swapped.givePortion}`))).toEqual([
+      "cell:0",
+      "swapped:8oz",
+    ]);
+  });
+});
+
+describe("anchorSwaps with one swap that took two rows", () => {
+  it("shows Sabzi 12oz and Sabzi 8oz as their own lines, not 'Sabzi · 12oz + 8oz'", () => {
+    const groups = groupPickCells(
+      [cell("daal", 1, false), cell("daal", 2, false), cell("daal", 3, false)],
+      categories,
+      { daal: ["12oz", "12oz", "8oz"] },
+    );
+    const [sabzi, daal] = anchorSwaps({
+      groups,
+      swaps: [{ ...swap("both"), qtyFrom: 2, qtyTo: 2 }],
+      categories,
+      basePortions,
+      amounts: () => null,
+    });
+    expect(sabzi!.items.map((i) => (i.kind === "swapped" ? [i.swapped.givePortion, i.swapped.getPortion, i.swapped.givenRow] : null))).toEqual([
+      ["12oz", "12oz", 0],
+      ["8oz", "8oz", 1],
+    ]);
+    expect(daal!.cells).toHaveLength(1);
+  });
+});

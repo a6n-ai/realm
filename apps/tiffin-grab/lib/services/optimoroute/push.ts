@@ -118,7 +118,7 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
         duration: durationMins,
         notes,
         ...(phone ? { phone } : {}),
-        location: { address: fullAddress, locationName: address.fullName },
+        location: { address: fullAddress, locationName: fullAddress },
         // Mapping preserved from the Route Maker sheet — drivers read these fields in the
         // OptimoRoute mobile app, so changing the slots changes what they see at the door.
         customField1: phone,

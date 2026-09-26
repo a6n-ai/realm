@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { memoryBus } from "@foundry/realtime/server";
+import { db } from "@/db/client";
+import { orders, users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -43,6 +47,18 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
     revalidatePath(`/dashboard/orders/${orderId}`);
     revalidatePath("/dashboard/payments", "layout");
     revalidatePath("/me/wallet");
+    
+    // Trigger customer shell SSE refresh
+    const order = await db
+      .select({ userPublicId: users.publicId })
+      .from(orders)
+      .innerJoin(users, eq(users.id, orders.userId))
+      .where(eq(orders.publicId, orderId))
+      .limit(1);
+      
+    if (order.length > 0) {
+      memoryBus.publish(`refresh:${order[0].userPublicId}`, { type: "message", channel: `refresh:${order[0].userPublicId}` });
+    }
   }
   return res;
 }
@@ -56,6 +72,18 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
     revalidatePath(`/dashboard/orders/${orderId}`);
     revalidatePath("/dashboard/payments", "layout");
     revalidatePath("/me/wallet");
+    
+    // Trigger customer shell SSE refresh
+    const order = await db
+      .select({ userPublicId: users.publicId })
+      .from(orders)
+      .innerJoin(users, eq(users.id, orders.userId))
+      .where(eq(orders.publicId, orderId))
+      .limit(1);
+      
+    if (order.length > 0) {
+      memoryBus.publish(`refresh:${order[0].userPublicId}`, { type: "message", channel: `refresh:${order[0].userPublicId}` });
+    }
   }
   return res;
 }

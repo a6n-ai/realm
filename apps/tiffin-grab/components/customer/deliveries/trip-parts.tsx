@@ -21,6 +21,7 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
     case "vacation": return { label: "Vacation", tone: "vac", dot: "vacation" };
     case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
+    case "failed": return { label: "Failed (On Hold)", tone: "hold", dot: "hold" };
   }
 }
 
@@ -189,6 +190,7 @@ export const EXPLAIN: Record<Trip["status"], string> = {
   locked: "Closed. This day can no longer be changed.",
   vacation: "Your plan is on vacation, so nothing arrives. Resume deliveries to bring it back.",
   "combined-into": "Combined into another delivery.",
+  failed: "Delivery failed. It is currently on hold. You can resume or reschedule it.",
 };
 
 /** Meal breakdown of one eating day (category, portion, dishes, swaps), with a compact delivery footer. */

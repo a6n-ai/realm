@@ -7,7 +7,7 @@ const day = (date: string, o: Record<string, unknown> = {}) => ({
   date, status: "scheduled" as const, locked: false, isMakeup: false, menuWeekId: null, meal: null, options: [],
   units: 1, covers: [date], coversLabel: null, combinedInto: null, eatingDays: [{ date, appliedSwaps: [], swapPairs: [] }], ...o,
 });
-const row = (publicId: string, deliveryDate: string, o: Record<string, unknown> = {}) => ({ publicId, id: BigInt(publicId.length), deliveryDate, cutoffAt: 1_000, pooledAt: null, ...o });
+const row = (publicId: string, deliveryDate: string, o: Record<string, unknown> = {}) => ({ publicId, id: BigInt(publicId.length), deliveryDate, cutoffAt: 1_000, pooledAt: null, deliveryStrategyPublicId: null, optimoCompletionStatus: null, ...o });
 
 describe("toCalendarInputs", () => {
   it("joins delivery rows by date: id, cutoff, pooled, rescheduled (has make-up)", () => {

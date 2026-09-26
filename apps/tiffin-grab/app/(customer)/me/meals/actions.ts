@@ -34,7 +34,7 @@ export async function pickMyDish(input: {
       personIndex: input.personIndex, pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId,
       actorId,
     });
-    revalidatePath("/me");
+    revalidatePath("/me", "layout");
     revalidatePath(`/dashboard/orders/${input.orderId}`);
   });
 }
@@ -81,7 +81,7 @@ export async function saveMyMealSelections(input: {
       });
     }
 
-    revalidatePath("/me");
+    revalidatePath("/me", "layout");
     revalidatePath(`/dashboard/orders/${input.orderId}`);
     return { saved: input.picks.length };
   });

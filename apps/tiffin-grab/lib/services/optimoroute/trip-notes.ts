@@ -48,7 +48,7 @@ export async function loadTripDetails(rows: DayDeliveryRow[]): Promise<Map<bigin
   const swaps = multi.length === 0
     ? []
     : await db
-        .select({ deliveryId: deliveryCategorySwaps.deliveryId, forDate: deliveryCategorySwaps.forDate, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo })
+        .select({ deliveryId: deliveryCategorySwaps.deliveryId, forDate: deliveryCategorySwaps.forDate, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow })
         .from(deliveryCategorySwaps)
         .where(inArray(deliveryCategorySwaps.deliveryId, multi.map((r) => r.delivery.id)))
         .orderBy(asc(deliveryCategorySwaps.id));

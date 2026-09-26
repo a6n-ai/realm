@@ -111,7 +111,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
         fromCategory: deliveryCategorySwaps.fromCategory,
         toCategory: deliveryCategorySwaps.toCategory,
         qtyFrom: deliveryCategorySwaps.qtyFrom,
-        qtyTo: deliveryCategorySwaps.qtyTo,
+        qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow,
       })
       .from(deliveryCategorySwaps)
       .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.deliveryId)))

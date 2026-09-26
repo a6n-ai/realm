@@ -17,10 +17,10 @@
 // lib/menu/meal-validation.ts — shared with listValidSwapOptionsForDelivery so
 // apply never accepts a quantity the options API would not have offered.
 import { ValidationError } from "@foundry/commons";
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryCategorySwaps, orderActivities, orders } from "@/db/schema";
-import { validateProposedSwap } from "@/lib/menu/meal-validation";
+import { firstBrokenSwap, validateProposedSwap } from "@/lib/menu/meal-validation";
 import { coveredDates, swapAppliesTo } from "@/lib/menu/coverage";
 import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
@@ -34,8 +34,11 @@ export async function applyDeliverySwap(
   actorId: bigint | null,
   /** Eating day (ISO) the swap is for; must be one the trip covers. Omitted = the trip's own date. */
   forDate?: string,
+  /** Base composition row of fromCategory given up (Sabzi 8oz = 1). Omitted = the leading row(s). */
+  fromRow?: number | null,
 ): Promise<void> {
   if (!Number.isInteger(fromPicks) || fromPicks <= 0) throw new ValidationError("Pick count must be a positive whole number");
+  if (fromRow != null && (!Number.isInteger(fromRow) || fromRow < 0)) throw new ValidationError("Row must be a whole number");
 
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
@@ -59,8 +62,8 @@ export async function applyDeliverySwap(
     const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {});
     const existing = await tx.select({
       fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
-      qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate,
-    }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id))
+      qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate,
+    }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id)).orderBy(asc(deliveryCategorySwaps.id))
       .then((rs) => rs.filter((r) => swapAppliesTo(r.forDate, row.deliveryDate, eatingDate)));
 
     const check = validateProposedSwap({
@@ -70,8 +73,9 @@ export async function applyDeliverySwap(
         toCategory: r.toCategory,
         qtyFrom: r.qtyFrom,
         qtyTo: r.qtyTo,
+        fromRow: r.fromRow,
       })),
-      next: { fromCategory, toCategory, fromPicks },
+      next: { fromCategory, toCategory, fromPicks, fromRow },
     });
     if (!check.ok) throw new ValidationError(check.reason);
     const qtyTo = check.qtyTo;
@@ -80,7 +84,7 @@ export async function applyDeliverySwap(
     // meal_size_items after this, so a later admin edit to a category's tuAmount
     // can't retroactively change a swap a customer already applied.
     await tx.insert(deliveryCategorySwaps).values({
-      deliveryId: row.id, fromCategory, toCategory, qtyFrom: fromPicks, qtyTo, forDate: storedForDate,
+      deliveryId: row.id, fromCategory, toCategory, qtyFrom: fromPicks, qtyTo, fromRow: fromRow ?? null, forDate: storedForDate,
     });
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "category_swap_applied",
@@ -109,6 +113,32 @@ export async function removeDeliverySwap(
         .where(and(eq(deliveryCategorySwaps.publicId, appliedSwapPublicId), eq(deliveryCategorySwaps.deliveryId, row.id))).limit(1);
       if (swap && !swapAppliesTo(swap.forDate, row.deliveryDate, forDate)) throw new ValidationError("Swap not found on that day");
     }
+
+    // Removing a swap can strand one stacked on it (Daal → Raita using the Daal a
+    // Sabzi → Daal brought in). Refuse rather than leave a meal that gives up nothing.
+    const onDelivery = await tx.select({
+      publicId: deliveryCategorySwaps.publicId,
+      fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
+      qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo,
+      fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate,
+    }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id)).orderBy(asc(deliveryCategorySwaps.id));
+    const target = onDelivery.find((s) => s.publicId === appliedSwapPublicId);
+    if (target) {
+      const eatingDate = target.forDate ?? row.deliveryDate;
+      const rest = onDelivery.filter((s) => s !== target && swapAppliesTo(s.forDate, row.deliveryDate, eatingDate));
+      if (rest.length > 0) {
+        const [order] = await tx.select().from(orders).where(eq(orders.id, row.orderId)).limit(1);
+        const composition = order ? await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {}) : null;
+        const broken = composition ? firstBrokenSwap(composition, rest) : null;
+        if (broken && composition) {
+          const label = (k: string) => composition.labels?.[k] ?? k;
+          throw new ValidationError(
+            `Undo the ${label(broken.fromCategory)} → ${label(broken.toCategory)} exchange first — it uses what this one gives.`,
+          );
+        }
+      }
+    }
+
     const deleted = await tx.delete(deliveryCategorySwaps)
       .where(and(eq(deliveryCategorySwaps.publicId, appliedSwapPublicId), eq(deliveryCategorySwaps.deliveryId, row.id)))
       .returning({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory });

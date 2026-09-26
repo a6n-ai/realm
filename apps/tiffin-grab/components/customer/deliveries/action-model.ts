@@ -24,7 +24,7 @@ const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet
  */
 export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean } = {}) {
   const av = actionAvailability(trip, now, ctx);
-  const held = trip.status === "hold" || trip.status === "rescheduled";
+  const held = trip.status === "hold" || trip.status === "rescheduled" || trip.status === "failed";
   const closed = CLOSED.has(trip.status);
   const pickAv: Availability = opts.menuOut && !closed ? MENU_NOT_RELEASED : av.pick;
   const keys: TripAction[] = closed || opts.locked

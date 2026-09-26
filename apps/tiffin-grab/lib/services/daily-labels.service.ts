@@ -187,7 +187,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
             fromCategory: deliveryCategorySwaps.fromCategory,
             toCategory: deliveryCategorySwaps.toCategory,
             qtyFrom: deliveryCategorySwaps.qtyFrom,
-            qtyTo: deliveryCategorySwaps.qtyTo,
+            qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow,
           })
           .from(deliveryCategorySwaps)
           .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.delivery.id)))

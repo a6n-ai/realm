@@ -29,7 +29,7 @@ export type PlanView = {
   deliveryStrategies: { publicId: string; name: string }[];
 };
 
-type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "pooledAt" | "deliveryStrategyPublicId"> &
+type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "pooledAt" | "deliveryStrategyPublicId" | "optimoCompletionStatus"> &
   Partial<Pick<CustomerDelivery, "addressLine" | "postalCode">>;
 
 export function toCalendarInputs(a: {
@@ -50,6 +50,7 @@ export function toCalendarInputs(a: {
       deliveryId: r?.publicId,
       addressOverride: r?.addressLine && r.postalCode ? { addressLine: r.addressLine, postalCode: r.postalCode } : null,
       deliveryStrategyPublicId: r?.deliveryStrategyPublicId,
+      optimoCompletionStatus: r?.optimoCompletionStatus,
       cutoffAt: r?.cutoffAt,
       pooled: r?.pooledAt != null,
       rescheduled: r ? a.makeupSources.has(r.id.toString()) : false,

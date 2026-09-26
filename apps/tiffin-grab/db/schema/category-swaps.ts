@@ -22,6 +22,10 @@ export const deliveryCategorySwaps = pgTable("delivery_category_swaps", {
   toCategory: text("to_category").notNull(),
   qtyFrom: integer("qty_from").notNull(),
   qtyTo: integer("qty_to").notNull(),
+  // Which composition row of fromCategory was given up: 0-based among that category's
+  // meal_size_items in sortOrder (0 = Sabzi 12oz, 1 = Sabzi 8oz). NULL = the first row
+  // still there, which is how every swap applied before this column behaves.
+  fromRow: integer("from_row"),
   // The eating day this swap applies to; NULL = the trip's own delivery date.
   forDate: date("for_date"),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.

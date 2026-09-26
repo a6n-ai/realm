@@ -247,6 +247,7 @@ export type AgendaDay = {
   covers: string[];
   /** This date used to be its own trip, now merged into this one — render as "moved", not the trip's live status. */
   moved?: boolean;
+  optimoCompletionStatus?: string | null;
 };
 
 /**
@@ -280,15 +281,15 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     const covers = coveredDates(d);
     const moved = movedDatesByTarget.get(d.id.toString());
     for (const date of covers) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date) });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date), optimoCompletionStatus: d.optimoCompletionStatus });
     }
     // A doubled day (moved tiffin landed on an eating day) gets a second dot.
     for (const date of extrasById.get(d.id) ?? []) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true, optimoCompletionStatus: d.optimoCompletionStatus });
     }
     // The eat dates stayed put and the truck moved: mark the arrival day, or that Friday looks empty.
     if (d.status === "scheduled" && !covers.includes(d.deliveryDate)) {
-      (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers });
+      (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers, optimoCompletionStatus: d.optimoCompletionStatus });
     }
   }
   return out;
@@ -672,7 +673,7 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
 export type ResolvedMeal = ResolvedCategory[];
 export type MealOption = { category: string; dishId: string; name: string; image: FileDetail | null };
 /** One category swap applied to one eating day of a trip. */
-export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number; fromRow: number | null };
 /** Per-eating-day swap state for a trip; a plain day has a single entry (its own date). */
 export type EatingDaySwaps = {
   date: string;
@@ -769,16 +770,16 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
 
   const swapPairs = await dishCategoriesService.swapPairsForMealSize(order.mealSizeId);
   const swapRows = await db
-    .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
+    .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate })
     .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id)));
+    .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id))).orderBy(asc(deliveryCategorySwaps.id));
   const swapFields = (row: CustomerDelivery) => ({
     eatingDays: coveredDates(row).map((date): EatingDaySwaps => ({
       date,
       swapPairs,
       appliedSwaps: swapRows
         .filter((s) => s.deliveryId === row.id && swapAppliesTo(s.forDate, row.deliveryDate, date))
-        .map(({ publicId, fromCategory, toCategory, qtyFrom, qtyTo }) => ({ publicId, fromCategory, toCategory, qtyFrom, qtyTo })),
+        .map(({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow }) => ({ publicId, fromCategory, toCategory, qtyFrom, qtyTo, fromRow })),
     })),
     swapAllowance: null,
   });

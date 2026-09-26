@@ -58,6 +58,11 @@ export type MealsGridResult =
       releasedWeek: typeof menuWeeks.$inferSelect;
       weekDatesView: WeekDateView[];
       grid: GridCell[];
+      /**
+       * The day's plan dishes per category, even when swaps left it no picks — so Edit
+       * meal can still show the dishes of a row whose whole category was swapped away.
+       */
+      menu: Record<string, Record<string, GridDish[]>>;
       categories: { key: string; label: string; selectable: boolean; sortOrder: number }[];
       persons: number;
     };
@@ -67,6 +72,8 @@ export async function buildMealsGrid(
   settings: { timezone: string; cutoffHour: number },
   /** Monday of the week to build; default is the current (or order-start) week. */
   forWeekStart?: string,
+  /** Saved swaps to build the grid without (Edit meal previewing their removal). */
+  omitSwapPublicIds: string[] = [],
 ): Promise<MealsGridResult> {
   // cutoffHour is intentionally unused here: lockMs/locked come from each row's own
   // stored cutoffAt (snapshotted when the delivery schedule was written), not recomputed
@@ -113,7 +120,7 @@ export async function buildMealsGrid(
     dishCategoriesService.forPlan(planRow.id),
     // Single source of truth for selected/resolved dish per (day, person, category, pickIndex),
     // including stale-pick re-validation and plan filtering — buildMealsGrid must not re-derive it.
-    resolveDeliveryMealsForWeek(order, releasedWeek, order.persons),
+    resolveDeliveryMealsForWeek(order, releasedWeek, order.persons, omitSwapPublicIds),
     allDishBigintIds.length > 0
       ? db
           .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, image: dishes.image, planId: dishes.planId })
@@ -144,10 +151,16 @@ export async function buildMealsGrid(
   });
 
   const grid: GridCell[] = [];
+  const menu: Record<string, Record<string, GridDish[]>> = {};
   for (const { dateIso, dayOfWeek: day, locked, lockNote } of weekDatesView) {
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
+    menu[dateIso] = {};
     for (const cat of categories) {
       const slot = cat.key;
+      menu[dateIso]![slot] = dayItems
+        .filter((i) => i.slot === slot && planDishIds.has(i.dishId))
+        .map((i) => dishMap.get(i.dishId))
+        .filter((d): d is GridDish => !!d);
       // Representative resolution (person 1): plan filtering and category_counts are
       // person-independent, so whether this (day, category) renders at all doesn't vary by
       // person — only the resolved pick per pickIndex does.
@@ -201,5 +214,5 @@ export async function buildMealsGrid(
       }
     }
   }
-  return { empty: null, releasedWeek, weekDatesView, grid, categories, persons: order.persons };
+  return { empty: null, releasedWeek, weekDatesView, grid, menu, categories, persons: order.persons };
 }
