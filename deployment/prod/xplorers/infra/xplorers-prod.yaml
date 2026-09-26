@@ -25,8 +25,10 @@ Parameters:
     Description: Latest PostgreSQL in ap-southeast-1 (do not pin an older minor like 17.4).
   InstanceType:
     Type: String
-    Default: t3.small
-    Description: Box C size. Match the other clients' t3.small unless vCPU quota forces t3.micro.
+    Default: t2.micro
+    Description: >-
+      Box C size, only read at stack creation. Changing it on a live stack REPLACES the
+      box (launch-template change); resize in place instead - see RUNBOOK section 4.
   AllowSshCidr:
     Type: String
     Default: 0.0.0.0/0
