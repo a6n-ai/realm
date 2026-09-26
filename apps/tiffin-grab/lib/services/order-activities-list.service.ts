@@ -21,7 +21,6 @@ export type ActivityListRow = {
   fromStatus: string | null;
   toStatus: string | null;
   createdAt: number;
-  createdBy: bigint | null;
   action: string;
   actorLabel: string;
   actorKind: "system" | "staff" | "customer";
@@ -134,7 +133,7 @@ export async function listOrderActivitiesPage(
         fromStatus: r.fromStatus,
         toStatus: r.toStatus,
         createdAt: r.createdAt,
-        createdBy: r.createdBy,
+        // No `createdBy` — BigInt cannot cross the RSC → client boundary.
         action: describeActivity(r),
         actorLabel: who.label,
         actorKind: who.kind,

@@ -1,10 +1,12 @@
 import type { FacetDef } from "@/components/ds";
-import { orderActivityType } from "@/db/schema/orders";
 
 /**
  * Settings → Logs categories. Splits address / moved-tiffin actions out of the
  * coarser "deliveries" bucket used on the per-order activity panel, so staff
  * can answer "who changed the address?" and "who moved a tiffin?" directly.
+ *
+ * Keep this module free of `@/db/schema` imports — the facet list is rendered
+ * by a client component (`logs-table.tsx`).
  */
 export const LOG_ACTIVITY_CATEGORY_TYPES = {
   meals: ["meal_pick", "category_swap_applied", "category_swap_removed"],
@@ -28,8 +30,33 @@ const CATEGORY_LABELS: Record<LogActivityCategory, string> = {
   notes: "Notes",
 };
 
+/** Every `order_activity_type` value — keep in sync with the pg enum. */
+export const ACTIVITY_TYPE_VALUES = [
+  "created",
+  "status_change",
+  "paused",
+  "resumed",
+  "cancelled",
+  "activated",
+  "meal_pick",
+  "note",
+  "skipped",
+  "unskipped",
+  "delivery_address_changed",
+  "pool_scheduled",
+  "payment_claimed",
+  "payment_verified",
+  "payment_rejected",
+  "route_pushed",
+  "route_completed",
+  "category_swap_applied",
+  "category_swap_removed",
+] as const;
+
+export type ActivityTypeValue = (typeof ACTIVITY_TYPE_VALUES)[number];
+
 /** Short labels for the Action multi-filter (exact type, not category). */
-export const ACTIVITY_TYPE_LABELS: Record<(typeof orderActivityType.enumValues)[number], string> = {
+export const ACTIVITY_TYPE_LABELS: Record<ActivityTypeValue, string> = {
   created: "Order created",
   status_change: "Status change",
   paused: "Paused",
@@ -65,7 +92,7 @@ export const SETTINGS_ACTIVITY_FACETS: FacetDef[] = [
     kind: "multi",
     field: "type",
     label: "Action",
-    options: orderActivityType.enumValues.map((t) => ({
+    options: ACTIVITY_TYPE_VALUES.map((t) => ({
       value: t,
       label: ACTIVITY_TYPE_LABELS[t],
     })),
