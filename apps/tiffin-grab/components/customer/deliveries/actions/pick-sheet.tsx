@@ -165,6 +165,12 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const cells = grid?.cells.filter((c) => c.dateIso === activeDay && c.personIndex === who) ?? [];
   const lockNote = cells.find((c) => c.lockNote)?.lockNote ?? null;
   const dayLocked = closed || (cells.length > 0 && cells.every((c) => c.locked));
+  // A swap into a fixed category brings that day's one dish; name it instead of the category.
+  const destinationName = (key: string): string | undefined => {
+    if (!grid || grid.categories.find((c) => c.key === key)?.selectable) return undefined;
+    const cell = cells.find((c) => c.slot === key);
+    return cell?.dishes.find((d) => d.id === cell.selectedDishId)?.name ?? grid.menu?.[activeDay!]?.[key]?.[0]?.name;
+  };
   const swapOptions: SwapOption[] =
     !open || swapLocked || !trip.deliveryId || !serverGrid || !activeDay ? [] : previewSwapOptions(serverGrid.preview, activeDay, provisional);
 
@@ -475,13 +481,13 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                             .map((d) => ({
                               value: `was:${d.id}`,
                               label: d.name,
-                              note: blockedOwn.has(d.id) ? "Not allowed with your other picks" : undefined,
+                              reason: blockedOwn.has(d.id) ? "Not allowed with your other picks" : undefined,
                               disabled: rowOff || blockedOwn.has(d.id),
                             })),
                           {
                             value: "swapped",
-                            label: `${labelOf(row.swap.toCategory)}${row.getPortion ? ` · ${row.getPortion}` : ""}`,
-                            note: toName,
+                            // Name what it became; the size only when it differs from the row's (8 roti → 2 rice).
+                            label: `${toName ?? labelOf(row.swap.toCategory)}${row.getPortion && row.getPortion !== row.givePortion ? ` · ${row.getPortion}` : ""}`,
                             disabled: rowOff,
                           },
                         ];
@@ -535,8 +541,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         allowedSwaps,
                         onePerRow: group.cells.every((c) => c.quantity === 1),
                         fromRow: baseRow,
-                        rowPortion: group.portions[i] ?? null,
                         categoryLabel: labelOf,
+                        destinationName,
                       });
                       // A fixed item with no dish on the menu still gets its (greyed) box.
                       const options: SlotDropdownOption[] = built.length
@@ -552,7 +558,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                           choices={options.map((o) => ({
                             value: o.value,
                             label: o.label,
-                            note: o.note,
+                            reason: o.reason,
                             disabled:
                               cellOff
                               || !!o.disabled

@@ -207,8 +207,7 @@ describe("PickSheet", () => {
     }).options);
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
-    const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
-    expect(swapRadio).toHaveTextContent("Choose this instead");
+    const swapRadio = await screen.findByRole("radio", { name: /^Daal$/ });
     fireEvent.click(swapRadio);
     await screen.findByText(/Swapped to Daal/);
     expect(applySwap).not.toHaveBeenCalled();
@@ -232,7 +231,7 @@ describe("PickSheet", () => {
     }).options);
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
-    fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+    fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
     await screen.findByText(/Swapped to Daal/);
     expect(applySwap).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -258,7 +257,7 @@ describe("PickSheet", () => {
     }).options);
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
-    fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+    fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
     await screen.findByText(/Swapped to Daal/);
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(applySwap).not.toHaveBeenCalled();
@@ -332,7 +331,6 @@ describe("PickSheet", () => {
     expect(await screen.findByRole("radiogroup", { name: "Rice · 1 unit" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /^Jeera Rice$/ })).toBeInTheDocument();
     const swapRadio = screen.getByRole("radio", { name: /Roti · 2 roti/ });
-    expect(swapRadio).toHaveTextContent("Choose this instead");
     expect(screen.getByRole("radio", { name: /^Jeera Rice$/ })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
     fireEvent.click(swapRadio);
@@ -501,7 +499,7 @@ describe("PickSheet", () => {
 
     show(trip({ coversDates: [mon] }));
 
-    const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
+    const swapRadio = await screen.findByRole("radio", { name: /^Daal$/ });
     fireEvent.click(swapRadio);
     await screen.findByText(/Swapped to Daal/);
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -535,7 +533,7 @@ describe("PickSheet", () => {
       swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
-      const swapRadio = await screen.findByRole("radio", { name: /Daal · 8oz/ });
+      const swapRadio = await screen.findByRole("radio", { name: /^Daal$/ });
       expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
       fireEvent.click(swapRadio);
       await screen.findByText(/press Save/);
@@ -552,7 +550,7 @@ describe("PickSheet", () => {
       load.mockResolvedValue({ ...g, grid: { ...g.grid, menu: { [mon]: { curry: dishes } } } });
       show(trip({ coversDates: [mon] }));
       fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal/ }))[0]!);
-      fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal · 8oz/ })).find((r) => !r.hasAttribute("disabled") && r.getAttribute("aria-checked") !== "true")!);
+      fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal$/ })).find((r) => !r.hasAttribute("disabled") && r.getAttribute("aria-checked") !== "true")!);
       await waitFor(() =>
         expect(screen.getAllByRole("radio", { name: /^Daal/ }).filter((r) => r.getAttribute("aria-checked") === "true")).toHaveLength(2),
       );
@@ -561,11 +559,22 @@ describe("PickSheet", () => {
       expect(screen.queryByRole("radio", { name: "Curry" })).toBeNull();
     });
 
+    it("an unavailable choice is a plain greyed button; its red ⓘ shows why", async () => {
+      swapOptions.mockReturnValue([{ ...curryToDaal, available: false, reason: "Too much Daal today.", validBundles: [] }]);
+      load.mockResolvedValue(grid([cell({})]));
+      show(trip({ coversDates: [mon] }));
+      const daal = await screen.findByRole("radio", { name: /^Daal$/ });
+      expect(daal).toBeDisabled();
+      expect(screen.queryByText("Daal: Too much Daal today.")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Why Daal is unavailable" }));
+      expect(screen.getByText("Daal: Too much Daal today.")).toBeInTheDocument();
+    });
+
     it("folds a swap in locally: no grid reload, and undoing it needs none either", async () => {
       swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
-      fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+      fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
       fireEvent.click(await ownDishOnSwappedRow("Paneer"));
       expect(await screen.findByText(/^Removed/)).toBeInTheDocument();
       expect(load).toHaveBeenCalledTimes(1);
@@ -575,7 +584,7 @@ describe("PickSheet", () => {
       swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
       const onDone = show(trip({ coversDates: [mon] }));
-      fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+      fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
       fireEvent.click(await ownDishOnSwappedRow("Dal"));
       await waitFor(() => expect(screen.getByRole("radio", { name: "Dal" })).toHaveAttribute("aria-checked", "true"));
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -599,7 +608,7 @@ describe("PickSheet", () => {
       applySwap.mockResolvedValueOnce({ error: "Not enough Curry left to give up on this day." });
       render(<PickSheet trip={trip({ coversDates: [mon] })} plan={planWithMonSwap} open onDone={vi.fn()} />);
       fireEvent.click(await ownDishOnSwappedRow("Paneer"));
-      fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+      fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
       await screen.findByText(/press Save/);
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
       await screen.findByText(/Not enough Curry/);

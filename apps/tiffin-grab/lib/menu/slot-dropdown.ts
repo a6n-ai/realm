@@ -86,8 +86,8 @@ export function swapOptionsAllowedByRules(args: {
 type SlotOptionState = {
   /** Shown greyed out: the customer can see the choice but not make it. */
   disabled?: boolean;
-  /** Second line under the label ("Choose this instead", or why it's greyed out). */
-  note?: string;
+  /** Why it's greyed out. */
+  reason?: string;
 };
 
 export type SlotDishOption = SlotOptionState & {
@@ -158,7 +158,7 @@ function swapLabel(
  * remaining cells of that category (pickIndex order).
  *
  * Nothing the admin configured is hidden: a dish or swap the customer can't take
- * right now comes back `disabled` with a note, so the row never changes shape.
+ * right now comes back `disabled` with a reason, so the row never changes shape.
  */
 export function buildSlotDropdownOptions(args: {
   cellIndexInCategory: number;
@@ -176,11 +176,14 @@ export function buildSlotDropdownOptions(args: {
   onePerRow?: boolean;
   /** This cell's base composition row; with onePerRow, lets any row swap itself. */
   fromRow?: number | null;
-  /** This row's own portion ("8oz"), for a like-for-like swap label. */
-  rowPortion?: string | null;
   categoryLabel: (key: string) => string;
+  /**
+   * The dish a swap into this category brings, when it has just one (Daal → "Dal Tadka").
+   * Undefined for categories the customer picks a dish in; the button then names the category.
+   */
+  destinationName?: (key: string) => string | undefined;
 }): SlotDropdownOption[] {
-  const { cellIndexInCategory, categoryKey, dishes, disabledDishIds, swapOptions, allowedSwaps, onePerRow, fromRow = null, rowPortion, categoryLabel } = args;
+  const { cellIndexInCategory, categoryKey, dishes, disabledDishIds, swapOptions, allowedSwaps, onePerRow, fromRow = null, categoryLabel, destinationName } = args;
   const ownRow = onePerRow && fromRow != null;
   const out: SlotDropdownOption[] = [];
 
@@ -191,19 +194,19 @@ export function buildSlotDropdownOptions(args: {
       value: dishOptionValue(d.id),
       label: d.name,
       dishId: d.id,
-      ...(blocked ? { disabled: true, note: "Not allowed with your other picks" } : {}),
+      ...(blocked ? { disabled: true, reason: "Not allowed with your other picks" } : {}),
     });
   }
 
   for (const opt of swapOptions) {
     if (opt.fromCategory !== categoryKey) continue;
-    const toLabel = categoryLabel(opt.toCategory);
+    const toLabel = destinationName?.(opt.toCategory) ?? categoryLabel(opt.toCategory);
     const base = { kind: "swap" as const, fromCategory: opt.fromCategory, toCategory: opt.toCategory, fromRow: ownRow ? fromRow : null };
     const bundles = opt.validBundles.filter((b) => !onePerRow || b.fromPicks === 1);
     if (!opt.available || bundles.length === 0) {
       out.push({
         ...base, fromPicks: 1, value: swapOptionValue(opt.fromCategory, opt.toCategory, 1), label: toLabel,
-        disabled: true, note: opt.reason ?? "Not available for this item",
+        disabled: true, reason: opt.reason ?? "Not available for this item",
       });
       continue;
     }
@@ -211,21 +214,21 @@ export function buildSlotDropdownOptions(args: {
     if (!ownRow && cellIndexInCategory !== 0) {
       out.push({
         ...base, fromPicks: 1, value: swapOptionValue(opt.fromCategory, opt.toCategory, 1), label: toLabel,
-        disabled: true, note: `Swap the ${categoryLabel(categoryKey)} above first`,
+        disabled: true, reason: `Swap the ${categoryLabel(categoryKey)} above first`,
       });
       continue;
     }
     for (const bundle of bundles) {
       const ok = !allowedSwaps || allowedSwaps.has(swapOptionValue(opt.fromCategory, opt.toCategory, bundle.fromPicks));
-      // Like-for-like (give == get): this row becomes its own size, not the leading row's.
-      const likeForLike = ownRow && rowPortion && bundle.giveNatural === bundle.getNatural;
+      // Like-for-like (8oz Sabzi → 8oz Daal): the row title already says the size, so just the name.
+      const likeForLike = bundle.fromPicks === 1 && bundle.giveNatural === bundle.getNatural;
       out.push({
         ...base,
         fromPicks: bundle.fromPicks,
         value: swapOptionValue(opt.fromCategory, opt.toCategory, bundle.fromPicks, base.fromRow),
-        label: likeForLike ? `${toLabel} · ${rowPortion}` : swapLabel(toLabel, bundle),
+        label: likeForLike ? toLabel : swapLabel(toLabel, bundle),
         disabled: !ok || undefined,
-        note: ok ? "Choose this instead" : "Not allowed with your other picks",
+        reason: ok ? undefined : "Not allowed with your other picks",
       });
     }
   }

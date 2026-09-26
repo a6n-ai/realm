@@ -50,10 +50,11 @@ describe("slot-dropdown", () => {
       swapOptions: [sabziDaal],
       categoryLabel: (k) => (k === "daal" ? "Daal" : k),
     });
+    // Like-for-like swaps name the destination only (the row title has the size); bundles keep their amount.
     expect(leading.map((o) => o.label)).toEqual([
       "Aloo gobi",
       "Bhindi",
-      "Daal · 12oz",
+      "Daal",
       "Daal · 24oz · uses 2 items",
     ]);
     expect(leading.some((o) => o.disabled)).toBe(false);
@@ -71,7 +72,7 @@ describe("slot-dropdown", () => {
       ["Bhindi", false],
       ["Daal", true],
     ]);
-    expect(trailing[2]!.note).toBe("Swap the sabzi above first");
+    expect(trailing[2]!.reason).toBe("Swap the sabzi above first");
   });
 
   it("onePerRow keeps each row to its own single-row swap", () => {
@@ -83,10 +84,23 @@ describe("slot-dropdown", () => {
       onePerRow: true,
       categoryLabel: (k) => (k === "daal" ? "Daal" : k),
     });
-    expect(opts.filter((o) => o.kind === "swap").map((o) => o.label)).toEqual(["Daal · 12oz"]);
+    expect(opts.filter((o) => o.kind === "swap").map((o) => o.label)).toEqual(["Daal"]);
   });
 
-  it("a later per-pick row swaps itself: live, its own size, carrying its row", () => {
+  it("names the dish a fixed destination brings", () => {
+    const opts = buildSlotDropdownOptions({
+      cellIndexInCategory: 0,
+      categoryKey: "sabzi",
+      dishes: [],
+      swapOptions: [sabziDaal],
+      onePerRow: true,
+      categoryLabel: (k) => k,
+      destinationName: (k) => (k === "daal" ? "Dal Tadka" : undefined),
+    });
+    expect(opts.map((o) => [o.label, o.reason])).toEqual([["Dal Tadka", undefined]]);
+  });
+
+  it("a later per-pick row swaps itself: live, carrying its row", () => {
     const opts = buildSlotDropdownOptions({
       cellIndexInCategory: 1,
       categoryKey: "sabzi",
@@ -94,11 +108,10 @@ describe("slot-dropdown", () => {
       swapOptions: [sabziDaal],
       onePerRow: true,
       fromRow: 1,
-      rowPortion: "8oz",
       categoryLabel: (k) => (k === "daal" ? "Daal" : k),
     });
     expect(opts).toEqual([
-      expect.objectContaining({ label: "Daal · 8oz", fromRow: 1, value: "swap:sabzi>daal:1@1", note: "Choose this instead" }),
+      expect.objectContaining({ label: "Daal", fromRow: 1, value: "swap:sabzi>daal:1@1", reason: undefined }),
     ]);
     expect(opts[0]!.disabled).toBeFalsy();
     expect(parseSlotOptionValue(opts[0]!.value)).toEqual({ kind: "swap", fromCategory: "sabzi", toCategory: "daal", fromPicks: 1, fromRow: 1 });
@@ -115,7 +128,7 @@ describe("slot-dropdown", () => {
       swapOptions: [dead, other],
       categoryLabel: (k) => k,
     });
-    expect(opts.map((o) => [o.label, !!o.disabled, o.note])).toEqual([
+    expect(opts.map((o) => [o.label, !!o.disabled, o.reason])).toEqual([
       ["Aloo gobi", false, undefined],
       ["Bhindi", true, "Not allowed with your other picks"],
       ["daal", true, "Too much Daal"],
