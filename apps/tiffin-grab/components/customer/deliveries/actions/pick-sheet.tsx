@@ -146,7 +146,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         qtyTo: p.toPicks,
       }));
 
-    loadMySwapOptions(trip.deliveryId, day, provisional, pendingRemoves)
+    loadMySwapOptions(trip.deliveryId, day, provisional, pendingRemoves.map((r) => r.publicId))
       .then((r) => {
         if (!live) return;
         if ("error" in r) setSwapOptions([]);
