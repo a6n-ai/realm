@@ -33,6 +33,34 @@ export function takeGiven<T>(from: SlotRow<T>[], s: { qtyFrom: number; fromRow?:
   return from.splice(Math.max(at, 0), s.qtyFrom);
 }
 
+/**
+ * Folds applied swaps onto per-category slots, in order. The one received-row rule every
+ * reader shares (swap options, apply validation, Edit meal, portions, labels, kitchen):
+ * a same-unit swap keeps each given size; otherwise each received pick is `receiveTu(to)`.
+ * Mutates and returns `slots`.
+ */
+export function foldSwaps<T>(
+  slots: Map<string, SlotRow<T>[]>,
+  swaps: SwapRow[],
+  rules: { sameUnit: (from: string, to: string) => boolean; receiveTu: (to: string) => T },
+): Map<string, SlotRow<T>[]> {
+  for (const s of swaps) {
+    const from = slots.get(s.fromCategory) ?? [];
+    const given = takeGiven(from, s);
+    slots.set(s.fromCategory, from);
+
+    const to = slots.get(s.toCategory) ?? [];
+    if (rules.sameUnit(s.fromCategory, s.toCategory) && given.length === s.qtyTo) {
+      to.push(...given.map((g) => ({ row: null, value: g.value })));
+    } else {
+      const tu = rules.receiveTu(s.toCategory);
+      for (let i = 0; i < s.qtyTo; i++) to.push({ row: null, value: tu });
+    }
+    slots.set(s.toCategory, to);
+  }
+  return slots;
+}
+
 // Folds every applied swap for a delivery onto a base counts map, in the order the
 // rows are given. Never clamps below 0 here — that's a service-layer invariant
 // enforced at apply-time (applyDeliverySwap), not re-validated on every read. Lives in

@@ -7,7 +7,7 @@
 // pickIndex N is the Nth row. A sabzi category with two rows @ 1 TU each gives picks
 // 1 and 2 at that portion; a dal category with one row @ 1.5 TU gives pick 1 at that portion.
 import { formatTuHuman, isContainerCategory, type TuCategory } from "./format-tu";
-import { takeGiven, type SlotRow } from "./swap-rules";
+import { foldSwaps, type SlotRow } from "./swap-rules";
 
 export type MealSizeItemRow = {
   category: string;
@@ -87,22 +87,10 @@ export function slotRowsAfterSwaps(
   const catalogFirst = new Map<string, number | null>();
   for (const [category, slots] of out) catalogFirst.set(category, slots[0]?.value ?? null);
 
-  for (const s of swaps) {
-    const from = out.get(s.fromCategory) ?? [];
-    const given = takeGiven(from, s);
-    out.set(s.fromCategory, from);
-
-    const to = out.get(s.toCategory) ?? [];
-    // Same rule as slotsAfterSwaps: same-unit swaps are like-for-like, keep each given size.
-    if (sameUnitTu(categoriesByKey?.get(s.fromCategory), categoriesByKey?.get(s.toCategory)) && given.length === s.qtyTo) {
-      to.push(...given.map((g) => ({ row: null, value: g.value })));
-    } else {
-      const receiveTu = catalogFirst.get(s.toCategory) ?? 1.0;
-      for (let i = 0; i < s.qtyTo; i++) to.push({ row: null, value: receiveTu });
-    }
-    out.set(s.toCategory, to);
-  }
-  return out;
+  return foldSwaps<number | null>(out, swaps, {
+    sameUnit: (a, b) => sameUnitTu(categoriesByKey?.get(a), categoriesByKey?.get(b)),
+    receiveTu: (to) => catalogFirst.get(to) ?? 1.0,
+  });
 }
 
 function byCategoryOf(items: MealSizeItemRow[]): Map<string, MealSizeItemRow[]> {

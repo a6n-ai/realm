@@ -26,6 +26,7 @@ import {
   applySwapsToCounts,
   capViolation,
   crossUnitPicks,
+  foldSwaps,
   NOT_ENOUGH_FOR_SWAP,
   sameUnit,
   swapPairFits,
@@ -116,24 +117,14 @@ export function rowsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Map
   for (const key of Object.keys(ctx.baseCounts)) {
     if (!map.has(key)) map.set(key, []);
   }
-  for (const s of applied) {
-    const from = map.get(s.fromCategory) ?? [];
-    const given = takeGiven(from, s);
-    map.set(s.fromCategory, from);
-
-    const to = map.get(s.toCategory) ?? [];
-    const fromCat = ctx.categories.get(s.fromCategory);
-    const toCat = ctx.categories.get(s.toCategory);
-    // Same-unit swaps are like-for-like (validateProposedSwap): keep each given size.
-    if (fromCat && toCat && sameUnit(fromCat, toCat) && given.length === s.qtyTo) {
-      to.push(...given.map((g) => ({ row: null, value: g.value })));
-    } else {
-      const rate = receivePickTu(ctx, s.toCategory) ?? 0;
-      for (let i = 0; i < s.qtyTo; i++) to.push({ row: null, value: rate });
-    }
-    map.set(s.toCategory, to);
-  }
-  return map;
+  return foldSwaps(map, applied, {
+    sameUnit: (a, b) => {
+      const fromCat = ctx.categories.get(a);
+      const toCat = ctx.categories.get(b);
+      return !!fromCat && !!toCat && sameUnit(fromCat, toCat);
+    },
+    receiveTu: (to) => receivePickTu(ctx, to) ?? 0,
+  });
 }
 
 /**
