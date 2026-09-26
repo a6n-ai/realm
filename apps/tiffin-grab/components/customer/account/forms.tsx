@@ -3,16 +3,11 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition, type ComponentType, type FormEvent, type ReactNode } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import type { Area, CropperProps } from "react-easy-crop";
-import { profileAddressSchema, type ProfileAddressValues } from "@foundry/commons";
-import { AddressFields } from "@/components/customer/address/address-fields";
 import { Button, Card, Field, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { getCroppedBlob } from "@/lib/images/crop";
 import {
-  updateMyAddress,
   updateMyContact,
   updateMyPreferences,
   updateMyProfile,
@@ -234,41 +229,6 @@ export function ContactForm({ phone, email, emailVerified, phoneVerified }: { ph
         <ListRow label="Email" sublabel="Change it under Security" value={<Pill tone={emailVerified ? "ok" : "neutral"}>{emailVerified ? "Verified" : "Unverified"}</Pill>} />
         <ListRow label={email} />
       </ListGroup>
-    </Block>
-  );
-}
-
-export function AddressForm(props: Partial<ProfileAddressValues>) {
-  const s = useSave();
-  const form = useForm<ProfileAddressValues>({
-    resolver: zodResolver(profileAddressSchema),
-    defaultValues: { addressLine: "", addressUnit: "", city: "", postalCode: "", province: "", ...props },
-  });
-  const onSubmit = form.handleSubmit((values) => {
-    const next = {
-      addressLine: values.addressLine.trim(),
-      addressUnit: values.addressUnit.trim(),
-      city: values.city.trim(),
-      postalCode: values.postalCode.trim(),
-      province: values.province.trim(),
-    };
-    s.run(() => updateMyAddress(next), "Delivery address saved.", () => form.reset(next));
-  });
-  return (
-    <Block title="Delivery address" subtitle="Where your tiffins go. Checkout uses this by default.">
-      <form onSubmit={onSubmit} className="space-y-4">
-        <AddressFields
-          preset="profile"
-          idPrefix="account"
-          values={form.watch()}
-          errors={Object.fromEntries(Object.entries(form.formState.errors).map(([k, e]) => [k, e?.message]))}
-          resolveUrl="/api/address/resolve"
-          onChange={(patch) => {
-            for (const [key, value] of Object.entries(patch)) form.setValue(key as keyof ProfileAddressValues, value ?? "", { shouldDirty: true });
-          }}
-        />
-        <SaveBar pending={s.pending || form.formState.isSubmitting} dirty={form.formState.isDirty} status={s.status} label="Save address" />
-      </form>
     </Block>
   );
 }

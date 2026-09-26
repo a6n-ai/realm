@@ -1,14 +1,17 @@
 import { requireAccountUser } from "@/app/(dashboard)/dashboard/account/current-user";
 import { AccountPage } from "@/components/customer/account/account-page";
 import { sectionFromSlug, sectionsForRole } from "@/components/customer/account/sections.config";
+import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
 
 export default async function MeAccountPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
   const [{ user, role }, sp] = await Promise.all([requireAccountUser(), searchParams]);
   const active = sectionFromSlug(sp.section, sectionsForRole(role));
+  const addresses = active?.key === "address" ? await addressService.list(await addressScopeFor(user.publicId)) : [];
   return (
     <AccountPage
       role={role}
       active={active}
+      addresses={addresses}
       user={{
         name: user.name ?? null,
         email: user.email ?? "",

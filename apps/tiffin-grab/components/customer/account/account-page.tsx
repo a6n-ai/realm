@@ -4,7 +4,9 @@ import { Role, type RoleValue } from "@foundry/commons";
 import { ListGroup, ListRow, PageHeader } from "@/components/customer/kit";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { SignOutRow } from "./sign-out-row";
-import { AddressForm, ContactForm, DeliveryNotesForm, DietaryForm, NotificationsForm, ProfileForm, SecurityPanel } from "./forms";
+import type { SavedAddress } from "@foundry/address";
+import { AddressBook } from "./address-book";
+import { ContactForm, DeliveryNotesForm, DietaryForm, NotificationsForm, ProfileForm, SecurityPanel } from "./forms";
 import { accountSectionHref, sectionsForRole, type AccountSection, type AccountSectionKey } from "./sections.config";
 
 export type AccountUser = {
@@ -28,14 +30,14 @@ export type AccountUser = {
   hasPin: boolean;
 };
 
-function SectionBody({ k, user, role }: { k: AccountSectionKey; user: AccountUser; role: RoleValue }) {
+function SectionBody({ k, user, role, addresses }: { k: AccountSectionKey; user: AccountUser; role: RoleValue; addresses: SavedAddress[] }) {
   switch (k) {
     case "profile":
       return <ProfileForm image={user.image} name={user.name ?? ""} username={user.username ?? ""} />;
     case "contact":
       return <ContactForm phone={user.phone ?? ""} email={user.email} emailVerified={user.emailVerified} phoneVerified={user.phoneVerified} />;
     case "address":
-      return <AddressForm addressLine={user.addressLine} addressUnit={user.addressUnit} city={user.city} postalCode={user.postalCode} province={user.province} />;
+      return <AddressBook initial={addresses} />;
     case "dietary":
       return <DietaryForm allergens={user.allergens} dietaryNotes={user.dietaryNotes} />;
     case "deliveryNotes":
@@ -47,7 +49,18 @@ function SectionBody({ k, user, role }: { k: AccountSectionKey; user: AccountUse
   }
 }
 
-export function AccountPage({ user, role, active }: { user: AccountUser; role: RoleValue; active: AccountSection | null }) {
+export function AccountPage({
+  user,
+  role,
+  active,
+  addresses = [],
+}: {
+  user: AccountUser;
+  role: RoleValue;
+  active: AccountSection | null;
+  /** Saved delivery addresses (customers only). */
+  addresses?: SavedAddress[];
+}) {
   const sections = sectionsForRole(role);
   const shown = active ?? sections[0];
   const who = [user.name?.trim(), user.email].filter(Boolean).join(" · ");
@@ -107,7 +120,7 @@ export function AccountPage({ user, role, active }: { user: AccountUser; role: R
               Account
             </Link>
           )}
-          <SectionBody k={shown.key} user={user} role={role} />
+          <SectionBody k={shown.key} user={user} role={role} addresses={addresses} />
         </section>
       </div>
     </div>
