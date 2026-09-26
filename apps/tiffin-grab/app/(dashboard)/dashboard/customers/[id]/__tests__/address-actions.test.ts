@@ -2,11 +2,14 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, like } from "drizzle-orm";
 
 const guard = { admin: true };
-vi.mock("@/lib/auth/guards", () => ({
-  requireAdmin: async () => {
-    if (!guard.admin) throw new Error("Forbidden");
-  },
-}));
+vi.mock("@/lib/auth/guards", async () => {
+  const { ForbiddenError } = await import("@foundry/commons");
+  return {
+    requireAdmin: async () => {
+      if (!guard.admin) throw new ForbiddenError("Forbidden");
+    },
+  };
+});
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/tenant/resolve-request-org", () => ({ resolveRequestOrg: async () => null }));
 vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolveAndPersist: async () => null }));
@@ -30,7 +33,7 @@ describe("staff address actions", () => {
   it("an admin adds an address to the viewed customer's book", async () => {
     const [c] = await db.insert(users).values({ email: EMAIL, role: "user" }).returning();
     const saved = await staffCreateAddress(c!.publicId, { addressLine: "9 Bay St", city: "Toronto", postalCode: "M5J 2T3" });
-    expect(saved.isDefault).toBe(true);
+    expect(saved).toMatchObject({ ok: true, isDefault: true });
     const rows = await db.select().from(customerAddresses).where(eq(customerAddresses.userId, c!.id));
     expect(rows.map((r) => r.addressLine)).toEqual(["9 Bay St"]);
   });
@@ -38,15 +41,16 @@ describe("staff address actions", () => {
   it("non-admins are refused before anything is written", async () => {
     const [c] = await db.insert(users).values({ email: EMAIL, role: "user" }).returning();
     guard.admin = false;
-    await expect(staffCreateAddress(c!.publicId, { addressLine: "9 Bay St", city: "Toronto", postalCode: "M5J 2T3" })).rejects.toThrow("Forbidden");
+    await expect(staffCreateAddress(c!.publicId, { addressLine: "9 Bay St", city: "Toronto", postalCode: "M5J 2T3" }))
+      .resolves.toEqual({ error: "You do not have permission to perform this action." });
     expect(await db.select().from(customerAddresses).where(eq(customerAddresses.userId, c!.id))).toHaveLength(0);
   });
 
   it("an address can't be archived through another customer's page", async () => {
     const [a] = await db.insert(users).values({ email: "staffaddr_a@test.invalid", role: "user" }).returning();
     const [b] = await db.insert(users).values({ email: "staffaddr_b@test.invalid", role: "user" }).returning();
-    const home = await staffCreateAddress(a!.publicId, { addressLine: "1 A St", city: "Toronto", postalCode: "M5J 2T3" });
+    const home = (await staffCreateAddress(a!.publicId, { addressLine: "1 A St", city: "Toronto", postalCode: "M5J 2T3" })) as { publicId: string };
     await staffCreateAddress(a!.publicId, { label: "Work", addressLine: "2 A St", city: "Toronto", postalCode: "M5J 2T3" });
-    await expect(staffArchiveAddress(b!.publicId, home.publicId)).rejects.toThrow("Address not found");
+    await expect(staffArchiveAddress(b!.publicId, home.publicId)).resolves.toEqual({ error: "Address not found" });
   });
 });

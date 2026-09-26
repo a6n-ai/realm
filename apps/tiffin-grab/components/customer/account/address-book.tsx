@@ -14,6 +14,7 @@ import {
   setMyDefaultAddress,
   updateSavedAddress,
 } from "@/app/(customer)/me/account/address-actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 
 type Editing = { publicId: string | null; label: string; values: AddressValues };
 
@@ -38,7 +39,14 @@ const toInput = (e: Editing): AddressInput => ({
 export function AddressBook({ initial }: { initial: SavedAddress[] }) {
   const book = useAddressBook({
     initial,
-    actions: { create: createMyAddress, update: updateSavedAddress, setDefault: setMyDefaultAddress, archive: archiveMyAddress },
+    actions: {
+      create: (input) => unwrapAction(createMyAddress(input)),
+      update: (publicId, input) => unwrapAction(updateSavedAddress(publicId, input)),
+      setDefault: async (publicId) => {
+        await unwrapAction(setMyDefaultAddress(publicId));
+      },
+      archive: (publicId) => unwrapAction(archiveMyAddress(publicId)),
+    },
   });
   const [editing, setEditing] = useState<Editing | null>(null);
   const [deleting, setDeleting] = useState<SavedAddress | null>(null);
