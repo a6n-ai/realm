@@ -104,6 +104,20 @@ describe("resolveDishTap / selectedProgress", () => {
 });
 
 describe("buildMealSummary", () => {
+  it("joins the same dish into one line: Dal Tadka · 12oz + 8oz", () => {
+    const groups = groupPickCells(
+      [
+        cell({ slot: "sabzi", pickIndex: 1, selectedDishId: "d-aloo", isDefaulted: false }),
+        cell({ slot: "sabzi", pickIndex: 2, selectedDishId: "d-aloo", isDefaulted: false }),
+        cell({ slot: "sabzi", pickIndex: 3, selectedDishId: "d-bhindi", isDefaulted: false }),
+      ],
+      [{ key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 0 }],
+      { sabzi: ["12oz", "8oz", "8oz"] },
+    );
+    expect(buildMealSummary(groups, {})).toEqual([
+      { categoryLabel: "Sabzi", lines: ["Aloo Gobi · 12oz + 8oz", "Bhindi · 8oz"] },
+    ]);
+  });
   it("lists dishes and natural portions per category", () => {
     const groups = groupPickCells(
       [
@@ -168,7 +182,7 @@ describe("buildMealSummary", () => {
     const summary = buildMealSummary(groups, {});
     expect(summary).toEqual([
       { categoryLabel: "Sabzi", lines: ["Paneer Makhani · 8oz"] },
-      { categoryLabel: "Daal", lines: ["Dal Tadka · 12oz", "Dal Tadka · 12oz"] },
+      { categoryLabel: "Daal", lines: ["Dal Tadka · 12oz + 12oz"] },
     ]);
   });
 
@@ -197,7 +211,7 @@ describe("buildMealSummary", () => {
     );
     const summary = buildMealSummary(groups, {});
     expect(summary).toEqual([
-      { categoryLabel: "Salad", lines: ["Green Salad · 8oz", "Green Salad · 8oz"] },
+      { categoryLabel: "Salad", lines: ["Green Salad · 8oz + 8oz"] },
     ]);
   });
 });

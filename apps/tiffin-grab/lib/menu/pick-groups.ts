@@ -92,7 +92,14 @@ export function buildMealSummary(
 ): MealSummaryLine[] {
   const out: MealSummaryLine[] = [];
   for (const g of groups) {
-    const lines: string[] = [];
+    // Same dish in a category is one line with its portions joined: "Dal Tadka · 12oz + 8oz".
+    const byName = new Map<string, string[]>();
+    const add = (name: string | null | undefined, portion: string | null | undefined) => {
+      const key = name ?? "";
+      const portions = byName.get(key) ?? [];
+      if (portion) portions.push(portion);
+      byName.set(key, portions);
+    };
     if (!g.selectable) {
       if (g.portions.length > 1) {
         for (let i = 0; i < g.portions.length; i++) {
@@ -100,17 +107,13 @@ export function buildMealSummary(
           const dish = cell ? effectiveDishId(cell, picked) : null;
           const name = g.dishes.find((d) => d.id === dish)?.name ?? g.dishes[0]?.name;
           const portion = g.portions[i];
-          if (name && portion) lines.push(`${name} · ${portion}`);
-          else if (name) lines.push(name);
-          else if (portion) lines.push(portion);
+          if (name || portion) add(name, portion);
         }
       } else {
         const dish = g.cells[0] ? effectiveDishId(g.cells[0], picked) : null;
         const name = g.dishes.find((d) => d.id === dish)?.name ?? g.dishes[0]?.name;
         const portion = g.portions[0];
-        if (name && portion) lines.push(`${name} · ${portion}`);
-        else if (portion) lines.push(portion);
-        else if (name) lines.push(name);
+        if (name || portion) add(name, portion);
       }
     } else {
       for (let i = 0; i < g.cells.length; i++) {
@@ -118,11 +121,12 @@ export function buildMealSummary(
         const id = effectiveDishId(cell, picked);
         const name = g.dishes.find((d) => d.id === id)?.name;
         const portion = g.portions[i];
-        if (name && portion) lines.push(`${name} · ${portion}`);
-        else if (name) lines.push(name);
-        else if (portion) lines.push(portion);
+        if (name || portion) add(name, portion);
       }
     }
+    const lines = [...byName].map(([name, portions]) =>
+      [name, portions.join(" + ")].filter(Boolean).join(" · "),
+    );
     if (lines.length) out.push({ categoryLabel: g.label, lines });
   }
   return out;

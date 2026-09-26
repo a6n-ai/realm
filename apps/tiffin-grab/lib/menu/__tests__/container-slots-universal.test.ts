@@ -133,7 +133,7 @@ describe("Universal Container Slots (1 slot = 1 physical container item)", () =>
     expect(summary).toEqual([
       {
         categoryLabel: "Daal",
-        lines: ["Dal Tadka · 12oz", "Dal Tadka · 12oz"],
+        lines: ["Dal Tadka · 12oz + 12oz"],
       },
     ]);
   });
@@ -520,8 +520,8 @@ describe("Universal Container Slots (1 slot = 1 physical container item)", () =>
 
     expect(summary).toEqual([
       { categoryLabel: "Sabzi", lines: ["Aloo Gobi · 8oz"] },
-      { categoryLabel: "Daal", lines: ["Dal Tadka · 12oz", "Dal Tadka · 12oz"] },
-      { categoryLabel: "Raita", lines: ["Raita · 8oz", "Raita · 8oz"] },
+      { categoryLabel: "Daal", lines: ["Dal Tadka · 12oz + 12oz"] },
+      { categoryLabel: "Raita", lines: ["Raita · 8oz + 8oz"] },
       { categoryLabel: "Roti", lines: ["Roti · 4 roti"] },
     ]);
 
