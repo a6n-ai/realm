@@ -2,19 +2,22 @@
 import { useEffect, useState } from "react";
 import { validatePostal } from "@/app/(public)/subscribe/actions";
 
-const FULL_POSTAL = /^[A-Z]\d[A-Z]\d[A-Z]\d$/;
+// Zones match on the area (FSA, e.g. M4N), so an area alone is enough — a picked intersection
+// only resolves that far.
+const CHECKABLE = /^[A-Z]\d[A-Z](\d[A-Z]\d)?$/;
 
 export type DeliveryArea = { code: string; served: boolean; zone: string | null; slotWindow: string | null };
 
 /**
- * Looks the postal code up against our delivery zones as soon as it is complete —
- * typed, or filled in by picking an address suggestion. Null until then.
+ * Looks the postal code up against our delivery zones as soon as its area (first three
+ * characters) or the whole code is known — typed, or filled in by picking an address
+ * suggestion. Null until then.
  */
 export function useDeliveryArea(postalCode: string | null | undefined): DeliveryArea | null {
   const code = (postalCode ?? "").replace(/\s+/g, "").toUpperCase();
   const [area, setArea] = useState<DeliveryArea | null>(null);
   useEffect(() => {
-    if (!FULL_POSTAL.test(code)) return;
+    if (!CHECKABLE.test(code)) return;
     let live = true;
     validatePostal(code)
       .then((r) => live && setArea({ code, served: r.served, zone: r.zone?.name ?? null, slotWindow: r.zone?.slotWindow ?? null }))
@@ -35,7 +38,7 @@ export function DeliveryAreaNote({ area }: { area: DeliveryArea | null }) {
     </p>
   ) : (
     <p role="status" className="text-destructive text-[13px] font-medium">
-      We don&apos;t deliver to {area.code.slice(0, 3)} {area.code.slice(3)} yet.
+      We don&apos;t deliver to {`${area.code.slice(0, 3)} ${area.code.slice(3)}`.trim()} yet.
     </p>
   );
 }

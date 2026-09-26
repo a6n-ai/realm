@@ -175,7 +175,7 @@ export function Checkout({
   const set = (patch: Partial<Contact>) => {
     setContact((c) => ({ ...c, ...patch }));
     // A complete postal code — typed or filled from a picked address — is checked against our zones right away.
-    if (patch.postalCode != null && /^[A-Z]\d[A-Z]\d[A-Z]\d$/i.test(patch.postalCode.replace(/\s+/g, ""))) void checkPostal(patch.postalCode);
+    if (patch.postalCode != null && /^[A-Z]\d[A-Z](\d[A-Z]\d)?$/i.test(patch.postalCode.replace(/\s+/g, ""))) void checkPostal(patch.postalCode);
   };
 
   const pickAddress = (a: SavedAddress | null) => {
