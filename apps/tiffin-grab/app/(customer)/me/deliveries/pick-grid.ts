@@ -49,7 +49,7 @@ export async function loadPickGrid(
   orderId: string,
   dates: string[],
   opts: {
-    /** Swaps chosen in the sheet but not written yet — folded into portions only. */
+    /** Swaps chosen in the sheet but not written yet — folded into cells and portions. */
     provisionalSwaps?: { forDate: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number }[];
     /** Applied swaps the sheet has marked for undo on Done — excluded from portions. */
     omitSwapPublicIds?: string[];
@@ -128,6 +128,61 @@ export async function loadPickGrid(
     }
     if (!grid.cells.length) return { ok: true, grid: null };
 
+    // Provisional swaps: adjust cells to match the same front-splice that
+    // portionsByCategory applies to portions, so cells and portions stay aligned.
+    const provisional = opts.provisionalSwaps ?? [];
+    if (provisional.length > 0) {
+      const catMeta = new Map(grid.categories.map((c) => [c.key, c]));
+      for (const ps of provisional) {
+        const date = ps.forDate;
+        // Gather persons present on this date.
+        const persons = [...new Set(grid.cells.filter((c) => c.dateIso === date).map((c) => c.personIndex))];
+        for (const person of persons) {
+          // Front-splice: remove leading qtyFrom cells from fromCategory.
+          const fromCells = grid.cells
+            .filter((c) => c.dateIso === date && c.personIndex === person && c.slot === ps.fromCategory)
+            .sort((a, b) => a.pickIndex - b.pickIndex);
+          const spliced = fromCells.slice(0, ps.qtyFrom);
+          const splicedKeys = new Set(spliced.map((c) => `${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`));
+          grid.cells = grid.cells.filter((c) => !splicedKeys.has(`${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`));
+
+          // Renumber remaining fromCategory cells so pickIndex is contiguous from 1.
+          const remaining = grid.cells
+            .filter((c) => c.dateIso === date && c.personIndex === person && c.slot === ps.fromCategory)
+            .sort((a, b) => a.pickIndex - b.pickIndex);
+          remaining.forEach((c, i) => { c.pickIndex = i + 1; });
+
+          // Add qtyTo cells to toCategory.
+          const existingTo = grid.cells
+            .filter((c) => c.dateIso === date && c.personIndex === person && c.slot === ps.toCategory)
+            .sort((a, b) => a.pickIndex - b.pickIndex);
+          const toCatMeta = catMeta.get(ps.toCategory);
+          const toSelectable = toCatMeta?.selectable ?? true;
+          // Inherit dishes from existing toCategory cells, or from the spliced cells if toCategory had none.
+          const toDishes = existingTo[0]?.dishes ?? spliced[0]?.dishes ?? [];
+          const basePickIndex = existingTo.length > 0 ? Math.max(...existingTo.map((c) => c.pickIndex)) : 0;
+          for (let i = 0; i < ps.qtyTo; i++) {
+            const src = spliced[i] ?? spliced[0];
+            if (!src) break;
+            grid.cells.push({
+              day: src.day,
+              dateIso: src.dateIso,
+              slot: ps.toCategory,
+              personIndex: person,
+              pickIndex: basePickIndex + i + 1,
+              selectable: toSelectable,
+              quantity: 1,
+              selectedDishId: null,
+              isDefaulted: false,
+              dishes: toDishes,
+              locked: src.locked,
+              lockNote: src.lockNote,
+            });
+          }
+        }
+      }
+    }
+
     // Per eating day: fold that day's applied swaps so Pick portions match Swap / labels.
     const eatingDates = [...new Set(grid.cells.map((c) => c.dateIso))];
     const from = eatingDates.reduce((a, b) => (a < b ? a : b));
@@ -154,7 +209,6 @@ export async function loadPickGrid(
         .where(inArray(deliveryCategorySwaps.deliveryId, tripIds));
     const ownByDate = new Map(ownRows.map((d) => [d.deliveryDate, d]));
     const omit = new Set(opts.omitSwapPublicIds ?? []);
-    const provisional = opts.provisionalSwaps ?? [];
 
     for (const date of eatingDates) {
       const trip = carrying.get(date) ?? ownByDate.get(date);
