@@ -182,6 +182,8 @@ export type SwappedRow = {
   /** Cells the swap added to toCategory; they get their dish pickers inside this row. */
   toCells: GridCell[];
   toDishes: GridCell["dishes"];
+  /** Base composition row the swap took (null when unknown, e.g. bulk roti). */
+  givenRow: number | null;
 };
 
 /** One line of a category, in composition order: a live cell or a row given away by a swap. */
@@ -247,6 +249,7 @@ export function anchorSwaps(args: {
     const amt = amounts(s);
     const base = given.map((g) => g.value);
     const give = base.length === s.qtyFrom && base.every(Boolean) ? base.join(" + ") : amt?.give ?? null;
+    const took = given[0]?.row ?? null;
     const get = got.portions.length && got.portions.every(Boolean) ? got.portions.join(" + ") : amt?.get ?? null;
     byKey.get(s.fromCategory)?.swapped.push({
       swap: s,
@@ -254,6 +257,7 @@ export function anchorSwaps(args: {
       getPortion: get,
       toCells: got.cells,
       toDishes: got.cells[0]?.dishes ?? byKey.get(s.toCategory)?.dishes ?? [],
+      givenRow: took,
     });
     const to = remaining.get(s.toCategory) ?? [];
     for (let i = 0; i < s.qtyTo; i++) to.push({ row: null, value: null });

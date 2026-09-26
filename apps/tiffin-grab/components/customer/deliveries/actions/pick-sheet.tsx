@@ -1,5 +1,4 @@
 "use client";
-import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
 import {
@@ -112,6 +111,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   >([]);
   // Each removal keeps its own eating day: the tab open at Save time may be another day.
   const [pendingRemoves, setPendingRemoves] = useState<{ publicId: string; day: string }[]>([]);
+  // A dish tapped on a swapped row: the swap is undone and, once that row is back, it gets this dish.
+  const [pendingPick, setPendingPick] = useState<{ day: string; person: number; category: string; row: number; dishId: string } | null>(null);
 
   const labelOf = useCallback((k: string) => plan.categoryLabels[k] ?? k, [plan.categoryLabels]);
   const source = plan.days.find((d) => d.date === trip.date);
@@ -197,6 +198,17 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo),
     })
     : [];
+  if (pendingPick) {
+    const back = pendingPick.day === activeDay && pendingPick.person === who
+      ? rows.find((g) => g.key === pendingPick.category)?.items.find((it) => it.kind === "cell" && it.row === pendingPick.row)
+      : undefined;
+    // Adjusting state while rendering (not in an effect): the restored row shows the dish on its first paint.
+    if (back?.kind === "cell") {
+      const key = cellKey(back.cell);
+      if (back.cell.selectable) setPicked((p) => ({ ...p, [key]: pendingPick.dishId }));
+      setPendingPick(null);
+    }
+  }
   const summary = buildMealSummary(groups, picked);
   // Every pick in this meal (fixed sides too) — what meal rules are evaluated against.
   const mealPicks = cells.flatMap((c) => {
@@ -456,10 +468,16 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         const toName = row.toCells.length && !row.toCells[0]!.selectable
                           ? row.toDishes.find((d) => d.id === row.toCells[0]!.selectedDishId)?.name ?? row.toDishes[0]?.name
                           : undefined;
-                        // What the row was stays in view, greyed; the swap is the selected button.
+                        // The row's own dishes stay choices: tapping one undoes the swap and picks it.
+                        const blockedOwn = blockedDishes(group.key, ownDishes, null);
                         const choices: RowChoice[] = [
                           ...(ownDishes.length ? ownDishes : [{ id: "category", name: group.label }])
-                            .map((d) => ({ value: `was:${d.id}`, label: d.name, disabled: true })),
+                            .map((d) => ({
+                              value: `was:${d.id}`,
+                              label: d.name,
+                              note: blockedOwn.has(d.id) ? "Not allowed with your other picks" : undefined,
+                              disabled: rowOff || blockedOwn.has(d.id),
+                            })),
                           {
                             value: "swapped",
                             label: `${labelOf(row.swap.toCategory)}${row.getPortion ? ` · ${row.getPortion}` : ""}`,
@@ -473,19 +491,15 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                             label={row.givePortion ? `${group.label} · ${row.givePortion}` : group.label}
                             choices={choices}
                             value="swapped"
-                            onChange={() => {}}
+                            onChange={(v) => {
+                              if (!v.startsWith("was:") || rowOff) return;
+                              const dishId = v.slice("was:".length);
+                              if (row.givenRow != null && dishId !== "category") {
+                                setPendingPick({ day: activeDay!, person: who, category: group.key, row: row.givenRow, dishId });
+                              }
+                              void queueRemoveSwap(row.swap.publicId, text);
+                            }}
                           >
-                            {!rowOff && (
-                              <Button
-                                variant="quiet"
-                                className="justify-self-start"
-                                aria-label={`Undo swap ${text}`}
-                                onClick={() => void queueRemoveSwap(row.swap.publicId, text)}
-                              >
-                                <X aria-hidden className="size-4" />
-                                Undo swap
-                              </Button>
-                            )}
                             {row.toCells.filter((c) => c.selectable).map((cell, i) => {
                               const subLabel = `${labelOf(row.swap.toCategory)}${row.toCells.length > 1 ? ` ${i + 1}` : ""}`;
                               const selectedId = effectiveDishId(cell, picked);

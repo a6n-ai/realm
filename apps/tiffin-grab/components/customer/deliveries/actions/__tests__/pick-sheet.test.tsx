@@ -67,6 +67,7 @@ const grid = (
     portionsBySlot: extras.portionsBySlot ?? { curry: ["8oz"] },
     portionsByDate: extras.portionsByDate ?? {},
     weekByDate: { [mon]: "wk1", [tue]: "wk1" },
+    menu: { [mon]: { curry: dishes }, [tue]: { curry: dishes } },
     rules: [],
     mealRules: [],
     preview: { items: [], tu: [], appliedByDate: {}, composition: { baseCounts: {}, mealSizeItems: [], categories: [] }, pairs: [] },
@@ -95,6 +96,10 @@ const plan = {
   swapCategories: {},
   days: [],
 } as unknown as PlanView;
+
+/** A swapped row's own dish (not the one already picked elsewhere) — tapping it undoes the swap. */
+const ownDishOnSwappedRow = async (name: string) =>
+  (await screen.findAllByRole("radio", { name })).find((r) => r.getAttribute("aria-checked") !== "true" && !r.hasAttribute("disabled"))!;
 
 const show = (t = trip()) => {
   const onDone = vi.fn();
@@ -537,7 +542,7 @@ describe("PickSheet", () => {
       expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
       const daal = screen.getAllByRole("radio", { name: /^Daal/ });
       expect(daal.some((r) => r.getAttribute("aria-checked") === "true")).toBe(true);
-      expect(screen.getByRole("button", { name: /^Undo swap/ })).toBeInTheDocument();
+      expect(await ownDishOnSwappedRow("Paneer")).toBeEnabled();
       expect(applySwap).not.toHaveBeenCalled();
     });
 
@@ -548,27 +553,41 @@ describe("PickSheet", () => {
       show(trip({ coversDates: [mon] }));
       fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal/ }))[0]!);
       fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal · 8oz/ })).find((r) => !r.hasAttribute("disabled") && r.getAttribute("aria-checked") !== "true")!);
-      await waitFor(() => expect(screen.getAllByRole("button", { name: /^Undo swap/ })).toHaveLength(2));
-      // Both swapped rows still show the real dishes, greyed — never just the category name.
+      await waitFor(() =>
+        expect(screen.getAllByRole("radio", { name: /^Daal/ }).filter((r) => r.getAttribute("aria-checked") === "true")).toHaveLength(2),
+      );
+      // Both swapped rows still offer the real dishes — never just the category name.
       expect(screen.getAllByRole("radio", { name: "Paneer" })).toHaveLength(2);
-      expect(screen.getAllByRole("radio", { name: "Paneer" }).every((r) => r.hasAttribute("disabled"))).toBe(true);
       expect(screen.queryByRole("radio", { name: "Curry" })).toBeNull();
     });
 
-    it("folds a swap in locally: no grid reload, and Undo swap needs none either", async () => {
+    it("folds a swap in locally: no grid reload, and undoing it needs none either", async () => {
       swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
       fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
-      fireEvent.click(await screen.findByRole("button", { name: /^Undo swap/ }));
+      fireEvent.click(await ownDishOnSwappedRow("Paneer"));
       expect(await screen.findByText(/^Removed/)).toBeInTheDocument();
       expect(load).toHaveBeenCalledTimes(1);
+    });
+
+    it("tapping a dish on a swapped row undoes the swap and picks that dish", async () => {
+      swapOptions.mockReturnValue([curryToDaal]);
+      load.mockResolvedValue(grid([cell({})]));
+      const onDone = show(trip({ coversDates: [mon] }));
+      fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
+      fireEvent.click(await ownDishOnSwappedRow("Dal"));
+      await waitFor(() => expect(screen.getByRole("radio", { name: "Dal" })).toHaveAttribute("aria-checked", "true"));
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(onDone).toHaveBeenCalled());
+      expect(applySwap).not.toHaveBeenCalled();
+      expect(savePicks).toHaveBeenCalledWith(expect.objectContaining({ picks: [expect.objectContaining({ slot: "curry", dishId: "d2" })] }));
     });
 
     it("removes a swap with its own eating day even when another day's tab is open at Save", async () => {
       load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue" })]));
       render(<PickSheet trip={trip()} plan={planWithMonSwap} open onDone={vi.fn()} />);
-      fireEvent.click(await screen.findByRole("button", { name: /^Undo swap/ }));
+      fireEvent.click(await ownDishOnSwappedRow("Paneer"));
       fireEvent.click(await screen.findByRole("tab", { name: /Tue/ }));
       fireEvent.click(await screen.findByRole("button", { name: "Save" }));
       await waitFor(() => expect(removeSwap).toHaveBeenCalledWith("dlv1", "s1", mon));
@@ -579,7 +598,7 @@ describe("PickSheet", () => {
       load.mockResolvedValue(grid([cell({})]));
       applySwap.mockResolvedValueOnce({ error: "Not enough Curry left to give up on this day." });
       render(<PickSheet trip={trip({ coversDates: [mon] })} plan={planWithMonSwap} open onDone={vi.fn()} />);
-      fireEvent.click(await screen.findByRole("button", { name: /^Undo swap/ }));
+      fireEvent.click(await ownDishOnSwappedRow("Paneer"));
       fireEvent.click(await screen.findByRole("radio", { name: /Daal · 8oz/ }));
       await screen.findByText(/press Save/);
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
