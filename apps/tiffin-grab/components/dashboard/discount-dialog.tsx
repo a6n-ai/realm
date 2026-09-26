@@ -27,10 +27,10 @@ export interface DiscountDialogProps {
   onSaved?: () => void;
 }
 
-const KIND_LABELS: Record<DiscountKind, string> = { delivery: "Delivery type", duration: "Plan length" };
+const KIND_LABELS: Record<DiscountKind, string> = { delivery: "Delivery frequency", duration: "Plan length" };
 
 function targetLabel(kind: DiscountKind, id: string | null, o: DiscountDialogOptions) {
-  if (id == null) return kind === "delivery" ? "all delivery types" : "all plan lengths";
+  if (id == null) return kind === "delivery" ? "all delivery frequencies" : "all plan lengths";
   return kind === "delivery"
     ? (o.frequencies.find((f) => f.publicId === id)?.name ?? "")
     : `${o.durations.find((d) => d.publicId === id)?.weeks ?? ""} weeks`;
@@ -122,7 +122,7 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
           <Select value={target} disabled={locked} onValueChange={setTarget}>
             <SelectTrigger id="dd-target"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{kind === "delivery" ? "All delivery types" : "All plan lengths"}</SelectItem>
+              <SelectItem value="all">{kind === "delivery" ? "All delivery frequencies" : "All plan lengths"}</SelectItem>
               {targets.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
             </SelectContent>
           </Select>

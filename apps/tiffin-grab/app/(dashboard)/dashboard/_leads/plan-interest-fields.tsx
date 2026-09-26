@@ -10,7 +10,7 @@ export type InterestCatalog = {
   plans: { key: string; name: string }[];
   /** `diet` is the plan key (same shape as OrderForm catalog). */
   mealSizes: { id: string; name: string; diet: string }[];
-  /** Delivery types (only those with weekdays are pickable). */
+  /** Delivery frequencies (only those with weekdays are pickable). */
   frequencies?: { key: string; name: string; weekdays?: string[] | null }[];
 };
 
@@ -203,7 +203,7 @@ export function PlanInterestFields({
 
       {deliveryTypes.length > 0 && (
         <PillRow
-          label="Delivery type"
+          label="Delivery frequency"
           options={deliveryTypes.map((f) => ({ value: f.key, label: f.name }))}
           value={values.frequencyKeyInterest ?? ""}
           onChange={(v) => onChange({ frequencyKeyInterest: v })}

@@ -99,7 +99,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     expect(calc.deliveryStrategy?.amount).toBe(1);
     expect(calc.lines).toEqual([
       { label: "Base delivery charge", amount: 2 },
-      { label: "Delivery type: Doorstep", amount: 1 },
+      { label: "Delivery strategy: Doorstep", amount: 1 },
     ]);
 
     const r = priceSubscription(sel(), catalog(10, {
@@ -156,7 +156,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     expect(calc.totalDeliveryCharge).toBe(8);
     expect(calc.lines).toEqual([
       { label: "Base delivery charge", amount: 2 },
-      { label: "Delivery type: Lobby", amount: 1 },
+      { label: "Delivery strategy: Lobby", amount: 1 },
       { label: "Address tag: Apartment (5%)", amount: 5 },
     ]);
 

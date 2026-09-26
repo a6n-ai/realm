@@ -116,7 +116,7 @@ export function InquiryDetailClient({
   if (mealLabel) interestChips.push({ label: "Meal size", value: mealLabel });
   if (interest.personsInterest != null) interestChips.push({ label: "Persons", value: String(interest.personsInterest) });
   const freqName = catalog.frequencies.find((f) => f.key === interest.frequencyKeyInterest)?.name ?? interest.frequencyKeyInterest;
-  if (freqName) interestChips.push({ label: "Delivery type", value: freqName });
+  if (freqName) interestChips.push({ label: "Delivery frequency", value: freqName });
   if (interest.eatingDaysInterest?.length) {
     interestChips.push({
       label: "Eating days",

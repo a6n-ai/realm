@@ -50,7 +50,7 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
               <Button><PlusIcon className="size-4" /> Add discount</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setDialog({ kind: "delivery" })}>Delivery type</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog({ kind: "delivery" })}>Delivery frequency</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setDialog({ kind: "duration" })}>Plan length</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => router.push(MEAL_SIZES_HREF)}>List price (meal sizes)</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => router.push(COUPONS_HREF)}>Coupon</DropdownMenuItem>

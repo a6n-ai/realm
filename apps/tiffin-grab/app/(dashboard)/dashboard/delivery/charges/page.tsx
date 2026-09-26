@@ -11,10 +11,9 @@ export const dynamic = "force-dynamic";
 export default async function DeliveryChargesPage() {
   await requireAdmin();
   const orgId = await resolveRequestOrg();
-  const [baseCharge, deliveryStrategies, addressTags] = await Promise.all([
+  const [baseCharge, deliveryStrategies] = await Promise.all([
     deliveryService.getBaseDeliveryCharge(orgId),
     deliveryService.listDeliveryStrategies({ includeInactive: true, orgId }),
-    deliveryService.listAddressTags({ includeInactive: true, orgId }),
   ]);
 
   return (
@@ -22,12 +21,11 @@ export default async function DeliveryChargesPage() {
       <PageHeader
         icon={TruckIcon}
         title="Delivery charges"
-        subtitle="Configure base delivery fees, delivery location options, and address tag pricing rules."
+        subtitle="Configure base delivery fees, delivery location options, and delivery strategy charges."
       />
       <DeliveryChargesManager
         initialBaseCharge={baseCharge}
         initialDeliveryStrategies={deliveryStrategies}
-        initialAddressTags={addressTags}
         actions={deliveryChargesActions}
       />
     </PageShell>

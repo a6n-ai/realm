@@ -444,9 +444,9 @@ export function Checkout({
                     {catalog.deliveryCharges.deliveryStrategies.length > 0 && (
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                          Delivery location
+                          Drop-off
                         </Label>
-                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Delivery location">
+                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Drop-off">
                           {catalog.deliveryCharges.deliveryStrategies.map((type) => {
                             const isSelected = selections?.deliveryStrategyId === type.id;
                             const hint = formatChargeHint(type);

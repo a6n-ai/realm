@@ -29,7 +29,7 @@ export interface AllRow {
 }
 
 export const TYPE_LABELS: Record<RowType, string> = {
-  delivery: "Delivery type",
+  delivery: "Delivery frequency",
   duration: "Plan length",
   list_price: "List price",
   coupon: "Coupon",
@@ -69,7 +69,7 @@ export function buildRows(input: {
       type: d.kind,
       typeLabel: TYPE_LABELS[d.kind],
       appliesTo: d.targetPublicId == null
-        ? (d.kind === "delivery" ? "All delivery types" : "All plan lengths")
+        ? (d.kind === "delivery" ? "All delivery frequencies" : "All plan lengths")
         : (names.get(d.targetPublicId) ?? "Unknown target"),
       value: `${fmt(d.percent)}%`,
       status: discountStatus(d, input.now),

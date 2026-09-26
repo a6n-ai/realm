@@ -68,8 +68,8 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
         ) : (
           <>
             {strategies.length > 0 && (
-              <div role="radiogroup" aria-label="Delivery type" className="grid gap-2">
-                <span className="text-sm font-semibold text-[var(--foreground)]">Delivery Type</span>
+              <div role="radiogroup" aria-label="Drop-off" className="grid gap-2">
+                <span className="text-sm font-semibold text-[var(--foreground)]">Drop-off</span>
                 <div className="flex gap-2">
                   {strategies.map((s) => (
                     <OptionCard

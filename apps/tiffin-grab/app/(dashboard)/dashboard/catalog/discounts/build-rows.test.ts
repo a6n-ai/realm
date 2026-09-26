@@ -30,9 +30,9 @@ describe("buildRows", () => {
   });
   it("labels, targets and values", () => {
     expect(rows.map((r) => [r.typeLabel, r.appliesTo, r.value])).toEqual([
-      ["Delivery type", "All delivery types", "10%"],
+      ["Delivery frequency", "All delivery frequencies", "10%"],
       ["Plan length", "8 weeks", "5.5%"],
-      ["Delivery type", "3 Days/Wk", "10%"],
+      ["Delivery frequency", "3 Days/Wk", "10%"],
       ["List price", "Small", "12%"],
       ["List price", "Med", "$3 off"],
       ["Coupon", "SAVE", "15%"],
