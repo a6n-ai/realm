@@ -5,6 +5,7 @@ import type { AddressInput, SavedAddress } from "@foundry/address";
 import { AuthError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
+import { setAddressDropOff, strategyIdFor } from "@/lib/services/address-drop-off.service";
 import { runAction, type ActionResult } from "../action-result";
 
 // Every action returns { error } instead of throwing: production builds redact thrown
@@ -21,17 +22,27 @@ function refresh() {
   revalidatePath("/me", "layout");
 }
 
-export async function createMyAddress(input: AddressInput): Promise<ActionResult<SavedAddress>> {
+/**
+ * `dropOff`: the delivery strategy public id this address is delivered with; null clears it,
+ * undefined leaves it. Checked before the address is written so a bad pick saves nothing.
+ */
+export async function createMyAddress(input: AddressInput, dropOff?: string | null): Promise<ActionResult<SavedAddress>> {
   return runAction(async () => {
-    const { id: _id, ...saved } = await addressService.create(await scope(), input);
+    const s = await scope();
+    await strategyIdFor(dropOff);
+    const { id, ...saved } = await addressService.create(s, input);
+    if (dropOff !== undefined) await setAddressDropOff(s, { id }, dropOff);
     refresh();
     return saved;
   });
 }
 
-export async function updateSavedAddress(publicId: string, input: AddressInput): Promise<ActionResult<SavedAddress>> {
+export async function updateSavedAddress(publicId: string, input: AddressInput, dropOff?: string | null): Promise<ActionResult<SavedAddress>> {
   return runAction(async () => {
-    const saved = await addressService.update(await scope(), publicId, input);
+    const s = await scope();
+    await strategyIdFor(dropOff);
+    const saved = await addressService.update(s, publicId, input);
+    if (dropOff !== undefined) await setAddressDropOff(s, { publicId }, dropOff);
     refresh();
     return saved;
   });

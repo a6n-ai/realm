@@ -7,6 +7,7 @@ import { toClientCatalog } from "@/lib/catalog/types";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { Checkout } from "@/components/checkout/checkout";
 import { addressService } from "@/lib/services/addresses.service";
+import { dropOffsFor } from "@/lib/services/address-drop-off.service";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +23,11 @@ export default async function CheckoutPage() {
   const catalog = toClientCatalog(await loadCatalogSnapshot(orgId));
   const prefill = (await getContactOnFile(userId)) ?? undefined;
   const savedAddresses = await addressService.list({ userId, orgId });
+  const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-4 sm:py-10">
-      <Checkout defaultCountry={defaultCountry} closeHref="/me" prefill={prefill} catalog={catalog} savedAddresses={savedAddresses} />
+      <Checkout defaultCountry={defaultCountry} closeHref="/me" prefill={prefill} catalog={catalog} savedAddresses={savedAddresses} addressDropOffs={addressDropOffs} />
     </main>
   );
 }

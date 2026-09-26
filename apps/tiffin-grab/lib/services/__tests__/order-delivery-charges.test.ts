@@ -2,16 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
-import {
-  addressTags,
-  deliveries,
-  deliveryChargeConfigs,
-  deliveryStrategies,
-  ledgerEntries,
-  orders,
-  payments,
-  users,
-} from "@/db/schema";
+import { addressTags, deliveries, deliveryChargeConfigs, deliveryStrategies, ledgerEntries, orders, payments, users, customerAddresses } from "@/db/schema";
 import { loadCatalogSnapshot, invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { deliveryService } from "../delivery.service";
 import { reprice } from "@/app/(public)/subscribe/actions";
@@ -24,6 +15,8 @@ async function reset() {
   await db.delete(ledgerEntries);
   await db.delete(payments);
   await db.delete(orders);
+  // Checkout saves the chosen drop-off onto a new address; unhook it before strategies go.
+  await db.update(customerAddresses).set({ deliveryStrategyId: null });
   await db.delete(deliveryStrategies);
   await db.delete(addressTags);
   await db.delete(deliveryChargeConfigs);
@@ -81,6 +74,11 @@ describe("Order Delivery Charges (Integration)", () => {
 
     const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId));
     expect(order).toBeDefined();
+
+    // The new address typed at checkout keeps the drop-off chosen with it.
+    const [addr] = await db.select({ strategyId: customerAddresses.deliveryStrategyId }).from(customerAddresses).where(eq(customerAddresses.id, order.addressId!));
+    expect(addr?.strategyId).toBe(order.deliveryStrategyId);
+    expect(addr?.strategyId).not.toBeNull();
 
     const snapshot = order.pricingSnapshot as {
       subtotal: number;
