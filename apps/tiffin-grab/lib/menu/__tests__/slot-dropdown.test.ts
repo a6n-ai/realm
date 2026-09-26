@@ -38,6 +38,7 @@ describe("slot-dropdown", () => {
       toCategory: "daal",
       fromPicks: 2,
       fromRow: null,
+      toDishId: null,
     });
     expect(parseSlotOptionValue("nope")).toBeNull();
   });
@@ -87,6 +88,24 @@ describe("slot-dropdown", () => {
     expect(opts.filter((o) => o.kind === "swap").map((o) => o.label)).toEqual(["Daal"]);
   });
 
+  it("offers a swap into a category with a choice as one button per dish", () => {
+    const opts = buildSlotDropdownOptions({
+      cellIndexInCategory: 0,
+      categoryKey: "sabzi",
+      dishes: [],
+      swapOptions: [sabziDaal],
+      onePerRow: true,
+      fromRow: 0,
+      categoryLabel: (k) => k,
+      destinationDishes: () => [
+        { id: "p1", name: "Paneer Makhani" },
+        { id: "c1", name: "Chicken Curry", disabled: true, reason: "Not allowed with your other picks" },
+      ],
+    });
+    expect(opts.map((o) => [o.label, !!o.disabled])).toEqual([["Paneer Makhani", false], ["Chicken Curry", true]]);
+    expect(parseSlotOptionValue(opts[0]!.value)).toMatchObject({ kind: "swap", toCategory: "daal", fromRow: 0, toDishId: "p1" });
+  });
+
   it("names the dish a fixed destination brings", () => {
     const opts = buildSlotDropdownOptions({
       cellIndexInCategory: 0,
@@ -111,10 +130,10 @@ describe("slot-dropdown", () => {
       categoryLabel: (k) => (k === "daal" ? "Daal" : k),
     });
     expect(opts).toEqual([
-      expect.objectContaining({ label: "Daal", fromRow: 1, value: "swap:sabzi>daal:1@1", reason: undefined }),
+      expect.objectContaining({ label: "Daal", fromRow: 1, value: "swap:sabzi>daal:1@1" }),
     ]);
     expect(opts[0]!.disabled).toBeFalsy();
-    expect(parseSlotOptionValue(opts[0]!.value)).toEqual({ kind: "swap", fromCategory: "sabzi", toCategory: "daal", fromPicks: 1, fromRow: 1 });
+    expect(parseSlotOptionValue(opts[0]!.value)).toEqual({ kind: "swap", fromCategory: "sabzi", toCategory: "daal", fromPicks: 1, fromRow: 1, toDishId: null });
   });
 
   it("greys out unavailable swaps, rule-blocked dishes and swaps; ignores other from-categories", () => {

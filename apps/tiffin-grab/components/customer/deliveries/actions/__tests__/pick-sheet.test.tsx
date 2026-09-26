@@ -131,25 +131,25 @@ describe("PickSheet", () => {
     expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
   });
 
-  it("asks for the grid of every covered eating day", async () => {
-    load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue", lockNote: "Locks with Monday's delivery" })]));
+  it("edits one eating day per sheet — the trip's own day by default, no day tabs", async () => {
+    load.mockResolvedValue(grid([cell({})]));
     show();
     expect(await screen.findByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
-    expect(load).toHaveBeenCalledWith("o1", [mon, tue]);
+    expect(load).toHaveBeenCalledWith("o1", [mon]);
+    expect(screen.queryByRole("tab", { name: /Tue/ })).toBeNull();
   });
 
-  it("has day tabs for a multi-day trip and shows the carried lock note", async () => {
-    load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue", lockNote: "Locks with Monday's delivery" })]));
-    show();
-    fireEvent.click(await screen.findByRole("tab", { name: /Tue/ }));
-    expect(screen.getByText("Locks with Monday's delivery")).toBeInTheDocument();
-  });
-
-  it("opens on the eating day the customer selected", async () => {
-    load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue", lockNote: "Locks with Monday's delivery" })]));
+  it("opens on the carried eating day the customer selected, with its lock note", async () => {
+    load.mockResolvedValue(grid([cell({ dateIso: tue, day: "tue", lockNote: "Locks with Monday's delivery" })]));
     render(<PickSheet trip={trip()} plan={plan} day={tue} open onDone={vi.fn()} />);
     expect(await screen.findByText("Locks with Monday's delivery")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Tue/ })).toHaveAttribute("aria-selected", "true");
+    expect(load).toHaveBeenCalledWith("o1", [tue]);
+  });
+
+  it("says how many tiffins share the day when others moved onto it", async () => {
+    load.mockResolvedValue(grid([cell({})]));
+    show(trip({ coversDates: [mon], extraDates: [mon] }));
+    expect(await screen.findByText("2 tiffins this day — same meal for each.")).toBeInTheDocument();
   });
 
   it("single-day trip has no day tabs", async () => {
@@ -593,11 +593,10 @@ describe("PickSheet", () => {
       expect(savePicks).toHaveBeenCalledWith(expect.objectContaining({ picks: [expect.objectContaining({ slot: "curry", dishId: "d2" })] }));
     });
 
-    it("removes a swap with its own eating day even when another day's tab is open at Save", async () => {
-      load.mockResolvedValue(grid([cell({}), cell({ dateIso: tue, day: "tue" })]));
+    it("removes a saved swap with its own eating day", async () => {
+      load.mockResolvedValue(grid([cell({})]));
       render(<PickSheet trip={trip()} plan={planWithMonSwap} open onDone={vi.fn()} />);
       fireEvent.click(await ownDishOnSwappedRow("Paneer"));
-      fireEvent.click(await screen.findByRole("tab", { name: /Tue/ }));
       fireEvent.click(await screen.findByRole("button", { name: "Save" }));
       await waitFor(() => expect(removeSwap).toHaveBeenCalledWith("dlv1", "s1", mon));
     });

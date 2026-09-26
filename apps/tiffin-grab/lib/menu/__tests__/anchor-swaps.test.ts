@@ -69,3 +69,25 @@ describe("anchorSwaps with a named row", () => {
     ]);
   });
 });
+
+describe("anchorSwaps with one swap that took two rows", () => {
+  it("shows Sabzi 12oz and Sabzi 8oz as their own lines, not 'Sabzi · 12oz + 8oz'", () => {
+    const groups = groupPickCells(
+      [cell("daal", 1, false), cell("daal", 2, false), cell("daal", 3, false)],
+      categories,
+      { daal: ["12oz", "12oz", "8oz"] },
+    );
+    const [sabzi, daal] = anchorSwaps({
+      groups,
+      swaps: [{ ...swap("both"), qtyFrom: 2, qtyTo: 2 }],
+      categories,
+      basePortions,
+      amounts: () => null,
+    });
+    expect(sabzi!.items.map((i) => (i.kind === "swapped" ? [i.swapped.givePortion, i.swapped.getPortion, i.swapped.givenRow] : null))).toEqual([
+      ["12oz", "12oz", 0],
+      ["8oz", "8oz", 1],
+    ]);
+    expect(daal!.cells).toHaveLength(1);
+  });
+});

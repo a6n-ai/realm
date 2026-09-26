@@ -91,7 +91,13 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       ? `Changes closed ${formatCutoff(trip.cutoffAt, plan.ctx.timezone)}. This trip is being prepared.`
       : null;
   const swapLocked = !av.swap.ok || closed;
-  const dates = useMemo(() => (trip.coversDates.length ? trip.coversDates : [trip.date]), [trip]);
+  // One eating day per sheet: the day the customer opened it from (a trip can carry several).
+  const dates = useMemo(
+    () => [startDay && trip.coversDates.includes(startDay) ? startDay : trip.date],
+    [startDay, trip.coversDates, trip.date],
+  );
+  // Tiffins moved onto this day share its menu — one set of picks covers them all.
+  const tiffinsThisDay = 1 + (trip.extraDates ?? []).filter((d) => d === dates[0]).length;
 
   const [state, setState] = useState<{ grid: PickGrid | null } | { error: string } | null>(null);
   const [day, setDay] = useState(startDay && dates.includes(startDay) ? startDay : dates[0]);
@@ -113,6 +119,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const [pendingRemoves, setPendingRemoves] = useState<{ publicId: string; day: string }[]>([]);
   // A dish tapped on a swapped row: the swap is undone and, once that row is back, it gets this dish.
   const [pendingPick, setPendingPick] = useState<{ day: string; person: number; category: string; row: number; dishId: string } | null>(null);
+  // The dish tapped with a swap into a category with a choice (Daal → Paneer Makhani): set once the swap folds in.
+  const [pendingToPick, setPendingToPick] = useState<{ swapId: string; dishId: string } | null>(null);
 
   const labelOf = useCallback((k: string) => plan.categoryLabels[k] ?? k, [plan.categoryLabels]);
   const source = plan.days.find((d) => d.date === trip.date);
@@ -171,6 +179,13 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     const cell = cells.find((c) => c.slot === key);
     return cell?.dishes.find((d) => d.id === cell.selectedDishId)?.name ?? grid.menu?.[activeDay!]?.[key]?.[0]?.name;
   };
+  // A swap into a category with a choice is offered per dish, greyed where a meal rule refuses it.
+  const destinationDishes = (key: string) => {
+    if (!grid?.categories.find((c) => c.key === key)?.selectable) return undefined;
+    const menu = grid.menu?.[activeDay!]?.[key] ?? cells.find((c) => c.slot === key)?.dishes ?? [];
+    const blocked = blockedDishes(key, menu, null);
+    return menu.map((d) => ({ id: d.id, name: d.name, disabled: blocked.has(d.id), reason: blocked.has(d.id) ? "Not allowed with your other picks" : undefined }));
+  };
   const swapOptions: SwapOption[] =
     !open || swapLocked || !trip.deliveryId || !serverGrid || !activeDay ? [] : previewSwapOptions(serverGrid.preview, activeDay, provisional);
 
@@ -204,6 +219,15 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo),
     })
     : [];
+  if (pendingToPick) {
+    const into = rows
+      .flatMap((g) => g.swapped)
+      .find((sw) => sw.swap.publicId === `pending:${pendingToPick.swapId}`)?.toCells[0];
+    if (into) {
+      if (into.selectable) setPicked((p) => ({ ...p, [cellKey(into)]: pendingToPick.dishId }));
+      setPendingToPick(null);
+    }
+  }
   if (pendingPick) {
     const back = pendingPick.day === activeDay && pendingPick.person === who
       ? rows.find((g) => g.key === pendingPick.category)?.items.find((it) => it.kind === "cell" && it.row === pendingPick.row)
@@ -248,7 +272,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     return new Set(dishes.filter((d) => !allowed.has(d.id)).map((d) => d.id));
   };
 
-  const queueSwap = async (fromCategory: string, toCategory: string, fromPicks: number, fromRow: number | null) => {
+  const queueSwap = async (fromCategory: string, toCategory: string, fromPicks: number, fromRow: number | null, toDishId: string | null) => {
     if (!trip.deliveryId || swapLocked || activeDay == null) return;
     const option = swapOptions.find((o) => o.fromCategory === fromCategory && o.toCategory === toCategory);
     const bundle = option?.validBundles.find((b) => b.fromPicks === fromPicks) ?? option?.validBundles[0];
@@ -259,9 +283,10 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
       { id: swapId, day: activeDay, fromCategory, toCategory, fromPicks, toPicks, fromRow },
     ];
     setPendingApplies(nextApplies);
+    if (toDishId) setPendingToPick({ swapId, dishId: toDishId });
     setTouched(true);
     setError(null);
-    setApplied(`Swapped to ${labelOf(toCategory)}. Choose a dish if needed, then press Save.`);
+    setApplied(`Swapped to ${labelOf(toCategory)} — press Save to keep it.`);
   };
 
   const onSlotChange = (cell: GridCell, cellIndexInCategory: number, value: string) => {
@@ -282,7 +307,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     }
     // A swap without its own row takes the leading row — ignore stale option values elsewhere.
     if (parsed.fromRow == null && cellIndexInCategory !== 0) return;
-    void queueSwap(parsed.fromCategory, parsed.toCategory, parsed.fromPicks, parsed.fromRow);
+    void queueSwap(parsed.fromCategory, parsed.toCategory, parsed.fromPicks, parsed.fromRow, parsed.toDishId);
   };
 
   const queueRemoveSwap = async (publicId: string, text: string) => {
@@ -455,6 +480,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
             <div role="tabpanel" id={panelId(PREFIX, activeDay)} className="flex flex-col gap-5">
               <div>
                 <h3 className="text-[17px] font-semibold">{humanDate(activeDay)}</h3>
+                {tiffinsThisDay > 1 && (
+                  <p className={`text-[13px] ${muted}`}>{tiffinsThisDay} tiffins this day — same meal for each.</p>
+                )}
                 {lockNote && <p className={`text-[13px] ${muted}`}>{lockNote}</p>}
                 {dayLocked && <p className={`text-[13px] ${muted}`}>Locked. Your picks for this day are final.</p>}
               </div>
@@ -476,6 +504,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                           : undefined;
                         // The row's own dishes stay choices: tapping one undoes the swap and picks it.
                         const blockedOwn = blockedDishes(group.key, ownDishes, null);
+                        const into = row.toCells[0];
+                        const blockedInto = into?.selectable ? blockedDishes(row.swap.toCategory, row.toDishes, into) : new Set<string>();
+                        const intoPick = into?.selectable ? effectiveDishId(into, picked) : null;
                         const choices: RowChoice[] = [
                           ...(ownDishes.length ? ownDishes : [{ id: "category", name: group.label }])
                             .map((d) => ({
@@ -484,21 +515,31 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                               reason: blockedOwn.has(d.id) ? "Not allowed with your other picks" : undefined,
                               disabled: rowOff || blockedOwn.has(d.id),
                             })),
-                          {
-                            value: "swapped",
-                            // Name what it became; the size only when it differs from the row's (8 roti → 2 rice).
-                            label: `${toName ?? labelOf(row.swap.toCategory)}${row.getPortion && row.getPortion !== row.givePortion ? ` · ${row.getPortion}` : ""}`,
-                            disabled: rowOff,
-                          },
+                          // What it became: the destination's dishes when there is a choice, else its one name.
+                          ...(into?.selectable
+                            ? row.toDishes.map((d) => ({
+                              value: `to:${d.id}`,
+                              label: d.name,
+                              reason: blockedInto.has(d.id) ? "Not allowed with your other picks" : undefined,
+                              disabled: rowOff || into.locked || blockedInto.has(d.id),
+                            }))
+                            : [{
+                              value: "swapped",
+                              // The size only when it differs from the row's (8 roti → 2 rice).
+                              label: `${toName ?? labelOf(row.swap.toCategory)}${row.getPortion && row.getPortion !== row.givePortion ? ` · ${row.getPortion}` : ""}`,
+                              disabled: rowOff,
+                            }]),
                         ];
                         return (
                           <ChoiceRow
-                            key={row.swap.publicId}
+                            key={`${row.swap.publicId}#${row.part}`}
                             label={row.givePortion ? `${group.label} · ${row.givePortion}` : group.label}
                             choices={choices}
-                            value="swapped"
+                            value={into?.selectable ? (intoPick ? `to:${intoPick}` : "") : "swapped"}
                             onChange={(v) => {
-                              if (!v.startsWith("was:") || rowOff) return;
+                              if (rowOff) return;
+                              if (v.startsWith("to:") && into) return onSlotChange(into, 1, dishOptionValue(v.slice("to:".length)));
+                              if (!v.startsWith("was:")) return;
                               const dishId = v.slice("was:".length);
                               if (row.givenRow != null && dishId !== "category") {
                                 setPendingPick({ day: activeDay!, person: who, category: group.key, row: row.givenRow, dishId });
@@ -506,7 +547,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                               void queueRemoveSwap(row.swap.publicId, text);
                             }}
                           >
-                            {row.toCells.filter((c) => c.selectable).map((cell, i) => {
+                            {/* A swap bringing several picks: the first is on the row, the rest get their own. */}
+                            {row.toCells.slice(1).filter((c) => c.selectable).map((cell, n) => {
+                              const i = n + 1;
                               const subLabel = `${labelOf(row.swap.toCategory)}${row.toCells.length > 1 ? ` ${i + 1}` : ""}`;
                               const selectedId = effectiveDishId(cell, picked);
                               const blocked = blockedDishes(row.swap.toCategory, row.toDishes, cell);
@@ -543,6 +586,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         fromRow: baseRow,
                         categoryLabel: labelOf,
                         destinationName,
+                        destinationDishes,
                       });
                       // A fixed item with no dish on the menu still gets its (greyed) box.
                       const options: SlotDropdownOption[] = built.length

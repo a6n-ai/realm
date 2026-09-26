@@ -184,6 +184,8 @@ export type SwappedRow = {
   toDishes: GridCell["dishes"];
   /** Base composition row the swap took (null when unknown, e.g. bulk roti). */
   givenRow: number | null;
+  /** Which of a multi-row swap's rows this line is (0 for single-row swaps). */
+  part: number;
 };
 
 /** One line of a category, in composition order: a live cell or a row given away by a swap. */
@@ -240,25 +242,40 @@ export function anchorSwaps(args: {
   const remaining = new Map<string, SlotRow<string | null>[]>(
     Object.entries(basePortions).map(([k, ps]) => [k, ps.map((value, row) => ({ row, value }))]),
   );
-  const givenRow = new Map<string, number | null>();
   for (const s of swaps) {
     const from = remaining.get(s.fromCategory) ?? [];
     const given = perRow(s.fromCategory) ? takeGiven(from, s) : [];
-    givenRow.set(s.publicId, given[0]?.row ?? null);
     const got = received.get(s.publicId)!;
     const amt = amounts(s);
-    const base = given.map((g) => g.value);
-    const give = base.length === s.qtyFrom && base.every(Boolean) ? base.join(" + ") : amt?.give ?? null;
-    const took = given[0]?.row ?? null;
-    const get = got.portions.length && got.portions.every(Boolean) ? got.portions.join(" + ") : amt?.get ?? null;
-    byKey.get(s.fromCategory)?.swapped.push({
-      swap: s,
-      givePortion: give,
-      getPortion: get,
-      toCells: got.cells,
-      toDishes: got.cells[0]?.dishes ?? byKey.get(s.toCategory)?.dishes ?? [],
-      givenRow: took,
-    });
+    const toDishes = (cells: GridCell[]) => cells[0]?.dishes ?? byKey.get(s.toCategory)?.dishes ?? [];
+    const likeForLike = given.length > 1 && got.cells.length === given.length;
+    if (likeForLike) {
+      // One swap that took several rows (Sabzi 12oz + 8oz) still shows as one line per row, in place.
+      given.forEach((g, k) => {
+        byKey.get(s.fromCategory)?.swapped.push({
+          swap: s,
+          givePortion: g.value,
+          getPortion: got.portions[k] ?? g.value,
+          toCells: [got.cells[k]!],
+          toDishes: toDishes([got.cells[k]!]),
+          givenRow: g.row,
+          part: k,
+        });
+      });
+    } else {
+      const base = given.map((g) => g.value);
+      const give = base.length === s.qtyFrom && base.every(Boolean) ? base.join(" + ") : amt?.give ?? null;
+      const get = got.portions.length && got.portions.every(Boolean) ? got.portions.join(" + ") : amt?.get ?? null;
+      byKey.get(s.fromCategory)?.swapped.push({
+        swap: s,
+        givePortion: give,
+        getPortion: get,
+        toCells: got.cells,
+        toDishes: toDishes(got.cells),
+        givenRow: given[0]?.row ?? null,
+        part: 0,
+      });
+    }
     const to = remaining.get(s.toCategory) ?? [];
     for (let i = 0; i < s.qtyTo; i++) to.push({ row: null, value: null });
     remaining.set(s.toCategory, to);
@@ -268,7 +285,7 @@ export function anchorSwaps(args: {
     const rows = (remaining.get(g.key) ?? []).filter((r) => r.row != null).map((r) => r.row!);
     const known = perRow(g.key) && rows.length === g.cells.length;
     const lines: { at: number; item: GroupItem }[] = [
-      ...g.swapped.map((sw) => ({ at: givenRow.get(sw.swap.publicId) ?? -1, item: { kind: "swapped" as const, swapped: sw } })),
+      ...g.swapped.map((sw) => ({ at: sw.givenRow ?? -1, item: { kind: "swapped" as const, swapped: sw } })),
       ...g.cells.map((cell, index) => {
         const row = known ? rows[index]! : null;
         return { at: row ?? Number.MAX_SAFE_INTEGER, item: { kind: "cell" as const, cell, index, row } };
