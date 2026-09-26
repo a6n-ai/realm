@@ -43,6 +43,7 @@ export async function adminUpdateContact(userId: string, input: { email?: string
   await requireAdmin();
   await usersService.updateContact(userId, input);
   revalidatePath(`/dashboard/organization/members/${userId}`);
+  revalidatePath(`/dashboard/customers/${userId}`);
   revalidatePath("/dashboard/organization/members");
 }
 

@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -27,6 +27,9 @@ describe("usersService.updateContact", () => {
   it("updates a customer's email when free (normalized)", async () => {
     const u = await usersService.updateContact(custId, { email: "Me@X.com" });
     expect(u.email).toBe("me@x.com");
+    // Nobody has proven the new address yet.
+    const [row] = await db.select({ v: users.emailVerified }).from(users).where(eq(users.publicId, custId));
+    expect(row.v).toBe(false);
   });
   it("rejects a phone owned by another user", async () => {
     await expect(usersService.updateContact(custId, { phone: "+16475550200" }))

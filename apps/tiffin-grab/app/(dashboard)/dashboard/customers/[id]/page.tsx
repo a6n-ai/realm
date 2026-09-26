@@ -4,6 +4,9 @@ import { UsersIcon, PackageIcon, ActivityIcon, WalletIcon, CoinsIcon, CreditCard
 import Link from "next/link";
 import { NotFoundError, formatMoney, formatPhone, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
+import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
+import { Badge } from "@foundry/ui/badge";
 import { getCustomer360, upcomingAddressChanges } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { walletService } from "@/lib/services/wallet.service";
@@ -43,6 +46,8 @@ export default function Customer360Page({ params }: { params: Promise<{ id: stri
 async function Customer360Data({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff();
   const { id } = await params;
+  // Email is the login identity, so only admins edit it (the action enforces it too).
+  const isAdmin = (await getSession())?.user?.role === "admin";
 
   const settingsP = getAppSettings();
   let data;
@@ -171,6 +176,19 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
           </dl>
         </SectionCard>
       </div>
+
+      {isAdmin && (
+        <SectionCard title="Contact" subtitle="Edit the email and phone on file.">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={data.profile.emailVerified ? "secondary" : "outline"}>
+                Email {data.profile.emailVerified ? "verified" : "unverified"}
+              </Badge>
+            </div>
+            <AdminContactForm userId={id} email={data.profile.email ?? ""} phone={data.profile.phone ?? ""} />
+          </div>
+        </SectionCard>
+      )}
 
       <CustomerAddresses customerPublicId={id} initial={savedAddresses} />
 

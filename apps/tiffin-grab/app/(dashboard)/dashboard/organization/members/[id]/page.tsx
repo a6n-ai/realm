@@ -19,7 +19,7 @@ import {
   ResetPasswordButton,
   type FlagState,
 } from "../user-row";
-import { AdminContactForm } from "./admin-contact-form";
+import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
 import { MemberManagement } from "../../settings/member-management";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {

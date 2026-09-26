@@ -5,8 +5,11 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
-import { adminUpdateContact } from "../actions";
+import { adminUpdateContact } from "@/app/(dashboard)/dashboard/organization/members/actions";
 
+// Admin edit of any account's email/phone (staff on the member page, customers
+// on the customer page). A changed email comes back unverified — see
+// usersService.updateContact.
 export function AdminContactForm({ userId, email, phone }: { userId: string; email: string; phone: string }) {
   const [value, setValue] = useState({ email, phone });
   const [pending, start] = useTransition();
@@ -29,7 +32,7 @@ export function AdminContactForm({ userId, email, phone }: { userId: string; ema
           start(async () => {
             try {
               await adminUpdateContact(userId, { email: value.email, phone: value.phone });
-              toast.success("Contact updated.");
+              toast.success(value.email !== email ? "Contact updated. The new email needs verifying at next sign-in." : "Contact updated.");
             } catch {
               toast.error("Could not update — check the email/phone are valid and free.");
             }

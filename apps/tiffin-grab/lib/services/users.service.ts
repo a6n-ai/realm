@@ -2,7 +2,7 @@ import { UpdatableRepository } from "@foundry/database";
 import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { account, addressTags, deliveryStrategies, session, users } from "@/db/schema";
+import { account, addressTags, deliveryStrategies, invitation, session, users } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
@@ -149,7 +149,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
     const [current] = await db.select().from(users).where(eq(users.publicId, userId)).limit(1);
     if (!current) throw new ValidationError("User not found");
 
-    const patch: { phone?: string | null; email?: string | null } = {};
+    const patch: { phone?: string | null; email?: string | null; emailVerified?: boolean } = {};
 
     if (input.phone !== undefined) {
       const phone = input.phone.trim();
@@ -177,7 +177,22 @@ class UsersService extends SessionUpdatableService<typeof users> {
       }
     }
 
-    return super.update(userId, patch);
+    // Only admins reach an email change here (self-service goes through the OTP
+    // change-email flow). Nobody has proven the new address yet, so it starts
+    // unverified: the next email-code or magic-link sign-in verifies it, and a
+    // password sign-in mails a verify link first.
+    const emailChanged = patch.email !== undefined && patch.email !== current.email;
+    if (emailChanged) patch.emailVerified = false;
+    const updated = await super.update(userId, patch);
+    // acceptInvitation matches the invitation to the signed-in email, so a
+    // pending staff invite must follow the address or it can never be accepted.
+    if (emailChanged && current.email && patch.email) {
+      await db
+        .update(invitation)
+        .set({ email: patch.email })
+        .where(and(eq(invitation.email, current.email), eq(invitation.status, "pending")));
+    }
+    return updated;
   }
 
   async updateProfile(
