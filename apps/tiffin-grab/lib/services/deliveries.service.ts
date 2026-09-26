@@ -1096,7 +1096,7 @@ export async function setDeliveryAddress(
   scope: AddressScope,
   actorId: bigint | null,
 ): Promise<void> {
-  await db.transaction(async (tx) => {
+  const deliveryId = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
@@ -1145,7 +1145,9 @@ export async function setDeliveryAddress(
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "delivery_address_changed", createdBy: actorId,
     });
+    return row.id;
   });
+  await refreshStopBestEffort(deliveryId);
 }
 
 export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
