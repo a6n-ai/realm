@@ -56,7 +56,8 @@ logs rather than the UI when confirming the flip worked.
 
 ## 3. First-time box bring-up
 
-EC2: Amazon Linux 2023, **x86_64**, t3.small, 30 GiB gp3 encrypted, tag
+EC2: Amazon Linux 2023, **x86_64**, t2.micro + 2 GiB swap (see `../RUNBOOK.md` "Box sizing
+and swap"), 30 GiB gp3 encrypted, tag
 Name=`realm-puchkaman-prod`, in the SG (`SecurityGroupId` output = realm-puchkaman-prod-sg),
 IAM instance profile `realm-puchkaman-prod-role` (`InstanceProfileName` output).
 Install docker + compose + awscli + jq + git.

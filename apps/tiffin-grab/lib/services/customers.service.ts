@@ -68,6 +68,21 @@ export async function provisionCustomerByPhone(
   return raced.id;
 }
 
+// Subscribe email step: create the customer before checkout so the email OTP
+// (disableSignUp — it never creates users) can sign them in. The row stays
+// unverified, with no credential, until that OTP proves the email, so typing
+// someone else's address gives nobody a session. Phone is left null — checkout
+// collects it per order. Returns false when the email already has an account.
+// ponytail: one unverified row per typed email; sweep never-verified rows if junk piles up.
+export async function provisionCustomerByEmail(contact: { fullName: string; email: string }): Promise<boolean> {
+  const inserted = await db
+    .insert(users)
+    .values({ email: contact.email, name: contact.fullName, role: "user" })
+    .onConflictDoNothing({ target: users.email })
+    .returning({ id: users.id });
+  return inserted.length > 0;
+}
+
 // Resolve the acting user's public_id to the internal id used for createdBy.
 async function resolveActorId(tx: Tx, actorId: string | null | undefined): Promise<bigint | null> {
   if (!actorId) return null;

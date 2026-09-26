@@ -2,7 +2,7 @@ import { Role, type RoleValue, ValidationError } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@foundry/database";
-import { and, asc, desc, eq, exists, getTableColumns, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, getTableColumns, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, session as sessionTable, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -34,6 +34,24 @@ function resolveUserFacet(f: FilterCondition) {
     name: users.name,
     email: users.email,
   })(f);
+}
+
+/**
+ * Keep `member` rows in step with `users.role`: staff with no membership land in
+ * the brand org (parentOrganizationId null). Staff already in a franchise are left
+ * alone so a role change never widens their visibility.
+ */
+async function ensureStaffMembership(userId: bigint, role: string): Promise<void> {
+  const [existing] = await db.select({ id: member.id }).from(member).where(eq(member.userId, userId)).limit(1);
+  if (existing) return;
+  const [brand] = await db
+    .select({ id: organization.id })
+    .from(organization)
+    .where(isNull(organization.parentOrganizationId))
+    .orderBy(organization.createdAt)
+    .limit(1);
+  if (!brand) return;
+  await db.insert(member).values({ organizationId: brand.id, userId, role }).onConflictDoNothing();
 }
 
 class UsersService extends SessionUpdatableService<typeof users> {
@@ -118,7 +136,9 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (actorId && target.id === actorId) {
       throw new ValidationError("You cannot change your own role.");
     }
-    return super.update(publicId, { role });
+    const updated = await super.update(publicId, { role });
+    await ensureStaffMembership(target.id, role);
+    return updated;
   }
 
   async softDelete(publicId: string): Promise<UserRow> {

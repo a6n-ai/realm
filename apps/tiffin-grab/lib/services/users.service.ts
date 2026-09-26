@@ -6,6 +6,7 @@ import { account, addressTags, deliveryStrategies, session, users } from "@/db/s
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
+import { syncStaffMembership } from "./organizations.service";
 
 // Never let credential hashes reach the audit trail (brute-forceable), and drop
 // the internal pin_attempts counter from audit noise. The real values are still
@@ -69,7 +70,9 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (actorId && target.id === actorId) {
       throw new ValidationError("You cannot change your own role.");
     }
-    return this.update(userId, { role });
+    const updated = await this.update(userId, { role });
+    await syncStaffMembership(target.id, role);
+    return updated;
   }
 
   /**
