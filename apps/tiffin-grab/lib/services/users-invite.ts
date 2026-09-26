@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { createStaffInvite } from "@foundry/auth";
 import { ValidationError } from "@foundry/commons";
 import { auth } from "@/lib/auth";
+import { sendStaffInviteLink } from "@/lib/auth/invite-links";
 import { usersService } from "./users.service";
 
 const { inviteStaff } = createStaffInvite({
@@ -19,17 +20,20 @@ const { inviteStaff } = createStaffInvite({
   // better-auth's organization plugin exposes this invite-member endpoint as
   // `createInvitation` (route "/organization/invite-member"); it requires
   // headers, which the shared StaffInviteDeps shape doesn't carry.
-  inviteMember: async (input) =>
-    auth.api.createInvitation({
+  inviteMember: async (input) => {
+    const invitation = await auth.api.createInvitation({
       body: { ...input.body, role: input.body.role as "admin" | "member" },
       headers: await headers(),
-    }),
+    });
+    await sendStaffInviteLink({ email: input.body.email, role: input.body.role, invitationId: invitation.id });
+    return invitation;
+  },
 });
 
 /**
  * Create a staff account with no credential and a real organization invitation.
- * The invitee proves email ownership via sign-in OTP against the accept-invitation
- * page, then sets their first password via the existing /set-password step.
+ * The invite email's magic link signs the invitee in, accepts the invitation,
+ * and lands on /set-password (the accept page's email-code form is the fallback).
  */
 export async function inviteUser(input: { email: string; name: string; role: "admin" | "member"; organizationId: string }) {
   // createInvitation requires a DIRECT member row with invitation:create on this

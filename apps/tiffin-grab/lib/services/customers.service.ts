@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { account, deliveries, inquiries, leadSources, mealSizes, orders, payments, plans, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
 import { auth } from "@/lib/auth";
+import { sendCustomerInviteLink } from "@/lib/auth/invite-links";
 import { ledgerService } from "./ledger.service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -134,6 +135,22 @@ export async function sendAccountSetupEmail(email: string): Promise<void> {
   await auth.api.sendVerificationEmail({ body: { email, callbackURL: `${origin}/set-password` } });
 }
 
+// Admin invite: a "Welcome" email whose link signs the customer straight into
+// /me. Unlike sendAccountSetupEmail this works for an already-verified address
+// (better-auth's sendVerificationEmail silently skips those) and needs no
+// password — email code is how customers sign in. Customer accounts only: the
+// customers page must never mint a sign-in link for a staff account.
+export async function sendCustomerInvite(email: string): Promise<void> {
+  const [u] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.email, email.toLowerCase()))
+    .limit(1);
+  if (!u) throw new NotFoundError("Customer not found");
+  if (u.role !== "user") throw new ValidationError("This email belongs to a staff account");
+  await sendCustomerInviteLink(email);
+}
+
 export async function findExistingByContact(phone: string, email?: string | null) {
   // Raw equality against the stored canonical values (phone is E.164, email is
   // lowercased on write) so the users_phone_unique / users_email_unique indexes
@@ -169,6 +186,10 @@ export type CustomerRow = {
   phone: string | null;
   orderCount: number;
   latestStatus: string | null;
+  // True once they've proven the email (invite link, checkout verify link, or
+  // an email-code sign-in) — i.e. they've used the account. Not "has a
+  // password": customers sign in by email code and may never set one.
+  joined: boolean;
 };
 
 export type CustomerSortColumn = "name" | "email" | "phone" | "orders";
@@ -214,6 +235,7 @@ export async function listCustomersPage(
       phone: users.phone,
       orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
       latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
+      joined: users.emailVerified,
     })
     .from(users)
     .leftJoin(orders, eq(orders.userId, users.id))

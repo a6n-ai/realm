@@ -6,6 +6,7 @@ import type { SavedAddress } from "@foundry/address";
 import { formatAddress } from "@foundry/address/ui";
 import { setMyDeliveryAddress } from "@/app/(customer)/me/deliveries/actions";
 import { Button, Field, Notice, OptionCard, Sheet } from "@/components/customer/kit";
+import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { nameTaken } from "@/components/customer/address/address-name";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
@@ -67,29 +68,17 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
           <Notice>{av.why}</Notice>
         ) : (
           <>
-            {strategies.length > 0 && (
-              <div role="radiogroup" aria-label="Drop-off" className="grid gap-2">
-                <span className="text-sm font-semibold text-[var(--foreground)]">Drop-off</span>
-                <div className="flex gap-2">
-                  {strategies.map((s) => (
-                    <OptionCard
-                      key={s.publicId}
-                      role="radio"
-                      selected={selectedStrategy === s.publicId}
-                      onClick={() => setSelectedStrategy(s.publicId)}
-                      className="flex-1 p-3 text-center font-medium"
-                    >
-                      {s.name}
-                    </OptionCard>
-                  ))}
-                </div>
-              </div>
-            )}
-            
+            <DropOffPicker options={strategies} value={selectedStrategy} onChange={setSelectedStrategy} />
+
             <div role="radiogroup" aria-label="Delivery address" className="grid gap-2">
               <span className="text-sm font-semibold text-[var(--foreground)]">Address</span>
               {addresses.map((a: SavedAddress) => (
-                <OptionCard key={a.publicId} role="radio" selected={picked === a.publicId} onClick={() => setPicked(a.publicId)} className="p-4">
+                <OptionCard key={a.publicId} role="radio" selected={picked === a.publicId} onClick={() => {
+                  setPicked(a.publicId);
+                  // A saved address brings its own drop-off.
+                  const own = plan.addressDropOffs?.[a.publicId];
+                  if (own) setSelectedStrategy(own);
+                }} className="p-4">
                   <span className="block font-medium">
                     {a.label}
                     {a.isDefault ? " · Default" : ""}

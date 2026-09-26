@@ -31,6 +31,7 @@ import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/l
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { findZone } from "@/lib/catalog/zone-match";
 import { addressService } from "./addresses.service";
+import { setAddressDropOff } from "./address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
@@ -359,6 +360,10 @@ export async function createOrder(
           tx,
           coords: input.contact.lat != null && input.contact.lng != null ? { lat: input.contact.lat, lng: input.contact.lng } : null,
         });
+    // A new address remembers the drop-off chosen at checkout, for its next delivery or order.
+    if (!input.addressPublicId && input.selections.deliveryStrategyId) {
+      await setAddressDropOff(addressScope, { id: savedAddress.id }, input.selections.deliveryStrategyId, tx);
+    }
     if (input.addressPublicId) {
       const movedPostal = savedAddress.postalCode !== input.contact.postalCode;
       input.contact = {
@@ -965,7 +970,11 @@ export async function claimPayment(
     await tx.insert(orderActivities).values({
       orderId: pay.orderId,
       type: "payment_claimed",
-      note: reference ? `${pay.method} · ref ${reference}` : `${pay.method} · proof attached`,
+      note: [
+        pay.method,
+        reference ? `ref ${reference}` : null,
+        proof ? "proof attached" : null,
+      ].filter(Boolean).join(" · "),
       createdBy: actorId,
     });
 

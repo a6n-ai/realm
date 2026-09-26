@@ -9,7 +9,7 @@ import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { resolveSegment } from "@/lib/campaigns/segment";
-import { createCustomer, findExistingByContact, sendAccountSetupEmail } from "@/lib/services/customers.service";
+import { createCustomer, findExistingByContact, sendCustomerInvite } from "@/lib/services/customers.service";
 
 const log = createLogger("contact-list-actions");
 const deps = { db, tables: notificationTables, users: usersRef, resolveSegment };
@@ -44,7 +44,7 @@ export async function convertContactToCustomer(input: {
     { actorId },
   );
   try {
-    await sendAccountSetupEmail(email);
+    await sendCustomerInvite(email);
   } catch (err) {
     log.error({ err }, "invite email failed for contact-list conversion");
   }

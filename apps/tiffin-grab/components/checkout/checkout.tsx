@@ -82,6 +82,7 @@ export function Checkout({
   prefill,
   catalog,
   savedAddresses = [],
+  addressDropOffs = {},
 }: {
   defaultCountry: Country;
   closeHref?: string;
@@ -90,6 +91,8 @@ export function Checkout({
   catalog?: ClientCatalogSnapshot;
   /** Customer's saved addresses (default first); empty before they save one. */
   savedAddresses?: SavedAddress[];
+  /** Saved address public id → its drop-off (delivery strategy public id). */
+  addressDropOffs?: Record<string, string>;
 }) {
   const router = useRouter();
   const [selections, setSelections] = useState<WizardSelections | null>(null);
@@ -158,7 +161,10 @@ export function Checkout({
     const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
     if (!raw) { router.replace("/subscribe"); return; }
     if (prefill == null) { router.replace("/subscribe"); return; }
-    const s = JSON.parse(raw) as WizardSelections;
+    const parsed = JSON.parse(raw) as WizardSelections;
+    // The default address's own drop-off, unless this order already chose one.
+    const own = defaultAddress ? addressDropOffs[defaultAddress.publicId] : undefined;
+    const s = own && !parsed.deliveryStrategyId ? { ...parsed, deliveryStrategyId: own } : parsed;
     // Seeding from sessionStorage, which is only readable on the client (post-mount).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelections(s);
@@ -180,6 +186,13 @@ export function Checkout({
 
   const pickAddress = (a: SavedAddress | null) => {
     setAddressPublicId(a?.publicId ?? null);
+    // A saved address brings its own drop-off (and its charge).
+    const own = a ? addressDropOffs[a.publicId] : undefined;
+    if (own && selections && own !== selections.deliveryStrategyId) {
+      const next = { ...selections, deliveryStrategyId: own };
+      setSelections(next);
+      void refreshPrice(next, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined);
+    }
     set(a ? addressFields(a) : { addressLine: "", addressUnit: "", city: "", postalCode: "", deliveryInstructions: "" });
     setZone(null);
     if (a) validatePostal(a.postalCode).then((res) =>

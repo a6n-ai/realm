@@ -1,4 +1,5 @@
 import type { SavedAddress } from "@foundry/address";
+import type { DropOffOption } from "@/components/customer/address/drop-off";
 import { swapLabel, type SwapCategory } from "@/lib/menu/swap-rules";
 import type { CalendarDayInput, PlanContext, Trip } from "@/lib/deliveries-view";
 import type { CalendarDay, CustomerDelivery, Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
@@ -25,8 +26,10 @@ export type PlanView = {
   swapCategories: Record<string, SwapCategory>;
   /** The customer's saved addresses, for the per-delivery "Change address" sheet. */
   savedAddresses: SavedAddress[];
-  /** The available delivery strategies for per-delivery changes. */
-  deliveryStrategies: { publicId: string; name: string }[];
+  /** Address public id → its saved drop-off (delivery strategy public id). */
+  addressDropOffs?: Record<string, string>;
+  /** The available delivery strategies ("Drop-off") for per-delivery changes. */
+  deliveryStrategies: DropOffOption[];
 };
 
 type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "pooledAt" | "deliveryStrategyPublicId" | "optimoCompletionStatus"> &

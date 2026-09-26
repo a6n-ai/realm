@@ -5,7 +5,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { inquiriesService } from "@/lib/services/inquiries.service";
-import { createCustomer, sendAccountSetupEmail } from "@/lib/services/customers.service";
+import { createCustomer, sendCustomerInvite } from "@/lib/services/customers.service";
 
 const log = createLogger("customers-actions");
 
@@ -42,7 +42,7 @@ export async function createCustomerFlow(input: {
   // Best-effort: an account created by staff already exists and is usable even
   // if the mail fails — "Resend invite" on their page covers a retry.
   try {
-    await sendAccountSetupEmail(input.contact.email);
+    await sendCustomerInvite(input.contact.email);
   } catch (err) {
     log.error({ err }, "invite email failed for admin-created customer");
   }
@@ -51,9 +51,9 @@ export async function createCustomerFlow(input: {
   return { customerPublicId: publicId, inquiryId };
 }
 
-// Admin-only resend of the "set your password" invite link. Throws (not
-// best-effort) so the row's button can surface a real failure to the admin.
+// Staff send/resend of the welcome sign-in link. Throws (not best-effort) so
+// the row's button can surface a real failure to the admin.
 export async function resendCustomerInvite(email: string): Promise<void> {
   await requireStaff();
-  await sendAccountSetupEmail(email);
+  await sendCustomerInvite(email);
 }

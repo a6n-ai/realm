@@ -11,14 +11,20 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { acceptInvitationAction } from "../actions";
 
-export function AcceptInvitationForm({ invitationId }: { invitationId: string }) {
+export function AcceptInvitationForm({
+  invitationId,
+  initialError = null,
+}: {
+  invitationId: string;
+  initialError?: string | null;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
 
   async function onSendCode() {
     setError(null);

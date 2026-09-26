@@ -1,15 +1,17 @@
 "use client";
 
 import { useTransition } from "react";
+import { SendHorizonal } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
-import { resendCustomerInvite } from "../actions";
+import { resendCustomerInvite } from "./actions";
 
-// Staff-only: mail the customer the welcome sign-in link again. Nothing is
-// shown to the admin — the link goes to the customer's inbox.
-export function ResendInviteButton({ email }: { email: string | null }) {
+// Same welcome mail as the customer detail "Resend invite" button: a link that
+// signs them in. Hidden once they've used the account (verified email).
+export function CustomerInviteCell({ email, joined }: { email: string | null; joined: boolean }) {
   const [pending, start] = useTransition();
-  if (!email) return null;
+  if (!email) return <span className="text-muted-foreground">—</span>;
+  if (joined) return <span className="text-muted-foreground text-xs">Joined</span>;
   return (
     <Button
       variant="outline"
@@ -26,7 +28,8 @@ export function ResendInviteButton({ email }: { email: string | null }) {
         })
       }
     >
-      Resend invite
+      <SendHorizonal className="size-3.5" />
+      Invite
     </Button>
   );
 }

@@ -31,6 +31,8 @@ export const appEvent = pgEnum("app_event", [
   // Staff invitation email (organization plugin) — migrated onto the
   // notification pipeline (2026-09) same as the other auth/security events.
   "staff_invitation",
+  // Admin-sent customer invite: a welcome email carrying a magic sign-in link.
+  "customer_invitation",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({

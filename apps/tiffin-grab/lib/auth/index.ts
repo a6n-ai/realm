@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { admin as adminPlugin, emailOTP } from "better-auth/plugins";
+import { admin as adminPlugin, emailOTP, magicLink } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { createOrganizationPlugin, authAuditAction } from "@foundry/auth";
@@ -15,7 +15,7 @@ import {
   notifyNewLoginIfNewDevice,
   notifyPasswordChanged,
   sendAuthOtp,
-  sendStaffInvitation,
+  sendInviteLinkEmail,
   sendVerification,
 } from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
@@ -28,6 +28,11 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: process.env.NODE_ENV !== "production" && process.env.E2E_BASE_URL ? [process.env.E2E_BASE_URL] : [],
   secret: process.env.BETTER_AUTH_SECRET,
+  // Magic links are invites only, issued server-side by lib/auth/invite-links
+  // (auth.api calls skip the HTTP router, so they are unaffected). Public
+  // sign-in stays email-code / password; an open magic-link route would be a
+  // second, unreviewed way to mail a sign-in token to any address.
+  disabledPaths: ["/sign-in/magic-link"],
   database: drizzleAdapter(db, {
     provider: "pg",
     // organization/member/invitation must be listed too — the organization plugin's
@@ -145,6 +150,17 @@ export const auth = betterAuth({
         await sendAuthOtp(email, otp, type);
       },
     }),
+    // Invite links (staff + customer). One click signs the invitee in, so no
+    // code to type. Single-use (consumed on first verify) and stored hashed;
+    // 7 days to match the invitation expiry the staff email promises.
+    magicLink({
+      disableSignUp: true,
+      storeToken: "hashed",
+      expiresIn: 7 * 24 * 60 * 60,
+      sendMagicLink: async ({ email, url, metadata }) => {
+        await sendInviteLinkEmail(email, url, metadata);
+      },
+    }),
     // Admin user management — createUser and setUserPassword only. ban/unban,
     // removeUser and impersonation stay unmounted: users.status is the single sign-in
     // switch, softDelete is the only delete, and impersonation needs its own audit
@@ -158,10 +174,9 @@ export const auth = betterAuth({
       organizationTable: organization,
       eq,
       allowUserToCreateOrganization: (user) => user.role !== Role.USER,
-      sendInvitationEmail: async (data) => {
-        const url = new URL(`/accept-invitation/${data.invitation.id}`, process.env.BETTER_AUTH_URL).toString();
-        await sendStaffInvitation({ email: data.email, role: data.invitation.role, inviteUrl: url });
-      },
+      // No sendInvitationEmail: the invite mail carries a magic link, which needs
+      // auth.api — unreachable from inside this config. Every createInvitation
+      // caller sends it via sendStaffInviteLink instead.
     }),
     nextCookies(),
   ],
