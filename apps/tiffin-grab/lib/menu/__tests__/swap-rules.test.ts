@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capViolation, hasEvenPortionSwap, swapPairFits, swapQuantities, type SwapCategory } from "../swap-rules";
+import { capViolation, hasEvenPortionSwap, receiveTuFor, swapPairFits, swapQuantities, type SwapCategory } from "../swap-rules";
 
 const cat = (key: string, pickTu: number | null, over: Partial<SwapCategory> = {}): SwapCategory => ({
   key, pickTu, unitType: "weight", unitLabel: "oz", maxPicksPerTiffin: null, ...over,
@@ -92,5 +92,24 @@ describe("hasEvenPortionSwap (Swap entry gate)", () => {
     const small = cat("rice", 0.5, { unitType: "count", unitLabel: "unit" });
     const whole = cat("roti", 1, { unitType: "count", unitLabel: "roti" });
     expect(hasEvenPortionSwap(small, whole, 1)).toBe(false);
+  });
+});
+
+describe("receiveTuFor (exchange overrides)", () => {
+  const overrides = [{ giveTu: 1.5, receiveTu: 1 }];
+
+  it("uses the override line for that given portion", () => {
+    expect(receiveTuFor({ sameUnit: true, giveTu: 1.5, toPickTu: 1.5, overrides })).toBe(1);
+  });
+
+  it("falls back to the natural exchange when no line matches", () => {
+    expect(receiveTuFor({ sameUnit: true, giveTu: 1, toPickTu: 1.5, overrides })).toBe(1);
+    expect(receiveTuFor({ sameUnit: true, giveTu: 1.5, toPickTu: 1, overrides: [] })).toBe(1.5);
+  });
+
+  it("leaves the cross-unit round-down untouched", () => {
+    // 6 roti (1.5 TU) for rice at 1 TU a pick: 1 pick, remainder forfeited.
+    expect(receiveTuFor({ sameUnit: false, giveTu: 1.5, toPickTu: 1 })).toBe(1);
+    expect(receiveTuFor({ sameUnit: false, giveTu: 0.5, toPickTu: 1 })).toBeNull();
   });
 });

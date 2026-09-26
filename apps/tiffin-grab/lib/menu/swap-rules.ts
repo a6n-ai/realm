@@ -124,6 +124,34 @@ export function crossUnitPicks(giveTu: number, toTu: number): number {
   return toTu > 0 ? Math.floor(giveTu / toTu + 1e-9) : 0;
 }
 
+/** One line of category_swap_pairs.exchange_overrides: give this portion, receive that one (TU). */
+export type ExchangeOverride = { giveTu: number; receiveTu: number };
+
+/** The pair's override for a given portion, or null when that portion has no line. */
+export function exchangeOverride(overrides: ExchangeOverride[] | undefined, giveTu: number): number | null {
+  return overrides?.find((o) => Math.abs(o.giveTu - giveTu) < 1e-9)?.receiveTu ?? null;
+}
+
+/**
+ * Received TU for one given portion: the pair's override when it has a line for that
+ * portion, else the natural exchange (same unit keeps the size; cross-unit rounds down
+ * to whole destination picks). Null when a cross-unit portion buys no whole pick.
+ * Depends only on the portion and the pair's rules, never on the rest of the meal.
+ */
+export function receiveTuFor(args: {
+  sameUnit: boolean;
+  giveTu: number;
+  /** TU of one destination pick; only used by the cross-unit natural exchange. */
+  toPickTu: number;
+  overrides?: ExchangeOverride[];
+}): number | null {
+  const hit = exchangeOverride(args.overrides, args.giveTu);
+  if (hit != null) return hit;
+  if (args.sameUnit) return args.giveTu;
+  const picks = crossUnitPicks(args.giveTu, args.toPickTu);
+  return picks < 1 ? null : picks * args.toPickTu;
+}
+
 /** Reason the effective counts break `to`'s per-tiffin cap, or null when within it. */
 export function capViolation(effectiveCounts: Record<string, number>, to: SwapCategory): string | null {
   if (to.maxPicksPerTiffin == null) return null;
