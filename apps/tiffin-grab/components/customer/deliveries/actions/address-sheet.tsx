@@ -5,7 +5,8 @@ import type { AddressValues } from "@foundry/commons";
 import type { SavedAddress } from "@foundry/address";
 import { formatAddress } from "@foundry/address/ui";
 import { setMyDeliveryAddress } from "@/app/(customer)/me/deliveries/actions";
-import { Button, Notice, OptionCard, Sheet } from "@/components/customer/kit";
+import { Button, Field, Notice, OptionCard, Sheet } from "@/components/customer/kit";
+import { nameTaken } from "@/components/customer/address/address-name";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import { currentSavedAddressId } from "@/lib/deliveries-view/current-address";
@@ -29,6 +30,8 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   );
   
   const [draft, setDraft] = useState<AddressValues>({});
+  // A new address is saved to the book too, so it gets a name there.
+  const [name, setName] = useState("");
   const { pending, error, run } = useCommit(onDone);
   const day = humanDate(trip.date);
 
@@ -39,6 +42,7 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
         ? { addressPublicId: picked, deliveryStrategyPublicId: selectedStrategy ?? undefined }
         : {
             newAddress: {
+              label: name.trim() || null,
               addressLine: draft.addressLine ?? "",
               addressUnit: draft.addressUnit,
               city: draft.city ?? "",
@@ -98,6 +102,16 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
               </OptionCard>
             </div>
             
+            {picked === null && (
+              <Field
+                label="Name"
+                placeholder="Home, Office, Mom's place…"
+                maxLength={40}
+                value={name}
+                error={nameTaken(name, addresses)}
+                onChange={(e) => setName(e.target.value)}
+              />
+            )}
             {picked === null && (
               <AddressFields
                 preset="delivery"
