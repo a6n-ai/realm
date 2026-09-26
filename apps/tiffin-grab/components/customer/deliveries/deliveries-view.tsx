@@ -62,7 +62,9 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
     setWk(weekStart);
     setSel(initialTrip);
   }
-  const [active, setActive] = useState<TripAction | null>(() => ACTIONS.find((a) => a === initialAction) ?? null);
+  const [requested, setActive] = useState<TripAction | null>(() => ACTIONS.find((a) => a === initialAction) ?? null);
+  // Payment unconfirmed: the plan is view-only, so no sheet opens from any entry point (buttons, ?action= links).
+  const active = locked ? null : requested;
   const [info, setInfo] = useState<EatingRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const { ctx, sub, today } = plan;
@@ -89,7 +91,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
   const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked }) : null;
-  const vacAv = locked ? { ok: false as const, why: "Available once your payment is confirmed" } : trip ? actionAvailability(trip, now, ctx).vacation : null;
+  const vacAv = trip ? actionAvailability(trip, now, ctx).vacation : null;
 
   const dots = useMemo(() => {
     const out: Record<string, { orderId: string; status: DeliveryStatus; truck: boolean }[]> = {};
@@ -142,10 +144,10 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         counts={plan.counts}
         renew={renewDays(plan.counts.lastDeliveryDate, today)}
         onVacation={!!ctx.onVacation}
-        onVacationClick={() => setActive("vacation")}
+        onVacationClick={locked ? undefined : () => setActive("vacation")}
       />
 
-      {locked && <Notice>We are confirming your e-Transfer. You can pick meals until the cutoff; holds, swaps, moves and vacation unlock once it is approved.</Notice>}
+      {locked && <Notice>We&apos;re confirming your payment. Your plan is view-only until then; editing meals, holds, moves and vacation unlock once it&apos;s approved.</Notice>}
 
       {multi && (
         <nav aria-label="Your plans" className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap">
@@ -190,7 +192,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         />
       </div>
 
-      {ctx.pooled >= 1 && (
+      {ctx.pooled >= 1 && !locked && (
         <Notice className="mb-4 items-center justify-between">
           <span>{tiffins(ctx.pooled)} {ctx.pooled === 1 ? "is" : "are"} waiting.</span>
           <button type="button" aria-label="Schedule a make-up" onClick={() => setActive("makeup")} className="min-h-11 shrink-0 px-2 text-sm font-semibold underline underline-offset-4 [touch-action:manipulation]">Make-up<span className="hidden lg:inline"> day</span></button>
@@ -230,7 +232,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                   <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
                     <div className="mt-6 hidden lg:block">
                       <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} />
-                      <div className="mt-4">
+                      {!locked && <div className="mt-4">
                         {ctx.onVacation ? (
                           <button type="button" className={linkCls} onClick={() => setActive("vacation")}>On vacation · Resume deliveries</button>
                         ) : vacAv?.ok === false ? (
@@ -238,7 +240,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                         ) : (
                           <button type="button" className={linkCls} onClick={() => setActive("vacation")}>Going away? Vacation</button>
                         )}
-                      </div>
+                      </div>}
                     </div>
                   </EatingCard>
                 ) : null}

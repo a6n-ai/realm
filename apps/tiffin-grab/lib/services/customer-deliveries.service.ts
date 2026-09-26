@@ -65,11 +65,11 @@ export async function orderPaymentLocked(orderPublicId: string): Promise<boolean
   return rows.some((r) => isPaymentReviewStatus(r.status) || r.status === "rejected");
 }
 
-// Customers may only pick meals while payment is unconfirmed; staff can always act.
+// A customer's plan is read-only until payment is confirmed (meal picks included); staff can always act.
 export async function assertOrderUnlocked(orderPublicId: string): Promise<void> {
   if (await callerIsStaff()) return;
   if (await orderPaymentLocked(orderPublicId)) {
-    throw new ValidationError("Your plan changes unlock once we confirm your e-Transfer");
+    throw new ValidationError("You can edit your plan once we confirm your payment.");
   }
 }
 
