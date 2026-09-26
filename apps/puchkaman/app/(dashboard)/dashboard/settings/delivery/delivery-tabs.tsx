@@ -5,6 +5,7 @@ import { RoutedTabNav } from "@foundry/design-system";
 const SUBTABS = [
   { label: "Delivery options", href: "/dashboard/settings/delivery/options" },
   { label: "Coverage", href: "/dashboard/settings/delivery/zones" },
+  { label: "Charges", href: "/dashboard/settings/delivery/charges" },
 ];
 
 /** Routed sub-tabs — same underline-nav style as @relay/engine/ui's NotificationsNav. */

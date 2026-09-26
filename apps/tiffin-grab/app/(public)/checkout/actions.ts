@@ -9,7 +9,7 @@ import { getContactOnFile } from "@/lib/services/contact-on-file";
 import { createOrder, type CreateOrderInput } from "@/lib/services/orders.service";
 import { sendAccountSetupEmail } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { matchZone } from "@/lib/catalog/postal";
+import { findZone } from "@/lib/catalog/zone-match";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 
@@ -82,7 +82,8 @@ export async function confirmSubscription(rawInput: ConfirmInput): Promise<Confi
   // capture the lead as a waitlist inquiry instead.
   const orgId = await resolveRequestOrg();
   const { zones } = await loadCatalogSnapshot(orgId);
-  if (matchZone(input.contact.postalCode, zones) == null) {
+  const address = [input.contact.addressLine, input.contact.city, input.contact.postalCode].filter(Boolean).join(", ");
+  if ((await findZone(zones, { postalCode: input.contact.postalCode, address }, orgId)) == null) {
     await createWebsiteInquiry({
       fullName: input.contact.fullName,
       phone: input.contact.phone,

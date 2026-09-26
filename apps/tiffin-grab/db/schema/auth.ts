@@ -1,7 +1,7 @@
 import { makePublicId, updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { deliveryStrategies, addressTags } from "./delivery-charges";
+import { deliveryStrategies, addressTags } from "./delivery";
 
 // better-auth (generateId:false) reads these ids as opaque strings and never
 // sets them — the DB default fills them. Keep the column text but derive from

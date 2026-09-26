@@ -24,4 +24,4 @@ export * from "./organizations";
 export * from "./faqs";
 export { reviewNudges } from "@foundry/google-reviews/db";
 export * from "./discounts";
-export * from "./delivery-charges";
+export * from "./delivery";

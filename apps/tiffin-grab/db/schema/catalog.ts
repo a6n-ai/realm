@@ -171,16 +171,6 @@ export const durationPackages = pgTable("duration_packages", {
   organizationId: text("organization_id").references(() => organization.id),
 });
 
-export const deliveryZones = pgTable("delivery_zones", {
-  ...updatableColumns("zon"),
-  name: text("name").notNull().unique(),
-  postalPrefixes: text("postal_prefixes").array().notNull(),
-  slotWindow: text("slot_window").notNull(),
-  active: boolean("active").notNull().default(true),
-  // Client-scoping — see dishes.organizationId for the pattern.
-  organizationId: text("organization_id").references(() => organization.id),
-});
-
 export const pricingTiers = pgTable("pricing_tiers", {
   ...updatableColumns("ptr"),
   minQty: integer("min_qty").notNull(),

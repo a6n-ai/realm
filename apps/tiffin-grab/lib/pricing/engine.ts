@@ -2,7 +2,7 @@ import type { TaxLine } from "@foundry/payments";
 import { resolveCatalogDiscounts } from "@foundry/discounts";
 import { assertValidTiers, findTier } from "./tiers";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
-import { calculateDeliveryCharge, type DeliveryChargeCalculationResult } from "./delivery-charges";
+import { calculateDeliveryCharge, type DeliveryChargeCalculationResult } from "@foundry/delivery";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 

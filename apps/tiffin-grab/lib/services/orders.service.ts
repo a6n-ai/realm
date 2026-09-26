@@ -29,7 +29,7 @@ import { SessionBaseService, SessionUpdatableService, recordAudit } from "./sess
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/lib/catalog/load";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
-import { matchZone } from "@/lib/catalog/postal";
+import { findZone } from "@/lib/catalog/zone-match";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
@@ -235,8 +235,7 @@ export async function createOrder(
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.
   const basePricing = priceSubscription(input.selections, pricingCatalog);
-  const zone = matchZone(input.contact.postalCode, snapshot.zones);
-  const zoneRow = zone ? snapshot.zones.find((z) => z.name === zone.name) : undefined;
+  const zoneRow = await findZone(snapshot.zones, input.contact, orgId);
 
   const parsedPhone = phoneSchema().safeParse(input.contact.phone);
   if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");

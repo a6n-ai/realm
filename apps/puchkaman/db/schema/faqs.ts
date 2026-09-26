@@ -7,7 +7,7 @@ import { organization } from "./organizations";
  * editable (Settings → Public Website → FAQ) instead of the old hardcoded
  * lib/faq.ts array.
  *
- * Client-scoping — same override pattern as deliveryZones/deliveryTypes,
+ * Client-scoping — same override pattern as the delivery tables,
  * but read as an override, not a union: a franchise with its own rows
  * (organizationId set) sees only those; a franchise with none falls back to
  * the brand's null-org rows. See listPublicFaqs in faqs.service.ts.

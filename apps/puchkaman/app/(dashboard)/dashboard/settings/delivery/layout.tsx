@@ -1,5 +1,7 @@
 import { TruckIcon } from "lucide-react";
 import { PageHeader, PageShell } from "@foundry/design-system";
+import { DeliveryAdminProvider } from "@foundry/delivery/ui";
+import { deliveryAdminActions } from "./admin-actions";
 import { DeliveryTabs } from "./delivery-tabs";
 
 /**
@@ -15,7 +17,7 @@ export default function DeliverySettingsLayout({ children }: { children: React.R
         subtitle="What customers can choose at checkout, and how far each option reaches."
       />
       <DeliveryTabs />
-      {children}
+      <DeliveryAdminProvider actions={deliveryAdminActions}>{children}</DeliveryAdminProvider>
     </PageShell>
   );
 }

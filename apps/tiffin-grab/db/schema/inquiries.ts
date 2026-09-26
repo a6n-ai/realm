@@ -4,7 +4,7 @@ import { bigint, date, index, integer, numeric, pgEnum, pgTable, text, uniqueInd
 import { users } from "./auth";
 import { orders } from "./orders";
 import { leadSources, leadSubsources } from "./lead-sources";
-import { deliveryZones } from "./catalog";
+import { deliveryZones } from "./delivery";
 import { organization } from "./organizations";
 
 export const inquiryStage = pgEnum("inquiry_stage", ["new", "contacted", "quoted", "follow_up", "converted", "lost"]);

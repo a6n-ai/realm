@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { clientIp, isRateLimited } from "@foundry/commons";
 import { handler, json, problem } from "@foundry/routes";
-import { haversineKm } from "@/lib/delivery/distance";
+import { availableTypes, deliveryLimitKm, haversineKm, unavailableTypes } from "@foundry/delivery";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
-import { availableTypes, deliveryLimitKm, unavailableTypesByDistance } from "@/lib/delivery/zones";
-import { getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
+import { getAllDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 
 const checkAddressSchema = z.object({
   address: z.string().trim().min(5),
@@ -38,10 +37,12 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   const resolved = await resolveAddress(parsed.data);
   if (!resolved) return json({ resolved: false });
 
-  const [zones, origin] = await Promise.all([getZonesWithTypes(), getStoreOrigin()]);
+  const [zones, allTypes, origin] = await Promise.all([getZonesWithTypes(), getAllDeliveryTypes(), getStoreOrigin()]);
   const distanceKm = Number(
     haversineKm(origin.lat, origin.lng, resolved.lat, resolved.lng).toFixed(2),
   );
+
+  const location = { postalCode: resolved.postalCode, distanceKm };
 
   return json({
     resolved: true,
@@ -52,9 +53,9 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     lng: resolved.lng,
     distanceKm,
     limitKm: deliveryLimitKm(zones),
-    types: availableTypes(distanceKm, zones),
+    types: availableTypes(location, zones, allTypes),
     // Labels only — enough for the UI to say "Instant delivery isn't available
     // this far" instead of silently omitting it from the list.
-    unavailableTypeLabels: unavailableTypesByDistance(distanceKm, zones).map((t) => t.label),
+    unavailableTypeLabels: unavailableTypes(location, zones, allTypes).map((t) => t.label),
   });
 });

@@ -80,7 +80,7 @@ export function Checkout({
   const [result, setResult] = useState<PricingResult | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [contact, setContact] = useState<Contact>({ ...emptyContact, ...prefill });
-  const [zone, setZone] = useState<{ served: boolean; name?: string; slotWindow?: string } | null>(null);
+  const [zone, setZone] = useState<{ served: boolean; name?: string; slotWindow?: string | null } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
@@ -451,7 +451,7 @@ export function Checkout({
                 <div className="grid gap-2 empty:hidden">
                   {zone?.served && (
                     <StatusBanner tone="success" icon={<MapPin className="mt-0.5 size-4 shrink-0" />}>
-                      Served — {zone.name}, delivery {zone.slotWindow}.
+                      Served — {zone.name}{zone.slotWindow ? `, delivery ${zone.slotWindow}` : ""}.
                     </StatusBanner>
                   )}
                   {zone && !zone.served && !waitlisted && (
@@ -604,7 +604,7 @@ export function Checkout({
               {coinsState.status === "error" && <p className="mt-1.5 text-[13px] text-amber-700 dark:text-amber-400" role="alert">{coinsState.message}</p>}
             </div>
           )}
-          {zone?.served && <p className="text-xs text-muted-foreground">Delivery window: {zone.slotWindow}</p>}
+          {zone?.served && zone.slotWindow && <p className="text-xs text-muted-foreground">Delivery window: {zone.slotWindow}</p>}
           </OrderSummary>
           <ActionBar reason={actionReason} total={result?.total} backLabel={step > 1 ? "Back" : "Edit plan"} onBack={goBack}>
             {step === 1 ? (

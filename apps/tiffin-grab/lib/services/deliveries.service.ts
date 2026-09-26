@@ -10,7 +10,7 @@ import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { MAX_TIFFINS_PER_TRIP, coveredDates, dateCounts, mergeBlockReason, mergeCoverage, movesOneEatDay, swapAppliesTo, tripCoverage } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
-import { matchZone } from "@/lib/catalog/postal";
+import { findZone } from "@/lib/catalog/zone-match";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
 
 const log = createLogger("deliveries.service");
@@ -1069,21 +1069,23 @@ export async function unskipDelivery(deliveryPublicId: string, actorId: bigint |
   await reconcilePoolFromMisses(orderId!);
 }
 
-/** Prefix match against delivery_zones.postal_prefixes (active zones only). Rejects an unserviced postal code. */
+/** Postal zone first, then radius circles (active zones only). Rejects an unserviced postal code. */
 export async function resolveZoneId(tx: Tx, postalCode: string): Promise<bigint> {
-  const zones = await tx.select({
+  const rows = await tx.select({
     id: deliveryZones.id,
     name: deliveryZones.name,
+    radiusKm: deliveryZones.radiusKm,
     postalPrefixes: deliveryZones.postalPrefixes,
     slotWindow: deliveryZones.slotWindow,
     active: deliveryZones.active,
   }).from(deliveryZones).where(eq(deliveryZones.active, true));
-  const hit = matchZone(postalCode, zones);
+  const zones = rows.map((z) => ({ ...z, radiusKm: z.radiusKm == null ? null : Number(z.radiusKm) }));
+  const hit = await findZone(zones, { postalCode });
   // Deliberately asymmetric with createOrder, which WAITLISTS an unmatched postal code
   // (orders.service.ts ~line 248): an active subscription may not redirect a drop to an
   // unserviced address, whereas a brand-new order can simply wait for coverage.
   if (!hit) throw new ValidationError("We don't deliver to that postal code");
-  return zones.find((z) => z.name === hit.name)!.id;
+  return hit.id;
 }
 
 export async function setDeliveryAddress(

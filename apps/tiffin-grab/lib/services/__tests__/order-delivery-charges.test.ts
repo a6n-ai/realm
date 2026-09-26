@@ -13,7 +13,7 @@ import {
   users,
 } from "@/db/schema";
 import { loadCatalogSnapshot, invalidateCatalogSnapshot } from "@/lib/catalog/load";
-import { deliveryChargesService } from "../delivery-charges.service";
+import { deliveryService } from "../delivery.service";
 import { reprice } from "@/app/(public)/subscribe/actions";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -37,13 +37,13 @@ describe("Order Delivery Charges (Integration)", () => {
 
   it("persists deliveryCharge, deliveryStrategyId, addressTagId and immutable pricingSnapshot", async () => {
     // 1. Configure delivery rules
-    await deliveryChargesService.updateBaseDeliveryCharge(2); // Base = $2.00
-    const dt = await deliveryChargesService.saveDeliveryStrategy({
+    await deliveryService.updateBaseDeliveryCharge(2); // Base = $2.00
+    const dt = await deliveryService.saveDeliveryStrategy({
       name: "Doorstep",
       chargeType: "fixed",
       chargeValue: 1.5,
     });
-    const at = await deliveryChargesService.saveAddressTag({
+    const at = await deliveryService.saveAddressTag({
       name: "Apartment",
       chargeType: "percent",
       chargeValue: 5,
@@ -106,8 +106,8 @@ describe("Order Delivery Charges (Integration)", () => {
 
     // 3. Historical immutability test (Case 7):
     // Now change the delivery charge rules: Base -> $10, Doorstep -> $5
-    await deliveryChargesService.updateBaseDeliveryCharge(10);
-    await deliveryChargesService.saveDeliveryStrategy({
+    await deliveryService.updateBaseDeliveryCharge(10);
+    await deliveryService.saveDeliveryStrategy({
       id: dt.id,
       name: "Doorstep",
       chargeType: "fixed",
@@ -123,18 +123,18 @@ describe("Order Delivery Charges (Integration)", () => {
   });
 
   it("reprice dynamically recalculates when customer changes delivery type or address tag (Case 8)", async () => {
-    await deliveryChargesService.updateBaseDeliveryCharge(2);
-    const dtLobby = await deliveryChargesService.saveDeliveryStrategy({
+    await deliveryService.updateBaseDeliveryCharge(2);
+    const dtLobby = await deliveryService.saveDeliveryStrategy({
       name: "Lobby",
       chargeType: "fixed",
       chargeValue: 1,
     });
-    const atHouse = await deliveryChargesService.saveAddressTag({
+    const atHouse = await deliveryService.saveAddressTag({
       name: "House",
       chargeType: "none",
       chargeValue: 0,
     });
-    const atApt = await deliveryChargesService.saveAddressTag({
+    const atApt = await deliveryService.saveAddressTag({
       name: "Apartment",
       chargeType: "fixed",
       chargeValue: 3,

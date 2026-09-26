@@ -1,9 +1,10 @@
 import { TruckIcon } from "lucide-react";
 import { PageHeader, PageShell } from "@/components/ds";
 import { requireAdmin } from "@/lib/auth/guards";
-import { deliveryChargesService } from "@/lib/services/delivery-charges.service";
+import { deliveryService } from "@/lib/services/delivery.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { DeliveryChargesManager } from "@/components/dashboard/delivery-charges/delivery-charges-manager";
+import { DeliveryChargesManager } from "@foundry/delivery/ui";
+import { deliveryChargesActions } from "./admin-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,9 @@ export default async function DeliveryChargesPage() {
   await requireAdmin();
   const orgId = await resolveRequestOrg();
   const [baseCharge, deliveryStrategies, addressTags] = await Promise.all([
-    deliveryChargesService.getBaseDeliveryCharge(orgId),
-    deliveryChargesService.listDeliveryStrategies({ includeInactive: true, orgId }),
-    deliveryChargesService.listAddressTags({ includeInactive: true, orgId }),
+    deliveryService.getBaseDeliveryCharge(orgId),
+    deliveryService.listDeliveryStrategies({ includeInactive: true, orgId }),
+    deliveryService.listAddressTags({ includeInactive: true, orgId }),
   ]);
 
   return (
@@ -27,6 +28,7 @@ export default async function DeliveryChargesPage() {
         initialBaseCharge={baseCharge}
         initialDeliveryStrategies={deliveryStrategies}
         initialAddressTags={addressTags}
+        actions={deliveryChargesActions}
       />
     </PageShell>
   );

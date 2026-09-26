@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { applyTypeDiscount, PICKUP_TYPE_KEY } from "../type-pricing";
-import type { DeliveryType } from "../zones";
+import { applyTypeDiscount } from "@foundry/delivery";
+import { PICKUP_TYPE_KEY } from "../type-pricing";
+import type { DeliveryType } from "@foundry/delivery";
 
 const instant: DeliveryType = {
   key: "instant",

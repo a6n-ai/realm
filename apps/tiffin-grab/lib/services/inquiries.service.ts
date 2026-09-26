@@ -7,7 +7,7 @@ import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { matchZone } from "@/lib/catalog/postal";
+import { findZone } from "@/lib/catalog/zone-match";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { createOrder, type CreateOrderInput } from "./orders.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
@@ -169,9 +169,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   private async resolveZoneId(postalCode?: string): Promise<bigint | null> {
     if (!postalCode) return null;
     const { zones } = await loadCatalogSnapshot();
-    const z = matchZone(postalCode, zones);
-    if (!z) return null;
-    return zones.find((x) => x.name === z.name)?.id ?? null;
+    return (await findZone(zones, { postalCode }))?.id ?? null;
   }
 
   async create(values: Record<string, unknown>) {

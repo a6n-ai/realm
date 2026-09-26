@@ -1,8 +1,7 @@
 import { baseColumns, updatableColumns } from "@foundry/database";
 import { bigint, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
-import { deliveryTypes } from "./delivery-types";
-import { deliveryZones } from "./delivery-zones";
+import { deliveryTypes, deliveryZones } from "./delivery";
 import { employees } from "./employees";
 import { products } from "./products";
 import { organization } from "./organizations";

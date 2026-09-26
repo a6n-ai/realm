@@ -1,7 +1,7 @@
 import type { ComputedTaxLine } from "@foundry/payments";
 import type { DayOfWeek } from "../menu/delivery-days";
 import type { PricingTier } from "./tiers";
-import type { DeliveryChargeCalculationResult, DeliveryChargeItemLike } from "./delivery-charges";
+import type { DeliveryChargeCalculationResult, DeliveryChargeItemLike } from "@foundry/delivery";
 
 export interface PricingSelections {
   mealSizeId: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateDeliveryCharge } from "../delivery-charges";
+import { calculateDeliveryCharge } from "@foundry/delivery";
 import { priceSubscription } from "../engine";
 import { buildPricingCatalog } from "../build-catalog";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
@@ -184,7 +184,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
       }],
       frequencies: [{ id: 1n, publicId: "freq_1", key: "5_day", name: "5 Day", daysPerWeek: 5, courierDiscountPct: 0, weekdays: null }],
       durations: [{ id: 1n, publicId: "dur_2", weeks: 2, discountPct: 0 }],
-      zones: [{ id: 1n, publicId: "z1", name: "Downtown", postalPrefixes: ["M5V"], slotWindow: "11am-1pm", active: true }],
+      zones: [{ id: 1n, publicId: "z1", name: "Downtown", radiusKm: null, postalPrefixes: ["M5V"], slotWindow: "11am-1pm", active: true }],
       tiers: TIERS,
       deliveryCharges: {
         baseCharge: 2,

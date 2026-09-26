@@ -16,21 +16,82 @@ async function TiffinsPerWeekData() {
 
 async function DeliveryChargesData() {
   await requireAdmin();
-  const { deliveryChargesService } = await import("@/lib/services/delivery-charges.service");
+  const { deliveryService } = await import("@/lib/services/delivery.service");
   const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
-  const { DeliveryChargesManager } = await import("@/components/dashboard/delivery-charges/delivery-charges-manager");
+  const { DeliveryChargesManager } = await import("@foundry/delivery/ui");
+  const { deliveryChargesActions } = await import("../../delivery/charges/admin-actions");
   const orgId = await resolveRequestOrg();
   const [baseCharge, deliveryStrategies, addressTags] = await Promise.all([
-    deliveryChargesService.getBaseDeliveryCharge(orgId),
-    deliveryChargesService.listDeliveryStrategies({ includeInactive: true, orgId }),
-    deliveryChargesService.listAddressTags({ includeInactive: true, orgId }),
+    deliveryService.getBaseDeliveryCharge(orgId),
+    deliveryService.listDeliveryStrategies({ includeInactive: true, orgId }),
+    deliveryService.listAddressTags({ includeInactive: true, orgId }),
   ]);
   return (
     <DeliveryChargesManager
       initialBaseCharge={baseCharge}
       initialDeliveryStrategies={deliveryStrategies}
       initialAddressTags={addressTags}
+      actions={deliveryChargesActions}
     />
+  );
+}
+
+async function DeliveryZonesData() {
+  await requireAdmin();
+  const { deliveryService } = await import("@/lib/services/delivery.service");
+  const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
+  const { DeliveryAdminProvider, DeliveryZonesManager } = await import("@foundry/delivery/ui");
+  const { deliveryAdminActions } = await import("../../delivery/charges/admin-actions");
+  const orgId = await resolveRequestOrg();
+  const [zones, types, origin] = await Promise.all([
+    deliveryService.listZones({ includeInactive: true, orgId }),
+    deliveryService.listTypes({ includeInactive: true, orgId }),
+    deliveryService.getStoreOrigin(orgId),
+  ]);
+  return (
+    <DeliveryAdminProvider actions={deliveryAdminActions}>
+      <DeliveryZonesManager
+        mapStyleUrl={process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? null}
+        origin={origin}
+        zones={zones.map((z) => ({
+          publicId: z.publicId!,
+          name: z.name,
+          radiusKm: z.radiusKm,
+          postalPrefixes: z.postalPrefixes,
+          slotWindow: z.slotWindow,
+          active: z.active,
+          typePublicIds: z.types.map((t) => t.publicId!),
+        }))}
+        types={types.map((t) => ({ publicId: t.publicId!, key: t.key, label: t.label, active: t.active }))}
+      />
+    </DeliveryAdminProvider>
+  );
+}
+
+async function DeliveryTypesData() {
+  await requireAdmin();
+  const { deliveryService } = await import("@/lib/services/delivery.service");
+  const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
+  const { DeliveryAdminProvider, DeliveryTypesManager } = await import("@foundry/delivery/ui");
+  const { deliveryAdminActions } = await import("../../delivery/charges/admin-actions");
+  const types = await deliveryService.listTypes({ includeInactive: true, orgId: await resolveRequestOrg() });
+  return (
+    <DeliveryAdminProvider actions={deliveryAdminActions}>
+      <DeliveryTypesManager
+        types={types.map((t) => ({
+          publicId: t.publicId!,
+          key: t.key,
+          label: t.label,
+          description: t.description ?? null,
+          requiresAddress: t.requiresAddress,
+          requiresSchedule: t.requiresSchedule,
+          minSubtotal: t.minSubtotal,
+          discountPct: t.discountPct,
+          sortOrder: t.sortOrder,
+          active: t.active,
+        }))}
+      />
+    </DeliveryAdminProvider>
   );
 }
 
@@ -68,8 +129,17 @@ export default function DeliverySettingsPage({ searchParams }: { searchParams: S
               value: "delivery-zones",
               label: "Zones",
               content: (
-                <Suspense fallback={<ResourceEditorSkeleton resource="delivery-zones" />}>
-                  <CatalogData resource="delivery-zones" searchParams={searchParams} />
+                <Suspense fallback={<div className="h-48 animate-pulse rounded-lg bg-muted" />}>
+                  <DeliveryZonesData />
+                </Suspense>
+              ),
+            },
+            {
+              value: "delivery-types",
+              label: "Delivery types",
+              content: (
+                <Suspense fallback={<div className="h-48 animate-pulse rounded-lg bg-muted" />}>
+                  <DeliveryTypesData />
                 </Suspense>
               ),
             },

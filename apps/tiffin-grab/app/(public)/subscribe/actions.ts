@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { capRedemption } from "@foundry/wallet";
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { emailSchema } from "@foundry/commons";
-import { matchZone } from "@/lib/catalog/postal";
+import { findZone } from "@/lib/catalog/zone-match";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
@@ -182,12 +182,12 @@ export async function reprice(
   return { pricing, appliedCoupons, couponError: best.manualError, paymentMethods, coinBalance, coinsError, coinCap };
 }
 
-export async function validatePostal(postalCode: string): Promise<{ served: boolean; zone?: { publicId: string; name: string; slotWindow: string } }> {
-  const snapshot = await loadCatalogSnapshot(await resolveRequestOrg());
-  const zone = matchZone(postalCode, snapshot.zones);
+export async function validatePostal(postalCode: string): Promise<{ served: boolean; zone?: { publicId: string; name: string; slotWindow: string | null } }> {
+  const orgId = await resolveRequestOrg();
+  const snapshot = await loadCatalogSnapshot(orgId);
+  const zone = await findZone(snapshot.zones, { postalCode }, orgId);
   if (!zone) return { served: false };
-  const full = snapshot.zones.find((z) => z.name === zone.name)!;
-  return { served: true, zone: { publicId: full.publicId, name: full.name, slotWindow: full.slotWindow } };
+  return { served: true, zone: { publicId: zone.publicId, name: zone.name, slotWindow: zone.slotWindow } };
 }
 
 // Identity-gate lookup for the /subscribe entry step (see

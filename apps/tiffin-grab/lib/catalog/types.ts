@@ -41,7 +41,7 @@ export interface CatalogSnapshot {
   mealSizes: MealSizeView[];
   frequencies: { id: bigint; publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number; weekdays: string[] | null }[];
   durations: { id: bigint; publicId: string; weeks: number; discountPct: number }[];
-  zones: { id: bigint; publicId: string; name: string; postalPrefixes: string[]; slotWindow: string; active: boolean }[];
+  zones: { id: bigint; publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean }[];
   tiers: PricingTier[];
   // category key -> display label. Same source the customer day view threads into
   // day-detail.tsx (dishCategoriesService), so a swap's category reads the same
@@ -94,7 +94,7 @@ export interface ClientCatalogSnapshot {
   mealSizes: ClientMealSizeView[];
   frequencies: { publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number; weekdays: string[] | null }[];
   durations: { publicId: string; weeks: number; discountPct: number }[];
-  zones: { publicId: string; name: string; postalPrefixes: string[]; slotWindow: string; active: boolean }[];
+  zones: { publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean }[];
   tiers?: PricingTier[];
   categoryLabels?: Record<string, string>;
   addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;

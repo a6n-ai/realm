@@ -36,11 +36,10 @@ import {
 } from "@/lib/clover/public-ordering";
 import { resolveOrderOwner, upsertCustomer } from "@/lib/customers/upsert-customer";
 import { enqueueNotification, enqueueStaff } from "@/lib/notifications/enqueue";
-import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
-import { chooseDelivery } from "@/lib/delivery/choose-delivery";
+import { applyTypeDiscount, chooseDelivery, haversineKm } from "@foundry/delivery";
 import { scheduleWindowError } from "@/lib/delivery/schedule";
-import { applyTypeDiscount, PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";
+import { PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";
 import { getAllDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import {
   createCheckoutSchema,
@@ -720,7 +719,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     let discountAmount = claimed.total;
 
     if (parsed.fulfillment.type === "delivery") {
-      const [zones, origin] = await Promise.all([getZonesWithTypes(), getStoreOrigin()]);
+      const [zones, allTypes, origin] = await Promise.all([getZonesWithTypes(), getAllDeliveryTypes(), getStoreOrigin()]);
       // Core bucket, not storage-licensed: the coordinates are used to derive
       // deliveryDistanceKm and then discarded, never written to a column.
       //
@@ -754,15 +753,18 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
       // Re-derive what is genuinely offered here. The client sent only a key.
       const choice = chooseDelivery({
-        distanceKm: deliveryDistanceKm,
+        location: { postalCode: resolved.postalCode, distanceKm: deliveryDistanceKm },
         typeKey: parsed.fulfillment.deliveryTypeKey,
         zones,
+        allTypes,
         subtotal,
         scheduledFor: parsed.fulfillment.scheduledFor,
       });
       if (!choice.ok) throw new ValidationError(choice.message);
       const { type, zone } = choice;
       if (!zone.id) throw new ValidationError("Could not resolve a delivery zone for that address.");
+      // puchkaman always sends a key, so chooseDelivery never returns the no-types branch here.
+      if (!type) throw new ValidationError("Pick a delivery option.");
 
       if (type.requiresSchedule) {
         // The form bounds the picker to the same window; this is the rule.

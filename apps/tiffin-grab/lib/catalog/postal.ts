@@ -1,23 +1,15 @@
+import { matchPostalZone } from "@foundry/delivery";
+
 export interface ZoneLike {
   name: string;
   postalPrefixes: string[];
-  slotWindow: string;
+  slotWindow: string | null;
   active: boolean;
+  radiusKm?: number | null;
 }
 
-export function matchZone(postalCode: string, zones: ZoneLike[]): ZoneLike | null {
-  const fsa = postalCode.replace(/\s+/g, "").toUpperCase().slice(0, 3);
-  if (!fsa) return null;
-
-  let best: { zone: ZoneLike; len: number } | null = null;
-  for (const zone of zones) {
-    if (!zone.active) continue;
-    for (const prefix of zone.postalPrefixes) {
-      const p = prefix.toUpperCase();
-      if (fsa.startsWith(p) && (!best || p.length > best.len)) {
-        best = { zone, len: p.length };
-      }
-    }
-  }
-  return best?.zone ?? null;
+/** Postal-only match (client-safe) — longest active prefix wins. Circles need {@link findZone}. */
+export function matchZone<Z extends ZoneLike>(postalCode: string, zones: Z[]): Z | null {
+  const hit = matchPostalZone(postalCode, zones.map((z, i) => ({ ...z, radiusKm: z.radiusKm ?? null, publicId: String(i) })));
+  return hit ? zones[Number(hit.publicId)]! : null;
 }

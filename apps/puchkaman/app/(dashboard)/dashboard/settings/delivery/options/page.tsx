@@ -1,7 +1,7 @@
 import { SectionCard } from "@foundry/design-system";
+import { DeliveryTypesManager, type TypeRow } from "@foundry/delivery/ui";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getAllDeliveryTypes } from "@/lib/delivery/zones.service";
-import { TypesTable, type TypeRow } from "./types-table";
 
 export default async function DeliveryTypesPage() {
   await requireAdmin();
@@ -22,11 +22,8 @@ export default async function DeliveryTypesPage() {
   }));
 
   return (
-    <SectionCard
-      title="Options"
-      subtitle="What a customer can pick at checkout, and the rules each option carries."
-    >
-      <TypesTable types={rows} />
+    <SectionCard title="Options" subtitle="What a customer can pick at checkout, and the rules each option carries.">
+      <DeliveryTypesManager types={rows} />
     </SectionCard>
   );
 }
