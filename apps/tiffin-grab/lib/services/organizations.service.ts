@@ -204,6 +204,34 @@ export async function removeMember(organizationId: string, userPublicId: string)
   await db.delete(member).where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
 }
 
+/** The brand-level org (parentOrganizationId null); oldest wins if tests left extras. */
+export async function getBrandOrganizationId(): Promise<string | null> {
+  const [row] = await db
+    .select({ id: organization.id })
+    .from(organization)
+    .where(sql`${organization.parentOrganizationId} is null`)
+    .orderBy(organization.createdAt)
+    .limit(1);
+  return row?.id ?? null;
+}
+
+/**
+ * Keep `member` rows in step with `users.role`. Staff with no membership land in
+ * the brand org; staff already in a franchise are left alone so a role change never
+ * widens their visibility. Demotion to customer drops every membership.
+ */
+export async function syncStaffMembership(userId: bigint, role: string): Promise<void> {
+  if (role !== "admin" && role !== "member") {
+    await db.delete(member).where(eq(member.userId, userId));
+    return;
+  }
+  const [existing] = await db.select({ id: member.id }).from(member).where(eq(member.userId, userId)).limit(1);
+  if (existing) return;
+  const brandId = await getBrandOrganizationId();
+  if (!brandId) return;
+  await db.insert(member).values({ organizationId: brandId, userId, role }).onConflictDoNothing();
+}
+
 export type UserSearchRow = { publicId: string; email: string };
 
 export async function searchUsersByEmail(query: string): Promise<UserSearchRow[]> {
