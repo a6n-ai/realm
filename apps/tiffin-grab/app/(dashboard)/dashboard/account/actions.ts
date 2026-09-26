@@ -18,7 +18,7 @@ export async function updateMyAddress(input: {
   city?: string;
   postalCode?: string;
   province?: string;
-  deliveryTypeId?: string | null;
+  deliveryStrategyId?: string | null;
   addressTagId?: string | null;
 }) {
   const session = await getSession();

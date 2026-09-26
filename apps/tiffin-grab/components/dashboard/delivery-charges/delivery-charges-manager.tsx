@@ -34,36 +34,36 @@ import {
 import { SectionCard, ResponsiveDialog } from "@/components/ds";
 import {
   updateBaseChargeAction,
-  saveDeliveryTypeAction,
-  deleteDeliveryTypeAction,
+  saveDeliveryStrategyAction,
+  deleteDeliveryStrategyAction,
   saveAddressTagAction,
   deleteAddressTagAction,
 } from "@/app/(dashboard)/dashboard/delivery/charges/actions";
 import type {
   AddressTagDto,
   DeliveryChargeType,
-  DeliveryTypeDto,
+  DeliveryStrategyDto,
 } from "@/lib/services/delivery-charges.service";
 
 interface DeliveryChargesManagerProps {
   initialBaseCharge: number;
-  initialDeliveryTypes: DeliveryTypeDto[];
+  initialDeliveryStrategies: DeliveryStrategyDto[];
   initialAddressTags: AddressTagDto[];
 }
 
 export function DeliveryChargesManager({
   initialBaseCharge,
-  initialDeliveryTypes,
+  initialDeliveryStrategies,
   initialAddressTags,
 }: DeliveryChargesManagerProps) {
   const [baseCharge, setBaseCharge] = useState(initialBaseCharge);
-  const [deliveryTypes, setDeliveryTypes] = useState(initialDeliveryTypes);
+  const [deliveryStrategies, setDeliveryStrategies] = useState(initialDeliveryStrategies);
   const [addressTags, setAddressTags] = useState(initialAddressTags);
 
   // Dialog states
   const [baseChargeOpen, setBaseChargeOpen] = useState(false);
-  const [deliveryTypeDialogOpen, setDeliveryTypeDialogOpen] = useState(false);
-  const [editingDeliveryType, setEditingDeliveryType] = useState<DeliveryTypeDto | null>(null);
+  const [deliveryStrategyDialogOpen, setDeliveryStrategyDialogOpen] = useState(false);
+  const [editingDeliveryStrategy, setEditingDeliveryStrategy] = useState<DeliveryStrategyDto | null>(null);
   const [addressTagDialogOpen, setAddressTagDialogOpen] = useState(false);
   const [editingAddressTag, setEditingAddressTag] = useState<AddressTagDto | null>(null);
 
@@ -95,27 +95,27 @@ export function DeliveryChargesManager({
   };
 
   // Delivery Types Actions
-  const handleOpenAddDeliveryType = () => {
-    setEditingDeliveryType(null);
-    setDeliveryTypeDialogOpen(true);
+  const handleOpenAddDeliveryStrategy = () => {
+    setEditingDeliveryStrategy(null);
+    setDeliveryStrategyDialogOpen(true);
   };
 
-  const handleOpenEditDeliveryType = (dt: DeliveryTypeDto) => {
-    setEditingDeliveryType(dt);
-    setDeliveryTypeDialogOpen(true);
+  const handleOpenEditDeliveryStrategy = (dt: DeliveryStrategyDto) => {
+    setEditingDeliveryStrategy(dt);
+    setDeliveryStrategyDialogOpen(true);
   };
 
-  const handleDeleteDeliveryType = (id: string, name: string) => {
+  const handleDeleteDeliveryStrategy = (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to remove delivery type "${name}"?`)) return;
     void (async () => {
       try {
-        const res = await deleteDeliveryTypeAction(id);
+        const res = await deleteDeliveryStrategyAction(id);
         if (res.deactivatedInstead) {
           toast.info(`"${name}" is referenced by existing orders or accounts and has been deactivated instead.`);
-          setDeliveryTypes((prev) => prev.map((t) => (t.id === id ? { ...t, active: false } : t)));
+          setDeliveryStrategies((prev) => prev.map((t) => (t.id === id ? { ...t, active: false } : t)));
         } else {
           toast.success(`"${name}" removed successfully.`);
-          setDeliveryTypes((prev) => prev.filter((t) => t.id !== id));
+          setDeliveryStrategies((prev) => prev.filter((t) => t.id !== id));
         }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to delete delivery type.");
@@ -192,7 +192,7 @@ export function DeliveryChargesManager({
         title="Delivery Types"
         subtitle="Configurable options for how or where the order is dropped off (e.g. Front Door, Lobby, Rear Door)."
         action={
-          <Button size="sm" onClick={handleOpenAddDeliveryType}>
+          <Button size="sm" onClick={handleOpenAddDeliveryStrategy}>
             <PlusIcon className="mr-1.5 size-3.5" />
             Add delivery type
           </Button>
@@ -211,14 +211,14 @@ export function DeliveryChargesManager({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {deliveryTypes.length === 0 ? (
+              {deliveryStrategies.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                     No delivery types configured yet. Click &quot;Add delivery type&quot; to create one.
                   </TableCell>
                 </TableRow>
               ) : (
-                deliveryTypes.map((dt) => (
+                deliveryStrategies.map((dt) => (
                   <TableRow key={dt.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
@@ -252,7 +252,7 @@ export function DeliveryChargesManager({
                           variant="ghost"
                           size="icon"
                           className="size-8"
-                          onClick={() => handleOpenEditDeliveryType(dt)}
+                          onClick={() => handleOpenEditDeliveryStrategy(dt)}
                           title="Edit"
                         >
                           <PencilIcon className="size-3.5" />
@@ -262,7 +262,7 @@ export function DeliveryChargesManager({
                           variant="ghost"
                           size="icon"
                           className="size-8 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteDeliveryType(dt.id, dt.name)}
+                          onClick={() => handleDeleteDeliveryStrategy(dt.id, dt.name)}
                           title="Delete"
                         >
                           <Trash2Icon className="size-3.5" />
@@ -418,14 +418,14 @@ export function DeliveryChargesManager({
 
       {/* Delivery Type Add/Edit Dialog */}
       <ItemChargeDialog
-        open={deliveryTypeDialogOpen}
-        onOpenChange={setDeliveryTypeDialogOpen}
-        item={editingDeliveryType}
-        title={editingDeliveryType ? "Edit Delivery Type" : "Add Delivery Type"}
+        open={deliveryStrategyDialogOpen}
+        onOpenChange={setDeliveryStrategyDialogOpen}
+        item={editingDeliveryStrategy}
+        title={editingDeliveryStrategy ? "Edit Delivery Type" : "Add Delivery Type"}
         namePlaceholder="e.g. Front Door, Lobby, Garage"
         onSave={async (values) => {
-          const saved = await saveDeliveryTypeAction(values);
-          setDeliveryTypes((prev) => {
+          const saved = await saveDeliveryStrategyAction(values);
+          setDeliveryStrategies((prev) => {
             const idx = prev.findIndex((p) => p.id === saved.id);
             if (idx >= 0) {
               const next = [...prev];

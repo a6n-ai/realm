@@ -62,7 +62,7 @@ export const orders = pgTable("orders", {
   addressUnit: text("address_unit"),
   deliveryInstructions: text("delivery_instructions"),
   deliveryCharge: numeric("delivery_charge", { precision: 10, scale: 2 }).notNull().default("0.00"),
-  deliveryTypeId: bigint("delivery_type_id", { mode: "bigint" }).references(() => deliveryTypes.id),
+  deliveryStrategyId: bigint("delivery_strategy_id", { mode: "bigint" }).references(() => deliveryStrategies.id),
   addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
   city: text("city").notNull(),
   postalCode: text("postal_code").notNull(),
@@ -91,7 +91,7 @@ export const orders = pgTable("orders", {
   index("orders_zone_idx").on(t.zoneId),
   index("orders_meal_size_idx").on(t.mealSizeId),
   index("orders_frequency_idx").on(t.frequencyId),
-  index("orders_delivery_type_idx").on(t.deliveryTypeId),
+  index("orders_delivery_strategy_idx").on(t.deliveryStrategyId),
   index("orders_address_tag_idx").on(t.addressTagId),
 ]);
 

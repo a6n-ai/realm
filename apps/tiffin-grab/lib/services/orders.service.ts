@@ -530,7 +530,7 @@ export async function createOrder(
         pricingSnapshot,
         total: pricing.total.toFixed(2),
         deliveryCharge: (pricing.deliveryCharge?.totalDeliveryCharge ?? 0).toFixed(2),
-        deliveryTypeId: selectedDeliveryType?.id ?? null,
+        deliveryStrategyId: selectedDeliveryStrategy?.id ?? null,
         addressTagId: selectedAddressTag?.id ?? null,
         status,
         deploymentId,

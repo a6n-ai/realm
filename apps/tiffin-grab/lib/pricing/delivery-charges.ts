@@ -9,7 +9,7 @@ export interface DeliveryChargeItemLike {
 
 export interface DeliveryChargeCalculationResult {
   baseAmount: number;
-  deliveryType?: {
+  deliveryStrategy?: {
     id?: string;
     name: string;
     chargeType: DeliveryChargeType;
@@ -36,28 +36,28 @@ const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 1
  */
 export function calculateDeliveryCharge(params: {
   baseCharge: number;
-  deliveryType?: DeliveryChargeItemLike | null;
+  deliveryStrategy?: DeliveryChargeItemLike | null;
   addressTag?: DeliveryChargeItemLike | null;
   planPrice: number;
 }): DeliveryChargeCalculationResult {
   const baseAmount = round2(Math.max(0, params.baseCharge || 0));
   const planBasis = Math.max(0, params.planPrice || 0);
 
-  let deliveryTypeInfo: DeliveryChargeCalculationResult["deliveryType"] = null;
-  let deliveryTypeAmount = 0;
-  if (params.deliveryType) {
-    const rawVal = Math.max(0, Number(params.deliveryType.chargeValue) || 0);
-    if (params.deliveryType.chargeType === "percent") {
-      deliveryTypeAmount = round2(planBasis * (rawVal / 100));
-    } else if (params.deliveryType.chargeType === "fixed") {
-      deliveryTypeAmount = round2(rawVal);
+  let deliveryStrategyInfo: DeliveryChargeCalculationResult["deliveryStrategy"] = null;
+  let deliveryStrategyAmount = 0;
+  if (params.deliveryStrategy) {
+    const rawVal = Math.max(0, Number(params.deliveryStrategy.chargeValue) || 0);
+    if (params.deliveryStrategy.chargeType === "percent") {
+      deliveryStrategyAmount = round2(planBasis * (rawVal / 100));
+    } else if (params.deliveryStrategy.chargeType === "fixed") {
+      deliveryStrategyAmount = round2(rawVal);
     }
-    deliveryTypeInfo = {
-      id: params.deliveryType.id,
-      name: params.deliveryType.name,
-      chargeType: params.deliveryType.chargeType,
+    deliveryStrategyInfo = {
+      id: params.deliveryStrategy.id,
+      name: params.deliveryStrategy.name,
+      chargeType: params.deliveryStrategy.chargeType,
       chargeValue: rawVal,
-      amount: deliveryTypeAmount,
+      amount: deliveryStrategyAmount,
     };
   }
 
@@ -79,15 +79,15 @@ export function calculateDeliveryCharge(params: {
     };
   }
 
-  const totalDeliveryCharge = round2(baseAmount + deliveryTypeAmount + addressTagAmount);
+  const totalDeliveryCharge = round2(baseAmount + deliveryStrategyAmount + addressTagAmount);
 
   const lines: { label: string; amount: number }[] = [];
   if (baseAmount > 0) {
     lines.push({ label: "Base delivery charge", amount: baseAmount });
   }
-  if (deliveryTypeInfo && deliveryTypeAmount > 0) {
-    const detail = deliveryTypeInfo.chargeType === "percent" ? ` (${deliveryTypeInfo.chargeValue}%)` : "";
-    lines.push({ label: `Delivery type: ${deliveryTypeInfo.name}${detail}`, amount: deliveryTypeAmount });
+  if (deliveryStrategyInfo && deliveryStrategyAmount > 0) {
+    const detail = deliveryStrategyInfo.chargeType === "percent" ? ` (${deliveryStrategyInfo.chargeValue}%)` : "";
+    lines.push({ label: `Delivery type: ${deliveryStrategyInfo.name}${detail}`, amount: deliveryStrategyAmount });
   }
   if (addressTagInfo && addressTagAmount > 0) {
     const detail = addressTagInfo.chargeType === "percent" ? ` (${addressTagInfo.chargeValue}%)` : "";
@@ -96,7 +96,7 @@ export function calculateDeliveryCharge(params: {
 
   return {
     baseAmount,
-    deliveryType: deliveryTypeInfo,
+    deliveryStrategy: deliveryStrategyInfo,
     addressTag: addressTagInfo,
     totalDeliveryCharge,
     lines,

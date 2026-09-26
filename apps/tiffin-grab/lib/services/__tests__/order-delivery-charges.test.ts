@@ -6,7 +6,7 @@ import {
   addressTags,
   deliveries,
   deliveryChargeConfigs,
-  deliveryTypes,
+  deliveryStrategies,
   ledgerEntries,
   orders,
   payments,
@@ -24,7 +24,7 @@ async function reset() {
   await db.delete(ledgerEntries);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(deliveryTypes);
+  await db.delete(deliveryStrategies);
   await db.delete(addressTags);
   await db.delete(deliveryChargeConfigs);
   await db.delete(users).where(ne(users.isSystem, true));
@@ -35,10 +35,10 @@ describe("Order Delivery Charges (Integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("persists deliveryCharge, deliveryTypeId, addressTagId and immutable pricingSnapshot", async () => {
+  it("persists deliveryCharge, deliveryStrategyId, addressTagId and immutable pricingSnapshot", async () => {
     // 1. Configure delivery rules
     await deliveryChargesService.updateBaseDeliveryCharge(2); // Base = $2.00
-    const dt = await deliveryChargesService.saveDeliveryType({
+    const dt = await deliveryChargesService.saveDeliveryStrategy({
       name: "Doorstep",
       chargeType: "fixed",
       chargeValue: 1.5,
@@ -66,7 +66,7 @@ describe("Order Delivery Charges (Integration)", () => {
         includeSunday: false,
         durationWeeks: 1,
         startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
-        deliveryTypeId: dt.id,
+        deliveryStrategyId: dt.id,
         addressTagId: at.id,
       },
       contact: {
@@ -89,25 +89,25 @@ describe("Order Delivery Charges (Integration)", () => {
       deliveryCharge?: {
         baseAmount: number;
         totalDeliveryCharge: number;
-        deliveryType?: { name: string; amount: number };
+        deliveryStrategy?: { name: string; amount: number };
         addressTag?: { name: string; amount: number };
       };
     };
 
     expect(snapshot.deliveryCharge).toBeDefined();
     expect(snapshot.deliveryCharge?.baseAmount).toBe(2);
-    expect(snapshot.deliveryCharge?.deliveryType?.name).toBe("Doorstep");
-    expect(snapshot.deliveryCharge?.deliveryType?.amount).toBe(1.5);
+    expect(snapshot.deliveryCharge?.deliveryStrategy?.name).toBe("Doorstep");
+    expect(snapshot.deliveryCharge?.deliveryStrategy?.amount).toBe(1.5);
     expect(snapshot.deliveryCharge?.addressTag?.name).toBe("Apartment");
     expect(Number(order.deliveryCharge)).toBe(snapshot.deliveryCharge?.totalDeliveryCharge);
-    expect(order.deliveryTypeId).toBe(dt.internalId);
+    expect(order.deliveryStrategyId).toBe(dt.internalId);
     expect(order.addressTagId).toBe(at.internalId);
     const expectedDeliveryCharge = snapshot.deliveryCharge!.totalDeliveryCharge;
 
     // 3. Historical immutability test (Case 7):
     // Now change the delivery charge rules: Base -> $10, Doorstep -> $5
     await deliveryChargesService.updateBaseDeliveryCharge(10);
-    await deliveryChargesService.saveDeliveryType({
+    await deliveryChargesService.saveDeliveryStrategy({
       id: dt.id,
       name: "Doorstep",
       chargeType: "fixed",
@@ -124,7 +124,7 @@ describe("Order Delivery Charges (Integration)", () => {
 
   it("reprice dynamically recalculates when customer changes delivery type or address tag (Case 8)", async () => {
     await deliveryChargesService.updateBaseDeliveryCharge(2);
-    const dtLobby = await deliveryChargesService.saveDeliveryType({
+    const dtLobby = await deliveryChargesService.saveDeliveryStrategy({
       name: "Lobby",
       chargeType: "fixed",
       chargeValue: 1,
@@ -154,11 +154,11 @@ describe("Order Delivery Charges (Integration)", () => {
     };
 
     // Reprice with House + Lobby: Base $2 + Lobby $1 + House $0 = $3 delivery
-    const r1 = await reprice({ ...selBase, deliveryTypeId: dtLobby.id, addressTagId: atHouse.id });
+    const r1 = await reprice({ ...selBase, deliveryStrategyId: dtLobby.id, addressTagId: atHouse.id });
     expect(r1.pricing.deliveryCharge?.totalDeliveryCharge).toBe(3);
 
     // Reprice changed to Apartment + Lobby: Base $2 + Lobby $1 + Apt $3 = $6 delivery
-    const r2 = await reprice({ ...selBase, deliveryTypeId: dtLobby.id, addressTagId: atApt.id });
+    const r2 = await reprice({ ...selBase, deliveryStrategyId: dtLobby.id, addressTagId: atApt.id });
     expect(r2.pricing.deliveryCharge?.totalDeliveryCharge).toBe(6);
     expect(r2.pricing.subtotal).toBe(r1.pricing.subtotal + 3);
   });

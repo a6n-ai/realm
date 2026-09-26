@@ -58,7 +58,7 @@ export const users = pgTable(
     city: text("city"),
     postalCode: text("postal_code"),
     province: text("province"),
-    deliveryTypeId: bigint("delivery_type_id", { mode: "bigint" }).references(() => deliveryStrategies.id),
+    deliveryStrategyId: bigint("delivery_strategy_id", { mode: "bigint" }).references(() => deliveryStrategies.id),
     addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
     dietaryNotes: text("dietary_notes"),
     allergens: text("allergens"),

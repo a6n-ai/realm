@@ -60,7 +60,6 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     settings,
     discountRows,
     configRows,
-    optionRows,
     strategyRows,
     tagRows,
   ] = await Promise.all([

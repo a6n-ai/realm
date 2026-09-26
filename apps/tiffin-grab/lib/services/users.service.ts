@@ -2,7 +2,7 @@ import { UpdatableRepository } from "@foundry/database";
 import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { account, addressTags, deliveryTypes, session, users } from "@/db/schema";
+import { account, addressTags, deliveryStrategies, session, users } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
@@ -218,7 +218,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
       city?: string | null;
       postalCode?: string | null;
       province?: string | null;
-      deliveryTypeId?: string | null;
+      deliveryStrategyId?: string | null;
       addressTagId?: string | null;
     },
   ) {
@@ -228,7 +228,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
       city?: string | null;
       postalCode?: string | null;
       province?: string | null;
-      deliveryTypeId?: bigint | null;
+      deliveryStrategyId?: bigint | null;
       addressTagId?: bigint | null;
     } = {};
     const norm = (v: string | null | undefined, max: number, label: string) => {
@@ -242,12 +242,12 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (input.postalCode !== undefined) patch.postalCode = norm(input.postalCode, 20, "Postal code");
     if (input.province !== undefined) patch.province = norm(input.province, 60, "Province");
 
-    if (input.deliveryTypeId !== undefined) {
-      if (!input.deliveryTypeId) {
-        patch.deliveryTypeId = null;
+    if (input.deliveryStrategyId !== undefined) {
+      if (!input.deliveryStrategyId) {
+        patch.deliveryStrategyId = null;
       } else {
-        const [dt] = await db.select({ id: deliveryTypes.id }).from(deliveryTypes).where(eq(deliveryTypes.publicId, input.deliveryTypeId)).limit(1);
-        patch.deliveryTypeId = dt?.id ?? null;
+        const [dt] = await db.select({ id: deliveryStrategies.id }).from(deliveryStrategies).where(eq(deliveryStrategies.publicId, input.deliveryStrategyId)).limit(1);
+        patch.deliveryStrategyId = dt?.id ?? null;
       }
     }
     if (input.addressTagId !== undefined) {

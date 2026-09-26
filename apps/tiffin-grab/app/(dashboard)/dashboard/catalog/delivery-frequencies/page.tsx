@@ -20,15 +20,15 @@ async function DeliveryChargesData() {
   const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
   const { DeliveryChargesManager } = await import("@/components/dashboard/delivery-charges/delivery-charges-manager");
   const orgId = await resolveRequestOrg();
-  const [baseCharge, deliveryTypes, addressTags] = await Promise.all([
+  const [baseCharge, deliveryStrategies, addressTags] = await Promise.all([
     deliveryChargesService.getBaseDeliveryCharge(orgId),
-    deliveryChargesService.listDeliveryTypes({ includeInactive: true, orgId }),
+    deliveryChargesService.listDeliveryStrategies({ includeInactive: true, orgId }),
     deliveryChargesService.listAddressTags({ includeInactive: true, orgId }),
   ]);
   return (
     <DeliveryChargesManager
       initialBaseCharge={baseCharge}
-      initialDeliveryTypes={deliveryTypes}
+      initialDeliveryStrategies={deliveryStrategies}
       initialAddressTags={addressTags}
     />
   );

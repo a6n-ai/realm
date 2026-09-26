@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import {
   deliveryChargesService,
   type AddressTagInput,
-  type DeliveryTypeInput,
+  type DeliveryStrategyInput,
 } from "@/lib/services/delivery-charges.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -21,10 +21,10 @@ export async function updateBaseChargeAction(amount: number): Promise<number> {
   return result;
 }
 
-export async function saveDeliveryTypeAction(input: DeliveryTypeInput) {
+export async function saveDeliveryStrategyAction(input: DeliveryStrategyInput) {
   await requireAdmin();
   const orgId = await resolveRequestOrg();
-  const result = await deliveryChargesService.saveDeliveryType(input, orgId);
+  const result = await deliveryChargesService.saveDeliveryStrategy(input, orgId);
   await invalidateCatalogSnapshot();
   revalidatePath("/dashboard/delivery/charges");
   revalidatePath("/dashboard/catalog/delivery-frequencies");
@@ -32,9 +32,9 @@ export async function saveDeliveryTypeAction(input: DeliveryTypeInput) {
   return result;
 }
 
-export async function deleteDeliveryTypeAction(id: string) {
+export async function deleteDeliveryStrategyAction(id: string) {
   await requireAdmin();
-  const result = await deliveryChargesService.deleteDeliveryType(id);
+  const result = await deliveryChargesService.deleteDeliveryStrategy(id);
   await invalidateCatalogSnapshot();
   revalidatePath("/dashboard/delivery/charges");
   revalidatePath("/dashboard/catalog/delivery-frequencies");

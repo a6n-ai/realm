@@ -231,9 +231,9 @@ export function Checkout({
     void refreshPrice(next, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined);
   };
 
-  const handleDeliveryTypeSelect = (typeId: string) => {
+  const handleDeliveryStrategySelect = (typeId: string) => {
     if (!selections) return;
-    const next = { ...selections, deliveryTypeId: typeId === selections.deliveryTypeId ? null : typeId };
+    const next = { ...selections, deliveryStrategyId: typeId === selections.deliveryStrategyId ? null : typeId };
     setSelections(next);
     void refreshPrice(next, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined);
   };
@@ -379,7 +379,7 @@ export function Checkout({
                     </div>
                   }
                 />
-                {catalog?.deliveryCharges && (catalog.deliveryCharges.addressTags.length > 0 || catalog.deliveryCharges.deliveryTypes.length > 0) && (
+                {catalog?.deliveryCharges && (catalog.deliveryCharges.addressTags.length > 0 || catalog.deliveryCharges.deliveryStrategies.length > 0) && (
                   <div className="space-y-4 pt-1" data-testid="delivery-charge-options">
                     {catalog.deliveryCharges.addressTags.length > 0 && (
                       <div className="space-y-1.5">
@@ -414,14 +414,14 @@ export function Checkout({
                       </div>
                     )}
 
-                    {catalog.deliveryCharges.deliveryTypes.length > 0 && (
+                    {catalog.deliveryCharges.deliveryStrategies.length > 0 && (
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           Delivery location
                         </Label>
                         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Delivery location">
-                          {catalog.deliveryCharges.deliveryTypes.map((type) => {
-                            const isSelected = selections?.deliveryTypeId === type.id;
+                          {catalog.deliveryCharges.deliveryStrategies.map((type) => {
+                            const isSelected = selections?.deliveryStrategyId === type.id;
                             const hint = formatChargeHint(type);
                             return (
                               <button
@@ -429,7 +429,7 @@ export function Checkout({
                                 type="button"
                                 role="radio"
                                 aria-checked={isSelected}
-                                onClick={() => handleDeliveryTypeSelect(type.id)}
+                                onClick={() => handleDeliveryStrategySelect(type.id)}
                                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
                                   isSelected
                                     ? "bg-primary text-primary-foreground border-primary"

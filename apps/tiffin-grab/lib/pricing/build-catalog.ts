@@ -58,10 +58,10 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
 
   let deliveryChargeConfig: PricingCatalog["deliveryChargeConfig"] = undefined;
   if (snapshot.deliveryCharges) {
-    const dt = selections.deliveryTypeId
-      ? snapshot.deliveryCharges.deliveryStrategies.find((s) => s.publicId === selections.deliveryTypeId && s.active)
+    const dt = selections.deliveryStrategyId
+      ? snapshot.deliveryCharges.deliveryStrategies.find((s) => s.publicId === selections.deliveryStrategyId && s.active)
       : null;
-    if (selections.deliveryTypeId && !dt) {
+    if (selections.deliveryStrategyId && !dt) {
       throw new ValidationError("Invalid delivery type");
     }
 
@@ -74,7 +74,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
 
     deliveryChargeConfig = {
       baseCharge: snapshot.deliveryCharges.baseCharge,
-      deliveryType: dt ? { id: dt.publicId, name: dt.name, chargeType: dt.chargeType, chargeValue: dt.chargeValue } : null,
+      deliveryStrategy: dt ? { id: dt.publicId, name: dt.name, chargeType: dt.chargeType, chargeValue: dt.chargeValue } : null,
       addressTag: at ? { id: at.publicId, name: at.name, chargeType: at.chargeType, chargeValue: at.chargeValue } : null,
     };
   }
