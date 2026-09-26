@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { getContactOnFile } from "@/lib/services/contact-on-file";
@@ -11,20 +12,20 @@ export const dynamic = "force-dynamic";
 
 export default async function CheckoutPage() {
   const [{ defaultCountry }, userId] = await Promise.all([getAppSettings(), currentUserId()]);
-  const closeHref = userId != null ? "/me" : "/";
+  // No guest checkout: every order needs a signed-in owner (payment proof upload on
+  // /activate is owner-only). The /subscribe email step signs everyone in.
+  if (userId == null) redirect("/subscribe");
 
-  // A logged-in customer already has contact/address on file — checkout is exactly the
-  // moment that friction shows up most (renewing, re-subscribing), so pre-fill from their
-  // account instead of asking them to retype it. Name and email come back read-only and are
-  // re-taken from the session server-side; phone and address are editable for this order only.
+  // Pre-fill from the account. Name and email come back read-only and are re-taken from the
+  // session server-side; phone and address are editable for this order only.
   const orgId = await resolveRequestOrg();
   const catalog = toClientCatalog(await loadCatalogSnapshot(orgId));
-  const prefill = userId != null ? ((await getContactOnFile(userId)) ?? undefined) : undefined;
-  const savedAddresses = userId != null ? await addressService.list({ userId, orgId }) : [];
+  const prefill = (await getContactOnFile(userId)) ?? undefined;
+  const savedAddresses = await addressService.list({ userId, orgId });
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-4 sm:py-10">
-      <Checkout defaultCountry={defaultCountry} closeHref={closeHref} prefill={prefill} catalog={catalog} savedAddresses={savedAddresses} />
+      <Checkout defaultCountry={defaultCountry} closeHref="/me" prefill={prefill} catalog={catalog} savedAddresses={savedAddresses} />
     </main>
   );
 }

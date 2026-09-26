@@ -33,13 +33,13 @@ export default async function SubscribePage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-4 sm:py-10">
-      <SubscribeChrome closeHref="/" stepTag="Your account" />
+      <SubscribeChrome closeHref="/" stepTag="Your account" brand />
       <header className="space-y-1 pb-2">
         <h1 className="c-title-page">
-          Build your <em className="c-accent">tiffin.</em>
+          Hi! Let&apos;s build your <em className="c-accent">tiffin.</em>
         </h1>
         <p className="c-body text-pretty text-[var(--muted-foreground)]">
-          Four quick steps to your weekly plan — fresh meals, delivered on your schedule.
+          Sign in with your email, then four quick steps to your weekly plan.
         </p>
       </header>
 

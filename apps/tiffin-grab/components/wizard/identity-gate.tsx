@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { checkExistingAccount, createCheckoutAccount } from "@/app/(public)/subscribe/actions";
-import { Button, Field, Label, Notice } from "@/components/customer/kit";
+import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
 import { CodeOtp } from "@foundry/auth-ui";
 import { emailDomainSuggestions } from "./email-domains";
 
@@ -26,11 +26,12 @@ import { emailDomainSuggestions } from "./email-domains";
 type Phase = "email" | "name" | "otp" | "staff";
 
 const COPY: Record<Phase, { title: string; body: string }> = {
-  email: { title: "Let's start with your email.", body: "We'll email you a code to sign in, or to set up your account if you're new." },
+  email: { title: "Start with your email.", body: "We'll send a 6-digit code to sign you in, or to set up your account if you're new." },
   name: { title: "Nice to meet you.", body: "Your orders, deliveries and payments will live in this account." },
   otp: { title: "Check your inbox.", body: "Enter the 6-digit code we just sent." },
   staff: { title: "That's a staff account.", body: "" },
 };
+
 
 export function IdentityGate() {
   const router = useRouter();
@@ -96,7 +97,9 @@ export function IdentityGate() {
     if (!/^\d{6}$/.test(otp)) return setError({ field: "code", message: "Enter all 6 digits." });
     const result = await signIn.emailOtp({ email, otp });
     if (result?.error) return setError({ field: "code", message: "That code is wrong or expired. Try again or resend it." });
-    router.push("/me/renew");
+    // replace, not push: /subscribe redirects a signed-in customer back to /me/renew, so
+    // leaving it in history turns the wizard's Back (and the phone's back gesture) into a loop.
+    router.replace("/me/renew");
     router.refresh();
   }
 
@@ -124,14 +127,17 @@ export function IdentityGate() {
     if (await sendCode(email)) setResent(true);
   }
 
+  // Bottom-bar Back: on the email phase it leaves the flow; later phases step back to the email.
+  const back = () => (phase === "email" ? router.push("/") : changeEmail());
+
   const lockedEmail = phase !== "email";
   const cta = phase === "email" ? "Continue" : phase === "name" ? "Send my code" : "Verify and continue";
 
   return (
-    <form onSubmit={onSubmit} noValidate className="max-w-md">
+    <form onSubmit={onSubmit} noValidate className="max-w-md pb-40 sm:pb-0">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={phase} {...reveal} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
-          <h2 className="c-h2">{COPY[phase].title}</h2>
+          <h2 className="c-h2">{phase === "otp" && !isNew ? "Welcome back." : COPY[phase].title}</h2>
           {COPY[phase].body ? <p className="c-body mt-1.5 text-pretty text-[var(--muted-foreground)]">{COPY[phase].body}</p> : null}
         </motion.div>
       </AnimatePresence>
@@ -232,17 +238,33 @@ export function IdentityGate() {
 
         {error?.field === "form" ? <Notice tone="error">{error.message}</Notice> : null}
 
+      </div>
+
+      {phase === "email" || phase === "name" ? (
+        // The brand's own line (PRODUCT.md voice), not a customer quote: there are no reviews to cite.
+        <figure className="mt-12">
+          <blockquote className="text-[22px] leading-[1.25] font-bold tracking-[-0.02em] text-balance">
+            &ldquo;A good tiffin should fit your diet, your schedule, and your budget. <em className="c-accent">Not the other way around.</em>&rdquo;
+          </blockquote>
+          <figcaption className="c-caption mt-3">Home-style meals, cooked in small batches.</figcaption>
+        </figure>
+      ) : null}
+
+      {/* Same bar as the wizard steps: Back + one primary action, fixed on phones, inline from sm up. */}
+      <BottomBar alignEnd className="sm:sticky sm:mt-8 sm:px-0">
+        <Button variant="quiet" size="lg" className="w-24 shrink-0 sm:hidden" onClick={back}>
+          Back
+        </Button>
         {phase === "staff" ? (
-          <div className="flex flex-col gap-3">
-            <Button variant="hero" onClick={() => router.push("/login")}>Sign in to the dashboard</Button>
-            <Button variant="quiet" pill size="lg" onClick={changeEmail}>Use a different email</Button>
-          </div>
+          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" onClick={() => router.push("/login")}>
+            Sign in to the dashboard
+          </Button>
         ) : (
-          <Button type="submit" variant="hero" pending={pending} className="w-full">
+          <Button type="submit" variant="primary" size="lg" pending={pending} className="flex-1 sm:min-h-10 sm:flex-none sm:px-8">
             {cta}
           </Button>
         )}
-      </div>
+      </BottomBar>
     </form>
   );
 }

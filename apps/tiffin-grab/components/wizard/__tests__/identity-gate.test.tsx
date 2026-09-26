@@ -12,9 +12,10 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
 }));
 
 const push = vi.fn();
+const replace = vi.fn();
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, refresh }),
+  useRouter: () => ({ push, replace, refresh }),
 }));
 
 const sendVerificationOtp = vi.fn();
@@ -54,6 +55,18 @@ async function enterEmail(email: string) {
 }
 
 describe("IdentityGate", () => {
+  it("shows the brand line under the form on the email step", () => {
+    render(<IdentityGate />);
+    expect(screen.getByText(/not the other way around/i)).toBeInTheDocument();
+  });
+
+  it("bottom-bar Back leaves the flow from the email phase", async () => {
+    const user = userEvent.setup();
+    render(<IdentityGate />);
+    await user.click(screen.getByRole("button", { name: /^back$/i }));
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
   it("offers common email domains once @ is typed", async () => {
     const user = userEvent.setup();
     render(<IdentityGate />);
@@ -74,7 +87,8 @@ describe("IdentityGate", () => {
     expect(sendVerificationOtp).toHaveBeenCalledWith({ email: "back@person.com", type: "sign-in" });
 
     await user.type(screen.getByLabelText(/code sent to/i), "123456");
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/me/renew"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/me/renew"));
+    expect(push).not.toHaveBeenCalledWith("/me/renew");
     expect(signInEmailOtp).toHaveBeenCalledWith({ email: "back@person.com", otp: "123456" });
   });
 

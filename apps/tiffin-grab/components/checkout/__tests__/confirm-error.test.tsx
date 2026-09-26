@@ -2,7 +2,7 @@
 import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { toast } from "sonner";
-import { IDENTITY_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
@@ -31,6 +31,9 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
   validatePostal: vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } }),
 }));
 
+// Checkout is signed-in only (the page redirects signed-out visitors).
+const MEMBER = { fullName: "Jane Doe", email: "jane@example.com" };
+
 const selections: WizardSelections = {
   planKey: "veg",
   mealSizeId: "msz_small_thali",
@@ -47,11 +50,10 @@ describe("Checkout confirm() error handling", () => {
   afterEach(cleanup);
   beforeEach(() => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
   });
 
   it("surfaces a confirmSubscription failure as a toast, not an unhandled throw", async () => {
-    render(<Checkout defaultCountry="CA" />);
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
@@ -69,7 +71,7 @@ describe("Checkout confirm() error handling", () => {
   it("shows a returned server error (e.g. staff email) and stays on checkout", async () => {
     const { confirmSubscription } = await import("@/app/(public)/checkout/actions");
     vi.mocked(confirmSubscription).mockResolvedValueOnce({ error: "This phone or email belongs to a staff account" });
-    render(<Checkout defaultCountry="CA" />);
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });

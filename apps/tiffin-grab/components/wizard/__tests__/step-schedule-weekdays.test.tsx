@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, cleanup } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StepSchedule } from "../steps/step-schedule";
 import { initialSelections, scheduleError, type WizardSelections } from "../selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
+
+// The app root provides this (app/layout.tsx); the step's delivery-schedule tooltip needs it.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: TooltipProvider });
 
 afterEach(cleanup);
 

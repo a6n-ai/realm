@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { IDENTITY_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
 
 // Coins control mirrors the coupon control (checkout.tsx:358-374): apply → reprice
@@ -53,6 +53,9 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
   validatePostal: (...args: unknown[]) => validatePostal(...args),
 }));
 
+// Checkout is signed-in only (the page redirects signed-out visitors).
+const MEMBER = { fullName: "Jane Doe", email: "jane@example.com" };
+
 const selections: WizardSelections = {
   planKey: "veg",
   mealSizeId: "msz_small_thali",
@@ -78,8 +81,7 @@ describe("Checkout coins control", () => {
   it("is absent — and a sign-in prompt shows instead — when signed out (coinBalance null)", async () => {
     coinBalance = null;
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
     await screen.findByLabelText(/full name/i);
     await waitFor(() => expect(reprice).toHaveBeenCalled());
@@ -90,8 +92,7 @@ describe("Checkout coins control", () => {
 
   it("appears with a balance", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
     expect(await screen.findByLabelText(/use coins/i)).toBeTruthy();
     expect(screen.getByText(/100 available/i)).toBeTruthy();
@@ -99,8 +100,7 @@ describe("Checkout coins control", () => {
 
   it("applying coins re-prices and shows the discount in the summary", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
     const coinsInput = await screen.findByLabelText(/use coins/i);
     fireEvent.change(coinsInput, { target: { value: "30" } });
@@ -115,8 +115,7 @@ describe("Checkout coins control", () => {
 
   it("asking for more coins than the balance surfaces an error instead of silently applying", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
     const coinsInput = await screen.findByLabelText(/use coins/i);
     fireEvent.change(coinsInput, { target: { value: "200" } });
