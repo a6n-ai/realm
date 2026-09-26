@@ -23,7 +23,8 @@ export function PlanHeader({ name, sub, counts, renew, onVacation, onVacationCli
   counts: TiffinCounts;
   renew: number | null;
   onVacation: boolean;
-  onVacationClick: () => void;
+  /** Omitted when the plan is view-only (payment review): no Vacation entry point. */
+  onVacationClick?: () => void;
   color?: string;
 }) {
   const dot = color ?? (sub.tagColor && HEX.test(sub.tagColor) ? sub.tagColor : null);
@@ -34,13 +35,13 @@ export function PlanHeader({ name, sub, counts, renew, onVacation, onVacationCli
         <h1 className="text-[clamp(28px,5vw,40px)] font-bold leading-[1.1] tracking-[-0.03em]">
           {first ? <>Hi, <em className="text-[var(--primary)]">{first}.</em></> : <>Your <em className="text-[var(--primary)]">trips.</em></>}
         </h1>
-        <button
+        {onVacationClick && <button
           type="button"
           onClick={onVacationClick}
           className="-mr-2 inline-flex min-h-11 shrink-0 items-center px-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation] lg:hidden"
         >
           {onVacation ? "On vacation · Resume" : "Vacation"}
-        </button>
+        </button>}
       </div>
       <p className="mt-3 text-[22px] font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeName}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">

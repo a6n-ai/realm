@@ -79,6 +79,14 @@ describe("DeliveriesView (one plan)", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Edit meal/ })[0]!);
     expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
   });
+  it("payment review: plan is view-only — no Edit meal, no vacation link, deep links open nothing", () => {
+    view("2026-09-23", trips, plan, { locked: true, initialAction: "pick" });
+    expect(screen.getByText(/view-only/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Edit meal/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Vacation/ })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Wed, Sep 23");
+  });
   it("there is no Hold action; held trip offers Resume", () => {
     view();
     expect(screen.queryByRole("button", { name: /Hold this trip/ })).toBeNull();

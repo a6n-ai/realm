@@ -6,7 +6,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { menuWeeks, orders } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
-import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
+import { assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
 import { selectionsService } from "@/lib/menu/selections.service";
 import { runAction, type ActionResult } from "../action-result";
 
@@ -24,6 +24,7 @@ export async function pickMyDish(input: {
   return runAction(async () => {
     const actorId = await me();
     await assertCanManageOrder(input.orderId); // owner OR staff
+    await assertOrderUnlocked(input.orderId);
     const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
     if (!order) throw new NotFoundError("Subscription not found");
     const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
@@ -57,6 +58,7 @@ export async function saveMyMealSelections(input: {
     }
     const actorId = await me();
     await assertCanManageOrder(input.orderId); // owner OR staff
+    await assertOrderUnlocked(input.orderId);
     const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
     if (!order) throw new NotFoundError("Subscription not found");
 

@@ -35,15 +35,15 @@ describe("actionModel", () => {
     const m = actionModel(trip({ status: "vacation" }), Date.now(), { ...ctx, onVacation: true });
     expect(m.primary).toBe("vacation");
   });
-  it("payment locked: only meal picking remains, no bar", () => {
+  it("payment locked: view-only, no actions and no bar (not even Edit meal)", () => {
     const m = actionModel(trip(), Date.now(), ctx, { locked: true });
-    expect(m.rows.map((r) => r.key)).toEqual(["pick"]);
+    expect(m.rows).toEqual([]);
     expect(m.bar).toEqual([]);
-    expect(m.primary).toBe("pick");
+    expect(m.primary).toBeNull();
   });
   it("payment locked: a held trip cannot be resumed", () => {
     const m = actionModel(trip({ status: "hold" }), Date.now(), ctx, { locked: true });
-    expect(m.rows.map((r) => r.key)).toEqual(["pick"]);
+    expect(m.rows).toEqual([]);
     expect(m.primary).toBeNull();
   });
 });
