@@ -55,6 +55,7 @@ export function UsersList({
         rowKey={(r) => r.id}
         sort={sort}
         idAccessor={(r) => r.id}
+        idHref={(r) => `/dashboard/organization/members/${r.id}`}
         search={{ placeholder: "Search users…", shortPlaceholder: "Search…", debounceMs: 250 }}
         filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={UsersIcon}
