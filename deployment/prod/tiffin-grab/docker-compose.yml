@@ -64,7 +64,8 @@ services:
     restart: unless-stopped
     logging: *awslogs
     env_file: .env.production
-    command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-consumer.ts"]
+    working_dir: /app/apps/tiffin-grab
+    command: ["node", "--import", "tsx", "workers/notify-consumer.ts"]
     # Disabled until a rabbitmq broker exists — RABBITMQ_URL is unset/placeholder,
     # so the consumer crash-loops. Behind a profile so `up` never starts it; run
     # `docker compose --profile worker up -d worker` once a broker is wired.
@@ -90,7 +91,8 @@ services:
       NODE_OPTIONS: "--max-old-space-size=128"
     mem_limit: 150m
     restart: unless-stopped
-    command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-drainer.ts"]
+    working_dir: /app/apps/tiffin-grab
+    command: ["node", "--import", "tsx", "workers/notify-drainer.ts"]
 
   # Same worker, short poll interval — for transactional mail (OTP, account
   # verification) where a customer is watching their inbox, not the 15s bulk
@@ -106,7 +108,8 @@ services:
       NODE_OPTIONS: "--max-old-space-size=128"
     mem_limit: 150m
     restart: unless-stopped
-    command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-drainer.ts"]
+    working_dir: /app/apps/tiffin-grab
+    command: ["node", "--import", "tsx", "workers/notify-drainer.ts"]
 
   # One-shot migration runner. Reuses the tools image (has drizzle-kit + source).
   # Never starts on `up` (tools profile); invoked by deploy.sh before up.

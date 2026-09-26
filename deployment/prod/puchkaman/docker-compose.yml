@@ -72,7 +72,8 @@ services:
       NODE_OPTIONS: "--max-old-space-size=128"
     mem_limit: 150m
     restart: unless-stopped
-    command: ["pnpm", "--filter", "puchkaman", "exec", "tsx", "workers/notify-drainer.ts"]
+    working_dir: /app/apps/puchkaman
+    command: ["node", "--import", "tsx", "workers/notify-drainer.ts"]
 
   # Same worker, short poll interval — for transactional mail (OTP, account
   # verification) where a customer is watching their inbox, not the 15s bulk
@@ -88,7 +89,8 @@ services:
       NODE_OPTIONS: "--max-old-space-size=128"
     mem_limit: 150m
     restart: unless-stopped
-    command: ["pnpm", "--filter", "puchkaman", "exec", "tsx", "workers/notify-drainer.ts"]
+    working_dir: /app/apps/puchkaman
+    command: ["node", "--import", "tsx", "workers/notify-drainer.ts"]
 
 # Box B's own edge network — created once (`docker network create edge`) and
 # joined by ../proxy's Caddy and this web service.
