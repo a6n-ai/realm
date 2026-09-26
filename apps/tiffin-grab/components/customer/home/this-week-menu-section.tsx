@@ -1,27 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { Skeleton } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { SectionCard } from "@/components/ds";
-import { Pressable, LottieEmptyState } from "@/components/motion";
+import { LottieEmptyState } from "@/components/motion";
 import { formatMenuWeekRange } from "@/lib/format/datetime";
-import { buildPosterColumns, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
+import { buildPosterColumns, type DayOfWeek } from "@/lib/menu/poster";
 import type { menuService } from "@/lib/services/menu.service";
-import { DishModal } from "./dish-modal";
 
 type Week = Awaited<ReturnType<typeof menuService.getPublishedWeek>>;
-
-function buildDaysOnMenuMap(items: PosterItem[]): Map<string, string[]> {
-  const map = new Map<string, string[]>();
-  for (const item of items) {
-    if (!item.dishPublicId) continue;
-    const days = map.get(item.dishPublicId) ?? [];
-    if (!days.includes(item.dayOfWeek)) days.push(item.dayOfWeek);
-    map.set(item.dishPublicId, days);
-  }
-  return map;
-}
 
 export function ThisWeekMenuSection({
   week,
@@ -32,14 +19,11 @@ export function ThisWeekMenuSection({
   todayKey?: DayOfWeek;
   scope?: "this" | "next";
 }) {
-  const [selected, setSelected] = useState<PosterItem | null>(null);
-  const daysOnMenu = useMemo(() => buildDaysOnMenuMap(week?.items ?? []), [week]);
-
   const title = scope === "next" ? "Next week's menu" : "This week's menu";
 
   if (!week) {
     return (
-      <SectionCard title={title} subtitle="Released dishes you can browse.">
+      <SectionCard title={title}>
         <LottieEmptyState
           animation="empty-box"
           title="No menu released yet"
@@ -59,7 +43,7 @@ export function ThisWeekMenuSection({
   const rightCol = [columns[1], columns[3], columns[5]].filter(Boolean);
 
   return (
-    <SectionCard title={title} subtitle="Tap a dish for details or screenshot to share.">
+    <SectionCard title={title}>
       <div className="bg-card border-border relative overflow-hidden rounded-3xl border shadow-sm ring-1 ring-black/5">
         
         {/* Poster Header */}
@@ -72,42 +56,22 @@ export function ThisWeekMenuSection({
           {/* Left Column */}
           <div className="space-y-8">
             {leftCol.map((col) => (
-              <DayBlock key={col.label} col={col} onSelectDish={(name) => {
-                const item = week.items.find(i => i.dishName === name);
-                if (item) setSelected(item);
-              }} />
+              <DayBlock key={col.label} col={col} />
             ))}
           </div>
           {/* Right Column */}
           <div className="space-y-8">
             {rightCol.map((col) => (
-              <DayBlock key={col.label} col={col} onSelectDish={(name) => {
-                const item = week.items.find(i => i.dishName === name);
-                if (item) setSelected(item);
-              }} />
+              <DayBlock key={col.label} col={col} />
             ))}
           </div>
         </div>
       </div>
-
-      <DishModal
-        dish={{
-          name: selected?.dishName ?? "",
-          description: null,
-          image: selected?.image ?? null,
-          planTags: [],
-        }}
-        daysOnMenu={selected?.dishPublicId ? daysOnMenu.get(selected.dishPublicId) : undefined}
-        open={selected !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelected(null);
-        }}
-      />
     </SectionCard>
   );
 }
 
-function DayBlock({ col, onSelectDish }: { col: any, onSelectDish: (name: string) => void }) {
+function DayBlock({ col }: { col: any }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div className="mb-4 flex w-full items-center gap-4">
@@ -120,13 +84,9 @@ function DayBlock({ col, onSelectDish }: { col: any, onSelectDish: (name: string
         <ul className="space-y-2.5">
           {col.groups.flatMap((g: any) => g.dishes).map((d: any, i: number) => (
             <li key={i}>
-              <Pressable 
-                type="button" 
-                onClick={() => onSelectDish(d.name)}
-                className="text-foreground hover:text-primary text-sm font-medium leading-relaxed transition-colors"
-              >
+              <span className="text-foreground text-sm font-medium leading-relaxed">
                 {d.name}
-              </Pressable>
+              </span>
             </li>
           ))}
         </ul>
@@ -139,7 +99,7 @@ function DayBlock({ col, onSelectDish }: { col: any, onSelectDish: (name: string
 
 export function ThisWeekMenuSectionSkeleton() {
   return (
-    <SectionCard title="This week's menu" subtitle="Released dishes you can browse.">
+    <SectionCard title="This week's menu">
        <div className="bg-card border-border h-[600px] w-full rounded-3xl border" />
     </SectionCard>
   );

@@ -35,7 +35,21 @@ export type ProfitabilityReport = {
   kpis: ProfitabilityKpis;
   rows: ProfitRow[];
   trend: { period: string; profit: number; revenue: number }[];
+  /** Next delivery cutoff in range; when it passes, those tiffins count as delivered. */
+  nextCutoffAt: number | null;
 };
+
+const SETTLED = sql`exists (
+  select 1 from ${payments} where ${payments.orderId} = ${orders.id}
+  and ${payments.status} in ('paid', 'simulated_paid')
+)`;
+const REFUNDED = sql`exists (
+  select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.status} = 'refunded'
+)`;
+// Order total net of tax, spread evenly over the plan's tiffins. Pre-tax because
+// tax is collected on the government's behalf; it is not the business's revenue.
+const PER_TIFFIN = sql`((${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0))
+  / nullif(${orders.tiffinCount}, 0))`;
 
 function rangeFor(month: string, grain: Grain): { from: string; to: string } {
   if (grain === "monthly") {
@@ -48,9 +62,14 @@ function rangeFor(month: string, grain: Grain): { from: string; to: string } {
 /**
  * Delivered tiffins in the window — same predicate as tiffin-counts.ts
  * `deliveredTiffinCount` (scheduled AND (past cutoff OR OptimoRoute confirmed)),
- * re-expressed in SQL so we don't load every row. Revenue is the order TOTAL
- * spread across that order's tiffinCount, then attributed to the delivery DATE,
- * never the payment date.
+ * re-expressed in SQL so we don't load every row. Revenue is the order total
+ * (excluding tax) spread across that order's tiffinCount, then attributed to the
+ * delivery DATE, never the payment date.
+ *
+ * Only orders with a settled payment earn revenue. Orders still awaiting payment
+ * are reported as `unpaidRevenue`, and refunded orders earn nothing. Every
+ * delivered tiffin still carries its kitchen and driver cost, because that food
+ * went out whether or not it was paid for.
  */
 export async function getProfitabilityReport(opts: {
   month: string;
@@ -74,12 +93,15 @@ export async function getProfitabilityReport(opts: {
   const cashFromMs = Date.parse(`${from}T00:00:00.000Z`) - pad;
   const cashToMs = Date.parse(`${to}T23:59:59.999Z`) + pad;
 
-  const [earnedRows, cashPayments] = await Promise.all([
+  const [earnedRows, cashPayments, [nextCutoff]] = await Promise.all([
     db
       .select({
         date: deliveries.deliveryDate,
         tiffins: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int`,
-        revenue: sql<number>`coalesce(sum(${deliveries.tiffinUnits}::numeric * (${orders.total}::numeric / nullif(${orders.tiffinCount}, 0))), 0)::float`,
+        revenue: sql<number>`coalesce(sum(case when ${SETTLED}
+          then ${deliveries.tiffinUnits}::numeric * ${PER_TIFFIN} end), 0)::float`,
+        unpaidRevenue: sql<number>`coalesce(sum(case when not ${SETTLED} and not ${REFUNDED}
+          then ${deliveries.tiffinUnits}::numeric * ${PER_TIFFIN} end), 0)::float`,
       })
       .from(deliveries)
       .innerJoin(orders, eq(deliveries.orderId, orders.id))
@@ -97,6 +119,18 @@ export async function getProfitabilityReport(opts: {
           inArray(payments.status, PAID_STATUSES),
           sql`coalesce(${payments.capturedAt}, ${payments.createdAt}) >= ${cashFromMs}`,
           sql`coalesce(${payments.capturedAt}, ${payments.createdAt}) <= ${cashToMs}`,
+        ),
+      ),
+    db
+      .select({ at: sql<number | null>`min(${deliveries.cutoffAt})` })
+      .from(deliveries)
+      .where(
+        and(
+          eq(deliveries.status, "scheduled"),
+          sql`${deliveries.cutoffAt} > ${now}`,
+          sql`${deliveries.optimoCompletionStatus} is distinct from 'success'`,
+          gte(deliveries.deliveryDate, from),
+          lte(deliveries.deliveryDate, to),
         ),
       ),
   ]);
@@ -117,6 +151,7 @@ export async function getProfitabilityReport(opts: {
         date,
         tiffins: earnedByDate.get(date)?.tiffins ?? 0,
         revenue: Number(earnedByDate.get(date)?.revenue ?? 0),
+        unpaidRevenue: Number(earnedByDate.get(date)?.unpaidRevenue ?? 0),
         cashCollected: Number(cashByDate.get(date) ?? 0),
       },
       assumptions,
@@ -138,5 +173,6 @@ export async function getProfitabilityReport(opts: {
       profit: r.profit,
       revenue: r.revenue,
     })),
+    nextCutoffAt: nextCutoff?.at == null ? null : Number(nextCutoff.at),
   };
 }

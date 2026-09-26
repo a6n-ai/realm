@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/motion", () => ({
   Reveal: Object.assign(({ children }: { children: React.ReactNode }) => <div>{children}</div>, { Group: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }),
-  Pressable: ({ children, ...p }: { children: React.ReactNode } & Record<string, unknown>) => <button {...(p as object)}>{children}</button>,
   LottieEmptyState: ({ title }: { title: string }) => <div>{title}</div>,
 }));
 
@@ -49,12 +48,10 @@ const weekWithWeekend = {
 afterEach(cleanup);
 
 describe("ThisWeekMenuSection", () => {
-  it("renders the week's dishes and opens the modal on tap", () => {
+  it("renders the week's dishes", () => {
     render(<ThisWeekMenuSection week={week} />);
     expect(screen.getByText(/Jul 13 – Jul 19/)).toBeInTheDocument();
     expect(screen.getByText("Paneer Butter Masala")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Paneer Butter Masala"));
-    expect(screen.getAllByText("Paneer Butter Masala").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders the empty state when week is null", () => {
@@ -72,7 +69,6 @@ describe("ThisWeekMenuSection", () => {
 
   it("renders no placeholder under empty days", () => {
     const { container } = render(<ThisWeekMenuSection week={week} />);
-    expect(screen.queryByRole("button", { name: /tuesday/i })).not.toBeInTheDocument();
     expect(container.textContent).not.toMatch(/—/);
   });
 

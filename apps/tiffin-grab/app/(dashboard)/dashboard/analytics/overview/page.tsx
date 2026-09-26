@@ -1,10 +1,10 @@
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import { StatGrid, SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { DistributionDonutChart, TrendLineChart } from "@/components/analytics/charts";
 import { getLeadStats } from "@/lib/services/analytics/leads.service";
-import { getRevenueStats, getRevenueTrend } from "@/lib/services/analytics/revenue.service";
+import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
 import { getCustomerStats, getSubscriptionMix } from "@/lib/services/analytics/customers.service";
 import { getComplaintStats } from "@/lib/services/analytics/complaints.service";
 import { getOperationsStats } from "@/lib/services/analytics/operations.service";
@@ -12,6 +12,8 @@ import { getOperationsStats } from "@/lib/services/analytics/operations.service"
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 }
+
+const loadMonthToDate = cache(() => getRevenueReport({ methods: [] }));
 
 export default function OverviewAnalyticsPage() {
   return (
@@ -21,7 +23,7 @@ export default function OverviewAnalyticsPage() {
       </Suspense>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title="Revenue over time" subtitle="Captured payments, by day">
+        <ChartCard title="Net sales this month" subtitle="Settled payments excluding tax, by day">
           <Suspense fallback={<ChartSkeleton />}>
             <RevenueChart />
           </Suspense>
@@ -39,7 +41,7 @@ export default function OverviewAnalyticsPage() {
 async function StatsData() {
   const [leads, revenue, customers, complaints, operations] = await Promise.all([
     getLeadStats(),
-    getRevenueStats(),
+    loadMonthToDate(),
     getCustomerStats(),
     getComplaintStats(),
     getOperationsStats(),
@@ -48,7 +50,7 @@ async function StatsData() {
     <StatGrid
       cols={5}
       items={[
-        { label: "Net revenue", value: money(revenue.net) },
+        { label: "Net sales (month to date)", value: money(revenue.kpis.netSales) },
         { label: "Active subscriptions", value: customers.activeSubscriptions },
         { label: "Lead conversion", value: `${leads.conversionRatePct}%` },
         { label: "Open tickets", value: complaints.open },
@@ -59,8 +61,8 @@ async function StatsData() {
 }
 
 async function RevenueChart() {
-  const rows = await getRevenueTrend();
-  return <TrendLineChart data={rows} xKey="day" yKey="amount" />;
+  const report = await loadMonthToDate();
+  return <TrendLineChart data={report.trend} xKey="period" yKey="netSales" />;
 }
 
 async function SubscriptionChart() {
