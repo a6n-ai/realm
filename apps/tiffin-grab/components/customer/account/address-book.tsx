@@ -18,6 +18,54 @@ const withDropOff = (d: Record<string, string>, publicId: string, dropOff: strin
   else delete next[publicId];
   return next;
 };
+const GOLD = "#F5B301";
+
+/**
+ * The default toggle: an outline star that fills gold with a pop and a ring burst when
+ * tapped (the address then slides to the top); the default's star stays filled.
+ */
+function DefaultStar({ on, label, onSelect }: { on: boolean; label: string; onSelect: () => void }) {
+  const [taps, setTaps] = useState(0);
+  return (
+    <IconButton
+      aria-label={on ? `${label} is the default` : `Make ${label} the default`}
+      aria-pressed={on}
+      // aria-disabled, not disabled: a disabled button gets no hover, and the tip should still show.
+      aria-disabled={on}
+      tip={on ? "Default address" : "Make default — checkout uses it"}
+      className={on ? "cursor-default" : "transition-transform active:scale-90 motion-reduce:transition-none"}
+      onClick={() => {
+        if (on) return;
+        setTaps((n) => n + 1);
+        onSelect();
+      }}
+    >
+      <motion.span
+        key={taps}
+        className="grid place-items-center"
+        animate={taps ? { scale: [1, 1.5, 0.88, 1], rotate: [0, -20, 10, 0] } : undefined}
+        transition={{ duration: 0.55, ease: "easeOut" }}
+      >
+        <StarIcon
+          className="size-4 transition-[fill,color] duration-300 motion-reduce:transition-none"
+          style={on ? { color: GOLD, fill: GOLD } : { fill: "transparent" }}
+        />
+      </motion.span>
+      {taps > 0 && (
+        <motion.span
+          key={`ring-${taps}`}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-full border-2"
+          style={{ borderColor: GOLD }}
+          initial={{ scale: 0.5, opacity: 0.8 }}
+          animate={{ scale: 1.9, opacity: 0 }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+        />
+      )}
+    </IconButton>
+  );
+}
+
 const dropOffName = (options: DropOffOption[], publicId: string | undefined) =>
   publicId ? options.find((o) => o.publicId === publicId)?.name : undefined;
 import {
@@ -136,16 +184,7 @@ export function AddressBook({
               )}
             </div>
             <div className="flex shrink-0 gap-1">
-              {!a.isDefault && (
-                <IconButton
-                  aria-label={`Make ${a.label} the default`}
-                  tip="Make default — checkout uses it"
-                  className="transition-transform active:scale-90 motion-reduce:transition-none"
-                  onClick={() => book.setDefault(a.publicId)}
-                >
-                  <StarIcon className="size-4" />
-                </IconButton>
-              )}
+              <DefaultStar on={a.isDefault} label={a.label} onSelect={() => book.setDefault(a.publicId)} />
               <IconButton aria-label={`Edit ${a.label}`} onClick={() => setEditing({ publicId: a.publicId, label: a.label, values: toValues(a), dropOff: dropOffs[a.publicId] ?? null })}>
                 <PencilIcon className="size-4" />
               </IconButton>
