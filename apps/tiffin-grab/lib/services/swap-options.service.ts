@@ -47,7 +47,12 @@ export async function loadCompositionContext(mealSizeId: bigint, baseCounts: Rec
 
 export async function listValidSwapOptionsForDelivery(
   deliveryPublicId: string,
-  opts?: { forDate?: string; hideUnavailable?: boolean },
+  opts?: { 
+    forDate?: string; 
+    hideUnavailable?: boolean;
+    provisionalSwaps?: { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number }[];
+    omitSwapPublicIds?: string[];
+  },
 ): Promise<SwapOption[]> {
   // loadByPublicId / loadOrderIdByPublicId are typed for transactions; a single
   // read-only txn keeps that contract without inventing a second loader.
@@ -65,6 +70,7 @@ export async function listValidSwapOptionsForDelivery(
       dishCategoriesService.swapPairsForMealSize(order.mealSizeId),
       tx
         .select({
+          publicId: deliveryCategorySwaps.publicId,
           fromCategory: deliveryCategorySwaps.fromCategory,
           toCategory: deliveryCategorySwaps.toCategory,
           qtyFrom: deliveryCategorySwaps.qtyFrom,
@@ -75,14 +81,28 @@ export async function listValidSwapOptionsForDelivery(
         .where(eq(deliveryCategorySwaps.deliveryId, row.id)),
     ]);
 
+    const omit = new Set(opts?.omitSwapPublicIds ?? []);
     const applied: SwapRow[] = appliedRows
-      .filter((r) => swapAppliesTo(r.forDate, row.deliveryDate, eatingDate))
+      .filter((r) => !omit.has(r.publicId) && swapAppliesTo(r.forDate, row.deliveryDate, eatingDate))
       .map((r) => ({
         fromCategory: r.fromCategory,
         toCategory: r.toCategory,
         qtyFrom: r.qtyFrom,
         qtyTo: r.qtyTo,
       }));
+
+    if (opts?.provisionalSwaps) {
+      for (const p of opts.provisionalSwaps) {
+        if (p.qtyFrom > 0) {
+          applied.push({
+            fromCategory: p.fromCategory,
+            toCategory: p.toCategory,
+            qtyFrom: p.qtyFrom,
+            qtyTo: p.qtyTo,
+          });
+        }
+      }
+    }
 
     return computeAllSwapOptions({
       composition,

@@ -132,12 +132,16 @@ export async function scheduleMyPooledTiffin(
 export async function loadMySwapOptions(
   deliveryPublicId: string,
   forDate?: string,
+  provisionalSwaps?: { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number }[],
+  omitSwapPublicIds?: string[],
 ): Promise<ActionResult<{ options: SwapOption[] }>> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
     const options = await listValidSwapOptionsForDelivery(deliveryPublicId, {
       forDate,
       hideUnavailable: true,
+      provisionalSwaps,
+      omitSwapPublicIds,
     });
     return { options };
   });
