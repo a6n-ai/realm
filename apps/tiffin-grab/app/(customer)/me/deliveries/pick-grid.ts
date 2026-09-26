@@ -29,6 +29,8 @@ export type PickGrid = {
   portionsBySlot: Record<string, (string | null)[]>;
   /** Swap-aware portions keyed by eating date ISO. */
   portionsByDate: Record<string, Record<string, (string | null)[]>>;
+  /** Each category's dishes per eating date, including categories swaps emptied. */
+  menu: Record<string, Record<string, GridCell["dishes"]>>;
   /** Menu week public id per eating date; the pick actions need it. */
   weekByDate: Record<string, string>;
   persons: number;
@@ -77,6 +79,7 @@ export async function loadPickGrid(
       categories: [],
       portionsBySlot: {},
       portionsByDate: {},
+      menu: {},
       weekByDate: {},
       persons: row.persons,
       rules: await listRuleTextsForOrder(row.planId, row.mealSizeId),
@@ -130,6 +133,7 @@ export async function loadPickGrid(
       grid.categories = r.categories;
       for (const d of r.weekDatesView) if (dates.includes(d.dateIso)) grid.weekByDate[d.dateIso] = r.releasedWeek.publicId;
       grid.cells.push(...r.grid.filter((c) => dates.includes(c.dateIso)));
+      for (const d of dates) if (r.menu[d]) grid.menu[d] = r.menu[d];
     }
     if (!grid.cells.length) return { ok: true, grid: null };
 

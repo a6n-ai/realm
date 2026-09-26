@@ -58,6 +58,11 @@ export type MealsGridResult =
       releasedWeek: typeof menuWeeks.$inferSelect;
       weekDatesView: WeekDateView[];
       grid: GridCell[];
+      /**
+       * The day's plan dishes per category, even when swaps left it no picks — so Edit
+       * meal can still show the dishes of a row whose whole category was swapped away.
+       */
+      menu: Record<string, Record<string, GridDish[]>>;
       categories: { key: string; label: string; selectable: boolean; sortOrder: number }[];
       persons: number;
     };
@@ -144,10 +149,16 @@ export async function buildMealsGrid(
   });
 
   const grid: GridCell[] = [];
+  const menu: Record<string, Record<string, GridDish[]>> = {};
   for (const { dateIso, dayOfWeek: day, locked, lockNote } of weekDatesView) {
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
+    menu[dateIso] = {};
     for (const cat of categories) {
       const slot = cat.key;
+      menu[dateIso]![slot] = dayItems
+        .filter((i) => i.slot === slot && planDishIds.has(i.dishId))
+        .map((i) => dishMap.get(i.dishId))
+        .filter((d): d is GridDish => !!d);
       // Representative resolution (person 1): plan filtering and category_counts are
       // person-independent, so whether this (day, category) renders at all doesn't vary by
       // person — only the resolved pick per pickIndex does.
@@ -201,5 +212,5 @@ export async function buildMealsGrid(
       }
     }
   }
-  return { empty: null, releasedWeek, weekDatesView, grid, categories, persons: order.persons };
+  return { empty: null, releasedWeek, weekDatesView, grid, menu, categories, persons: order.persons };
 }

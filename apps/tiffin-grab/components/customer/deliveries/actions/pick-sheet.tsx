@@ -7,7 +7,7 @@ import {
   removeMyDeliverySwap,
 } from "@/app/(customer)/me/deliveries/actions";
 import { saveMyMealSelections, type PickItem } from "@/app/(customer)/me/meals/actions";
-import { Button, Choice, ChoiceGroup, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
+import { Button, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
 import type { SwapOption } from "@/lib/menu/meal-validation";
@@ -31,6 +31,7 @@ import {
 } from "@/lib/menu/slot-dropdown";
 import { swapAmounts, swapLabel } from "@/lib/menu/swap-rules";
 import { sanitizeClientError } from "@/lib/format/client-error";
+import { CategorySection, ChoiceRow, type RowChoice } from "./choice-row";
 import type { ActionSheetProps } from "./types";
 
 const PREFIX = "pick";
@@ -443,39 +444,37 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
               {rows.map((group) => {
                 const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                 const controlsOff = busy != null || saving;
+                // The category's own dishes, even when swaps took every row of it.
+                const ownDishes = group.dishes.length ? group.dishes : grid.menu?.[activeDay!]?.[group.key] ?? [];
                 return (
-                  <section key={group.key} aria-label={group.label} className="grid gap-4">
-                    <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{group.label}</h4>
-                    <div className="grid gap-5">
-                      {group.items.map((item) => {
-                        if (item.kind === "swapped") {
-                          const row = item.swapped;
+                  <CategorySection key={group.key} label={group.label}>
+                    {group.items.map((item) => {
+                      if (item.kind === "swapped") {
+                        const row = item.swapped;
                         const text = swapLabel(row.swap, labelOf, plan.swapCategories);
-                        const label = row.givePortion ? `${group.label} · ${row.givePortion}` : group.label;
+                        const rowOff = locked || swapLocked || controlsOff;
                         const toName = row.toCells.length && !row.toCells[0]!.selectable
                           ? row.toDishes.find((d) => d.id === row.toCells[0]!.selectedDishId)?.name ?? row.toDishes[0]?.name
                           : undefined;
-                        const rowOff = locked || swapLocked || controlsOff;
+                        // What the row was stays in view, greyed; the swap is the selected button.
+                        const choices: RowChoice[] = [
+                          ...(ownDishes.length ? ownDishes : [{ id: "category", name: group.label }])
+                            .map((d) => ({ value: `was:${d.id}`, label: d.name, disabled: true })),
+                          {
+                            value: "swapped",
+                            label: `${labelOf(row.swap.toCategory)}${row.getPortion ? ` · ${row.getPortion}` : ""}`,
+                            note: toName,
+                            disabled: rowOff,
+                          },
+                        ];
                         return (
-                          <div key={row.swap.publicId} className="grid gap-2">
-                            <p className="text-[15px] font-semibold">{label}</p>
-                            <ChoiceGroup label={label} value="swapped" onChange={() => {}} className="grid gap-2 sm:grid-cols-2">
-                              {/* The row's own dishes stay in view, greyed, while it is swapped; Undo swap brings them back. */}
-                              {(group.dishes.length ? group.dishes : [{ id: "category", name: group.label }]).map((d) => (
-                                <Choice key={d.id} value={`was:${d.id}`} disabled className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
-                                  <span className="min-w-0 flex-1 text-left leading-snug">{d.name}</span>
-                                </Choice>
-                              ))}
-                              <Choice value="swapped" disabled={rowOff} className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
-                                <span className="min-w-0 flex-1 text-left">
-                                  <span className="block leading-snug">
-                                    {labelOf(row.swap.toCategory)}
-                                    {row.getPortion ? ` · ${row.getPortion}` : ""}
-                                  </span>
-                                  {toName && <span className={`mt-0.5 block text-[13px] font-normal ${muted}`}>{toName}</span>}
-                                </span>
-                              </Choice>
-                            </ChoiceGroup>
+                          <ChoiceRow
+                            key={row.swap.publicId}
+                            label={row.givePortion ? `${group.label} · ${row.givePortion}` : group.label}
+                            choices={choices}
+                            value="swapped"
+                            onChange={() => {}}
+                          >
                             {!rowOff && (
                               <Button
                                 variant="quiet"
@@ -492,99 +491,67 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                               const selectedId = effectiveDishId(cell, picked);
                               const blocked = blockedDishes(row.swap.toCategory, row.toDishes, cell);
                               return (
-                                <div key={cellKey(cell)} className="ml-3 grid gap-2 border-l-2 border-[var(--border,#E8E0D5)] pl-3">
-                                  <p className={`text-[13px] font-semibold ${muted}`}>Pick your {subLabel}</p>
-                                  <ChoiceGroup
-                                    label={`Pick your ${subLabel}`}
-                                    value={selectedId ? dishOptionValue(selectedId) : ""}
-                                    // A non-zero index: this cell only ever takes dish picks.
-                                    onChange={(v) => onSlotChange(cell, 1, v)}
-                                    className="grid gap-2 sm:grid-cols-2"
-                                  >
-                                    {row.toDishes.map((d) => (
-                                      <Choice
-                                        key={d.id}
-                                        value={dishOptionValue(d.id)}
-                                        disabled={locked || cell.locked || controlsOff || blocked.has(d.id)}
-                                        className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold"
-                                      >
-                                        <span className="min-w-0 flex-1 text-left leading-snug">{d.name}</span>
-                                      </Choice>
-                                    ))}
-                                  </ChoiceGroup>
-                                </div>
+                                <ChoiceRow
+                                  key={cellKey(cell)}
+                                  nested
+                                  label={`Pick your ${subLabel}`}
+                                  choices={row.toDishes.map((d) => ({
+                                    value: dishOptionValue(d.id),
+                                    label: d.name,
+                                    disabled: locked || cell.locked || controlsOff || blocked.has(d.id),
+                                  }))}
+                                  value={selectedId ? dishOptionValue(selectedId) : ""}
+                                  // A non-zero index: this cell only ever takes dish picks.
+                                  onChange={(v) => onSlotChange(cell, 1, v)}
+                                />
                               );
                             })}
-                          </div>
+                          </ChoiceRow>
                         );
-                        }
-                        const { cell, index: i, row: baseRow } = item;
-                        const selectedId = effectiveDishId(cell, picked);
-                        const key = cellKey(cell);
-                        const built = buildSlotDropdownOptions({
-                          cellIndexInCategory: i,
-                          categoryKey: group.key,
-                          dishes: group.dishes,
-                          disabledDishIds: blockedDishes(group.key, group.dishes, cell),
-                          swapOptions,
-                          allowedSwaps,
-                          onePerRow: group.cells.every((c) => c.quantity === 1),
-                          fromRow: baseRow,
-                          rowPortion: group.portions[i] ?? null,
-                          categoryLabel: labelOf,
-                        });
-                        // A fixed item with no dish on the menu still gets its (greyed) box.
-                        const options: SlotDropdownOption[] = built.length
-                          ? built
-                          : [{ kind: "dish", value: "fixed", label: group.label, dishId: "" }];
-                        const value = selectedId ? dishOptionValue(selectedId) : built.length ? "" : "fixed";
-                        const cellLocked = locked || cell.locked;
-                        const label = slotLabel(group, i);
-                        const isDefault =
-                          !!selectedId && cell.isDefaulted && picked[key] == null;
-                        return (
-                          <div key={key} className="grid gap-2">
-                            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                              <p className="text-[15px] font-semibold">{label}</p>
-                              {isDefault && group.selectable && (
-                                <p className={`text-[13px] ${muted}`}>Default pick</p>
-                              )}
-                              {!cell.selectable && <p className={`text-[13px] ${muted}`}>Included</p>}
-                            </div>
-                            <ChoiceGroup
-                              label={label}
-                              value={value}
-                              onChange={(v) => onSlotChange(cell, i, v)}
-                              className="grid gap-2 sm:grid-cols-2"
-                            >
-                              {options.map((o) => (
-                                <Choice
-                                  key={o.value}
-                                  value={o.value}
-                                  disabled={
-                                    cellLocked
-                                    || controlsOff
-                                    || !!o.disabled
-                                    // A fixed dish is never a choice; its box stays, greyed.
-                                    || (o.kind === "dish" && !cell.selectable)
-                                    || (o.kind === "swap" && swapLocked)
-                                  }
-                                  className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold"
-                                >
-                                  <span className="min-w-0 flex-1 text-left">
-                                    <span className="block leading-snug">{o.label}</span>
-                                    {o.note && (
-                                      <span className={`mt-0.5 block text-[13px] font-normal ${muted}`}>{o.note}</span>
-                                    )}
-                                  </span>
-                                </Choice>
-                              ))}
-                            </ChoiceGroup>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
+                      }
+                      const { cell, index: i, row: baseRow } = item;
+                      const selectedId = effectiveDishId(cell, picked);
+                      const key = cellKey(cell);
+                      const built = buildSlotDropdownOptions({
+                        cellIndexInCategory: i,
+                        categoryKey: group.key,
+                        dishes: group.dishes,
+                        disabledDishIds: blockedDishes(group.key, group.dishes, cell),
+                        swapOptions,
+                        allowedSwaps,
+                        onePerRow: group.cells.every((c) => c.quantity === 1),
+                        fromRow: baseRow,
+                        rowPortion: group.portions[i] ?? null,
+                        categoryLabel: labelOf,
+                      });
+                      // A fixed item with no dish on the menu still gets its (greyed) box.
+                      const options: SlotDropdownOption[] = built.length
+                        ? built
+                        : [{ kind: "dish", value: "fixed", label: group.label, dishId: "" }];
+                      const cellOff = locked || cell.locked || controlsOff;
+                      const isDefault = !!selectedId && cell.isDefaulted && picked[key] == null;
+                      return (
+                        <ChoiceRow
+                          key={key}
+                          label={slotLabel(group, i)}
+                          hint={!cell.selectable ? "Included" : isDefault ? "Default pick" : undefined}
+                          choices={options.map((o) => ({
+                            value: o.value,
+                            label: o.label,
+                            note: o.note,
+                            disabled:
+                              cellOff
+                              || !!o.disabled
+                              // A fixed dish is never a choice; its box stays, greyed.
+                              || (o.kind === "dish" && !cell.selectable)
+                              || (o.kind === "swap" && swapLocked),
+                          }))}
+                          value={selectedId ? dishOptionValue(selectedId) : built.length ? "" : "fixed"}
+                          onChange={(v) => onSlotChange(cell, i, v)}
+                        />
+                      );
+                    })}
+                  </CategorySection>
                 );
               })}
 

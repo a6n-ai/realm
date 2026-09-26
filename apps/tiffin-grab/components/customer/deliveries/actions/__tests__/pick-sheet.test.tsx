@@ -541,6 +541,20 @@ describe("PickSheet", () => {
       expect(applySwap).not.toHaveBeenCalled();
     });
 
+    it("keeps a category's own dishes on its rows after every row of it is swapped away", async () => {
+      swapOptions.mockReturnValue([curryToDaal]);
+      const g = grid([cell({ pickIndex: 1 }), cell({ pickIndex: 2 })], 1, { portionsBySlot: { curry: ["12oz", "8oz"] } });
+      load.mockResolvedValue({ ...g, grid: { ...g.grid, menu: { [mon]: { curry: dishes } } } });
+      show(trip({ coversDates: [mon] }));
+      fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal/ }))[0]!);
+      fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal · 8oz/ })).find((r) => !r.hasAttribute("disabled") && r.getAttribute("aria-checked") !== "true")!);
+      await waitFor(() => expect(screen.getAllByRole("button", { name: /^Undo swap/ })).toHaveLength(2));
+      // Both swapped rows still show the real dishes, greyed — never just the category name.
+      expect(screen.getAllByRole("radio", { name: "Paneer" })).toHaveLength(2);
+      expect(screen.getAllByRole("radio", { name: "Paneer" }).every((r) => r.hasAttribute("disabled"))).toBe(true);
+      expect(screen.queryByRole("radio", { name: "Curry" })).toBeNull();
+    });
+
     it("folds a swap in locally: no grid reload, and Undo swap needs none either", async () => {
       swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
