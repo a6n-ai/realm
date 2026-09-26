@@ -74,7 +74,7 @@ export async function assertOrderUnlocked(orderPublicId: string): Promise<void> 
 }
 
 type Delivery = typeof deliveries.$inferSelect;
-export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean };
+export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean; deliveryStrategyPublicId?: string | null };
 export type Subscription = {
   publicId: string;
   planName: string;
@@ -304,10 +304,11 @@ export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
 // affected row cancelled directly, so no separate orders.status check is needed.
 export async function myDeliveries(userId: bigint, from: string, until: string): Promise<CustomerDelivery[]> {
   const rows = await db
-    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name })
+    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name, deliveryStrategyPublicId: deliveryStrategies.publicId })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(deliveryStrategies, eq(deliveries.deliveryStrategyId, deliveryStrategies.id))
     .where(
       and(
         eq(orders.userId, userId),
@@ -322,6 +323,7 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
     orderPublicId: r.orderPublicId,
     planName: r.planName,
     isMakeup: r.d.makeupForDeliveryId !== null,
+    deliveryStrategyPublicId: r.deliveryStrategyPublicId,
   }));
 }
 
