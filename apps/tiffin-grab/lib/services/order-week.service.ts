@@ -79,6 +79,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses: await addressService.list({ userId, orgId: await resolveRequestOrg() }),
+    deliveryStrategies: catalog.deliveryCharges?.deliveryStrategies.map(s => ({ publicId: s.publicId, name: s.name })) ?? [],
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
   return { plan, trips: buildTrips(inputs, now, ctx, sub.publicId), agenda, weekStart, firstWeek, lastWeek, now };

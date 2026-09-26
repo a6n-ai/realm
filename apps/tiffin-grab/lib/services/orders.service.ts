@@ -830,7 +830,7 @@ export async function verifyPayment(
           to: { email: award.userEmail },
           subject: "Payment Confirmed - Plan Active",
           html,
-          text: \`Your payment has been confirmed! Your plan is active from \${award.startDate}.\`,
+          text: `Your payment has been confirmed! Your plan is active from ${award.startDate}.`,
         });
       } catch (e) {
         log.error({ err: e }, "failed to send payment confirmation email");
