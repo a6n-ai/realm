@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { IDENTITY_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
@@ -30,6 +30,9 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
   validatePostal: vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } }),
 }));
 
+// Checkout is signed-in only (the page redirects signed-out visitors).
+const MEMBER = { fullName: "Jane Doe", email: "jane@example.com" };
+
 const selections: WizardSelections = {
   planKey: "veg",
   mealSizeId: "msz_small_thali",
@@ -50,8 +53,7 @@ describe("Checkout contact format validation", () => {
 
   it("disables Continue with an invalid phone and shows an inline error", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
@@ -64,35 +66,4 @@ describe("Checkout contact format validation", () => {
     ).toBe(true);
   });
 
-  it("uses the gate email, read-only, so Continue needs only the other fields", async () => {
-    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "jane@example.com", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
-
-    await screen.findByLabelText(/full name/i);
-    const email = screen.getByLabelText(/email/i) as HTMLInputElement;
-    expect(email.value).toBe("jane@example.com");
-    expect(email.readOnly).toBe(true);
-    expect(screen.getByRole("button", { name: /continue to payment/i }).getAttribute("aria-disabled") === "true").toBe(true);
-
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
-    fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
-    fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
-    expect(screen.getByRole("button", { name: /continue to payment/i }).getAttribute("aria-disabled") === "true").toBe(false);
-  });
-
-  it("disables Continue when the stored gate email is not a valid address", async () => {
-    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ email: "not-an-email", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
-
-    await screen.findByLabelText(/full name/i);
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
-    fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
-    fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
-
-    expect(
-      screen.getByRole("button", { name: /continue to payment/i }).getAttribute("aria-disabled") === "true",
-    ).toBe(true);
-  });
 });

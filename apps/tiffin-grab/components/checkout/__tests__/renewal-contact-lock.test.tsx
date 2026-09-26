@@ -32,6 +32,9 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
   validatePostal: vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } }),
 }));
 
+// Checkout is signed-in only (the page redirects signed-out visitors).
+const MEMBER = { fullName: "Jane Doe", email: "jane@example.com" };
+
 const selections: WizardSelections = { ...initialSelections, planKey: "veg", mealSizeId: "msz_1", startDate: "2026-07-20" };
 
 const onFile = {
@@ -59,7 +62,7 @@ describe("checkout contact locking", () => {
     sessionStorage.setItem(WIZARD_ORIGIN_KEY, "renew");
     render(<Checkout defaultCountry="CA" prefill={onFile} />);
 
-    await screen.findByText(/renewals use your account email/i);
+    await screen.findByText(/orders use your account email/i);
     expect(field(/full name/i).readOnly).toBe(true);
     expect(field(/^email$/i).readOnly).toBe(true);
     expect(field(/postal code/i).disabled).toBe(false);
@@ -68,44 +71,21 @@ describe("checkout contact locking", () => {
     expect(screen.getAllByText(/from your account/i).length).toBeGreaterThan(0);
   });
 
-  it("guest with a gate identity: email read-only, name/phone/address editable", async () => {
-    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem("tiffin.identity", JSON.stringify({ email: "guest@example.com", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
-
-    await screen.findByText(/use a different email/i);
-    expect(field(/^email$/i).value).toBe("guest@example.com");
-    expect(field(/^email$/i).readOnly).toBe(true);
-    expect(field(/full name/i).readOnly).toBe(false);
-    expect(field(/postal code/i).disabled).toBe(false);
-  });
-
-  it("sends a visitor with no known email back to the email step, replacing the checkout in history", async () => {
+  it("sends a signed-out visitor back to the email step, replacing the checkout in history", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" />);
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith("/subscribe"));
     expect(screen.queryByLabelText(/full name/i)).toBeNull();
   });
 
-  it("'Not you?' resets the whole session and replaces the checkout entry", async () => {
-    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem("tiffin.identity", JSON.stringify({ email: "guest@example.com", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
-    fireEvent.click(await screen.findByRole("button", { name: /not you\?/i }));
-    expect(mockRouter.replace).toHaveBeenCalledWith("/subscribe");
-    expect(sessionStorage.getItem("tiffin.identity")).toBeNull();
-    expect(sessionStorage.getItem(WIZARD_STORAGE_KEY)).toBeNull();
-  });
-
   it("shows meal, baseline and delivery type in the summary", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify({ ...selections, frequencyKey: "f3" }));
-    sessionStorage.setItem("tiffin.identity", JSON.stringify({ email: "guest@example.com", kind: "guest" }));
     const catalog = {
       plans: [{ key: "veg", name: "Veg" }],
       mealSizes: [{ publicId: "msz_1", name: "Regular" }],
       frequencies: [{ key: "f3", name: "3 Days/Wk (Mon, Wed, Fri)", weekdays: ["mon", "wed", "fri"] }],
     } as unknown as ClientCatalogSnapshot;
-    render(<Checkout defaultCountry="CA" catalog={catalog} />);
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} catalog={catalog} />);
 
     await screen.findByText("Regular");
     expect(screen.getByText("Veg")).toBeTruthy();
@@ -114,8 +94,7 @@ describe("checkout contact locking", () => {
 
   it("has one top Back (sm+) and one bottom Back (below sm) that share the handler label", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem("tiffin.identity", JSON.stringify({ email: "guest@example.com", kind: "guest" }));
-    render(<Checkout defaultCountry="CA" />);
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
     await screen.findByLabelText(/full name/i);
     const backs = screen.getAllByRole("button", { name: "Edit plan" });
     expect(backs).toHaveLength(2);

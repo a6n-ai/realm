@@ -18,7 +18,7 @@ import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, clearIdentity, readIdentity, resetSession, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+import { WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button, Input, Label, OptionCard, Pill } from "@/components/customer/kit";
@@ -88,7 +88,7 @@ export function Checkout({
   /** Present only for a signed-in customer: their account's contact. */
   prefill?: Partial<Contact>;
   catalog?: ClientCatalogSnapshot;
-  /** Signed-in customer's saved addresses (default first); empty for guests. */
+  /** Customer's saved addresses (default first); empty before they save one. */
   savedAddresses?: SavedAddress[];
 }) {
   const router = useRouter();
@@ -96,7 +96,7 @@ export function Checkout({
   const [result, setResult] = useState<PricingResult | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const defaultAddress = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0] ?? null;
-  // null = the customer is typing a new address (always the case for guests).
+  // null = the customer is typing a new address (always the case with no saved address).
   const [addressPublicId, setAddressPublicId] = useState<string | null>(defaultAddress?.publicId ?? null);
   const [contact, setContact] = useState<Contact>({
     ...emptyContact,
@@ -119,8 +119,6 @@ export function Checkout({
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   // Where "Edit plan" sends the customer back to — the flow that actually wrote
   // WIZARD_STORAGE_KEY, not always the full wizard.
-  // The email captured at the identity gate; a guest is not asked for it again.
-  const [gateEmail, setGateEmail] = useState<string | null>(null);
   const [origin, setOrigin] = useState<WizardOrigin>("subscribe");
 
   const refreshPrice = async (
@@ -145,11 +143,11 @@ export function Checkout({
     return r;
   };
 
-  // A checkout without a known email must never exist: anyone arriving without one (direct visit, a stale tab, or
-  // Back after "Not you?") goes to the email step first. `replace` keeps the checkout out of the history.
+  // The page redirects signed-out visitors; this covers a bfcache restore after signing out
+  // (Back into a stale checkout). `replace` keeps the checkout out of the history.
   useEffect(() => {
     const guard = () => {
-      if (prefill == null && readIdentity()?.kind !== "guest") router.replace("/subscribe");
+      if (prefill == null) router.replace("/subscribe");
     };
     const onShow = (e: PageTransitionEvent) => { if (e.persisted) guard(); };
     window.addEventListener("pageshow", onShow);
@@ -159,18 +157,12 @@ export function Checkout({
   useEffect(() => {
     const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
     if (!raw) { router.replace("/subscribe"); return; }
-    if (prefill == null && readIdentity()?.kind !== "guest") { router.replace("/subscribe"); return; }
+    if (prefill == null) { router.replace("/subscribe"); return; }
     const s = JSON.parse(raw) as WizardSelections;
     // Seeding from sessionStorage, which is only readable on the client (post-mount).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelections(s);
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
-    const identity = readIdentity();
-    if (identity?.kind === "guest" && prefill == null) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setGateEmail(identity.email);
-      setContact((c) => ({ ...c, email: identity.email }));
-    }
     refreshPrice(s, undefined, null).catch(() => setResult(null));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
@@ -294,7 +286,6 @@ export function Checkout({
       }
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
       sessionStorage.removeItem(WIZARD_STEP_KEY);
-      clearIdentity();
       // Out-of-zone: server created a waitlist inquiry, not an order — show the
       // waitlist confirmation instead of routing to activation.
       if (res.waitlisted) {
@@ -317,11 +308,7 @@ export function Checkout({
   // this is the visible half, not the guarantee. Phone and address stay editable
   // (this order only).
   const lockContact = prefill != null;
-  const emailReadOnly = lockContact || gateEmail != null;
-  const useDifferentEmail = () => {
-    resetSession();
-    router.replace("/subscribe");
-  };
+  const emailReadOnly = lockContact;
   const fromAccount = lockContact ? <Pill tone="soft" size="sm" className="ml-2 !px-2 !text-[11px] !font-medium">From your account</Pill> : null;
   const meal = catalog?.mealSizes.find((m) => m.publicId === selections.mealSizeId);
   const freq = catalog?.frequencies.find((f) => f.key === selections.frequencyKey);
@@ -386,11 +373,7 @@ export function Checkout({
                   />
                   {lockContact ? (
                     <p id="email-locked-hint" className="text-xs text-muted-foreground text-pretty">
-                      Renewals use your account email. <Link href="/me/account?section=contact" className="underline">Change it in Account</Link>.
-                    </p>
-                  ) : gateEmail != null ? (
-                    <p id="email-locked-hint" className="text-xs text-muted-foreground text-pretty">
-                      <button type="button" onClick={useDifferentEmail} className="min-h-11 underline">Not you? Use a different email</button>
+                      Orders use your account email. <Link href="/me/account?section=contact" className="underline">Change it in Account</Link>.
                     </p>
                   ) : contact.email.trim() && !emailValid ? (
                     <p role="alert" className="text-[13px] text-destructive">Enter a valid email</p>
