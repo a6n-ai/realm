@@ -38,30 +38,6 @@ export async function pickMyDish(input: {
   });
 }
 
-export async function applyMyDishToWeek(input: {
-  orderId: string; menuWeekId: string; slot: string; personIndex: number; pickIndex?: number; dishId: string;
-}): Promise<{ applied: number; skipped: { dateIso: string; reason: string }[] } | { error: string }> {
-  try {
-    const actorId = await me();
-    await assertCanManageOrder(input.orderId);
-    const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
-    if (!order) throw new NotFoundError("Subscription not found");
-    const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
-    if (!week) throw new NotFoundError("Menu week not found");
-    const result = await selectionsService.applyToWeek({
-      order, menuWeek: week, slot: input.slot, personIndex: input.personIndex,
-      pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId, actorId,
-    });
-    revalidatePath("/me");
-    revalidatePath(`/dashboard/orders/${input.orderId}`);
-    return { applied: result.applied, skipped: result.skipped };
-  } catch (e) {
-    if (e instanceof AppError) return { error: e.message };
-    console.error("[applyMyDishToWeek unexpected error]", e);
-    return { error: "Unable to complete request. Please try again." };
-  }
-}
-
 export type PickItem = {
   menuWeekId: string;
   dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";

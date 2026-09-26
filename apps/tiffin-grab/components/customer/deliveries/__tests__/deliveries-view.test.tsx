@@ -9,7 +9,7 @@ import type { PlanView } from "../adapter";
 import type { Agenda } from "@/lib/deliveries-view/week";
 
 vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: () => new Promise(() => {}) }));
-vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: vi.fn(), applyMyDishToWeek: vi.fn() }));
+vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: vi.fn() }));
 const replace = vi.fn();
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push: vi.fn(), replace }) }));

@@ -24,7 +24,6 @@ type Order = typeof orders.$inferSelect;
 type Week = typeof menuWeeks.$inferSelect;
 
 const DAY_OFFSET: Record<DayOfWeek, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
-const DAY_KEYS = Object.keys(DAY_OFFSET) as DayOfWeek[];
 
 /**
  * The dish ids on a plan. Single source of truth for "what may this plan be
@@ -272,8 +271,7 @@ export const selectionsService = {
       });
 
     // Re-picking the same dish is a no-op the customer can trigger by tapping twice —
-    // logging it would bury the real changes. applyToWeek fans out over a week, so this
-    // also keeps "apply to all days" from writing rows for days already on that dish.
+    // logging it would bury the real changes.
     if (prior?.dishId === dishId) return;
 
     await db.insert(orderActivities).values({
@@ -290,30 +288,5 @@ export const selectionsService = {
       }),
       createdBy: actorId,
     });
-  },
-
-  async applyToWeek(input: { order: Order; menuWeek: Week; slot: string; personIndex: number; pickIndex?: number; dishPublicId: string; actorId?: bigint | null }) {
-    const { order, menuWeek, slot, personIndex, pickIndex, dishPublicId, actorId } = input;
-
-    // Eating dates come from the trips that cover them (carried days included) — the same source
-    // buildMealsGrid reads. A make-up can land outside durationWeeks × deliveryDays, so dates are
-    // never recomputed from the plan's schedule.
-    const weekEnd = dateInWeek(menuWeek.weekStart, "sun");
-    const eatingDates = [...(await carryingTrips(order.id, menuWeek.weekStart, weekEnd)).keys()].sort();
-    const dateToDay = new Map<string, DayOfWeek>(DAY_KEYS.map((day) => [dateInWeek(menuWeek.weekStart, day), day]));
-
-    let applied = 0;
-    const skipped: { dateIso: string; reason: string }[] = [];
-    for (const date of eatingDates) {
-      const dayOfWeek = dateToDay.get(date);
-      if (!dayOfWeek) continue; // defensive: carryingTrips is already bounded to this week
-      try {
-        await this.setSelection({ order, menuWeek, dayOfWeek, slot, personIndex, pickIndex, dishPublicId, actorId });
-        applied += 1;
-      } catch (e) {
-        skipped.push({ dateIso: date, reason: e instanceof Error ? e.message : "Could not apply" });
-      }
-    }
-    return { applied, skipped };
   },
 };
