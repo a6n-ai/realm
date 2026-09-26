@@ -364,7 +364,7 @@ VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EP
         'Oakville', ARRAY ['L6H','L6J','L6K','L6L','L6M'], '12:00 PM – 3:00 PM'),
        ('zon_east_york', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'East York', ARRAY ['M4B','M4C','M4G','M4H','M4J','M4K'], '10:00 AM – 1:00 PM')
-ON CONFLICT (name) DO NOTHING;
+ON CONFLICT (public_id) DO NOTHING;
 
 -- ============ PRICING TIERS ============ (no unique key -> wipe + reinsert, matches seed)
 DELETE FROM pricing_tiers WHERE id > 0;
