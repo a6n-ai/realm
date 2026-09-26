@@ -49,7 +49,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     const mine = ds.filter((d) => d.orderId === sub.publicId);
     if (mine.length) agenda[date] = mine;
   }
-  const requested = parseWeekParam(weekParam) ?? defaultWeek(today, agenda);
+  const requested = parseWeekParam(weekParam) ?? defaultWeek(today, window.first);
   const weekStart = requested < firstWeek ? firstWeek : requested > lastWeek ? lastWeek : requested;
   const from = addDays(weekStart, -3);
   const until = addDays(weekStart, 6);

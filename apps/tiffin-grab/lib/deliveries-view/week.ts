@@ -15,13 +15,9 @@ export function parseWeekParam(p: string | undefined): string | null {
   return mondayOf(p);
 }
 
-/** Current week if any plan delivers in it, else the week of the next delivery on/after today, else the current week. */
-export function defaultWeek(today: string, agenda: Agenda): string {
-  const cur = mondayOf(today);
-  const dates = Object.keys(agenda).sort();
-  if (dates.some((d) => d >= cur && d <= addDays(cur, 6))) return cur;
-  const next = dates.find((d) => d >= today);
-  return next ? mondayOf(next) : cur;
+/** The plan's start week until it starts, then the current week. */
+export function defaultWeek(today: string, planFirst: string | null | undefined): string {
+  return mondayOf(planFirst && planFirst > today ? planFirst : today);
 }
 
 export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
