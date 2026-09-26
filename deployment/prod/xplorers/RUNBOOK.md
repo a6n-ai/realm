@@ -86,6 +86,14 @@ the box is `running` and SSM-online:
     (cd proxy && docker compose up -d)
     ./deploy.sh
 
+Add the 2 GiB swapfile from `../RUNBOOK.md` "Box sizing and swap" — Box C is a `t2.micro`.
+
+**Resizing Box C: never via the stack's `InstanceType` parameter.** The box launches from
+`BoxLaunchTemplate`, so any launch-template change (instance type, or the `resolve:ssm`
+latest AMI) **replaces the instance** — new root volume, box setup and Caddy certs gone.
+Resize in place (stop → modify-instance-attribute → start) instead. The live stack still
+records `InstanceType=t3.small` from creation; leave it.
+
 Make GHCR packages `xplorers-web` + `xplorers-tools` **Public** after the first
 CI image push (org Settings → Packages), so the box pulls with no creds.
 
