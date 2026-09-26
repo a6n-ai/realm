@@ -970,7 +970,11 @@ export async function claimPayment(
     await tx.insert(orderActivities).values({
       orderId: pay.orderId,
       type: "payment_claimed",
-      note: reference ? `${pay.method} · ref ${reference}` : `${pay.method} · proof attached`,
+      note: [
+        pay.method,
+        reference ? `ref ${reference}` : null,
+        proof ? "proof attached" : null,
+      ].filter(Boolean).join(" · "),
       createdBy: actorId,
     });
 
