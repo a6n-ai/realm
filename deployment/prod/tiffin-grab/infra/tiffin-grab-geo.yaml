@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Amazon Location Places access for the tiffin-grab prod instance role. The role
+  predates IaC (created by hand), so this stack only attaches one inline policy to
+  it by name rather than owning the role. Mirrors puchkaman-prod.yaml's GeoPlaces.
+
+Parameters:
+  RoleName:
+    Type: String
+    Default: realm-tiffin-grab-prod-role
+    Description: Existing instance role used by the tiffin-grab prod EC2 box.
+
+Resources:
+  GeoPlacesPolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref RoleName
+      PolicyName: geo-places
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # @foundry/places aws-provider.ts issues exactly these three commands:
+          # Autocomplete (checkout typeahead), Geocode and GetPlace (resolve).
+          # geo-places resources carry no account id — the empty field between
+          # region and "provider" is correct, not a typo.
+          - Sid: GeoPlaces
+            Effect: Allow
+            Action:
+              - geo-places:Autocomplete
+              - geo-places:Geocode
+              - geo-places:GetPlace
+            Resource: !Sub "arn:aws:geo-places:${AWS::Region}::provider/default"
