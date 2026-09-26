@@ -8,16 +8,18 @@ import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { TableCell } from "@foundry/ui/table";
 import type { SortState } from "@/lib/list/sort";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";
+import { CustomerInviteCell } from "./customer-invite-cell";
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift. (The leading "#" and ID columns are added by DataTable.)
-const COLUMNS: readonly Column<CustomerSortColumn | "latestStatus">[] = [
+const COLUMNS: readonly Column<CustomerSortColumn | "latestStatus" | "invite">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "email", label: "Email", sortable: true },
   { key: "phone", label: "Phone", sortable: true },
   { key: "orders", label: "Orders", sortable: true, align: "right" },
   { key: "latestStatus", label: "Latest status" },
+  { key: "invite", label: "Invite" },
 ];
 
 export function CustomersList({
@@ -61,6 +63,9 @@ export function CustomersList({
             <TableCell className="text-right tabular-nums">{c.orderCount}</TableCell>
             <TableCell>
               {c.latestStatus ? <OrderStatusBadge status={c.latestStatus} /> : "—"}
+            </TableCell>
+            <TableCell>
+              <CustomerInviteCell email={c.email} hasPassword={c.hasPassword} />
             </TableCell>
           </>
         )}

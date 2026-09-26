@@ -169,6 +169,10 @@ export type CustomerRow = {
   phone: string | null;
   orderCount: number;
   latestStatus: string | null;
+  // True once a credential password exists. passwordSet defaults true on this
+  // table, so it cannot tell a checkout-provisioned customer (no password yet)
+  // from someone who finished setup.
+  hasPassword: boolean;
 };
 
 export type CustomerSortColumn = "name" | "email" | "phone" | "orders";
@@ -214,6 +218,14 @@ export async function listCustomersPage(
       phone: users.phone,
       orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
       latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
+      // Correlated EXISTS, not a join: a second left join would fan the order
+      // count out by one row per account.
+      hasPassword: sql<boolean>`exists (
+        select 1 from ${account}
+        where ${account.userId} = ${users.id}
+          and ${account.providerId} = 'credential'
+          and ${account.password} is not null
+      )`,
     })
     .from(users)
     .leftJoin(orders, eq(orders.userId, users.id))

@@ -35,6 +35,7 @@ describe("listCustomersPage", () => {
     const firstPage = await listCustomersPage(scope, { page: 0, size: 1 });
     expect(firstPage.items.length).toBe(1);
     expect(firstPage.total).toBe(2);
+    expect(firstPage.items[0].hasPassword).toBe(false);
     expect(firstPage.size).toBe(1);
 
     const secondPage = await listCustomersPage(scope, { page: 1, size: 1 });
