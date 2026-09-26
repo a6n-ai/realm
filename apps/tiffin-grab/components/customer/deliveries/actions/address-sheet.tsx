@@ -8,6 +8,7 @@ import { setMyDeliveryAddress } from "@/app/(customer)/me/deliveries/actions";
 import { Button, Notice, OptionCard, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
+import { currentSavedAddressId } from "@/lib/deliveries-view/current-address";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
 
@@ -15,8 +16,9 @@ import { useCommit } from "./use-commit";
 export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const av = actionAvailability(trip, Date.now(), plan.ctx).address;
   const addresses = plan.savedAddresses;
-  const [picked, setPicked] = useState<string | null>(
-    addresses.find((a) => a.isDefault)?.publicId ?? addresses[0]?.publicId ?? null,
+  // Open on where this delivery goes today (its own address, else the plan's), not the default.
+  const [picked, setPicked] = useState<string | null>(() =>
+    currentSavedAddressId(trip.addressOverride ?? null, plan.sub, addresses),
   );
   const [draft, setDraft] = useState<AddressValues>({});
   const { pending, error, run } = useCommit(onDone);

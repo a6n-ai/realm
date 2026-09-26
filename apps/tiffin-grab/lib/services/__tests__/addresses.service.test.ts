@@ -123,4 +123,13 @@ describe("addressService (tiffin-grab hooks)", () => {
     expect(rows).toHaveLength(2);
     expect(rows.filter((r) => r.isDefault)).toHaveLength(1);
   });
+
+  it("the out-of-zone refusal counts deliveries in plain English", async () => {
+    const { scope, home, fri } = await setup();
+    await expect(addressService.update(scope, home.publicId, { ...HOME, postalCode: "K1A 0B1" }))
+      .rejects.toThrow("We don't deliver to K1A 0B1 — 2 upcoming deliveries use this address");
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 60_000 }).where(eq(deliveries.id, fri.id));
+    await expect(addressService.update(scope, home.publicId, { ...HOME, postalCode: "K1A 0B1" }))
+      .rejects.toThrow("We don't deliver to K1A 0B1 — 1 upcoming delivery uses this address");
+  });
 });

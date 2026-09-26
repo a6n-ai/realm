@@ -57,6 +57,11 @@ describe("buildTrips status", () => {
     expect(t.coversLabel).toBe("Covers Fri + Sat + Sun");
     expect(one({ date: "2026-09-23" }).units).toBe(1);
   });
+  it("carries a re-addressed delivery's own address; inheriting ones have none", () => {
+    expect(one({ date: "2026-09-23", addressOverride: { addressLine: "200 Bay St", postalCode: "M5J 2J1" } }).addressOverride)
+      .toEqual({ addressLine: "200 Bay St", postalCode: "M5J 2J1" });
+    expect(one({ date: "2026-09-23" }).addressOverride).toBeNull();
+  });
   it("sorts by date and keeps mergedInto", () => {
     const ts = buildTrips([day({ date: "2026-09-28", status: "skipped", combinedInto: "2026-09-30" }), day({ date: "2026-09-23" })], NOW, plan);
     expect(ts.map((t) => t.date)).toEqual(["2026-09-23", "2026-09-28"]);

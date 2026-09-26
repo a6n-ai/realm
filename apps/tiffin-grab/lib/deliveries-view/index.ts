@@ -28,6 +28,8 @@ export type CalendarDayInput = {
   rescheduled?: boolean;
   /** Day this trip's tiffin moved to (make-up row), for the "Moved to" label. */
   movedTo?: string;
+  /** This delivery's own address when re-addressed; null/absent = it follows the plan. */
+  addressOverride?: { addressLine: string; postalCode: string } | null;
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
 };
@@ -68,6 +70,8 @@ export type Trip = {
   movedTo?: string | null;
   /** Another trip was merged into this one: it carries a moved tiffin, so it cannot be moved again. */
   hasMovedIn?: boolean;
+  /** This delivery's own address when re-addressed; null = it follows the plan's address. */
+  addressOverride?: { addressLine: string; postalCode: string } | null;
 };
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -114,6 +118,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         orderId,
         date: d.date,
         deliveryId: d.deliveryId ?? null,
+        addressOverride: d.addressOverride ?? null,
         units: d.units ?? 1,
         coversDates: covers,
         extraDates: d.extras ?? [],

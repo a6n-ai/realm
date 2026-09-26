@@ -27,7 +27,8 @@ export type PlanView = {
   savedAddresses: SavedAddress[];
 };
 
-type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "pooledAt">;
+type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "pooledAt"> &
+  Partial<Pick<CustomerDelivery, "addressLine" | "postalCode">>;
 
 export function toCalendarInputs(a: {
   days: CalendarDay[];
@@ -45,6 +46,7 @@ export function toCalendarInputs(a: {
     return {
       ...d,
       deliveryId: r?.publicId,
+      addressOverride: r?.addressLine && r.postalCode ? { addressLine: r.addressLine, postalCode: r.postalCode } : null,
       cutoffAt: r?.cutoffAt,
       pooled: r?.pooledAt != null,
       rescheduled: r ? a.makeupSources.has(r.id.toString()) : false,

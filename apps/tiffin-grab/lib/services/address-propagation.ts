@@ -79,7 +79,10 @@ async function retarget(tx: AddressTx, fromAddressId: bigint, toAddressId: bigin
   await lockOrders(tx, [...affected.map((d) => d.orderId), ...planOrders.map((o) => o.id)]);
   const zoneId = await zoneFor(to, planOrders[0]?.orgId ?? null);
   if (zoneId == null && affected.length > 0) {
-    throw new ValidationError(`We don't deliver to ${to.postalCode} — ${affected.length} upcoming deliveries use this address`);
+    const n = affected.length;
+    throw new ValidationError(
+      `We don't deliver to ${to.postalCode} — ${n} upcoming ${n === 1 ? "delivery uses" : "deliveries use"} this address`,
+    );
   }
   const editableIds = new Set(affected.map((d) => d.id));
   for (const o of planOrders) {

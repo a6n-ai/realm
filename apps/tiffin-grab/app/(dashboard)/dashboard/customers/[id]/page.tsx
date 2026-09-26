@@ -71,7 +71,14 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
   const contact = [data.profile.phone ? formatPhone(data.profile.phone) : null, data.profile.email]
     .filter(Boolean)
     .join(" · ");
-  const address = [data.profile.addressLine, data.profile.city, data.profile.province, data.profile.postalCode]
+  // The default saved address is the account's address now; the users.address columns are
+  // only a fallback until every customer's book is backfilled.
+  const defaultSaved = savedAddresses.find((a) => a.isDefault);
+  const address = (
+    defaultSaved
+      ? [defaultSaved.addressUnit ? `${defaultSaved.addressUnit} – ${defaultSaved.addressLine}` : defaultSaved.addressLine, defaultSaved.city, defaultSaved.postalCode]
+      : [data.profile.addressLine, data.profile.city, data.profile.province, data.profile.postalCode]
+  )
     .filter(Boolean)
     .join(", ");
 
