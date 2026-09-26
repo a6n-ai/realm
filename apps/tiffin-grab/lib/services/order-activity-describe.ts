@@ -39,6 +39,12 @@ export function describeActivity(a: OrderActivityLike): string {
       return a.note ? `Payment rejected — ${a.note}` : "Payment rejected";
     case "route_pushed":
       return a.note ? `Route — ${a.note}` : "Sent to route planning";
+    case "route_completed":
+      return a.note ? `Route completed — ${a.note}` : "Route completed";
+    case "category_swap_applied":
+      return a.note ? `Category swap applied — ${a.note}` : "Category swap applied";
+    case "category_swap_removed":
+      return a.note ? `Category swap removed — ${a.note}` : "Category swap removed";
     default:
       return a.note ?? a.type.replaceAll("_", " ");
   }

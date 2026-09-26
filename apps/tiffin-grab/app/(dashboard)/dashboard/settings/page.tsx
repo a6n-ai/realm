@@ -5,6 +5,7 @@ import {
   CreditCardIcon,
   HelpCircleIcon,
   PuzzleIcon,
+  ScrollTextIcon,
   SettingsIcon,
   StarIcon,
   UsersIcon,
@@ -41,6 +42,13 @@ export default async function SettingsPage() {
       description: "Timezone and order cutoff settings.",
       icon: SettingsIcon,
       href: "/dashboard/settings/general",
+    },
+    {
+      key: "logs",
+      label: "Logs",
+      description: "Customer and staff activity — meals, address, moved tiffins, and more.",
+      icon: ScrollTextIcon,
+      href: "/dashboard/settings/logs",
     },
     {
       key: "lead-sources",
