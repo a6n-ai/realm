@@ -58,8 +58,18 @@ export async function sendVerification(user: { email?: string | null }, url: str
   );
 }
 
-/** Branded invite email for the organization plugin's staff-invite flow. */
-export async function sendStaffInvitation(input: { email: string; role: string; inviteUrl: string }): Promise<void> {
+/**
+ * Branded invite email for the organization plugin's staff-invite flow.
+ * `sendKey` must change per real send: better-auth's resend reuses the same
+ * invitation id (only expiresAt moves), and a key of just the email made every
+ * resend collide with the first outbox row and silently send nothing.
+ */
+export async function sendStaffInvitation(input: {
+  email: string;
+  role: string;
+  inviteUrl: string;
+  sendKey: string;
+}): Promise<void> {
   await db.transaction((tx) =>
     enqueueNotification(tx, {
       event: "staff_invitation",
@@ -69,7 +79,7 @@ export async function sendStaffInvitation(input: { email: string; role: string; 
       data: { role: input.role, inviteUrl: input.inviteUrl },
       channels: ["email"],
       kind: "transactional",
-      dedupeKey: `staff_invitation:${input.email.toLowerCase()}`,
+      dedupeKey: `staff_invitation:${input.email.toLowerCase()}:${input.sendKey}`,
     }),
   );
 }

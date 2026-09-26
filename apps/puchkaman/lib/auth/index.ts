@@ -177,7 +177,12 @@ export const auth = betterAuth({
       allowUserToCreateOrganization: (user) => user.role !== Role.USER,
       sendInvitationEmail: async (data) => {
         const url = new URL(`/accept-invitation/${data.invitation.id}`, process.env.BETTER_AUTH_URL).toString();
-        await sendStaffInvitation({ email: data.email, role: data.invitation.role, inviteUrl: url });
+        await sendStaffInvitation({
+          email: data.email,
+          role: data.invitation.role,
+          inviteUrl: url,
+          sendKey: `${data.invitation.id}:${new Date(data.invitation.expiresAt).getTime()}`,
+        });
       },
     }),
     nextCookies(),

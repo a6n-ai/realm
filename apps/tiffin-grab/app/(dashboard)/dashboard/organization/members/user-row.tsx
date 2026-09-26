@@ -11,7 +11,7 @@ import { Switch } from "@foundry/ui/switch";
 import { TableCell } from "@foundry/ui/table";
 import { RowActions } from "@foundry/design-system";
 import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
-import { resetStaffPassword, setUserFlag, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
+import { sendStaffAccessEmail, setUserFlag, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
 import type { UserListRow } from "./users-list";
 
 const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
@@ -80,14 +80,10 @@ export function FlagToggles({ id, flags }: { id: string; flags: FlagState[] }) {
   );
 }
 
-// Admin-only: mail a staff member the OTP code — the same send either sets up
-// a brand-new account (invite never completed) or resets an existing password,
-// so one server call covers both; only the label/icon differ by passwordSet.
-// Staff rows only. "icon": tooltip icon button for a table row. "button":
-// labeled outline button for the detail page header (mirrors customers/[id]'s
-// ResendInviteButton).
-// Members rows always have a `member` row, so createInvitation-based resend
-// would throw USER_IS_ALREADY_A_MEMBER — real invite resend lives on Invites.
+// Staff rows only. With a password: mails a reset code. Without one: re-sends
+// the invite email (sign in with an email code, then choose a password) — see
+// sendStaffAccessEmail. "icon": tooltip icon button for a table row. "button":
+// labeled outline button for the detail page header.
 export function ResetPasswordButton({
   id,
   role,
@@ -105,9 +101,12 @@ export function ResetPasswordButton({
   const onClick = () =>
     start(async () => {
       try {
-        const { email } = await resetStaffPassword(id);
-        toast.success(passwordSet ? "Reset code sent" : "Invite resent", {
-          description: `They'll get a 6-digit code at ${email} to set ${passwordSet ? "a new" : "their"} password.`,
+        const { email, kind } = await sendStaffAccessEmail(id);
+        toast.success(kind === "reset" ? "Reset code sent" : "Invite resent", {
+          description:
+            kind === "reset"
+              ? `They'll get a 6-digit code at ${email} to set a new password.`
+              : `They'll get an invite at ${email} to sign in and choose their password.`,
           duration: 8000,
         });
       } catch {
