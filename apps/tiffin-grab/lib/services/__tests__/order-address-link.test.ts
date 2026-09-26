@@ -6,7 +6,8 @@ import { customerAddresses, deliveries, ledgerEntries, orders, payments, users }
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolveAndPersist: async () => null }));
+const geocode = vi.fn(async () => null);
+vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolveAndPersist: (...a: unknown[]) => geocode(...(a as [])) }));
 const { createOrder } = await import("../orders.service");
 const { addressService } = await import("../addresses.service");
 
@@ -88,5 +89,14 @@ describe("createOrder links a saved address", () => {
     const stranger = await input({ addressPublicId: foreign.publicId });
     stranger.contact = { ...CONTACT, phone: "+16475550444", email: "stranger@test.invalid" };
     await expect(createOrder(stranger)).rejects.toThrow("Address not found");
+  });
+
+  it("never geocodes when creating an order — checkout supplies coords, other callers leave them null", async () => {
+    geocode.mockClear();
+    const { publicId } = await createOrder(await input());
+    expect(geocode).not.toHaveBeenCalled();
+    const order = await orderBy(publicId);
+    const [saved] = await db.select().from(customerAddresses).where(eq(customerAddresses.userId, order.userId!));
+    expect(saved!.lat).toBeNull();
   });
 });
