@@ -1,7 +1,7 @@
 "use client";
 import { ChevronLeft, ChevronRight, Truck, Utensils } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { StatusDot, STATUS_LABEL, type DeliveryStatus } from "@/components/customer/kit";
+import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { addDays, weekDays } from "@/lib/deliveries-view/week";
 
@@ -10,9 +10,16 @@ export type StripDot = { orderId: string; status: DeliveryStatus; truck: boolean
 const WD = ["M", "T", "W", "T", "F", "S", "S"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
-/** Status dot: colour is the delivery status (delivered, upcoming, hold, vacation), not the plan. */
+/** Status bar: colour is the delivery status (delivered, upcoming, hold, vacation), not the plan. */
+// Combined keeps StatusDot's dashed-outline shape so it isn't told apart by colour alone.
 function Dot({ status }: { status: DeliveryStatus }) {
-  return <StatusDot decorative status={status} className="size-2.5" />;
+  const combined = status === "combined";
+  return (
+    <span
+      className={cn("h-1.5 min-w-0 max-w-5 flex-1 rounded-full", combined && "border-[1.5px] border-dashed")}
+      style={combined ? { borderColor: STATUS_COLOR.combined } : { background: STATUS_COLOR[status] }}
+    />
+  );
 }
 
 const label = (r: string) => `${MON.format(d(r))} ${d(r).getUTCDate()} – ${MON.format(d(addDays(r, 6))) === MON.format(d(r)) ? "" : `${MON.format(d(addDays(r, 6)))} `}${d(addDays(r, 6)).getUTCDate()}`;
@@ -89,7 +96,7 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
                         <span className="flex justify-start">{ds.some((x) => x.truck) && <Truck className="size-2.5 text-[var(--muted-foreground,#6E6558)]" />}</span>
                       </span>
                       <b aria-hidden className={cn("grid size-7 place-items-center rounded-full text-[16px] tabular-nums", iso === today && !sel && "border-2 border-[var(--primary)]")}>{d(iso).getUTCDate()}</b>
-                      <span aria-hidden className="flex h-3 items-center justify-center gap-0.5">
+                      <span aria-hidden className="flex h-3 w-full items-center justify-center gap-0.5 px-1.5">
                         {!picker && ds.map((x, k) => <Dot key={k} status={x.status} />)}
                       </span>
                     </button>

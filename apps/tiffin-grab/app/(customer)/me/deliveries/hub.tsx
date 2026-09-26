@@ -80,7 +80,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   }
 
   const tripWeek = tripParam && /^\d{4}-\d{2}-\d{2}$/.test(tripParam) ? mondayOf(tripParam) : null;
-  const requested = parseWeekParam(weekParam) ?? tripWeek ?? defaultWeek(today, agenda);
+  const requested = parseWeekParam(weekParam) ?? tripWeek ?? defaultWeek(today, win?.first);
   const weekStart = requested < firstWeek ? firstWeek : requested > lastWeek ? lastWeek : requested;
   const from = addDays(weekStart, -3);
   const until = addDays(weekStart, 6);
