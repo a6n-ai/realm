@@ -82,6 +82,18 @@ describe("Phase 8 swap-rule safeguards", () => {
     expect(self.fromCategoryId).toBe(self.toCategoryId);
   });
 
+  it("stores exchange overrides on add, keeps them when an edit omits them, replaces them when given", async () => {
+    const pair = await dishCategoriesService.addSwapPair(CAT_A, CAT_B, null, { exchangeOverrides: [{ giveTu: 1.5, receiveTu: 1 }] });
+    createdSwapIds.push(pair.publicId);
+    expect(pair.exchangeOverrides).toEqual([{ giveTu: 1.5, receiveTu: 1 }]);
+
+    const kept = await dishCategoriesService.editSwapPair(pair.publicId, CAT_A, CAT_B, null);
+    expect(kept.exchangeOverrides).toEqual([{ giveTu: 1.5, receiveTu: 1 }]);
+
+    const cleared = await dishCategoriesService.editSwapPair(pair.publicId, CAT_A, CAT_B, null, { exchangeOverrides: [] });
+    expect(cleared.exchangeOverrides).toEqual([]);
+  });
+
   it("rejects disabled/missing categories and unknown plans; allows global rules", async () => {
     await expect(dishCategoriesService.addSwapPair("no-such-cat", CAT_B, planPublicId)).rejects.toThrow(
       /disabled or not found/i,

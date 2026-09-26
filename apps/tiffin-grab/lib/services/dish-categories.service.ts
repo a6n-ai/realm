@@ -271,6 +271,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
           fromCategoryId: categorySwapPairs.fromCategoryId,
           toCategoryId: categorySwapPairs.toCategoryId,
           planId: categorySwapPairs.planId,
+          exchangeOverrides: categorySwapPairs.exchangeOverrides,
         })
         .from(categorySwapPairs),
       db.select({ id: dishCategories.id, key: dishCategories.key, label: dishCategories.label }).from(dishCategories),
@@ -287,6 +288,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       // Null = the rule applies to every plan.
       planId: p.planId == null ? null : (planById.get(p.planId)?.publicId ?? ""),
       planName: p.planId == null ? "All plans" : (planById.get(p.planId)?.name ?? ""),
+      exchangeOverrides: p.exchangeOverrides,
     }));
   }
 
@@ -298,7 +300,12 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return plan.id;
   }
 
-  async addSwapPair(fromKey: string, toKey: string, planPublicId?: string | null) {
+  async addSwapPair(
+    fromKey: string,
+    toKey: string,
+    planPublicId?: string | null,
+    opts: { exchangeOverrides?: ExchangeOverride[]; actorId?: bigint | null } = {},
+  ) {
     const [rows, planId] = await Promise.all([
       db
         .select({ key: dishCategories.key, id: dishCategories.id, enabled: dishCategories.enabled })
@@ -314,7 +321,11 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     try {
       const [created] = await db
         .insert(categorySwapPairs)
-        .values({ fromCategoryId: from.id, toCategoryId: to.id, planId })
+        .values({
+          fromCategoryId: from.id, toCategoryId: to.id, planId,
+          exchangeOverrides: opts.exchangeOverrides ?? [],
+          createdBy: opts.actorId ?? null, updatedBy: opts.actorId ?? null,
+        })
         .returning();
       return created;
     } catch (e) {
@@ -326,7 +337,13 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   }
 
   /** Edits an existing swap rule's category pair and/or plan (null plan = all plans). */
-  async editSwapPair(publicId: string, fromKey: string, toKey: string, planPublicId?: string | null) {
+  async editSwapPair(
+    publicId: string,
+    fromKey: string,
+    toKey: string,
+    planPublicId?: string | null,
+    opts: { exchangeOverrides?: ExchangeOverride[]; actorId?: bigint | null } = {},
+  ) {
     const [rows, planId] = await Promise.all([
       db
         .select({ key: dishCategories.key, id: dishCategories.id, enabled: dishCategories.enabled })
@@ -342,7 +359,12 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     try {
       const updated = await db
         .update(categorySwapPairs)
-        .set({ fromCategoryId: from.id, toCategoryId: to.id, planId })
+        .set({
+          fromCategoryId: from.id, toCategoryId: to.id, planId,
+          // Omitted = keep what is there; applied swaps keep their own receive_tu snapshot either way.
+          ...(opts.exchangeOverrides ? { exchangeOverrides: opts.exchangeOverrides } : {}),
+          updatedBy: opts.actorId ?? null,
+        })
         .where(eq(categorySwapPairs.publicId, publicId))
         .returning();
       if (updated.length === 0) throw new ValidationError("Swap pair not found");

@@ -3,13 +3,16 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeftRightIcon, ArrowRightIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ArrowLeftRightIcon, ArrowRightIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import { SectionCard, DataTable, ResponsiveDialog, type Column } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
 import { TableCell } from "@foundry/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { addSwapPair, editSwapPair, removeSwapPair } from "./actions";
 import { naturalSwapConversion, type AdminTuCategory } from "../admin-tu-hints";
+import { formatTuHuman } from "@/lib/menu/format-tu";
+import type { ExchangeOverride } from "@/lib/menu/swap-rules";
 
 export type CategoryOption = { key: string; label: string };
 export type PlanOption = { value: string; label: string };
@@ -22,7 +25,14 @@ export type SwapPairRow = {
   // Null = the rule applies to every plan.
   planId: string | null;
   planName: string;
+  exchangeOverrides: ExchangeOverride[];
 };
+
+/** Admin enters natural units (12 oz, 8 roti); the category's unit is fixed, only the amount is overridden. */
+type OverrideDraft = { give: string; receive: string };
+
+const toNatural = (cat: AdminTuCategory, tu: number) => String(Number((tu * cat.tuUnitSize).toFixed(2)));
+const unitOf = (cat: AdminTuCategory | undefined) => cat?.tuUnitLabel ?? "TU";
 
 // Radix Select rejects an empty-string item value, so "all plans" needs a
 // real sentinel — translated back to null at the service-call boundary.
@@ -32,7 +42,7 @@ type Cols = "pair" | "plan" | "exchange" | "actions";
 const COLUMNS: readonly Column<Cols>[] = [
   { key: "pair", label: "Swap" },
   { key: "plan", label: "Plan" },
-  { key: "exchange", label: "Natural exchange" },
+  { key: "exchange", label: "Exchange" },
   { key: "actions", label: "", align: "right" },
 ];
 
@@ -71,7 +81,9 @@ export function SwapPairGrid({
         emptyIcon={ArrowLeftRightIcon}
         emptyMessage="No swap rules configured yet."
         renderRow={(pair) => {
-          const conv = naturalSwapConversion(tuByKey.get(pair.fromCategory), tuByKey.get(pair.toCategory));
+          const fromTu = tuByKey.get(pair.fromCategory);
+          const toTu = tuByKey.get(pair.toCategory);
+          const conv = naturalSwapConversion(fromTu, toTu);
           return (
           <>
             <TableCell>
@@ -85,7 +97,16 @@ export function SwapPairGrid({
               <span className="text-sm">{pair.planName}</span>
             </TableCell>
             <TableCell>
-              {conv ? (
+              {pair.exchangeOverrides.length > 0 && fromTu && toTu ? (
+                <div className="text-sm">
+                  {pair.exchangeOverrides.map((o) => (
+                    <div key={o.giveTu} className="font-medium">
+                      {formatTuHuman(fromTu, o.giveTu)} → {formatTuHuman(toTu, o.receiveTu)}
+                    </div>
+                  ))}
+                  <div className="text-muted-foreground text-xs">Other amounts: natural exchange</div>
+                </div>
+              ) : conv ? (
                 <div className="text-sm">
                   <div className="font-medium">{conv.naturalLine}</div>
                   <div className="text-muted-foreground text-xs">{conv.tuLine}</div>
@@ -180,7 +201,14 @@ function SwapPairDialog({
   const [toCategory, setToCategory] = React.useState(pair?.toCategory ?? "");
   const [planId, setPlanId] = React.useState(pair ? (pair.planId ?? ALL_PLANS) : "");
   const tuByKey = React.useMemo(() => new Map(categoryTu.map((c) => [c.key, c])), [categoryTu]);
-  const conversion = naturalSwapConversion(tuByKey.get(fromCategory), tuByKey.get(toCategory));
+  const fromTu = tuByKey.get(fromCategory);
+  const toTu = tuByKey.get(toCategory);
+  const conversion = naturalSwapConversion(fromTu, toTu);
+  const [overrides, setOverrides] = React.useState<OverrideDraft[]>(() => {
+    const f = pair && tuByKey.get(pair.fromCategory);
+    const t = pair && tuByKey.get(pair.toCategory);
+    return f && t ? pair.exchangeOverrides.map((o) => ({ give: toNatural(f, o.giveTu), receive: toNatural(t, o.receiveTu) })) : [];
+  });
 
   // A swap rule may be scoped to one plan, or left at "All plans". The
   // per-plan choices are only the plans both categories are attached to,
@@ -199,6 +227,7 @@ function SwapPairDialog({
       setFromCategory("");
       setToCategory("");
       setPlanId("");
+      setOverrides([]);
     }
   };
 
@@ -208,13 +237,26 @@ function SwapPairDialog({
       return;
     }
     const resolvedPlanId = planId === ALL_PLANS || !planId ? null : planId;
+    let exchangeOverrides: ExchangeOverride[] = [];
+    if (overrides.length > 0) {
+      if (!fromTu || !toTu) {
+        toast.error("Overrides need both categories' unit settings");
+        return;
+      }
+      const parsed = overrides.map((o) => ({ give: Number(o.give), receive: Number(o.receive) }));
+      if (parsed.some((o) => !(o.give > 0) || !(o.receive > 0))) {
+        toast.error("Enter a positive given and received amount on every override");
+        return;
+      }
+      exchangeOverrides = parsed.map((o) => ({ giveTu: o.give / fromTu.tuUnitSize, receiveTu: o.receive / toTu.tuUnitSize }));
+    }
     start(async () => {
       try {
         if (mode === "add") {
-          await addSwapPair({ fromCategory, toCategory, planId: resolvedPlanId });
+          await addSwapPair({ fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides });
           toast.success("Swap rule added");
         } else if (pair) {
-          await editSwapPair({ id: pair.id, fromCategory, toCategory, planId: resolvedPlanId });
+          await editSwapPair({ id: pair.id, fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides });
           toast.success("Swap rule updated");
         }
         router.refresh();
@@ -230,7 +272,7 @@ function SwapPairDialog({
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(next) : close())}
       title={mode === "add" ? "Add swap rule" : "Edit swap rule"}
-      description="Choose which categories may exchange. Natural amounts are calculated from Dish Category settings — you do not enter a conversion ratio."
+      description="Choose which categories may exchange. Amounts follow Dish Category settings unless you add an exchange override."
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={close} disabled={pending}>
@@ -249,6 +291,8 @@ function SwapPairDialog({
             onValueChange={(v) => {
               setFromCategory(v);
               setPlanId("");
+              // Overrides are in the old category's units; they don't carry over.
+              setOverrides([]);
             }}
           >
             <SelectTrigger className="w-40"><SelectValue placeholder="From category" /></SelectTrigger>
@@ -264,6 +308,7 @@ function SwapPairDialog({
             onValueChange={(v) => {
               setToCategory(v);
               setPlanId("");
+              setOverrides([]);
             }}
           >
             <SelectTrigger className="w-40"><SelectValue placeholder="To category" /></SelectTrigger>
@@ -293,6 +338,46 @@ function SwapPairDialog({
           </div>
         ) : fromCategory && toCategory ? (
           <p className="text-muted-foreground text-sm">Natural conversion unavailable — check each category&apos;s TU settings.</p>
+        ) : null}
+        {fromTu && toTu ? (
+          <div className="space-y-2">
+            <div>
+              <p className="text-sm font-medium">Exchange overrides</p>
+              <p className="text-muted-foreground text-xs">
+                {overrides.length === 0
+                  ? "Natural exchange. Add a line to change what one given portion buys."
+                  : "A given amount without a line uses the natural exchange."}
+              </p>
+            </div>
+            {overrides.map((o, i) => {
+              const set = (patch: Partial<OverrideDraft>) =>
+                setOverrides((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+              return (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    type="number" inputMode="decimal" min={0} step="any" className="w-20"
+                    aria-label={`Given ${fromTu.label}`} value={o.give} onChange={(e) => set({ give: e.target.value })}
+                  />
+                  <span className="text-muted-foreground w-12 text-sm">{unitOf(fromTu)}</span>
+                  <ArrowRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                  <Input
+                    type="number" inputMode="decimal" min={0} step="any" className="w-20"
+                    aria-label={`Received ${toTu.label}`} value={o.receive} onChange={(e) => set({ receive: e.target.value })}
+                  />
+                  <span className="text-muted-foreground w-12 text-sm">{unitOf(toTu)}</span>
+                  <Button
+                    size="icon-sm" variant="ghost" aria-label="Remove override"
+                    onClick={() => setOverrides((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <XIcon className="size-4" />
+                  </Button>
+                </div>
+              );
+            })}
+            <Button size="sm" variant="outline" onClick={() => setOverrides((prev) => [...prev, { give: "", receive: "" }])}>
+              <PlusIcon data-icon="inline-start" /> Add override
+            </Button>
+          </div>
         ) : null}
       </div>
     </ResponsiveDialog>

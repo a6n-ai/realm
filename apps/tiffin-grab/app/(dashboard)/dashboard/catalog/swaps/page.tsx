@@ -43,6 +43,7 @@ async function SwapRulesData() {
     toLabel: p.toLabel,
     planId: p.planId,
     planName: p.planName,
+    exchangeOverrides: p.exchangeOverrides,
   }));
 
   return (
@@ -50,7 +51,7 @@ async function SwapRulesData() {
       <PageHeader
         icon={ArrowLeftRightIcon}
         title="Swap Rules"
-        subtitle="Which categories customers may exchange, per plan. Whether a swap actually runs on a given order also depends on that plan having a dish in the target category. Exchange is always 1 TU for 1 TU."
+        subtitle="Which categories customers may exchange, per plan. Whether a swap actually runs on a given order also depends on that plan having a dish in the target category. Exchange is 1 TU for 1 TU unless a rule sets an exchange override."
       />
       <SwapPairGrid
         categoryOptions={categoryOptions}
