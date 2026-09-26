@@ -152,8 +152,8 @@
   --accent-badge-foreground: #F7FBF5;
   /* Customer status palette: always paired with a label + shape, never color alone. */
   --primary-wash: #FBE3D2;
-  --s-delivered: #047857;
-  --s-delivered-fg: #047857;
+  --s-delivered: #10B981;
+  --s-delivered-fg: #10B981;
   --s-delivered-bg: #D1FAE5;
   --s-upcoming: #0369A1;
   --s-upcoming-fg: #0369A1;

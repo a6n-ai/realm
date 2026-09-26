@@ -118,9 +118,9 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       else if (d.status === "cancelled" || (d.status !== "scheduled" && past)) status = "locked";
       else if (d.status === "paused") status = "vacation";
       else if (d.status === "skipped") status = "hold";
-      else if (!past) status = "upcoming";
       else if (d.optimoCompletionStatus === "success") status = "delivered";
       else if (d.optimoCompletionStatus === "failed") status = "failed";
+      else if (!past) status = "upcoming";
       else status = zonedDateIso(now, plan.timezone) >= d.date ? "delivered" : "cutoff-passed";
       const own = d.mealsByDate?.[d.date] ?? d.meal;
       return {
