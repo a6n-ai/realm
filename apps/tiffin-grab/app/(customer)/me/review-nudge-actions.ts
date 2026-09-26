@@ -9,5 +9,5 @@ export async function markReviewNudgeDone(): Promise<void> {
   const email = session?.user?.email;
   if (!email) return;
   await reviewNudgeStore.markDone(email);
-  revalidatePath("/me");
+  revalidatePath("/me", "layout");
 }

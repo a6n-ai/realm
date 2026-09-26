@@ -18,7 +18,7 @@ async function scope() {
 
 function refresh() {
   revalidatePath("/me/account");
-  revalidatePath("/me");
+  revalidatePath("/me", "layout");
 }
 
 export async function createMyAddress(input: AddressInput): Promise<ActionResult<SavedAddress>> {
