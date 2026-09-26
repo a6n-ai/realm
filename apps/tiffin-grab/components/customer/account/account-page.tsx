@@ -43,7 +43,7 @@ function SectionBody({ k, user, role, addresses }: { k: AccountSectionKey; user:
     case "deliveryNotes":
       return <DeliveryNotesForm deliveryNotes={user.deliveryNotes} />;
     case "notifications":
-      return <NotificationsForm notifyEmail={user.notifyEmail} notifySms={user.notifySms} />;
+      return <NotificationsForm notifyEmail={user.notifyEmail} />;
     case "security":
       return <SecurityPanel email={user.email} staffPin={role === Role.USER ? null : { hasPin: user.hasPin }} />;
   }

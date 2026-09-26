@@ -53,7 +53,7 @@ function MenuButton({ active, onClick, className, children }: { active: boolean;
 const tabCls = (on: boolean) =>
   cn("flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold", on ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]");
 
-export function CustomerShell({ coinBalance, children }: { coinBalance: number; children: ReactNode }) {
+export function CustomerShell({ coinBalance, userPublicId, children }: { coinBalance: number; userPublicId: string; children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -61,6 +61,14 @@ export function CustomerShell({ coinBalance, children }: { coinBalance: number; 
   const tab = activeTab(pathname);
 
   useEffect(() => setOpen(false), [pathname]);
+
+  useEffect(() => {
+    const source = new EventSource(`/api/realtime?channel=${encodeURIComponent(`refresh:${userPublicId}`)}`);
+    source.onmessage = () => {
+      router.refresh();
+    };
+    return () => source.close();
+  }, [userPublicId, router]);
 
   const menuPill = cn(
     "inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-colors",

@@ -233,6 +233,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                     <div className="mt-6 hidden lg:block">
                       <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} />
                       {!locked && <div className="mt-4">
+                        {/* Feature hidden for phase 1
                         {ctx.onVacation ? (
                           <button type="button" className={linkCls} onClick={() => setActive("vacation")}>On vacation · Resume deliveries</button>
                         ) : vacAv?.ok === false ? (
@@ -240,6 +241,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                         ) : (
                           <button type="button" className={linkCls} onClick={() => setActive("vacation")}>Going away? Vacation</button>
                         )}
+                        */}
                       </div>}
                     </div>
                   </EatingCard>

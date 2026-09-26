@@ -253,6 +253,17 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
+        {(t.addressOverride || t.deliveryStrategyPublicId) && (
+          <div className="rounded-md border p-3 text-sm space-y-1">
+            <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-2">Delivery Override</span>
+            {t.deliveryStrategyPublicId && (
+              <p>Type: <span className="font-medium">{plan.deliveryStrategies.find(s => s.publicId === t.deliveryStrategyPublicId)?.name ?? "Unknown"}</span></p>
+            )}
+            {t.addressOverride && (
+              <p>Address: <span className="font-medium">{t.addressOverride.addressLine}, {t.addressOverride.postalCode}</span></p>
+            )}
+          </div>
+        )}
         {cats.length > 0 ? (
           <ul className="divide-y rounded-md border text-sm" aria-label="Meal">
             {cats.map((c) => (

@@ -159,3 +159,93 @@ export function portionHeaderHint(portions: (string | null)[]): string | null {
   if (unique.length === 1) return unique[0]!;
   return alive.join(" + ");
 }
+
+export type AnchoredSwap = {
+  publicId: string;
+  fromCategory: string;
+  toCategory: string;
+  qtyFrom: number;
+  qtyTo: number;
+  pending: boolean;
+};
+
+/** A composition row the customer exchanged — rendered where the row was, not under the new category. */
+export type SwappedRow = {
+  swap: AnchoredSwap;
+  /** What the row was ("12oz"). */
+  givePortion: string | null;
+  /** What it became ("12oz"). */
+  getPortion: string | null;
+  /** Cells the swap added to toCategory; they get their dish pickers inside this row. */
+  toCells: GridCell[];
+  toDishes: GridCell["dishes"];
+};
+
+export type AnchoredGroup = PickCategoryGroup & { swapped: SwappedRow[] };
+
+/**
+ * Keep each exchanged row in its original category, in place. Swaps front-splice
+ * fromCategory and append to toCategory, so the given rows are the leading base
+ * portions and the received cells are toCategory's trailing per-pick cells.
+ */
+export function anchorSwaps(args: {
+  groups: PickCategoryGroup[];
+  swaps: AnchoredSwap[];
+  categories: PickCategoryMeta[];
+  /** Base (pre-swap) portions per category. */
+  basePortions: Record<string, (string | null)[]>;
+  /** Amounts for bulk rows (roti count) where per-row portions don't exist. */
+  amounts: (s: AnchoredSwap) => { give: string; get: string } | null;
+}): AnchoredGroup[] {
+  const { groups, swaps, categories, basePortions, amounts } = args;
+  const byKey = new Map<string, AnchoredGroup>(
+    groups.map((g) => [g.key, { ...g, cells: [...g.cells], portions: [...g.portions], swapped: [] }]),
+  );
+  for (const s of swaps) {
+    if (byKey.has(s.fromCategory)) continue;
+    const meta = categories.find((c) => c.key === s.fromCategory);
+    if (!meta) continue;
+    byKey.set(meta.key, {
+      key: meta.key, label: meta.label, selectable: meta.selectable, chooseCount: 0,
+      cells: [], portions: [], dishes: [], swapped: [],
+    });
+  }
+
+  // Newest swap owns the newest trailing cells.
+  const received = new Map<string, { cells: GridCell[]; portions: (string | null)[] }>();
+  for (const s of [...swaps].reverse()) {
+    const to = byKey.get(s.toCategory);
+    const perPick = to && to.cells.length >= s.qtyTo && to.cells.every((c) => c.quantity === 1);
+    if (!to || !perPick) {
+      received.set(s.publicId, { cells: [], portions: [] });
+      continue;
+    }
+    const at = to.cells.length - s.qtyTo;
+    received.set(s.publicId, { cells: to.cells.splice(at), portions: to.portions.splice(at) });
+  }
+
+  const consumed = new Map<string, number>();
+  for (const s of swaps) {
+    const from = byKey.get(s.fromCategory);
+    if (!from) continue;
+    const start = consumed.get(s.fromCategory) ?? 0;
+    consumed.set(s.fromCategory, start + s.qtyFrom);
+    const base = (basePortions[s.fromCategory] ?? []).slice(start, start + s.qtyFrom);
+    const got = received.get(s.publicId)!;
+    const amt = amounts(s);
+    const give = base.length === s.qtyFrom && base.every(Boolean) ? base.join(" + ") : amt?.give ?? null;
+    const get = got.portions.length && got.portions.every(Boolean) ? got.portions.join(" + ") : amt?.get ?? null;
+    from.swapped.push({
+      swap: s,
+      givePortion: give,
+      getPortion: get,
+      toCells: got.cells,
+      toDishes: got.cells[0]?.dishes ?? byKey.get(s.toCategory)?.dishes ?? [],
+    });
+  }
+
+  const order = new Map(categories.map((c) => [c.key, c.sortOrder]));
+  return [...byKey.values()]
+    .filter((g) => g.cells.length > 0 || g.swapped.length > 0)
+    .sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
+}

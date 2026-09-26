@@ -2,9 +2,8 @@
  * Per-composition-row options for the customer Edit meal sheet (radio list).
  * Dish picks stay same-category; swap entries come only from backend validBundles.
  *
- * Swaps front-splice fromCategory rows, so exchange options attach only to the
- * first remaining cell of that category (index 0). Larger bundles (fromPicks>1)
- * still appear there and remove multiple leading rows when applied.
+ * Swaps front-splice fromCategory rows, so exchange options are live only on the
+ * first remaining cell of that category (index 0); later rows show them greyed.
  */
 
 import { validateMealRules, type SwapOption } from "./meal-validation";
@@ -84,14 +83,21 @@ export function swapOptionsAllowedByRules(args: {
   });
 }
 
-export type SlotDishOption = {
+type SlotOptionState = {
+  /** Shown greyed out: the customer can see the choice but not make it. */
+  disabled?: boolean;
+  /** Second line under the label ("Choose this instead", or why it's greyed out). */
+  note?: string;
+};
+
+export type SlotDishOption = SlotOptionState & {
   kind: "dish";
   value: string;
   label: string;
   dishId: string;
 };
 
-export type SlotSwapOption = {
+export type SlotSwapOption = SlotOptionState & {
   kind: "swap";
   value: string;
   label: string;
@@ -146,40 +152,69 @@ function swapLabel(
 /**
  * Options for one composition row. `cellIndexInCategory` is 0-based among the
  * remaining cells of that category (pickIndex order).
+ *
+ * Nothing the admin configured is hidden: a dish or swap the customer can't take
+ * right now comes back `disabled` with a note, so the row never changes shape.
  */
 export function buildSlotDropdownOptions(args: {
   cellIndexInCategory: number;
   categoryKey: string;
   dishes: readonly { id: string; name: string }[];
+  /** Dishes a meal rule refuses beside the other picks. */
+  disabledDishIds?: ReadonlySet<string>;
   swapOptions: readonly SwapOption[];
+  /** `swapOptionValue`s a meal rule allows; omit to allow every available bundle. */
+  allowedSwaps?: ReadonlySet<string>;
+  /**
+   * One pick per row (Sabzi 12oz, Sabzi 8oz): each row swaps itself only, so
+   * multi-row bundles ("uses 2 items") are left out. Bulk rows (8 roti) keep them.
+   */
+  onePerRow?: boolean;
   categoryLabel: (key: string) => string;
 }): SlotDropdownOption[] {
-  const { cellIndexInCategory, categoryKey, dishes, swapOptions, categoryLabel } = args;
+  const { cellIndexInCategory, categoryKey, dishes, disabledDishIds, swapOptions, allowedSwaps, onePerRow, categoryLabel } = args;
   const out: SlotDropdownOption[] = [];
 
   for (const d of dishes) {
+    const blocked = disabledDishIds?.has(d.id) ?? false;
     out.push({
       kind: "dish",
       value: dishOptionValue(d.id),
       label: d.name,
       dishId: d.id,
+      ...(blocked ? { disabled: true, note: "Not allowed with your other picks" } : {}),
     });
   }
 
-  // Only the leading row can be exchanged — matches front-splice semantics.
-  if (cellIndexInCategory !== 0) return out;
-
   for (const opt of swapOptions) {
-    if (!opt.available || opt.fromCategory !== categoryKey) continue;
+    if (opt.fromCategory !== categoryKey) continue;
     const toLabel = categoryLabel(opt.toCategory);
-    for (const bundle of opt.validBundles) {
+    const base = { kind: "swap" as const, fromCategory: opt.fromCategory, toCategory: opt.toCategory };
+    const bundles = opt.validBundles.filter((b) => !onePerRow || b.fromPicks === 1);
+    if (!opt.available || bundles.length === 0) {
       out.push({
-        kind: "swap",
+        ...base, fromPicks: 1, value: swapOptionValue(opt.fromCategory, opt.toCategory, 1), label: toLabel,
+        disabled: true, note: opt.reason ?? "Not available for this item",
+      });
+      continue;
+    }
+    // Swaps take the leading row of a category, so later rows wait their turn.
+    if (cellIndexInCategory !== 0) {
+      out.push({
+        ...base, fromPicks: 1, value: swapOptionValue(opt.fromCategory, opt.toCategory, 1), label: toLabel,
+        disabled: true, note: `Swap the ${categoryLabel(categoryKey)} above first`,
+      });
+      continue;
+    }
+    for (const bundle of bundles) {
+      const ok = !allowedSwaps || allowedSwaps.has(swapOptionValue(opt.fromCategory, opt.toCategory, bundle.fromPicks));
+      out.push({
+        ...base,
+        fromPicks: bundle.fromPicks,
         value: swapOptionValue(opt.fromCategory, opt.toCategory, bundle.fromPicks),
         label: swapLabel(toLabel, bundle),
-        fromCategory: opt.fromCategory,
-        toCategory: opt.toCategory,
-        fromPicks: bundle.fromPicks,
+        disabled: !ok || undefined,
+        note: ok ? "Choose this instead" : "Not allowed with your other picks",
       });
     }
   }

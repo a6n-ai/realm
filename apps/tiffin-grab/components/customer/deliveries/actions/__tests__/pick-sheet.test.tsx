@@ -256,7 +256,7 @@ describe("PickSheet", () => {
     expect(onDone).toHaveBeenCalledWith();
   });
 
-  it("shows Included for fixed categories with no admin outgoing swaps", async () => {
+  it("shows fixed categories as a greyed, already-picked box", async () => {
     load.mockResolvedValue(
       grid(
         [
@@ -277,7 +277,9 @@ describe("PickSheet", () => {
     show(trip({ coversDates: [mon] }));
     const riceSection = await screen.findByLabelText("Rice");
     expect(within(riceSection).getByText("Included")).toBeInTheDocument();
-    expect(screen.queryByRole("radiogroup", { name: /Rice/ })).toBeNull();
+    const fixed = within(riceSection).getByRole("radio", { name: /Jeera Rice/ });
+    expect(fixed).toBeDisabled();
+    expect(fixed).toHaveAttribute("aria-checked", "true");
   });
 
   it("shows radios on fixed categories when admin swap pairs start from that category", async () => {
@@ -323,7 +325,7 @@ describe("PickSheet", () => {
     expect(screen.getByRole("radio", { name: /^Jeera Rice$/ })).toBeInTheDocument();
     const swapRadio = screen.getByRole("radio", { name: /Roti · 2 roti/ });
     expect(swapRadio).toHaveTextContent("Choose this instead");
-    expect(screen.queryByText("Included")).toBeNull();
+    expect(screen.getByRole("radio", { name: /^Jeera Rice$/ })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Apply dishes to the whole week" })).toBeNull();
     fireEvent.click(swapRadio);
     await screen.findByText(/Swapped to Roti/);

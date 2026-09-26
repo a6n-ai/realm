@@ -294,8 +294,8 @@ export function DeliveryNotesForm({ deliveryNotes }: { deliveryNotes: string }) 
   );
 }
 
-export function NotificationsForm({ notifyEmail, notifySms }: { notifyEmail: boolean; notifySms: boolean }) {
-  const [state, setState] = useState({ notifyEmail, notifySms });
+export function NotificationsForm({ notifyEmail }: { notifyEmail: boolean }) {
+  const [state, setState] = useState({ notifyEmail });
   const s = useSave();
   const set = (patch: Partial<typeof state>) => {
     const prev = state;
@@ -306,7 +306,6 @@ export function NotificationsForm({ notifyEmail, notifySms }: { notifyEmail: boo
     <Block title="Notifications" subtitle="Choose how we reach you about orders and account updates.">
       <ListGroup>
         <ListRow label="Email" sublabel="Confirmations, receipts, important updates" value={<Toggle label="Email notifications" checked={state.notifyEmail} disabled={s.pending} onChange={(v) => set({ notifyEmail: v })} />} />
-        <ListRow label="SMS" sublabel="Text alerts when your tiffin is out for delivery" value={<Toggle label="SMS notifications" checked={state.notifySms} disabled={s.pending} onChange={(v) => set({ notifySms: v })} />} />
       </ListGroup>
       {s.status && <Notice tone={s.status.kind === "error" ? "error" : "info"}>{s.status.text}</Notice>}
     </Block>

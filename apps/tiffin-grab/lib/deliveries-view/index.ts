@@ -30,6 +30,8 @@ export type CalendarDayInput = {
   movedTo?: string;
   /** This delivery's own address when re-addressed; null/absent = it follows the plan. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
+  /** This delivery's own strategy when re-addressed; null/absent = it follows the plan. */
+  deliveryStrategyPublicId?: string | null;
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
 };
@@ -72,6 +74,8 @@ export type Trip = {
   hasMovedIn?: boolean;
   /** This delivery's own address when re-addressed; null = it follows the plan's address. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
+  /** This delivery's own strategy when re-addressed; null = it follows the plan's strategy. */
+  deliveryStrategyPublicId?: string | null;
 };
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -119,6 +123,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         date: d.date,
         deliveryId: d.deliveryId ?? null,
         addressOverride: d.addressOverride ?? null,
+        deliveryStrategyPublicId: d.deliveryStrategyPublicId ?? null,
         units: d.units ?? 1,
         coversDates: covers,
         extraDates: d.extras ?? [],

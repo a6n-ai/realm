@@ -26,10 +26,11 @@ test("Edit meal shows swap radios on fixed side categories from admin pairs", as
     await expect(sheet.getByRole("radiogroup", { name }).first()).toBeVisible({ timeout: 10_000 });
   }
 
-  // Raita is only a TO target → Included, no radiogroup
+  // Raita is only a TO target → Included, shown as a greyed box (never hidden)
   await expect(sheet.getByText("Included").first()).toBeVisible();
-  const raitaRadios = sheet.getByRole("radiogroup", { name: /^Raita/i });
-  await expect(raitaRadios).toHaveCount(0);
+  const raita = sheet.getByRole("radiogroup", { name: /^Raita/i }).first();
+  await expect(raita).toBeVisible();
+  await expect(raita.getByRole("radio").first()).toBeDisabled();
 
   // Exchange radios from admin pairs (rice→roti, daal→…, salad→raita, …)
   const exchanges = sheet.getByRole("radio", { name: /(Choose this instead|Exchange)/i });

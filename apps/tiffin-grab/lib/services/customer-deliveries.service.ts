@@ -3,7 +3,7 @@ import { NotFoundError, Role, ValidationError, weekdayKey, zonedDateIso } from "
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryStrategies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
@@ -74,7 +74,7 @@ export async function assertOrderUnlocked(orderPublicId: string): Promise<void> 
 }
 
 type Delivery = typeof deliveries.$inferSelect;
-export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean };
+export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean; deliveryStrategyPublicId?: string | null };
 export type Subscription = {
   publicId: string;
   planName: string;
@@ -97,6 +97,7 @@ export type Subscription = {
   tagLabel?: string | null;
   tagColor?: string | null;
   frequencyKey?: string;
+  deliveryStrategyPublicId?: string | null;
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
@@ -144,11 +145,13 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       tagLabel: plans.tagLabel,
       tagColor: plans.tagColor,
       frequencyKey: deliveryFrequencies.key,
+      deliveryStrategyPublicId: deliveryStrategies.publicId,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
+    .leftJoin(deliveryStrategies, eq(orders.deliveryStrategyId, deliveryStrategies.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
@@ -301,10 +304,11 @@ export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
 // affected row cancelled directly, so no separate orders.status check is needed.
 export async function myDeliveries(userId: bigint, from: string, until: string): Promise<CustomerDelivery[]> {
   const rows = await db
-    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name })
+    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name, deliveryStrategyPublicId: deliveryStrategies.publicId })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(deliveryStrategies, eq(deliveries.deliveryStrategyId, deliveryStrategies.id))
     .where(
       and(
         eq(orders.userId, userId),
@@ -319,6 +323,7 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
     orderPublicId: r.orderPublicId,
     planName: r.planName,
     isMakeup: r.d.makeupForDeliveryId !== null,
+    deliveryStrategyPublicId: r.deliveryStrategyPublicId,
   }));
 }
 

@@ -38,7 +38,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   return (
     <div className="crm-app customer-app">
       <TimezoneProvider tz={timezone}>
-        <CustomerShell coinBalance={coinBalance}>{children}</CustomerShell>
+        <CustomerShell coinBalance={coinBalance} userPublicId={user.publicId}>{children}</CustomerShell>
       </TimezoneProvider>
     </div>
   );
