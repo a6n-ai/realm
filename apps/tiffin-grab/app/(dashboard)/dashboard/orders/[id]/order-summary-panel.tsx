@@ -99,7 +99,7 @@ export function OrderSummaryPanel({
           <DetailRow label="Delivery details">
             {[
               snap.deliveryCharge.addressTag ? `Address tag: ${snap.deliveryCharge.addressTag.name}` : null,
-              snap.deliveryCharge.deliveryStrategy ? `Delivery location: ${snap.deliveryCharge.deliveryStrategy.name}` : null,
+              snap.deliveryCharge.deliveryStrategy ? `Delivery strategy: ${snap.deliveryCharge.deliveryStrategy.name}` : null,
             ]
               .filter(Boolean)
               .join(" · ")}

@@ -14,6 +14,8 @@ import { ResendInviteButton } from "./resend-invite-button";
 import { CustomerOrdersTable, CUSTOMER_ORDERS_COLUMNS } from "./customer-orders-table";
 import { CustomerInquiriesTable, CUSTOMER_INQUIRIES_COLUMNS } from "./customer-inquiries-table";
 import { CustomerTimeline, CUSTOMER_TIMELINE_COLUMNS } from "./customer-timeline";
+import { CustomerAddresses } from "./customer-addresses";
+import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
 
 // Section titles — single source of truth so the skeleton twin below can never drift.
 const SECTIONS = {
@@ -52,7 +54,10 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
     throw e;
   }
   const [{ timezone }, coinBalance] = await Promise.all([settingsP, walletService.balance(data.profile.id)]);
-  const addressChanges = await upcomingAddressChanges(data.profile.id, zonedDateIso(Date.now(), timezone));
+  const [addressChanges, savedAddresses] = await Promise.all([
+    upcomingAddressChanges(data.profile.id, zonedDateIso(Date.now(), timezone)),
+    addressService.list(await addressScopeFor(id)),
+  ]);
 
   const activeOrders = data.orders.filter((o) => o.status === "active").length;
   const lifetimeSpend = data.orders.reduce((sum, o) => sum + Number(o.total), 0);
@@ -160,6 +165,8 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
         </SectionCard>
       </div>
 
+      <CustomerAddresses customerPublicId={id} initial={savedAddresses} />
+
       <SectionCard title={SECTIONS.timeline}>
         <CustomerTimeline entries={data.timeline} timezone={timezone} />
       </SectionCard>
@@ -204,6 +211,12 @@ Customer360Data.Skeleton = function Customer360DataSkeleton() {
           </div>
         </SectionCard>
       </div>
+
+      <SectionCard title="Saved addresses">
+        <div className="space-y-2">
+          {[0, 1].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+        </div>
+      </SectionCard>
 
       <SectionCard title={SECTIONS.timeline}>
         <DataTable.Skeleton columns={CUSTOMER_TIMELINE_COLUMNS} />
