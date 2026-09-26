@@ -62,11 +62,12 @@ describe("ThisWeekMenuSection", () => {
     expect(screen.getByText(/No menu released yet/i)).toBeInTheDocument();
   });
 
-  it("shows all seven day names including Sat and Sun", () => {
+  it("shows all poster column names including Weekends instead of Sat/Sun", () => {
     render(<ThisWeekMenuSection week={week} />);
-    for (const label of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+    for (const label of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Weekends"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
+    expect(screen.queryByText("Saturday")).not.toBeInTheDocument();
   });
 
   it("renders no placeholder under empty days", () => {
@@ -75,10 +76,10 @@ describe("ThisWeekMenuSection", () => {
     expect(container.textContent).not.toMatch(/—/);
   });
 
-  it("shows weekend dishes under Saturday", () => {
+  it("shows weekend dishes under Weekends", () => {
     render(<ThisWeekMenuSection week={weekWithWeekend} />);
     expect(screen.getByText("Weekend Biryani")).toBeInTheDocument();
-    expect(screen.getByText("Saturday")).toBeInTheDocument();
+    expect(screen.getByText("Weekends")).toBeInTheDocument();
   });
 
   it("labels an upcoming released week as next week", () => {
