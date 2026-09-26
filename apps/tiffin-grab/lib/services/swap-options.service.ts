@@ -78,7 +78,7 @@ export async function listValidSwapOptionsForDelivery(
           forDate: deliveryCategorySwaps.forDate,
         })
         .from(deliveryCategorySwaps)
-        .where(eq(deliveryCategorySwaps.deliveryId, row.id)),
+        .where(eq(deliveryCategorySwaps.deliveryId, row.id)).orderBy(asc(deliveryCategorySwaps.id)),
     ]);
 
     const omit = new Set(opts?.omitSwapPublicIds ?? []);

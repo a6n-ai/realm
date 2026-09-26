@@ -44,7 +44,7 @@ export async function copyDeliverySwaps(
   resolveNullTo?: string,
 ): Promise<void> {
   const rows = await tx.select().from(deliveryCategorySwaps)
-    .where(eq(deliveryCategorySwaps.deliveryId, fromDeliveryId));
+    .where(eq(deliveryCategorySwaps.deliveryId, fromDeliveryId)).orderBy(asc(deliveryCategorySwaps.id));
   if (rows.length === 0) return;
   await tx.insert(deliveryCategorySwaps).values(rows.map((r) => ({
     deliveryId: toDeliveryId,
@@ -677,7 +677,7 @@ async function replaceExtras(tx: Tx, deliveryId: bigint, eatDates: string[]): Pr
 
 /** Moves only the swaps that apply to `eatDate` (never the whole delivery's swaps) from one delivery to another. */
 async function moveDeliverySwapsForDate(tx: Tx, fromDeliveryId: bigint, toDeliveryId: bigint, tripDate: string, eatDate: string): Promise<void> {
-  const rows = await tx.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, fromDeliveryId));
+  const rows = await tx.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, fromDeliveryId)).orderBy(asc(deliveryCategorySwaps.id));
   const moving = rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatDate));
   if (moving.length === 0) return;
   await tx.insert(deliveryCategorySwaps).values(moving.map((r) => ({

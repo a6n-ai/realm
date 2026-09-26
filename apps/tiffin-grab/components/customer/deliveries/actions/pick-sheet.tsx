@@ -377,7 +377,11 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     setViolatedRuleId(null);
     // Each call commits on its own; drop what the server accepted so a retry after a
     // failure never re-removes (error) or re-applies (duplicate swap) it.
-    let removes = pendingRemoves;
+    // Newest first: an older swap can't go while a later one still uses what it gave.
+    const appliedAt = new Map(
+      plan.days.flatMap((d) => (d.eatingDays ?? []).flatMap((e) => e.appliedSwaps.map((sw) => sw.publicId))).map((id, i) => [id, i]),
+    );
+    let removes = [...pendingRemoves].sort((a, b) => (appliedAt.get(b.publicId) ?? 0) - (appliedAt.get(a.publicId) ?? 0));
     let applies = pendingApplies;
     try {
       while (removes.length > 0) {
@@ -406,7 +410,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     } catch (e) {
       setError(sanitizeClientError(e, "Couldn't save that pick. Try again."));
       // Part of the batch is committed: refresh so saved swaps show as saved, not pending.
-      if (removes !== pendingRemoves || applies !== pendingApplies) {
+      if (removes.length !== pendingRemoves.length || applies !== pendingApplies) {
         onChanged?.("Some changes saved");
         void refreshGrid(applies, removes);
       }

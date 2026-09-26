@@ -134,6 +134,20 @@ export function rowsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Map
   return map;
 }
 
+/**
+ * The first swap that no longer has anything to give, folding `swaps` in order — e.g.
+ * Daal → Raita after the Sabzi → Daal it took its Daal from is removed. Null when all apply.
+ */
+export function firstBrokenSwap(ctx: CompositionContext, swaps: SwapRow[]): SwapRow | null {
+  for (let i = 0; i < swaps.length; i++) {
+    const s = swaps[i]!;
+    const from = rowsAfterSwaps(ctx, swaps.slice(0, i)).get(s.fromCategory) ?? [];
+    if (from.length < s.qtyFrom) return s;
+    if (s.fromRow != null && !from.some((r) => r.row === s.fromRow)) return s;
+  }
+  return null;
+}
+
 /** Build per-category TU slot lists from composition, then fold applied swaps in order. */
 export function slotsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Map<string, number[]> {
   return new Map([...rowsAfterSwaps(ctx, applied)].map(([k, rows]) => [k, rows.map((r) => r.value)]));

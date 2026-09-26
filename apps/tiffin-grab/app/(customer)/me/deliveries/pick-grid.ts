@@ -151,7 +151,7 @@ export async function loadPickGrid(
           forDate: deliveryCategorySwaps.forDate,
         })
         .from(deliveryCategorySwaps)
-        .where(inArray(deliveryCategorySwaps.deliveryId, tripIds));
+        .where(inArray(deliveryCategorySwaps.deliveryId, tripIds)).orderBy(asc(deliveryCategorySwaps.id));
     const ownByDate = new Map(ownRows.map((d) => [d.deliveryDate, d]));
     const omit = new Set(opts.omitSwapPublicIds ?? []);
     const provisional = opts.provisionalSwaps ?? [];

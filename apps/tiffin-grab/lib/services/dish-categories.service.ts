@@ -407,31 +407,51 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return rows.map((r) => r.planId);
   }
 
+  /**
+   * Every (from, to) pair allowed on ANY plan this meal size's composition reaches:
+   * a pair rule for that plan (or for all plans) AND a dish in toKey on that plan —
+   * isSwapPairAllowed's rule, run for every pair and plan in four queries instead of
+   * several per pair per plan. Keys are `from>to`, in pair-rule order.
+   */
+  private async allowedSwapPairKeys(mealSizeId: bigint): Promise<string[]> {
+    const planIds = await this.reachablePlanIdsForMealSize(mealSizeId);
+    if (!planIds.length) return [];
+    const [pairs, cats, dishCats] = await Promise.all([
+      db
+        .select({ fromCategoryId: categorySwapPairs.fromCategoryId, toCategoryId: categorySwapPairs.toCategoryId, planId: categorySwapPairs.planId })
+        .from(categorySwapPairs)
+        .where(or(isNull(categorySwapPairs.planId), inArray(categorySwapPairs.planId, planIds)))
+        .orderBy(asc(categorySwapPairs.id)),
+      db.select({ id: dishCategories.id, key: dishCategories.key }).from(dishCategories),
+      db.selectDistinct({ category: dishes.category, planId: dishes.planId }).from(dishes).where(inArray(dishes.planId, planIds)),
+    ]);
+    const keyOf = new Map(cats.map((c) => [c.id, c.key]));
+    const hasDish = new Set(dishCats.map((d) => `${d.category}@${d.planId}`));
+    const out = new Set<string>();
+    for (const p of pairs) {
+      const from = keyOf.get(p.fromCategoryId);
+      const to = keyOf.get(p.toCategoryId);
+      if (!from || !to) continue;
+      const plansForRule = p.planId == null ? planIds : [p.planId];
+      if (plansForRule.some((planId) => hasDish.has(`${to}@${planId}`))) out.add(`${from}>${to}`);
+    }
+    return [...out];
+  }
+
   /** Is (fromKey, toKey) allowed to swap on ANY plan this meal size's composition reaches? */
   async isSwapPairAllowedForMealSize(fromKey: string, toKey: string, mealSizeId: bigint): Promise<boolean> {
-    const planIds = await this.reachablePlanIdsForMealSize(mealSizeId);
-    for (const planId of planIds) {
-      if (await this.isSwapPairAllowed(fromKey, toKey, planId)) return true;
-    }
-    return false;
+    return (await this.allowedSwapPairKeys(mealSizeId)).includes(`${fromKey}>${toKey}`);
   }
 
   /** Pairs the swap drawer may offer for one meal size — the same gate applyDeliverySwap enforces. */
   async swapPairsForMealSize(mealSizeId: bigint): Promise<{ fromCategory: string; toCategory: string }[]> {
-    const [cats, all, planIds] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.listSwapPairs(), this.reachablePlanIdsForMealSize(mealSizeId)]);
-    if (!planIds.length) return [];
-    // A rule with planId=null (all plans) is reachable from every meal size,
-    // so this can't prefilter by plan the way a single required plan could —
-    // isSwapPairAllowedForMealSize below already checks null-or-exact per
-    // reachable plan, so every listed pair is a candidate.
-    const results = await Promise.all(all.map(async (p) => {
-      const from = cats.get(p.fromKey);
-      const to = cats.get(p.toKey);
-      if (!from || !to || !swapPairFits(from, to)) return null;
-      const allowed = await this.isSwapPairAllowedForMealSize(p.fromKey, p.toKey, mealSizeId);
-      return allowed ? { fromCategory: p.fromKey, toCategory: p.toKey } : null;
-    }));
-    return results.filter((r): r is { fromCategory: string; toCategory: string } => r !== null);
+    const [cats, allowed] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.allowedSwapPairKeys(mealSizeId)]);
+    return allowed.flatMap((k) => {
+      const [fromCategory, toCategory] = k.split(">") as [string, string];
+      const from = cats.get(fromCategory);
+      const to = cats.get(toCategory);
+      return from && to && swapPairFits(from, to) ? [{ fromCategory, toCategory }] : [];
+    });
   }
 
   async removeSwapPair(publicId: string): Promise<void> {

@@ -109,7 +109,7 @@ export async function loadTripEatingDays(
       forDate: deliveryCategorySwaps.forDate,
     })
     .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, trips.map((t) => t.id)));
+    .where(inArray(deliveryCategorySwaps.deliveryId, trips.map((t) => t.id))).orderBy(asc(deliveryCategorySwaps.id));
 
   const cats = await dishCategoriesService.forPlanType(order.planType as "tiffin" | "healthy");
   const selectableCats = cats.filter((c) => c.selectable && (order.categoryCounts?.[c.key] ?? 0) > 0);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { slotsAfterSwaps, validateProposedSwap, type CompositionContext } from "../meal-validation";
+import { firstBrokenSwap, slotsAfterSwaps, validateProposedSwap, type CompositionContext } from "../meal-validation";
 import { portionsByCategory } from "../pick-size";
 import type { TuCategory } from "../format-tu";
 import type { SwapCategory } from "../swap-rules";
@@ -50,5 +50,27 @@ describe("swapping a named composition row", () => {
   it("refuses a row that is already swapped", () => {
     const r = validateProposedSwap({ composition, applied: [eight], next: { fromCategory: "sabzi", toCategory: "daal", fromPicks: 1, fromRow: 1 } });
     expect(r).toEqual({ ok: false, reason: "That Sabzi is already swapped on this day." });
+  });
+});
+
+describe("firstBrokenSwap (removing a swap others stack on)", () => {
+  // Salad only reaches the meal through a Daal → Salad swap.
+  const withSalad: CompositionContext = {
+    ...composition,
+    categories: new Map([...composition.categories, ["salad", cat("salad", 1.0)]]),
+  };
+  const sabziToDaal = { fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 };
+  const daalToSalad = { fromCategory: "daal", toCategory: "salad", qtyFrom: 2, qtyTo: 2 };
+
+  it("is fine while the swap it builds on is there", () => {
+    expect(firstBrokenSwap(withSalad, [sabziToDaal, daalToSalad])).toBeNull();
+  });
+
+  it("flags the stacked swap once the one it used is gone", () => {
+    expect(firstBrokenSwap(withSalad, [daalToSalad])).toBe(daalToSalad);
+  });
+
+  it("flags a named row that another swap already took", () => {
+    expect(firstBrokenSwap(composition, [eight, eight])).toBe(eight);
   });
 });

@@ -771,7 +771,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   const swapRows = await db
     .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate })
     .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id)));
+    .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id))).orderBy(asc(deliveryCategorySwaps.id));
   const swapFields = (row: CustomerDelivery) => ({
     eatingDays: coveredDates(row).map((date): EatingDaySwaps => ({
       date,

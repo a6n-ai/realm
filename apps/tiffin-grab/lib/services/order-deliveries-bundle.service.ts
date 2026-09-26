@@ -1,4 +1,4 @@
-import { inArray, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryCategorySwaps, mealSizeItems } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -70,7 +70,7 @@ export async function loadOrderDeliveriesBundle(
       forDate: deliveryCategorySwaps.forDate,
     })
     .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id)));
+    .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id))).orderBy(asc(deliveryCategorySwaps.id));
 
   const tripEating = selectedDeliveries.length === 0
     ? []
