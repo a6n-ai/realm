@@ -54,11 +54,14 @@ describe("createOrder links a saved address", () => {
   afterAll(reset);
 
   it("guest checkout saves the typed address as the new customer's default and links the plan", async () => {
-    const { publicId } = await createOrder(await input());
+    const withCoords = await input();
+    // Checkout already geocoded the address; the saved copy reuses it instead of a second AWS call.
+    withCoords.contact = { ...withCoords.contact, lat: 43.6532, lng: -79.3832 } as typeof withCoords.contact;
+    const { publicId } = await createOrder(withCoords);
     const order = await orderBy(publicId);
     const saved = await db.select().from(customerAddresses).where(eq(customerAddresses.userId, order.userId!));
     expect(saved).toHaveLength(1);
-    expect(saved[0]).toMatchObject({ label: "Home", isDefault: true, addressLine: "100 King St W" });
+    expect(saved[0]).toMatchObject({ label: "Home", isDefault: true, addressLine: "100 King St W", lat: "43.653200", lng: "-79.383200" });
     expect(order.addressId).toBe(saved[0]!.id);
   });
 

@@ -3,6 +3,8 @@ import { eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
+// Saving an address geocodes it; tests must not call AWS.
+vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolveAndPersist: async () => null }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 
@@ -94,12 +96,12 @@ describe("delivery activity audit (integration)", () => {
     const [d] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
 
     actAs(userPublic);
-    await setMyDeliveryAddress(d.publicId, {
+    await setMyDeliveryAddress(d.publicId, { newAddress: {
       fullName: "New Name",
       addressLine: "2 Other St",
       city: "Toronto",
       postalCode: "M4C 1A1",
-    });
+    } });
 
     const acts = await db.select().from(orderActivities).where(eq(orderActivities.deliveryId, d.id));
     expect(acts).toHaveLength(1);

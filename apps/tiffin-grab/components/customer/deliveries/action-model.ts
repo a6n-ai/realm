@@ -9,6 +9,7 @@ export const ACTION_LABEL: Record<TripAction, string> = {
   vacation: "Vacation",
   makeup: "Schedule a make-up",
   pool: "Schedule from pool",
+  address: "Change address",
 };
 
 const CLOSED = new Set<Trip["status"]>(["delivered", "cutoff-passed", "locked", "combined-into"]);
@@ -30,7 +31,7 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
     ? []
     : opts.locked
       ? ["pick"]
-      : ["pick", ...(held ? (["resume"] as const) : []), "move", ...(av.pool.ok ? (["pool"] as const) : [])];
+      : ["pick", ...(held ? (["resume"] as const) : []), "move", "address", ...(av.pool.ok ? (["pool"] as const) : [])];
   const primary: TripAction | null = opts.locked
     ? (trip.status === "upcoming" ? "pick" : null)
     : trip.status === "vacation" ? "vacation" : held ? "resume" : trip.status === "upcoming" ? "pick" : null;
@@ -57,4 +58,5 @@ export const ACTION_SHORT: Record<TripAction, string> = {
   vacation: "Vacation",
   makeup: "Make-up",
   pool: "From pool",
+  address: "Address",
 };

@@ -11,6 +11,8 @@ import { MAX_TIFFINS_PER_TRIP, coveredDates, dateCounts, mergeBlockReason, merge
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { findZone } from "@/lib/catalog/zone-match";
+import type { AddressInput, AddressScope } from "@foundry/address";
+import { addressService } from "@/lib/services/addresses.service";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
 
 const log = createLogger("deliveries.service");
@@ -1090,7 +1092,8 @@ export async function resolveZoneId(tx: Tx, postalCode: string): Promise<bigint>
 
 export async function setDeliveryAddress(
   deliveryPublicId: string,
-  input: { fullName: string; addressLine: string; city: string; postalCode: string },
+  pick: { addressPublicId: string } | { newAddress: AddressInput },
+  scope: AddressScope,
   actorId: bigint | null,
 ): Promise<void> {
   await db.transaction(async (tx) => {
@@ -1101,8 +1104,23 @@ export async function setDeliveryAddress(
     // NOTE: no assertOriginal — re-addressing a make-up is the one mutation make-ups permit.
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
-    const zoneId = await resolveZoneId(tx, input.postalCode);
-    const updated = await tx.update(deliveries).set({ ...input, zoneId })
+    const address = "addressPublicId" in pick
+      ? await addressService.getRow(scope, pick.addressPublicId, tx)
+      : await addressService.create(scope, pick.newAddress, { tx });
+    const zoneId = await resolveZoneId(tx, address.postalCode);
+    // A saved address may carry no recipient name; fall back to the plan's.
+    const [plan] = await tx.select({ fullName: orders.fullName }).from(orders).where(eq(orders.id, orderId)).limit(1);
+    // Per-delivery changes are never charged: no pricing or ledger writes here.
+    const updated = await tx.update(deliveries).set({
+      addressId: address.id,
+      fullName: address.fullName ?? plan?.fullName ?? null,
+      addressLine: address.addressLine,
+      addressUnit: address.addressUnit,
+      city: address.city,
+      postalCode: address.postalCode,
+      deliveryInstructions: address.deliveryInstructions,
+      zoneId,
+    })
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
@@ -1120,7 +1138,10 @@ export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bi
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
     const updated = await tx.update(deliveries)
-      .set({ fullName: null, addressLine: null, city: null, postalCode: null, zoneId: null })
+      .set({
+        addressId: null, fullName: null, addressLine: null, addressUnit: null, city: null, postalCode: null,
+        deliveryInstructions: null, deliveryStrategyId: null, addressTagId: null, zoneId: null,
+      })
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);

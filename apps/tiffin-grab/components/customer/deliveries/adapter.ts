@@ -1,3 +1,4 @@
+import type { SavedAddress } from "@foundry/address";
 import { swapLabel, type SwapCategory } from "@/lib/menu/swap-rules";
 import type { CalendarDayInput, PlanContext, Trip } from "@/lib/deliveries-view";
 import type { CalendarDay, CustomerDelivery, Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
@@ -22,6 +23,8 @@ export type PlanView = {
   categoryPortionSlots: Record<string, string[]>;
   /** Per-category pick size, unit and cap for this meal size; with sub.categoryCounts it lets the swap sheet mirror the server rules. */
   swapCategories: Record<string, SwapCategory>;
+  /** The customer's saved addresses, for the per-delivery "Change address" sheet. */
+  savedAddresses: SavedAddress[];
 };
 
 type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "pooledAt">;

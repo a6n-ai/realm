@@ -1,3 +1,5 @@
+import { addressService } from "@/lib/services/addresses.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { zonedDateIso } from "@foundry/commons";
 import { buildPlanContext, toCalendarInputs, type PlanView } from "@/components/customer/deliveries/adapter";
 import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
@@ -76,6 +78,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
     categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
     swapCategories: Object.fromEntries(swapCategories),
+    savedAddresses: await addressService.list({ userId, orgId: await resolveRequestOrg() }),
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
   return { plan, trips: buildTrips(inputs, now, ctx, sub.publicId), agenda, weekStart, firstWeek, lastWeek, now };

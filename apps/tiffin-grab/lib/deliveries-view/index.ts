@@ -2,7 +2,7 @@ import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
 
 export type TripStatus = "upcoming" | "delivered" | "hold" | "vacation" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed";
-export type TripAction = "pick" | "swap" | "hold" | "resume" | "move" | "vacation" | "makeup" | "pool";
+export type TripAction = "pick" | "swap" | "hold" | "resume" | "move" | "vacation" | "makeup" | "pool" | "address";
 export type Availability = { ok: boolean; why: string | null; sub: string };
 export type LegendKey = "delivered" | "upcoming" | "vacation" | "onHold";
 
@@ -221,5 +221,9 @@ export function actionAvailability(trip: Trip, _now: number, plan: PlanContext):
     ? yes("In your pool. Schedule it on a day.")
     : no("Nothing from this trip is in your pool.");
 
-  return { pick, swap, hold, resume, move, vacation, makeup, pool };
+  // Re-addressing is allowed on make-ups too (the one change they permit); never charged.
+  const address: Availability = editable ? yes(`Closes ${formatCutoff(trip.cutoffAt, plan.timezone)}`)
+    : no(blocked(`Delivered. ${closed}.`));
+
+  return { pick, swap, hold, resume, move, vacation, makeup, pool, address };
 }

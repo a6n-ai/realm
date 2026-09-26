@@ -3,6 +3,8 @@ import { eq, ne } from "drizzle-orm";
 import { nextWeekday, ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+// Saving an address geocodes it; tests must not call AWS.
+vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolveAndPersist: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
@@ -81,12 +83,12 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
   it("setDeliveryAddress snapshots the four fields and re-resolves zoneId from the postal prefix", async () => {
     const order = await makeOrder();
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, orderId: order.id });
-    await setDeliveryAddress(d.publicId, {
+    await setDeliveryAddress(d.publicId, { newAddress: {
       fullName: "New Name",
       addressLine: "2 Other St",
       city: "Toronto",
       postalCode: "M4C 1A1",
-    }, 1n);
+    } }, { userId: order.userId!, orgId: null }, 1n);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.fullName).toBe("New Name");
     expect(row.addressLine).toBe("2 Other St");
@@ -111,12 +113,12 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     const order = await makeOrder();
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, orderId: order.id });
     await expect(
-      setDeliveryAddress(d.publicId, {
+      setDeliveryAddress(d.publicId, { newAddress: {
         fullName: "New Name",
         addressLine: "2 Other St",
         city: "Ottawa",
         postalCode: "K1A 0A1",
-      }, 1n),
+      } }, { userId: order.userId!, orgId: null }, 1n),
     ).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.fullName).toBeNull();
@@ -130,12 +132,12 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     const order = await makeOrder();
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() - 1000, orderId: order.id });
     await expect(
-      setDeliveryAddress(d.publicId, {
+      setDeliveryAddress(d.publicId, { newAddress: {
         fullName: "New Name",
         addressLine: "2 Other St",
         city: "Toronto",
         postalCode: "M4C 1A1",
-      }, 1n),
+      } }, { userId: order.userId!, orgId: null }, 1n),
     ).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.fullName).toBeNull();
@@ -149,12 +151,13 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
       makeupForDeliveryId: src.id,
       orderId: src.orderId,
     });
-    await setDeliveryAddress(mk.publicId, {
+    const [order] = await db.select().from(orders).where(eq(orders.id, src.orderId));
+    await setDeliveryAddress(mk.publicId, { newAddress: {
       fullName: "Makeup Name",
       addressLine: "3 Third St",
       city: "Toronto",
       postalCode: "M4C 1A1",
-    }, 1n);
+    } }, { userId: order.userId!, orgId: null }, 1n);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, mk.id));
     expect(row.fullName).toBe("Makeup Name");
     expect(row.zoneId).not.toBeNull();
@@ -163,12 +166,12 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
   it("clearDeliveryAddress restores inheritance", async () => {
     const order = await makeOrder();
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, orderId: order.id });
-    await setDeliveryAddress(d.publicId, {
+    await setDeliveryAddress(d.publicId, { newAddress: {
       fullName: "New Name",
       addressLine: "2 Other St",
       city: "Toronto",
       postalCode: "M4C 1A1",
-    }, 1n);
+    } }, { userId: order.userId!, orgId: null }, 1n);
     await clearDeliveryAddress(d.publicId, 1n);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.fullName).toBeNull();

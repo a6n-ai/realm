@@ -281,6 +281,6 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
 
 describe("action registry", () => {
   it("maps every TripAction to a sheet component", () => {
-    expect(Object.keys(ACTION_SHEETS).sort()).toEqual(["hold", "makeup", "move", "pick", "pool", "resume", "swap", "vacation"]);
+    expect(Object.keys(ACTION_SHEETS).sort()).toEqual(["address", "hold", "makeup", "move", "pick", "pool", "resume", "swap", "vacation"]);
   });
 });

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
+import type { AddressInput } from "@foundry/address";
+import { NotFoundError } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
 import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
@@ -65,12 +67,20 @@ export async function unskipMyDelivery(deliveryPublicId: string): Promise<Action
 
 export async function setMyDeliveryAddress(
   deliveryPublicId: string,
-  input: { fullName: string; addressLine: string; city: string; postalCode: string },
+  pick: { addressPublicId: string } | { newAddress: AddressInput },
 ): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
     await assertDeliveryUnlocked(deliveryPublicId);
-    await setDeliveryAddress(deliveryPublicId, input, await currentUserId());
+    // The order owner's address book — staff acting for a customer use the customer's addresses.
+    const [owner] = await db
+      .select({ userId: orders.userId, orgId: orders.organizationId })
+      .from(deliveries)
+      .innerJoin(orders, eq(deliveries.orderId, orders.id))
+      .where(eq(deliveries.publicId, deliveryPublicId))
+      .limit(1);
+    if (!owner?.userId) throw new NotFoundError("Delivery not found");
+    await setDeliveryAddress(deliveryPublicId, pick, { userId: owner.userId, orgId: owner.orgId }, await currentUserId());
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
     else revalidatePath("/me");

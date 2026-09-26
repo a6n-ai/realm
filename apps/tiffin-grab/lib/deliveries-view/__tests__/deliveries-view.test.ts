@@ -9,7 +9,7 @@ const day = (o: Partial<CalendarDayInput> & { date: string }): CalendarDayInput 
   status: "scheduled", locked: false, isMakeup: false, menuWeekId: null, meal: null, options: [], ...o,
 });
 const one = (o: Partial<CalendarDayInput> & { date: string }, p: PlanContext = plan, now = NOW) => buildTrips([day(o)], now, p)[0]!;
-const ACTIONS: TripAction[] = ["pick", "swap", "hold", "resume", "move", "vacation", "makeup", "pool"];
+const ACTIONS: TripAction[] = ["pick", "swap", "hold", "resume", "move", "vacation", "makeup", "pool", "address"];
 const CLOSED = "Changes closed Tue 6:00 pm. This trip is being prepared.";
 
 describe("buildTrips status", () => {
@@ -65,14 +65,14 @@ describe("buildTrips status", () => {
 });
 
 type Case = [string, Partial<CalendarDayInput> & { date: string }, Partial<Record<TripAction, boolean>>];
-const off = { pick: false, swap: false, hold: false, resume: false, move: false };
+const off = { pick: false, swap: false, hold: false, resume: false, move: false, address: false };
 const cases: Case[] = [
-  ["upcoming", { date: "2026-09-23" }, { pick: true, swap: true, hold: true, resume: false, move: true }],
-  ["make-up upcoming (hold not allowed on make-ups)", { date: "2026-09-25", isMakeup: true }, { pick: true, swap: true, hold: false, resume: false, move: false }],
-  ["hold", { date: "2026-09-25", status: "skipped" }, { pick: false, swap: false, hold: false, resume: true, move: true }],
+  ["upcoming", { date: "2026-09-23" }, { pick: true, swap: true, hold: true, resume: false, move: true, address: true }],
+  ["make-up upcoming (hold not allowed on make-ups)", { date: "2026-09-25", isMakeup: true }, { pick: true, swap: true, hold: false, resume: false, move: false, address: true }],
+  ["hold", { date: "2026-09-25", status: "skipped" }, { pick: false, swap: false, hold: false, resume: true, move: true, address: false }],
   ["hold pooled", { date: "2026-09-25", status: "skipped", pooled: true }, { pick: false, swap: false, hold: false, resume: false, move: true, pool: true }],
   ["hold rescheduled", { date: "2026-09-25", status: "skipped", rescheduled: true }, { pick: false, swap: false, hold: false, resume: false, move: false }],
-  ["vacation", { date: "2026-09-25", status: "paused" }, { pick: false, swap: false, hold: false, resume: false, move: true }],
+  ["vacation", { date: "2026-09-25", status: "paused" }, { pick: false, swap: false, hold: false, resume: false, move: true, address: false }],
   ["combined-into", { date: "2026-09-25", status: "skipped", combinedInto: "2026-09-28" }, off],
   ["delivered", { date: "2026-09-21", locked: true }, off],
   ["cutoff-passed", { date: "2026-09-22", locked: true }, off],
@@ -98,11 +98,13 @@ describe("actionAvailability copy", () => {
     expect(a.pick.sub).toBe("Closes Tue 6:00 pm");
     expect(a.hold.sub).toBe("Adds 1 hold day back to your plan");
     expect(a.move.sub).toBe("Pick a new delivery day");
+    expect(a.address.sub).toBe("Closes Tue 6:00 pm");
   });
   it("cutoff-passed uses closed copy", () => {
     const a = actionAvailability(one({ date: "2026-09-22", locked: true }), NOW, plan);
     expect(a.pick.why).toBe("Changes closed Mon 6:00 pm. This trip is being prepared.");
     expect(a.hold.why).toBe("Changes closed Mon 6:00 pm. This trip is being prepared.");
+    expect(a.address.why).toBe("Changes closed Mon 6:00 pm. This trip is being prepared.");
   });
   it("delivered copy", () => {
     const a = actionAvailability(one({ date: "2026-09-21", locked: true }), NOW, plan);

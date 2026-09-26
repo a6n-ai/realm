@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { AddressSheet } from "./address-sheet";
 import type { TripAction } from "@/lib/deliveries-view";
 import { HoldSheet } from "./hold-sheet";
 import { MakeupSheet } from "./makeup-sheet";
@@ -21,6 +22,7 @@ export const ACTION_SHEETS: Record<TripAction, ComponentType<ActionSheetProps>> 
   vacation: VacationSheet,
   makeup: MakeupSheet,
   pool: PoolSheet,
+  address: AddressSheet,
 };
 
 export function ActionSheet({ action, ...props }: ActionSheetProps & { action: TripAction | null }) {

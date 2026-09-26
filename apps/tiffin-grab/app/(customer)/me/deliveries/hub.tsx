@@ -15,6 +15,8 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { currentUserId } from "@/lib/services/session-service";
+import { addressService } from "@/lib/services/addresses.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import {
   makeupSourceIdsForOrder,
   myActiveSubscriptions,
@@ -95,6 +97,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
   const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first });
+  const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
   const plan: PlanView = {
     orderId: sub.publicId,
     sub,
@@ -107,6 +110,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
     categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
     swapCategories: Object.fromEntries(swapCategories),
+    savedAddresses,
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
   const trips = buildTrips(inputs, now, ctx, sub.publicId);

@@ -6,10 +6,10 @@ const ctx = { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: null
 const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o", date: "2026-09-23", deliveryId: "a", units: 1, coversDates: ["2026-09-23"], coversLabel: null, eatingDays: [], status: "upcoming", cutoffAt: Date.now() + 9e9, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o });
 
 describe("actionModel", () => {
-  it("upcoming: pick is primary, rows are pick/move (swap embedded in Edit meal)", () => {
+  it("upcoming: pick is primary, rows are pick/move/address (swap embedded in Edit meal)", () => {
     const m = actionModel(trip(), Date.now(), ctx);
     expect(m.primary).toBe("pick");
-    expect(m.rows.map((r) => r.key)).toEqual(["pick", "move"]);
+    expect(m.rows.map((r) => r.key)).toEqual(["pick", "move", "address"]);
     expect(m.rows.every((r) => r.av.ok)).toBe(true);
     expect(m.bar).toEqual(["pick", "move"]);
     expect(m.rows.find((r) => r.key === "pick")?.label).toBe("Edit meal");
@@ -17,7 +17,7 @@ describe("actionModel", () => {
   it("on hold: resume is offered and becomes primary", () => {
     const m = actionModel(trip({ status: "hold" }), Date.now(), ctx);
     expect(m.primary).toBe("resume");
-    expect(m.rows.map((r) => r.key)).toEqual(["pick", "resume", "move"]);
+    expect(m.rows.map((r) => r.key)).toEqual(["pick", "resume", "move", "address"]);
     expect(m.bar).toEqual(["pick", "move"]);
   });
   it("delivered: no rows, reason instead", () => {

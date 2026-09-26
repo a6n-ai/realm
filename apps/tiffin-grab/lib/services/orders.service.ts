@@ -355,7 +355,10 @@ export async function createOrder(
     const addressScope = { userId, orgId };
     const savedAddress = input.addressPublicId
       ? await addressService.getRow(addressScope, input.addressPublicId, tx)
-      : await addressService.create(addressScope, input.contact, { tx });
+      : await addressService.create(addressScope, input.contact, {
+          tx,
+          coords: input.contact.lat != null && input.contact.lng != null ? { lat: input.contact.lat, lng: input.contact.lng } : null,
+        });
     if (input.addressPublicId) {
       const movedPostal = savedAddress.postalCode !== input.contact.postalCode;
       input.contact = {
