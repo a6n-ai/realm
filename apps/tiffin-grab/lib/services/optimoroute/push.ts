@@ -126,7 +126,7 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
         customField4: plan,
         // customField3 was unused; 1/2/4 must stay as they are (completions matching reads them).
         ...(trip.coverage ? { customField3: trip.coverage } : {}),
-        ...(cfg.sendLoad ? { load1: trip.units, boxes: trip.units } : { boxes: trip.units }),
+        ...(cfg.sendLoad ? { load1: trip.units } : {}),
       } satisfies OptimoOrderPayload,
     };
   });
