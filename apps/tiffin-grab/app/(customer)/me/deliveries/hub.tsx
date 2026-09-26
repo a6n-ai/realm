@@ -16,6 +16,7 @@ import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { addressService } from "@/lib/services/addresses.service";
+import { dropOffsFor } from "@/lib/services/address-drop-off.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import {
   makeupSourceIdsForOrder,
@@ -101,6 +102,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
   const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first });
   const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
+  const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
   const plan: PlanView = {
     orderId: sub.publicId,
     sub,
@@ -114,7 +116,10 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses,
-    deliveryStrategies: catalog.deliveryCharges?.deliveryStrategies.map(s => ({ publicId: s.publicId, name: s.name })) ?? [],
+    addressDropOffs,
+    deliveryStrategies: catalog.deliveryCharges?.deliveryStrategies.map((s) => ({
+      publicId: s.publicId, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue,
+    })) ?? [],
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
   const trips = buildTrips(inputs, now, ctx, sub.publicId);

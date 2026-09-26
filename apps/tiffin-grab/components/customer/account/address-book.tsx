@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import type { AddressValues } from "@foundry/commons";
 import type { AddressInput, SavedAddress } from "@foundry/address";
@@ -9,6 +10,16 @@ import { formatAddress } from "@foundry/address/ui";
 import { Button, Card, Field, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { nameTaken } from "@/components/customer/address/address-name";
+import { DropOffPicker, type DropOffOption } from "@/components/customer/address/drop-off";
+
+const withDropOff = (d: Record<string, string>, publicId: string, dropOff: string | null) => {
+  const next = { ...d };
+  if (dropOff) next[publicId] = dropOff;
+  else delete next[publicId];
+  return next;
+};
+const dropOffName = (options: DropOffOption[], publicId: string | undefined) =>
+  publicId ? options.find((o) => o.publicId === publicId)?.name : undefined;
 import {
   archiveMyAddress,
   createMyAddress,
@@ -17,7 +28,7 @@ import {
 } from "@/app/(customer)/me/account/address-actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 
-type Editing = { publicId: string | null; label: string; values: AddressValues };
+type Editing = { publicId: string | null; label: string; values: AddressValues; dropOff: string | null };
 
 const toValues = (a: SavedAddress): AddressValues => ({
   addressLine: a.addressLine,
@@ -37,19 +48,38 @@ const toInput = (e: Editing): AddressInput => ({
 });
 
 /** Saved delivery addresses. The default is what checkout preselects and can't be deleted. */
-export function AddressBook({ initial }: { initial: SavedAddress[] }) {
+export function AddressBook({
+  initial,
+  dropOffOptions = [],
+  initialDropOffs = {},
+}: {
+  initial: SavedAddress[];
+  /** Admin delivery strategies a customer can pick per address. */
+  dropOffOptions?: DropOffOption[];
+  /** Address public id → its drop-off's strategy public id. */
+  initialDropOffs?: Record<string, string>;
+}) {
+  const [dropOffs, setDropOffs] = useState(initialDropOffs);
+  const [editing, setEditing] = useState<Editing | null>(null);
   const book = useAddressBook({
     initial,
     actions: {
-      create: (input) => unwrapAction(createMyAddress(input)),
-      update: (publicId, input) => unwrapAction(updateSavedAddress(publicId, input)),
+      create: async (input) => {
+        const saved = await unwrapAction(createMyAddress(input, editing?.dropOff ?? null));
+        setDropOffs((d) => withDropOff(d, saved.publicId, editing?.dropOff ?? null));
+        return saved;
+      },
+      update: async (publicId, input) => {
+        const saved = await unwrapAction(updateSavedAddress(publicId, input, editing?.dropOff ?? null));
+        setDropOffs((d) => withDropOff(d, publicId, editing?.dropOff ?? null));
+        return saved;
+      },
       setDefault: async (publicId) => {
         await unwrapAction(setMyDefaultAddress(publicId));
       },
       archive: (publicId) => unwrapAction(archiveMyAddress(publicId)),
     },
   });
-  const [editing, setEditing] = useState<Editing | null>(null);
   const [deleting, setDeleting] = useState<SavedAddress | null>(null);
   const defaultLabel = book.addresses.find((a) => a.isDefault)?.label ?? "your default address";
 
@@ -72,23 +102,51 @@ export function AddressBook({ initial }: { initial: SavedAddress[] }) {
         <p className="text-sm text-[var(--muted-foreground)]">Checkout uses your default. You can pick another for any delivery.</p>
       </header>
 
+      <MotionConfig reducedMotion="user">
       <ul className="space-y-3">
         {book.addresses.map((a) => (
-          <li key={a.publicId} data-address={a.publicId} className="flex items-start justify-between gap-3 rounded-2xl border p-4">
+          <motion.li
+            key={a.publicId}
+            // Slides to its new place when it becomes (or stops being) the default.
+            layout
+            transition={{ type: "spring", stiffness: 420, damping: 34 }}
+            data-address={a.publicId}
+            className="flex items-start justify-between gap-3 rounded-2xl border bg-[var(--card)] p-4"
+          >
             <div className="min-w-0 space-y-1">
               <p className="flex items-center gap-2 font-semibold">
                 <span>{a.label}</span>
-                {a.isDefault && <Pill tone="ok" size="sm">Default</Pill>}
+                <AnimatePresence initial={false}>
+                  {a.isDefault && (
+                    <motion.span
+                      key="default"
+                      initial={{ opacity: 0, scale: 0.6 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.6 }}
+                      transition={{ type: "spring", stiffness: 520, damping: 22 }}
+                    >
+                      <Pill tone="ok" size="sm">Default</Pill>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </p>
               <p className="truncate text-sm text-[var(--muted-foreground)]">{formatAddress(a)}</p>
+              {dropOffName(dropOffOptions, dropOffs[a.publicId]) && (
+                <p className="text-sm text-[var(--muted-foreground)]">Drop-off: {dropOffName(dropOffOptions, dropOffs[a.publicId])}</p>
+              )}
             </div>
             <div className="flex shrink-0 gap-1">
               {!a.isDefault && (
-                <IconButton aria-label={`Make ${a.label} the default`} onClick={() => book.setDefault(a.publicId)}>
+                <IconButton
+                  aria-label={`Make ${a.label} the default`}
+                  tip="Make default — checkout uses it"
+                  className="transition-transform active:scale-90 motion-reduce:transition-none"
+                  onClick={() => book.setDefault(a.publicId)}
+                >
                   <StarIcon className="size-4" />
                 </IconButton>
               )}
-              <IconButton aria-label={`Edit ${a.label}`} onClick={() => setEditing({ publicId: a.publicId, label: a.label, values: toValues(a) })}>
+              <IconButton aria-label={`Edit ${a.label}`} onClick={() => setEditing({ publicId: a.publicId, label: a.label, values: toValues(a), dropOff: dropOffs[a.publicId] ?? null })}>
                 <PencilIcon className="size-4" />
               </IconButton>
               {!a.isDefault && (
@@ -97,14 +155,15 @@ export function AddressBook({ initial }: { initial: SavedAddress[] }) {
                 </IconButton>
               )}
             </div>
-          </li>
+          </motion.li>
         ))}
       </ul>
+      </MotionConfig>
 
       {/* Sheet actions show their error inside the sheet; this covers make-default. */}
       {book.error && !editing && !deleting && <Notice tone="error">{book.error}</Notice>}
 
-      <Button pill onClick={() => setEditing({ publicId: null, label: "", values: {} })}>
+      <Button pill onClick={() => setEditing({ publicId: null, label: "", values: {}, dropOff: null })}>
         <PlusIcon className="size-4" /> Add address
       </Button>
 
@@ -136,6 +195,7 @@ export function AddressBook({ initial }: { initial: SavedAddress[] }) {
               resolveUrl="/api/address/resolve"
               onChange={(patch) => setEditing({ ...editing, values: { ...editing.values, ...patch } })}
             />
+            <DropOffPicker options={dropOffOptions} value={editing.dropOff} onChange={(dropOff) => setEditing({ ...editing, dropOff })} />
             {book.error && <Notice tone="error">{book.error}</Notice>}
           </div>
         )}

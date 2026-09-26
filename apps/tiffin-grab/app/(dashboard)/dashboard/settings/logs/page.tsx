@@ -1,6 +1,5 @@
 import { Suspense } from "react";
-import { ScrollTextIcon } from "lucide-react";
-import { PageHeader, SectionCard, parseFilterState } from "@/components/ds";
+import { SectionCard, parseFilterState } from "@/components/ds";
 import { requireAdmin } from "@/lib/auth/guards";
 import { SETTINGS_ACTIVITY_FACETS } from "@/lib/order-activity/log-facets";
 import { parseSort } from "@/lib/list/sort";
@@ -21,18 +20,11 @@ const SORT_COLUMNS = [
 
 export default function SettingsLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        icon={ScrollTextIcon}
-        title="Logs"
-        subtitle="Customer and staff actions across subscriptions — who changed what, and when."
-      />
-      <SectionCard title="Activity">
-        <Suspense fallback={<LogsTableSkeleton />}>
-          <LogsData searchParams={searchParams} />
-        </Suspense>
-      </SectionCard>
-    </div>
+    <SectionCard title="Activity">
+      <Suspense fallback={<LogsTableSkeleton />}>
+        <LogsData searchParams={searchParams} />
+      </Suspense>
+    </SectionCard>
   );
 }
 

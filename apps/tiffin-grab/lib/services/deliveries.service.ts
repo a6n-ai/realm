@@ -13,6 +13,7 @@ import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { findZone } from "@/lib/catalog/zone-match";
 import type { AddressInput, AddressScope } from "@foundry/address";
 import { addressService } from "@/lib/services/addresses.service";
+import { setAddressDropOff } from "./address-drop-off.service";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
 
 const log = createLogger("deliveries.service");
@@ -1111,6 +1112,8 @@ export async function setDeliveryAddress(
       address = await addressService.getRow(scope, pick.addressPublicId, tx);
     } else if (pick.newAddress) {
       address = await addressService.create(scope, pick.newAddress, { tx });
+      // A new address remembers the drop-off chosen with it, for its next delivery or checkout.
+      if (pick.deliveryStrategyPublicId) await setAddressDropOff(scope, { id: address.id }, pick.deliveryStrategyPublicId, tx);
     }
 
     let zoneId = null;

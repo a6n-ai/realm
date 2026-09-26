@@ -1,4 +1,5 @@
 import { addressService } from "@/lib/services/addresses.service";
+import { dropOffsFor } from "./address-drop-off.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { zonedDateIso } from "@foundry/commons";
 import { buildPlanContext, toCalendarInputs, type PlanView } from "@/components/customer/deliveries/adapter";
@@ -66,6 +67,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
   const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: window.first });
+  const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
   const plan: PlanView = {
     orderId: sub.publicId,
     sub,
@@ -78,8 +80,11 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
     categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
     swapCategories: Object.fromEntries(swapCategories),
-    savedAddresses: await addressService.list({ userId, orgId: await resolveRequestOrg() }),
-    deliveryStrategies: catalog.deliveryCharges?.deliveryStrategies.map(s => ({ publicId: s.publicId, name: s.name })) ?? [],
+    savedAddresses,
+    addressDropOffs: await dropOffsFor(savedAddresses.map((a) => a.publicId)),
+    deliveryStrategies: catalog.deliveryCharges?.deliveryStrategies.map((s) => ({
+      publicId: s.publicId, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue,
+    })) ?? [],
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
   return { plan, trips: buildTrips(inputs, now, ctx, sub.publicId), agenda, weekStart, firstWeek, lastWeek, now };
