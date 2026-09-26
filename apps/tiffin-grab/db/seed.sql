@@ -341,8 +341,9 @@ FROM duration_packages d WHERE d.discount_pct > 0
 ON CONFLICT (key) DO NOTHING;
 
 -- ============ DELIVERY ZONES ============
+-- Zone names aren't unique (0049), so NOT EXISTS instead of ON CONFLICT.
 INSERT INTO delivery_zones (public_id, created_at, updated_at, name, postal_prefixes, slot_window)
-VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+SELECT v.* FROM (VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'Etobicoke', ARRAY ['M8','M9'], '9:00 AM – 12:00 PM'),
        ('zon_mississauga', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'Mississauga', ARRAY ['L5'], '10:00 AM – 1:00 PM'),
@@ -364,7 +365,8 @@ VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EP
         'Oakville', ARRAY ['L6H','L6J','L6K','L6L','L6M'], '12:00 PM – 3:00 PM'),
        ('zon_east_york', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'East York', ARRAY ['M4B','M4C','M4G','M4H','M4J','M4K'], '10:00 AM – 1:00 PM')
-ON CONFLICT (name) DO NOTHING;
+) AS v(public_id, created_at, updated_at, name, postal_prefixes, slot_window)
+WHERE NOT EXISTS (SELECT 1 FROM delivery_zones z WHERE z.name = v.name);
 
 -- ============ PRICING TIERS ============ (no unique key -> wipe + reinsert, matches seed)
 DELETE FROM pricing_tiers WHERE id > 0;
