@@ -67,7 +67,7 @@ export async function unskipMyDelivery(deliveryPublicId: string): Promise<Action
 
 export async function setMyDeliveryAddress(
   deliveryPublicId: string,
-  pick: { addressPublicId: string } | { newAddress: AddressInput },
+  pick: { addressPublicId?: string; newAddress?: AddressInput; deliveryStrategyPublicId?: string },
 ): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);

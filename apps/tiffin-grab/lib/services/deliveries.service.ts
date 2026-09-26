@@ -3,7 +3,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryZones, orderActivities, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryZones, deliveryStrategies, orderActivities, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
@@ -1092,7 +1092,7 @@ export async function resolveZoneId(tx: Tx, postalCode: string): Promise<bigint>
 
 export async function setDeliveryAddress(
   deliveryPublicId: string,
-  pick: { addressPublicId: string } | { newAddress: AddressInput },
+  pick: { addressPublicId?: string; newAddress?: AddressInput; deliveryStrategyPublicId?: string },
   scope: AddressScope,
   actorId: bigint | null,
 ): Promise<void> {
@@ -1104,22 +1104,40 @@ export async function setDeliveryAddress(
     // NOTE: no assertOriginal — re-addressing a make-up is the one mutation make-ups permit.
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
-    const address = "addressPublicId" in pick
-      ? await addressService.getRow(scope, pick.addressPublicId, tx)
-      : await addressService.create(scope, pick.newAddress, { tx });
-    const zoneId = await resolveZoneId(tx, address.postalCode);
+
+    let address = null;
+    if (pick.addressPublicId) {
+      address = await addressService.getRow(scope, pick.addressPublicId, tx);
+    } else if (pick.newAddress) {
+      address = await addressService.create(scope, pick.newAddress, { tx });
+    }
+
+    let zoneId = null;
+    if (address) {
+      zoneId = await resolveZoneId(tx, address.postalCode);
+    }
+
+    let deliveryStrategyId = null;
+    if (pick.deliveryStrategyPublicId) {
+      const [strategy] = await tx.select({ id: deliveryStrategies.id }).from(deliveryStrategies).where(eq(deliveryStrategies.publicId, pick.deliveryStrategyPublicId)).limit(1);
+      if (strategy) deliveryStrategyId = strategy.id;
+    }
+
     // A saved address may carry no recipient name; fall back to the plan's.
     const [plan] = await tx.select({ fullName: orders.fullName }).from(orders).where(eq(orders.id, orderId)).limit(1);
     // Per-delivery changes are never charged: no pricing or ledger writes here.
     const updated = await tx.update(deliveries).set({
-      addressId: address.id,
-      fullName: address.fullName ?? plan?.fullName ?? null,
-      addressLine: address.addressLine,
-      addressUnit: address.addressUnit,
-      city: address.city,
-      postalCode: address.postalCode,
-      deliveryInstructions: address.deliveryInstructions,
-      zoneId,
+      ...(address ? {
+        addressId: address.id,
+        fullName: address.fullName ?? plan?.fullName ?? null,
+        addressLine: address.addressLine,
+        addressUnit: address.addressUnit,
+        city: address.city,
+        postalCode: address.postalCode,
+        deliveryInstructions: address.deliveryInstructions,
+        zoneId,
+      } : {}),
+      ...(deliveryStrategyId ? { deliveryStrategyId } : {}),
     })
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });

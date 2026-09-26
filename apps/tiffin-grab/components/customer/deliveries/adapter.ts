@@ -25,6 +25,8 @@ export type PlanView = {
   swapCategories: Record<string, SwapCategory>;
   /** The customer's saved addresses, for the per-delivery "Change address" sheet. */
   savedAddresses: SavedAddress[];
+  /** The available delivery strategies for per-delivery changes. */
+  deliveryStrategies: { publicId: string; name: string }[];
 };
 
 type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "pooledAt"> &

@@ -111,6 +111,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses,
+    deliveryStrategies: catalog.deliveryCharges?.deliveryStrategies.map(s => ({ publicId: s.publicId, name: s.name })) ?? [],
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
   const trips = buildTrips(inputs, now, ctx, sub.publicId);
