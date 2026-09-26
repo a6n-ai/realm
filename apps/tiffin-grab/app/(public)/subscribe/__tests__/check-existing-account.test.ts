@@ -43,6 +43,11 @@ describe("checkExistingAccount", () => {
     expect(r).toEqual({ status: "new" });
   });
 
+  it("returns staff for an email tied to a staff account", async () => {
+    await db.insert(users).values({ phone: "+16475550199", email: "admin@x.com", name: "Admin", role: "admin" });
+    expect(await checkExistingAccount("Admin@X.com")).toEqual({ status: "staff" });
+  });
+
   it("never leaks fields beyond status", async () => {
     const r = await checkExistingAccount("existing@x.com");
     expect(Object.keys(r)).toEqual(["status"]);
