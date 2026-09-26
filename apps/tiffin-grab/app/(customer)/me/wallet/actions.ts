@@ -24,7 +24,7 @@ export async function claimPaymentAction(paymentPublicId: string, form: FormData
 }
 
 async function claimPaymentUnsafe(paymentPublicId: string, form: FormData) {
-  await assertCanClaimPayment(paymentPublicId);
+  const ctx = await assertCanClaimPayment(paymentPublicId);
   const reference = String(form.get("reference") ?? "").trim() || null;
   const proof = await uploadPaymentProof(
     paymentPublicId,
@@ -32,8 +32,11 @@ async function claimPaymentUnsafe(paymentPublicId: string, form: FormData) {
     form.get("proof_thumb"),
   );
   await claimPayment(paymentPublicId, { reference, proof }, await currentUserId());
+  revalidatePath("/me");
   revalidatePath("/me/wallet");
+  revalidatePath(`/dashboard/orders/${ctx.orderPublicId}`);
   revalidatePath("/dashboard/orders");
+  revalidatePath("/dashboard/payments/requests");
 }
 
 export async function loadClaimPaymentContext(paymentPublicId: string): Promise<ClaimPaymentContext> {

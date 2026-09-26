@@ -3,6 +3,7 @@ import { Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/customer/kit";
+import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 import { OrderStatusBadge } from "@/components/ds";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
@@ -10,6 +11,7 @@ import { deliveryLine, eatingRowsInWeek, weekdayShort, type EatingRow } from "@/
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
 import { addDays, dotStatus, mondayOf, PLAN_COLORS, type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
+import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { actionModel } from "./action-model";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
@@ -39,8 +41,11 @@ interface Props {
   now: number;
   /** Account name for the page heading. */
   customerName?: string | null;
-  /** An e-Transfer is unconfirmed: only meal picking is allowed. */
+  /** An e-Transfer is unconfirmed: calendar is hidden; claim form is shown instead. */
   locked?: boolean;
+  /** Claim form for payment-review plans; null when settled or unavailable. */
+  claimPayment?: ClaimPaymentContext | null;
+  currency?: string;
   initialTrip: string | null;
   initialAction?: string | null;
 }
@@ -50,7 +55,7 @@ function PlanTab({ selected, className, ...rest }: React.ButtonHTMLAttributes<HT
 }
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "hold" ? 1 : 2);
 
-export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, initialTrip, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, currency = "CAD", initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
   const multi = subs.length > 1;
@@ -133,7 +138,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const dates = Object.keys(agenda).sort();
   const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;
   const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
-  const hasBar = !!(trip && model && (model.rows.length > 0 || model.goTo || model.primary === "vacation"));
+  const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo || model.primary === "vacation"));
   const heldOnly = shown.length > 0 && shown.every((r) => r.trip.status === "hold");
 
   return (
@@ -146,8 +151,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         onVacation={!!ctx.onVacation}
         onVacationClick={locked ? undefined : () => setActive("vacation")}
       />
-
-      {locked && <Notice>We&apos;re confirming your payment. Your plan is view-only until then; editing meals, holds, moves and vacation unlock once it&apos;s approved.</Notice>}
 
       {multi && (
         <nav aria-label="Your plans" className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap">
@@ -163,6 +166,18 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         </nav>
       )}
 
+      {locked && claimPayment && (
+        <Card className="mb-4 p-5" data-testid="payment-claim">
+          <ClaimPayment ctx={claimPayment} currency={currency} />
+        </Card>
+      )}
+
+      {locked && !claimPayment && (
+        <Notice>We&apos;re confirming your payment. Your plan is view-only until then; editing meals, holds, moves and vacation unlock once it&apos;s approved.</Notice>
+      )}
+
+      {!locked && (
+      <>
       {upcoming && (
         <button
           type="button"
@@ -192,7 +207,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         />
       </div>
 
-      {ctx.pooled >= 1 && !locked && (
+      {ctx.pooled >= 1 && (
         <Notice className="mb-4 items-center justify-between">
           <span>{tiffins(ctx.pooled)} {ctx.pooled === 1 ? "is" : "are"} waiting.</span>
           <button type="button" aria-label="Schedule a make-up" onClick={() => setActive("makeup")} className="min-h-11 shrink-0 px-2 text-sm font-semibold underline underline-offset-4 [touch-action:manipulation]">Make-up<span className="hidden lg:inline"> day</span></button>
@@ -232,7 +247,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                   <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
                     <div className="mt-6 hidden lg:block">
                       <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} />
-                      {!locked && <div className="mt-4">
+                      <div className="mt-4">
                         {/* Feature hidden for phase 1
                         {ctx.onVacation ? (
                           <button type="button" className={linkCls} onClick={() => setActive("vacation")}>On vacation · Resume deliveries</button>
@@ -242,7 +257,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                           <button type="button" className={linkCls} onClick={() => setActive("vacation")}>Going away? Vacation</button>
                         )}
                         */}
-                      </div>}
+                      </div>
                     </div>
                   </EatingCard>
                 ) : null}
@@ -258,6 +273,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
           </>
         )}
       </div>
+      </>
+      )}
 
       {active === "vacation" ? (
         <VacationSheet plan={plan} open onDone={done} />

@@ -79,13 +79,29 @@ describe("DeliveriesView (one plan)", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Edit meal/ })[0]!);
     expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
   });
-  it("payment review: plan is view-only — no Edit meal, no vacation link, deep links open nothing", () => {
-    view("2026-09-23", trips, plan, { locked: true, initialAction: "pick" });
-    expect(screen.getByText(/view-only/)).toBeInTheDocument();
+  it("payment review: shows claim upload and hides the calendar section", () => {
+    const claim = {
+      paymentPublicId: "pay_1",
+      orderPublicId: "o",
+      deploymentId: "TG-1",
+      amount: "120.00",
+      status: "awaiting_payment" as const,
+      methodId: "etransfer",
+      methodLabel: "Interac e-Transfer",
+      payeeHandle: "pay@tiffingrab.com",
+      instructions: "Send with the reference below",
+      requireProof: false,
+      rejectNote: null,
+      referenceHint: "TG-1",
+    };
+    view("2026-09-23", trips, plan, { locked: true, claimPayment: claim, initialAction: "pick" });
+    expect(screen.getByTestId("payment-claim")).toBeInTheDocument();
+    expect(screen.getByText("Upload payment screenshot")).toBeInTheDocument();
+    expect(screen.queryByTestId("next-delivery")).toBeNull();
+    expect(screen.queryByTestId("delivery-block")).toBeNull();
+    expect(screen.queryByTestId("trip-row")).toBeNull();
     expect(screen.queryByRole("button", { name: /Edit meal/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Vacation/ })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Wed, Sep 23");
   });
   it("there is no Hold action; held trip offers Resume", () => {
     view();

@@ -11,7 +11,8 @@ import { Badge } from "@foundry/ui/badge";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Separator } from "@foundry/ui/separator";
-import type { OrderPaymentDetail } from "@/lib/services/orders.service";
+import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
+import type { ClaimPaymentContext, OrderPaymentDetail } from "@/lib/services/orders.service";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { formatEpoch } from "@/lib/format/datetime";
 import { rejectPaymentAction, verifyPaymentAction } from "./actions";
@@ -146,12 +147,15 @@ function PaymentRow({
   payment,
   currency,
   timezone,
+  claimCtx,
 }: {
   orderId: string;
   deploymentId: string;
   payment: OrderPaymentDetail;
   currency: string;
   timezone: string;
+  /** Staff-on-behalf claim form when the payment still needs a customer claim. */
+  claimCtx: ClaimPaymentContext | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -166,6 +170,9 @@ function PaymentRow({
     payment.status === "awaiting_payment" ||
     payment.status === "pending_verification" ||
     payment.status === "rejected";
+  const canClaim =
+    claimCtx != null &&
+    (payment.status === "awaiting_payment" || payment.status === "rejected");
 
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: timezone });
 
@@ -298,6 +305,13 @@ function PaymentRow({
         </a>
       )}
 
+      {canClaim && claimCtx && (
+        <div className="border-t pt-3" data-testid="admin-payment-claim">
+          <p className="mb-3 text-sm font-medium">Record payment (staff on behalf)</p>
+          <ClaimPayment ctx={claimCtx} currency={currency} onDone={() => router.refresh()} />
+        </div>
+      )}
+
       {showReject && (
         <div className="flex flex-wrap items-end gap-2 border-t pt-3">
           <div className="grid min-w-[12rem] flex-1 gap-1.5">
@@ -330,6 +344,7 @@ export function PaymentsPanel({
   checkoutMethodLabel,
   pricingSnapshot,
   payments,
+  claimContexts = {},
 }: {
   orderId: string;
   deploymentId: string;
@@ -339,6 +354,8 @@ export function PaymentsPanel({
   checkoutMethodLabel: string | null;
   pricingSnapshot: unknown;
   payments: OrderPaymentDetail[];
+  /** paymentPublicId → claim form context for staff-on-behalf uploads. */
+  claimContexts?: Record<string, ClaimPaymentContext>;
 }) {
   const snap = pricingSnapshot as OrderPricingSnapshot | null;
   const pendingRedemptions = snap?.pendingRedemptions;
@@ -377,6 +394,7 @@ export function PaymentsPanel({
             payment={p}
             currency={currency}
             timezone={timezone}
+            claimCtx={claimContexts[p.publicId] ?? null}
           />
         ))}
       </div>

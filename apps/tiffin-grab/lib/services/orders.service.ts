@@ -1063,6 +1063,24 @@ export async function getClaimPaymentContext(paymentPublicId: string): Promise<C
   };
 }
 
+/** Claim form for a locked (payment-review) plan on /me/deliveries. */
+export async function getClaimPaymentContextForOrder(orderPublicId: string): Promise<ClaimPaymentContext | null> {
+  const [pay] = await db
+    .select({ publicId: payments.publicId })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .where(
+      and(
+        eq(orders.publicId, orderPublicId),
+        inArray(payments.status, ["awaiting_payment", "pending_verification", "rejected"]),
+      ),
+    )
+    .orderBy(desc(payments.createdAt))
+    .limit(1);
+  if (!pay) return null;
+  return getClaimPaymentContext(pay.publicId);
+}
+
 export type OrderListRow = {
   publicId: string;
   deploymentId: string;
