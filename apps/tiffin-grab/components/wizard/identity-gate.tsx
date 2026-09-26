@@ -1,232 +1,256 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
-import { checkExistingAccount } from "@/app/(public)/subscribe/actions";
-import { Button, Field, Label } from "@/components/customer/kit";
+import { checkExistingAccount, createCheckoutAccount } from "@/app/(public)/subscribe/actions";
+import { Button, Field, Label, Notice } from "@/components/customer/kit";
 import { CodeOtp } from "@foundry/auth-ui";
-import { readIdentity, resetSession, writeIdentity } from "./selections";
+import { emailDomainSuggestions } from "./email-domains";
 
-// Gates entry to the subscribe wizard: ask for an email, check it against
-// existing accounts, and offer a non-blocking sign-in on a match instead of
-// letting the visitor rediscover the account (and any plan overlap) only at
-// final checkout submit. See
-// docs/superpowers/specs/2026-09-08-subscribe-identity-gate-design.md.
+// Step zero of /subscribe for signed-out visitors, drawn in the wizard's own
+// language (question headline, kit Field, one hero CTA) so it reads as the
+// first step rather than a separate form.
 //
-// Styled to match the subscribe wizard's own brutalist-ticket look (bordered
-// card, pill buttons, glow CTA) rather than generic shadcn defaults — see
-// components/wizard/steps/step-bundle.tsx and components/checkout/checkout.tsx
-// for the same border border-border / rounded-full vocabulary.
+// Every order needs an owner who can sign in — the activate page only takes a
+// payment screenshot from the signed-in owner — so there is no guest path. An
+// existing email gets a sign-in code; a new one first gets an account (name +
+// email) and then the same code. Everything reveals in place on one screen. A
+// verified code signs them in and hands off to /me/renew, the signed-in wizard.
+// See docs/superpowers/specs/2026-09-08-subscribe-identity-gate-design.md.
 //
-// States: "email" (asking) -> "revealed" (render children, no match or
-// guest chose to continue) -> "matched" (soft prompt) -> "otp" (inline
-// sign-in code entry, then redirect to /me/renew on success). "staff" is a dead end:
-// a staff email cannot order, so it is sent to the dashboard sign-in instead.
-// "init" renders nothing until sessionStorage has been read, so a returning visitor never flashes the email screen.
-type GateState = "init" | "email" | "matched" | "staff" | "otp" | "revealed";
+// Phases: "email" -> "name" (new email only) -> "otp" -> /me/renew. "staff" is a
+// dead end: a staff email cannot order, so it is sent to the dashboard sign-in.
+type Phase = "email" | "name" | "otp" | "staff";
 
-const emailStepSchema = z.object({ email: emailSchema });
-const otpCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code") });
+const COPY: Record<Phase, { title: string; body: string }> = {
+  email: { title: "Let's start with your email.", body: "We'll email you a code to sign in, or to set up your account if you're new." },
+  name: { title: "Nice to meet you.", body: "Your orders, deliveries and payments will live in this account." },
+  otp: { title: "Check your inbox.", body: "Enter the 6-digit code we just sent." },
+  staff: { title: "That's a staff account.", body: "" },
+};
 
-export function IdentityGate({ children }: { children: ReactNode }) {
+export function IdentityGate() {
   const router = useRouter();
-  const [state, setState] = useState<GateState>("init");
+  const reduced = useReducedMotion();
+  const [phase, setPhase] = useState<Phase>("email");
   const [email, setEmail] = useState("");
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [code, setCode] = useState("");
+  const [isNew, setIsNew] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<{ field: "email" | "name" | "code" | "form"; message: string } | null>(null);
+  const [resent, setResent] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
 
-  const emailForm = useForm<z.infer<typeof emailStepSchema>>({
-    resolver: zodResolver(emailStepSchema),
-    defaultValues: { email: "" },
-  });
-  const codeForm = useForm<z.infer<typeof otpCodeSchema>>({
-    resolver: zodResolver(otpCodeSchema),
-    defaultValues: { code: "" },
-  });
+  const suggestions = phase === "email" ? emailDomainSuggestions(email) : [];
+  const reveal = reduced
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+    : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -4 } };
 
-  useEffect(() => {
-    const stored = readIdentity();
-    // sessionStorage is only readable after mount.
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (stored) {
-      setEmail(stored.email);
-      setState("revealed");
-    } else {
-      setState("email");
-    }
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
-
-  const continueAsGuest = () => {
-    writeIdentity({ email, kind: "guest" });
-    setState("revealed");
-  };
-
-  function useDifferentEmail() {
-    resetSession();
-    emailForm.reset({ email: "" });
-    setState("email");
+  function changeEmail() {
+    setPhase("email");
+    setCode("");
+    setError(null);
+    setResent(false);
+    requestAnimationFrame(() => emailRef.current?.focus());
   }
 
-  async function submitEmail(values: z.infer<typeof emailStepSchema>) {
-    setEmail(values.email);
+  async function sendCode(to: string) {
     try {
-      const result = await checkExistingAccount(values.email);
-      if (result.status === "matched") setState("matched");
-      else if (result.status === "staff") setState("staff");
-      else {
-        writeIdentity({ email: values.email, kind: "guest" });
-        setState("revealed");
-      }
+      await authClient.emailOtp.sendVerificationOtp({ email: to, type: "sign-in" });
+      setPhase("otp");
+      return true;
     } catch {
-      // Fail open — a non-essential pre-check must never block checkout.
-      writeIdentity({ email: values.email, kind: "guest" });
-      setState("revealed");
+      setError({ field: "form", message: "We couldn't send the code. Check the email and try again." });
+      return false;
     }
   }
 
-  async function sendCode() {
-    setOtpError(null);
-    setSending(true);
+  async function submitEmail() {
+    const parsed = emailSchema.safeParse(email.trim());
+    if (!parsed.success) return setError({ field: "email", message: "Enter a valid email, like you@gmail.com." });
+    const clean = parsed.data;
+    setEmail(clean);
+    const { status } = await checkExistingAccount(clean);
+    if (status === "staff") return setPhase("staff");
+    if (status === "matched") {
+      setIsNew(false);
+      return void (await sendCode(clean));
+    }
+    setIsNew(true);
+    setPhase("name");
+  }
+
+  async function submitName() {
+    if (!fullName.trim()) return setError({ field: "name", message: "Enter your name as it should appear on deliveries." });
+    const { status } = await createCheckoutAccount(email, fullName);
+    if (status === "staff") return setPhase("staff");
+    if (status === "invalid") return setError({ field: "form", message: "Check your name and email, then try again." });
+    await sendCode(email);
+  }
+
+  async function verify(otp: string) {
+    if (!/^\d{6}$/.test(otp)) return setError({ field: "code", message: "Enter all 6 digits." });
+    const result = await signIn.emailOtp({ email, otp });
+    if (result?.error) return setError({ field: "code", message: "That code is wrong or expired. Try again or resend it." });
+    router.push("/me/renew");
+    router.refresh();
+  }
+
+  // `otp` comes straight from CodeOtp's onComplete: the `code` state set in the
+  // same tick isn't readable here yet.
+  async function onSubmit(e?: FormEvent, otp: string = code) {
+    e?.preventDefault();
+    if (pending) return;
+    setError(null);
+    setPending(true);
     try {
-      await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
-      setState("otp");
+      if (phase === "email") await submitEmail();
+      else if (phase === "name") await submitName();
+      else if (phase === "otp") await verify(otp);
     } catch {
-      setOtpError("Couldn't send the code. Try again, or continue as guest.");
+      setError({ field: "form", message: "Something went wrong on our side. Try again." });
     } finally {
-      setSending(false);
+      setPending(false);
     }
   }
 
-  async function verifyCode(values: z.infer<typeof otpCodeSchema>) {
-    setOtpError(null);
-    try {
-      const result = await signIn.emailOtp({ email, otp: values.code });
-      if (result?.error) {
-        setOtpError("Invalid or expired code.");
-        return;
-      }
-      writeIdentity({ email, kind: "member" });
-      router.push("/me/renew");
-      router.refresh();
-    } catch {
-      setOtpError("Couldn't sign you in. Try again, or continue as guest.");
-    }
+  async function resend() {
+    setError(null);
+    setCode("");
+    if (await sendCode(email)) setResent(true);
   }
 
-  if (state === "init") return null;
-
-  if (state === "revealed") {
-    return (
-      <>
-        <p className="text-muted-foreground mb-3 text-[13px]">
-          Ordering as <span className="text-foreground font-medium">{email}</span>.{" "}
-          <button type="button" onClick={useDifferentEmail} className="text-primary min-h-11 font-semibold underline-offset-2 hover:underline">
-            Not you? Use a different email
-          </button>
-        </p>
-        {children}
-      </>
-    );
-  }
+  const lockedEmail = phase !== "email";
+  const cta = phase === "email" ? "Continue" : phase === "name" ? "Send my code" : "Verify and continue";
 
   return (
-    <div className="border-border rounded-2xl border p-4.5 sm:p-6">
-      {state === "email" && (
-        <form onSubmit={emailForm.handleSubmit(submitEmail)} className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-xl font-bold tracking-[-0.02em]">What&apos;s your email?</h2>
-            <p className="text-muted-foreground mt-1 text-sm text-pretty">
-              We&apos;ll check if you already have an account.
-            </p>
-          </div>
+    <form onSubmit={onSubmit} noValidate className="max-w-md">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={phase} {...reveal} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
+          <h2 className="c-h2">{COPY[phase].title}</h2>
+          {COPY[phase].body ? <p className="c-body mt-1.5 text-pretty text-[var(--muted-foreground)]">{COPY[phase].body}</p> : null}
+        </motion.div>
+      </AnimatePresence>
+
+      <div className="mt-6 flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
           <Field
+            ref={emailRef}
             label="Email"
             type="email"
+            inputMode="email"
             autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
             placeholder="you@example.com"
-            wrapperClassName="!gap-2"
-            labelClassName="!font-medium !leading-none"
-            className="!bg-transparent md:!text-sm focus-visible:!outline-0 focus-visible:!border-[var(--primary)] focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary)_50%,transparent)]"
-            error={emailForm.formState.errors.email?.message}
-            {...emailForm.register("email")}
+            value={email}
+            readOnly={lockedEmail}
+            onChange={(e) => setEmail(e.target.value)}
+            error={error?.field === "email" ? error.message : undefined}
+            className={lockedEmail ? "bg-[var(--muted)] text-[var(--muted-foreground)]" : undefined}
           />
-          <Button type="submit" variant="hero" className="w-full !min-h-14 !text-sm !font-medium hover:!bg-[color-mix(in_oklch,var(--primary)_90%,transparent)]" disabled={emailForm.formState.isSubmitting}>
-            Continue
-          </Button>
-        </form>
-      )}
-
-      {state === "matched" && (
-        <div className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-xl font-bold tracking-[-0.02em]">Welcome back</h2>
-            <p className="text-muted-foreground mt-1 text-sm text-pretty">
-              This email is linked to an existing account — sign in to continue with your saved plan.
-            </p>
-          </div>
-          {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
-          <Button variant="hero" className="w-full !min-h-14 !text-sm !font-medium hover:!bg-[color-mix(in_oklch,var(--primary)_90%,transparent)]" onClick={continueAsGuest}>
-            Continue as guest
-          </Button>
-          <Button variant="quiet" pill className="w-full !min-h-14 !text-sm !font-medium" onClick={sendCode} disabled={sending}>
-            Sign in
-          </Button>
+          {lockedEmail ? (
+            <button type="button" onClick={changeEmail} className="c-caption self-start py-1 font-semibold text-[var(--primary)] underline-offset-4 hover:underline">
+              Use a different email
+            </button>
+          ) : null}
+          {suggestions.length > 0 ? (
+            <div role="group" aria-label="Suggested email addresses" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => {
+                    setEmail(s);
+                    emailRef.current?.focus();
+                  }}
+                  className="min-h-11 shrink-0 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 text-[13px] font-semibold tabular-nums transition-transform duration-100 active:scale-[0.97]"
+                >
+                  <span className="text-[var(--muted-foreground)]">@</span>
+                  {s.slice(s.indexOf("@") + 1)}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
-      )}
 
-      {state === "staff" && (
-        <div className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-xl font-bold tracking-[-0.02em]">This is a staff account</h2>
-            <p className="text-muted-foreground mt-1 text-sm text-pretty">
-              {email} belongs to a staff account, which can&apos;t place customer orders. Sign in to the Tiffin Grab dashboard, or use a different email to order.
-            </p>
-          </div>
-          <Button variant="hero" className="w-full !min-h-14 !text-sm !font-medium hover:!bg-[color-mix(in_oklch,var(--primary)_90%,transparent)]" onClick={() => router.push("/login")}>
-            Sign in to the dashboard
-          </Button>
-          <Button variant="quiet" pill className="w-full !min-h-14 !text-sm !font-medium" onClick={useDifferentEmail}>
-            Use a different email
-          </Button>
-        </div>
-      )}
+        <AnimatePresence initial={false}>
+          {isNew && (phase === "name" || phase === "otp") ? (
+            <Reveal key="name" motionProps={reveal}>
+              <Field
+                label="Full name"
+                autoComplete="name"
+                autoCapitalize="words"
+                autoFocus={phase === "name"}
+                value={fullName}
+                readOnly={phase !== "name"}
+                onChange={(e) => setFullName(e.target.value)}
+                error={error?.field === "name" ? error.message : undefined}
+                className={phase !== "name" ? "bg-[var(--muted)] text-[var(--muted-foreground)]" : undefined}
+              />
+            </Reveal>
+          ) : null}
 
-      {state === "otp" && (
-        <form onSubmit={codeForm.handleSubmit(verifyCode)} className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-xl font-bold tracking-[-0.02em]">Enter your code</h2>
-            <p className="text-muted-foreground mt-1 text-sm text-pretty">
-              We emailed a 6-digit code to {email}.
-            </p>
+          {phase === "otp" ? (
+            <Reveal key="otp" motionProps={reveal}>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="gate-code" className="font-semibold">Code sent to {email}</Label>
+                <CodeOtp
+                  id="gate-code"
+                  autoFocus
+                  value={code}
+                  onChange={(v: string) => setCode(v)}
+                  onComplete={(v: string) => void onSubmit(undefined, v)}
+                  aria-invalid={error?.field === "code"}
+                />
+                {error?.field === "code" ? (
+                  <p role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">{error.message}</p>
+                ) : resent ? (
+                  <p role="status" className="c-caption">New code sent. It works for 10 minutes.</p>
+                ) : (
+                  <p className="c-caption">It works for 10 minutes. Check spam if it isn&apos;t there.</p>
+                )}
+                <button type="button" onClick={resend} className="c-caption self-start py-1 font-semibold text-[var(--primary)] underline-offset-4 hover:underline">
+                  Resend code
+                </button>
+              </div>
+            </Reveal>
+          ) : null}
+
+          {phase === "staff" ? (
+            <Reveal key="staff" motionProps={reveal}>
+              <Notice>
+                {email} belongs to Tiffin Grab staff. Sign in to the dashboard, or use a personal email to order.
+              </Notice>
+            </Reveal>
+          ) : null}
+        </AnimatePresence>
+
+        {error?.field === "form" ? <Notice tone="error">{error.message}</Notice> : null}
+
+        {phase === "staff" ? (
+          <div className="flex flex-col gap-3">
+            <Button variant="hero" onClick={() => router.push("/login")}>Sign in to the dashboard</Button>
+            <Button variant="quiet" pill size="lg" onClick={changeEmail}>Use a different email</Button>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="gate-code">Verification code</Label>
-            <CodeOtp
-              id="gate-code"
-              value={codeForm.watch("code")}
-              onChange={(v: string) => codeForm.setValue("code", v, { shouldValidate: codeForm.formState.isSubmitted })}
-              onComplete={() => codeForm.handleSubmit(verifyCode)()}
-              aria-invalid={!!codeForm.formState.errors.code}
-            />
-            {codeForm.formState.errors.code && (
-              <p role="alert" className="text-destructive text-sm">{codeForm.formState.errors.code.message}</p>
-            )}
-          </div>
-          {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
-          <Button type="submit" variant="hero" className="w-full !min-h-14 !text-sm !font-medium hover:!bg-[color-mix(in_oklch,var(--primary)_90%,transparent)]" disabled={codeForm.formState.isSubmitting}>
-            Sign in
+        ) : (
+          <Button type="submit" variant="hero" pending={pending} className="w-full">
+            {cta}
           </Button>
-          <Button variant="ghost" pill className="w-full !min-h-12 !text-sm !font-medium" onClick={continueAsGuest}>
-            Continue as guest instead
-          </Button>
-        </form>
-      )}
-    </div>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function Reveal({ children, motionProps }: { children: ReactNode; motionProps: object }) {
+  return (
+    <motion.div layout {...motionProps} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
+      {children}
+    </motion.div>
   );
 }

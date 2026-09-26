@@ -15,6 +15,7 @@ import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "@/lib
 import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
+import { provisionCustomerByEmail } from "@/lib/services/customers.service";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -213,4 +214,21 @@ export async function checkExistingAccount(email: string): Promise<{ status: "ne
     .limit(1);
   if (!row) return { status: "new" };
   return { status: row.role === "user" ? "matched" : "staff" };
+}
+
+// New-customer branch of the email step: create the account so the gate can
+// send a sign-in code to it. Every order then has an owner from the start, and
+// the activate page can take the payment screenshot. Same `{ status }`-only
+// shape as checkExistingAccount.
+export async function createCheckoutAccount(
+  email: string,
+  fullName: string,
+): Promise<{ status: "created" | "matched" | "staff" | "invalid" }> {
+  const parsed = emailSchema.safeParse(email?.trim());
+  const name = fullName?.trim();
+  if (!parsed.success || !name) return { status: "invalid" };
+  if (await provisionCustomerByEmail({ email: parsed.data.toLowerCase(), fullName: name })) return { status: "created" };
+  // Lost a race with another signup, or the gate was bypassed — re-check the role.
+  const { status } = await checkExistingAccount(parsed.data);
+  return { status: status === "staff" ? "staff" : "matched" };
 }
