@@ -110,4 +110,17 @@ describe("addressService (tiffin-grab hooks)", () => {
     const other = await makeTripOrder(DEP_OTHER, PREFIX_OTHER);
     await expect(addressService.getRow({ userId: other.order.userId!, orgId: null }, home.publicId)).rejects.toThrow("Address not found");
   });
+
+  it("two concurrent first addresses for a new customer both save, with exactly one default", async () => {
+    const trip = await makeTripOrder(DEP, PREFIX);
+    const scope = { userId: trip.order.userId!, orgId: null };
+    const results = await Promise.allSettled([
+      addressService.create(scope, HOME),
+      addressService.create(scope, WORK),
+    ]);
+    expect(results.map((r) => r.status)).toEqual(["fulfilled", "fulfilled"]);
+    const rows = await db.select().from(customerAddresses).where(eq(customerAddresses.userId, scope.userId));
+    expect(rows).toHaveLength(2);
+    expect(rows.filter((r) => r.isDefault)).toHaveLength(1);
+  });
 });
