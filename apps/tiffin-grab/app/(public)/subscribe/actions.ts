@@ -15,7 +15,6 @@ import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "@/lib
 import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
-import { findExistingByContact } from "@/lib/services/customers.service";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -195,13 +194,23 @@ export async function validatePostal(postalCode: string): Promise<{ served: bool
 // Response shape is the security boundary: `{ status }` only — never a
 // name, plan, or date. Do not widen this return type without re-reading
 // that spec's Security section.
-export async function checkExistingAccount(email: string): Promise<{ status: "new" | "matched" }> {
+//
+// "staff" is the one addition: a staff email can never place a customer order
+// (provisionCustomerByPhone refuses it), so saying so here stops the customer
+// before they build a whole plan. It discloses nothing checkout didn't already
+// say (STAFF_ACCOUNT_MESSAGE) for the same email.
+export async function checkExistingAccount(email: string): Promise<{ status: "new" | "matched" | "staff" }> {
   const parsed = emailSchema.safeParse(email?.trim());
   // Malformed input fails open to "new" rather than surfacing a validation
   // error — this is a soft pre-check, not a form field with its own
   // error UX (the gate's own client-side schema catches format issues
   // before this ever runs).
   if (!parsed.success) return { status: "new" };
-  const match = await findExistingByContact("", parsed.data);
-  return { status: match ? "matched" : "new" };
+  const [row] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.email, parsed.data.toLowerCase()))
+    .limit(1);
+  if (!row) return { status: "new" };
+  return { status: row.role === "user" ? "matched" : "staff" };
 }

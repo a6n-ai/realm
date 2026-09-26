@@ -25,9 +25,10 @@ import { readIdentity, resetSession, writeIdentity } from "./selections";
 //
 // States: "email" (asking) -> "revealed" (render children, no match or
 // guest chose to continue) -> "matched" (soft prompt) -> "otp" (inline
-// sign-in code entry, then redirect to /me/renew on success).
+// sign-in code entry, then redirect to /me/renew on success). "staff" is a dead end:
+// a staff email cannot order, so it is sent to the dashboard sign-in instead.
 // "init" renders nothing until sessionStorage has been read, so a returning visitor never flashes the email screen.
-type GateState = "init" | "email" | "matched" | "otp" | "revealed";
+type GateState = "init" | "email" | "matched" | "staff" | "otp" | "revealed";
 
 const emailStepSchema = z.object({ email: emailSchema });
 const otpCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code") });
@@ -77,6 +78,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
     try {
       const result = await checkExistingAccount(values.email);
       if (result.status === "matched") setState("matched");
+      else if (result.status === "staff") setState("staff");
       else {
         writeIdentity({ email: values.email, kind: "guest" });
         setState("revealed");
@@ -174,6 +176,23 @@ export function IdentityGate({ children }: { children: ReactNode }) {
           </Button>
           <Button variant="quiet" pill className="w-full !min-h-14 !text-sm !font-medium" onClick={sendCode} disabled={sending}>
             Sign in
+          </Button>
+        </div>
+      )}
+
+      {state === "staff" && (
+        <div className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-[-0.02em]">This is a staff account</h2>
+            <p className="text-muted-foreground mt-1 text-sm text-pretty">
+              {email} belongs to a staff account, which can&apos;t place customer orders. Sign in to the Tiffin Grab dashboard, or use a different email to order.
+            </p>
+          </div>
+          <Button variant="hero" className="w-full !min-h-14 !text-sm !font-medium hover:!bg-[color-mix(in_oklch,var(--primary)_90%,transparent)]" onClick={() => router.push("/login")}>
+            Sign in to the dashboard
+          </Button>
+          <Button variant="quiet" pill className="w-full !min-h-14 !text-sm !font-medium" onClick={useDifferentEmail}>
+            Use a different email
           </Button>
         </div>
       )}

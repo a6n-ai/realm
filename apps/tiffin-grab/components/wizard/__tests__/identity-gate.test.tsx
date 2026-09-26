@@ -60,6 +60,31 @@ describe("IdentityGate", () => {
     await waitFor(() => expect(screen.getByText("wizard here")).toBeInTheDocument());
   });
 
+  it("stops a staff email at the first step instead of letting it reach checkout", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "staff" });
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+    await user.type(await screen.findByLabelText(/email/i), "admin@tiffingrab.ca");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    expect(await screen.findByRole("heading", { name: /staff account/i })).toBeInTheDocument();
+    expect(screen.queryByText("wizard here")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /continue as guest/i })).not.toBeInTheDocument();
+    expect(sessionStorage.getItem("tiffin.identity")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /sign in to the dashboard/i }));
+    expect(push).toHaveBeenCalledWith("/login");
+  });
+
+  it("lets a staff email switch to a different email", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "staff" });
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+    await user.type(await screen.findByLabelText(/email/i), "admin@tiffingrab.ca");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await user.click(await screen.findByRole("button", { name: /use a different email/i }));
+    expect(await screen.findByLabelText(/email/i)).toHaveValue("");
+  });
+
   it("shows a soft sign-in prompt on a match, without blocking", async () => {
     checkExistingAccount.mockResolvedValue({ status: "matched" });
     const user = userEvent.setup();

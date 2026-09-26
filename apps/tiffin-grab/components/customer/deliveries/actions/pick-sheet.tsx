@@ -107,7 +107,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   // Category swaps stay local until Done — same batching as dish picks, so packing
   // labels do not change while the sheet is still open.
   const [pendingApplies, setPendingApplies] = useState<
-    { day: string; fromCategory: string; toCategory: string; fromPicks: number; toPicks: number }[]
+    { id: string; day: string; fromCategory: string; toCategory: string; fromPicks: number; toPicks: number }[]
   >([]);
   // Each removal keeps its own eating day: the tab open at Save time may be another day.
   const [pendingRemoves, setPendingRemoves] = useState<{ publicId: string; day: string }[]>([]);
@@ -227,17 +227,16 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     const option = (swapOptions ?? []).find((o) => o.fromCategory === fromCategory && o.toCategory === toCategory);
     const bundle = option?.validBundles.find((b) => b.fromPicks === fromPicks) ?? option?.validBundles[0];
     const toPicks = bundle?.toPicks ?? fromPicks;
+    const swapId = Math.random().toString(36).slice(2);
     const nextApplies = [
-      ...pendingApplies.filter(
-        (p) => !(p.day === activeDay && p.fromCategory === fromCategory && p.toCategory === toCategory),
-      ),
-      { day: activeDay, fromCategory, toCategory, fromPicks, toPicks },
+      ...pendingApplies,
+      { id: swapId, day: activeDay, fromCategory, toCategory, fromPicks, toPicks },
     ];
     setPendingApplies(nextApplies);
     setTouched(true);
     setError(null);
     setApplied(`Swapped to ${labelOf(toCategory)}. Choose a dish if needed, then press Save.`);
-    setBusy(`swap:${fromCategory}>${toCategory}:${fromPicks}`);
+    setBusy(`pending:${swapId}`);
     try {
       await refreshGrid(nextApplies, pendingRemoves);
     } finally {
@@ -272,9 +271,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     setError(null);
     try {
       if (publicId.startsWith("pending:")) {
-        const nextApplies = pendingApplies.filter(
-          (p) => `pending:${p.day}:${p.fromCategory}>${p.toCategory}:${p.fromPicks}` !== publicId,
-        );
+        const swapId = publicId.replace("pending:", "");
+        const nextApplies = pendingApplies.filter((p) => p.id !== swapId);
         setPendingApplies(nextApplies);
         setTouched(true);
         setApplied(`Removed ${text}`);
@@ -377,7 +375,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     ...pendingApplies
       .filter((p) => p.day === activeDay)
       .map((p) => ({
-        publicId: `pending:${p.day}:${p.fromCategory}>${p.toCategory}:${p.fromPicks}`,
+        publicId: `pending:${p.id}`,
         fromCategory: p.fromCategory,
         toCategory: p.toCategory,
         qtyFrom: p.fromPicks,
