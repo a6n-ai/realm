@@ -14,7 +14,8 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    // key={dateIso}: client Table cells do not always drop prior-day rows on soft nav.
+    <div key={sheet.dateIso} className="overflow-x-auto rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -31,16 +32,17 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sheet.rows.map((row) => (
-            <TableRow key={`${row.deliveryPublicId}-${row.forDate}`}>
+          {sheet.rows.map((row, i) => (
+            // Index is required: occurrenceDates can repeat the same forDate for extras.
+            <TableRow key={`${row.deliveryPublicId}-${row.forDate}-${i}`}>
               <TableCell className="whitespace-nowrap tabular-nums">{row.deliveryDate}</TableCell>
               <TableCell className="whitespace-nowrap">{row.customerName}{row.forLabel ? ` · ${row.forLabel}` : ""}</TableCell>
               <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
               <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
               <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>
-              {sheet.itemHeaders.map((header, i) => (
+              {sheet.itemHeaders.map((header, itemIdx) => (
                 <TableCell key={header} className="whitespace-nowrap">
-                  {row.items[i] ?? "—"}
+                  {row.items[itemIdx] ?? "—"}
                 </TableCell>
               ))}
             </TableRow>

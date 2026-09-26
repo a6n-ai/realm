@@ -20,7 +20,10 @@ type SearchParams = Promise<{ date?: string }>;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export default function DispatchPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function DispatchPage({ searchParams }: { searchParams: SearchParams }) {
+  const { date: dateParam } = await searchParams;
+  const dateKey = dateParam && ISO_DATE.test(dateParam) ? dateParam : "today";
+
   return (
     <PageShell>
       <PageHeader
@@ -28,7 +31,7 @@ export default function DispatchPage({ searchParams }: { searchParams: SearchPar
         title="Dispatch"
         subtitle="Today's routes and driver assignments."
       />
-      <Suspense fallback={<DispatchData.Skeleton />}>
+      <Suspense key={dateKey} fallback={<DispatchData.Skeleton />}>
         <DispatchData searchParams={searchParams} />
       </Suspense>
     </PageShell>

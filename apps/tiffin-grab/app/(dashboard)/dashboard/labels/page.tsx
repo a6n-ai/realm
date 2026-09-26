@@ -17,7 +17,13 @@ type SearchParams = Promise<{ date?: string }>;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export default function LabelsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function LabelsPage({ searchParams }: { searchParams: SearchParams }) {
+  const { date: dateParam } = await searchParams;
+  // Remount the Suspense tree when the day changes. Without this, soft-nav via the
+  // date picker can leave packing-sheet <tr>s from the previous day in the client
+  // Table while the Orders stat already reflects the new sheet.
+  const dateKey = dateParam && ISO_DATE.test(dateParam) ? dateParam : "today";
+
   return (
     <PageShell>
       <PageHeader
@@ -25,7 +31,7 @@ export default function LabelsPage({ searchParams }: { searchParams: SearchParam
         title="Daily labels"
         subtitle="Kitchen packing sheet and container labels for one delivery day."
       />
-      <Suspense fallback={<LabelsData.Skeleton />}>
+      <Suspense key={dateKey} fallback={<LabelsData.Skeleton />}>
         <LabelsData searchParams={searchParams} />
       </Suspense>
     </PageShell>

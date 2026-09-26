@@ -71,9 +71,10 @@ export function LabelList({ labels }: { labels: DeliveryLabel[] }) {
   }
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {labels.map((label) => (
+      {labels.map((label, i) => (
         <Card
-          key={`${label.deliveryPublicId}-${label.personIndex}-${label.forDate}`}
+          // Index: occurrenceDates can emit the same forDate twice for extras.
+          key={`${label.deliveryPublicId}-${label.personIndex}-${label.forDate}-${i}`}
           variant="flat"
           className="space-y-2 p-3"
         >
