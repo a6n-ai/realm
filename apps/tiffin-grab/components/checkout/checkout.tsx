@@ -167,12 +167,16 @@ export function Checkout({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  const checkPostal = async () => {
-    const res = await validatePostal(contact.postalCode);
+  const checkPostal = async (postalCode = contact.postalCode) => {
+    const res = await validatePostal(postalCode);
     setZone(res.served ? { served: true, name: res.zone!.name, slotWindow: res.zone!.slotWindow } : { served: false });
   };
 
-  const set = (patch: Partial<Contact>) => setContact((c) => ({ ...c, ...patch }));
+  const set = (patch: Partial<Contact>) => {
+    setContact((c) => ({ ...c, ...patch }));
+    // A complete postal code — typed or filled from a picked address — is checked against our zones right away.
+    if (patch.postalCode != null && /^[A-Z]\d[A-Z]\d[A-Z]\d$/i.test(patch.postalCode.replace(/\s+/g, ""))) void checkPostal(patch.postalCode);
+  };
 
   const pickAddress = (a: SavedAddress | null) => {
     setAddressPublicId(a?.publicId ?? null);
@@ -394,10 +398,11 @@ export function Checkout({
                   values={contact}
                   onChange={set}
                   resolveUrl="/api/address/resolve"
-                  onPostalBlur={checkPostal}
+                  onPostalBlur={() => void checkPostal()}
+                  checkArea={false}
                   postalSlot={
                     <div data-postal-slot>
-                      <Button pill variant="quiet" className="!min-h-11 !px-5 !text-sm" onClick={checkPostal}>Check area</Button>
+                      <Button pill variant="quiet" className="!min-h-11 !px-5 !text-sm" onClick={() => void checkPostal()}>Check area</Button>
                     </div>
                   }
                 />}

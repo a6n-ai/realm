@@ -3,6 +3,7 @@
 import { AddressFields as FoundryAddressFields, type AddressFieldsProps as FoundryProps, type AddressUi } from "@foundry/ui/address-fields";
 import { Field, Select } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
+import { DeliveryAreaNote, useDeliveryArea } from "./delivery-area";
 
 export { deriveSuggestUrl } from "@foundry/ui/address-fields";
 export type { ResolvedPlaceFields as ResolvedPlace } from "@foundry/ui/address-fields";
@@ -47,9 +48,22 @@ const kitAddressUi: AddressUi = {
   Spinner: () => null,
 };
 
-export type AddressFieldsProps = Omit<FoundryProps, "ui">;
+export type AddressFieldsProps = Omit<FoundryProps, "ui"> & {
+  /** Show whether we deliver to the postal code once it is complete. Off where the caller shows its own. */
+  checkArea?: boolean;
+};
 
-/** Foundry address logic (autocomplete, autofill, presets) drawn with the customer kit. */
-export function AddressFields({ className, ...props }: AddressFieldsProps) {
-  return <FoundryAddressFields {...props} className={cn(FONT, "gap-4", className)} ui={kitAddressUi} />;
+/**
+ * Foundry address logic (autocomplete, autofill, presets) drawn with the customer kit.
+ * Picking a suggestion fills street, city, province and postal code; the postal code is
+ * then checked against our delivery zones.
+ */
+export function AddressFields({ className, checkArea = true, ...props }: AddressFieldsProps) {
+  const area = useDeliveryArea(checkArea ? props.values.postalCode : null);
+  return (
+    <div className="grid gap-2">
+      <FoundryAddressFields {...props} className={cn(FONT, "gap-4", className)} ui={kitAddressUi} />
+      <DeliveryAreaNote area={area} />
+    </div>
+  );
 }

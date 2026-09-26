@@ -6,8 +6,9 @@ import type { AddressValues } from "@foundry/commons";
 import type { AddressInput, SavedAddress } from "@foundry/address";
 import { useAddressBook } from "@foundry/address/hooks";
 import { formatAddress } from "@foundry/address/ui";
-import { Button, Card, Field, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
+import { Button, Card, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
+import { AddressTagPicker } from "@/components/customer/address/address-tag-picker";
 import {
   archiveMyAddress,
   createMyAddress,
@@ -119,7 +120,15 @@ export function AddressBook({ initial }: { initial: SavedAddress[] }) {
       >
         {editing && (
           <div className="space-y-4">
-            <Field label="Label" placeholder="Home, Work…" value={editing.label} onChange={(e) => setEditing({ ...editing, label: e.target.value })} />
+            <AddressTagPicker
+              value={editing.label}
+              onChange={(label) => setEditing({ ...editing, label })}
+              takenBy={new Map(
+                book.addresses
+                  .filter((a) => a.publicId !== editing.publicId)
+                  .map((a) => [a.label, formatAddress(a).split(",")[0] ?? a.label]),
+              )}
+            />
             <AddressFields
               preset="delivery"
               idPrefix="address-book"
