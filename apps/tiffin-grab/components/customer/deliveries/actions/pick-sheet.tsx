@@ -13,6 +13,7 @@ import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-vi
 import type { GridCell } from "@/lib/menu/meals-grid";
 import type { SwapOption } from "@/lib/menu/meal-validation";
 import {
+  anchorSwaps,
   buildMealSummary,
   cellKey,
   effectiveDishId,
@@ -24,10 +25,11 @@ import {
   dishesAllowedByRules,
   swapOptionsAllowedByRules,
   dishOptionValue,
-  hasOutgoingSwapOptions,
   parseSlotOptionValue,
+  swapOptionValue,
+  type SlotDropdownOption,
 } from "@/lib/menu/slot-dropdown";
-import { swapLabel } from "@/lib/menu/swap-rules";
+import { swapAmounts, swapLabel } from "@/lib/menu/swap-rules";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import type { ActionSheetProps } from "./types";
 
@@ -146,7 +148,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
         qtyTo: p.toPicks,
       }));
 
-    loadMySwapOptions(trip.deliveryId, day, provisional, pendingRemoves.map((r) => r.publicId))
+    loadMySwapOptions(trip.deliveryId, day, provisional, pendingRemoves.map((r) => r.publicId), true)
       .then((r) => {
         if (!live) return;
         if ("error" in r) setSwapOptions([]);
@@ -204,8 +206,34 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   const lockNote = cells.find((c) => c.lockNote)?.lockNote ?? null;
   const dayLocked = closed || (cells.length > 0 && cells.every((c) => c.locked));
 
+  const visibleSwaps = [
+    ...appliedSwaps
+      .filter((s) => !pendingRemoves.some((r) => r.publicId === s.publicId))
+      .map((s) => ({ ...s, pending: false as const })),
+    ...pendingApplies
+      .filter((p) => p.day === activeDay)
+      .map((p) => ({
+        publicId: `pending:${p.id}`,
+        fromCategory: p.fromCategory,
+        toCategory: p.toCategory,
+        qtyFrom: p.fromPicks,
+        qtyTo: p.toPicks,
+        pending: true as const,
+      })),
+  ];
+
   const groups = grid
     ? groupPickCells(cells, grid.categories, grid.portionsByDate[activeDay!] ?? grid.portionsBySlot)
+    : [];
+  // Exchanged rows stay where they were (Sabzi · 12oz → Daal), instead of jumping to the new category.
+  const rows = grid
+    ? anchorSwaps({
+      groups,
+      swaps: visibleSwaps,
+      categories: grid.categories,
+      basePortions: grid.portionsBySlot,
+      amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo),
+    })
     : [];
   const summary = buildMealSummary(groups, picked);
   // Every pick in this meal (fixed sides too) — what meal rules are evaluated against.
@@ -217,10 +245,28 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   // Hide swaps whose new slots no menu dish could fill without breaking a meal rule.
   const liveSwapOptions = swapOptionsAllowedByRules({
     rules: grid?.mealRules ?? [],
-    options: swapOptions ?? [],
+    options: (swapOptions ?? []).filter((o) => o.available),
     mealPicks: [...mealPicks].sort((a, b) => a.pickIndex - b.pickIndex),
     menuByCategory: new Map(groups.map((g) => [g.key, g.dishes])),
   });
+  const allowedSwaps = new Set(
+    liveSwapOptions.flatMap((o) => o.validBundles.map((b) => swapOptionValue(o.fromCategory, o.toCategory, b.fromPicks))),
+  );
+  // Dishes a meal rule refuses for this cell stay visible, greyed out.
+  const blockedDishes = (category: string, dishes: GridCell["dishes"], cell: GridCell | null) => {
+    const selectedId = cell ? effectiveDishId(cell, picked) : null;
+    const key = cell ? cellKey(cell) : null;
+    const allowed = new Set(
+      dishesAllowedByRules({
+        rules: grid?.mealRules ?? [],
+        category,
+        dishes,
+        selectedId,
+        others: mealPicks.filter((p) => p.key !== key),
+      }).map((d) => d.id),
+    );
+    return new Set(dishes.filter((d) => !allowed.has(d.id)).map((d) => d.id));
+  };
 
   const queueSwap = async (fromCategory: string, toCategory: string, fromPicks: number) => {
     if (!trip.deliveryId || swapLocked || activeDay == null) return;
@@ -368,22 +414,6 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     }
   };
 
-  const visibleSwaps = [
-    ...appliedSwaps
-      .filter((s) => !pendingRemoves.some((r) => r.publicId === s.publicId))
-      .map((s) => ({ ...s, pending: false as const })),
-    ...pendingApplies
-      .filter((p) => p.day === activeDay)
-      .map((p) => ({
-        publicId: `pending:${p.id}`,
-        fromCategory: p.fromCategory,
-        toCategory: p.toCategory,
-        qtyFrom: p.fromPicks,
-        qtyTo: p.toPicks,
-        pending: true as const,
-      })),
-  ];
-
   const footer = (
     <Button
       variant="primary"
@@ -485,63 +515,93 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                 </section>
               )}
 
-              {groups.map((group) => {
-                const locked = dayLocked || group.cells.every((c) => c.locked);
-                // Dish-pickable OR admin swap pairs from this category — never hardcode rice/roti/…
-                const showRadios =
-                  group.selectable || hasOutgoingSwapOptions(group.key, liveSwapOptions);
-
-                if (!showRadios) {
-                  const dish = group.dishes[0];
-                  if (!dish && group.portions.length === 0) return null;
-                  return (
-                    <section key={group.key} aria-label={group.label} className="grid gap-1">
-                      <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{group.label}</h4>
-                      {group.portions.length > 1 ? (
-                        group.portions.map((portion, i) => {
-                          const cell = group.cells[i] ?? group.cells[0];
-                          const cellDish = cell ? group.dishes.find((d) => d.id === effectiveDishId(cell, picked)) ?? group.dishes[0] : group.dishes[0];
-                          return (
-                            <p key={i} className="text-[15px]">
-                              {cellDish?.name ?? group.label}
-                              {portion ? <span className={muted}> · {portion}</span> : null}
-                              <span className={`ml-2 ${muted}`}>Included</span>
-                            </p>
-                          );
-                        })
-                      ) : (
-                        <p className="text-[15px]">
-                          {dish?.name ?? group.label}
-                          {group.portions[0] ? <span className={muted}> · {group.portions[0]}</span> : null}
-                          <span className={`ml-2 ${muted}`}>Included</span>
-                        </p>
-                      )}
-                    </section>
-                  );
-                }
-
+              {rows.map((group) => {
+                const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
+                const controlsOff = busy != null || saving;
                 return (
                   <section key={group.key} aria-label={group.label} className="grid gap-4">
                     <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{group.label}</h4>
                     <div className="grid gap-5">
+                      {group.swapped.map((row) => {
+                        const text = swapLabel(row.swap, labelOf, plan.swapCategories);
+                        const label = row.givePortion ? `${group.label} · ${row.givePortion}` : group.label;
+                        const toName = row.toCells.length && !row.toCells[0]!.selectable
+                          ? row.toDishes.find((d) => d.id === row.toCells[0]!.selectedDishId)?.name ?? row.toDishes[0]?.name
+                          : undefined;
+                        const rowOff = locked || swapLocked || controlsOff;
+                        return (
+                          <div key={row.swap.publicId} className="grid gap-2">
+                            <p className="text-[15px] font-semibold">{label}</p>
+                            <ChoiceGroup
+                              label={label}
+                              value="swapped"
+                              // Picking the original category again undoes the exchange.
+                              onChange={(v) => v !== "swapped" && void queueRemoveSwap(row.swap.publicId, text)}
+                              className="grid gap-2 sm:grid-cols-2"
+                            >
+                              <Choice value="keep" disabled={rowOff} className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
+                                <span className="min-w-0 flex-1 text-left leading-snug">Keep {group.label}</span>
+                              </Choice>
+                              <Choice value="swapped" disabled={rowOff} className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
+                                <span className="min-w-0 flex-1 text-left">
+                                  <span className="block leading-snug">
+                                    {labelOf(row.swap.toCategory)}
+                                    {row.getPortion ? ` · ${row.getPortion}` : ""}
+                                  </span>
+                                  {toName && <span className={`mt-0.5 block text-[13px] font-normal ${muted}`}>{toName}</span>}
+                                </span>
+                              </Choice>
+                            </ChoiceGroup>
+                            {row.toCells.filter((c) => c.selectable).map((cell, i) => {
+                              const subLabel = `${labelOf(row.swap.toCategory)}${row.toCells.length > 1 ? ` ${i + 1}` : ""}`;
+                              const selectedId = effectiveDishId(cell, picked);
+                              const blocked = blockedDishes(row.swap.toCategory, row.toDishes, cell);
+                              return (
+                                <div key={cellKey(cell)} className="ml-3 grid gap-2 border-l-2 border-[var(--border,#E8E0D5)] pl-3">
+                                  <p className={`text-[13px] font-semibold ${muted}`}>Pick your {subLabel}</p>
+                                  <ChoiceGroup
+                                    label={`Pick your ${subLabel}`}
+                                    value={selectedId ? dishOptionValue(selectedId) : ""}
+                                    // A non-zero index: this cell only ever takes dish picks.
+                                    onChange={(v) => onSlotChange(cell, 1, v)}
+                                    className="grid gap-2 sm:grid-cols-2"
+                                  >
+                                    {row.toDishes.map((d) => (
+                                      <Choice
+                                        key={d.id}
+                                        value={dishOptionValue(d.id)}
+                                        disabled={locked || cell.locked || controlsOff || blocked.has(d.id)}
+                                        className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold"
+                                      >
+                                        <span className="min-w-0 flex-1 text-left leading-snug">{d.name}</span>
+                                      </Choice>
+                                    ))}
+                                  </ChoiceGroup>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
                       {group.cells.map((cell, i) => {
                         const selectedId = effectiveDishId(cell, picked);
                         const key = cellKey(cell);
-                        const options = buildSlotDropdownOptions({
+                        const built = buildSlotDropdownOptions({
                           cellIndexInCategory: i,
                           categoryKey: group.key,
-                          dishes: dishesAllowedByRules({
-                            rules: grid?.mealRules ?? [],
-                            category: group.key,
-                            dishes: group.dishes,
-                            selectedId,
-                            others: mealPicks.filter((p) => p.key !== key),
-                          }),
-                          swapOptions: liveSwapOptions,
+                          dishes: group.dishes,
+                          disabledDishIds: blockedDishes(group.key, group.dishes, cell),
+                          swapOptions: swapOptions ?? [],
+                          allowedSwaps,
+                          onePerRow: group.cells.every((c) => c.quantity === 1),
                           categoryLabel: labelOf,
                         });
-                        const value = selectedId ? dishOptionValue(selectedId) : "";
-                        const cellLocked = locked || cell.locked || (!group.selectable && swapLocked);
+                        // A fixed item with no dish on the menu still gets its (greyed) box.
+                        const options: SlotDropdownOption[] = built.length
+                          ? built
+                          : [{ kind: "dish", value: "fixed", label: group.label, dishId: "" }];
+                        const value = selectedId ? dishOptionValue(selectedId) : built.length ? "" : "fixed";
+                        const cellLocked = locked || cell.locked;
                         const label = slotLabel(group, i);
                         const isDefault =
                           !!selectedId && cell.isDefaulted && picked[key] == null;
@@ -552,6 +612,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                               {isDefault && group.selectable && (
                                 <p className={`text-[13px] ${muted}`}>Default pick</p>
                               )}
+                              {!cell.selectable && <p className={`text-[13px] ${muted}`}>Included</p>}
                             </div>
                             <ChoiceGroup
                               label={label}
@@ -563,15 +624,20 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                                 <Choice
                                   key={o.value}
                                   value={o.value}
-                                  disabled={cellLocked || busy != null || saving}
+                                  disabled={
+                                    cellLocked
+                                    || controlsOff
+                                    || !!o.disabled
+                                    // A fixed dish is never a choice; its box stays, greyed.
+                                    || (o.kind === "dish" && !cell.selectable)
+                                    || (o.kind === "swap" && swapLocked)
+                                  }
                                   className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold"
                                 >
                                   <span className="min-w-0 flex-1 text-left">
                                     <span className="block leading-snug">{o.label}</span>
-                                    {o.kind === "swap" && (
-                                      <span className={`mt-0.5 block text-[13px] font-normal ${muted}`}>
-                                        Choose this instead
-                                      </span>
+                                    {o.note && (
+                                      <span className={`mt-0.5 block text-[13px] font-normal ${muted}`}>{o.note}</span>
                                     )}
                                   </span>
                                 </Choice>

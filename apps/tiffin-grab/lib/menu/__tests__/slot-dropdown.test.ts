@@ -41,7 +41,7 @@ describe("slot-dropdown", () => {
     expect(parseSlotOptionValue("nope")).toBeNull();
   });
 
-  it("puts dishes on every row; swap bundles only on the leading row", () => {
+  it("puts dishes on every row; live swap bundles only on the leading row", () => {
     const leading = buildSlotDropdownOptions({
       cellIndexInCategory: 0,
       categoryKey: "sabzi",
@@ -55,7 +55,9 @@ describe("slot-dropdown", () => {
       "Daal · 12oz",
       "Daal · 24oz · uses 2 items",
     ]);
+    expect(leading.some((o) => o.disabled)).toBe(false);
 
+    // Later rows still show the swap, greyed, so the row never changes shape.
     const trailing = buildSlotDropdownOptions({
       cellIndexInCategory: 2,
       categoryKey: "sabzi",
@@ -63,22 +65,52 @@ describe("slot-dropdown", () => {
       swapOptions: [sabziDaal],
       categoryLabel: (k) => (k === "daal" ? "Daal" : k),
     });
-    expect(trailing.every((o) => o.kind === "dish")).toBe(true);
-    expect(trailing).toHaveLength(2);
+    expect(trailing.map((o) => [o.label, !!o.disabled])).toEqual([
+      ["Aloo gobi", false],
+      ["Bhindi", false],
+      ["Daal", true],
+    ]);
+    expect(trailing[2]!.note).toBe("Swap the sabzi above first");
   });
 
-  it("ignores unavailable swap options and other from-categories", () => {
-    const other: SwapOption = { ...sabziDaal, fromCategory: "roti", toCategory: "rice", available: true };
-    const dead: SwapOption = { ...sabziDaal, available: false, validBundles: [] };
+  it("onePerRow keeps each row to its own single-row swap", () => {
     const opts = buildSlotDropdownOptions({
       cellIndexInCategory: 0,
       categoryKey: "sabzi",
-      dishes: [dishes[0]!],
+      dishes,
+      swapOptions: [sabziDaal],
+      onePerRow: true,
+      categoryLabel: (k) => (k === "daal" ? "Daal" : k),
+    });
+    expect(opts.filter((o) => o.kind === "swap").map((o) => o.label)).toEqual(["Daal · 12oz"]);
+  });
+
+  it("greys out unavailable swaps, rule-blocked dishes and swaps; ignores other from-categories", () => {
+    const other: SwapOption = { ...sabziDaal, fromCategory: "roti", toCategory: "rice", available: true };
+    const dead: SwapOption = { ...sabziDaal, available: false, reason: "Too much Daal", validBundles: [] };
+    const opts = buildSlotDropdownOptions({
+      cellIndexInCategory: 0,
+      categoryKey: "sabzi",
+      dishes,
+      disabledDishIds: new Set(["d2"]),
       swapOptions: [dead, other],
       categoryLabel: (k) => k,
     });
-    expect(opts).toHaveLength(1);
-    expect(opts[0]!.kind).toBe("dish");
+    expect(opts.map((o) => [o.label, !!o.disabled, o.note])).toEqual([
+      ["Aloo gobi", false, undefined],
+      ["Bhindi", true, "Not allowed with your other picks"],
+      ["daal", true, "Too much Daal"],
+    ]);
+
+    const ruled = buildSlotDropdownOptions({
+      cellIndexInCategory: 0,
+      categoryKey: "sabzi",
+      dishes: [],
+      swapOptions: [sabziDaal],
+      allowedSwaps: new Set([swapOptionValue("sabzi", "daal", 1)]),
+      categoryLabel: (k) => k,
+    });
+    expect(ruled.map((o) => !!o.disabled)).toEqual([false, true]);
   });
 
   it("hasOutgoingSwapOptions follows admin pairs for any from-category", () => {
