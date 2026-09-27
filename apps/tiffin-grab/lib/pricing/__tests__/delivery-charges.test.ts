@@ -189,14 +189,14 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
       deliveryCharges: {
         baseCharge: 2,
         strategyGroups: [
-          { publicId: "grp_spot", name: "Drop-off spot", description: null, tag: "Contactless", required: true },
-          { publicId: "grp_contact", name: "Contact", description: null, tag: null, required: false },
+          { publicId: "grp_spot", name: "Drop-off spot", description: null, required: true },
+          { publicId: "grp_contact", name: "Contact", description: null, required: false },
         ],
         deliveryStrategies: [
-          { id: 1n, publicId: "dt_active", name: "Lobby", description: null, chargeType: "fixed", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_spot", tag: "Secure" },
-          { id: 2n, publicId: "dt_inactive", name: "Old Type", description: null, chargeType: "fixed", chargeValue: 5, active: false, sortOrder: 1, groupPublicId: "grp_spot", tag: null },
-          { id: 3n, publicId: "dt_door", name: "Doorstep", description: null, chargeType: "none", chargeValue: 0, active: true, sortOrder: 2, groupPublicId: "grp_spot", tag: null },
-          { id: 4n, publicId: "dt_call", name: "Call on arrival", description: null, chargeType: "percent", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_contact", tag: null },
+          { id: 1n, publicId: "dt_active", name: "Lobby", description: null, chargeType: "fixed", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_spot" },
+          { id: 2n, publicId: "dt_inactive", name: "Old Type", description: null, chargeType: "fixed", chargeValue: 5, active: false, sortOrder: 1, groupPublicId: "grp_spot" },
+          { id: 3n, publicId: "dt_door", name: "Doorstep", description: null, chargeType: "none", chargeValue: 0, active: true, sortOrder: 2, groupPublicId: "grp_spot" },
+          { id: 4n, publicId: "dt_call", name: "Call on arrival", description: null, chargeType: "percent", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_contact" },
         ],
         addressTags: [
           { id: 1n, publicId: "at_active", name: "House", description: null, chargeType: "none", chargeValue: 0, active: true, sortOrder: 0 },
@@ -227,7 +227,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_inactive"] }))).toThrow("isn't available");
     expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["non_existent"] }))).toThrow("isn't available");
     // Two answers to one question would stack both surcharges
-    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_active", "dt_door"] }))).toThrow("Pick one option for Drop-off spot");
+    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_active", "dt_door"] }))).toThrow("Pick one strategy for Drop-off spot");
     // Not an array of strings (server-action input)
     expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: "dt_active" as unknown as string[] }))).toThrow("Invalid delivery options");
 

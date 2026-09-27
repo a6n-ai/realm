@@ -36,12 +36,11 @@ export interface CatalogDiscount {
 
 // Server-side snapshot: carries BOTH the internal bigint id (for FK resolution
 // in createOrder) and the public_id. The bigint id never leaves the server.
-/** A delivery strategy the customer answers once per address ("Drop-off spot"). */
+/** A tag ("Drop-off spot"): customers see it first, then pick one of its strategies. */
 export interface StrategyGroupView {
   publicId: string;
   name: string;
   description: string | null;
-  tag: string | null;
   required: boolean;
 }
 
@@ -69,9 +68,9 @@ export interface CatalogSnapshot {
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
-    /** Active strategy groups; the customer picks at most one option in each. */
+    /** Active tags; the customer picks at most one strategy in each. */
     strategyGroups?: StrategyGroupView[];
-    /** Options of active groups only. */
+    /** Strategies under an active tag only. */
     deliveryStrategies: {
       id: bigint;
       publicId: string;
@@ -82,7 +81,6 @@ export interface CatalogSnapshot {
       active: boolean;
       sortOrder: number;
       groupPublicId?: string | null;
-      tag?: string | null;
     }[];
     addressTags: {
       id: bigint;
@@ -125,8 +123,7 @@ export interface ClientCatalogSnapshot {
       description: string | null;
       chargeType: "none" | "fixed" | "percent";
       chargeValue: number;
-      groupId: string | null; // group publicId
-      tag: string | null;
+      groupId: string | null; // tag publicId
     }[];
     addressTags: {
       id: string; // publicId
@@ -173,7 +170,6 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
               chargeType: d.chargeType,
               chargeValue: d.chargeValue,
               groupId: d.groupPublicId ?? null,
-              tag: d.tag ?? null,
             })),
           addressTags: snapshot.deliveryCharges.addressTags
             .filter((a) => a.active)

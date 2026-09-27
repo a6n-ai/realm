@@ -365,6 +365,13 @@
       "when": 1790510494067,
       "tag": "0051_delivery_strategy_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1790513896557,
+      "tag": "0052_drop_strategy_tag_columns",
+      "breakpoints": true
     }
   ]
 }

@@ -1,40 +1,39 @@
 import type { ClientCatalogSnapshot } from "./types";
 
-/** A strategy option as the customer sees it: one choice under a drop-off question. */
+/** A delivery strategy as the customer sees it: one choice under a tag. */
 export type DropOffOption = {
   publicId: string;
   name: string;
   chargeType: "none" | "fixed" | "percent";
   chargeValue: number;
-  /** Public id of the question (strategy group) it answers. */
+  /** Public id of its tag. */
   groupId: string;
-  tag: string | null;
 };
 
-/** An admin delivery strategy as the customer sees it: a question ("Drop-off spot"). */
-export type DropOffGroup = { publicId: string; name: string; description: string | null; tag: string | null; required: boolean };
+/** A tag ("Drop-off spot"): shown first, then its strategies. */
+export type DropOffGroup = { publicId: string; name: string; description: string | null; required: boolean };
 
 export type DropOffCatalog = { groups: DropOffGroup[]; options: DropOffOption[] };
 
 export const EMPTY_DROP_OFF: DropOffCatalog = { groups: [], options: [] };
 
-/** Questions that have at least one option, each with its options. */
+/** Tags that have at least one strategy, and those strategies. */
 export function dropOffCatalog(dc: ClientCatalogSnapshot["deliveryCharges"] | undefined): DropOffCatalog {
   if (!dc) return EMPTY_DROP_OFF;
   const options = dc.deliveryStrategies.flatMap((s) =>
-    s.groupId ? [{ publicId: s.id, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue, groupId: s.groupId, tag: s.tag }] : [],
+    s.groupId ? [{ publicId: s.id, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue, groupId: s.groupId }] : [],
   );
   const groups = (dc.strategyGroups ?? []).filter((g) => options.some((o) => o.groupId === g.publicId));
   return { groups, options };
 }
 
-/** Replaces the pick for `groupId` (null clears it), keeping one pick per question. */
+/** Replaces the pick for `groupId` (null clears it), keeping one strategy per tag. */
 export function pickDropOff(catalog: DropOffCatalog, picks: string[], groupId: string, optionId: string | null): string[] {
   const others = picks.filter((id) => catalog.options.find((o) => o.publicId === id)?.groupId !== groupId);
   return optionId ? [...others, optionId] : others;
 }
 
-/** Picks still offered, in question order: stale or retired ids drop out. */
+/** Picks still offered, in tag order: stale or retired ids drop out. */
 export function validDropOffs(catalog: DropOffCatalog, picks: string[] | undefined): string[] {
   return catalog.groups.flatMap((g) => {
     const hit = (picks ?? []).find((id) => catalog.options.some((o) => o.publicId === id && o.groupId === g.publicId));

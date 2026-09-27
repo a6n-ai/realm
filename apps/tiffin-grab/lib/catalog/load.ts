@@ -83,7 +83,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     db.select().from(addressTags).where(and(eq(addressTags.active, true), scopedTo(addressTags.organizationId, orgId))).orderBy(addressTags.sortOrder, addressTags.name),
     db.select().from(deliveryStrategyGroups).where(and(eq(deliveryStrategyGroups.active, true), scopedTo(deliveryStrategyGroups.organizationId, orgId))).orderBy(deliveryStrategyGroups.sortOrder, deliveryStrategyGroups.name),
   ]);
-  // An option is offered only inside an active group; ungrouped (pre-group) rows are not.
+  // A strategy is offered only under an active tag; untagged (pre-tag) rows are not.
   const groupPublicIdById = new Map(groupRows.map((g) => [g.id, g.publicId]));
   const publicIdByTarget = new Map<string, string>([
     ...freqRows.map((f) => [`delivery:${f.id}`, f.publicId] as [string, string]),
@@ -136,7 +136,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     maxDiscountPct: settings.maxDiscountPct,
     deliveryCharges: {
       baseCharge: configRows[0] ? Number(configRows[0].baseCharge) : 0,
-      strategyGroups: groupRows.map((g) => ({ publicId: g.publicId, name: g.name, description: g.description, tag: g.tag, required: g.required })),
+      strategyGroups: groupRows.map((g) => ({ publicId: g.publicId, name: g.name, description: g.description, required: g.required })),
       deliveryStrategies: strategyRows.filter((s) => s.groupId != null && groupPublicIdById.has(s.groupId)).map((s) => ({
         id: s.id,
         publicId: s.publicId,
@@ -147,7 +147,6 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
         active: s.active,
         sortOrder: s.sortOrder,
         groupPublicId: groupPublicIdById.get(s.groupId!)!,
-        tag: s.tag,
       })),
       addressTags: tagRows.map((a) => ({
         id: a.id,
