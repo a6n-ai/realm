@@ -12,6 +12,8 @@ export type DropOffOption = {
   connectionId: string | null;
   /** Share of its fee waived by an active waiver (0 = none, 100 = free). */
   waivedPct: number;
+  /** Fixed charges: once per order or per delivery. */
+  chargeBasis?: "once" | "per_delivery";
 };
 
 /** A tag: the kind of place (Home, Apartment, Office). */
@@ -39,16 +41,16 @@ export function dropOffCatalog(dc: ClientCatalogSnapshot["deliveryCharges"] | un
     Math.min(100, Math.max(0, ...list.filter((w) => w.kind === "waiver_delivery" || (w.kind === "waiver_strategy" && w.targetPublicId === strategyId)).map((w) => w.percent)));
   const options = dc.deliveryStrategies.flatMap((s) =>
     s.groupId
-      ? [{ publicId: s.id, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue, groupId: s.groupId, connectionId: s.connectionId ?? null, waivedPct: waivedPct(s.id) }]
+      ? [{ publicId: s.id, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue, groupId: s.groupId, connectionId: s.connectionId ?? null, chargeBasis: s.chargeBasis, waivedPct: waivedPct(s.id) }]
       : [],
   );
   const offers = list.filter((w) => (w.kind === "waiver_delivery" || w.kind === "waiver_base") && w.percent > 0).map((w) => ({ name: w.name, percent: w.percent }));
   return { groups: dc.strategyGroups ?? [], options, connections: dc.strategyConnections ?? [], offers };
 }
 
-/** What a strategy adds, after waivers: "+$1.50", "+5%", or null when it costs nothing. */
-export function dropOffFee(o: Pick<DropOffOption, "chargeType" | "chargeValue">): string | null {
-  if (o.chargeType === "fixed" && o.chargeValue > 0) return `+$${o.chargeValue.toFixed(2)}`;
+/** What a strategy adds before waivers: "+$1.50", "+$1.50 / delivery", "+5%", or null when free. */
+export function dropOffFee(o: Pick<DropOffOption, "chargeType" | "chargeValue" | "chargeBasis">): string | null {
+  if (o.chargeType === "fixed" && o.chargeValue > 0) return `+$${o.chargeValue.toFixed(2)}${o.chargeBasis === "per_delivery" ? " / delivery" : ""}`;
   if (o.chargeType === "percent" && o.chargeValue > 0) return `+${o.chargeValue}%`;
   return null;
 }
@@ -58,17 +60,19 @@ const fixedCost = (o: DropOffOption) =>
   o.chargeType === "none" || o.chargeValue <= 0 || o.waivedPct >= 100 ? 0 : o.chargeType === "fixed" ? o.chargeValue * (1 - o.waivedPct / 100) : null;
 
 /** A picked, paid strategy with a cheaper one in the same pick-one set — the address tip. */
-export function cheaperDropOff(catalog: DropOffCatalog, value: DropOffValue): { picked: DropOffOption; alt: DropOffOption; saves: number } | null {
+export function cheaperDropOff(catalog: DropOffCatalog, value: DropOffValue): { picked: DropOffOption; alt: DropOffOption; saves: number; perDelivery: boolean } | null {
   for (const id of value.strategyIds) {
     const picked = catalog.options.find((o) => o.publicId === id);
     const cost = picked ? fixedCost(picked) : null;
     if (!picked?.connectionId || cost == null || cost <= 0) continue;
+    // A per-delivery fee and a one-time fee aren't comparable without the trip count; a free option always is.
     const alt = catalog.options
       .filter((o) => o.connectionId === picked.connectionId && o.publicId !== id)
+      .filter((o) => fixedCost(o) === 0 || (o.chargeBasis ?? "once") === (picked.chargeBasis ?? "once"))
       .map((o) => ({ o, c: fixedCost(o) }))
       .filter((x): x is { o: DropOffOption; c: number } => x.c != null && x.c < cost)
       .sort((a, b) => a.c - b.c)[0];
-    if (alt) return { picked, alt: alt.o, saves: Math.round((cost - alt.c) * 100) / 100 };
+    if (alt) return { picked, alt: alt.o, saves: Math.round((cost - alt.c) * 100) / 100, perDelivery: picked.chargeBasis === "per_delivery" };
   }
   return null;
 }

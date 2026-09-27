@@ -161,7 +161,7 @@ function DropOffTips({ catalog, value, onChange, disabled }: { catalog: DropOffC
         <div className="flex items-center gap-2 rounded-2xl border-2 border-[var(--primary)]/30 bg-[var(--primary)]/10 py-1.5 pr-1.5 pl-3">
           <p className="min-w-0 flex-1 text-[13px] leading-snug text-pretty">
             <span className="font-semibold">{cheaper.alt.name}</span>
-            <span className="text-[var(--muted-foreground)]"> saves ${cheaper.saves.toFixed(2)} on {cheaper.picked.name}</span>
+            <span className="text-[var(--muted-foreground)]"> saves ${cheaper.saves.toFixed(2)}{cheaper.perDelivery ? " per delivery" : ""} on {cheaper.picked.name}</span>
           </p>
           <button
             type="button"

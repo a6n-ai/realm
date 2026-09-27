@@ -3,6 +3,7 @@ import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
 import { applicableRules } from "@/lib/pricing/discounts";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
+import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 export const MIN_PERSONS = 1;
 export const MAX_PERSONS = 5;
@@ -84,7 +85,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
         sets.add(s.connectionPublicId);
       }
       const group = dc.strategyGroups?.find((g) => g.publicId === s.groupPublicId);
-      return { id: s.publicId, name: s.name, group: group?.name ?? null, chargeType: s.chargeType, chargeValue: s.chargeValue };
+      return { id: s.publicId, name: s.name, group: group?.name ?? null, chargeType: s.chargeType, chargeValue: s.chargeValue, basis: s.chargeBasis ?? "once" };
     });
 
     const at = selections.addressTagId
@@ -97,6 +98,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     deliveryChargeConfig = {
       baseCharge: snapshot.deliveryCharges.baseCharge,
       deliveryStrategies: strategies,
+      deliveryCount: planDeliveryCount(frequency, selections),
       addressTag: at ? { id: at.publicId, name: at.name, chargeType: at.chargeType, chargeValue: at.chargeValue } : null,
     };
   }
@@ -113,3 +115,20 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   };
 }
 
+/**
+ * Delivery trips in the whole plan: each week's eating days ride the delivery days (a Friday
+ * trip can carry Sat + Sun), times the weeks. Persons share a trip, so they don't count.
+ */
+export function planDeliveryCount(
+  frequency: { key: string; weekdays: string[] | null },
+  selections: Pick<PricingSelections, "eatingDays" | "includeSaturday" | "includeSunday" | "durationWeeks">,
+): number {
+  const deliveryDays = orderDeliveryDays({
+    frequencyKey: frequency.key,
+    weekdays: frequency.weekdays as DayOfWeek[] | null,
+    includeSaturday: selections.includeSaturday,
+    includeSunday: selections.includeSunday,
+  });
+  const trips = planWeek(deliveryDays, selections.eatingDays ?? deliveryDays)?.length ?? deliveryDays.length;
+  return trips * selections.durationWeeks;
+}

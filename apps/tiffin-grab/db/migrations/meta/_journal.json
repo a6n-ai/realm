@@ -442,6 +442,13 @@
       "when": 1790544887111,
       "tag": "0062_discount_waivers",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790545847187,
+      "tag": "0063_strategy_charge_basis",
+      "breakpoints": true
     }
   ]
 }
