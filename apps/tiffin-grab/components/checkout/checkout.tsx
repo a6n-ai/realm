@@ -235,9 +235,8 @@ export function Checkout({
 
   const pickAddress = (a: SavedAddress | null) => {
     setAddressPublicId(a?.publicId ?? null);
-    // A saved address brings its own drop-off (and its charge).
-    const own = a ? addressDropOffs[a.publicId] : undefined;
-    if (own) handleDropOffChange(validDropOff(dropOff, own));
+    // Drop-off belongs to the address: a saved one brings its own (and its charge), or none.
+    if (a) handleDropOffChange(validDropOff(dropOff, addressDropOffs[a.publicId]));
     const next = a ? addressFields(a) : (draft ?? EMPTY_ADDRESS);
     setContact((c) => ({ ...c, ...next }));
     setZone(null);
@@ -404,6 +403,29 @@ export function Checkout({
   const realPayments = paymentMethods.length > 0;
   const actionReason = step === 1 ? step1Reason : realPayments && !paymentMethodId ? "Choose a payment method to confirm." : null;
   const addressLine = oneLine(contact);
+  // Drop-off belongs to the picked address, so it renders under that address, not in its own section.
+  const hasDropOffChoices = Boolean(catalog?.deliveryCharges && (catalog.deliveryCharges.addressTags.length > 0 || dropOff.groups.length > 0));
+  const dropOffChoices = catalog?.deliveryCharges && (
+    <div className="grid grid-cols-1 gap-5" data-testid="delivery-charge-options">
+      {catalog.deliveryCharges.addressTags.length > 0 && (
+        <div className="grid grid-cols-1 gap-2">
+          <p className="text-[15px] font-semibold">Address type</p>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Address type">
+            {catalog.deliveryCharges.addressTags.map((tag) => {
+              const on = selections.addressTagId === tag.id;
+              return (
+                <PillToggle key={tag.id} role="radio" aria-checked={on} on={on} onClick={() => handleAddressTagSelect(tag.id)} className="h-10 flex-none gap-1.5 px-4 text-[14px] sm:text-[14px]">
+                  {tag.name}
+                  <span className="text-[12px] font-medium opacity-75">{formatChargeHint(tag)}</span>
+                </PillToggle>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <DropOffPicker catalog={dropOff} value={{ tagId: selections.deliveryTagId ?? null, strategyIds: selections.deliveryStrategyIds ?? [] }} onChange={handleDropOffChange} />
+    </div>
+  );
   const dropOffText = dropOffSummary(dropOff, { tagId: selections.deliveryTagId ?? null, strategyIds: selections.deliveryStrategyIds ?? [] });
   const perWeek = selections.eatingDays?.length ?? 0;
   const start = startLabel(selections.startDate);
@@ -476,6 +498,9 @@ export function Checkout({
                         draftFromAccount={draft != null && prefill?.addressLine === draft.addressLine && prefill?.postalCode === draft.postalCode}
                         onAdd={() => setEditor({ ...EMPTY_ADDRESS })}
                         onEditDraft={() => setEditor(draft ?? { ...EMPTY_ADDRESS })}
+                        dropOff={dropOff}
+                        dropOffs={addressDropOffs}
+                        selectedExtra={hasDropOffChoices ? dropOffChoices : null}
                       />
                       <div aria-live="polite" className="grid gap-2 empty:hidden">
                         {zone?.served && !waitlisted && (
@@ -499,31 +524,6 @@ export function Checkout({
                       </div>
                     </div>
                   </section>
-
-                  {catalog?.deliveryCharges && (catalog.deliveryCharges.addressTags.length > 0 || dropOff.groups.length > 0) && (
-                    <section aria-labelledby="co-dropoff" data-testid="delivery-charge-options">
-                      <h2 id="co-dropoff" className={H}>Drop-off</h2>
-                      <div className="mt-3 grid grid-cols-1 gap-5">
-                        {catalog.deliveryCharges.addressTags.length > 0 && (
-                          <div className="grid grid-cols-1 gap-2">
-                            <p className="text-[15px] font-semibold">Address type</p>
-                            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Address type">
-                              {catalog.deliveryCharges.addressTags.map((tag) => {
-                                const on = selections.addressTagId === tag.id;
-                                return (
-                                  <PillToggle key={tag.id} role="radio" aria-checked={on} on={on} onClick={() => handleAddressTagSelect(tag.id)} className="h-10 flex-none gap-1.5 px-4 text-[14px] sm:text-[14px]">
-                                    {tag.name}
-                                    <span className="text-[12px] font-medium opacity-75">{formatChargeHint(tag)}</span>
-                                  </PillToggle>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                        <DropOffPicker catalog={dropOff} value={{ tagId: selections.deliveryTagId ?? null, strategyIds: selections.deliveryStrategyIds ?? [] }} onChange={handleDropOffChange} />
-                      </div>
-                    </section>
-                  )}
 
                   <section aria-labelledby="co-contact">
                     <h2 id="co-contact" className={H}>Contact</h2>
