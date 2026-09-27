@@ -168,7 +168,9 @@ export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow
   const { trip } = row;
   const m = rowMeta(row);
   const covers = trip.coversDates.map(weekdayShort).join(" + ");
-  const facts = row.movedTo ? [movedFact(row)] : isDone(row) ? [reason] : [
+  const facts = row.movedTo ? [movedFact(row)]
+    : trip.status === "failed" ? [`Nothing arrived. Move ${weekdayShort(row.date)}'s tiffin to another day.`]
+    : isDone(row) ? [reason] : [
     `${tiffins(trip.units)} covering ${covers}`,
     movedInNote(row),
     trip.status === "upcoming" ? `Changes close ${formatCutoff(trip.cutoffAt, tz)}` : reason,
