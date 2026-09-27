@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
@@ -48,7 +49,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider><AreaTransition>{children}</AreaTransition></TooltipProvider>
           <Toaster />
           <StaleDeployReloader />
         </ThemeProvider>

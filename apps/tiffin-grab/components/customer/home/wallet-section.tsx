@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { CoinsIcon } from "lucide-react";
 import { Skeleton } from "@/components/customer/kit";
 import { Card, SectionCard } from "@/components/ds";
-import { AnimatedNumber, LottieEmptyState, TransitionLink } from "@/components/motion";
+import { AnimatedNumber, LottieEmptyState } from "@/components/motion";
 import { eventLabel } from "@relay/engine/ui";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -57,9 +58,9 @@ export function WalletSection({ balance, transactions }: { balance: number; tran
         </div>
       )}
 
-      <TransitionLink href="/me/wallet" className="text-primary block pt-3 text-sm font-medium">
+      <Link href="/me/wallet" className="text-primary block pt-3 text-sm font-medium">
         View finances →
-      </TransitionLink>
+      </Link>
     </SectionCard>
   );
 }

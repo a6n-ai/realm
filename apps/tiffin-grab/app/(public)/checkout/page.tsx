@@ -34,7 +34,7 @@ export default async function CheckoutPage() {
   const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-4 sm:py-10">
+    <main className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-10">
       <Checkout defaultCountry={defaultCountry} closeHref="/me" prefill={prefill} catalog={catalog} savedAddresses={savedAddresses} addressDropOffs={addressDropOffs} />
     </main>
   );

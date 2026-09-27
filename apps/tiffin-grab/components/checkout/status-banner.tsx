@@ -22,7 +22,7 @@ export function StatusBanner({
 }) {
   const { bg, text } = TONES[tone];
   return (
-    <div className={`flex items-start gap-2 rounded-lg p-3 text-sm ${bg} ${text}`}>
+    <div className={`flex items-start gap-2 rounded-2xl p-4 text-sm ${bg} ${text}`}>
       {icon}
       <span>{children}</span>
     </div>

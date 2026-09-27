@@ -16,6 +16,8 @@ import { StepSchedule } from "./steps/step-schedule";
 import { StepDuration } from "./steps/step-duration";
 import { BestDeal } from "./best-deal";
 import { SubscribeChrome } from "./subscribe-chrome";
+import { Progress } from "./progress";
+import { TotalChip } from "./total-chip";
 import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
 
@@ -100,7 +102,7 @@ export function Wizard({
   const deploy = () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     sessionStorage.setItem(WIZARD_ORIGIN_KEY, origin);
-    router.push("/checkout");
+    router.push("/checkout", { transitionTypes: ["nav-forward"] });
   };
 
   const sameWeekConflict =
@@ -111,7 +113,7 @@ export function Wizard({
       setStep((s) => s - 1);
       return;
     }
-    if (exitHref) router.push(exitHref);
+    if (exitHref) router.push(exitHref, { transitionTypes: ["nav-back"] });
     else router.back();
   };
 
@@ -124,31 +126,10 @@ export function Wizard({
   return (
     <div className="pb-44 sm:pb-6">
       <SubscribeChrome closeHref={closeHref} onBack={goBack} stepTag={STEPS[step]}
-        trailing={result ? (
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            aria-expanded={invoiceOpen}
-            aria-label={`Price summary: ${result.tiffinCount} tiffins, $${result.total.toFixed(2)} total`}
-            onClick={() => setInvoiceOpen(true)}
-            className="bg-primary/15 text-foreground focus-visible:ring-ring flex h-11 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold tabular-nums transition-transform duration-100 outline-none focus-visible:ring-2 active:scale-[0.97] motion-reduce:active:scale-100"
-          >
-            <span className="text-muted-foreground">{result.tiffinCount}<span> {result.tiffinCount === 1 ? "tiffin" : "tiffins"}</span></span>
-            <span className="min-w-[4.5ch] text-right text-[15px]">${result.total.toFixed(2)}</span>
-          </button>
-        ) : null}
+        trailing={result ? <TotalChip tiffinCount={result.tiffinCount} total={result.total} open={invoiceOpen} onOpen={() => setInvoiceOpen(true)} /> : null}
       />
 
-      <nav aria-label="Progress" className="mb-6">
-        <ol className="grid grid-cols-4 gap-1.5">
-          {STEPS.map((name, i) => (
-            <li key={name} aria-current={i === step ? "step" : undefined}>
-              <span className={`block h-1 rounded-full transition-colors duration-300 ${i <= step ? "bg-primary" : "bg-border"}`} />
-              <span className={`mt-1.5 block truncate text-xs font-semibold ${i === step ? "text-foreground" : "text-muted-foreground"}`}>{name}</span>
-            </li>
-          ))}
-        </ol>
-      </nav>
+      <Progress steps={STEPS} current={step} />
 
       {step >= 1 && step <= 3 && <BestDeal key={step} vary={step === 1 ? "bundle" : step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}
 

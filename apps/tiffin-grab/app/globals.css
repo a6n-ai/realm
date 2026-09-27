@@ -415,10 +415,42 @@ body:has(.crm-app) .font-pixel-circle {
   animation-timing-function: var(--ease-soft);
 }
 
+/* Page transitions (components/motion/page-transition.tsx). Same distance and ease as the
+   wizard's step slide, so subscribe → plan → checkout → activate reads as one flow. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(.nav-forward),
+::view-transition-old(.nav-back) {
+  animation: 160ms ease-in both vt-fade-out, 400ms var(--ease-soft) both vt-slide-out;
+}
+::view-transition-new(.nav-forward),
+::view-transition-new(.nav-back) {
+  animation: 240ms ease-out 80ms both vt-fade-in, 400ms var(--ease-soft) both vt-slide-in;
+}
+::view-transition-old(.nav-forward) { --vt-offset: -24px; }
+::view-transition-new(.nav-forward) { --vt-offset: 24px; }
+::view-transition-old(.nav-back) { --vt-offset: 24px; }
+::view-transition-new(.nav-back) { --vt-offset: -24px; }
+::view-transition-old(.page-fade) {
+  animation: 140ms ease-in both vt-fade-out;
+}
+::view-transition-new(.page-fade) {
+  animation: 260ms var(--ease-soft) 60ms both vt-fade-in, 260ms var(--ease-soft) 60ms both vt-rise;
+}
+@keyframes vt-fade-in { from { opacity: 0; } }
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-slide-in { from { translate: var(--vt-offset) 0; } }
+@keyframes vt-slide-out { to { translate: var(--vt-offset) 0; } }
+@keyframes vt-rise { from { translate: 0 6px; } }
+
 /* One global brake: kill motion for users who ask for it. Primitives ALSO guard
    in JS (useReducedMotion) — this covers CSS-only animation and view transitions. */
 @media (prefers-reduced-motion: reduce) {
   *,
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*),
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation-duration: 0.001ms !important;

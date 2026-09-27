@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import type { SavedAddress } from "@foundry/address";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
+import { enterAddress } from "./address-helper";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 // Stable router: Checkout has an effect keyed on [router]; a new object per call re-renders forever.
@@ -45,15 +46,16 @@ describe("Checkout with saved addresses", () => {
 
   it("preselects the default and hides the address form", async () => {
     render(<Checkout defaultCountry="CA" prefill={PREFILL} savedAddresses={BOOK} />);
-    const [home] = await screen.findAllByRole("radio", { name: /Home · Default/ });
+    const [home] = await screen.findAllByRole("radio", { name: /Home\s*Default/ });
     expect(home!.getAttribute("aria-checked")).toBe("true");
     expect(screen.queryAllByLabelText(/street address/i)).toHaveLength(0);
   });
 
-  it("'+ New address' shows the form; a saved pick is sent to confirm", async () => {
+  it("'Add new address' opens the address sheet; a saved pick is sent to confirm", async () => {
     render(<Checkout defaultCountry="CA" prefill={PREFILL} savedAddresses={BOOK} />);
-    fireEvent.click((await screen.findAllByRole("radio", { name: /New address/ }))[0]!);
-    expect(screen.queryAllByLabelText(/street address/i).length).toBeGreaterThan(0);
+    fireEvent.click(await screen.findByRole("button", { name: /add new address/i }));
+    expect((await screen.findAllByLabelText(/street address/i)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
 
     fireEvent.click(screen.getAllByRole("radio", { name: /Work/ })[0]!);
     fireEvent.click(screen.getByRole("button", { name: /continue to payment/i }));
@@ -65,9 +67,23 @@ describe("Checkout with saved addresses", () => {
     });
   });
 
-  it("with no saved address there is no picker, only the form", async () => {
+  it("with no saved address there is no picker, only 'Add delivery address'", async () => {
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
-    expect((await screen.findAllByLabelText(/street address/i)).length).toBeGreaterThan(0);
+    await screen.findByRole("button", { name: /add delivery address/i });
     expect(screen.queryAllByRole("radiogroup", { name: /delivery address/i })).toHaveLength(0);
+    expect(screen.queryAllByLabelText(/street address/i)).toHaveLength(0);
+  });
+
+  it("a typed address becomes a picked card and survives picking a saved one", async () => {
+    render(<Checkout defaultCountry="CA" prefill={PREFILL} savedAddresses={BOOK} />);
+    await enterAddress("M4N 1A1", "55 Yonge St");
+    const typed = await screen.findByRole("radio", { name: /New address/ });
+    expect(typed.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getAllByRole("radio", { name: /Work/ })[0]!);
+    fireEvent.click(screen.getByRole("radio", { name: /New address/ }));
+    fireEvent.click(screen.getByRole("button", { name: /continue to payment/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm subscription/i }));
+    await waitFor(() => expect(confirmSubscription).toHaveBeenCalled());
+    expect(confirmSubscription.mock.calls[0]![0]).toMatchObject({ addressPublicId: null, contact: { addressLine: "55 Yonge St", postalCode: "M4N 1A1" } });
   });
 });

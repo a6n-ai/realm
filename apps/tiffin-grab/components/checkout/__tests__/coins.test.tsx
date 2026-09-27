@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
+import { enterAddress } from "./address-helper";
 
 // Coins control mirrors the coupon control (checkout.tsx:358-374): apply → reprice
 // → summary. Covers: hidden when signed out (coinBalance null), shown with a
@@ -70,6 +71,15 @@ const selections: WizardSelections = {
 
 const applyCoinsButton = () => screen.getAllByRole("button", { name: /^apply$/i })[1]!;
 
+// Savings (coupon + coins) live on the Payment step: fill the delivery step and continue.
+async function toPayment() {
+  fireEvent.change(await screen.findByLabelText(/phone/i), { target: { value: "4165551234" } });
+  await enterAddress("M5H 1A1");
+  const next = screen.getByRole("button", { name: /continue to payment/i });
+  await waitFor(() => expect(next.getAttribute("aria-disabled")).toBeNull());
+  fireEvent.click(next);
+}
+
 describe("Checkout coins control", () => {
   afterEach(() => {
     cleanup();
@@ -82,8 +92,7 @@ describe("Checkout coins control", () => {
     coinBalance = null;
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
-
-    await screen.findByLabelText(/full name/i);
+    await toPayment();
     await waitFor(() => expect(reprice).toHaveBeenCalled());
 
     expect(screen.queryByLabelText(/use coins/i)).toBeNull();
@@ -93,6 +102,7 @@ describe("Checkout coins control", () => {
   it("appears with a balance", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
+    await toPayment();
 
     expect(await screen.findByLabelText(/use coins/i)).toBeTruthy();
     expect(screen.getByText(/100 available/i)).toBeTruthy();
@@ -101,6 +111,7 @@ describe("Checkout coins control", () => {
   it("applying coins re-prices and shows the discount in the summary", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
+    await toPayment();
 
     const coinsInput = await screen.findByLabelText(/use coins/i);
     fireEvent.change(coinsInput, { target: { value: "30" } });
@@ -116,6 +127,7 @@ describe("Checkout coins control", () => {
   it("asking for more coins than the balance surfaces an error instead of silently applying", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
+    await toPayment();
 
     const coinsInput = await screen.findByLabelText(/use coins/i);
     fireEvent.change(coinsInput, { target: { value: "200" } });

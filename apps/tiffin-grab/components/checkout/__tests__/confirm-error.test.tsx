@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { toast } from "sonner";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
+import { enterAddress } from "./address-helper";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
@@ -55,11 +56,9 @@ describe("Checkout confirm() error handling", () => {
   it("surfaces a confirmSubscription failure as a toast, not an unhandled throw", async () => {
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
-    await screen.findByLabelText(/full name/i);
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
+    await screen.findByLabelText(/phone/i);
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "jane@example.com" } });
-    fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
+    await enterAddress("12345");
 
     fireEvent.click(screen.getByRole("button", { name: /continue to payment/i }));
 
@@ -73,11 +72,9 @@ describe("Checkout confirm() error handling", () => {
     vi.mocked(confirmSubscription).mockResolvedValueOnce({ error: "This phone or email belongs to a staff account" });
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
-    await screen.findByLabelText(/full name/i);
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
+    await screen.findByLabelText(/phone/i);
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "jane@example.com" } });
-    fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
+    await enterAddress("12345");
     fireEvent.click(screen.getByRole("button", { name: /continue to payment/i }));
     fireEvent.click(screen.getByRole("button", { name: /confirm subscription/i }));
 

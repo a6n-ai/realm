@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
+import { enterAddress } from "./address-helper";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
@@ -60,12 +61,9 @@ describe("Checkout postal-served gate + waitlist", () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
-    await screen.findByLabelText(/full name/i);
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
+    await screen.findByLabelText(/phone/i);
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "jane@example.com" } });
-    fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "99999" } });
-    fireEvent.blur(screen.getByLabelText(/postal code/i));
+    await enterAddress("99999");
 
     await waitFor(() =>
       expect(
