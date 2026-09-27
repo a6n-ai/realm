@@ -557,14 +557,10 @@ export const menuService = {
       } else {
         const { timezone } = await getAppSettings();
         const thisMonday = mondayOfIso(zonedDateIso(Date.now(), timezone));
-        const upcoming = await db.select({ id: menuWeeks.id, weekStart: menuWeeks.weekStart }).from(menuWeeks)
-          .where(and(base, gte(menuWeeks.weekStart, thisMonday)))
-          .orderBy(asc(menuWeeks.weekStart)).limit(1);
-        let week = upcoming[0];
-        if (!week) {
-          [week] = await db.select({ id: menuWeeks.id, weekStart: menuWeeks.weekStart }).from(menuWeeks)
-            .where(base).orderBy(desc(menuWeeks.weekStart)).limit(1);
-        }
+        const current = await db.select({ id: menuWeeks.id, weekStart: menuWeeks.weekStart }).from(menuWeeks)
+          .where(and(base, eq(menuWeeks.weekStart, thisMonday)))
+          .limit(1);
+        const week = current[0];
         if (!week) return null;
         weekId = week.id;
         resolvedWeekStart = week.weekStart;

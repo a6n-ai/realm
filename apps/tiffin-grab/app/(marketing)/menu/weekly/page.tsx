@@ -6,7 +6,7 @@ import { menuService } from "@/lib/services/menu.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 export const metadata: Metadata = { title: "This week's menu — Tiffin Grab", description: "Our weekly tiffin menu across the GTA." };
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export default async function WeeklyMenuPage() {
   const organizationId = await resolveRequestOrg();

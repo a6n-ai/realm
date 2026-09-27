@@ -43,14 +43,55 @@ describe("WalletLog", () => {
             createdAt: 1_700_000_000_000,
             orderPublicId: null,
           },
+          {
+            publicId: "w2",
+            direction: "credit",
+            coins: 100,
+            eventType: "order_activated",
+            sourceType: "order",
+            sourceId: "o",
+            memo: null,
+            createdAt: 1_700_000_000_000,
+            orderPublicId: null,
+          },
+          {
+            publicId: "w3",
+            direction: "debit",
+            coins: 20,
+            eventType: "wallet_redeemed",
+            sourceType: "order",
+            sourceId: "o",
+            memo: null,
+            createdAt: 1_700_000_000_000,
+            orderPublicId: null,
+          },
+          {
+            publicId: "w4",
+            direction: "credit",
+            coins: 50,
+            eventType: null,
+            sourceType: "meal_payout",
+            sourceId: "m",
+            memo: null,
+            createdAt: 1_700_000_000_000,
+            orderPublicId: null,
+          }
         ] as never}
         page={0}
         size={25}
-        total={1}
+        total={4}
       />,
     );
     expect(screen.getByText(/Signup/)).toBeInTheDocument();
-    expect(screen.getByText(/\+50/)).toBeInTheDocument();
+    expect(screen.getAllByText(/\+50/)).toHaveLength(2);
+    
+    expect(screen.getByText(/Order activated/)).toBeInTheDocument();
+    expect(screen.getByText(/\+100/)).toBeInTheDocument();
+    
+    expect(screen.getByText(/Wallet redeemed/)).toBeInTheDocument();
+    expect(screen.getByText(/−20/)).toBeInTheDocument();
+    
+    expect(screen.getByText(/Meal payout/)).toBeInTheDocument();
   });
 
   it("shows the empty state when there are no items", () => {

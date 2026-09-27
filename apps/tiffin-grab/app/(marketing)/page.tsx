@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 // ISR: revalidate every 10 min so the DB isn't hit on every request for the highest-traffic page
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 const FAQS = [
   { q: "Where do you deliver?", a: "Across eleven GTA regions. Enter your postal code at checkout to see your slot window — if we don't serve your area yet, you can join the waitlist." },

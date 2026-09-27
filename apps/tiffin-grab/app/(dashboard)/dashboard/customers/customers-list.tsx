@@ -13,12 +13,13 @@ import { CustomerInviteCell } from "./customer-invite-cell";
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift. (The leading "#" and ID columns are added by DataTable.)
-const COLUMNS: readonly Column<CustomerSortColumn | "latestStatus" | "invite">[] = [
+const COLUMNS: readonly Column<CustomerSortColumn | "latestStatus" | "planCompletion" | "invite">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "email", label: "Email", sortable: true },
   { key: "phone", label: "Phone", sortable: true },
   { key: "orders", label: "Orders", sortable: true, align: "right" },
   { key: "latestStatus", label: "Latest status" },
+  { key: "planCompletion", label: "Plan Completion" },
   { key: "invite", label: "Invite" },
 ];
 
@@ -63,6 +64,9 @@ export function CustomersList({
             <TableCell className="text-right tabular-nums">{c.orderCount}</TableCell>
             <TableCell>
               {c.latestStatus ? <OrderStatusBadge status={c.latestStatus} /> : "—"}
+            </TableCell>
+            <TableCell>
+              {c.planCompletionDate ? c.planCompletionDate : "—"}
             </TableCell>
             <TableCell>
               <CustomerInviteCell email={c.email} joined={c.joined} />

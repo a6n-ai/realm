@@ -190,6 +190,7 @@ export type CustomerRow = {
   // an email-code sign-in) — i.e. they've used the account. Not "has a
   // password": customers sign in by email code and may never set one.
   joined: boolean;
+  planCompletionDate: string | null;
 };
 
 export type CustomerSortColumn = "name" | "email" | "phone" | "orders";
@@ -206,7 +207,20 @@ export async function listCustomersPage(
   condition: Condition | undefined,
   page: PageRequest,
   sort: SortState<CustomerSortColumn> = { column: "orders", dir: "desc" },
+  customFilters?: { planCompletesInDays?: number }
 ): Promise<Page<CustomerRow>> {
+  const planCompletionSubquery = sql<string>`(
+    select max(d.delivery_date)
+    from ${deliveries} d
+    join ${orders} o on o.id = d.order_id
+    where o.user_id = ${users.id} and o.status = 'active'
+  )`;
+
+  let extraWhere;
+  if (customFilters?.planCompletesInDays !== undefined) {
+    extraWhere = sql`${planCompletionSubquery} between current_date and current_date + cast(${customFilters.planCompletesInDays} || ' days' as interval)`;
+  }
+
   const where = and(
     eq(users.role, "user"),
     conditionToSql(
@@ -217,6 +231,7 @@ export async function listCustomersPage(
         createdAt: users.createdAt,
       }),
     ),
+    extraWhere,
   );
 
   const SORT_COL = {
@@ -236,6 +251,7 @@ export async function listCustomersPage(
       orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
       latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
       joined: users.emailVerified,
+      planCompletionDate: planCompletionSubquery,
     })
     .from(users)
     .leftJoin(orders, eq(orders.userId, users.id))

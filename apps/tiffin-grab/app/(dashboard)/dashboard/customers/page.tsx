@@ -88,7 +88,7 @@ async function CustomersStats() {
   return <StatGrid cols={4} items={stats} />;
 }
 
-async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
+export async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
   const sp = await searchParams;
@@ -96,14 +96,47 @@ async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
 
   const spec: FacetDef[] = [
     { kind: "dateRange", field: "createdAt", label: "Joined" },
+    {
+      kind: "select",
+      field: "planCompletesInDays",
+      label: "Plan Completes In",
+      options: [
+        { value: "3", label: "Next 3 days" },
+        { value: "4", label: "Next 4 days" },
+        { value: "5", label: "Next 5 days" },
+        { value: "7", label: "Next 7 days" },
+        { value: "14", label: "Next 14 days" },
+      ],
+    },
     { kind: "search", fields: ["name", "phone"] },
   ];
 
   const { condition, page } = parseFilterState(spec, sp);
+  
+  // parseFilterState turns select into an `eq` condition on `planCompletesInDays`.
+  // We need to extract it, parse the number, and remove it from `condition`
+  // since `listCustomersPage` doesn't know about `planCompletesInDays` column in DB.
+  let planCompletesInDays: number | undefined;
+  if (sp.planCompletesInDays) {
+    const parsed = Number(sp.planCompletesInDays);
+    if (!isNaN(parsed)) planCompletesInDays = parsed;
+  }
 
-  const result = await listCustomersPage(condition, page, sort);
+  // To avoid `conditionToSql` failing on `planCompletesInDays` not being in columnResolver,
+  // we could just omit it from `spec` or remove it from the URL params before parsing.
+  // Actually, wait, `parseFilterState` creates the condition. If we leave it in `spec`,
+  // `conditionToSql` will crash if we don't map `planCompletesInDays` in `columnResolver`.
+  // Since we pass it via `customFilters`, we can just NOT put it in `spec` and render a custom UI?
+  // No, `ListSearchFilters` relies on `spec`.
+  
+  // So instead, we'll parse the condition with a spec that excludes it, 
+  // but we'll pass the full spec to `CustomersList` for UI rendering.
+  const dsSpec = spec.filter((s) => s.kind !== "select" || s.field !== "planCompletesInDays");
+  const { condition: dbCondition, page: dbPage } = parseFilterState(dsSpec, sp);
 
-  return <CustomersList spec={spec} rows={result.items} total={result.total} page={page.page} size={page.size} sort={sort} />;
+  const result = await listCustomersPage(dbCondition, dbPage, sort, { planCompletesInDays });
+
+  return <CustomersList spec={spec} rows={result.items} total={result.total} page={dbPage.page} size={dbPage.size} sort={sort} />;
 }
 
 async function NewCustomerAction() {
