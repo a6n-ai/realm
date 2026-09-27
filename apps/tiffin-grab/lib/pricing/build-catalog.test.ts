@@ -9,8 +9,8 @@ const snapshot: CatalogSnapshot = {
   mealSizes: [
     { id: BigInt(1), publicId: "msz_1", key: "k", name: "K", description: null, planId: BigInt(1), planKey: "veg", tier: "budget", components: [], items: [], kcalMin: 1, kcalMax: 2, proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none", discountValue: 0, trial: false },
   ],
-  frequencies: [{ id: BigInt(2), publicId: "frq_1", key: "5_day", name: "5", daysPerWeek: 5, courierDiscountPct: 0, weekdays: null }],
-  durations: [{ id: BigInt(3), publicId: "dur_1", weeks: 1, discountPct: 0 }],
+  frequencies: [{ id: BigInt(2), publicId: "frq_1", key: "5_day", name: "5", daysPerWeek: 5, weekdays: null }],
+  durations: [{ id: BigInt(3), publicId: "dur_1", weeks: 1 }],
   zones: [],
   tiers: [{ minQty: 1, maxQty: 11, upliftPct: 20 }, { minQty: 12, maxQty: 19, upliftPct: 10 }, { minQty: 20, maxQty: null, upliftPct: 0 }],
 };
@@ -36,7 +36,7 @@ describe("buildPricingCatalog discounts", () => {
     expect(c.maxDiscountPct).toBe(25);
   });
   it("re-price snapshot with the order's own retired rows keeps its targeted discounts", () => {
-    const retired = { ...snapshot, frequencies: [...snapshot.frequencies, { id: BigInt(7), publicId: "frq_old", key: "old", name: "Old", daysPerWeek: 3, courierDiscountPct: 0, weekdays: null }], durations: [...snapshot.durations, { id: BigInt(8), publicId: "dur_old", weeks: 6, discountPct: 0 }], discounts: [d("x", "delivery", { targetPublicId: "frq_old" }), d("y", "duration", { targetPublicId: "dur_old" })], maxDiscountPct: 25 };
+    const retired = { ...snapshot, frequencies: [...snapshot.frequencies, { id: BigInt(7), publicId: "frq_old", key: "old", name: "Old", daysPerWeek: 3, weekdays: null }], durations: [...snapshot.durations, { id: BigInt(8), publicId: "dur_old", weeks: 6 }], discounts: [d("x", "delivery", { targetPublicId: "frq_old" }), d("y", "duration", { targetPublicId: "dur_old" })], maxDiscountPct: 25 };
     expect(buildPricingCatalog(retired, sel({ frequencyKey: "old", durationWeeks: 6 })).discounts?.map((x) => x.key)).toEqual(["x", "y"]);
   });
   it("respects minWeeks and null target", () => {

@@ -182,8 +182,8 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
         tier: "medium", components: [], items: [], kcalMin: 500, kcalMax: 700, proteinG: null, carbsG: null, fatG: null,
         basePrice: 10, discountType: "none", discountValue: 0, trial: false,
       }],
-      frequencies: [{ id: 1n, publicId: "freq_1", key: "5_day", name: "5 Day", daysPerWeek: 5, courierDiscountPct: 0, weekdays: null }],
-      durations: [{ id: 1n, publicId: "dur_2", weeks: 2, discountPct: 0 }],
+      frequencies: [{ id: 1n, publicId: "freq_1", key: "5_day", name: "5 Day", daysPerWeek: 5, weekdays: null }],
+      durations: [{ id: 1n, publicId: "dur_2", weeks: 2 }],
       zones: [{ id: 1n, publicId: "z1", name: "Downtown", radiusKm: null, postalPrefixes: ["M5V"], slotWindow: "11am-1pm", active: true }],
       tiers: TIERS,
       deliveryCharges: {

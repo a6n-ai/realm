@@ -7,10 +7,10 @@ const snapshot = (over: Partial<ClientCatalogSnapshot> = {}): ClientCatalogSnaps
   plans: [],
   mealSizes: [{ publicId: "msz_1", key: "k", name: "K", description: null, planKey: "veg", tier: "budget", components: [], items: [], kcalMin: 1, kcalMax: 2, proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none", discountValue: 0, trial: false }],
   frequencies: [
-    { publicId: "frq_5", key: "5_day", name: "5", daysPerWeek: 5, courierDiscountPct: 0, weekdays: ["mon", "tue", "wed", "thu", "fri"] },
-    { publicId: "frq_3", key: "3_day", name: "3", daysPerWeek: 3, courierDiscountPct: 0, weekdays: ["mon", "wed", "fri"] },
+    { publicId: "frq_5", key: "5_day", name: "5", daysPerWeek: 5, weekdays: ["mon", "tue", "wed", "thu", "fri"] },
+    { publicId: "frq_3", key: "3_day", name: "3", daysPerWeek: 3, weekdays: ["mon", "wed", "fri"] },
   ],
-  durations: [{ publicId: "dur_1", weeks: 1, discountPct: 0 }, { publicId: "dur_8", weeks: 8, discountPct: 0 }],
+  durations: [{ publicId: "dur_1", weeks: 1 }, { publicId: "dur_8", weeks: 8 }],
   zones: [],
   tiers: [{ minQty: 1, maxQty: 11, upliftPct: 20 }, { minQty: 12, maxQty: 19, upliftPct: 10 }, { minQty: 20, maxQty: null, upliftPct: 0 }],
   discounts: [],
@@ -50,7 +50,7 @@ describe("recommendDeals", () => {
   });
 
   it("skips frequencies that cannot carry the eating days", () => {
-    const s = snapshot({ frequencies: [{ publicId: "frq_5", key: "5_day", name: "5", daysPerWeek: 5, courierDiscountPct: 0, weekdays: ["mon", "tue", "wed", "thu", "fri"] }, { publicId: "frq_t", key: "tue", name: "t", daysPerWeek: 1, courierDiscountPct: 0, weekdays: ["thu"] }] as never });
+    const s = snapshot({ frequencies: [{ publicId: "frq_5", key: "5_day", name: "5", daysPerWeek: 5, weekdays: ["mon", "tue", "wed", "thu", "fri"] }, { publicId: "frq_t", key: "tue", name: "t", daysPerWeek: 1, weekdays: ["thu"] }] as never });
     const deals = recommendDeals({ snapshot: s, selections: sel({ durationWeeks: 1 }), cap: 9 });
     expect(deals.every((x) => x.payload.frequencyKey !== "tue")).toBe(true);
   });

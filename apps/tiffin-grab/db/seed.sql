@@ -261,32 +261,27 @@ UPDATE meal_sizes ms SET components = COALESCE((
 WHERE ms.id > 0;
 
 -- ============ DELIVERY FREQUENCIES ============
-INSERT INTO delivery_frequencies (public_id, created_at, updated_at, key, name, days_per_week, courier_discount_pct, weekdays)
+INSERT INTO delivery_frequencies (public_id, created_at, updated_at, key, name, days_per_week, weekdays)
 VALUES ('frq_5_day', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, '5_day',
-        '5 Days/Wk (Mon–Fri)', 5, 0, ARRAY['mon','tue','wed','thu','fri']),
+        '5 Days/Wk (Mon–Fri)', 5, ARRAY['mon','tue','wed','thu','fri']),
        ('frq_mwf', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'mwf',
-        '3 Days/Wk Alternate (MWF)', 3, 10, ARRAY['mon','wed','fri'])
+        '3 Days/Wk Alternate (MWF)', 3, ARRAY['mon','wed','fri'])
 ON CONFLICT (key) DO UPDATE SET weekdays = EXCLUDED.weekdays;
 
 -- ============ DURATION PACKAGES ============
-INSERT INTO duration_packages (public_id, created_at, updated_at, weeks, discount_pct)
-VALUES ('dur_w1', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 1, 0),
-       ('dur_w2', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 2, 0),
-       ('dur_w4', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 4, 0),
-       ('dur_w8', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 8, 0),
-       ('dur_w12', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 12, 0)
+INSERT INTO duration_packages (public_id, created_at, updated_at, weeks)
+VALUES ('dur_w1', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 1),
+       ('dur_w2', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 2),
+       ('dur_w4', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 4),
+       ('dur_w8', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 8),
+       ('dur_w12', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 12)
 ON CONFLICT (weeks) DO NOTHING;
 
 -- ============ CENTRAL DISCOUNTS ============
 INSERT INTO discounts (public_id, created_at, updated_at, key, name, kind, target_id, percent)
 SELECT 'dsc_' || replace(gen_random_uuid()::text, '-', ''), (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-       'delivery_' || f.key, 'Delivery schedule discount - ' || f.name, 'delivery', f.id, f.courier_discount_pct
-FROM delivery_frequencies f WHERE f.courier_discount_pct > 0
-ON CONFLICT (key) DO NOTHING;
-INSERT INTO discounts (public_id, created_at, updated_at, key, name, kind, target_id, percent)
-SELECT 'dsc_' || replace(gen_random_uuid()::text, '-', ''), (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-       'duration_' || d.weeks || 'w', 'Plan length discount - ' || d.weeks || ' weeks', 'duration', d.id, d.discount_pct
-FROM duration_packages d WHERE d.discount_pct > 0
+       'delivery_' || f.key, 'Delivery schedule discount - ' || f.name, 'delivery', f.id, 10
+FROM delivery_frequencies f WHERE f.key = 'mwf'
 ON CONFLICT (key) DO NOTHING;
 
 -- ============ DELIVERY ZONES ============

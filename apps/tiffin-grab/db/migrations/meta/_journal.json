@@ -421,6 +421,13 @@
       "when": 1790519268021,
       "tag": "0059_add_max_coin_redeem_pct_of_balance",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1790541085134,
+      "tag": "0060_drop_legacy_discount_columns",
+      "breakpoints": true
     }
   ]
 }

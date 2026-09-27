@@ -119,8 +119,6 @@ const mealSizesSchema = z.object({
 const deliveryFrequenciesSchema = z.object({
   key, name,
   daysPerWeek: reqNum(z.coerce.number().int().min(1).max(7).optional()),
-  // Legacy column; discounts now live in the central `discounts` table.
-  courierDiscountPct: reqNum(z.coerce.number().int().min(0).max(100).default(0)),
   // Null for the two legacy hardcoded shapes (5_day/mwf) — orderDeliveryDays()
   // keeps its own fallback for those. Every other row needs this set so the
   // catalog is the single source of truth for which days it actually means.
@@ -131,7 +129,6 @@ const deliveryFrequenciesSchema = z.object({
 
 const durationPackagesSchema = z.object({
   weeks: reqNum(z.coerce.number().int().positive()),
-  discountPct: reqNum(z.coerce.number().int().min(0).max(100).default(0)),
   // Per-package pause-limit overrides; null (blank) falls back to the app-wide default.
   maxPauses: optNum(z.coerce.number().int().nonnegative()),
   maxPauseDaysTotal: optNum(z.coerce.number().int().nonnegative()),

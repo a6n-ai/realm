@@ -145,7 +145,6 @@ export const deliveryFrequencies = pgTable("delivery_frequencies", {
   key: text("key").notNull().unique(),
   name: text("name").notNull(),
   daysPerWeek: integer("days_per_week").notNull(),
-  courierDiscountPct: integer("courier_discount_pct").notNull().default(0),
   // Explicit weekday set for a frequency that isn't the two hardcoded shapes
   // (5-day Mon–Fri, MWF) — e.g. a legacy customer on "Tuesday - Thursday" only.
   // Null for "5_day"/"mwf": lib/menu/delivery-days.ts keeps its hardcoded
@@ -161,7 +160,6 @@ export const deliveryFrequencies = pgTable("delivery_frequencies", {
 export const durationPackages = pgTable("duration_packages", {
   ...updatableColumns("dur"),
   weeks: integer("weeks").notNull().unique(),
-  discountPct: integer("discount_pct").notNull().default(0),
   // Pause allowance for subscriptions on this package. null = fall back to the app-level default.
   maxPauses: integer("max_pauses"),
   maxPauseDaysTotal: integer("max_pause_days_total"),
