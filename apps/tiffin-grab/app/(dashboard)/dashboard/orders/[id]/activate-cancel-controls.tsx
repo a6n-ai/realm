@@ -2,15 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
 import { ResponsiveDialog } from "@/components/ds";
-import { activate, cancel } from "./actions";
+import { activate, cancel, startMigrated } from "./actions";
 
 /** Compact staff-only activate / cancel — vacation/skip live in the shared Deliveries calendar. */
-export function ActivateCancelControls({ orderId, status }: { orderId: string; status: string }) {
+export function ActivateCancelControls({ orderId, status, migrated = false }: { orderId: string; status: string; migrated?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [startOpen, setStartOpen] = useState(false);
+  const [startDate, setStartDate] = useState("");
   const run = (fn: () => Promise<void>) =>
     start(async () => {
       await fn();
@@ -25,6 +29,41 @@ export function ActivateCancelControls({ orderId, status }: { orderId: string; s
         <Button size="sm" disabled={pending} onClick={() => run(() => activate(orderId))}>
           Activate
         </Button>
+      )}
+      {status === "pending" && migrated && (
+        <ResponsiveDialog
+          open={startOpen}
+          onOpenChange={setStartOpen}
+          trigger={<Button size="sm" disabled={pending}>Start migrated plan</Button>}
+          title="Start this plan here"
+          description="Schedules the tiffins left from WordPress, starting on this date. Stop the customer on WordPress the same day so they don't get two deliveries."
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setStartOpen(false)}>
+                Not yet
+              </Button>
+              <Button
+                disabled={pending || !startDate}
+                onClick={() =>
+                  start(async () => {
+                    const res = await startMigrated(orderId, startDate);
+                    if ("error" in res) {
+                      toast.error(res.error);
+                      return;
+                    }
+                    setStartOpen(false);
+                    toast.success("Plan started");
+                    router.refresh();
+                  })
+                }
+              >
+                Start plan
+              </Button>
+            </div>
+          }
+        >
+          <Input type="date" aria-label="First delivery date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        </ResponsiveDialog>
       )}
       <ResponsiveDialog
         open={confirmCancel}

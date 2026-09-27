@@ -1,4 +1,4 @@
-import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc } from "@foundry/commons";
+import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -30,6 +30,7 @@ import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/lib/catalog/load";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
+import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { findZone } from "@/lib/catalog/zone-match";
 import { addressService } from "./addresses.service";
 import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
@@ -1441,6 +1442,60 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     }
   }
 
+  // A plan migrated from WordPress (db/seed-customers.ts) waits as `pending` with its
+  // prepaid balance and no deliveries while WordPress still delivers. Staff start it on the
+  // day the customer leaves WordPress: the balance is scheduled from that date, bounded to
+  // the exact count (materializeDeliveries only fills whole weeks). No payment or coin
+  // award: it was paid on WordPress.
+  async startMigrated(publicId: string, startDate: string): Promise<void> {
+    const actorId = await this.currentUserId();
+    const { timezone, cutoffHour } = await getAppSettings();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || startDate < zonedDateIso(Date.now(), timezone)) {
+      throw new ValidationError("Pick today or a later date");
+    }
+    await db.transaction(async (tx) => {
+      const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
+      if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
+      if (order.status !== "pending" || !order.deploymentId.startsWith("wc-")) {
+        throw new ValidationError("Only a pending plan migrated from WordPress can be started here");
+      }
+      const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
+        .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+      if (!freq) throw new ValidationError("Delivery frequency not found");
+      const rows = buildBoundedDeliveryRows({
+        startDate,
+        trips: tripsFor(freq.key, (order.eatingDays ?? []) as DayOfWeek[]),
+        persons: order.persons,
+        targetTiffinCount: order.tiffinCount,
+      }).map((r) => ({ ...r, cutoffAt: cutoffMsFor(r.deliveryDate, cutoffHour, timezone) }));
+      if (!rows.length) throw new ValidationError("This plan has no tiffins left to schedule");
+      if (rows[0]!.cutoffAt <= Date.now()) {
+        throw new ValidationError(`The cutoff for ${rows[0]!.deliveryDate} has passed. Pick a later start date`);
+      }
+
+      await tx.update(orders).set({ status: "active", startDate, updatedBy: actorId, updatedAt: Date.now() })
+        .where(eq(orders.id, order.id));
+      await tx.insert(deliveries).values(rows.map((r) => ({
+        orderId: order.id,
+        deliveryDate: r.deliveryDate,
+        status: "scheduled" as const,
+        cutoffAt: r.cutoffAt,
+        tiffinUnits: r.tiffinUnits,
+        coversDates: r.coversDates,
+        organizationId: order.organizationId,
+      })));
+      await tx.insert(orderActivities).values({
+        orderId: order.id,
+        type: "activated",
+        fromStatus: "pending",
+        toStatus: "active",
+        note: `Started from WordPress on ${startDate}: ${order.tiffinCount} tiffins, last ${rows.at(-1)!.deliveryDate}`,
+        createdBy: actorId,
+      });
+    });
+    publishAnalyticsLive();
+  }
+
   // Terminal: cancel() has no reverse. activate()'s existing `if (c !== "waitlisted") throw`
   // guard already forbids reactivating a cancelled order — no separate check needed here.
   // Bypasses transition()/update() for the same reason activate() does: cancelDeliveries must
@@ -1713,6 +1768,7 @@ export const ordersService = new OrdersService(new UpdatableRepository(db, order
 
 export const activateOrder = (publicId: string): Promise<void> => ordersService.activate(publicId);
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
+export const startMigratedOrder = (publicId: string, startDate: string): Promise<void> => ordersService.startMigrated(publicId, startDate);
 export const changeMealSize = (publicId: string, mealSizePublicId: string): Promise<void> =>
   ordersService.changeMealSize(publicId, mealSizePublicId);
 export const pauseOrder = (publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> =>

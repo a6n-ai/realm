@@ -141,7 +141,7 @@ async function OrderDetail({
         subtitle={order.deploymentId}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <ActivateCancelControls orderId={order.publicId} status={order.status} />
+            <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} />
             <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />
           </div>
         }

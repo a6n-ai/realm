@@ -10,6 +10,7 @@ import { getSession } from "@/lib/auth/session";
 import {
   activateOrder,
   cancelOrder,
+  startMigratedOrder,
   changeMealSize,
   rejectPayment,
   verifyPayment,
@@ -23,6 +24,15 @@ export async function activate(orderId: string) {
   await requireStaff();
   await activateOrder(orderId);
   revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+export async function startMigrated(orderId: string, startDate: string): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await startMigratedOrder(orderId, startDate);
+  });
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  return res;
 }
 
 export async function cancel(orderId: string) {
