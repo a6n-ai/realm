@@ -140,6 +140,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       ? Promise.all([
           db.select({ id: deliveryFrequencies.id, publicId: deliveryFrequencies.publicId, name: deliveryFrequencies.name }).from(deliveryFrequencies),
           db.select({ id: durationPackages.id, publicId: durationPackages.publicId, weeks: durationPackages.weeks }).from(durationPackages).orderBy(asc(durationPackages.weeks)),
+          db.select({ publicId: mealSizes.publicId, name: mealSizes.name }).from(mealSizes).orderBy(asc(mealSizes.name)),
         ])
       : Promise.resolve(null),
   ]);
@@ -159,6 +160,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
         { value: "all", label: "All" },
         ...targetRows[0].map((t) => ({ value: t.publicId, label: t.name, group: "delivery" })),
         ...targetRows[1].map((t) => ({ value: t.publicId, label: `${t.weeks} weeks`, group: "duration" })),
+        ...targetRows[2].map((t) => ({ value: t.publicId, label: t.name, group: "meal_size" })),
       ] as { value: string; label: string }[];
     }
   }
@@ -323,12 +325,13 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   }
 
   let discountCtx: DiscountCtx | undefined;
-  if (resource === "delivery-frequencies" || resource === "duration-packages") {
-    const { freqs, durs, dtos } = await loadDiscountData();
-    const kind = resource === "delivery-frequencies" ? "delivery" : "duration";
+  const discountKind = ({ "delivery-frequencies": "delivery", "duration-packages": "duration", "meal-sizes": "meal_size" } as const)[resource as string];
+  if (discountKind) {
+    const { freqs, durs, sizes, dtos } = await loadDiscountData();
+    const kind = discountKind;
     const byTarget: DiscountCtx["byTarget"] = {};
     for (const d of dtos) if (d.kind === kind && d.targetPublicId && !byTarget[d.targetPublicId]) byTarget[d.targetPublicId] = d;
-    discountCtx = { kind, options: { frequencies: freqs, durations: durs }, byTarget };
+    discountCtx = { kind, options: { frequencies: freqs, durations: durs, mealSizes: sizes }, byTarget };
   }
 
   return (

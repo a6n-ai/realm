@@ -5,7 +5,6 @@ import { organization } from "./organizations";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
-export const mealSizeDiscountType = pgEnum("meal_size_discount_type", ["none", "percent", "flat"]);
 
 export const plans = pgTable("plans", {
   ...updatableColumns("pln"),
@@ -66,11 +65,6 @@ export const mealSizes = pgTable("meal_sizes", {
   carbsG: integer("carbs_g"),
   fatG: integer("fat_g"),
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
-  // "none" is the off-switch — discountValue is meaningless (and ignored) when type is "none",
-  // rather than modeling percent/flat as two separate nullable columns with an ambiguous
-  // both-set case. See lib/pricing/meal-size-discount.ts for the one place this is interpreted.
-  discountType: mealSizeDiscountType("discount_type").notNull().default("none"),
-  discountValue: numeric("discount_value", { precision: 10, scale: 2 }).notNull().default("0"),
   trial: boolean("trial").notNull().default(false),
   active: boolean("active").notNull().default(true),
   // Client-scoping — see dishes.organizationId for the pattern.
@@ -145,7 +139,6 @@ export const deliveryFrequencies = pgTable("delivery_frequencies", {
   key: text("key").notNull().unique(),
   name: text("name").notNull(),
   daysPerWeek: integer("days_per_week").notNull(),
-  courierDiscountPct: integer("courier_discount_pct").notNull().default(0),
   // Explicit weekday set for a frequency that isn't the two hardcoded shapes
   // (5-day Mon–Fri, MWF) — e.g. a legacy customer on "Tuesday - Thursday" only.
   // Null for "5_day"/"mwf": lib/menu/delivery-days.ts keeps its hardcoded
@@ -161,7 +154,6 @@ export const deliveryFrequencies = pgTable("delivery_frequencies", {
 export const durationPackages = pgTable("duration_packages", {
   ...updatableColumns("dur"),
   weeks: integer("weeks").notNull().unique(),
-  discountPct: integer("discount_pct").notNull().default(0),
   // Pause allowance for subscriptions on this package. null = fall back to the app-level default.
   maxPauses: integer("max_pauses"),
   maxPauseDaysTotal: integer("max_pause_days_total"),

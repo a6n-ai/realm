@@ -53,7 +53,7 @@ const catalog: ClientCatalogSnapshot = {
     },
   ],
   frequencies: [],
-  durations: [{ publicId: "dur_1", weeks: 1, discountPct: 0 }],
+  durations: [{ publicId: "dur_1", weeks: 1 }],
   zones: [],
 };
 

@@ -77,7 +77,9 @@ async function DeliveryTypesData() {
   const types = await deliveryService.listTypes({ includeInactive: true, orgId: await resolveRequestOrg() });
   return (
     <DeliveryAdminProvider actions={deliveryAdminActions}>
+      {/* Discounts live in the central Discounts page, not on the type. */}
       <DeliveryTypesManager
+        showDiscount={false}
         types={types.map((t) => ({
           publicId: t.publicId!,
           key: t.key,

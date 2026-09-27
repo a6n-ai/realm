@@ -29,7 +29,7 @@ export interface PricingSelections {
 
 export interface PricingCatalog {
   mealSize: { id: string; basePrice: number };
-  frequency: { key: string; daysPerWeek: number; /** @deprecated unused; discounts come from `discounts` */ courierDiscountPct?: number };
+  frequency: { key: string; daysPerWeek: number };
   tiers: PricingTier[];
   // Resolved rate+qty for each of selections.addonSelections, priced per delivery
   // week — buildPricingCatalog rejects any key not attached to the chosen meal

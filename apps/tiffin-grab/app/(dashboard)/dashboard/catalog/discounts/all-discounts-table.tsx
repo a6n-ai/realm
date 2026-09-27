@@ -10,7 +10,7 @@ import { TableCell } from "@foundry/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { DataTable } from "@/components/ds";
 import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
-import { COUPONS_HREF, MEAL_SIZES_HREF, TYPE_LABELS, type AllRow, type DiscountDto, type DiscountKind, type RowType } from "./build-rows";
+import { COUPONS_HREF, TYPE_LABELS, type AllRow, type DiscountDto, type DiscountKind, type RowType } from "./build-rows";
 
 export const ALL_DISCOUNT_COLUMNS = [
   { key: "type", label: "Type" },
@@ -37,7 +37,7 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
         serial={false}
         filters={
           <div className="flex flex-wrap gap-1.5">
-            {(["all", "delivery", "duration", "list_price", "coupon"] as const).map((t) => (
+            {(["all", "delivery", "duration", "meal_size", "coupon"] as const).map((t) => (
               <Button key={t} size="sm" variant={filter === t ? "default" : "outline"} onClick={() => setFilter(t)}>
                 {t === "all" ? "All" : TYPE_LABELS[t]}
               </Button>
@@ -52,7 +52,7 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setDialog({ kind: "delivery" })}>Delivery frequency</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setDialog({ kind: "duration" })}>Plan length</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => router.push(MEAL_SIZES_HREF)}>List price (meal sizes)</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog({ kind: "meal_size" })}>Meal size</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => router.push(COUPONS_HREF)}>Coupon</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

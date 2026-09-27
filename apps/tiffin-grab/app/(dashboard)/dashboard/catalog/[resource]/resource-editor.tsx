@@ -26,7 +26,7 @@ import {
   RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type FieldType, type ResourceDef,
 } from "../resource-config";
 import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
-import type { DiscountDto, DiscountKind } from "../discounts/build-rows";
+import { discountValueLabel, type DiscountDto, type DiscountKind } from "../discounts/build-rows";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
 
 type Row = Record<string, unknown> & { publicId: string };
@@ -329,11 +329,7 @@ function FieldControl({
       ? (options[f.key] ?? []).filter((o) => !o.group || o.group === kindNow)
       : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
   const keyFrozen = f.readOnlyOnEdit && !isNew;
-  // discountValue's unit depends on the sibling discountType field's live value ("%" vs "$") —
-  // the only field whose unit isn't static, so this is a targeted override rather than a new
-  // FieldDef capability.
-   
-  const unit = f.key === "discountValue" ? (form.watch("discountType") === "percent" ? "%" : "$") : f.unit;
+  const unit = f.unit;
 
   return (
     <FormField
@@ -344,9 +340,6 @@ function FieldControl({
           <FormLabel>
             {f.label}
             {f.optional ? <span className="text-muted-foreground font-normal"> optional</span> : null}
-            {f.key === "discountValue" ? (
-              <a href="/dashboard/catalog/discounts" className="text-primary ml-2 text-xs font-normal hover:underline">See all discounts</a>
-            ) : null}
           </FormLabel>
           {f.help ? <p className="text-muted-foreground text-xs">{f.help}</p> : null}
           {f.type === "select" ? (
@@ -518,8 +511,9 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             carbsG: optMacro(values.carbsG),
             fatG: optMacro(values.fatG),
             basePrice: num(values.basePrice),
-            discountType: (values.discountType as "none" | "percent" | "flat") || "none",
-            discountValue: num(values.discountValue),
+            // Preview shows list price; meal-size discounts live in the central Discounts table.
+            discountType: "none",
+            discountValue: 0,
             trial: Boolean(values.trial),
           }}
         />
@@ -810,7 +804,7 @@ export function ResourceEditor({
                     className="bg-ok/10 text-ok ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
                     onClick={() => setDiscountDlg({ discount: discountCtx.byTarget[row.publicId], target: row.publicId })}
                   >
-                    Save {discountCtx.byTarget[row.publicId].percent}%
+                    Save {discountValueLabel(discountCtx.byTarget[row.publicId])}
                   </button>
                 ) : null}
                 {def.keyed ? <span className="text-muted-foreground/70 block text-xs font-normal">{String(row.key ?? "")}</span> : null}
