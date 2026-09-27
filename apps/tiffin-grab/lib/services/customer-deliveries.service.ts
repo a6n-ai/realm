@@ -386,26 +386,21 @@ export type TiffinCounts = {
   total: number;
   /** Days past cutoff that stayed scheduled (incl. make-ups), × persons. */
   delivered: number;
-  /** total − delivered. Includes both future scheduled days and pooled tiffins. */
+  /** total − delivered: future scheduled days and tiffins not yet delivered (failed, not moved). */
   remaining: number;
-  /** Tiffins owed but not yet placed on a date (schedulable after the last delivery). */
-  pooled: number;
-  /** Skipped or paused originals not yet replaced by a make-up (pre-cutoff). */
-  holdDays: number;
-  /** Tiffins per delivery day = persons; a pooled day the customer schedules costs this many. */
+  /** Tiffins per delivery day = persons. */
   persons: number;
-  /** Latest delivery_date on any row — pooled tiffins may only be scheduled strictly after it. */
+  /** Latest delivery_date on any row. */
   lastDeliveryDate: string | null;
-  /** Weekday keys (e.g. ["mon","wed","fri"]) a pooled tiffin may land on, per the plan. */
+  /** Weekday keys (e.g. ["mon","wed","fri"]) the plan delivers on. */
   deliveryWeekdays: string[];
   /** Weekdays the customer eats; null for legacy plans (every day the plan delivers or carries). */
   eatingWeekdays?: string[] | null;
 };
 
-// Delivered/remaining/pooled tiffins for one subscription, plus the constraints the "schedule from
-// pool" UI needs (last delivery date + plan weekdays). Delivered is derived from the order's
-// delivery rows via the pure tiffin-counts helper; pooled is the stored counter maintained by
-// reconcilePoolFromMisses / scheduleFromPool.
+// Delivered/remaining tiffins for one subscription, plus the plan's last delivery date and
+// weekdays (the move sheet's range). Delivered is derived from the order's delivery rows via the
+// pure tiffin-counts helper.
 //
 // AUTH-FREE core: callers MUST have already gated (assertCanManageOrder for /me, requireStaff for
 // /dashboard). Use myTiffinCounts from customer code — it adds the ownership check.
@@ -415,7 +410,6 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       id: orders.id,
       tiffinCount: orders.tiffinCount,
       persons: orders.persons,
-      pooled: orders.pooledTiffinCount,
       includeSaturday: orders.includeSaturday,
       includeSunday: orders.includeSunday,
       eatingDays: orders.eatingDays,
@@ -443,21 +437,6 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     .from(deliveries)
     .where(eq(deliveries.orderId, order.id));
 
-  const makeupSources = await db
-    .select({ src: deliveries.makeupForDeliveryId })
-    .from(deliveries)
-    .where(and(eq(deliveries.orderId, order.id), isNotNull(deliveries.makeupForDeliveryId)));
-
-  const replaced = new Set(makeupSources.map((r) => r.src!.toString()));
-  const holdDays = rows.filter(
-    (r) =>
-      r.makeupForDeliveryId === null &&
-      (r.status === "skipped" || r.status === "paused") &&
-      r.pooledAt == null &&
-      r.mergedIntoDeliveryId === null &&
-      !replaced.has(r.id.toString()),
-  ).length;
-
   const delivered = deliveredTiffinCount(rows as DeliveryForCounts[], Date.now());
   const lastDeliveryDate = rows.reduce<string | null>(
     (max, r) => (max == null || r.deliveryDate > max ? r.deliveryDate : max),
@@ -474,8 +453,6 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     total: order.tiffinCount,
     delivered,
     remaining: order.tiffinCount - delivered,
-    pooled: order.pooled,
-    holdDays,
     persons: order.persons,
     lastDeliveryDate,
     deliveryWeekdays,
@@ -784,7 +761,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   const tripFields = (row: CustomerDelivery) => {
     const covers = coveredDates(row);
     return {
-      emptied: row.status !== "scheduled" && row.pooledAt == null && (row.mergedIntoDeliveryId != null || replaced.has(row.id)),
+      emptied: row.status !== "scheduled" && (row.mergedIntoDeliveryId != null || replaced.has(row.id)),
       movesIn: moves.filter((m) => m.toId === row.id).map(({ from, to }) => ({ from, to })),
       movesOut: moves.filter((m) => m.fromId === row.id && m.toId !== row.id).map(({ from, to }) => ({ from, to })),
       units: row.mergedIntoDeliveryId ? 0 : row.tiffinUnits,

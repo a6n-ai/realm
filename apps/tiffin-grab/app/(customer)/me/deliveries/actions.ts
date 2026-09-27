@@ -6,8 +6,7 @@ import type { AddressInput } from "@foundry/address";
 import { NotFoundError } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
-import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
-import { formatMissedDays } from "@/lib/menu/coverage";
+import { setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
 import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { listValidSwapOptionsForDelivery } from "@/lib/services/swap-options.service";
@@ -40,29 +39,6 @@ async function orderPublicIdForDelivery(deliveryPublicId: string): Promise<strin
 async function assertDeliveryUnlocked(deliveryPublicId: string) {
   const orderId = await orderPublicIdForDelivery(deliveryPublicId);
   if (orderId) await assertOrderUnlocked(orderId);
-}
-
-export async function skipMyDelivery(deliveryPublicId: string): Promise<ActionResult> {
-  return runAction(async () => {
-    await assertCanManageDelivery(deliveryPublicId);
-    await assertDeliveryUnlocked(deliveryPublicId);
-    const { missedDates } = await skipDelivery(deliveryPublicId, await currentUserId());
-    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-    if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me", "layout");
-    return `${formatMissedDays(missedDates)} tiffins will be added to your pool`;
-  });
-}
-
-export async function unskipMyDelivery(deliveryPublicId: string): Promise<ActionResult> {
-  return runAction(async () => {
-    await assertCanManageDelivery(deliveryPublicId);
-    await assertDeliveryUnlocked(deliveryPublicId);
-    await unskipDelivery(deliveryPublicId, await currentUserId());
-    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-    if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me", "layout");
-  });
 }
 
 export async function setMyDeliveryAddress(
@@ -110,28 +86,13 @@ export async function pauseMySubscription(
   });
 }
 
-// `fromDate` (ISO) resumes a vacation partway: earlier paused days move to the remain pool.
+// `fromDate` (ISO) resumes a vacation partway. Vacation has no entry point today (move-only).
 export async function resumeMySubscription(orderPublicId: string, fromDate?: string): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
     await assertOrderUnlocked(orderPublicId);
     await resumeOrder(orderPublicId, (await currentUserId()) ?? undefined, fromDate);
     await revalidateDeliverySurfaces(orderPublicId);
-  });
-}
-
-// Turns one pooled tiffin into a real delivery on `dateIso` (must be after the last delivery and
-// a plan weekday — enforced server-side in scheduleFromPool).
-export async function scheduleMyPooledTiffin(
-  orderPublicId: string,
-  dateIso: string,
-): Promise<ActionResult<{ carriedOn: string; merged: boolean }>> {
-  return runAction(async () => {
-    await assertCanManageOrder(orderPublicId);
-    await assertOrderUnlocked(orderPublicId);
-    const result = await scheduleFromPool(orderPublicId, dateIso, await currentUserId());
-    await revalidateDeliverySurfaces(orderPublicId);
-    return { carriedOn: result.carriedOn, merged: result.merged };
   });
 }
 

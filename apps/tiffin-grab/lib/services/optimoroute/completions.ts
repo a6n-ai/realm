@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { deliveries, orderActivities } from "@/db/schema";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-labels.service";
-import { redeliverTrip, skipDelivery } from "@/lib/services/deliveries.service";
+import { skipDelivery } from "@/lib/services/deliveries.service";
 import { getCompletionDetails, getOrderDetails, getRoutes, type OptimoStop } from "./client";
 import { normalisePhone } from "./push";
 import { tripDetail } from "./trip-notes";
@@ -21,17 +21,15 @@ import { tripDetail } from "./trip-notes";
 //   truth for billing. A late/missing sync must never make an already-delivered tiffin
 //   look undelivered.
 //
-//   "failed" — the driver could not deliver: redeliverTrip() moves the whole trip to the next
-//   delivery day (no pool change); with no next day it falls back to skipDelivery() below.
-//
-//   Still not "success" once the cutoff has passed (a driver never got to it, or never closed
-//   it out) — calls the exact same skipDelivery() a dispatcher would use by hand, which flips
-//   the row to "skipped" and pools the tiffin for a make-up. Before
+//   "failed", or still not "success" once the cutoff has passed (a driver never got to it, or
+//   never closed it out) — skipDelivery() marks the row not delivered, so billing stops counting
+//   it. Nothing is re-delivered automatically: the customer or staff moves each tiffin to a new
+//   day with Move (see rescheduleDelivery). Before
 //   cutoff, "not success yet" just means the day isn't over — left alone, not a miss.
 //
 //   No matching OptimoRoute stop at all is NOT treated as a miss. That means the route was
 //   never pushed (or push/match failed) — an operational gap, not evidence food didn't go
-//   out. Auto-skipping on missing data would silently pool tiffins for a real, delivered day
+//   out. Auto-skipping on missing data would silently drop a real, delivered day
 //   any time staff forgot to click "Send stops". Reported separately so it gets investigated.
 //
 // Matching is phone-first, not orderNo-first, because today's real OptimoRoute account has
@@ -51,8 +49,6 @@ export type CompletionOutcome = {
   /** Tiffins on the stop and the days they cover, so a failed multi-day trip reads as such. */
   tiffinUnits: number;
   coverage: string | null;
-  /** Set when a failed stop's whole trip was re-delivered on the next delivery day instead of pooled. */
-  redelivered?: { targetDate: string; merged: boolean };
 };
 
 export type CompletionAmbiguous = {
@@ -167,22 +163,11 @@ export async function pullCompletions(
     // stop that just never got closed out; either way, no tiffin went out.
     let skipError: string | undefined;
     let skipped = false;
-    let redelivered: { targetDate: string; merged: boolean } | undefined;
     try {
       // skipDelivery()'s cutoff lock exists to stop a customer self-service-cancelling
       // too late — it must not block this reconciliation, which by construction (the
       // cutoffPassed gate above) only ever runs once that cutoff has already passed.
-      if (optimoStatus === "failed") {
-        // Our failure, not the customer's: re-deliver the whole trip rather than pooling it.
-        // No eligible next day -> fall back to the pool below.
-        try {
-          redelivered = await redeliverTrip(row.delivery.publicId, actorId);
-        } catch {
-          await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
-        }
-      } else {
-        await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
-      }
+      await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
       skipped = true;
     } catch (e) {
       // Already paused/cancelled/skipped by something else in the meantime — the
@@ -210,7 +195,6 @@ export async function pullCompletions(
       skipError,
       tiffinUnits: trip.units,
       coverage: trip.coverage,
-      redelivered,
     });
   }
 

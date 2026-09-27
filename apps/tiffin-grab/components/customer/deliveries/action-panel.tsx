@@ -13,17 +13,15 @@ interface Props {
   onGoTo: (date: string) => void;
 }
 
-/** Edit meal (or Resume) is the one primary; the rest are a quiet row. Disabled actions stay tappable and answer in plain words. */
+/** Edit meal (or Move, for a day that wasn't delivered) is the one primary; the rest are a quiet row. Disabled actions stay tappable and answer in plain words. */
 export function TripActions({ model, layout, onAction, onGoTo }: Props) {
   const [reason, setReason] = useState<string | null>(null);
   const bar = layout === "bar";
   const fire = (k: TripAction, a: { ok: boolean; why: string | null }) => (a.ok ? (setReason(null), onAction(k)) : setReason(a.why));
-  const primary = model.primary === "vacation" ? null : model.rows.find((r) => r.key === model.primary);
-  const held = model.primary === "resume";
-  // On hold, Pick and Swap can only say "resume first"; the trip card already says so in words.
-  const secondary = model.rows.filter((r) => r.key !== model.primary && r.key !== "pick" && !(held && r.key === "swap"));
+  const primary = model.rows.find((r) => r.key === model.primary);
+  const secondary = model.rows.filter((r) => r.key !== model.primary && r.key !== "pick");
 
-  if (model.rows.length === 0 && model.primary !== "vacation") {
+  if (model.rows.length === 0) {
     if (!model.goTo) return null;
     return (
       <div className={cn(FONT, "space-y-3")}>
@@ -53,7 +51,6 @@ export function TripActions({ model, layout, onAction, onGoTo }: Props) {
     <div className={cn(FONT, bar ? "space-y-2" : "space-y-3")}>
       {reason && <div role="status"><Reason>{reason}</Reason></div>}
       <div className={cn("flex gap-2", !bar && !cardRow && "flex-col")}>
-        {model.primary === "vacation" && <Button variant="primary" size="lg" className={cn(bar ? "min-w-0 flex-[2]" : "w-full")} onClick={() => onAction("vacation")}>Resume deliveries</Button>}
         {primary && (
           <Button
             variant="primary"

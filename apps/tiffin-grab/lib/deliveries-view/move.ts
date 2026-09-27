@@ -44,7 +44,7 @@ export function moveLockReason(trip: Pick<Trip, "coversDates" | "extraDates" | "
  * want to EAT it; it becomes that day's tiffin (that day's menu) and rides the carrying trip
  * (nearest plan weekday on or before it, so weekends ride Friday) — possibly this same trip.
  * Every check (past, cutoff, held target, 3-tiffin cap) runs on the carrying trip. The server
- * stays authoritative. A pooled miss still moves whole.
+ * stays authoritative.
  */
 export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras" | "emptied">[], now: number, ctx: PlanContext, today: string, horizon?: number, sourceDate: string = trip.date): MoveOption[] {
   // An emptied row (all its tiffins moved away) is a free day again: the server revives it.
@@ -57,7 +57,6 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
   const cursor = parseIsoDateUtc(rangeStart);
   const counts = tripCounts(trip);
   const perTiffin = trip.units / Math.max(1, tiffinTotal(counts));
-  const wholePool = trip.pooled && tiffinTotal(counts) > 1;
   for (let i = 0; i < span; i++, cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     const date = cursor.toISOString().slice(0, 10);
     const carriedOn = carryTripDateIso(date, weekdays);
@@ -68,14 +67,12 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
     if (date === sourceDate) disabledReason = "This is the day you're moving from.";
     else if (carriedOn < today || now > cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
     else if (carriedOn === trip.date) {
-      if (trip.status !== "upcoming") disabledReason = "Pick a day on a delivery that isn't on hold.";
+      if (trip.status !== "upcoming") disabledReason = "This delivery isn't going out. Pick another day.";
       else merge = { units: trip.units, covers: countsToCoverage(shiftTiffin(counts, sourceDate, date)).covers };
     }
-    else if (trip.pooled && ctx.lastDeliveryDate && carriedOn <= ctx.lastDeliveryDate) disabledReason = `A pooled tiffin can only go after ${humanDate(ctx.lastDeliveryDate)}.`;
-    else if (target && target.status !== "scheduled") disabledReason = `${humanDate(carriedOn)} already has a held trip. Pick another day.`;
-    else if (target && trip.pooled) disabledReason = `${humanDate(carriedOn)} already has a delivery. Pick an open day for a pooled tiffin.`;
+    else if (target && target.status !== "scheduled") disabledReason = `${humanDate(carriedOn)}'s delivery isn't going out. Pick another day.`;
     if (target?.status === "scheduled" && carriedOn !== trip.date) {
-      const incoming = wholePool ? counts : new Map([[date, 1]]);
+      const incoming = new Map([[date, 1]]);
       disabledReason ??= mergeBlockReason(dateCounts({ deliveryDate: carriedOn, coversDates: target.covers ?? null }, target.extras), incoming) ?? undefined;
       merge = { units: (target.units ?? 1) + tiffinTotal(incoming) * perTiffin, covers: mergeCoverage([...incoming.keys()], target.covers ?? [carriedOn]) };
     }

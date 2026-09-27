@@ -31,7 +31,6 @@ export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionS
   const truckDots = useMemo(() => Object.fromEntries(options.filter((o) => !o.disabledReason).map((o) => [o.date, [{ orderId: "x", status: "upcoming" as const, truck: o.carriedOn === o.date }]])), [options]);
   const { pending, error, run } = useCommit(onDone);
   const chosen = options.find((o) => o.date === picked);
-  const held = trip.status === "hold";
   const day = humanDate(source);
   const perTiffin = trip.units / Math.max(1, trip.coversDates.length + (trip.extraDates?.length ?? 0));
   const movingUnits = split ? Math.round(perTiffin) || 1 : trip.units;
@@ -90,7 +89,7 @@ export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionS
                 </Notice>
               )}
               <Reason>
-                Pick the day you want to eat. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {held ? "Uses one of your hold days. " : ""}{split ? "Your other days stay on this trip." : "Days already covered stay with this trip."}
+                Pick the day you want to eat. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {split ? "Your other days stay on this trip." : "Days already covered stay with this trip."}
               </Reason>
             </>
           )}

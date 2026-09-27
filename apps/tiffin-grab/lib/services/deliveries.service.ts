@@ -260,9 +260,6 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
     return updated.length;
   });
   await deleteFromOptimoRouteBestEffort(pausedRows);
-  // reconcilePoolFromMisses opens its own transaction and takes its own advisory lock — must run
-  // after this one commits, never nested inside it.
-  await reconcilePoolFromMisses(orderId!);
   if (updatedCount > 0) publishAnalyticsLive();
   return updatedCount;
 }
@@ -271,12 +268,9 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
  * Reverts paused rows to scheduled. Ignores 'skipped' rows by design — skip is a deliberate
  * single-delivery act that only an explicit unskip undoes.
  *
- * Plain resume (no `fromDate`): every FUTURE paused row (cutoff not passed) comes back; a paused
- * row already past its cutoff is a terminal miss and is left for reconcilePoolFromMisses to pool.
- *
+ * Plain resume (no `fromDate`): every FUTURE paused row (cutoff not passed) comes back.
  * Resume-from (`fromDate`): only paused days on/after `fromDate` (with a future cutoff) come back.
- * Every earlier paused day — and any whose cutoff already passed — is abandoned to the remain pool,
- * so the customer reschedules those tiffins after their last delivery.
+ * Vacation has no entry point today (move-only deliveries); this stays for its redesign.
  */
 export async function resumeOrder(orderPublicId: string, fromDate?: string): Promise<number> {
   if (fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
@@ -300,59 +294,14 @@ export async function resumeOrder(orderPublicId: string, fromDate?: string): Pro
       .returning({ id: deliveries.id });
     return updated.length;
   });
-  // Resume-from deliberately leaves earlier/expired paused days behind — pool ALL of them (any
-  // cutoff), not just the past-cutoff ones reconcilePoolFromMisses would catch.
-  if (fromDate) await poolAllPausedMisses(orderId!);
-  await reconcilePoolFromMisses(orderId!);
   publishAnalyticsLive();
   return updatedCount;
 }
 
 /**
- * Pools every still-paused ORIGINAL (any cutoff) not yet pooled and without a make-up child — used
- * by resume-from, where the days before the chosen resume date are abandoned on purpose. Same
- * pooled_at + pooled_tiffin_count bookkeeping as reconcilePoolFromMisses, minus the cutoff gate.
+ * Marks a scheduled delivery as not delivered (a failed or never-confirmed drop). Customers can't
+ * hold days any more; each tiffin on the row stays movable once with rescheduleDelivery.
  */
-async function poolAllPausedMisses(orderId: bigint): Promise<number> {
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
-
-    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order || order.status === "cancelled" || order.status === "completed") return 0;
-
-    const missed = await tx.select({ id: deliveries.id, tiffinUnits: deliveries.tiffinUnits })
-      .from(deliveries)
-      .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
-      .where(and(
-        eq(deliveries.orderId, orderId),
-        isNull(deliveries.makeupForDeliveryId),
-        eq(deliveries.status, "paused"),
-        isNull(deliveries.pooledAt),
-        isNull(deliveries.mergedIntoDeliveryId),
-        isNull(existingMakeup.id),
-      ));
-    if (missed.length === 0) return 0;
-
-    const now = Date.now();
-    let pooledTiffins = 0;
-    for (const src of missed) {
-      const stamped = await tx.update(deliveries).set({ pooledAt: now })
-        .where(and(eq(deliveries.id, src.id), isNull(deliveries.pooledAt)))
-        .returning({ id: deliveries.id });
-      if (stamped.length === 0) continue;
-      // A bundled Friday's miss pools its full units (e.g. Friday + a Saturday add-on = 2),
-      // not a flat order.persons — the row already carries how many tiffins it was worth.
-      pooledTiffins += src.tiffinUnits;
-    }
-    if (pooledTiffins > 0) {
-      await tx.update(orders)
-        .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} + ${pooledTiffins}` })
-        .where(eq(orders.id, orderId));
-    }
-    return pooledTiffins;
-  });
-}
-
 export async function skipDelivery(
   deliveryPublicId: string,
   actorId: bigint | null,
@@ -385,7 +334,6 @@ export async function skipDelivery(
     syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
   });
   await deleteFromOptimoRouteBestEffort([syncedRow!]);
-  await reconcilePoolFromMisses(orderId!);
   publishAnalyticsLive();
   return { missedDates };
 }
@@ -394,67 +342,6 @@ export async function skipDelivery(
 // NOT EXISTS written via a bare `${deliveries}` interpolation is not guaranteed to alias
 // correctly in Drizzle's raw sql tag, so this uses a real join alias instead.
 const existingMakeup = alias(deliveries, "existing_makeup");
-
-/**
- * Move missed originals into the order's remain pool instead of auto-scheduling a make-up date.
- * A missed original is an ORIGINAL row (makeup_for_delivery_id IS NULL) whose status is
- * paused|skipped, whose snapshotted cutoff has passed, that has NOT already been pooled
- * (pooled_at IS NULL) and does NOT already have a make-up child (legacy rows from the old
- * auto-make-up path keep their date and are left alone).
- *
- * Each pooled miss stamps `pooled_at` and adds `persons` tiffins to orders.pooled_tiffin_count.
- * The customer later turns a pooled tiffin into a real date via scheduleFromPool, which is what
- * creates the make-up row — so the miss stays "debt" (miss without make-up) until then, keeping
- * maybeComplete from completing an order that still owes tiffins.
- *
- * Idempotent via pooled_at: a second run counts nothing. Returns tiffins added to the pool.
- *
- * Serialized per order by a TRANSACTION-scoped advisory lock (see db/client.ts prepare:false note).
- * NEVER call from a read path: buildMealsGrid runs inside async Server Components.
- */
-export async function reconcilePoolFromMisses(orderId: bigint): Promise<number> {
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
-
-    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-    // Defense in depth: a correctly-behaving maybeComplete never completes an order with debt,
-    // so this should be unreachable — but it bounds the blast radius if that logic regresses.
-    if (!order || order.status === "cancelled" || order.status === "completed") return 0;
-
-    const missed = await tx.select({ id: deliveries.id, tiffinUnits: deliveries.tiffinUnits })
-      .from(deliveries)
-      .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
-      .where(and(
-        eq(deliveries.orderId, orderId),
-        isNull(deliveries.makeupForDeliveryId), // make-ups are terminal
-        inArray(deliveries.status, ["paused", "skipped"]),
-        lte(deliveries.cutoffAt, Date.now()),
-        isNull(deliveries.pooledAt), // not already pooled
-        isNull(deliveries.mergedIntoDeliveryId), // its tiffins live on the merge target
-        isNull(existingMakeup.id), // legacy auto-make-up already covers this miss — leave it
-      ))
-      .orderBy(asc(deliveries.deliveryDate));
-    if (missed.length === 0) return 0;
-
-    const now = Date.now();
-    let pooledTiffins = 0;
-    for (const src of missed) {
-      const stamped = await tx.update(deliveries).set({ pooledAt: now })
-        .where(and(eq(deliveries.id, src.id), isNull(deliveries.pooledAt)))
-        .returning({ id: deliveries.id });
-      if (stamped.length === 0) continue; // lost a race; do not double-count
-      // A bundled Friday's miss pools its full units (e.g. Friday + a Saturday add-on = 2),
-      // not a flat order.persons — the row already carries how many tiffins it was worth.
-      pooledTiffins += src.tiffinUnits;
-    }
-    if (pooledTiffins > 0) {
-      await tx.update(orders)
-        .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} + ${pooledTiffins}` })
-        .where(eq(orders.id, orderId));
-    }
-    return pooledTiffins;
-  });
-}
 
 /** A cancelled/skipped row that had already been synced to OptimoRoute — the caller's cue to
  *  also delete it there. `routeSyncedAt` null means OptimoRoute never had this stop. */
@@ -538,121 +425,6 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
   });
 }
 
-/**
- * Turn pooled tiffins into a real delivery. Customer picks the day they want to EAT; that
- * snaps to the carrying trip (weekends → Friday). Creates or merges onto that trip — never
- * a weekend delivery row.
- */
-export async function scheduleFromPool(
-  orderPublicId: string,
-  eatingDateIso: string,
-  actorId: bigint | null,
-): Promise<{ deliveryPublicId: string; carriedOn: string; merged: boolean }> {
-  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!isoDateRegex.test(eatingDateIso)) throw new ValidationError("Schedule date must be ISO YYYY-MM-DD");
-
-  const scheduled = await db.transaction(async (tx) => {
-    const orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
-
-    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order || order.status === "cancelled" || order.status === "completed") {
-      throw new ValidationError("This subscription can no longer be scheduled");
-    }
-    if (order.pooledTiffinCount < 1) throw new ValidationError("No tiffins left to schedule");
-
-    const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
-      .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
-    const deliveryWeekdays = orderDeliveryDays({
-      frequencyKey: freq!.key,
-      weekdays: freq!.weekdays as DayOfWeek[] | null,
-      includeSaturday: !order.eatingDays?.length && order.includeSaturday,
-      includeSunday: !order.eatingDays?.length && order.includeSunday,
-    }).filter((d) => d !== "sat" && d !== "sun");
-    const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
-    if (!carriedOn) throw new ValidationError("That day isn't on your plan");
-
-    const [{ max }] = await tx.select({ max: sql<string | null>`max(${deliveries.deliveryDate})` })
-      .from(deliveries).where(eq(deliveries.orderId, orderId));
-
-    const { timezone, cutoffHour } = await getAppSettings();
-    const today = zonedDateIso(Date.now(), timezone);
-    if (carriedOn < today) throw new ValidationError("Schedule date cannot be in the past");
-    const cutoff = cutoffMsFor(carriedOn, cutoffHour, timezone);
-    if (Date.now() > cutoff) throw new ValidationError("That day's cutoff has already passed");
-
-    const [miss] = await tx.select({ id: deliveries.id })
-      .from(deliveries)
-      .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
-      .where(and(
-        eq(deliveries.orderId, orderId),
-        isNull(deliveries.makeupForDeliveryId),
-        isNotNull(deliveries.pooledAt),
-        isNull(deliveries.mergedIntoDeliveryId),
-        inArray(deliveries.status, ["paused", "skipped"]),
-        isNull(existingMakeup.id),
-      ))
-      .orderBy(asc(deliveries.deliveryDate))
-      .limit(1);
-
-    // One make-up day is worth persons tiffins, or whatever is left in the pool if that is less;
-    // the same number drains the pool. The gate above (>= 1) matches so no order is stuck with a remainder.
-    const units = Math.min(order.pooledTiffinCount, order.persons);
-    const [occupant] = await tx.select().from(deliveries)
-      .where(and(eq(deliveries.orderId, orderId), eq(deliveries.deliveryDate, carriedOn))).limit(1);
-
-    // Merge onto an existing scheduled trip even when that trip is the plan's last
-    // delivery (e.g. Sat eat-day → Fri after Friday is already the last row).
-    if (occupant) {
-      if (occupant.status !== "scheduled") throw new ValidationError("You already have a delivery on that day");
-      const occExtras = (await loadExtraDates(tx, [occupant.id])).get(occupant.id) ?? [];
-      const blocked = mergeBlockReason(dateCounts(occupant, occExtras), new Map([[eatingDateIso, 1]]));
-      if (blocked) throw new ValidationError(blocked);
-      const merged = dateCounts(occupant, occExtras);
-      merged.set(eatingDateIso, (merged.get(eatingDateIso) ?? 0) + 1);
-      const covers = [...merged.keys()].sort();
-      await tx.update(deliveries).set({
-        tiffinUnits: occupant.tiffinUnits + units,
-        coversDates: covers,
-      }).where(eq(deliveries.id, occupant.id));
-      await replaceExtras(tx, occupant.id, covers.flatMap((c) => Array<string>(merged.get(c)! - 1).fill(c)));
-      await tx.insert(deliveryMoves).values({ orderId, fromDeliveryId: null, toDeliveryId: occupant.id, fromEatDate: null, toEatDate: eatingDateIso, organizationId: occupant.organizationId });
-      await tx.update(orders)
-        .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} - ${units}` })
-        .where(eq(orders.id, orderId));
-      await tx.insert(orderActivities).values({
-        orderId, deliveryId: occupant.id, type: "pool_scheduled", createdBy: actorId,
-        note: `Pool eat-day ${eatingDateIso} merged onto ${carriedOn}`,
-      });
-      return { deliveryPublicId: occupant.publicId, carriedOn, merged: true };
-    }
-
-    if (max && carriedOn <= max) throw new ValidationError("Date must be after your last delivery");
-
-    const [inserted] = await tx.insert(deliveries).values({
-      orderId,
-      deliveryDate: carriedOn,
-      status: "scheduled",
-      cutoffAt: cutoff,
-      makeupForDeliveryId: miss?.id ?? null,
-      tiffinUnits: units,
-      coversDates: [eatingDateIso],
-    }).returning({ id: deliveries.id, publicId: deliveries.publicId });
-
-    await tx.update(orders)
-      .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} - ${units}` })
-      .where(eq(orders.id, orderId));
-
-    await tx.insert(orderActivities).values({
-      orderId, deliveryId: inserted.id, type: "pool_scheduled", createdBy: actorId,
-      note: `Pool eat-day ${eatingDateIso} on trip ${carriedOn}`,
-    });
-    return { deliveryPublicId: inserted.publicId, carriedOn, merged: false };
-  });
-  publishAnalyticsLive();
-  return scheduled;
-}
-
 /** First ISO date strictly after `afterIso` whose weekday is in `deliveryDays`. */
 export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string>): string {
   const d = parseIsoDateUtc(afterIso);
@@ -695,10 +467,9 @@ async function dropDeliverySwapsForDate(tx: Tx, deliveryId: bigint, tripDate: st
  * A row whose tiffins all left (merged into another trip, or replaced by a make-up) still owns
  * its date under deliveries_order_date_unique but carries nothing, which used to block every
  * later move onto that day. A move landing there revives it as a fresh, empty scheduled trip.
- * Pooled rows stay out: the pool already counted their tiffins.
  */
 async function reviveIfEmptied(tx: Tx, row: Delivery, cutoffAt: number): Promise<Delivery> {
-  if (row.status === "scheduled" || row.pooledAt != null) return row;
+  if (row.status === "scheduled") return row;
   const [child] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
   if (row.mergedIntoDeliveryId == null && !child) return row;
   // The make-up keeps its tiffin but stops pointing here; delivery_moves still records the move and keeps it locked.
@@ -715,7 +486,7 @@ async function reviveIfEmptied(tx: Tx, row: Delivery, cutoffAt: number): Promise
 
 /**
  * Moves a WHOLE trip onto `targetDate` (a delivery weekday): payment-shift, re-delivery, a
- * single-tiffin reschedule, or a pooled miss. If a SCHEDULED trip already sits on targetDate
+ * single-tiffin reschedule. If a SCHEDULED trip already sits on targetDate
  * the tiffins merge into it (units add, coverage unions); otherwise a make-up row is inserted.
  * A single-tiffin trip moved to another eat day (`eatingDateIso`) becomes that day's tiffin and
  * takes that day's menu, so its old swaps stay behind. Never creates weekend delivery rows.
@@ -760,9 +531,6 @@ async function moveTrip(
   }
 
   if (target.status !== "scheduled") throw new ValidationError("You already have a delivery on that day");
-  if (source.pooledAt != null) {
-    throw new ValidationError("This delivery is in your remain pool — schedule it on a day instead");
-  }
   const incoming = new Map<string, number>();
   for (const c of [...carried, ...movingExtras]) incoming.set(c, (incoming.get(c) ?? 0) + 1);
   const targetExtras = (await loadExtraDates(tx, [target.id])).get(target.id) ?? [];
@@ -811,7 +579,7 @@ async function moveOneTiffin(
   const dropSwaps = () => (leftSource.has(fromEat) ? Promise.resolve() : dropDeliverySwapsForDate(tx, source.id, source.deliveryDate, fromEat));
 
   if (targetDate === source.deliveryDate) {
-    if (source.status !== "scheduled") throw new ValidationError("Pick a day on a delivery that isn't on hold.");
+    if (source.status !== "scheduled") throw new ValidationError("This delivery isn't going out. Pick another day.");
     await writeCounts(source.id, shiftTiffin(srcCounts, fromEat, toEat));
     await dropSwaps();
     return { id: source.id, merged: true };
@@ -959,7 +727,7 @@ export async function rescheduleDelivery(
     const [existingMakeup] = await tx.select({ id: deliveries.id }).from(deliveries)
       .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
     if (existingMakeup || row.mergedIntoDeliveryId) throw new ValidationError("This delivery has already been rescheduled");
-    // Make-up rows only ever carry moved or pooled tiffins.
+    // Make-up rows only ever carry moved tiffins.
     if (row.makeupForDeliveryId != null) throw new ValidationError("This tiffin was already moved once. It can't move again.");
 
     const own = coveredDates(row);
@@ -973,15 +741,14 @@ export async function rescheduleDelivery(
       .where(and(eq(deliveryMoves.toDeliveryId, row.id), eq(deliveryMoves.toEatDate, fromEat)));
     if (counts.get(fromEat)! - movedIn < 1) throw new ValidationError("This tiffin was already moved once. It can't move again.");
 
-    // A pooled miss is already credited to the pool as a whole; it moves whole.
-    const whole = tiffinTotal(counts) === 1 || row.pooledAt != null;
+    const whole = tiffinTotal(counts) === 1;
     let moved: { id: bigint; merged: boolean };
     if (whole) {
       if (carriedOn === row.deliveryDate && row.status === "scheduled") {
         // Same truck, other eat day (Fri's only tiffin eaten Sat instead): relabel in place.
         moved = await moveOneTiffin(tx, row, fromEat, eatingDateIso, carriedOn, newCutoff, order.persons);
       } else {
-        if (carriedOn === row.deliveryDate) throw new ValidationError("Pick a day on a delivery that isn't on hold.");
+        if (carriedOn === row.deliveryDate) throw new ValidationError("This delivery isn't going out. Pick another day.");
         if (row.status === "scheduled") {
           const skipped = await tx.update(deliveries).set({ status: "skipped" })
             .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
@@ -998,12 +765,9 @@ export async function rescheduleDelivery(
     if (row.status === "scheduled" && (!whole || moved.id === row.id)) refreshIds.push(row.id);
     if (moved.merged && moved.id !== row.id) refreshIds.push(moved.id);
 
-    // A pooled multi-day miss moves whole as a make-up, which already locks it.
-    if (!(row.pooledAt != null && tiffinTotal(counts) > 1)) {
-      await tx.insert(deliveryMoves).values({
-        orderId, fromDeliveryId: row.id, toDeliveryId: moved.id, fromEatDate: fromEat, toEatDate: eatingDateIso, organizationId: row.organizationId,
-      });
-    }
+    await tx.insert(deliveryMoves).values({
+      orderId, fromDeliveryId: row.id, toDeliveryId: moved.id, fromEatDate: fromEat, toEatDate: eatingDateIso, organizationId: row.organizationId,
+    });
     const where = carriedOn === eatingDateIso ? carriedOn : `${eatingDateIso} (rides ${carriedOn})`;
     await tx.insert(orderActivities).values(
       moved.id === row.id
@@ -1047,9 +811,8 @@ async function moveTripPreflight(tx: Tx, orderId: bigint, date: string): Promise
 
 /**
  * Staff-only (the caller enforces it): OUR failure — the driver could not deliver — so the whole
- * trip is re-delivered on the order's next delivery day and merged there. The pool is never touched.
- * Rejects with a ValidationError when no eligible next day exists, so the OptimoRoute failure
- * path can fall back to pooling.
+ * trip is re-delivered on the order's next delivery day and merged there. Rejects with a
+ * ValidationError when no eligible next day exists.
  */
 export async function redeliverTrip(
   deliveryPublicId: string,
@@ -1108,34 +871,6 @@ export async function redeliverTrip(
   if (result.merged) await refreshStopBestEffort(targetId!);
   publishAnalyticsLive();
   return result;
-}
-
-export async function unskipDelivery(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
-  let orderId: bigint;
-  await db.transaction(async (tx) => {
-    orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
-    // Re-read post-lock: a concurrent request may have mutated this row while we waited.
-    const row = await loadByPublicId(tx, deliveryPublicId);
-    assertOriginal(row);
-    assertMutable(row);
-    if (row.status !== "skipped") throw new ValidationError(`Cannot un-skip a ${row.status} delivery`);
-    if (row.pooledAt != null) {
-      throw new ValidationError("This skip is in your remain pool — schedule it on a day instead of un-skipping");
-    }
-    const [mk] = await tx.select({ id: deliveries.id }).from(deliveries)
-      .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
-    if (mk || row.mergedIntoDeliveryId) throw new ValidationError("This delivery has already been replaced by a make-up");
-    const updated = await tx.update(deliveries).set({ status: "scheduled" })
-      .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "skipped")))
-      .returning({ id: deliveries.id });
-    if (updated.length === 0) throw new ValidationError(`Cannot un-skip a ${row.status} delivery`);
-    await tx.insert(orderActivities).values({
-      orderId, deliveryId: row.id, type: "unskipped", createdBy: actorId,
-    });
-  });
-  await reconcilePoolFromMisses(orderId!);
-  publishAnalyticsLive();
 }
 
 /** Postal zone first, then radius circles (active zones only). Rejects an unserviced postal code. */

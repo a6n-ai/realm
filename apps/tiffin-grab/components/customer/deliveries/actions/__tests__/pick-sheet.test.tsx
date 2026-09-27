@@ -85,13 +85,12 @@ const trip = (o: Partial<Trip> = {}): Trip => ({
   cutoffAt: Date.now() + 36e5 * 30,
   mergedInto: null,
   isMakeup: false,
-  pooled: false,
   rescheduled: false,
   ...o,
 });
 const plan = {
   orderId: "o1",
-  ctx: { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true },
+  ctx: { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true },
   categoryLabels: { curry: "Curry", daal: "Daal" },
   swapCategories: {},
   days: [],

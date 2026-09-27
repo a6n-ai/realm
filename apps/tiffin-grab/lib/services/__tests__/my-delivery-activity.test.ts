@@ -11,7 +11,7 @@ const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = 
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("@/lib/services/orders.service");
 const { myDeliveryActivity } = await import("../customer-deliveries.service");
-const { skipMyDelivery } = await import("@/app/(customer)/me/deliveries/actions");
+const { skipDelivery } = await import("../deliveries.service");
 
 function actAs(publicId: string) {
   session.user = { id: publicId, role: "user" };
@@ -74,10 +74,8 @@ describe("myDeliveryActivity (integration)", () => {
     const [ad] = await db.select().from(deliveries).where(eq(deliveries.orderId, aOrder.id));
     const [bd] = await db.select().from(deliveries).where(eq(deliveries.orderId, bOrder.id));
 
-    actAs(a.publicId);
-    await skipMyDelivery(ad.publicId);
-    actAs(b.publicId);
-    await skipMyDelivery(bd.publicId);
+    await skipDelivery(ad.publicId, a.id);
+    await skipDelivery(bd.publicId, b.id);
 
     const aActivity = await myDeliveryActivity(a.id);
     expect(aActivity.length).toBeGreaterThan(0);
@@ -93,8 +91,7 @@ describe("myDeliveryActivity (integration)", () => {
     const a = await userIdOf(aOrder);
     const [ad] = await db.select().from(deliveries).where(eq(deliveries.orderId, aOrder.id));
 
-    actAs(a.publicId);
-    await skipMyDelivery(ad.publicId);
+    await skipDelivery(ad.publicId, a.id);
 
     const limited = await myDeliveryActivity(a.id, 1);
     expect(limited.length).toBe(1);

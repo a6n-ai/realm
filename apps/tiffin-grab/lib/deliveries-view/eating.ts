@@ -84,8 +84,7 @@ export function deliveryLine(r: EatingRow): string {
     case "cutoff-passed": return `Being prepared, arrives ${day}${with_}`;
     case "upcoming": return `Arrives ${day}${with_}`;
     case "rescheduled": case "combined-into": return t.movedTo ? `Moved to ${humanDate(t.movedTo)}` : "Moved";
-    case "hold": return "On hold";
-    case "vacation": return "On vacation";
+    case "vacation": return "Paused";
     default: return `Arrives ${day}${with_}`;
   }
 }

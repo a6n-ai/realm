@@ -16,12 +16,11 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "upcoming": return { label: t.isMakeup ? "Make-up" : "Upcoming", tone: "up", dot: "upcoming" };
     case "delivered": return { label: "Delivered", tone: "ok", dot: "delivered" };
     case "cutoff-passed": return { label: "Being prepared", tone: "ok", dot: "delivered" };
-    case "hold": return { label: t.pooled ? "On hold · in pool" : "On hold", tone: "hold", dot: "hold" };
     case "rescheduled": return { label: "Moved", tone: "hold", dot: "hold" };
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
     case "vacation": return { label: "Vacation", tone: "vac", dot: "vacation" };
     case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
-    case "failed": return { label: "Failed (On Hold)", tone: "hold", dot: "hold" };
+    case "failed": return { label: "Not delivered", tone: "hold", dot: "hold" };
   }
 }
 
@@ -196,12 +195,11 @@ export const EXPLAIN: Record<Trip["status"], string> = {
   upcoming: "Scheduled. You can still change meals or reschedule until the cutoff.",
   delivered: "This delivery has been made.",
   "cutoff-passed": "The cutoff has passed and the kitchen is preparing it. It can no longer be changed.",
-  hold: "On hold. Nothing arrives; the tiffin is returned to you. Resume it, or schedule it on another day.",
   rescheduled: "This day was moved to another day, so nothing arrives on the original date.",
   locked: "Closed. This day can no longer be changed.",
-  vacation: "Your plan is on vacation, so nothing arrives. Resume deliveries to bring it back.",
+  vacation: "Paused, so nothing arrives. Move its tiffin to another day.",
   "combined-into": "Combined into another delivery.",
-  failed: "Delivery failed. It is currently on hold. You can resume or reschedule it.",
+  failed: "Delivery failed, so nothing arrived. Move its tiffin to another day.",
 };
 
 /** Meal breakdown of one eating day (category, portion, dishes, swaps), with a compact delivery footer. */

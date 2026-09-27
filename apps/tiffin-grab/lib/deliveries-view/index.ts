@@ -1,8 +1,8 @@
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
 
-export type TripStatus = "upcoming" | "delivered" | "hold" | "vacation" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed";
-export type TripAction = "pick" | "swap" | "hold" | "resume" | "move" | "vacation" | "makeup" | "pool" | "address";
+export type TripStatus = "upcoming" | "delivered" | "vacation" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed";
+export type TripAction = "pick" | "swap" | "move" | "address";
 export type Availability = { ok: boolean; why: string | null; sub: string };
 export type LegendKey = "delivered" | "upcoming" | "vacation" | "onHold";
 
@@ -24,7 +24,6 @@ export type CalendarDayInput = {
   coversLabel?: string | null;
   combinedInto?: string | null;
   cutoffAt?: number;
-  pooled?: boolean;
   rescheduled?: boolean;
   /** Day this trip's tiffin moved to (make-up row), for the "Moved to" label. */
   movedTo?: string;
@@ -47,7 +46,6 @@ export type TiffinMove = { from: string | null; to: string };
 export type PlanContext = {
   cutoffHour: number;
   timezone: string;
-  pooled: number;
   lastDeliveryDate: string | null;
   deliveryWeekdays: string[];
   eatingWeekdays?: string[] | null;
@@ -74,7 +72,6 @@ export type Trip = {
   cutoffAt: number;
   mergedInto: string | null;
   isMakeup: boolean;
-  pooled: boolean;
   rescheduled: boolean;
   /** Where a moved trip went: the eat day it was moved to, or the trip it combined into. */
   movedTo?: string | null;
@@ -120,9 +117,10 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       let status: TripStatus;
       if (d.combinedInto) status = "combined-into";
       else if (d.status !== "scheduled" && rescheduled) status = "rescheduled";
+      // Nobody holds a day any more: a skipped row that wasn't moved away is a failed drop.
+      else if (d.status === "skipped") status = "failed";
       else if (d.status === "cancelled" || (d.status !== "scheduled" && past)) status = "locked";
       else if (d.status === "paused") status = "vacation";
-      else if (d.status === "skipped") status = "hold";
       else if (d.optimoCompletionStatus === "success") status = "delivered";
       else if (d.optimoCompletionStatus === "failed") status = "failed";
       else if (!past) status = "upcoming";
@@ -149,7 +147,6 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         cutoffAt,
         mergedInto: d.combinedInto ?? null,
         isMakeup: d.isMakeup,
-        pooled: !!d.pooled,
         rescheduled,
         movedTo: d.movedTo ?? d.combinedInto ?? null,
         movesIn: d.movesIn ?? [],
@@ -163,14 +160,13 @@ const LEGEND: Record<TripStatus, LegendKey | null> = {
   upcoming: "upcoming",
   delivered: "delivered",
   "cutoff-passed": "delivered",
-  hold: "onHold",
   rescheduled: "onHold",
   locked: "onHold",
   vacation: "vacation",
   "combined-into": null,
   failed: "onHold",
 };
-const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", vacation: "Vacation", onHold: "On Hold" };
+const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", vacation: "Paused", onHold: "Not delivered" };
 
 /** Replaces day-status.ts: legend bucket per eating day, keyed by ISO date. */
 export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> {
@@ -189,63 +185,30 @@ export function actionAvailability(trip: Trip, _now: number, plan: PlanContext):
   const closed = `Changes closed ${formatCutoff(trip.cutoffAt, plan.timezone)}`;
   const s = trip.status;
   const into = trip.mergedInto ? humanDate(trip.mergedInto) : "";
-  const vac = "On vacation. Resume deliveries first.";
-  const resumeVacation = s === "vacation";
 
   const blocked = (delivered: string): string =>
     s === "combined-into" ? `Combined into ${into}. Go to that trip.`
     : s === "delivered" ? delivered
-    : s === "vacation" ? vac
     : `${closed}. This trip is being prepared.`;
 
-  let pick: Availability, swap: Availability, hold: Availability, resume: Availability, move: Availability;
   const editable = s === "upcoming";
-  pick = editable ? yes(`Closes ${formatCutoff(trip.cutoffAt, plan.timezone)}`)
-    : s === "hold" || s === "rescheduled" || s === "failed" ? no("On hold. Resume it to choose meals.")
+  // A failed drop or a legacy paused day can't be edited in place; its tiffin moves to a new day.
+  const notHere = s === "failed" || s === "vacation" || s === "rescheduled";
+  const pick = editable ? yes(`Closes ${formatCutoff(trip.cutoffAt, plan.timezone)}`)
+    : notHere ? no("Not delivered. Move it to another day to choose meals.")
     : no(blocked(`Delivered. ${closed}.`));
-  swap = editable ? yes("Rice ↔ Roti, per eating day")
-    : s === "hold" || s === "rescheduled" || s === "failed" ? no("On hold. Resume it to swap items.")
+  const swap = editable ? yes("Rice ↔ Roti, per eating day")
+    : notHere ? no("Not delivered. Move it to another day to swap items.")
     : no(blocked(`Delivered. ${closed}.`));
-
-  if (editable && trip.isMakeup) {
-    hold = no("Make-up trips can't be held or moved.");
-    move = no("Already moved once. Only one move is allowed.");
-  } else {
-    hold = editable ? yes("Adds 1 hold day back to your plan")
-      : s === "hold" || s === "rescheduled" || s === "failed" ? no("Already on hold. Resume it instead.")
-      : no(blocked("Already delivered."));
-    move = editable ? yes("Pick a new delivery day")
-      : (s === "hold" || s === "failed") && trip.pooled ? yes(plan.lastDeliveryDate ? `Only days after ${humanDate(plan.lastDeliveryDate)}` : "Only days after your last delivery")
-      : (s === "hold" || s === "failed") ? yes("Uses one of your hold days")
-      : resumeVacation ? yes("Uses one of your hold days")
-      : s === "rescheduled" ? no("Already moved.")
-      : no(blocked("Already delivered."));
-  }
-
-  resume = (s === "hold" || s === "failed") && !trip.pooled ? yes("Put it back on the schedule. The hold day is returned.")
-    : (s === "hold" || s === "failed") ? no("This hold is in your pool. Schedule it on a day instead.")
+  const move = editable && trip.isMakeup ? no("Already moved once. Only one move is allowed.")
+    : editable ? yes("Pick a new delivery day")
+    : s === "failed" ? yes("Pick a new day for this tiffin")
+    : s === "vacation" ? yes("Pick a new delivery day")
     : s === "rescheduled" ? no("Already moved.")
-    : s === "upcoming" ? no("This trip isn't on hold.")
     : no(blocked("Already delivered."));
-
-  const vacation: Availability = plan.active === false ? no("No plan running.")
-    : plan.onVacation ? yes("Resume deliveries")
-    : plan.vacationsLeft === 0 ? no("You've used all your vacation stretches")
-    : yes("Start today or any day after");
-
-  const n = plan.pooled;
-  const wd = plan.deliveryWeekdays.map((w) => w[0]!.toUpperCase() + w.slice(1, 3)).join(", ");
-  const makeup: Availability = n >= 1
-    ? yes(`${n} ${n === 1 ? "tiffin" : "tiffins"} waiting. Pick a day after ${plan.lastDeliveryDate ? humanDate(plan.lastDeliveryDate) : "your last delivery"} (${wd}).`)
-    : no("No tiffins waiting in your pool.");
-
-  const pool: Availability = ((s === "hold" || s === "failed") && trip.pooled) || (s === "locked" && !trip.isMakeup)
-    ? yes("In your pool. Schedule it on a day.")
-    : no("Nothing from this trip is in your pool.");
-
   // Re-addressing is allowed on make-ups too (the one change they permit); never charged.
   const address: Availability = editable ? yes(`Closes ${formatCutoff(trip.cutoffAt, plan.timezone)}`)
     : no(blocked(`Delivered. ${closed}.`));
 
-  return { pick, swap, hold, resume, move, vacation, makeup, pool, address };
+  return { pick, swap, move, address };
 }

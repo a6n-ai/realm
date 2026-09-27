@@ -32,7 +32,7 @@ export type PlanView = {
   dropOff: DropOffCatalog;
 };
 
-type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "pooledAt" | "deliveryStrategyPublicIds" | "optimoCompletionStatus"> &
+type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "deliveryStrategyPublicIds" | "optimoCompletionStatus"> &
   Partial<Pick<CustomerDelivery, "addressLine" | "postalCode">>;
 
 export function toCalendarInputs(a: {
@@ -55,7 +55,6 @@ export function toCalendarInputs(a: {
       deliveryStrategyPublicIds: r?.deliveryStrategyPublicIds,
       optimoCompletionStatus: r?.optimoCompletionStatus,
       cutoffAt: r?.cutoffAt,
-      pooled: r?.pooledAt != null,
       rescheduled: r ? a.makeupSources.has(r.id.toString()) : false,
       movedTo: r && a.makeupSources instanceof Map ? a.makeupSources.get(r.id.toString()) : undefined,
       mealsByDate,
@@ -71,7 +70,6 @@ export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; c
   return {
     cutoffHour: a.cutoffHour,
     timezone: a.timezone,
-    pooled: a.counts.pooled,
     lastDeliveryDate: a.counts.lastDeliveryDate,
     deliveryWeekdays: a.counts.deliveryWeekdays,
     eatingWeekdays: a.counts.eatingWeekdays,
@@ -89,8 +87,8 @@ export function renewDays(last: string | null, today: string): number | null {
   return Math.max(Math.round((Date.parse(`${last}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 864e5), 0);
 }
 
-/** ?trip if it names a real trip, else the next upcoming, else the next on hold, else the first. */
+/** ?trip if it names a real trip, else the next upcoming, else the next failed one to move, else the first. */
 export function pickDefaultTrip(trips: Trip[], requested: string | undefined): string | null {
   if (requested && trips.some((t) => t.date === requested)) return requested;
-  return (trips.find((t) => t.status === "upcoming") ?? trips.find((t) => t.status === "hold") ?? trips[0])?.date ?? null;
+  return (trips.find((t) => t.status === "upcoming") ?? trips.find((t) => t.status === "failed") ?? trips[0])?.date ?? null;
 }

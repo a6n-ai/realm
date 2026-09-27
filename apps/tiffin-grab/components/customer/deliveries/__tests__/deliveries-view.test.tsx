@@ -22,22 +22,22 @@ const trip = (o: Partial<Trip>): Trip => {
   return {
     orderId: "o", date, deliveryId: "a", units: 1, coversDates: covers, coversLabel: null,
     eatingDays: covers.map((c) => ({ date: c, dishSummary: "Paneer, Jeera Rice", swaps: [], locksWith: c === date ? null : date })),
-    status: "upcoming", cutoffAt: NOW + 30 * 3600e3, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o,
+    status: "upcoming", cutoffAt: NOW + 30 * 3600e3, mergedInto: null, isMakeup: false, rescheduled: false, ...o,
   };
 };
-const mk = (orderId: string, o: { size: string; remaining: number; total: number; pooled?: number }) =>
+const mk = (orderId: string, o: { size: string; remaining: number; total: number }) =>
   ({
     orderId, today: "2026-09-21", days: [], categoryLabels: {}, categoryPortions: {}, categoryPortionSlots: {},
     sub: { publicId: orderId, mealSizeName: o.size, planName: "Veg", tagLabel: "Veg", tagColor: "#2e8b57", status: "active", displayStatus: "active" },
-    counts: { total: o.total, delivered: 4, remaining: o.remaining, pooled: o.pooled ?? 0, holdDays: 2, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"] },
-    ctx: { cutoffHour: 18, timezone: "UTC", pooled: o.pooled ?? 0, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"], active: true },
+    counts: { total: o.total, delivered: 4, remaining: o.remaining, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"] },
+    ctx: { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"], active: true },
     pause: { limits: {}, usage: {} },
   }) as unknown as PlanView;
 const plan = mk("o", { size: "Large", remaining: 16, total: 20 });
 const trips = [
   trip({ date: "2026-09-21", status: "delivered", units: 2, coversLabel: "Covers Mon + Tue", coversDates: ["2026-09-21", "2026-09-22"] }),
   trip({}),
-  trip({ date: "2026-09-25", status: "hold" }),
+  trip({ date: "2026-09-25", status: "failed" }),
 ];
 const cut = NOW + 30 * 3600e3;
 const dot = (orderId: string, deliveryDate: string, covers: string[], units = 1, status: "scheduled" | "skipped" = "scheduled") =>
@@ -54,18 +54,18 @@ const p1 = mk("o1", { size: "Large", remaining: 16, total: 20 });
 const p2 = mk("o2", { size: "Small", remaining: 8, total: 10 });
 const win = { o1: { first: "2026-09-01", last: "2026-09-30", next: "2026-09-21" }, o2: { first: "2026-10-07", last: "2026-10-30", next: "2026-10-07" } };
 const monTrip = trip({ orderId: "o1", date: "2026-09-21", deliveryId: "a", units: 2, coversDates: ["2026-09-21", "2026-09-22"] });
-const plan1Trips = [monTrip, trip({ orderId: "o1", date: "2026-09-24", status: "hold" })];
+const plan1Trips = [monTrip, trip({ orderId: "o1", date: "2026-09-24", status: "failed" })];
 const agenda1 = agendaOf(dot("o1", "2026-09-21", ["2026-09-21", "2026-09-22"], 2), dot("o1", "2026-09-24", ["2026-09-24"], 1, "skipped"), dot("o1", "2026-10-05", ["2026-10-05"]));
 const multi = (over: Partial<React.ComponentProps<typeof DeliveriesView>> = {}) =>
   render(<DeliveriesView plan={p1} subs={[p1.sub, p2.sub]} windows={win} trips={plan1Trips} agenda={agenda1} weekStart="2026-09-21" firstWeek="2026-09-21" lastWeek="2026-10-05" now={NOW} initialTrip={null} {...over} />);
 
 describe("DeliveriesView (one plan)", () => {
-  it("header: greets by name, bold meal-size title, pills for plan, tiffins left, hold days, renew", () => {
+  it("header: greets by name, bold meal-size title, pills for plan, tiffins left, renew; no hold days or vacation", () => {
     view(undefined, trips, plan, { customerName: "Hrithik Raj" });
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Hi, Hrithik.");
     expect(screen.getByTestId("plan-title")).toHaveTextContent("Large");
     expect(screen.getByText("16 of 20 tiffins left")).toBeInTheDocument();
-    expect(screen.getByText("2 hold days")).toBeInTheDocument();
+    expect(screen.queryByText(/hold day|Vacation/)).toBeNull();
     expect(screen.getByText("renews in 11 days")).toBeInTheDocument();
   });
   it("dishes live in the list; the card below shows the delivery, not the eating info", () => {
@@ -103,12 +103,13 @@ describe("DeliveriesView (one plan)", () => {
     expect(screen.queryByRole("button", { name: /Edit meal/ })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
-  it("there is no Hold action; held trip offers Resume", () => {
+  it("move only: no Hold or Resume anywhere; a failed drop offers Move as its one action", () => {
     view();
-    expect(screen.queryByRole("button", { name: /Hold this trip/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Hold|Resume/ })).toBeNull();
     cleanup();
     view("2026-09-25");
-    expect(screen.getAllByRole("button", { name: /Resume this trip/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /Hold|Resume|Edit meal/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
   });
   it("delivered eating day: no action rows", () => {
     view("2026-09-21");
@@ -123,13 +124,8 @@ describe("DeliveriesView (one plan)", () => {
   it("selecting another row swaps the detail; rows show no delivery text, just date, dishes, status", () => {
     view();
     fireEvent.click(screen.getAllByRole("button", { name: /Fri, Sep 25/ })[0]!);
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("On hold");
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Delivery failed");
     expect(within(screen.getAllByTestId("trip-row")[0]!).queryByText(/Arrives|Delivered Mon/)).toBeNull();
-  });
-  it("pool banner opens the make-up sheet", () => {
-    view("2026-09-23", trips, mk("o", { size: "Large", remaining: 16, total: 20, pooled: 3 }));
-    fireEvent.click(screen.getByRole("button", { name: "Schedule a make-up" }));
-    expect(screen.getByRole("dialog", { name: "Schedule a make-up" })).toBeInTheDocument();
   });
   it("repeated dishes render without duplicate-key warnings", () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -140,8 +136,8 @@ describe("DeliveriesView (one plan)", () => {
     err.mockRestore();
   });
   it("?action opens its sheet on load", () => {
-    view("2026-09-23", trips, plan, { initialAction: "hold" });
-    expect(screen.getByRole("dialog", { name: /^Hold / })).toBeInTheDocument();
+    view("2026-09-23", trips, plan, { initialAction: "move" });
+    expect(screen.getByRole("dialog", { name: /^Move / })).toBeInTheDocument();
   });
   it("the week is the whole list: no earlier/more/month links", () => {
     view();
@@ -305,6 +301,6 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
 
 describe("action registry", () => {
   it("maps every TripAction to a sheet component", () => {
-    expect(Object.keys(ACTION_SHEETS).sort()).toEqual(["address", "hold", "makeup", "move", "pick", "pool", "resume", "swap", "vacation"]);
+    expect(Object.keys(ACTION_SHEETS).sort()).toEqual(["address", "move", "pick", "swap"]);
   });
 });

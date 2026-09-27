@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { actionModel } from "../action-model";
 import type { Trip } from "@/lib/deliveries-view";
 
-const ctx = { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true };
-const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o", date: "2026-09-23", deliveryId: "a", units: 1, coversDates: ["2026-09-23"], coversLabel: null, eatingDays: [], status: "upcoming", cutoffAt: Date.now() + 9e9, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o });
+const ctx = { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true };
+const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o", date: "2026-09-23", deliveryId: "a", units: 1, coversDates: ["2026-09-23"], coversLabel: null, eatingDays: [], status: "upcoming", cutoffAt: Date.now() + 9e9, mergedInto: null, isMakeup: false, rescheduled: false, ...o });
 
 describe("actionModel", () => {
   it("upcoming: pick is primary, rows are pick/move/address (swap embedded in Edit meal)", () => {
@@ -18,11 +18,11 @@ describe("actionModel", () => {
     const m = actionModel(trip(), Date.now(), ctx, { movedTo: "2026-09-29" });
     expect([m.primary, m.rows, m.bar, m.goTo, m.closedReason]).toEqual([null, [], [], "2026-09-29", null]);
   });
-  it("on hold: resume is offered and becomes primary", () => {
-    const m = actionModel(trip({ status: "hold" }), Date.now(), ctx);
-    expect(m.primary).toBe("resume");
-    expect(m.rows.map((r) => r.key)).toEqual(["pick", "resume", "move", "address"]);
-    expect(m.bar).toEqual(["pick", "move"]);
+  it("failed drop: Move is the only action and the primary", () => {
+    const m = actionModel(trip({ status: "failed" }), Date.now(), ctx);
+    expect(m.primary).toBe("move");
+    expect(m.rows.map((r) => r.key)).toEqual(["move"]);
+    expect(m.bar).toEqual(["move"]);
   });
   it("delivered: no rows, reason instead", () => {
     const m = actionModel(trip({ status: "delivered" }), Date.now(), ctx);
@@ -45,8 +45,8 @@ describe("actionModel", () => {
     expect(m.bar).toEqual([]);
     expect(m.primary).toBeNull();
   });
-  it("payment locked: a held trip cannot be resumed", () => {
-    const m = actionModel(trip({ status: "hold" }), Date.now(), ctx, { locked: true });
+  it("payment locked: a failed trip cannot be moved", () => {
+    const m = actionModel(trip({ status: "failed" }), Date.now(), ctx, { locked: true });
     expect(m.rows).toEqual([]);
     expect(m.primary).toBeNull();
   });

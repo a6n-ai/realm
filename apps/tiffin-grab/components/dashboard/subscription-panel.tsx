@@ -105,7 +105,7 @@ export async function SubscriptionPanel({
     <>
       <SectionCard
         title={SUBSCRIPTION_SECTIONS.deliveries.title}
-        subtitle="Week view by eating day: delivery days, swaps, reschedule, vacation and make-up."
+        subtitle="Week view by eating day: delivery days, swaps and moves."
       >
         {paymentReview ? (
           <p className="text-muted-foreground text-sm" data-testid="payment-review-deliveries">

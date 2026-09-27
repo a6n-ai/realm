@@ -106,10 +106,8 @@ export function CompletionsView({ date }: { date: string }) {
                 <TableCell className="text-xs">
                   {o.action === "confirmed"
                     ? "Confirmed"
-                    : o.redelivered
-                      ? `Re-delivering all ${o.tiffinUnits} tiffin${o.tiffinUnits === 1 ? "" : "s"} on ${o.redelivered.targetDate}${o.redelivered.merged ? " (merged into that day's trip)" : ""}`
-                      : o.action === "skipped"
-                      ? `Skipped (${o.optimoStatus === "failed" ? "OptimoRoute reported failed" : "no confirmation by cutoff"})`
+                    : o.action === "skipped"
+                      ? `Marked failed (${o.optimoStatus === "failed" ? "OptimoRoute reported failed" : "no confirmation by cutoff"}); customer or staff can move it`
                       : `Not skipped: ${o.skipError}`}
                 </TableCell>
               </>

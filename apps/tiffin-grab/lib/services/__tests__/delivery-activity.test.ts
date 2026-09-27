@@ -12,7 +12,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("@/lib/services/orders.service");
-const { skipMyDelivery, unskipMyDelivery, setMyDeliveryAddress } = await import("@/app/(customer)/me/deliveries/actions");
+const { setMyDeliveryAddress } = await import("@/app/(customer)/me/deliveries/actions");
 
 function actAs(publicId: string) {
   session.user = { id: publicId, role: "user" };
@@ -60,35 +60,6 @@ describe("delivery activity audit (integration)", () => {
     session.user = null;
   });
   afterAll(reset);
-
-  it("writes a 'skipped' order_activities row with the session actor as createdBy", async () => {
-    const order = await makeOrder("+16475550511", "Skip User");
-    const { id: userId, publicId: userPublic } = await userIdOf(order);
-    const [d] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
-
-    actAs(userPublic);
-    await skipMyDelivery(d.publicId);
-
-    const acts = await db.select().from(orderActivities).where(eq(orderActivities.deliveryId, d.id));
-    expect(acts).toHaveLength(1);
-    expect(acts[0]).toMatchObject({ type: "skipped", orderId: order.id, deliveryId: d.id, createdBy: userId });
-  });
-
-  it("writes an 'unskipped' order_activities row with the session actor as createdBy", async () => {
-    const order = await makeOrder("+16475550512", "Unskip User");
-    const { id: userId, publicId: userPublic } = await userIdOf(order);
-    const [d] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
-
-    actAs(userPublic);
-    await skipMyDelivery(d.publicId);
-    await unskipMyDelivery(d.publicId);
-
-    const acts = await db.select().from(orderActivities)
-      .where(eq(orderActivities.deliveryId, d.id))
-      .orderBy(orderActivities.createdAt);
-    expect(acts).toHaveLength(2);
-    expect(acts[1]).toMatchObject({ type: "unskipped", orderId: order.id, deliveryId: d.id, createdBy: userId });
-  });
 
   it("writes a 'delivery_address_changed' order_activities row with the session actor as createdBy", async () => {
     const order = await makeOrder("+16475550513", "Address User");

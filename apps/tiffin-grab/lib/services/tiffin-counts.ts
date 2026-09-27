@@ -7,10 +7,9 @@
 // OptimoRoute has confirmed the courier actually completed it (lib/services/optimoroute/
 // completions.ts's pullCompletions, which can land before cutoff on an early route run). A
 // "failed" OptimoRoute completion never reaches this function as `scheduled` in the first
-// place — pullCompletions already flips those rows to `skipped` and pools the tiffin for a
-// make-up, so no separate handling is needed here for the negative case. Paused, skipped, and
-// cancelled rows never count as delivered — their entitlement lives in the remain pool
-// (post-cutoff misses) or is void (cancelled).
+// place — pullCompletions already flips those rows to `skipped`, so no separate handling is
+// needed here for the negative case. Paused, skipped, and cancelled rows never count as
+// delivered: a failed drop's tiffin is moved to another day, a cancelled one is void.
 
 export type DeliveryForCounts = {
   status: "scheduled" | "paused" | "skipped" | "cancelled";

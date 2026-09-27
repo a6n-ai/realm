@@ -20,14 +20,14 @@ const day = (date: string, dish: string, locksWith: string | null = null) => ({ 
 const mon: Trip = {
   orderId: "o", date: "2026-09-21", deliveryId: "d1", units: 2, coversDates: ["2026-09-21", "2026-09-22"], coversLabel: "Covers Mon + Tue",
   eatingDays: [day("2026-09-21", "Dal"), day("2026-09-22", "Kadhi", "2026-09-21")], status: "upcoming", cutoffAt: NOW + 30 * 3600e3,
-  mergedInto: null, isMakeup: false, pooled: false, rescheduled: false,
+  mergedInto: null, isMakeup: false, rescheduled: false,
 };
 const data = {
   plan: {
     orderId: "o", today: "2026-09-21", days: [], categoryLabels: {}, categoryPortions: {}, categoryPortionSlots: {}, swapCategories: {},
     sub: { publicId: "o", mealSizeName: "Large", planName: "Veg", status: "active", displayStatus: "active" },
-    counts: { total: 20, delivered: 4, remaining: 16, pooled: 0, holdDays: 0, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"] },
-    ctx: { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"], active: true },
+    counts: { total: 20, delivered: 4, remaining: 16, holdDays: 0, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"] },
+    ctx: { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon"], active: true },
     pause: { limits: {}, usage: {} },
   },
   trips: [mon],

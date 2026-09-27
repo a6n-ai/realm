@@ -15,13 +15,12 @@ import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { actionModel } from "./action-model";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
-import { VacationSheet } from "./actions/vacation-sheet";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, EatingRowButton, InfoButton, TripInfoSheet, tiffins } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
 
-const ACTIONS: TripAction[] = ["pick", "swap", "hold", "resume", "move", "vacation", "makeup", "pool"];
+const ACTIONS: TripAction[] = ["pick", "swap", "move"];
 const WEEK = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 const weekTitle = (m: string) => `${WEEK.format(new Date(`${m}T00:00:00Z`))} – ${WEEK.format(new Date(`${addDays(m, 6)}T00:00:00Z`))}`;
 
@@ -53,7 +52,7 @@ interface Props {
 function PlanTab({ selected, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }) {
   return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "flex min-h-11 shrink-0 flex-col justify-center rounded-2xl border-[1.5px] px-4 py-1.5 text-left [touch-action:manipulation]", selected ? "border-[var(--primary)] bg-[var(--primary-wash,#FBE3D2)]" : "border-[var(--border)] bg-[var(--card,#fff)]", className)} />;
 }
-const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "hold" ? 1 : 2);
+const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
 export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, currency = "CAD", initialTrip, initialAction }: Props) {
   const router = useRouter();
@@ -96,7 +95,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
   const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? trip.date === row.date : true, movedTo: row?.movedTo }) : null;
-  const vacAv = trip ? actionAvailability(trip, now, ctx).vacation : null;
 
   const dots = useMemo(() => {
     const out: Record<string, { orderId: string; status: DeliveryStatus; truck: boolean }[]> = {};
@@ -138,8 +136,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const dates = Object.keys(agenda).sort();
   const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;
   const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
-  const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo || model.primary === "vacation"));
-  const heldOnly = shown.length > 0 && shown.every((r) => r.trip.status === "hold");
+  const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo));
 
   return (
     <div className={`${FONT} ${hasBar ? "pb-[190px]" : "pb-8"} lg:pb-8`}>
@@ -148,8 +145,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         sub={sub}
         counts={plan.counts}
         renew={renewDays(plan.counts.lastDeliveryDate, today)}
-        onVacation={!!ctx.onVacation}
-        onVacationClick={locked ? undefined : () => setActive("vacation")}
       />
 
       {multi && (
@@ -173,7 +168,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       )}
 
       {locked && !claimPayment && (
-        <Notice>We&apos;re confirming your payment. Your plan is view-only until then; editing meals, holds, moves and vacation unlock once it&apos;s approved.</Notice>
+        <Notice>We&apos;re confirming your payment. Your plan is view-only until then; editing meals and moves unlock once it&apos;s approved.</Notice>
       )}
 
       {!locked && (
@@ -206,13 +201,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
           onWeek={(m) => goWeek(m)}
         />
       </div>
-
-      {ctx.pooled >= 1 && (
-        <Notice className="mb-4 items-center justify-between">
-          <span>{tiffins(ctx.pooled)} {ctx.pooled === 1 ? "is" : "are"} waiting.</span>
-          <button type="button" aria-label="Schedule a make-up" onClick={() => setActive("makeup")} className="min-h-11 shrink-0 px-2 text-sm font-semibold underline underline-offset-4 [touch-action:manipulation]">Make-up<span className="hidden lg:inline"> day</span></button>
-        </Notice>
-      )}
 
       <div className={navigating ? "opacity-60 transition-opacity" : undefined} aria-busy={navigating}>
         <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--muted-foreground,#6E6558)]">{weekTitle(weekStart)}</h2>
@@ -247,25 +235,13 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                   <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
                     <div className="mt-6 hidden lg:block">
                       <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} />
-                      <div className="mt-4">
-                        {/* Feature hidden for phase 1
-                        {ctx.onVacation ? (
-                          <button type="button" className={linkCls} onClick={() => setActive("vacation")}>On vacation · Resume deliveries</button>
-                        ) : vacAv?.ok === false ? (
-                          <p className="text-sm text-[var(--muted-foreground,#6E6558)]">{vacAv.why}</p>
-                        ) : (
-                          <button type="button" className={linkCls} onClick={() => setActive("vacation")}>Going away? Vacation</button>
-                        )}
-                        */}
-                      </div>
                     </div>
                   </EatingCard>
                 ) : null}
-                {heldOnly && <Notice>Everything this week is on hold. Resume a trip or schedule a make-up.</Notice>}
               </div>
             </div>
 
-            {trip && model && (model.rows.length > 0 || model.goTo || model.primary === "vacation") && (
+            {trip && model && (model.rows.length > 0 || model.goTo) && (
               <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
                 <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} />
               </div>
@@ -276,13 +252,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       </>
       )}
 
-      {active === "vacation" ? (
-        <VacationSheet plan={plan} open onDone={done} />
-      ) : active === "makeup" ? (
-        <ActionSheet action={active} trip={trip ?? ({ orderId: plan.orderId } as Trip)} plan={plan} open onDone={done} onChanged={changed} />
-      ) : (
-        active && trip && <ActionSheet action={active} trip={trip} day={row?.date} plan={plan} open onDone={done} onChanged={changed} />
-      )}
+      {active && trip && <ActionSheet action={active} trip={trip} day={row?.date} plan={plan} open onDone={done} onChanged={changed} />}
       {info && <TripInfoSheet row={info} tz={tz} plan={plan} open onClose={() => setInfo(null)} />}
       <Toast open={toast !== null} onClose={closeToast}>{toast}</Toast>
     </div>

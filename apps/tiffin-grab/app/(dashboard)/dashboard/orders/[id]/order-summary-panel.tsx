@@ -87,7 +87,6 @@ export function OrderSummaryPanel({
         )}
         <DetailRow label="Tiffins">
           {order.tiffinCount} total
-          {order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}
         </DetailRow>
         <DetailRow label="Address">
           {order.fullName}

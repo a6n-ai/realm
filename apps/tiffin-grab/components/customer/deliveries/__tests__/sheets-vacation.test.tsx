@@ -4,8 +4,6 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import type { PlanView } from "../adapter";
-import { MakeupSheet } from "../actions/makeup-sheet";
-import { PoolSheet } from "../actions/pool-sheet";
 import { VacationSheet } from "../actions/vacation-sheet";
 
 const m = vi.hoisted(() => ({ pause: vi.fn(), resume: vi.fn(), schedule: vi.fn(), refresh: vi.fn() }));
@@ -13,7 +11,6 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: m.refresh }) })
 vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
   pauseMySubscription: m.pause,
   resumeMySubscription: m.resume,
-  scheduleMyPooledTiffin: m.schedule,
 }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -111,68 +108,5 @@ describe("VacationSheet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Resume deliveries" }));
     await waitFor(() => expect(m.resume).toHaveBeenCalledWith("o"));
     expect(m.pause).not.toHaveBeenCalled();
-  });
-});
-
-describe("MakeupSheet", () => {
-  it("offers only plan weekdays strictly after the last delivery, with units per date", () => {
-    render(<MakeupSheet trip={trip} plan={mk({ pooled: 3, persons: 2 })} open onDone={vi.fn()} />);
-    expect(screen.getByText(/Pick a day after Fri, Oct 2 \(Mon, Wed, Fri\)/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Monday, October 5/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Saturday, October 3/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Friday, October 2\b/ })).toBeNull();
-    fireEvent.click(cell(/Monday, October 5/));
-    expect(screen.getByText(/carrying 2 tiffins/)).toBeInTheDocument();
-  });
-
-  it("units are capped by what is left in the pool", () => {
-    render(<MakeupSheet trip={trip} plan={mk({ pooled: 1, persons: 2 })} open onDone={vi.fn()} />);
-    fireEvent.click(cell(/Monday, October 5/));
-    expect(screen.getByText(/carrying 1 tiffin\b/)).toBeInTheDocument();
-  });
-
-  it("CTA needs a day, then schedules and calls onDone", async () => {
-    m.schedule.mockResolvedValue({ ok: true });
-    const onDone = vi.fn();
-    render(<MakeupSheet trip={trip} plan={mk({ pooled: 2 })} open onDone={onDone} />);
-    fireEvent.click(screen.getByRole("button", { name: "Schedule make-up" }));
-    expect(screen.getAllByText("Choose a day to continue.")[0]).toBeInTheDocument();
-    expect(m.schedule).not.toHaveBeenCalled();
-    fireEvent.click(cell(/Wednesday, October 7/));
-    fireEvent.click(screen.getByRole("button", { name: "Schedule make-up" }));
-    await waitFor(() => expect(m.schedule).toHaveBeenCalledWith("o", "2026-10-07"));
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Make-up scheduled for Wed, Oct 7."));
-  });
-
-  it("shows the server error inline", async () => {
-    m.schedule.mockResolvedValue({ error: "Date must be after your last delivery" });
-    render(<MakeupSheet trip={trip} plan={mk({ pooled: 2 })} open onDone={vi.fn()} />);
-    fireEvent.click(cell(/Wednesday, October 7/));
-    fireEvent.click(screen.getByRole("button", { name: "Schedule make-up" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Date must be after your last delivery");
-  });
-
-  it("empty pool: nothing to schedule", () => {
-    render(<MakeupSheet trip={trip} plan={mk({ pooled: 0 })} open onDone={vi.fn()} />);
-    expect(screen.getAllByText(/No tiffins waiting/)[0]).toBeInTheDocument();
-    expect(screen.queryByRole("group")).toBeNull();
-  });
-});
-
-describe("PoolSheet", () => {
-  it("explains the pool with the tiffin count and opens make-up", () => {
-    render(<PoolSheet trip={{ ...trip, status: "hold", pooled: true }} plan={mk({ pooled: 3 })} open onDone={vi.fn()} />);
-    expect(screen.getByText(/3 tiffins are waiting/)).toBeInTheDocument();
-    expect(screen.getByText(/You keep every tiffin you paid for/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Schedule a make-up" }));
-    expect(screen.getByRole("dialog", { name: "Schedule a make-up" })).toBeInTheDocument();
-    expect(screen.getByText(/Pick a day after/)).toBeInTheDocument();
-  });
-
-  it("singular and empty pool", () => {
-    const { rerender } = render(<PoolSheet trip={trip} plan={mk({ pooled: 1 })} open onDone={vi.fn()} />);
-    expect(screen.getByText(/1 tiffin is waiting/)).toBeInTheDocument();
-    rerender(<PoolSheet trip={trip} plan={mk({ pooled: 0 })} open onDone={vi.fn()} />);
-    expect(screen.getAllByText(/Nothing is waiting/)[0]).toBeInTheDocument();
   });
 });

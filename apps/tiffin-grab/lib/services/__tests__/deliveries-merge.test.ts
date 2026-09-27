@@ -6,7 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, orderActivities, orders } = await import("@/db/schema");
-const { reconcilePoolFromMisses, rescheduleDelivery } = await import("../deliveries.service");
+const { rescheduleDelivery } = await import("../deliveries.service");
 const { myAgendaDots } = await import("../customer-deliveries.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
 
@@ -55,17 +55,6 @@ describe("rescheduleDelivery merge", () => {
     expect(srcSwaps.map((x) => [x.fromCategory, x.forDate])).toEqual([["roti", "2030-01-08"]]);
     const acts = await db.select().from(orderActivities).where(eq(orderActivities.deliveryId, mon.id));
     expect(acts.some((x) => x.note === "Moved 2030-01-07's tiffin to 2030-01-09 (merged)")).toBe(true);
-  });
-
-  it("a merged source is never pooled after its cutoff, and is not debt", async () => {
-    const { order, mon, wed } = await makeTripOrder(DEP, PFX);
-    await db.update(deliveries).set({ coversDates: ["2030-01-09"], tiffinUnits: 1 }).where(eq(deliveries.id, wed.id));
-    await db.update(deliveries).set({ coversDates: ["2030-01-07"], tiffinUnits: 1 }).where(eq(deliveries.id, mon.id));
-    await rescheduleDelivery(mon.publicId, "2030-01-09", 1n);
-    await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.id, mon.id));
-    expect(await reconcilePoolFromMisses(order.id)).toBe(0);
-    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
-    expect(o.pooledTiffinCount).toBe(0);
   });
 
   it("rejects a move that would push a delivery past 3 tiffins", async () => {

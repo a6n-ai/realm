@@ -14,12 +14,11 @@ const { addressService } = await import("@/lib/services/addresses.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("@/lib/services/orders.service");
 const {
-  skipMyDelivery,
-  unskipMyDelivery,
   setMyDeliveryAddress,
   clearMyDeliveryAddress,
   pauseMySubscription,
   resumeMySubscription,
+  rescheduleMyDelivery,
 } = await import("../actions");
 
 const FROM = "2000-01-01";
@@ -76,7 +75,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
   });
   afterAll(reset);
 
-  it("rejects skipping another user's delivery with a NotFoundError message, no state change", async () => {
+  it("rejects moving another user's delivery with a NotFoundError message, no state change", async () => {
     const aOrder = await makeOrder(PHONE_A, "User A");
     const bOrder = await makeOrder(PHONE_B, "User B");
     const [userA] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
@@ -88,32 +87,9 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     // redacted to a message-less "Minified React error #441" in production
     // builds (see app/(customer)/me/action-result.ts) — expected rejections must
     // come back as { error } so the customer actually sees why.
-    await expect(skipMyDelivery(bDelivery.publicId)).resolves.toEqual({ error: expect.any(String) });
+    await expect(rescheduleMyDelivery(bDelivery.publicId, "2030-01-07")).resolves.toEqual({ error: expect.any(String) });
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, bDelivery.id));
     expect(row.status).toBe("scheduled"); // untouched — guard ran before the mutation
-  });
-
-  it("lets the owner skip their own delivery", async () => {
-    const aOrder = await makeOrder(PHONE_A, "User A");
-    const [userA] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
-      .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, aOrder.id));
-    const aDelivery = await firstDeliveryOf(aOrder);
-
-    actAs(userA.publicId);
-    await skipMyDelivery(aDelivery.publicId);
-    const [row] = await db.select().from(deliveries).where(eq(deliveries.id, aDelivery.id));
-    expect(row.status).toBe("skipped");
-  });
-
-  it("rejects unskipping another user's delivery", async () => {
-    const aOrder = await makeOrder(PHONE_A, "User A");
-    const bOrder = await makeOrder(PHONE_B, "User B");
-    const [userA] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
-      .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, aOrder.id));
-    const bDelivery = await firstDeliveryOf(bOrder);
-
-    actAs(userA.publicId);
-    await expect(unskipMyDelivery(bDelivery.publicId)).resolves.toEqual({ error: expect.any(String) });
   });
 
   it("rejects re-addressing another user's delivery", async () => {
@@ -164,7 +140,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     await expect(resumeMySubscription(bOrder.publicId)).resolves.toEqual({ error: expect.any(String) });
   });
 
-  it("surfaces the cutoff gate on a past delivery", async () => {
+  it("surfaces the cutoff gate when moving a past delivery", async () => {
     const aOrder = await makeOrder(PHONE_A, "User A");
     const [userA] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
       .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, aOrder.id));
@@ -172,7 +148,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.id, aPastDelivery.id));
 
     actAs(userA.publicId);
-    await expect(skipMyDelivery(aPastDelivery.publicId)).resolves.toEqual({ error: expect.any(String) });
+    await expect(rescheduleMyDelivery(aPastDelivery.publicId, "2030-01-07")).resolves.toEqual({ error: expect.any(String) });
   });
 
   it("owner moves one delivery to a saved address; nothing is charged", async () => {

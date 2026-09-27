@@ -15,14 +15,9 @@ import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import {
   applyMyDeliverySwap,
-  pauseMySubscription,
   removeMyDeliverySwap,
   rescheduleMyDelivery,
-  resumeMySubscription,
-  scheduleMyPooledTiffin,
-  unskipMyDelivery,
 } from "@/app/(customer)/me/deliveries/actions";
-import { buildVacationPauseRequest } from "@/app/(customer)/me/deliveries/vacation-pause";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { deliveryLine, eatingRowsInWeek, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { moveLockReason, moveOptions } from "@/lib/deliveries-view/move";
@@ -34,13 +29,13 @@ import { OrderStatusBadge } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
 
-type Dlg = "reschedule" | "swap" | "vacation" | "makeup" | "info" | null;
+type Dlg = "reschedule" | "swap" | "info" | null;
 const STATUS_TONE: Record<string, string> = {
   delivered: "bg-emerald-500", upcoming: "bg-sky-500", vacation: "bg-amber-500", hold: "bg-rose-500", combined: "bg-muted-foreground",
 };
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
-const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "hold" ? 1 : 2);
+const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
 export function OrderWeekHub({ data }: { data: OrderWeek }) {
   const { plan, trips, agenda, weekStart, firstWeek, lastWeek, now } = data;
@@ -78,13 +73,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
         <span className="font-medium">{plan.sub.mealSizeName}</span>
         <span className="text-muted-foreground tabular-nums">
           {plan.counts.remaining} of {plan.counts.total} tiffins left
-          {plan.counts.holdDays > 0 && ` · ${plan.counts.holdDays} hold ${plan.counts.holdDays === 1 ? "day" : "days"}`}
-          {plan.counts.pooled > 0 && ` · ${plan.counts.pooled} in pool`}
         </span>
-        <div className="ml-auto flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setDlg("vacation")}>{plan.ctx.onVacation ? "Resume from vacation" : "Vacation"}</Button>
-          {plan.counts.pooled > 0 && <Button size="sm" variant="outline" onClick={() => setDlg("makeup")}>Make-up ({plan.counts.pooled})</Button>}
-        </div>
       </div>
 
       {nextTruck && !menuOut && (
@@ -181,10 +170,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                   {trip.status === "upcoming" && ` · changes close ${formatCutoff(trip.cutoffAt, tz)}`}
                   {!row.own && trip.status === "upcoming" && ` · ${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery`}
                 </p>
-                <Actions trip={trip} av={av} canSwap={canSwap} onOpen={setDlg} onResume={async () => {
-                  const r = await unskipMyDelivery(trip.deliveryId!);
-                  "error" in r ? toast.error(r.error) : refresh(`Resumed ${humanDate(trip.date)}.`);
-                }} />
+                <Actions av={av} canSwap={canSwap} onOpen={setDlg} />
                 </>}
                 <p className="text-muted-foreground text-xs">Meal picks for the week are in &quot;This week&apos;s meals&quot; below.</p>
               </CardContent>
@@ -210,7 +196,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                   {x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : `with ${weekdayShort(x.deliveryDate)}, ${humanDate(x.deliveryDate)}`}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{x.truck ? x.units : ""}</TableCell>
-                <TableCell><Badge variant="outline">{x.moved ? "Moved" : dotStatus(x, now) === "delivered" ? "Delivered" : dotStatus(x, now) === "hold" ? "On hold" : dotStatus(x, now) === "vacation" ? "Vacation" : "Upcoming"}</Badge></TableCell>
+                <TableCell><Badge variant="outline">{x.moved ? "Moved" : dotStatus(x, now) === "delivered" ? "Delivered" : dotStatus(x, now) === "hold" ? "Not delivered" : dotStatus(x, now) === "vacation" ? "Vacation" : "Upcoming"}</Badge></TableCell>
               </>
             )}
           />
@@ -220,23 +206,19 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
       {dlg === "info" && row && <InfoDialog row={row} plan={plan} tz={tz} onClose={() => setDlg(null)} />}
       {dlg === "reschedule" && trip && <RescheduleDialog trip={trip} day={row?.date} data={data} onClose={() => setDlg(null)} onDone={refresh} />}
       {dlg === "swap" && row && <SwapDialog row={row} data={data} onClose={() => setDlg(null)} onDone={refresh} />}
-      {dlg === "vacation" && <VacationDialog data={data} onClose={() => setDlg(null)} onDone={refresh} />}
-      {dlg === "makeup" && <MakeupDialog data={data} onClose={() => setDlg(null)} onDone={refresh} />}
     </div>
   );
 }
 
-function Actions({ trip, av, canSwap, onOpen, onResume }: { trip: Trip; av: ReturnType<typeof actionAvailability>; canSwap: boolean; onOpen: (d: Dlg) => void; onResume: () => void }) {
-  const held = trip.status === "hold" || trip.status === "rescheduled";
+function Actions({ av, canSwap, onOpen }: { av: ReturnType<typeof actionAvailability>; canSwap: boolean; onOpen: (d: Dlg) => void }) {
   const items: { key: TripAction; label: string; run: () => void }[] = [
     ...(canSwap ? [{ key: "swap" as const, label: "Swap items", run: () => onOpen("swap") }] : []),
-    { key: "move", label: "Reschedule this day", run: () => onOpen("reschedule") },
-    ...(held ? [{ key: "resume" as const, label: "Resume this trip", run: onResume }] : []),
+    { key: "move", label: "Move this day", run: () => onOpen("reschedule") },
   ];
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
-        {items.map((i) => <Button key={i.key} variant={i.key === "resume" ? "default" : "outline"} size="sm" disabled={!av[i.key].ok} onClick={i.run}>{i.label}</Button>)}
+        {items.map((i) => <Button key={i.key} variant="outline" size="sm" disabled={!av[i.key].ok} onClick={i.run}>{i.label}</Button>)}
       </div>
       {items.filter((i) => !av[i.key].ok).map((i) => <p key={i.key} className="text-muted-foreground text-xs">{i.label}: {av[i.key].why}</p>)}
     </div>
@@ -434,48 +416,3 @@ function SwapDialog({ row, data, onClose, onDone }: { row: EatingRow; data: Orde
   );
 }
 
-function VacationDialog({ data, onClose, onDone }: { data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
-  const { plan } = data;
-  const on = plan.sub.status === "paused" || !!plan.ctx.onVacation;
-  const [start, setStart] = useState(plan.today);
-  const [end, setEnd] = useState("");
-  const { pending, error, run } = useRun(onDone);
-  return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>{on ? "Resume deliveries" : "Vacation"}</DialogTitle><DialogDescription>{on ? "Deliveries are paused for this plan." : "Pause deliveries from a start day; leave the end empty to pause until resumed."}</DialogDescription></DialogHeader>
-        {!on && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><Label htmlFor="v-start">Start</Label><Input id="v-start" type="date" min={plan.today} value={start} onChange={(e) => setStart(e.target.value)} /></div>
-            <div className="space-y-1"><Label htmlFor="v-end">End (optional)</Label><Input id="v-end" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} /></div>
-          </div>
-        )}
-        <Err e={error} />
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={pending || (!on && !start)} onClick={() => run(() => (on ? resumeMySubscription(plan.orderId) : pauseMySubscription(plan.orderId, buildVacationPauseRequest(start, end))), on ? "Deliveries resumed." : "Vacation started.")}>{on ? "Resume" : "Start vacation"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function MakeupDialog({ data, onClose, onDone }: { data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
-  const { plan } = data;
-  const after = plan.ctx.lastDeliveryDate ? addDays(plan.ctx.lastDeliveryDate, 1) : plan.today;
-  const [date, setDate] = useState(after);
-  const { pending, error, run } = useRun(onDone);
-  return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Schedule a make-up</DialogTitle><DialogDescription>{plan.counts.pooled} {plan.counts.pooled === 1 ? "tiffin is" : "tiffins are"} waiting. Pick a day after {plan.ctx.lastDeliveryDate ? humanDate(plan.ctx.lastDeliveryDate) : "the last delivery"} on a plan weekday.</DialogDescription></DialogHeader>
-        <div className="space-y-1"><Label htmlFor="mk-date">Day to eat</Label><Input id="mk-date" type="date" min={after} value={date} onChange={(e) => setDate(e.target.value)} /></div>
-        <Err e={error} />
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={!date || pending} onClick={() => run(() => scheduleMyPooledTiffin(plan.orderId, date), `Make-up scheduled for ${humanDate(date)}.`)}>Schedule</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}

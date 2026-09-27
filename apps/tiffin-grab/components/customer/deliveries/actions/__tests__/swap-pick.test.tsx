@@ -82,7 +82,7 @@ const trip = (o: Partial<Trip> = {}): Trip => ({
     { date: mon, dishSummary: "Paneer, Jeera Rice", swaps: [], locksWith: null },
     { date: tue, dishSummary: "Dal", swaps: ["1 Rice → 4 Roti"], locksWith: mon },
   ],
-  status: "upcoming", cutoffAt: Date.now() + 36e5 * 30, mergedInto: null, isMakeup: false, pooled: false, rescheduled: false, ...o,
+  status: "upcoming", cutoffAt: Date.now() + 36e5 * 30, mergedInto: null, isMakeup: false, rescheduled: false, ...o,
 });
 const plan = {
   orderId: "o", today: "2026-09-20",
@@ -90,7 +90,7 @@ const plan = {
   categoryPortions: { rice: "8oz", roti: "4 rotis", sabji: "12 oz", daal: "12 oz" },
   categoryPortionSlots: { rice: ["8oz"], roti: ["4 rotis"], sabji: ["12 oz"], daal: ["12 oz"] },
   sub: { mealSizeName: "Large" },
-  ctx: { cutoffHour: 18, timezone: "UTC", pooled: 0, lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true },
+  ctx: { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true },
   days: [{
     date: mon,
     meal: [
