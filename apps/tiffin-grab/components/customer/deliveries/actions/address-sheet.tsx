@@ -7,6 +7,7 @@ import { formatAddress } from "@foundry/address/ui";
 import { setMyDeliveryAddress } from "@/app/(customer)/me/deliveries/actions";
 import { Button, Field, Notice, OptionCard, Sheet } from "@/components/customer/kit";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
+import { validDropOffs } from "@/lib/catalog/drop-off";
 import { nameTaken } from "@/components/customer/address/address-name";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
@@ -18,18 +19,14 @@ import { useCommit } from "./use-commit";
 export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const av = actionAvailability(trip, Date.now(), plan.ctx).address;
   const addresses = plan.savedAddresses;
-  const strategies = plan.deliveryStrategies;
-  
-  // Initialize with current address and strategy
-  const currentStrategy = trip.deliveryId ? null : null; // We need a way to know the current strategy. Actually, trip doesn't expose it, so default to first or null. Let's just allow changing it.
   const [picked, setPicked] = useState<string | null>(() =>
     currentSavedAddressId(trip.addressOverride ?? null, plan.sub, addresses),
   );
-  // Default to plan's strategy if trip doesn't have an override exposed, or first strategy
-  const [selectedStrategy, setSelectedStrategy] = useState<string | null>(
-    plan.sub.deliveryStrategyPublicId ?? strategies[0]?.publicId ?? null
+  // This delivery's own drop-off, else the plan's.
+  const [dropOffs, setDropOffs] = useState<string[]>(() =>
+    validDropOffs(plan.dropOff, trip.deliveryStrategyPublicIds?.length ? trip.deliveryStrategyPublicIds : plan.sub.deliveryStrategyPublicIds),
   );
-  
+
   const [draft, setDraft] = useState<AddressValues>({});
   // A new address is saved to the book too, so it gets a name there.
   const [name, setName] = useState("");
@@ -40,7 +37,7 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
     if (!trip.deliveryId) return;
     const pick =
       picked !== null
-        ? { addressPublicId: picked, deliveryStrategyPublicId: selectedStrategy ?? undefined }
+        ? { addressPublicId: picked, deliveryStrategyPublicIds: dropOffs }
         : {
             newAddress: {
               label: name.trim() || null,
@@ -50,7 +47,7 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
               postalCode: draft.postalCode ?? "",
               deliveryInstructions: draft.deliveryInstructions,
             },
-            deliveryStrategyPublicId: selectedStrategy ?? undefined,
+            deliveryStrategyPublicIds: dropOffs,
           };
     void run(() => setMyDeliveryAddress(trip.deliveryId!, pick), () => `Address updated for ${day}.`);
   };
@@ -68,7 +65,7 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
           <Notice>{av.why}</Notice>
         ) : (
           <>
-            <DropOffPicker options={strategies} value={selectedStrategy} onChange={setSelectedStrategy} />
+            <DropOffPicker catalog={plan.dropOff} value={dropOffs} onChange={setDropOffs} />
 
             <div role="radiogroup" aria-label="Delivery address" className="grid gap-2">
               <span className="text-sm font-semibold text-[var(--foreground)]">Address</span>
@@ -77,7 +74,7 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
                   setPicked(a.publicId);
                   // A saved address brings its own drop-off.
                   const own = plan.addressDropOffs?.[a.publicId];
-                  if (own) setSelectedStrategy(own);
+                  if (own) setDropOffs(validDropOffs(plan.dropOff, own));
                 }} className="p-4">
                   <span className="block font-medium">
                     {a.label}

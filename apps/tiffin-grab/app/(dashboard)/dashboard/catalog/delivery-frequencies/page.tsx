@@ -21,14 +21,16 @@ async function DeliveryChargesData() {
   const { DeliveryChargesManager } = await import("@foundry/delivery/ui");
   const { deliveryChargesActions } = await import("../../delivery/charges/admin-actions");
   const orgId = await resolveRequestOrg();
-  const [baseCharge, deliveryStrategies] = await Promise.all([
+  const [baseCharge, deliveryStrategies, strategyGroups] = await Promise.all([
     deliveryService.getBaseDeliveryCharge(orgId),
     deliveryService.listDeliveryStrategies({ includeInactive: true, orgId }),
+    deliveryService.listDeliveryStrategyGroups({ includeInactive: true, orgId }),
   ]);
   return (
     <DeliveryChargesManager
       initialBaseCharge={baseCharge}
       initialDeliveryStrategies={deliveryStrategies}
+      initialStrategyGroups={strategyGroups}
       actions={deliveryChargesActions}
     />
   );

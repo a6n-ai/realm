@@ -6,7 +6,7 @@ import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { SignOutRow } from "./sign-out-row";
 import type { SavedAddress } from "@foundry/address";
 import { AddressBook } from "./address-book";
-import type { DropOffOption } from "@/components/customer/address/drop-off";
+import type { DropOffCatalog } from "@/lib/catalog/drop-off";
 import { ContactForm, DeliveryNotesForm, DietaryForm, NotificationsForm, ProfileForm, SecurityPanel } from "./forms";
 import { accountSectionHref, sectionsForRole, type AccountSection, type AccountSectionKey } from "./sections.config";
 
@@ -31,14 +31,14 @@ export type AccountUser = {
   hasPin: boolean;
 };
 
-function SectionBody({ k, user, role, addresses, dropOffOptions, dropOffs }: { k: AccountSectionKey; user: AccountUser; role: RoleValue; addresses: SavedAddress[]; dropOffOptions: DropOffOption[]; dropOffs: Record<string, string> }) {
+function SectionBody({ k, user, role, addresses, dropOff, dropOffs }: { k: AccountSectionKey; user: AccountUser; role: RoleValue; addresses: SavedAddress[]; dropOff?: DropOffCatalog; dropOffs: Record<string, string[]> }) {
   switch (k) {
     case "profile":
       return <ProfileForm image={user.image} name={user.name ?? ""} username={user.username ?? ""} />;
     case "contact":
       return <ContactForm phone={user.phone ?? ""} email={user.email} emailVerified={user.emailVerified} phoneVerified={user.phoneVerified} />;
     case "address":
-      return <AddressBook initial={addresses} dropOffOptions={dropOffOptions} initialDropOffs={dropOffs} />;
+      return <AddressBook initial={addresses} dropOff={dropOff} initialDropOffs={dropOffs} />;
     case "dietary":
       return <DietaryForm allergens={user.allergens} dietaryNotes={user.dietaryNotes} />;
     case "deliveryNotes":
@@ -55,7 +55,7 @@ export function AccountPage({
   role,
   active,
   addresses = [],
-  dropOffOptions = [],
+  dropOff,
   dropOffs = {},
 }: {
   user: AccountUser;
@@ -64,9 +64,9 @@ export function AccountPage({
   /** Saved delivery addresses (customers only). */
   addresses?: SavedAddress[];
   /** Admin delivery strategies offered as each address's drop-off. */
-  dropOffOptions?: DropOffOption[];
+  dropOff?: DropOffCatalog;
   /** Address public id → its drop-off's strategy public id. */
-  dropOffs?: Record<string, string>;
+  dropOffs?: Record<string, string[]>;
 }) {
   const sections = sectionsForRole(role);
   const shown = active ?? sections[0];
@@ -127,7 +127,7 @@ export function AccountPage({
               Account
             </Link>
           )}
-          <SectionBody k={shown.key} user={user} role={role} addresses={addresses} dropOffOptions={dropOffOptions} dropOffs={dropOffs} />
+          <SectionBody k={shown.key} user={user} role={role} addresses={addresses} dropOff={dropOff} dropOffs={dropOffs} />
         </section>
       </div>
     </div>

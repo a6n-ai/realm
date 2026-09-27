@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { DeliveryChargeRuleInput, DeliveryTypeInput, ZoneInput } from "@foundry/delivery";
+import type { DeliveryChargeRuleInput, DeliveryStrategyGroupInput, DeliveryTypeInput, ZoneInput } from "@foundry/delivery";
 import { requireAdmin } from "@/lib/auth/guards";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
 import { deliveryService, saveStoreOrigin } from "@/lib/delivery/zones.service";
@@ -121,6 +121,20 @@ export async function saveDeliveryStrategyAction(input: DeliveryChargeRuleInput)
 export async function deleteDeliveryStrategyAction(id: string) {
   const orgId = await adminOrg();
   const result = await deliveryService.deleteDeliveryStrategy(id, orgId);
+  revalidate();
+  return result;
+}
+
+export async function saveDeliveryStrategyGroupAction(input: DeliveryStrategyGroupInput) {
+  const orgId = await adminOrg();
+  const result = await deliveryService.saveDeliveryStrategyGroup(input, orgId);
+  revalidate();
+  return result;
+}
+
+export async function deleteDeliveryStrategyGroupAction(id: string) {
+  const orgId = await adminOrg();
+  const result = await deliveryService.deleteDeliveryStrategyGroup(id, orgId);
   revalidate();
   return result;
 }

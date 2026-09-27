@@ -58,12 +58,21 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
 
   let deliveryChargeConfig: PricingCatalog["deliveryChargeConfig"] = undefined;
   if (snapshot.deliveryCharges) {
-    const dt = selections.deliveryStrategyId
-      ? snapshot.deliveryCharges.deliveryStrategies.find((s) => s.publicId === selections.deliveryStrategyId && s.active)
-      : null;
-    if (selections.deliveryStrategyId && !dt) {
-      throw new ValidationError("Invalid delivery type");
-    }
+    const dc = snapshot.deliveryCharges;
+    const answered = new Set<string>();
+    const picks: unknown = selections.deliveryStrategyIds ?? [];
+    // Server-action input: the shape is not guaranteed by the type.
+    if (!Array.isArray(picks) || picks.some((p) => typeof p !== "string")) throw new ValidationError("Invalid delivery options");
+    const strategies = (picks as string[]).map((id) => {
+      const s = dc.deliveryStrategies.find((o) => o.publicId === id && o.active);
+      if (!s) throw new ValidationError("That delivery option isn't available");
+      const group = dc.strategyGroups?.find((g) => g.publicId === s.groupPublicId);
+      // One pick per group: two would stack both surcharges for one question.
+      const key = s.groupPublicId ?? s.publicId;
+      if (answered.has(key)) throw new ValidationError(`Pick one option for ${group?.name ?? "each delivery strategy"}`);
+      answered.add(key);
+      return { id: s.publicId, name: s.name, group: group?.name ?? null, chargeType: s.chargeType, chargeValue: s.chargeValue };
+    });
 
     const at = selections.addressTagId
       ? snapshot.deliveryCharges.addressTags.find((a) => a.publicId === selections.addressTagId && a.active)
@@ -74,7 +83,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
 
     deliveryChargeConfig = {
       baseCharge: snapshot.deliveryCharges.baseCharge,
-      deliveryStrategy: dt ? { id: dt.publicId, name: dt.name, chargeType: dt.chargeType, chargeValue: dt.chargeValue } : null,
+      deliveryStrategies: strategies,
       addressTag: at ? { id: at.publicId, name: at.name, chargeType: at.chargeType, chargeValue: at.chargeValue } : null,
     };
   }
@@ -88,4 +97,19 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     maxDiscountPct: snapshot.maxDiscountPct ?? 25,
     deliveryChargeConfig,
   };
+}
+
+/**
+ * The first required strategy group the picks leave unanswered, or null. Checked on the
+ * customer's checkout only: staff-created orders and re-pricing may carry no picks.
+ */
+export function missingRequiredStrategy(snapshot: CatalogSnapshot, picks: string[] | undefined): string | null {
+  const dc = snapshot.deliveryCharges;
+  if (!dc?.strategyGroups?.length) return null;
+  const answered = new Set(
+    (picks ?? []).map((id) => dc.deliveryStrategies.find((o) => o.publicId === id)?.groupPublicId).filter(Boolean),
+  );
+  // A required group with no active option can't be answered, so it can't block checkout.
+  const offered = new Set(dc.deliveryStrategies.filter((o) => o.active).map((o) => o.groupPublicId));
+  return dc.strategyGroups.find((g) => g.required && offered.has(g.publicId) && !answered.has(g.publicId))?.name ?? null;
 }

@@ -48,6 +48,9 @@ export const deliveries = pgTable("deliveries", {
   postalCode: text("postal_code"),
   deliveryInstructions: text("delivery_instructions"),
   deliveryStrategyId: bigint("delivery_strategy_id", { mode: "bigint" }).references(() => deliveryStrategies.id),
+  // Picked strategy options, at most one per strategy group. No FK on arrays; options are
+  // soft-deleted, so ids stay resolvable. Supersedes delivery_strategy_id.
+  deliveryStrategyIds: bigint("delivery_strategy_ids", { mode: "bigint" }).array().notNull().default(sql`'{}'::bigint[]`),
   addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
   // Route assignment, WRITTEN ONLY BY THE OPTIMOROUTE PULL — never by hand and never by

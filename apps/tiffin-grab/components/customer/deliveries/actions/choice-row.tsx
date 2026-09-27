@@ -1,7 +1,7 @@
 "use client";
 import { Info } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { Choice, ChoiceGroup } from "@/components/customer/kit";
+import { Choice, ChoiceGroup, Pill } from "@/components/customer/kit";
 
 const muted = "text-[var(--muted-foreground,#6E6558)]";
 
@@ -13,6 +13,8 @@ export type RowChoice = {
   disabled?: boolean;
   /** Why it's greyed out — behind a red ⓘ, so every button stays the same size. */
   reason?: string;
+  /** Short chip inside the button ("Secure"). */
+  tag?: string | null;
 };
 
 /**
@@ -22,6 +24,7 @@ export type RowChoice = {
  */
 export function ChoiceRow({
   label,
+  labelTag,
   hint,
   choices,
   value,
@@ -30,6 +33,8 @@ export function ChoiceRow({
   children,
 }: {
   label: string;
+  /** Chip right after the label ("Contactless"). */
+  labelTag?: string | null;
   /** Right of the label: "Default pick", "Included". */
   hint?: string;
   choices: RowChoice[];
@@ -45,7 +50,10 @@ export function ChoiceRow({
   return (
     <div className={nested ? "ml-3 grid gap-2 border-l-2 border-[var(--border,#E8E0D5)] pl-3" : "grid gap-2"}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className={nested ? `text-[13px] font-semibold ${muted}` : "text-[15px] font-semibold"}>{label}</p>
+        <p className={nested ? `text-[13px] font-semibold ${muted}` : "flex items-center gap-2 text-[15px] font-semibold"}>
+          {label}
+          {labelTag && <Pill size="sm" tone="wash">{labelTag}</Pill>}
+        </p>
         {hint && <p className={`text-[13px] ${muted}`}>{hint}</p>}
       </div>
       <ChoiceGroup label={label} value={value} onChange={onChange} className="grid gap-2 sm:grid-cols-2">
@@ -53,6 +61,7 @@ export function ChoiceRow({
           <div key={c.value} className="relative">
             <Choice value={c.value} disabled={c.disabled} className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
               <span className="min-w-0 flex-1 text-left leading-snug">{c.label}</span>
+              {c.tag && <Pill size="sm" tone="soft" className="shrink-0">{c.tag}</Pill>}
               {c.reason && <span aria-hidden className="size-5 shrink-0" />}
             </Choice>
             {c.reason && (

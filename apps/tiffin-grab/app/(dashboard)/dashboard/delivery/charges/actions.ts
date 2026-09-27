@@ -7,6 +7,7 @@ import { resolveAndPersist } from "@foundry/places";
 import {
   deliveryService,
   type DeliveryChargeRuleInput,
+  type DeliveryStrategyGroupInput,
 } from "@/lib/services/delivery.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -37,6 +38,28 @@ export async function deleteDeliveryStrategyAction(id: string) {
   await requireAdmin();
   const orgId = await resolveRequestOrg();
   const result = await deliveryService.deleteDeliveryStrategy(id, orgId);
+  await invalidateCatalogSnapshot();
+  revalidatePath("/dashboard/delivery/charges");
+  revalidatePath("/dashboard/catalog/delivery-frequencies");
+  revalidatePath("/checkout");
+  return result;
+}
+
+export async function saveDeliveryStrategyGroupAction(input: DeliveryStrategyGroupInput) {
+  await requireAdmin();
+  const orgId = await resolveRequestOrg();
+  const result = await deliveryService.saveDeliveryStrategyGroup(input, orgId);
+  await invalidateCatalogSnapshot();
+  revalidatePath("/dashboard/delivery/charges");
+  revalidatePath("/dashboard/catalog/delivery-frequencies");
+  revalidatePath("/checkout");
+  return result;
+}
+
+export async function deleteDeliveryStrategyGroupAction(id: string) {
+  await requireAdmin();
+  const orgId = await resolveRequestOrg();
+  const result = await deliveryService.deleteDeliveryStrategyGroup(id, orgId);
   await invalidateCatalogSnapshot();
   revalidatePath("/dashboard/delivery/charges");
   revalidatePath("/dashboard/catalog/delivery-frequencies");

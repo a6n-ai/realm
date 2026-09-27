@@ -3,7 +3,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, deliveryStrategies, orderActivities, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
@@ -13,7 +13,7 @@ import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { findZone } from "@/lib/catalog/zone-match";
 import type { AddressInput, AddressScope } from "@foundry/address";
 import { addressService } from "@/lib/services/addresses.service";
-import { setAddressDropOff } from "./address-drop-off.service";
+import { setAddressDropOff, strategyIdsFor } from "./address-drop-off.service";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
@@ -1135,7 +1135,7 @@ export async function resolveZoneId(tx: Tx, postalCode: string): Promise<bigint>
 
 export async function setDeliveryAddress(
   deliveryPublicId: string,
-  pick: { addressPublicId?: string; newAddress?: AddressInput; deliveryStrategyPublicId?: string },
+  pick: { addressPublicId?: string; newAddress?: AddressInput; deliveryStrategyPublicIds?: string[] },
   scope: AddressScope,
   actorId: bigint | null,
 ): Promise<void> {
@@ -1154,7 +1154,7 @@ export async function setDeliveryAddress(
     } else if (pick.newAddress) {
       address = await addressService.create(scope, pick.newAddress, { tx });
       // A new address remembers the drop-off chosen with it, for its next delivery or checkout.
-      if (pick.deliveryStrategyPublicId) await setAddressDropOff(scope, { id: address.id }, pick.deliveryStrategyPublicId, tx);
+      if (pick.deliveryStrategyPublicIds?.length) await setAddressDropOff(scope, { id: address.id }, pick.deliveryStrategyPublicIds, tx);
     }
 
     let zoneId = null;
@@ -1162,11 +1162,8 @@ export async function setDeliveryAddress(
       zoneId = await resolveZoneId(tx, address.postalCode);
     }
 
-    let deliveryStrategyId = null;
-    if (pick.deliveryStrategyPublicId) {
-      const [strategy] = await tx.select({ id: deliveryStrategies.id }).from(deliveryStrategies).where(eq(deliveryStrategies.publicId, pick.deliveryStrategyPublicId)).limit(1);
-      if (strategy) deliveryStrategyId = strategy.id;
-    }
+    // Omitted = keep this delivery's drop-off; empty = inherit the plan's.
+    const deliveryStrategyIds = pick.deliveryStrategyPublicIds ? await strategyIdsFor(pick.deliveryStrategyPublicIds, tx) : undefined;
 
     // A saved address may carry no recipient name; fall back to the plan's.
     const [plan] = await tx.select({ fullName: orders.fullName }).from(orders).where(eq(orders.id, orderId)).limit(1);
@@ -1182,7 +1179,7 @@ export async function setDeliveryAddress(
         deliveryInstructions: address.deliveryInstructions,
         zoneId,
       } : {}),
-      ...(deliveryStrategyId ? { deliveryStrategyId } : {}),
+      ...(deliveryStrategyIds ? { deliveryStrategyIds } : {}),
     })
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
@@ -1205,7 +1202,7 @@ export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bi
     const updated = await tx.update(deliveries)
       .set({
         addressId: null, fullName: null, addressLine: null, addressUnit: null, city: null, postalCode: null,
-        deliveryInstructions: null, deliveryStrategyId: null, addressTagId: null, zoneId: null,
+        deliveryInstructions: null, deliveryStrategyIds: [], addressTagId: null, zoneId: null,
       })
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
@@ -1220,17 +1217,17 @@ export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bi
 export function effectiveAddress(
   d: Delivery,
   order: Pick<Order, "fullName" | "addressLine" | "city" | "postalCode" | "zoneId"> &
-    Partial<Pick<Order, "addressUnit" | "deliveryInstructions" | "deliveryStrategyId">>,
+    Partial<Pick<Order, "addressUnit" | "deliveryInstructions" | "deliveryStrategyIds">>,
 ) {
   return d.addressLine === null
     ? {
         fullName: order.fullName, addressLine: order.addressLine, addressUnit: order.addressUnit ?? null, city: order.city,
         postalCode: order.postalCode, deliveryInstructions: order.deliveryInstructions ?? null, zoneId: order.zoneId,
-        deliveryStrategyId: order.deliveryStrategyId ?? null,
+        deliveryStrategyIds: order.deliveryStrategyIds ?? [],
       }
     : {
         fullName: d.fullName!, addressLine: d.addressLine, addressUnit: d.addressUnit, city: d.city!,
         postalCode: d.postalCode!, deliveryInstructions: d.deliveryInstructions, zoneId: d.zoneId,
-        deliveryStrategyId: d.deliveryStrategyId ?? order.deliveryStrategyId ?? null,
+        deliveryStrategyIds: d.deliveryStrategyIds.length ? d.deliveryStrategyIds : (order.deliveryStrategyIds ?? []),
       };
 }

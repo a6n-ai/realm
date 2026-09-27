@@ -7,6 +7,7 @@ export const {
   deliveryZoneTypes,
   deliveryChargeType,
   deliveryChargeConfigs,
+  deliveryStrategyGroups,
   deliveryStrategies,
   addressTags,
 } = makeDeliveryTables({ organization });

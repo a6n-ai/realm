@@ -1,46 +1,43 @@
 "use client";
 import { ChoiceRow } from "@/components/customer/deliveries/actions/choice-row";
-
-/** An admin delivery strategy as the customer sees it: "Drop-off". */
-export type DropOffOption = {
-  publicId: string;
-  name: string;
-  chargeType: "none" | "fixed" | "percent";
-  chargeValue: number;
-};
+import { dropOffLabel, pickDropOff, type DropOffCatalog } from "@/lib/catalog/drop-off";
 
 const NONE = "";
 
-/** "Back door · +$1.50", "Lobby · +5%", or just the name when it is free. */
-export function dropOffLabel(o: DropOffOption): string {
-  if (o.chargeType === "fixed" && o.chargeValue > 0) return `${o.name} · +$${o.chargeValue.toFixed(2)}`;
-  if (o.chargeType === "percent" && o.chargeValue > 0) return `${o.name} · +${o.chargeValue}%`;
-  return o.name;
-}
-
-/** Where at the address the tiffin is left. Same buttons as every other choice row. */
+/** Every drop-off question, one row each; the customer picks one option per question. */
 export function DropOffPicker({
-  options,
+  catalog,
   value,
   onChange,
   disabled = false,
 }: {
-  options: DropOffOption[];
-  /** Strategy public id; null = no preference. */
-  value: string | null;
-  onChange: (value: string | null) => void;
+  catalog: DropOffCatalog;
+  /** Picked option public ids, at most one per question. */
+  value: string[];
+  onChange: (value: string[]) => void;
   disabled?: boolean;
 }) {
-  if (options.length === 0) return null;
+  if (catalog.groups.length === 0) return null;
   return (
-    <ChoiceRow
-      label="Drop-off"
-      choices={[
-        { value: NONE, label: "No preference", disabled },
-        ...options.map((o) => ({ value: o.publicId, label: dropOffLabel(o), disabled })),
-      ]}
-      value={value ?? NONE}
-      onChange={(v) => onChange(v === NONE ? null : v)}
-    />
+    <div className="grid gap-5">
+      {catalog.groups.map((g) => {
+        const options = catalog.options.filter((o) => o.groupId === g.publicId);
+        const picked = options.find((o) => value.includes(o.publicId))?.publicId ?? NONE;
+        return (
+          <ChoiceRow
+            key={g.publicId}
+            label={g.name}
+            labelTag={g.tag}
+            hint={g.description ?? undefined}
+            choices={[
+              ...(g.required ? [] : [{ value: NONE, label: "No preference", disabled }]),
+              ...options.map((o) => ({ value: o.publicId, label: dropOffLabel(o), tag: o.tag, disabled })),
+            ]}
+            value={picked}
+            onChange={(v) => onChange(pickDropOff(catalog, value, g.publicId, v === NONE ? null : v))}
+          />
+        );
+      })}
+    </div>
   );
 }

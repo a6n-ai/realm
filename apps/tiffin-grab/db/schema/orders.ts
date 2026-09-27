@@ -1,4 +1,5 @@
 import { baseColumns, updatableColumns } from "@foundry/database";
+import { sql } from "drizzle-orm";
 import { bigint, boolean, date, doublePrecision, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, mealSizes, plans } from "./catalog";
 import { deliveryZones } from "./delivery";
@@ -68,6 +69,9 @@ export const orders = pgTable("orders", {
   deliveryInstructions: text("delivery_instructions"),
   deliveryCharge: numeric("delivery_charge", { precision: 10, scale: 2 }).notNull().default("0.00"),
   deliveryStrategyId: bigint("delivery_strategy_id", { mode: "bigint" }).references(() => deliveryStrategies.id),
+  // Picked strategy options, at most one per strategy group. No FK on arrays; options are
+  // soft-deleted, so ids stay resolvable. Supersedes delivery_strategy_id.
+  deliveryStrategyIds: bigint("delivery_strategy_ids", { mode: "bigint" }).array().notNull().default(sql`'{}'::bigint[]`),
   addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
   city: text("city").notNull(),
   postalCode: text("postal_code").notNull(),

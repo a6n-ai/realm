@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateDeliveryCharge } from "@foundry/delivery";
 import { priceSubscription } from "../engine";
-import { buildPricingCatalog } from "../build-catalog";
+import { buildPricingCatalog, missingRequiredStrategy } from "../build-catalog";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "../types";
 import type { PricingTier } from "../tiers";
@@ -38,7 +38,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
   it("Scenario 1: Base $0, Type $0, Tag $0 -> Total Delivery = $0", () => {
     const calc = calculateDeliveryCharge({
       baseCharge: 0,
-      deliveryStrategy: { name: "Standard", chargeType: "fixed", chargeValue: 0 },
+      deliveryStrategies: [{ name: "Standard", chargeType: "fixed", chargeValue: 0 }],
       addressTag: { name: "Home", chargeType: "none", chargeValue: 0 },
       planPrice: 100,
     });
@@ -49,7 +49,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     const r = priceSubscription(sel(), catalog(10, {
       deliveryChargeConfig: {
         baseCharge: 0,
-        deliveryStrategy: { name: "Standard", chargeType: "fixed", chargeValue: 0 },
+        deliveryStrategies: [{ name: "Standard", chargeType: "fixed", chargeValue: 0 }],
         addressTag: { name: "Home", chargeType: "none", chargeValue: 0 },
       },
     }));
@@ -62,13 +62,13 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
   it("Scenario 2: Base $2, Type $0, Tag $0 -> Total Delivery = $2", () => {
     const calc = calculateDeliveryCharge({
       baseCharge: 2,
-      deliveryStrategy: { name: "Standard", chargeType: "fixed", chargeValue: 0 },
+      deliveryStrategies: [{ name: "Standard", chargeType: "fixed", chargeValue: 0 }],
       addressTag: { name: "Home", chargeType: "none", chargeValue: 0 },
       planPrice: 100,
     });
     expect(calc.totalDeliveryCharge).toBe(2);
     expect(calc.baseAmount).toBe(2);
-    expect(calc.deliveryStrategy?.amount).toBe(0);
+    expect(calc.deliveryStrategies[0]?.amount).toBe(0);
     expect(calc.addressTag?.amount).toBe(0);
     expect(calc.lines).toEqual([
       { label: "Base delivery charge", amount: 2 },
@@ -77,7 +77,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     const r = priceSubscription(sel(), catalog(10, {
       deliveryChargeConfig: {
         baseCharge: 2,
-        deliveryStrategy: { name: "Standard", chargeType: "fixed", chargeValue: 0 },
+        deliveryStrategies: [{ name: "Standard", chargeType: "fixed", chargeValue: 0 }],
         addressTag: { name: "Home", chargeType: "none", chargeValue: 0 },
       },
     }));
@@ -90,13 +90,13 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
   it("Scenario 3: Base $2, Type $1, Tag $0 -> Total Delivery = $3", () => {
     const calc = calculateDeliveryCharge({
       baseCharge: 2,
-      deliveryStrategy: { name: "Doorstep", chargeType: "fixed", chargeValue: 1 },
+      deliveryStrategies: [{ name: "Doorstep", chargeType: "fixed", chargeValue: 1 }],
       addressTag: { name: "Home", chargeType: "none", chargeValue: 0 },
       planPrice: 100,
     });
     expect(calc.totalDeliveryCharge).toBe(3);
     expect(calc.baseAmount).toBe(2);
-    expect(calc.deliveryStrategy?.amount).toBe(1);
+    expect(calc.deliveryStrategies[0]?.amount).toBe(1);
     expect(calc.lines).toEqual([
       { label: "Base delivery charge", amount: 2 },
       { label: "Delivery strategy: Doorstep", amount: 1 },
@@ -105,7 +105,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     const r = priceSubscription(sel(), catalog(10, {
       deliveryChargeConfig: {
         baseCharge: 2,
-        deliveryStrategy: { name: "Doorstep", chargeType: "fixed", chargeValue: 1 },
+        deliveryStrategies: [{ name: "Doorstep", chargeType: "fixed", chargeValue: 1 }],
         addressTag: { name: "Home", chargeType: "none", chargeValue: 0 },
       },
     }));
@@ -118,7 +118,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
   it("Scenario 4: Base $2, Type $0, Tag $1 -> Total Delivery = $3", () => {
     const calc = calculateDeliveryCharge({
       baseCharge: 2,
-      deliveryStrategy: { name: "Standard", chargeType: "none", chargeValue: 0 },
+      deliveryStrategies: [{ name: "Standard", chargeType: "none", chargeValue: 0 }],
       addressTag: { name: "Apartment", chargeType: "fixed", chargeValue: 1 },
       planPrice: 100,
     });
@@ -133,7 +133,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     const r = priceSubscription(sel(), catalog(10, {
       deliveryChargeConfig: {
         baseCharge: 2,
-        deliveryStrategy: { name: "Standard", chargeType: "none", chargeValue: 0 },
+        deliveryStrategies: [{ name: "Standard", chargeType: "none", chargeValue: 0 }],
         addressTag: { name: "Apartment", chargeType: "fixed", chargeValue: 1 },
       },
     }));
@@ -146,12 +146,12 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
   it("Scenario 5: Base $2, Type $1, Tag 5% on $100 plan -> Total Delivery = $8", () => {
     const calc = calculateDeliveryCharge({
       baseCharge: 2,
-      deliveryStrategy: { name: "Lobby", chargeType: "fixed", chargeValue: 1 },
+      deliveryStrategies: [{ name: "Lobby", chargeType: "fixed", chargeValue: 1 }],
       addressTag: { name: "Apartment", chargeType: "percent", chargeValue: 5 },
       planPrice: 100,
     });
     expect(calc.baseAmount).toBe(2);
-    expect(calc.deliveryStrategy?.amount).toBe(1);
+    expect(calc.deliveryStrategies[0]?.amount).toBe(1);
     expect(calc.addressTag?.amount).toBe(5); // 5% of $100 = $5
     expect(calc.totalDeliveryCharge).toBe(8);
     expect(calc.lines).toEqual([
@@ -163,7 +163,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     const r = priceSubscription(sel(), catalog(10, {
       deliveryChargeConfig: {
         baseCharge: 2,
-        deliveryStrategy: { name: "Lobby", chargeType: "fixed", chargeValue: 1 },
+        deliveryStrategies: [{ name: "Lobby", chargeType: "fixed", chargeValue: 1 }],
         addressTag: { name: "Apartment", chargeType: "percent", chargeValue: 5 },
       },
     }));
@@ -188,9 +188,15 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
       tiers: TIERS,
       deliveryCharges: {
         baseCharge: 2,
+        strategyGroups: [
+          { publicId: "grp_spot", name: "Drop-off spot", description: null, tag: "Contactless", required: true },
+          { publicId: "grp_contact", name: "Contact", description: null, tag: null, required: false },
+        ],
         deliveryStrategies: [
-          { id: 1n, publicId: "dt_active", name: "Lobby", description: null, chargeType: "fixed", chargeValue: 1, active: true, sortOrder: 0 },
-          { id: 2n, publicId: "dt_inactive", name: "Old Type", description: null, chargeType: "fixed", chargeValue: 5, active: false, sortOrder: 1 },
+          { id: 1n, publicId: "dt_active", name: "Lobby", description: null, chargeType: "fixed", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_spot", tag: "Secure" },
+          { id: 2n, publicId: "dt_inactive", name: "Old Type", description: null, chargeType: "fixed", chargeValue: 5, active: false, sortOrder: 1, groupPublicId: "grp_spot", tag: null },
+          { id: 3n, publicId: "dt_door", name: "Doorstep", description: null, chargeType: "none", chargeValue: 0, active: true, sortOrder: 2, groupPublicId: "grp_spot", tag: null },
+          { id: 4n, publicId: "dt_call", name: "Call on arrival", description: null, chargeType: "percent", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_contact", tag: null },
         ],
         addressTags: [
           { id: 1n, publicId: "at_active", name: "House", description: null, chargeType: "none", chargeValue: 0, active: true, sortOrder: 0 },
@@ -199,29 +205,41 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
       },
     };
 
-    // Valid active selections succeed
+    // One pick per group, each labelled by its group
     const validCat = buildPricingCatalog(mockSnapshot, sel({
-      deliveryStrategyId: "dt_active",
+      deliveryStrategyIds: ["dt_active", "dt_call"],
       addressTagId: "at_active",
     }));
     expect(validCat.deliveryChargeConfig?.baseCharge).toBe(2);
-    expect(validCat.deliveryChargeConfig?.deliveryStrategy?.name).toBe("Lobby");
+    expect(validCat.deliveryChargeConfig?.deliveryStrategies?.map((s) => [s.group, s.name])).toEqual([
+      ["Drop-off spot", "Lobby"],
+      ["Contact", "Call on arrival"],
+    ]);
     expect(validCat.deliveryChargeConfig?.addressTag?.name).toBe("House");
+    // $100 plan: base 2 + Lobby 1 + 1% contact = $4
+    expect(priceSubscription(sel(), validCat).deliveryCharge?.lines.map((l) => l.label)).toEqual([
+      "Base delivery charge",
+      "Drop-off spot: Lobby",
+      "Contact: Call on arrival (1%)",
+    ]);
 
-    // Inactive delivery type throws ValidationError
-    expect(() => buildPricingCatalog(mockSnapshot, sel({
-      deliveryStrategyId: "dt_inactive",
-    }))).toThrow("Invalid delivery type");
+    // Inactive or unknown options are refused
+    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_inactive"] }))).toThrow("isn't available");
+    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["non_existent"] }))).toThrow("isn't available");
+    // Two answers to one question would stack both surcharges
+    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_active", "dt_door"] }))).toThrow("Pick one option for Drop-off spot");
+    // Not an array of strings (server-action input)
+    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: "dt_active" as unknown as string[] }))).toThrow("Invalid delivery options");
 
     // Inactive address tag throws ValidationError
     expect(() => buildPricingCatalog(mockSnapshot, sel({
       addressTagId: "at_inactive",
     }))).toThrow("Invalid address tag");
 
-    // Non-existent IDs throw ValidationError
-    expect(() => buildPricingCatalog(mockSnapshot, sel({
-      deliveryStrategyId: "non_existent",
-    }))).toThrow("Invalid delivery type");
+    // Required groups: only the customer checkout enforces them
+    expect(missingRequiredStrategy(mockSnapshot, [])).toBe("Drop-off spot");
+    expect(missingRequiredStrategy(mockSnapshot, ["dt_call"])).toBe("Drop-off spot");
+    expect(missingRequiredStrategy(mockSnapshot, ["dt_door"])).toBeNull();
   });
 
   // Scenario 7: Order Total includes Plan Price + Delivery Charge + Addons - Discounts + Taxes
@@ -241,7 +259,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
         discounts: [{ key: "disc_10", label: "Delivery discount (10%)", percent: 10 }],
         deliveryChargeConfig: {
           baseCharge: 2,
-          deliveryStrategy: { name: "Lobby", chargeType: "fixed", chargeValue: 1 },
+          deliveryStrategies: [{ name: "Lobby", chargeType: "fixed", chargeValue: 1 }],
           addressTag: { name: "Apartment", chargeType: "percent", chargeValue: 5 },
         },
       }),
@@ -266,23 +284,23 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
   it("Edge cases: clamp negatives to 0, handle undefined deliveryStrategy/addressTag", () => {
     const calc = calculateDeliveryCharge({
       baseCharge: -5, // clamped to 0
-      deliveryStrategy: { name: "Special", chargeType: "fixed", chargeValue: -10 }, // clamped to 0
+      deliveryStrategies: [{ name: "Special", chargeType: "fixed", chargeValue: -10 }], // clamped to 0
       addressTag: { name: "Special Tag", chargeType: "percent", chargeValue: -5 }, // clamped to 0
       planPrice: -100, // clamped to 0
     });
     expect(calc.baseAmount).toBe(0);
-    expect(calc.deliveryStrategy?.amount).toBe(0);
+    expect(calc.deliveryStrategies[0]?.amount).toBe(0);
     expect(calc.addressTag?.amount).toBe(0);
     expect(calc.totalDeliveryCharge).toBe(0);
 
     const calcNull = calculateDeliveryCharge({
       baseCharge: 0,
-      deliveryStrategy: null,
+      deliveryStrategies: null,
       addressTag: null,
       planPrice: 100,
     });
     expect(calcNull.totalDeliveryCharge).toBe(0);
-    expect(calcNull.deliveryStrategy).toBeNull();
+    expect(calcNull.deliveryStrategies).toEqual([]);
     expect(calcNull.addressTag).toBeNull();
   });
 });
