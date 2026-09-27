@@ -361,8 +361,9 @@ export async function createOrder(
           tx,
           coords: input.contact.lat != null && input.contact.lng != null ? { lat: input.contact.lat, lng: input.contact.lng } : null,
         });
-    // A new address remembers the drop-off chosen at checkout, for its next delivery or order.
-    if (!input.addressPublicId && (input.selections.deliveryTagId || input.selections.deliveryStrategyIds?.length)) {
+    // Drop-off belongs to the address: the one picked under it at checkout is saved back to it,
+    // new or already in the book, for its next delivery or order.
+    if (input.addressPublicId || input.selections.deliveryTagId || input.selections.deliveryStrategyIds?.length) {
       await setAddressDropOff(addressScope, { id: savedAddress.id }, { tagId: input.selections.deliveryTagId ?? null, strategyIds: input.selections.deliveryStrategyIds ?? [] }, tx);
     }
     if (input.addressPublicId) {

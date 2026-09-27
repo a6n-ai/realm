@@ -140,7 +140,7 @@ const isoDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date
 const discountsSchema = z.object({
   key: z.preprocess((v) => (v === "" || v == null ? undefined : v), key.optional()),
   name,
-  kind: z.enum(["delivery", "duration", "meal_size"]),
+  kind: z.enum(["delivery", "duration", "meal_size", "waiver_delivery", "waiver_base", "waiver_strategy", "waiver_tax"]),
   targetId: z.preprocess(blankToNull, z.string().trim().nullable().optional()),
   percent: reqNum(z.coerce.number().min(0, "Min 0%").max(100, "Max 100%").transform((n) => n.toFixed(2))),
   amount: z.preprocess(blankToNull, z.coerce.number().positive("Must be more than $0").transform((n) => n.toFixed(2)).nullable().optional()),
@@ -295,7 +295,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true, optional: true, tableHidden: true },
       { key: "name", label: "Name", type: "text" },
-      { key: "kind", label: "Applies to", type: "select", options: ["delivery", "duration", "meal_size"], optionLabels: { delivery: "Delivery frequency", duration: "Duration package", meal_size: "Meal size" } },
+      { key: "kind", label: "Applies to", type: "select", options: ["delivery", "duration", "meal_size", "waiver_delivery", "waiver_base", "waiver_strategy", "waiver_tax"], optionLabels: { delivery: "Delivery frequency", duration: "Duration package", meal_size: "Meal size", waiver_delivery: "Waive all delivery fees", waiver_base: "Waive base delivery charge", waiver_strategy: "Waive a strategy fee", waiver_tax: "Cover the tax" } },
       { key: "targetId", label: "Target", type: "select", optionsSource: "discount-targets" },
       { key: "percent", label: "Percent", type: "number", unit: "%" },
       { key: "amount", label: "Flat $ off", type: "number", unit: "$", optional: true, help: "Meal sizes only; leave percent at 0" },

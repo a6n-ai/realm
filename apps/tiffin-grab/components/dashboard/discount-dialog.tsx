@@ -50,7 +50,8 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
   const router = useRouter();
   const editing = Boolean(discount);
   const locked = !editing && Boolean(prefill?.lockTarget);
-  const [kind, setKind] = useState<DiscountKind>(discount?.kind ?? prefill?.kind ?? "delivery");
+  const [kind, setKind] = useState<DiscountKind>((discount?.kind as DiscountKind | undefined) ?? prefill?.kind ?? "delivery");
+  const [name, setName] = useState(discount?.name ?? "");
   const [target, setTarget] = useState<string>(discount ? (discount.targetPublicId ?? "all") : (prefill?.targetPublicId ?? "all"));
   // Only meal-size (list price) rows may be a flat $ amount; the additive kinds are percent-only.
   const [unit, setUnit] = useState<"percent" | "amount">(discount?.amount != null && discount.amount > 0 ? "amount" : "percent");
@@ -68,8 +69,9 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const targetId = target === "all" ? null : target;
+    const autoName = `${isFlat ? `$${value}` : `${value}%`} off ${targetLabel(kind, targetId, options)}`;
     const values = {
-      name: discount?.name ?? `${isFlat ? `$${value}` : `${value}%`} off ${targetLabel(kind, targetId, options)}`,
+      name: name.trim() || autoName,
       kind, targetId,
       percent: isFlat ? "0" : value,
       amount: isFlat ? value : null,
@@ -117,6 +119,11 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
       }
     >
       <form id="discount-dialog-form" noValidate onSubmit={submit} className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-1.5 sm:col-span-2">
+          <Label htmlFor="dd-name">Name <span className="text-muted-foreground font-normal">shown to customers</span></Label>
+          <Input id="dd-name" placeholder="e.g. Launch offer" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+          {err("name")}
+        </div>
         <div className="grid gap-1.5">
           <Label htmlFor="dd-kind">Applies to</Label>
           <Select value={kind} disabled={locked} onValueChange={(v) => { setKind(v as DiscountKind); setTarget("all"); setUnit("percent"); }}>

@@ -1,14 +1,18 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { SavedAddress } from "@foundry/address";
 import { formatAddress } from "@foundry/address/ui";
 import { MapPin, Pencil, Plus } from "lucide-react";
 import { OptionCard, Pill } from "@/components/customer/kit";
+import { AddressDropOffLines, AddressDropOffPanel } from "@/components/customer/address/drop-off";
+import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
 
 /**
  * Saved addresses and the typed-in one as option cards, then "Add new address", which opens the
  * address sheet. The form itself never sits on the page, so the step stays short on a phone.
+ * The picked address's drop-off (`selectedExtra`) sits right under it: address first, then how
+ * it is dropped off there.
  */
 export function CheckoutAddressPicker({
   addresses,
@@ -18,6 +22,9 @@ export function CheckoutAddressPicker({
   draftFromAccount = false,
   onAdd,
   onEditDraft,
+  dropOff,
+  dropOffs = {},
+  selectedExtra,
 }: {
   addresses: SavedAddress[];
   /** Picked saved address public id; null = the typed-in (draft) address. */
@@ -29,20 +36,33 @@ export function CheckoutAddressPicker({
   draftFromAccount?: boolean;
   onAdd: () => void;
   onEditDraft: () => void;
+  dropOff?: DropOffCatalog;
+  /** Saved address public id → its drop-off. */
+  dropOffs?: Record<string, DropOffValue>;
+  /** Under the picked row: that address's drop-off picker. */
+  selectedExtra?: ReactNode;
 }) {
+  const extra = selectedExtra ? <AddressDropOffPanel>{selectedExtra}</AddressDropOffPanel> : null;
   const hasOptions = addresses.length > 0 || draft != null;
   return (
     <div className="grid grid-cols-1 gap-2.5">
       {hasOptions && (
         <div role="radiogroup" aria-label="Delivery address" className="grid grid-cols-1 gap-2.5">
           {addresses.map((a) => (
-            <Row key={a.publicId} selected={value === a.publicId} onClick={() => onPick(a)} icon={<MapPin className="size-[18px]" />}>
+            <Fragment key={a.publicId}>
+            <Row selected={value === a.publicId} onClick={() => onPick(a)} icon={<MapPin className="size-[18px]" />}>
               <span className="flex items-center gap-2">
                 <span className="text-[16px] font-semibold tracking-[-0.01em]">{a.label}</span>
                 {a.isDefault && <Pill tone="soft" size="sm">Default</Pill>}
               </span>
               <span className="text-muted-foreground mt-0.5 block text-[13px] text-pretty">{formatAddress(a)}</span>
+              {dropOff && value !== a.publicId && <AddressDropOffLines catalog={dropOff} value={dropOffs[a.publicId]} note={a.deliveryInstructions} />}
+              {value === a.publicId && a.deliveryInstructions && (
+                <span className="text-muted-foreground line-clamp-2 block text-[13px]">Note: {a.deliveryInstructions}</span>
+              )}
             </Row>
+            {value === a.publicId && extra}
+            </Fragment>
           ))}
           {draft != null && (
             // Tapping the picked draft again reopens it for editing.
@@ -57,6 +77,7 @@ export function CheckoutAddressPicker({
               )}
             </Row>
           )}
+          {draft != null && value === null && extra}
         </div>
       )}
       <button

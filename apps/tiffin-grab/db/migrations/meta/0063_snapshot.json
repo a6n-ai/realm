@@ -1,6 +1,6 @@
 {
-  "id": "92e15396-1137-4fc1-a306-07e31f35f041",
-  "prevId": "4057e222-04c7-4e90-9ded-2984da8cc5f9",
+  "id": "fff16fb3-a15d-480a-ada0-0eee3de12e2b",
+  "prevId": "92e15396-1137-4fc1-a306-07e31f35f041",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -12359,6 +12359,13 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": false
+        },
+        "charge_basis": {
+          "name": "charge_basis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'once'"
         }
       },
       "indexes": {

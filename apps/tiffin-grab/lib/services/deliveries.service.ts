@@ -913,16 +913,17 @@ export async function setDeliveryAddress(
       address = await addressService.getRow(scope, pick.addressPublicId, tx);
     } else if (pick.newAddress) {
       address = await addressService.create(scope, pick.newAddress, { tx });
-      // A new address remembers the drop-off chosen with it, for its next delivery or checkout.
-      if (pick.dropOff?.tagId) await setAddressDropOff(scope, { id: address.id }, pick.dropOff, tx);
     }
+    // Drop-off belongs to the address: what was picked under it is saved back, for its next
+    // delivery or checkout, whether the address is new or already in the book.
+    if (address && pick.dropOff) await setAddressDropOff(scope, { id: address.id }, pick.dropOff, tx);
 
     let zoneId = null;
     if (address) {
       zoneId = await resolveZoneId(tx, address.postalCode);
     }
 
-    // Omitted = keep this delivery's drop-off; no tag = inherit the plan's.
+    // Omitted = keep this delivery's drop-off; no tag = none at this address.
     const dropOff = pick.dropOff ? await resolveDropOff(pick.dropOff, tx) : undefined;
 
     // A saved address may carry no recipient name; fall back to the plan's.
@@ -989,8 +990,8 @@ export function effectiveAddress(
     : {
         fullName: d.fullName!, addressLine: d.addressLine, addressUnit: d.addressUnit, city: d.city!,
         postalCode: d.postalCode!, deliveryInstructions: d.deliveryInstructions, zoneId: d.zoneId,
-        ...(d.deliveryTagId != null
-          ? { deliveryTagId: d.deliveryTagId, deliveryStrategyIds: d.deliveryStrategyIds }
-          : { deliveryTagId: order.deliveryTagId ?? null, deliveryStrategyIds: order.deliveryStrategyIds ?? [] }),
+        // A re-addressed delivery carries its address's own drop-off, or none: the plan's
+        // belongs to the plan's address, not this one.
+        deliveryTagId: d.deliveryTagId, deliveryStrategyIds: d.deliveryStrategyIds,
       };
 }

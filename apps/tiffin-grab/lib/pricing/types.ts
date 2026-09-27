@@ -2,6 +2,7 @@ import type { ComputedTaxLine } from "@foundry/payments";
 import type { DayOfWeek } from "../menu/delivery-days";
 import type { PricingTier } from "./tiers";
 import type { DeliveryChargeCalculationResult, DeliveryChargeItemLike } from "@foundry/delivery";
+import type { PricingWaiver } from "./waivers";
 
 export interface PricingSelections {
   mealSizeId: string;
@@ -39,6 +40,8 @@ export interface PricingCatalog {
   // Already filtered to those applicable to the selections; engine sums, caps, prints.
   discounts?: { key: string; label: string; percent: number }[];
   maxDiscountPct?: number;
+  // Outside the discount cap: they waive fees/tax, not the food price.
+  waivers?: PricingWaiver[];
   deliveryChargeConfig?: {
     baseCharge: number;
     deliveryStrategies?: DeliveryChargeItemLike[];

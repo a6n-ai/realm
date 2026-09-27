@@ -22,7 +22,7 @@ import {
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import type { CatalogSnapshot } from "./types";
+import { WAIVER_KINDS, type CatalogSnapshot, type WaiverKind } from "./types";
 
 // Global, user-agnostic, rarely-changing catalog data hit by many RSC pages and
 // the subscribe hot path. Cache it; catalog admin mutations call
@@ -93,9 +93,17 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     ...freqRows.map((f) => [`delivery:${f.id}`, f.publicId] as [string, string]),
     ...durRows.map((d) => [`duration:${d.id}`, d.publicId] as [string, string]),
   ]);
+  const isWaiverKind = (k: string): k is WaiverKind => (WAIVER_KINDS as readonly string[]).includes(k);
   // meal_size rows set list prices below; only delivery/duration rows are additive order discounts.
   const mealSizeDiscountRows = discountRows.filter((d) => d.kind === "meal_size").map((d) => ({ targetId: d.targetId, percent: Number(d.percent), amount: d.amount == null ? null : Number(d.amount) }));
-  const additiveDiscountRows = discountRows.filter((d): d is typeof d & { kind: "delivery" | "duration" } => d.kind !== "meal_size");
+  const additiveDiscountRows = discountRows.filter((d): d is typeof d & { kind: "delivery" | "duration" } => d.kind === "delivery" || d.kind === "duration");
+  const strategyPublicIdById = new Map(strategyRows.map((s) => [s.id, s.publicId]));
+  // A strategy waiver whose strategy is inactive/missing is dropped, like a discount's target.
+  const waivers = discountRows.flatMap((d) => {
+    if (!isWaiverKind(d.kind)) return [];
+    const targetPublicId = d.kind === "waiver_strategy" ? (d.targetId == null ? undefined : strategyPublicIdById.get(d.targetId)) : null;
+    return targetPublicId === undefined ? [] : [{ key: d.key, name: d.name, kind: d.kind, targetPublicId, percent: Number(d.percent) }];
+  });
   const slotKeys = { tiffin: tiffinSlots.map((s) => s.key), healthy: healthySlots.map((s) => s.key) };
   const tuByCategory = new Map(categoryRows.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]));
   // Same {key -> label} the customer day view threads into day-detail.tsx —
@@ -140,6 +148,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
       const targetPublicId = d.targetId == null ? null : publicIdByTarget.get(`${d.kind}:${d.targetId}`) ?? undefined;
       return targetPublicId === undefined ? [] : [{ key: d.key, name: d.name, kind: d.kind, targetPublicId, percent: Number(d.percent), minWeeks: d.minWeeks }];
     }),
+    waivers,
     maxDiscountPct: settings.maxDiscountPct,
     deliveryCharges: {
       baseCharge: configRows[0] ? Number(configRows[0].baseCharge) : 0,
@@ -188,7 +197,7 @@ export async function loadDiscountsForOrderTargets(
   ));
   return (rows.flatMap((d) => {
     let targetPublicId: string | null;
-    if (d.kind === "meal_size") return [];
+    if (d.kind !== "delivery" && d.kind !== "duration") return [];
     if (d.targetId == null) targetPublicId = null;
     else if (d.kind === "delivery" && d.targetId === targets.frequency.id) targetPublicId = targets.frequency.publicId;
     else if (d.kind === "duration" && d.targetId === targets.duration.id) targetPublicId = targets.duration.publicId;

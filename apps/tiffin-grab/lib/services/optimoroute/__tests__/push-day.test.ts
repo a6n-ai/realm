@@ -66,7 +66,6 @@ describe("OptimoRoute push (integration)", () => {
         email: `${USER_PREFIX}${Math.random().toString(36).slice(2)}@test.invalid`,
         phone: "+1 647 555 7010",
         role: "user",
-        deliveryNotes: "Upstairs Delivery, buzz 12",
       })
       .returning();
 
@@ -74,6 +73,7 @@ describe("OptimoRoute push (integration)", () => {
       .insert(orders)
       .values({
         userId: u.id,
+        deliveryInstructions: "Upstairs Delivery, buzz 12",
         planId: snap.plans.find((p) => p.key === "veg")!.id,
         mealSizeId: snap.mealSizes[0].id,
         frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id,

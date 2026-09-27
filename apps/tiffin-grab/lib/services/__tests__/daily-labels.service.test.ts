@@ -80,7 +80,6 @@ describe("dailyLabelSheet (integration)", () => {
         email: `${USER_PREFIX}${Math.random().toString(36).slice(2)}@test.invalid`,
         phone: "+16475557001",
         role: "user",
-        deliveryNotes: "Buzz 1185",
       })
       .returning();
 
@@ -88,6 +87,7 @@ describe("dailyLabelSheet (integration)", () => {
       .insert(orders)
       .values({
         userId: u.id,
+        deliveryInstructions: "Buzz 1185",
         planId: snap.plans.find((p) => p.key === "veg")!.id,
         mealSizeId,
         frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id,

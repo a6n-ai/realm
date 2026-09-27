@@ -165,6 +165,21 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     expect(row.zoneId).not.toBeNull();
   });
 
+  it("a re-addressed delivery never borrows the plan's drop-off", async () => {
+    const order = await makeOrder();
+    const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, orderId: order.id });
+    await setDeliveryAddress(d.publicId, { newAddress: {
+      fullName: "New Name",
+      addressLine: "3 Plain St",
+      city: "Toronto",
+      postalCode: "M4C 1A1",
+    } }, { userId: order.userId!, orgId: null }, 1n);
+    const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
+    const eff = effectiveAddress(row, { ...order, deliveryTagId: 99n, deliveryStrategyIds: [7n] });
+    expect(eff.deliveryTagId).toBeNull();
+    expect(eff.deliveryStrategyIds).toEqual([]);
+  });
+
   it("clearDeliveryAddress restores inheritance", async () => {
     const order = await makeOrder();
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, orderId: order.id });

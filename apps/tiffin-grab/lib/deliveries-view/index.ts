@@ -81,7 +81,7 @@ export type Trip = {
   movesOut?: TiffinMove[];
   /** This delivery's own address when re-addressed; null = it follows the plan's address. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
-  /** This delivery's own drop-off when re-addressed; absent / no tag = it follows the plan's. */
+  /** This delivery's own drop-off when re-addressed (no tag = none there); ignored otherwise. */
   dropOff?: DropOffValue;
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */

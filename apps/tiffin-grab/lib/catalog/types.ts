@@ -34,6 +34,19 @@ export interface CatalogDiscount {
   minWeeks: number | null;
 }
 
+export const WAIVER_KINDS = ["waiver_delivery", "waiver_base", "waiver_strategy", "waiver_tax"] as const;
+export type WaiverKind = (typeof WAIVER_KINDS)[number];
+
+// Active, in-window fee waivers. targetPublicId is the strategy for waiver_strategy, else null.
+export interface CatalogWaiver {
+  key: string;
+  /** Admin-given name, shown to the customer as the bill line ("Launch offer"). */
+  name: string;
+  kind: WaiverKind;
+  targetPublicId: string | null;
+  percent: number;
+}
+
 // Server-side snapshot: carries BOTH the internal bigint id (for FK resolution
 // in createOrder) and the public_id. The bigint id never leaves the server.
 /** A tag: the kind of place (Home, Apartment, Office). Customers pick one, then its strategies. */
@@ -72,6 +85,7 @@ export interface CatalogSnapshot {
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
+  waivers?: CatalogWaiver[];
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
@@ -124,6 +138,7 @@ export interface ClientCatalogSnapshot {
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
+  waivers?: CatalogWaiver[];
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
@@ -170,6 +185,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     minTiffinsPerWeek: snapshot.minTiffinsPerWeek,
     maxTiffinsPerWeek: snapshot.maxTiffinsPerWeek,
     discounts: snapshot.discounts,
+    waivers: snapshot.waivers,
     maxDiscountPct: snapshot.maxDiscountPct,
     deliveryCharges: snapshot.deliveryCharges
       ? {

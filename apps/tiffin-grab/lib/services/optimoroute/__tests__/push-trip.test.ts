@@ -43,10 +43,11 @@ describe("OptimoRoute payload for a trip carrying several days", () => {
     const snap = await loadCatalogSnapshot();
     const [u] = await db.insert(users).values({
       email: `${PREFIX}${Math.random().toString(36).slice(2)}@test.invalid`,
-      phone: "+1 647 555 7020", role: "user", deliveryNotes: "Leave at door",
+      phone: "+1 647 555 7020", role: "user",
     }).returning();
     const [o] = await db.insert(orders).values({
       userId: u.id,
+      deliveryInstructions: "Leave at door",
       planId: snap.plans.find((p) => p.key === "veg")!.id,
       mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id,

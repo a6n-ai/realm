@@ -1,9 +1,26 @@
 "use client";
+import type { ReactNode } from "react";
 import { PillToggle } from "@/components/customer/kit";
-import { dropOffLabel, pickInConnection, pickTag, toggleStrategy, type DropOffCatalog, type DropOffValue } from "@/lib/catalog/drop-off";
+import { dropOffLabel, dropOffSummary, pickInConnection, pickTag, toggleStrategy, type DropOffCatalog, type DropOffValue } from "@/lib/catalog/drop-off";
+
+/** Under an address's one-liner: its drop-off and its note, read-only. Nothing when both are empty. */
+export function AddressDropOffLines({ catalog, value, note }: { catalog: DropOffCatalog; value: DropOffValue | null | undefined; note: string | null | undefined }) {
+  const summary = dropOffSummary(catalog, value);
+  return (
+    <>
+      {summary && <span className="block text-[13px] text-[var(--muted-foreground)]">{summary}</span>}
+      {note && <span className="line-clamp-2 block text-[13px] text-[var(--muted-foreground)]">Note: {note}</span>}
+    </>
+  );
+}
+
+/** The picked address's drop-off, attached under its card: it belongs to that address, and is saved back to it. */
+export function AddressDropOffPanel({ children }: { children: ReactNode }) {
+  return <div className="ml-3 border-l-2 border-[var(--border)] pl-4">{children}</div>;
+}
 
 /** Small pills: several strategies fit on one line instead of a stack of full-width buttons. */
-const PILL = "h-8 flex-none px-3 text-[13px] sm:px-3 sm:text-[13px]";
+const PILL = "h-7 flex-none px-2.5 text-[12px] font-medium sm:px-2.5 sm:text-[12px]";
 
 /**
  * Under the address: the kind of place (tag) first, then that tag's strategies. Strategies in a

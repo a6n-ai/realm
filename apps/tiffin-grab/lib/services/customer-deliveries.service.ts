@@ -340,7 +340,7 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
     orderPublicId: r.orderPublicId,
     planName: r.planName,
     isMakeup: r.d.makeupForDeliveryId !== null,
-    // The delivery's own drop-off; no tag = the plan's.
+    // The delivery's own drop-off; only meaningful when re-addressed (then no tag = none).
     dropOff: dropOffs[i],
   }));
 }
