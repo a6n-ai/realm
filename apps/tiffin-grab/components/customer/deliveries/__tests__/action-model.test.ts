@@ -35,9 +35,9 @@ describe("actionModel", () => {
     expect(m.closedReason).toMatch(/Combined into Fri, Sep 25/);
     expect(m.goTo).toBe("2026-09-25");
   });
-  it("on vacation: primary is resuming deliveries", () => {
-    const m = actionModel(trip({ status: "vacation" }), Date.now(), { ...ctx, onVacation: true });
-    expect(m.primary).toBe("vacation");
+  it("a legacy paused day: nothing to resume, its tiffin is moved", () => {
+    const m = actionModel(trip({ status: "vacation" }), Date.now(), ctx);
+    expect([m.primary, m.rows.map((r) => r.key)]).toEqual(["move", ["move"]]);
   });
   it("payment locked: view-only, no actions and no bar (not even Edit meal)", () => {
     const m = actionModel(trip(), Date.now(), ctx, { locked: true });

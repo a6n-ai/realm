@@ -90,16 +90,16 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(within(screen.getByTestId("week-strip")).getByRole("button", { name: /Mon, Sep 21, eating, delivery arrives/ })).toBeInTheDocument();
     expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21, 2 tiffins (Mon + Tue)");
   });
-  it("has Reschedule and Swap but no Hold; Reschedule opens an eating-day picker", () => {
+  it("has Move and Swap but no Hold; Move opens an eating-day picker", () => {
     render(<OrderWeekHub data={data} />);
     expect(screen.queryByRole("button", { name: /^Hold/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Reschedule this day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move this day" }));
     expect(screen.getByRole("dialog", { name: /Move Mon, Sep 21/ })).toBeInTheDocument();
   });
   it("reschedule shows all eating days in a week picker (week label + arrows); the delivery day is chosen automatically", () => {
     const d2 = { ...data, plan: { ...data.plan, ctx: { ...data.plan.ctx, deliveryWeekdays: ["mon", "tue", "wed", "thu", "fri"] } } } as unknown as OrderWeek;
     render(<OrderWeekHub data={d2} />);
-    fireEvent.click(screen.getByRole("button", { name: "Reschedule this day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move this day" }));
     const picker = within(screen.getByTestId("move-week"));
     expect(picker.getByRole("button", { name: "Next week" })).toBeInTheDocument();
     const sat = picker.getByRole("button", { name: /Sat, Sep 26/ });

@@ -18,7 +18,7 @@ let currentOrderNo = "";
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryCategorySwaps, orderActivities, orders } = await import("@/db/schema");
-const { redeliverTrip } = await import("../deliveries.service");
+const { redeliverTrip, rescheduleDelivery } = await import("../deliveries.service");
 const { deleteOrder } = await import("@/lib/services/optimoroute/client");
 const { pullCompletions } = await import("../optimoroute/completions");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
@@ -66,7 +66,7 @@ describe("redeliverTrip", () => {
     expect(row.coversDates).toEqual(["2030-01-11", "2030-01-12", "2030-01-13"]);
   });
 
-  it("failed OptimoRoute stop re-delivers instead of pooling", async () => {
+  it("a failed OptimoRoute stop is marked failed: not re-delivered, not pooled", async () => {
     const { order, mon, wed } = await makeTripOrder(DEP, PFX);
     await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.id, mon.id));
     currentOrderNo = mon.publicId;
@@ -75,33 +75,25 @@ describe("redeliverTrip", () => {
     const res = await pullCompletions("2030-01-07", 1n);
     expect(res.outcomes.find((o) => o.deliveryPublicId === mon.publicId)?.action).toBe("skipped");
 
-    const [target] = await db.select().from(deliveries).where(eq(deliveries.id, wed.id));
-    expect(target.tiffinUnits).toBe(4);
+    const [m] = await db.select().from(deliveries).where(eq(deliveries.id, mon.id));
+    expect([m.status, m.pooledAt]).toEqual(["skipped", null]);
+    const [w] = await db.select().from(deliveries).where(eq(deliveries.id, wed.id));
+    expect(w.tiffinUnits).toBe(2);
     const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect(o.pooledTiffinCount).toBe(0);
   });
 
-  it("failed stop with no eligible next delivery day falls back to pooling", async () => {
-    const { order, fri } = await makeTripOrder(DEP, PFX);
-    await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.id, fri.id));
-    // Every MWF day inside the search horizon is unavailable (paused).
-    const blocked: string[] = [];
-    for (let i = 3; i <= 80; i++) {
-      const d = new Date(Date.UTC(2030, 0, 11 + i));
-      if ([1, 3, 5].includes(d.getUTCDay())) blocked.push(d.toISOString().slice(0, 10));
-    }
-    await db.insert(deliveries).values(blocked.map((deliveryDate) => ({
-      orderId: order.id, deliveryDate, status: "paused" as const, cutoffAt: Date.now() + 1e9, tiffinUnits: 1,
-    })));
-    currentOrderNo = fri.publicId;
+  it("a failed tiffin can still be moved after its own cutoff, one day at a time", async () => {
+    const { mon } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.id, mon.id));
+    currentOrderNo = mon.publicId;
     completionStatus = "failed";
+    await pullCompletions("2030-01-07", 1n);
 
-    await pullCompletions("2030-01-11", 1n);
-
-    const [row] = await db.select().from(deliveries).where(eq(deliveries.id, fri.id));
-    expect(row.status).toBe("skipped");
-    expect(row.pooledAt).not.toBeNull();
-    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
-    expect(o.pooledTiffinCount).toBe(3);
+    const res = await rescheduleDelivery(mon.publicId, "2030-01-14", 1n, "2030-01-07");
+    const [target] = await db.select().from(deliveries).where(eq(deliveries.deliveryDate, res.carriedOn));
+    expect([target.status, target.coversDates]).toEqual(["scheduled", ["2030-01-14"]]);
+    const [m] = await db.select().from(deliveries).where(eq(deliveries.id, mon.id));
+    expect([m.status, m.coversDates]).toEqual(["skipped", ["2030-01-08"]]);
   });
 });

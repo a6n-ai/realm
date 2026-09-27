@@ -74,7 +74,7 @@ describe("MonthGrid", () => {
 describe("StatusDot / formatRelative", () => {
   it("labels status in text for assistive tech", () => {
     render(<StatusDot status="hold" />);
-    expect(screen.getByRole("img", { name: "On hold" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Not delivered" })).toBeInTheDocument();
   });
   it("formats relative time", () => {
     expect(formatRelative(125 * 60_000)).toBe("in 2h 5m");

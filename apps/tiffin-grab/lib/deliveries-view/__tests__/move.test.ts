@@ -31,7 +31,7 @@ describe("moveOptions default horizon", () => {
 });
 
 describe("moveOptions", () => {
-  it("offers plan weekdays only, flags source, closed, held and merge days", () => {
+  it("offers plan weekdays only, flags source, closed, not-going-out and merge days", () => {
     const o = moveOptions(trip, [
       { date: "2026-09-25", status: "scheduled", units: 3, covers: ["2026-09-24", "2026-09-25"] },
       { date: "2026-09-28", status: "skipped" },
@@ -40,7 +40,7 @@ describe("moveOptions", () => {
     expect(at("2026-09-21").disabledReason).toMatch(/closed/);
     expect(at("2026-09-23").disabledReason).toMatch(/moving from/);
     expect(at("2026-09-25")).toMatchObject({ disabledReason: undefined, merge: { units: 4, covers: ["2026-09-24", "2026-09-25"] } });
-    expect(at("2026-09-28").disabledReason).toMatch(/held/);
+    expect(at("2026-09-28").disabledReason).toMatch(/isn't going out/);
   });
   it("eat-day picks snap to the carrying trip: weekends ride Friday, off-pattern days the earlier trip", () => {
     const o = moveOptions({ ...trip, status: "upcoming" } as Trip, [{ date: "2026-09-25", status: "scheduled", units: 1, covers: ["2026-09-25"] }], NOW, ctx, "2026-09-24", 5);

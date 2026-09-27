@@ -56,7 +56,7 @@ describe("resumeOrder with fromDate (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("revives paused days on/after fromDate and pools the earlier ones", async () => {
+  it("revives paused days on/after fromDate; earlier ones stay paused (no pool)", async () => {
     const o = await makeOrder();
     await pausedWeek(o);
 
@@ -65,15 +65,12 @@ describe("resumeOrder with fromDate (integration)", () => {
 
     const rows = await rowsFor(o);
     const byDate = Object.fromEntries(rows.map((r) => [r.deliveryDate, r]));
-    expect(byDate["2030-01-07"].status).toBe("paused");
-    expect(byDate["2030-01-07"].pooledAt).not.toBeNull();
-    expect(byDate["2030-01-08"].pooledAt).not.toBeNull();
+    expect([byDate["2030-01-07"].status, byDate["2030-01-07"].pooledAt]).toEqual(["paused", null]);
     expect(byDate["2030-01-09"].status).toBe("scheduled");
-    expect(byDate["2030-01-09"].pooledAt).toBeNull();
     expect(byDate["2030-01-11"].status).toBe("scheduled");
 
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
-    expect(order.pooledTiffinCount).toBe(2); // 07 + 08, persons = 1
+    expect(order.pooledTiffinCount).toBe(0);
   });
 
   it("plain resume (no fromDate) revives all future paused days and pools none", async () => {
