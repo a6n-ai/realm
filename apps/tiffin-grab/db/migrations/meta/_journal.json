@@ -435,6 +435,13 @@
       "when": 1790542073943,
       "tag": "0061_meal_size_discounts_central",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790544233650,
+      "tag": "0062_strategy_charge_basis",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,8 @@ export type DropOffOption = {
   groupId: string;
   /** Its connected set's public id; null = combines freely. */
   connectionId: string | null;
+  /** Fixed charges: once per order or per delivery. */
+  chargeBasis?: "once" | "per_delivery";
 };
 
 /** A tag: the kind of place (Home, Apartment, Office). */
@@ -30,7 +32,7 @@ export function dropOffCatalog(dc: ClientCatalogSnapshot["deliveryCharges"] | un
   if (!dc) return EMPTY_DROP_OFF;
   const options = dc.deliveryStrategies.flatMap((s) =>
     s.groupId
-      ? [{ publicId: s.id, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue, groupId: s.groupId, connectionId: s.connectionId ?? null }]
+      ? [{ publicId: s.id, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue, groupId: s.groupId, connectionId: s.connectionId ?? null, chargeBasis: s.chargeBasis }]
       : [],
   );
   return { groups: dc.strategyGroups ?? [], options, connections: dc.strategyConnections ?? [] };
@@ -76,9 +78,11 @@ export function validDropOff(catalog: DropOffCatalog, value: DropOffValue | null
   return { tagId: value.tagId, strategyIds };
 }
 
-/** "Back door · +$1.50", "Lobby · +5%", or just the name when it is free. */
-export function dropOffLabel(o: Pick<DropOffOption, "name" | "chargeType" | "chargeValue">): string {
-  if (o.chargeType === "fixed" && o.chargeValue > 0) return `${o.name} · +$${o.chargeValue.toFixed(2)}`;
+/** "Back door · +$1.50", "Door · +$1.50 / delivery", "Lobby · +5%", or just the name when free. */
+export function dropOffLabel(o: Pick<DropOffOption, "name" | "chargeType" | "chargeValue" | "chargeBasis">): string {
+  if (o.chargeType === "fixed" && o.chargeValue > 0) {
+    return `${o.name} · +$${o.chargeValue.toFixed(2)}${o.chargeBasis === "per_delivery" ? " / delivery" : ""}`;
+  }
   if (o.chargeType === "percent" && o.chargeValue > 0) return `${o.name} · +${o.chargeValue}%`;
   return o.name;
 }

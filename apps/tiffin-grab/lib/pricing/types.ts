@@ -42,6 +42,8 @@ export interface PricingCatalog {
   deliveryChargeConfig?: {
     baseCharge: number;
     deliveryStrategies?: DeliveryChargeItemLike[];
+    /** Delivery trips in the whole plan, for per-delivery strategy charges. */
+    deliveryCount?: number;
     addressTag?: DeliveryChargeItemLike | null;
   };
 }

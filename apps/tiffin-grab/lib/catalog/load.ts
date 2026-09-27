@@ -159,6 +159,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
         sortOrder: s.sortOrder,
         groupPublicId: groupPublicIdById.get(s.groupId!)!,
         connectionPublicId: s.connectionId == null ? null : (connectionRows.find((c) => c.id === s.connectionId)?.publicId ?? null),
+        chargeBasis: s.chargeBasis,
       })),
       addressTags: tagRows.map((a) => ({
         id: a.id,

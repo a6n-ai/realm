@@ -90,6 +90,8 @@ export interface CatalogSnapshot {
       sortOrder: number;
       groupPublicId?: string | null;
       connectionPublicId?: string | null;
+      /** Fixed charges: once per order or per delivery. Absent = once. */
+      chargeBasis?: "once" | "per_delivery";
     }[];
     addressTags: {
       id: bigint;
@@ -135,6 +137,7 @@ export interface ClientCatalogSnapshot {
       chargeValue: number;
       groupId: string | null; // tag publicId
       connectionId: string | null; // connected set publicId
+      chargeBasis: "once" | "per_delivery";
     }[];
     addressTags: {
       id: string; // publicId
@@ -183,6 +186,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
               chargeValue: d.chargeValue,
               groupId: d.groupPublicId ?? null,
               connectionId: d.connectionPublicId ?? null,
+              chargeBasis: d.chargeBasis ?? "once",
             })),
           addressTags: snapshot.deliveryCharges.addressTags
             .filter((a) => a.active)

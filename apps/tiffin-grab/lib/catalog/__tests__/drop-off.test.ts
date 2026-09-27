@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropOffCatalog, dropOffSummary, pickInConnection, pickTag, toggleStrategy, validDropOff } from "../drop-off";
+import { dropOffCatalog, dropOffLabel, dropOffSummary, pickInConnection, pickTag, toggleStrategy, validDropOff } from "../drop-off";
 
 const catalog = dropOffCatalog({
   baseCharge: 0,
@@ -9,11 +9,11 @@ const catalog = dropOffCatalog({
   ],
   strategyConnections: [{ publicId: "spot", name: "Drop-off", groupId: "apt" }],
   deliveryStrategies: [
-    { id: "lobby", name: "Lobby", description: null, chargeType: "none", chargeValue: 0, groupId: "apt", connectionId: "spot" },
-    { id: "door", name: "Leave at door", description: null, chargeType: "fixed", chargeValue: 1.5, groupId: "apt", connectionId: "spot" },
-    { id: "call", name: "Call on arrival", description: null, chargeType: "none", chargeValue: 0, groupId: "apt", connectionId: null },
-    { id: "porch", name: "Porch", description: null, chargeType: "none", chargeValue: 0, groupId: "home", connectionId: null },
-    { id: "legacy", name: "Old", description: null, chargeType: "none", chargeValue: 0, groupId: null, connectionId: null },
+    { id: "lobby", name: "Lobby", description: null, chargeType: "none", chargeValue: 0, groupId: "apt", connectionId: "spot", chargeBasis: "once" },
+    { id: "door", name: "Leave at door", description: null, chargeType: "fixed", chargeValue: 1.5, groupId: "apt", connectionId: "spot", chargeBasis: "per_delivery" },
+    { id: "call", name: "Call on arrival", description: null, chargeType: "none", chargeValue: 0, groupId: "apt", connectionId: null, chargeBasis: "once" },
+    { id: "porch", name: "Porch", description: null, chargeType: "none", chargeValue: 0, groupId: "home", connectionId: null, chargeBasis: "once" },
+    { id: "legacy", name: "Old", description: null, chargeType: "none", chargeValue: 0, groupId: null, connectionId: null, chargeBasis: "once" },
   ],
   addressTags: [],
 });
@@ -48,5 +48,10 @@ describe("drop-off model", () => {
     expect(validDropOff(catalog, { tagId: "retired", strategyIds: ["call"] })).toEqual({ tagId: null, strategyIds: [] });
     expect(dropOffSummary(catalog, { tagId: "apt", strategyIds: ["lobby", "call"] })).toBe("Apartment: Lobby, Call on arrival");
     expect(dropOffSummary(catalog, { tagId: "home", strategyIds: [] })).toBe("Home");
+  });
+
+  it("labels a per-delivery price as such", () => {
+    const door = catalog.options.find((o) => o.publicId === "door")!;
+    expect(dropOffLabel(door)).toBe("Leave at door · +$1.50 / delivery");
   });
 });

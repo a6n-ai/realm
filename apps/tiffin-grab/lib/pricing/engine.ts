@@ -48,6 +48,7 @@ export function priceSubscription(
     deliveryCalc = calculateDeliveryCharge({
       baseCharge: catalog.deliveryChargeConfig.baseCharge,
       deliveryStrategies: catalog.deliveryChargeConfig.deliveryStrategies,
+      deliveryCount: catalog.deliveryChargeConfig.deliveryCount,
       addressTag: catalog.deliveryChargeConfig.addressTag,
       planPrice: tiffinSubtotal,
     });
