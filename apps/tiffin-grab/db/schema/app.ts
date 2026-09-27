@@ -37,6 +37,9 @@ export const app = pgTable("app", {
   // with coins, as a whole percent. NULL = unlimited (pre-existing behaviour,
   // where coins were capped only by the order's remaining balance).
   maxCoinPctOfSubtotal: integer("max_coin_pct_of_subtotal"),
+  // Ceiling on the percentage of the customer's total wallet balance they may
+  // redeem on a single order. NULL = unlimited.
+  maxCoinRedeemPctOfBalance: integer("max_coin_redeem_pct_of_balance"),
   // Per-province sales tax overrides, shaped { ON: [{name, ratePct}], ... }.
   // NULL/absent province falls back to DEFAULT_PROVINCE_TAXES in lib/tax/canada.
   provinceTaxes: jsonb("province_taxes").$type<Record<string, { name: string; ratePct: number }[]>>(),

@@ -33,3 +33,15 @@ export async function setProvinceTaxesAction(input: unknown): Promise<void> {
   await setProvinceTaxes(taxes);
   revalidatePath(PATH);
 }
+
+const walletRedeemCapSchema = z.object({
+  maxCoinRedeemPctOfBalance: z.number().int().min(0).max(100).nullable(),
+});
+
+export async function setWalletRedeemCapAction(input: unknown): Promise<void> {
+  const { setMaxCoinRedeemPctOfBalance } = await import("@/lib/services/app-settings.service");
+  await requireAdmin();
+  const { maxCoinRedeemPctOfBalance } = walletRedeemCapSchema.parse(input);
+  await setMaxCoinRedeemPctOfBalance(maxCoinRedeemPctOfBalance);
+  revalidatePath(PATH);
+}

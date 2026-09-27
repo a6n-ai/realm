@@ -11,7 +11,7 @@ import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { couponsService } from "@/lib/services/coupons.service";
-import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
@@ -151,11 +151,11 @@ export async function reprice(
     const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
     const remaining = Math.max(0, Math.round((postCatalog - priorDiscount + Number.EPSILON) * 100) / 100);
     const { currency } = await getAppSettings();
-    const [rate, maxPct] = await Promise.all([walletService.activeRate(currency), getMaxCoinPctOfSubtotal()]);
+    const [rate, maxPct, maxRedeemPctOfBalance] = await Promise.all([walletService.activeRate(currency), getMaxCoinPctOfSubtotal(), getMaxCoinRedeemPctOfBalance()]);
     // Same cap createOrder enforces (admin % of the pre-tax subtotal, bounded by
     // what is left after coupons), so the limit shown is the limit applied.
-    const quote = quoteCoinCap({ subtotal: postCatalog, remaining, balance: coinBalance, rate, maxPct });
-    coinCap = { maxCoins: quote.maxCoins, maxPct, message: coinCapMessage(quote, { balance: coinBalance, maxPct }) };
+    const quote = quoteCoinCap({ subtotal: postCatalog, remaining, balance: coinBalance, rate, maxPct, maxRedeemPctOfBalance });
+    coinCap = { maxCoins: quote.maxCoins, maxPct, message: coinCapMessage(quote, { balance: coinBalance, maxPct, maxRedeemPctOfBalance }) };
 
     if (coins && coins > 0) {
       if (coins > coinBalance) {

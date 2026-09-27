@@ -414,6 +414,13 @@
       "when": 1790517475191,
       "tag": "0058_strategy_connected_sets",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1790519268021,
+      "tag": "0059_add_max_coin_redeem_pct_of_balance",
+      "breakpoints": true
     }
   ]
 }

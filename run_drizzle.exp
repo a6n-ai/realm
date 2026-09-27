@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+set timeout -1
+spawn sh -c "cd apps/tiffin-grab && pnpm drizzle-kit generate --name add_max_coin_redeem_pct_of_balance"
+
+expect {
+  "table created or renamed" {
+    send "\r"
+    exp_continue
+  }
+  eof
+}

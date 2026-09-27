@@ -54,7 +54,7 @@ import {
 } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import { eatingDaysError, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "./app-settings.service";
+import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { publishAnalyticsLive, publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
 const log = createLogger("orders.service");
@@ -497,8 +497,13 @@ export async function createOrder(
         const pctCap = maxPct == null
           ? Infinity
           : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
+
+        const walletBalance = await walletService.balance(userId);
+        const maxRedeemPct = await getMaxCoinRedeemPctOfBalance();
+        const walletPctCap = maxRedeemPct == null ? Infinity : Math.floor(walletBalance * (maxRedeemPct / 100));
+        const requestedCoins = Math.min(input.coins, walletPctCap);
         coinRedemption = await lockAndQuoteCoinRedemption(tx, {
-          userId, coins: input.coins, rate, cap: Math.min(remaining, pctCap),
+          userId, coins: requestedCoins, rate, cap: Math.min(remaining, pctCap),
         });
         if (coinRedemption.currencyValue > 0) {
           adjustments.push({ label: `Coins (${coinRedemption.coinsSpent})`, amount: coinRedemption.currencyValue });

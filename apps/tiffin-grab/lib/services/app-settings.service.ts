@@ -289,6 +289,11 @@ export async function setMaxWalletBalance(cap: number | null): Promise<void> {
  * existed: coins were bounded only by the order's remaining balance.
  * Read on the checkout path, so cached like the rest.
  */
+export async function getMaxCoinRedeemPctOfBalance(): Promise<number | null> {
+  const [row] = await db.select({ val: app.maxCoinRedeemPctOfBalance }).from(app).limit(1);
+  return row?.val ?? null;
+}
+
 export async function getMaxCoinPctOfSubtotal(): Promise<number | null> {
   return settingsCache.getOrSet("maxCoinPctOfSubtotal", async () => {
     const [row] = await db.select({ v: app.maxCoinPctOfSubtotal }).from(app).limit(1);
@@ -345,4 +350,8 @@ export async function setProvinceTaxes(
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { provinceTaxes: taxes });
   else await appSettingsEntity.create({ ...DEFAULTS, provinceTaxes: taxes });
+}
+
+export async function setMaxCoinRedeemPctOfBalance(pct: number | null): Promise<void> {
+  await db.update(app).set({ maxCoinRedeemPctOfBalance: pct });
 }
