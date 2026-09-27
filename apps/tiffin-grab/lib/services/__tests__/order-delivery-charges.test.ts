@@ -32,14 +32,13 @@ describe("Order Delivery Charges (Integration)", () => {
   it("persists deliveryCharge, deliveryStrategyIds, addressTagId and immutable pricingSnapshot", async () => {
     // 1. Configure delivery rules
     await deliveryService.updateBaseDeliveryCharge(2); // Base = $2.00
-    const spot = await deliveryService.saveDeliveryStrategyGroup({ name: "Drop-off spot", tag: "Contactless" });
+    const spot = await deliveryService.saveDeliveryStrategyGroup({ name: "Drop-off spot" });
     const contact = await deliveryService.saveDeliveryStrategyGroup({ name: "Contact" });
     const dt = await deliveryService.saveDeliveryStrategy({
       name: "Doorstep",
       chargeType: "fixed",
       chargeValue: 1.5,
       groupId: spot.id,
-      tag: "Popular",
     });
     const call = await deliveryService.saveDeliveryStrategy({
       name: "Call on arrival",
@@ -48,7 +47,8 @@ describe("Order Delivery Charges (Integration)", () => {
       groupId: contact.id,
     });
     expect(dt.groupId).toBe(spot.id);
-    expect(dt.tag).toBe("Popular");
+    // Every strategy needs a tag.
+    await expect(deliveryService.saveDeliveryStrategy({ name: "Loose", chargeType: "none", chargeValue: 0 })).rejects.toThrow("Pick a tag");
     const at = await deliveryService.saveAddressTag({
       name: "Apartment",
       chargeType: "percent",

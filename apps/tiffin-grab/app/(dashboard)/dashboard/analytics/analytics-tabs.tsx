@@ -2,6 +2,7 @@
 
 import {
   BarChart3Icon,
+  CalendarClockIcon,
   CoinsIcon,
   LayoutDashboardIcon,
   LifeBuoyIcon,
@@ -20,6 +21,7 @@ const SUBTABS = [
   { label: "Profitability", href: "/dashboard/analytics/profitability", icon: TrendingUpIcon },
   { label: "Products & Menu", href: "/dashboard/analytics/products", icon: UtensilsCrossedIcon },
   { label: "Customers", href: "/dashboard/analytics/customers", icon: UsersIcon },
+  { label: "Renewals", href: "/dashboard/analytics/renewals", icon: CalendarClockIcon },
   { label: "Operations", href: "/dashboard/analytics/operations", icon: MapPinnedIcon },
   { label: "Complaints", href: "/dashboard/analytics/complaints", icon: LifeBuoyIcon },
   { label: "Employees", href: "/dashboard/analytics/employees", icon: BarChart3Icon },

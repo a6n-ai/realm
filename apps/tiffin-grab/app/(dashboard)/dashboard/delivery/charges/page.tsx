@@ -22,7 +22,7 @@ export default async function DeliveryChargesPage() {
       <PageHeader
         icon={TruckIcon}
         title="Delivery charges"
-        subtitle="Base delivery fee, and the drop-off questions customers answer with their charges and tags."
+        subtitle="Base delivery fee, the tags customers see under their address, and the delivery strategies in each tag."
       />
       <DeliveryChargesManager
         initialBaseCharge={baseCharge}

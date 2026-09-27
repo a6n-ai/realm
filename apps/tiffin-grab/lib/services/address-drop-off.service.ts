@@ -27,8 +27,8 @@ export async function strategyIdsFor(publicIds: string[] | null | undefined, tx:
     .from(deliveryStrategies)
     .innerJoin(deliveryStrategyGroups, eq(deliveryStrategyGroups.id, deliveryStrategies.groupId))
     .where(and(inArray(deliveryStrategies.publicId, publicIds), eq(deliveryStrategies.active, true), eq(deliveryStrategyGroups.active, true)));
-  if (rows.length !== new Set(publicIds).size) throw new ValidationError("That drop-off option isn't available");
-  if (new Set(rows.map((r) => r.groupId)).size !== rows.length) throw new ValidationError("Pick one option per drop-off question");
+  if (rows.length !== new Set(publicIds).size) throw new ValidationError("That delivery strategy isn't available");
+  if (new Set(rows.map((r) => r.groupId)).size !== rows.length) throw new ValidationError("Pick one strategy per tag");
   return [...new Set(publicIds)].flatMap((p) => rows.find((r) => r.publicId === p)?.id ?? []);
 }
 

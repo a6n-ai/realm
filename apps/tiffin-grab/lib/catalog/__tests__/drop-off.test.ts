@@ -4,15 +4,15 @@ import { dropOffCatalog, dropOffSummary, pickDropOff, validDropOffs } from "../d
 const catalog = dropOffCatalog({
   baseCharge: 0,
   strategyGroups: [
-    { publicId: "spot", name: "Drop-off spot", description: null, tag: "Contactless", required: true },
-    { publicId: "contact", name: "Contact", description: null, tag: null, required: false },
-    { publicId: "empty", name: "Unused", description: null, tag: null, required: false },
+    { publicId: "spot", name: "Drop-off spot", description: null, required: true },
+    { publicId: "contact", name: "Contact", description: null, required: false },
+    { publicId: "empty", name: "Unused", description: null, required: false },
   ],
   deliveryStrategies: [
-    { id: "door", name: "Doorstep", description: null, chargeType: "none", chargeValue: 0, groupId: "spot", tag: null },
-    { id: "lobby", name: "Lobby", description: null, chargeType: "fixed", chargeValue: 1.5, groupId: "spot", tag: "Secure" },
-    { id: "call", name: "Call", description: null, chargeType: "none", chargeValue: 0, groupId: "contact", tag: null },
-    { id: "legacy", name: "Old", description: null, chargeType: "none", chargeValue: 0, groupId: null, tag: null },
+    { id: "door", name: "Doorstep", description: null, chargeType: "none", chargeValue: 0, groupId: "spot" },
+    { id: "lobby", name: "Lobby", description: null, chargeType: "fixed", chargeValue: 1.5, groupId: "spot" },
+    { id: "call", name: "Call", description: null, chargeType: "none", chargeValue: 0, groupId: "contact" },
+    { id: "legacy", name: "Old", description: null, chargeType: "none", chargeValue: 0, groupId: null },
   ],
   addressTags: [],
 });
