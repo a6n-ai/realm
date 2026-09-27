@@ -5,10 +5,13 @@ import { AuthError, ValidationError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { usersService } from "@/lib/services/users.service";
 
-export async function updateMyContact(input: { phone?: string; email?: string }) {
+// Phone only. Your own email changes through the OTP change-email flow
+// (Security), which proves both the old and the new address — accepting email
+// here let any signed-in session swap the login identity with no code at all.
+export async function updateMyContact(input: { phone: string }) {
   const session = await getSession();
   if (!session?.user?.id) throw new AuthError();
-  await usersService.updateContact(session.user.id, input);
+  await usersService.updateContact(session.user.id, { phone: input.phone });
   revalidatePath("/dashboard/account");
 }
 

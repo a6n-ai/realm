@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -25,7 +26,7 @@ export function AccountForm({ phone, email, defaultCountry }: { phone: string; e
 
   async function onSubmit(values: AccountFormValues) {
     try {
-      await updateMyContact({ phone: values.phone, email: values.email });
+      await updateMyContact({ phone: values.phone });
       toast.success("Contact details saved.");
       form.reset(values);
       router.refresh();
@@ -56,7 +57,12 @@ export function AccountForm({ phone, email, defaultCountry }: { phone: string; e
           render={({ field }) => (
             <FormItem>
               <FormLabel>Email</FormLabel>
-              <FormControl><Input type="email" {...field} /></FormControl>
+              {/* Read-only: changing it needs a code to both addresses (Security). */}
+              <FormControl><Input type="email" {...field} readOnly disabled /></FormControl>
+              <p className="text-muted-foreground text-xs">
+                Change your email under{" "}
+                <Link href="/dashboard/account/security" className="underline underline-offset-2">Security</Link>.
+              </p>
               <FormMessage />
             </FormItem>
           )}
