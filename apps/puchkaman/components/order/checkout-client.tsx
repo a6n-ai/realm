@@ -704,9 +704,6 @@ export function CheckoutClient({
                     placeholder="Gate code, leave at door, call on arrival…"
                     maxLength={500}
                   />
-                  <p className="checkout-hint" style={{ marginTop: 4 }}>
-                    * Please add buzzer code if you have any and parking details for better delivery.
-                  </p>
                 </div>
               </div>
               </>
