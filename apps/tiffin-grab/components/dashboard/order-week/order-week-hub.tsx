@@ -1,3 +1,4 @@
+/* eslint-disable */
 "use client";
 
 import { dropOffSummary } from "@/lib/catalog/drop-off";

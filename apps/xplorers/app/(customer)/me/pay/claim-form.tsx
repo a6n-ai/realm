@@ -20,7 +20,7 @@ export function ClaimForm({ publicId }: { publicId: string }) {
         {pending ? "Sending…" : "I've paid"}
       </Button>
       {state.error ? <p className="text-destructive text-sm">{state.error}</p> : null}
-      {state.ok ? <p className="text-sm">Thanks — we'll confirm this shortly.</p> : null}
+      {state.ok ? <p className="text-sm">Thanks — we&apos;ll confirm this shortly.</p> : null}
     </form>
   );
 }

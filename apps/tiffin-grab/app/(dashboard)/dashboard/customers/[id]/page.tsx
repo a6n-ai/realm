@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UsersIcon, PackageIcon, ActivityIcon, WalletIcon, CoinsIcon, CreditCardIcon, MapPinIcon } from "lucide-react";

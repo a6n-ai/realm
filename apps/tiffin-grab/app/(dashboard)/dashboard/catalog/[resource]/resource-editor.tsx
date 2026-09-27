@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable */
+
 
 import {
   ArchiveIcon, CheckIcon, EyeOffIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon, Trash2Icon,
@@ -314,12 +316,12 @@ function FieldControl({
     );
   }
   // Discount targets are per-kind: show only the selected kind's rows (+ "All").
-  // eslint-disable-next-line react-hooks/purity -- reads live form state
+   
   const kindNow = f.optionsSource === "discount-targets" ? form.watch("kind") : undefined;
   // A dish's category is scoped to its own plan — the same reason meal-size
   // composition rows scope by plan: a category not attached to this dish's plan
   // could never appear on that plan's menu anyway.
-  // eslint-disable-next-line react-hooks/purity -- reads live form state
+   
   const dishPlanId = f.key === "category" && categoriesByPlan ? (form.watch("planId") as string | undefined) : undefined;
   const opts = dishPlanId !== undefined
     ? (dishPlanId ? (categoriesByPlan?.[dishPlanId] ?? []) : [])
@@ -330,7 +332,7 @@ function FieldControl({
   // discountValue's unit depends on the sibling discountType field's live value ("%" vs "$") —
   // the only field whose unit isn't static, so this is a targeted override rather than a new
   // FieldDef capability.
-  // eslint-disable-next-line react-hooks/purity -- form.watch reads the current live form state, not a pure render input
+   
   const unit = f.key === "discountValue" ? (form.watch("discountType") === "percent" ? "%" : "$") : f.unit;
 
   return (

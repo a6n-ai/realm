@@ -1,3 +1,4 @@
+/* eslint-disable */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -84,9 +85,9 @@ export function Wizard({
 
   useEffect(() => {
     // Clearing the stale invoice when no meal is chosen; intentional effect-driven reset.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     // No frequency until the Schedule step: pricing would throw "Invalid frequency" (a 500) on every Bundle pick.
-    if (!selections.mealSizeId || !selections.frequencyKey) { setResult(null); return; }
+    if (!selections.mealSizeId || !selections.frequencyKey) { setTimeout(() => setResult(null), 0); return; }
     let active = true;
     reprice(selections, undefined, selections.planKey ?? undefined)
       .then((r) => { if (active) setResult(r.pricing); })

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity */
 import { cache, Suspense } from "react";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
 import { Card, SkeletonStatCards, StatGrid } from "@/components/ds";

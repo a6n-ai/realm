@@ -24,7 +24,7 @@ export default async function CustomerHomePage() {
         subtitle="Your family's bookings live here."
         actions={
           <Button asChild size="sm">
-            <Link href="/whats-on">See what's on</Link>
+            <Link href="/whats-on">See what&apos;s on</Link>
           </Button>
         }
       />
