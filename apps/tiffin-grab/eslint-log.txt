@@ -1,0 +1,187 @@
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(customer)/me/deliveries/hub.tsx
+  30:3  warning  'myPrimarySubscription' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(customer)/me/meals/actions.ts
+  4:10  warning  'AppError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/_leads/inquiry-match.tsx
+  29:9  warning  The 'matches' conditional could make the dependencies of useEffect Hook (at line 47) change on every render. To fix this, wrap the initialization of 'matches' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/catalog/[resource]/page.tsx
+   7:56  warning  'deliveryZones' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  10:10  warning  'dishesService' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/customers/page.tsx
+  114:11  warning  'condition' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  114:22  warning  'page' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/inquiries/[id]/order/order-form.tsx
+  106:19  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/inquiries/[id]/order/order-form.tsx:106:19
+  104 |   const minStart = nextWeekday(new Date()).toISOString().slice(0, 10);
+  105 |
+> 106 |   const planKey = form.watch("planKey");
+      |                   ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  107 |   const mealSizeId = form.watch("mealSizeId");
+  108 |   const frequencyKey = form.watch("frequencyKey");
+  109 |   const eatingDays = form.watch("eatingDays") as DayOfWeek[];  react-hooks/incompatible-library
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/inquiries/new-inquiry-form.tsx
+  383:37  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/inquiries/new-inquiry-form.tsx:383:37
+  381 |                         mealSizeInterest: String(form.watch("mealSizeInterest") ?? ""),
+  382 |                         personsInterest: (() => {
+> 383 |                           const v = form.watch("personsInterest");
+      |                                     ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  384 |                           return typeof v === "number" ? v : "";
+  385 |                         })(),
+  386 |                         frequencyKeyInterest: String(form.watch("frequencyKeyInterest") ?? ""),  react-hooks/incompatible-library
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/labels/__tests__/labels-print-button.test.tsx
+  3:46  warning  'waitFor' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/orders/[id]/page.tsx
+  106:9  warning  'categoryCounts' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/settings/integrations/actions.ts
+  43:5  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/deliveries/deliveries-view.tsx
+    9:10  warning  'actionAvailability' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   10:27  warning  'deliveryLine' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  108:48  warning  Expected an assignment or function call and instead saw an expression                 @typescript-eslint/no-unused-expressions
+  135:9   warning  'linkCls' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/deliveries/week-strip.tsx
+  41:82  warning  'colorOf' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/kit/sheet.tsx
+  67:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/support/ticket-thread.tsx
+  4:23  warning  'useTyping' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/wallet/__tests__/claim-payment.test.tsx
+  4:21  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/dashboard/app-sidebar.tsx
+  272:95  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/dashboard/more-drawer.tsx
+  75:62  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/notifications/template-list.tsx
+  11:8  warning  'Column' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/wizard/steps/step-duration.tsx
+  22:3  warning  'result' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/wizard/wizard.tsx
+  83:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/db/__tests__/schema-mealsize-category.test.ts
+  1:10  warning  'and' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/deliveries-view/__tests__/deliveries-view.test.ts
+  13:7  warning  'CLOSED' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/deliveries-view/move.ts
+  1:40  warning  'weekdayKey' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+  7:7   warning  'weekdayName' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/menu/__tests__/container-slots-universal.test.ts
+    4:72  warning  'PickCategoryGroup' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  267:11  warning  'tuTotal' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/menu/__tests__/meals-grid.test.ts
+  19:23  warning  'pauseRange' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/menu/selections.service.ts
+  8:10  warning  'deliveries' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/recovery/__tests__/passes.test.ts
+  8:59  warning  'deliveries' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/customer-deliveries.service.test.ts
+  290:35  warning  'planType' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/deliveries-merge.test.ts
+  8:83  warning  'orders' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/deliveries-skip.test.ts
+  8:21  warning  'deliveryFrequencies' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/inquiries-activity.service.test.ts
+  5:40  warning  'users' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/inquiries-prefs.service.test.ts
+  5:55  warning  'users' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/inquiries.service.test.ts
+  6:10  warning  'ValidationError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/menu-save-week.test.ts
+  7:10  warning  'categoryIdFor' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/menu.service.test.ts
+  2:10  warning  'asc' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/my-delivery-activity.test.ts
+  16:10  warning  'actAs' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/order-delivery-charges.test.ts
+  70:13  warning  'deploymentId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/orders.service.test.ts
+  169:13  warning  'deploymentId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/reschedule-paused.test.ts
+  54:16  warning  'firstDeliveryOf' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/reschedule-split.test.ts
+  12:81  warning  'orders' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/reschedule-weekend.test.ts
+  124:11  warning  'mon' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/swap-provisional.test.ts
+   2:33  warning  'validateProposedSwap' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   4:10  warning  'portionsByCategory' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  12:9   warning  'tuMap' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/tickets.service.test.ts
+  5:26  warning  'ValidationError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/wallet-activation.test.ts
+  11:23  warning  'ne' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/app-settings.service.ts
+  9:10  warning  'DEFAULT_PAYMENT_CONFIG' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/catalog.service.ts
+  7:56  warning  'deliveryZones' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/deliveries.service.ts
+   3:42  warning  'isNotNull' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  10:10  warning  'MAX_TIFFINS_PER_TRIP' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  10:94  warning  'mergeCoverage' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/menu.service.ts
+  4:30  warning  'gte' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/optimoroute/completions.ts
+  5:34  warning  'DayDeliveryRow' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/proxy.ts
+  66:9  warning  'onDashboard' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+✖ 61 problems (0 errors, 61 warnings)
+  0 errors and 2 warnings potentially fixable with the `--fix` option.
+

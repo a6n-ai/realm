@@ -53,9 +53,10 @@ export function buildEatingDays(trips: Trip[]): EatingRow[] {
  * date isn't an eating day. Address belongs to the delivery, which never moves.
  */
 export function isAddressRow(rows: EatingRow[], row: EatingRow): boolean {
+  // By trip + date, not object identity: callers pass rows from separate buildEatingDays runs.
   const own = rows.filter((r) => r.trip === row.trip);
   const anchor = own.find((r) => r.date === row.trip.date) ?? own[0];
-  return anchor === row;
+  return anchor?.date === row.date;
 }
 
 const ARRIVING: TripStatus[] = ["upcoming", "delivered", "cutoff-passed", "locked"];

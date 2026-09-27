@@ -43,6 +43,10 @@ describe("one eating day moved off a Fri+Sat+Sun trip", () => {
     const fri = rows.filter((r) => r.trip.date === "2026-09-25");
     expect(fri.filter((r) => isAddressRow(rows, r)).map((r) => r.date)).toEqual(["2026-09-25"]);
   });
+  it("matches rows from separate builds, as the view passes them (week rows vs all rows)", () => {
+    const week = eatingRowsInWeek([wed, fri, tue], "2026-09-21", "2026-09-27");
+    expect(week.filter((r) => isAddressRow(rows, r)).map((r) => r.date)).toEqual(["2026-09-23", "2026-09-25"]);
+  });
   it("a truck whose own day isn't an eating day offers it on its first eating day", () => {
     const sat = trip({ date: "2026-09-25", coversDates: ["2026-09-26", "2026-09-27"], eatingDays: [day("2026-09-26"), day("2026-09-27")] });
     const r = buildEatingDays([sat]);
