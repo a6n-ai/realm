@@ -135,7 +135,6 @@ export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow
       mealSizeName: mealSizes.name,
       customerEmail: users.email,
       customerPhone: users.phone,
-      legacyNotes: users.deliveryNotes,
     })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
@@ -153,12 +152,7 @@ export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow
 
   const addresses = rows.map((r) => effectiveAddress(r.delivery, r.order));
   const dropOffs = await dropOffTexts(addresses.map((a) => ({ tagId: a.deliveryTagId, strategyIds: a.deliveryStrategyIds })));
-  return rows.map(({ legacyNotes, ...r }, i) => ({
-    ...r,
-    dropOff: dropOffs[i]!,
-    // ponytail: users.delivery_notes fallback until it is backfilled onto default addresses, then drop it.
-    driverNote: driverNote(dropOffs[i]!, addresses[i]!.deliveryInstructions?.trim() || legacyNotes),
-  }));
+  return rows.map((r, i) => ({ ...r, dropOff: dropOffs[i]!, driverNote: driverNote(dropOffs[i]!, addresses[i]!.deliveryInstructions) }));
 }
 
 export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet> {

@@ -23,9 +23,9 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const [picked, setPicked] = useState<string | null>(() =>
     currentSavedAddressId(trip.addressOverride ?? null, plan.sub, addresses),
   );
-  // This delivery's own drop-off, else the plan's.
+  // Re-addressed: this delivery's own drop-off (possibly none); else the plan's address's.
   const [dropOff, setDropOff] = useState<DropOffValue>(() =>
-    validDropOff(plan.dropOff, trip.dropOff?.tagId ? trip.dropOff : plan.sub.dropOff),
+    validDropOff(plan.dropOff, trip.addressOverride ? trip.dropOff : plan.sub.dropOff),
   );
 
   const [draft, setDraft] = useState<AddressValues>({});

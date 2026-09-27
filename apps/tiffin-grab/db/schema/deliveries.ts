@@ -51,7 +51,7 @@ export const deliveries = pgTable("deliveries", {
   // Picked strategy options, at most one per strategy group. No FK on arrays; options are
   // soft-deleted, so ids stay resolvable. Supersedes delivery_strategy_id.
   deliveryStrategyIds: bigint("delivery_strategy_ids", { mode: "bigint" }).array().notNull().default(sql`'{}'::bigint[]`),
-  // This delivery's own tag when re-addressed; null = the plan's.
+  // This delivery's own tag when re-addressed; null = no drop-off at that address.
   deliveryTagId: bigint("delivery_tag_id", { mode: "bigint" }).references(() => deliveryStrategyGroups.id),
   addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
