@@ -26,7 +26,12 @@ const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
-  trustedOrigins: process.env.NODE_ENV !== "production" && process.env.E2E_BASE_URL ? [process.env.E2E_BASE_URL] : [],
+  trustedOrigins: [
+    ...(process.env.NODE_ENV !== "production" && process.env.E2E_BASE_URL ? [process.env.E2E_BASE_URL] : []),
+    // Public pages live on the apex (tiffingrab.ca) while auth stays on app.; the
+    // marketing header's useSession call comes from the apex origin.
+    ...(process.env.AUTH_COOKIE_DOMAIN ? [`https://${process.env.AUTH_COOKIE_DOMAIN}`] : []),
+  ],
   secret: process.env.BETTER_AUTH_SECRET,
   // Magic links are invites only, issued server-side by lib/auth/invite-links
   // (auth.api calls skip the HTTP router, so they are unaffected). Public
@@ -52,6 +57,11 @@ export const auth = betterAuth({
     // IP silently disables all of them. Also keys session.ipAddress, which the
     // new-device sign-in alert compares against.
     ipAddress: { ipAddressHeaders: ["x-real-ip"] },
+    // Unset locally: cookies stay host-only. In prod ("tiffingrab.ca") the session
+    // cookie covers the apex public pages and app. alike.
+    ...(process.env.AUTH_COOKIE_DOMAIN
+      ? { crossSubDomainCookies: { enabled: true, domain: process.env.AUTH_COOKIE_DOMAIN } }
+      : {}),
   },
   // ponytail: default in-memory rate-limit store. Correct for one instance;
   // counters reset on deploy. Move to `storage: "database"` (needs a rateLimit
