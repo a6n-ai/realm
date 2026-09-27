@@ -4,7 +4,7 @@ import { and, eq, inArray, or } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { db } from "@/db/client";
-import { addonCategories, addons, deliveryFrequencies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans, pricingTiers } from "@/db/schema";
+import { addonCategories, addons, deliveryFrequencies, deliveryStrategies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans, pricingTiers } from "@/db/schema";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { RESOURCES, slug } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import {
@@ -187,6 +187,7 @@ const DISCOUNT_TARGETS = {
   delivery: { table: deliveryFrequencies, label: "delivery frequency" },
   duration: { table: durationPackages, label: "duration package" },
   meal_size: { table: mealSizes, label: "meal size" },
+  waiver_strategy: { table: deliveryStrategies, label: "delivery strategy" },
 } as const;
 
 // Discounts store dates as epoch ms and the target as a bigint soft ref, while the form
@@ -229,6 +230,13 @@ class DiscountService extends SoftDeleteService<typeof discounts> {
     // Flat $ only means something as a meal size's list price; the additive engine reads percent alone.
     if (parsed.amount != null && kind !== undefined && kind !== "meal_size") throw new ValidationError("A flat $ amount is only for meal-size discounts");
     if (parsed.amount != null && Number(parsed.percent ?? 0) > 0) throw new ValidationError("Use a percent or a flat $ amount, not both");
+    if (kind?.startsWith("waiver_")) {
+      // Waivers are always-on or date-windowed; only a strategy waiver names a target.
+      if (parsed.minWeeks != null) throw new ValidationError("Waivers don't use a minimum plan length");
+      if (kind === "waiver_strategy" && parsed.targetId === null) throw new ValidationError("Pick the strategy whose fee is waived");
+      if (kind !== "waiver_strategy" && parsed.targetId) throw new ValidationError("This waiver doesn't take a target");
+      if (parsed.percent !== undefined && Number(parsed.percent) <= 0) throw new ValidationError("Waive more than 0%");
+    }
     const { timezone } = await getAppSettings();
     if (parsed.startsAt !== undefined) out.startsAt = parsed.startsAt ? cutoffMsFor(parsed.startsAt as string, 0, timezone) : null;
     // Inclusive end date: last minute of that local day.

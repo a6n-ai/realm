@@ -31,8 +31,9 @@ describe("buildPricingCatalog discounts", () => {
   const d = (key: string, kind: "delivery" | "duration", over = {}) => ({ key, name: key, kind, targetPublicId: null, percent: 10, minWeeks: null, ...over });
   const build = (discounts: CatalogSnapshot["discounts"], over: Partial<PricingSelections> = {}) => buildPricingCatalog({ ...snapshot, discounts, maxDiscountPct: 25 }, sel(over));
   it("resolves delivery + duration by target and labels them", () => {
-    const c = build([d("a", "delivery", { targetPublicId: "frq_1" }), d("b", "duration", { targetPublicId: "dur_1", percent: 5 }), d("c", "delivery", { targetPublicId: "frq_other" })]);
-    expect(c.discounts).toEqual([{ key: "a", label: "Delivery schedule discount (10%)", percent: 10 }, { key: "b", label: "Plan length discount (5%)", percent: 5 }]);
+    const c = build([d("a", "delivery", { targetPublicId: "frq_1", name: "Launch offer" }), d("b", "duration", { targetPublicId: "dur_1", percent: 5, name: " " }), d("c", "delivery", { targetPublicId: "frq_other" })]);
+    // The admin name is the customer label; a blank name falls back to the generic one.
+    expect(c.discounts).toEqual([{ key: "a", label: "Launch offer (10%)", percent: 10 }, { key: "b", label: "Plan length discount (5%)", percent: 5 }]);
     expect(c.maxDiscountPct).toBe(25);
   });
   it("re-price snapshot with the order's own retired rows keeps its targeted discounts", () => {

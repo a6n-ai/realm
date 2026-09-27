@@ -62,14 +62,17 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
         renderRow={(r) => (
           <>
             <TableCell><Badge variant="secondary" className="font-normal">{r.typeLabel}</Badge></TableCell>
-            <TableCell className="font-medium">{r.appliesTo}</TableCell>
+            <TableCell className="font-medium">
+              {r.appliesTo}
+              {r.discount ? <span className="text-muted-foreground block text-xs font-normal">{r.discount.name}</span> : null}
+            </TableCell>
             <TableCell className="text-right tabular-nums">{r.value}</TableCell>
             <TableCell>
               <Badge variant={r.status === "active" ? "default" : "outline"} className="font-normal">{STATUS_LABEL[r.status]}</Badge>
             </TableCell>
             <TableCell className="text-right">
               {r.discount ? (
-                <Button size="sm" variant="ghost" onClick={() => setDialog({ discount: r.discount!, kind: r.discount!.kind })}>
+                <Button size="sm" variant="ghost" onClick={() => setDialog({ discount: r.discount!, kind: r.discount!.kind as DiscountKind })}>
                   <PencilIcon className="size-3.5" /> Manage
                 </Button>
               ) : (

@@ -52,7 +52,8 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   const byKey = new Map((snapshot.discounts ?? []).map((d) => [d.key, d]));
   const discounts = applicable.map((d) => ({
     key: d.key,
-    label: `${byKey.get(d.key)!.kind === "delivery" ? "Delivery schedule discount" : "Plan length discount"} (${d.percent}%)`,
+    // The admin-given name is what the customer reads ("Launch offer (10%)").
+    label: `${byKey.get(d.key)!.name.trim() || (byKey.get(d.key)!.kind === "delivery" ? "Delivery schedule discount" : "Plan length discount")} (${d.percent}%)`,
     percent: d.percent,
   }));
 
@@ -107,6 +108,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     addons,
     discounts,
     maxDiscountPct: snapshot.maxDiscountPct ?? 25,
+    waivers: (snapshot.waivers ?? []).map((w) => ({ key: w.key, name: w.name, kind: w.kind, strategyId: w.targetPublicId, percent: w.percent })),
     deliveryChargeConfig,
   };
 }

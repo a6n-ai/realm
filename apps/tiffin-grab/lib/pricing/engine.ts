@@ -3,6 +3,7 @@ import { resolveCatalogDiscounts } from "@foundry/discounts";
 import { assertValidTiers, findTier } from "./tiers";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
 import { calculateDeliveryCharge, type DeliveryChargeCalculationResult } from "@foundry/delivery";
+import { deliveryWaiverLines, taxWaiverLine } from "./waivers";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -64,10 +65,15 @@ export function priceSubscription(
     (catalog.discounts ?? []).map((d) => ({ key: d.key, name: d.label, kind: "", percent: d.percent })),
     { subtotal: tiffinSubtotal, maxDiscountPct: catalog.maxDiscountPct ?? 25 },
   ).lines.map((l) => ({ label: labels.get(l.key)!, amount: l.amount, discountKey: l.key }));
-  const allAdjustments = [...adjustments, ...cadenceDiscount];
+  const allAdjustments = [...adjustments, ...cadenceDiscount, ...deliveryWaiverLines(deliveryCalc, catalog.waivers ?? [])];
 
   // Coupon hook: resolved discount lines (positive magnitudes) are subtracted; base floored at 0.
-  const taxableBase = Math.max(0, round2(subtotal - allAdjustments.reduce((s, a) => s + a.amount, 0)));
+  let taxableBase = Math.max(0, round2(subtotal - allAdjustments.reduce((s, a) => s + a.amount, 0)));
+  const taxWaiver = taxWaiverLine(taxableBase, taxes, catalog.waivers ?? []);
+  if (taxWaiver) {
+    allAdjustments.push(taxWaiver);
+    taxableBase = round2(taxableBase - taxWaiver.amount);
+  }
 
   // Per-method taxes apply to the discounted base; taxTotal is summed from per-line rounding so
   // it always matches the printed receipt. No taxes ⇒ taxTotal 0 ⇒ total == taxableBase. This

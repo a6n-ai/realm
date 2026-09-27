@@ -1,9 +1,11 @@
+import type { WaiverKind } from "@/lib/catalog/types";
+
 export type DiscountKind = "delivery" | "duration" | "meal_size";
 
 export interface DiscountDto {
   publicId: string;
   name: string;
-  kind: DiscountKind;
+  kind: DiscountKind | WaiverKind;
   targetPublicId: string | null;
   percent: number;
   /** Flat $ off; meal_size only. */
@@ -76,11 +78,13 @@ export function buildRows(input: {
   const rows: AllRow[] = [];
 
   for (const d of input.discounts) {
+    if (d.kind.startsWith("waiver_")) continue; // listed on the Waivers tab
+    const kind = d.kind as DiscountKind;
     rows.push({
       id: d.publicId,
-      type: d.kind,
-      typeLabel: TYPE_LABELS[d.kind],
-      appliesTo: d.targetPublicId == null ? ALL_TARGETS_LABEL[d.kind] : (names[d.kind].get(d.targetPublicId) ?? "Unknown target"),
+      type: kind,
+      typeLabel: TYPE_LABELS[kind],
+      appliesTo: d.targetPublicId == null ? ALL_TARGETS_LABEL[kind] : (names[kind].get(d.targetPublicId) ?? "Unknown target"),
       value: discountValueLabel(d),
       status: discountStatus(d, input.now),
       href: null,
