@@ -1,10 +1,10 @@
 import { arrayContains, eq, or } from "drizzle-orm";
 import { createDeliveryService } from "@foundry/delivery/service";
 import { db } from "@/db/client";
-import { addressTags, deliveryChargeConfigs, deliveryChargeType, deliveryStrategies, deliveryStrategyGroups, deliveryTypes, deliveryZoneTypes, deliveryZones, orders, users, deliveries, customerAddresses } from "@/db/schema";
+import { addressTags, deliveryChargeConfigs, deliveryChargeType, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, deliveryTypes, deliveryZoneTypes, deliveryZones, orders, users, deliveries, customerAddresses } from "@/db/schema";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
 
-export type { DeliveryChargeRuleDto, DeliveryChargeRuleInput, DeliveryStrategyGroupInput } from "@foundry/delivery";
+export type { DeliveryChargeRuleDto, DeliveryChargeRuleInput, DeliveryStrategyConnectionInput, DeliveryStrategyGroupInput } from "@foundry/delivery";
 
 const referenced = async (checks: Promise<unknown[]>[]) => (await Promise.all(checks)).some((rows) => rows.length > 0);
 
@@ -18,6 +18,7 @@ export const deliveryService = createDeliveryService({
     deliveryChargeType,
     deliveryChargeConfigs,
     deliveryStrategyGroups,
+    deliveryStrategyConnections,
     deliveryStrategies,
     addressTags,
   },
@@ -29,6 +30,13 @@ export const deliveryService = createDeliveryService({
       db.select({ id: users.id }).from(users).where(eq(users.deliveryStrategyId, id)).limit(1),
       db.select({ id: deliveries.id }).from(deliveries).where(or(eq(deliveries.deliveryStrategyId, id), arrayContains(deliveries.deliveryStrategyIds, [id]))).limit(1),
       db.select({ id: customerAddresses.id }).from(customerAddresses).where(or(eq(customerAddresses.deliveryStrategyId, id), arrayContains(customerAddresses.deliveryStrategyIds, [id]))).limit(1),
+    ]),
+  // A place type still named by an address, plan or delivery is retired, not deleted.
+  isTagInUse: (id) =>
+    referenced([
+      db.select({ id: orders.id }).from(orders).where(eq(orders.deliveryTagId, id)).limit(1),
+      db.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.deliveryTagId, id)).limit(1),
+      db.select({ id: customerAddresses.id }).from(customerAddresses).where(eq(customerAddresses.deliveryTagId, id)).limit(1),
     ]),
   isAddressTagInUse: (id) =>
     referenced([

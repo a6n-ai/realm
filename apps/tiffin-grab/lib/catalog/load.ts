@@ -8,6 +8,7 @@ import {
   deliveryFrequencies,
   deliveryStrategies,
   deliveryStrategyGroups,
+  deliveryStrategyConnections,
   deliveryZones,
   discounts,
   dishCategories,
@@ -64,6 +65,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     strategyRows,
     tagRows,
     groupRows,
+    connectionRows,
   ] = await Promise.all([
     db.select().from(plans).where(and(eq(plans.active, true), scopedTo(plans.organizationId, orgId))),
     db.select().from(mealSizes).where(and(eq(mealSizes.active, true), scopedTo(mealSizes.organizationId, orgId))),
@@ -82,6 +84,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     db.select().from(deliveryStrategies).where(and(eq(deliveryStrategies.active, true), scopedTo(deliveryStrategies.organizationId, orgId))).orderBy(deliveryStrategies.sortOrder, deliveryStrategies.name),
     db.select().from(addressTags).where(and(eq(addressTags.active, true), scopedTo(addressTags.organizationId, orgId))).orderBy(addressTags.sortOrder, addressTags.name),
     db.select().from(deliveryStrategyGroups).where(and(eq(deliveryStrategyGroups.active, true), scopedTo(deliveryStrategyGroups.organizationId, orgId))).orderBy(deliveryStrategyGroups.sortOrder, deliveryStrategyGroups.name),
+    db.select().from(deliveryStrategyConnections).where(scopedTo(deliveryStrategyConnections.organizationId, orgId)).orderBy(deliveryStrategyConnections.sortOrder, deliveryStrategyConnections.name),
   ]);
   // A strategy is offered only under an active tag; untagged (pre-tag) rows are not.
   const groupPublicIdById = new Map(groupRows.map((g) => [g.id, g.publicId]));
@@ -136,7 +139,11 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     maxDiscountPct: settings.maxDiscountPct,
     deliveryCharges: {
       baseCharge: configRows[0] ? Number(configRows[0].baseCharge) : 0,
-      strategyGroups: groupRows.map((g) => ({ publicId: g.publicId, name: g.name, description: g.description, required: g.required })),
+      strategyGroups: groupRows.map((g) => ({ publicId: g.publicId, name: g.name, description: g.description })),
+      // Sets of an active tag only; a strategy in any other set combines freely.
+      strategyConnections: connectionRows.flatMap((c) =>
+        groupPublicIdById.has(c.groupId) ? [{ publicId: c.publicId, name: c.name, groupId: groupPublicIdById.get(c.groupId)! }] : [],
+      ),
       deliveryStrategies: strategyRows.filter((s) => s.groupId != null && groupPublicIdById.has(s.groupId)).map((s) => ({
         id: s.id,
         publicId: s.publicId,
@@ -147,6 +154,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
         active: s.active,
         sortOrder: s.sortOrder,
         groupPublicId: groupPublicIdById.get(s.groupId!)!,
+        connectionPublicId: s.connectionId == null ? null : (connectionRows.find((c) => c.id === s.connectionId)?.publicId ?? null),
       })),
       addressTags: tagRows.map((a) => ({
         id: a.id,

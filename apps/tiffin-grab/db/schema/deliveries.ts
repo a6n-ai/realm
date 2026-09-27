@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { updatableColumns } from "@foundry/database";
 import { bigint, date, index, integer, pgEnum, pgTable, text, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
-import { addressTags, deliveryStrategies, deliveryZones } from "./delivery";
+import { addressTags, deliveryStrategies, deliveryStrategyGroups, deliveryZones } from "./delivery";
 import { customerAddresses } from "./addresses";
 import { orders } from "./orders";
 import { organization } from "./organizations";
@@ -51,6 +51,8 @@ export const deliveries = pgTable("deliveries", {
   // Picked strategy options, at most one per strategy group. No FK on arrays; options are
   // soft-deleted, so ids stay resolvable. Supersedes delivery_strategy_id.
   deliveryStrategyIds: bigint("delivery_strategy_ids", { mode: "bigint" }).array().notNull().default(sql`'{}'::bigint[]`),
+  // This delivery's own tag when re-addressed; null = the plan's.
+  deliveryTagId: bigint("delivery_tag_id", { mode: "bigint" }).references(() => deliveryStrategyGroups.id),
   addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
   // Route assignment, WRITTEN ONLY BY THE OPTIMOROUTE PULL — never by hand and never by

@@ -20,7 +20,9 @@ export interface PricingSelections {
   // Add-ons picked in the wizard, with quantity. Optional — omitted/empty means
   // no add-ons, so existing callers built before add-ons existed keep working.
   addonSelections?: { key: string; qty: number }[];
-  /** Picked strategy option public ids, at most one per strategy group. */
+  /** The place type (tag) picked for the address, optional. */
+  deliveryTagId?: string | null;
+  /** Picked strategies of that tag, at most one per connected set. */
   deliveryStrategyIds?: string[];
   addressTagId?: string | null;
 }

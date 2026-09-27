@@ -8,6 +8,7 @@ export const {
   deliveryChargeType,
   deliveryChargeConfigs,
   deliveryStrategyGroups,
+  deliveryStrategyConnections,
   deliveryStrategies,
   addressTags,
 } = makeDeliveryTables({ organization });

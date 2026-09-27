@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
-import { addressTags, deliveries, deliveryChargeConfigs, deliveryStrategies, deliveryStrategyGroups, ledgerEntries, orders, payments, users, customerAddresses } from "@/db/schema";
+import { addressTags, deliveries, deliveryChargeConfigs, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, ledgerEntries, orders, payments, users, customerAddresses } from "@/db/schema";
 import { loadCatalogSnapshot, invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { deliveryService } from "../delivery.service";
 import { reprice } from "@/app/(public)/subscribe/actions";
@@ -16,8 +16,9 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orders);
   // Checkout saves the chosen drop-off onto a new address; unhook it before strategies go.
-  await db.update(customerAddresses).set({ deliveryStrategyId: null, deliveryStrategyIds: [] });
+  await db.update(customerAddresses).set({ deliveryStrategyId: null, deliveryStrategyIds: [], deliveryTagId: null });
   await db.delete(deliveryStrategies);
+  await db.delete(deliveryStrategyConnections);
   await db.delete(deliveryStrategyGroups);
   await db.delete(addressTags);
   await db.delete(deliveryChargeConfigs);
@@ -29,24 +30,29 @@ describe("Order Delivery Charges (Integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("persists deliveryCharge, deliveryStrategyIds, addressTagId and immutable pricingSnapshot", async () => {
+  it("persists deliveryCharge, deliveryTagId, deliveryStrategyIds, addressTagId and immutable pricingSnapshot", async () => {
     // 1. Configure delivery rules
     await deliveryService.updateBaseDeliveryCharge(2); // Base = $2.00
-    const spot = await deliveryService.saveDeliveryStrategyGroup({ name: "Drop-off spot" });
-    const contact = await deliveryService.saveDeliveryStrategyGroup({ name: "Contact" });
+    const spot = await deliveryService.saveDeliveryStrategyGroup({ name: "Apartment" });
+    const home = await deliveryService.saveDeliveryStrategyGroup({ name: "Home" });
+    const set = await deliveryService.saveDeliveryStrategyConnection({ name: "Drop-off", groupId: spot.id });
     const dt = await deliveryService.saveDeliveryStrategy({
       name: "Doorstep",
       chargeType: "fixed",
       chargeValue: 1.5,
       groupId: spot.id,
+      connectionId: set.id,
     });
     const call = await deliveryService.saveDeliveryStrategy({
       name: "Call on arrival",
       chargeType: "fixed",
       chargeValue: 0.5,
-      groupId: contact.id,
+      groupId: spot.id,
     });
     expect(dt.groupId).toBe(spot.id);
+    expect(dt.connectionId).toBe(set.id);
+    // A set only connects strategies of its own tag.
+    await expect(deliveryService.saveDeliveryStrategy({ name: "Porch", chargeType: "none", chargeValue: 0, groupId: home.id, connectionId: set.id })).rejects.toThrow("own tag");
     // Every strategy needs a tag.
     await expect(deliveryService.saveDeliveryStrategy({ name: "Loose", chargeType: "none", chargeValue: 0 })).rejects.toThrow("Pick a tag");
     const at = await deliveryService.saveAddressTag({
@@ -72,6 +78,7 @@ describe("Order Delivery Charges (Integration)", () => {
         includeSunday: false,
         durationWeeks: 1,
         startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+        deliveryTagId: spot.id,
         deliveryStrategyIds: [dt.id, call.id],
         addressTagId: at.id,
       },
@@ -89,8 +96,8 @@ describe("Order Delivery Charges (Integration)", () => {
     expect(order).toBeDefined();
 
     // The new address typed at checkout keeps the drop-off chosen with it.
-    const [addr] = await db.select({ strategyIds: customerAddresses.deliveryStrategyIds }).from(customerAddresses).where(eq(customerAddresses.id, order.addressId!));
-    expect(addr?.strategyIds).toEqual([dt.internalId, call.internalId]);
+    const [addr] = await db.select({ tagId: customerAddresses.deliveryTagId, strategyIds: customerAddresses.deliveryStrategyIds }).from(customerAddresses).where(eq(customerAddresses.id, order.addressId!));
+    expect(addr).toEqual({ tagId: spot.internalId, strategyIds: [dt.internalId, call.internalId] });
 
     const snapshot = order.pricingSnapshot as {
       subtotal: number;
@@ -107,12 +114,13 @@ describe("Order Delivery Charges (Integration)", () => {
     expect(snapshot.deliveryCharge).toBeDefined();
     expect(snapshot.deliveryCharge?.baseAmount).toBe(2);
     expect(snapshot.deliveryCharge?.deliveryStrategies.map((s) => [s.group, s.name, s.amount])).toEqual([
-      ["Drop-off spot", "Doorstep", 1.5],
-      ["Contact", "Call on arrival", 0.5],
+      ["Apartment", "Doorstep", 1.5],
+      ["Apartment", "Call on arrival", 0.5],
     ]);
     expect(snapshot.deliveryCharge?.addressTag?.name).toBe("Apartment");
     expect(Number(order.deliveryCharge)).toBe(snapshot.deliveryCharge?.totalDeliveryCharge);
     expect(order.deliveryStrategyIds).toEqual([dt.internalId, call.internalId]);
+    expect(order.deliveryTagId).toBe(spot.internalId);
     expect(order.addressTagId).toBe(at.internalId);
     const expectedDeliveryCharge = snapshot.deliveryCharge!.totalDeliveryCharge;
 
@@ -178,19 +186,24 @@ describe("Order Delivery Charges (Integration)", () => {
     expect(r2.pricing.subtotal).toBe(r1.pricing.subtotal + 3);
   });
 
-  it("a strategy with options in use is retired, and its options stay resolvable", async () => {
-    const spot = await deliveryService.saveDeliveryStrategyGroup({ name: "Drop-off spot", required: true });
+  it("a tag still in use is retired, and its strategies leave the catalog", async () => {
+    const spot = await deliveryService.saveDeliveryStrategyGroup({ name: "Apartment" });
     const lobby = await deliveryService.saveDeliveryStrategy({ name: "Lobby", chargeType: "none", chargeValue: 0, groupId: spot.id });
-    // Same name in another group is fine; in the same group it is not.
-    const other = await deliveryService.saveDeliveryStrategyGroup({ name: "Backup spot" });
+    // Same name under another tag is fine; under the same tag it is not.
+    const other = await deliveryService.saveDeliveryStrategyGroup({ name: "Office" });
     await deliveryService.saveDeliveryStrategy({ name: "Lobby", chargeType: "none", chargeValue: 0, groupId: other.id });
     await expect(deliveryService.saveDeliveryStrategy({ name: "Lobby", chargeType: "none", chargeValue: 0, groupId: spot.id })).rejects.toThrow("already exists");
 
     expect(await deliveryService.deleteDeliveryStrategyGroup(spot.id)).toEqual({ success: true, deactivatedInstead: true });
     await invalidateCatalogSnapshot();
     const snap = await loadCatalogSnapshot();
-    // A retired group offers nothing, so its options leave the catalog too.
-    expect(snap.deliveryCharges?.strategyGroups?.map((g) => g.name)).toEqual(["Backup spot"]);
+    expect(snap.deliveryCharges?.strategyGroups?.map((g) => g.name)).toEqual(["Office"]);
     expect(snap.deliveryCharges?.deliveryStrategies.some((o) => o.publicId === lobby.id)).toBe(false);
+
+    // Deleting a connected set frees its strategies.
+    const set = await deliveryService.saveDeliveryStrategyConnection({ name: "Drop-off", groupId: other.id });
+    const door = await deliveryService.saveDeliveryStrategy({ name: "Door", chargeType: "none", chargeValue: 0, groupId: other.id, connectionId: set.id });
+    await deliveryService.deleteDeliveryStrategyConnection(set.id);
+    expect((await deliveryService.listDeliveryStrategies()).find((o) => o.id === door.id)?.connectionId).toBeNull();
   });
 });

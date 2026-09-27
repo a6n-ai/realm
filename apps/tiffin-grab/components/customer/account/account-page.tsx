@@ -6,7 +6,7 @@ import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { SignOutRow } from "./sign-out-row";
 import type { SavedAddress } from "@foundry/address";
 import { AddressBook } from "./address-book";
-import type { DropOffCatalog } from "@/lib/catalog/drop-off";
+import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
 import { ContactForm, DeliveryNotesForm, DietaryForm, NotificationsForm, ProfileForm, SecurityPanel } from "./forms";
 import { accountSectionHref, sectionsForRole, type AccountSection, type AccountSectionKey } from "./sections.config";
 
@@ -31,7 +31,7 @@ export type AccountUser = {
   hasPin: boolean;
 };
 
-function SectionBody({ k, user, role, addresses, dropOff, dropOffs }: { k: AccountSectionKey; user: AccountUser; role: RoleValue; addresses: SavedAddress[]; dropOff?: DropOffCatalog; dropOffs: Record<string, string[]> }) {
+function SectionBody({ k, user, role, addresses, dropOff, dropOffs }: { k: AccountSectionKey; user: AccountUser; role: RoleValue; addresses: SavedAddress[]; dropOff?: DropOffCatalog; dropOffs: Record<string, DropOffValue> }) {
   switch (k) {
     case "profile":
       return <ProfileForm image={user.image} name={user.name ?? ""} username={user.username ?? ""} />;
@@ -66,7 +66,7 @@ export function AccountPage({
   /** Admin delivery strategies offered as each address's drop-off. */
   dropOff?: DropOffCatalog;
   /** Address public id → its drop-off's strategy public id. */
-  dropOffs?: Record<string, string[]>;
+  dropOffs?: Record<string, DropOffValue>;
 }) {
   const sections = sectionsForRole(role);
   const shown = active ?? sections[0];

@@ -22,7 +22,8 @@ import { isPaymentReviewStatus } from "@/lib/orders/display-status";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
-import { activeStrategyPublicIds } from "./address-drop-off.service";
+import { toDropOffValues } from "./address-drop-off.service";
+import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { reservedEndDatesExclusive } from "./order-window";
 import { getAppSettings } from "./app-settings.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
@@ -76,7 +77,7 @@ export async function assertOrderUnlocked(orderPublicId: string): Promise<void> 
 }
 
 type Delivery = typeof deliveries.$inferSelect;
-export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean; deliveryStrategyPublicIds?: string[] };
+export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean; dropOff?: DropOffValue };
 export type Subscription = {
   publicId: string;
   planName: string;
@@ -99,8 +100,8 @@ export type Subscription = {
   tagLabel?: string | null;
   tagColor?: string | null;
   frequencyKey?: string;
-  /** The plan's drop-off options still offered (one per strategy). */
-  deliveryStrategyPublicIds?: string[];
+  /** The plan's place type and strategies, as still offered. */
+  dropOff?: DropOffValue;
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
@@ -149,13 +150,14 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       tagColor: plans.tagColor,
       frequencyKey: deliveryFrequencies.key,
       deliveryStrategyIds: orders.deliveryStrategyIds,
+      deliveryTagId: orders.deliveryTagId,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
-  const strategyPublicIds = await activeStrategyPublicIds([...new Set(rows.flatMap((r) => r.deliveryStrategyIds))]);
+  const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.deliveryTagId, strategyIds: r.deliveryStrategyIds })));
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
   return rows
@@ -181,7 +183,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
         tagLabel: r.tagLabel,
         tagColor: r.tagColor,
         frequencyKey: r.frequencyKey,
-        deliveryStrategyPublicIds: r.deliveryStrategyIds.flatMap((id) => strategyPublicIds.get(id) ?? []),
+        dropOff: dropOffs[rows.indexOf(r)],
       };
     });
 }
@@ -332,14 +334,14 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
       ),
     )
     .orderBy(asc(deliveries.deliveryDate));
-  const strategyPublicIds = await activeStrategyPublicIds([...new Set(rows.flatMap((r) => r.d.deliveryStrategyIds))]);
-  return rows.map((r) => ({
+  const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.d.deliveryTagId, strategyIds: r.d.deliveryStrategyIds })));
+  return rows.map((r, i) => ({
     ...r.d,
     orderPublicId: r.orderPublicId,
     planName: r.planName,
     isMakeup: r.d.makeupForDeliveryId !== null,
-    // The delivery's own drop-off; empty = the plan's.
-    deliveryStrategyPublicIds: r.d.deliveryStrategyIds.flatMap((id) => strategyPublicIds.get(id) ?? []),
+    // The delivery's own drop-off; no tag = the plan's.
+    dropOff: dropOffs[i],
   }));
 }
 

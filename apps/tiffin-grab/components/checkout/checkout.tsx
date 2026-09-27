@@ -24,7 +24,7 @@ import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button, Input, Label, OptionCard, Pill } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
-import { dropOffCatalog, validDropOffs } from "@/lib/catalog/drop-off";
+import { dropOffCatalog, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/address-picker";
 import { Check, Coins, MapPin, ShieldCheck, Tag } from "lucide-react";
@@ -93,8 +93,8 @@ export function Checkout({
   catalog?: ClientCatalogSnapshot;
   /** Customer's saved addresses (default first); empty before they save one. */
   savedAddresses?: SavedAddress[];
-  /** Saved address public id → its drop-off (strategy option public ids). */
-  addressDropOffs?: Record<string, string[]>;
+  /** Saved address public id → its drop-off. */
+  addressDropOffs?: Record<string, DropOffValue>;
 }) {
   const router = useRouter();
   const dropOff = dropOffCatalog(catalog?.deliveryCharges);
@@ -167,7 +167,8 @@ export function Checkout({
     const parsed = JSON.parse(raw) as WizardSelections;
     // The default address's own drop-off, unless this order already chose one.
     const own = defaultAddress ? addressDropOffs[defaultAddress.publicId] : undefined;
-    const s = own && !parsed.deliveryStrategyIds?.length ? { ...parsed, deliveryStrategyIds: validDropOffs(dropOff, own) } : parsed;
+    const ownPick = own && !parsed.deliveryTagId ? validDropOff(dropOff, own) : null;
+    const s = ownPick ? { ...parsed, deliveryTagId: ownPick.tagId, deliveryStrategyIds: ownPick.strategyIds } : parsed;
     // Seeding from sessionStorage, which is only readable on the client (post-mount).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelections(s);
@@ -191,7 +192,7 @@ export function Checkout({
     setAddressPublicId(a?.publicId ?? null);
     // A saved address brings its own drop-off (and its charge).
     const own = a ? addressDropOffs[a.publicId] : undefined;
-    if (own) handleDropOffChange(validDropOffs(dropOff, own));
+    if (own) handleDropOffChange(validDropOff(dropOff, own));
     set(a ? addressFields(a) : { addressLine: "", addressUnit: "", city: "", postalCode: "", deliveryInstructions: "" });
     setZone(null);
     if (a) validatePostal(a.postalCode).then((res) =>
@@ -271,23 +272,19 @@ export function Checkout({
     void refreshPrice(next, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined);
   };
 
-  function handleDropOffChange(picks: string[]) {
+  function handleDropOffChange(value: DropOffValue) {
     if (!selections) return;
     const current = selections.deliveryStrategyIds ?? [];
-    if (picks.length === current.length && picks.every((p) => current.includes(p))) return;
-    const next = { ...selections, deliveryStrategyIds: picks };
+    const same = value.tagId === (selections.deliveryTagId ?? null)
+      && value.strategyIds.length === current.length && value.strategyIds.every((p) => current.includes(p));
+    if (same) return;
+    const next = { ...selections, deliveryTagId: value.tagId, deliveryStrategyIds: value.strategyIds };
     setSelections(next);
     void refreshPrice(next, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined);
   }
 
   const confirm = async () => {
     if (!selections) return;
-    // The server refuses too; this just says so before the round trip.
-    const unanswered = dropOff.groups.find((g) => g.required && !validDropOffs(dropOff, selections.deliveryStrategyIds).some((id) => dropOff.options.find((o) => o.publicId === id)?.groupId === g.publicId));
-    if (unanswered) {
-      toast.error(`Choose an option for ${unanswered.name}`);
-      return;
-    }
     if (paymentMethods.length > 0 && !paymentMethodId) {
       toast.error("Choose a payment method");
       return;
@@ -461,7 +458,7 @@ export function Checkout({
                       </div>
                     )}
 
-                    <DropOffPicker catalog={dropOff} value={selections?.deliveryStrategyIds ?? []} onChange={handleDropOffChange} />
+                    <DropOffPicker catalog={dropOff} value={{ tagId: selections?.deliveryTagId ?? null, strategyIds: selections?.deliveryStrategyIds ?? [] }} onChange={handleDropOffChange} />
                   </div>
                 )}
                 <div className="grid gap-2 empty:hidden">

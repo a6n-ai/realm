@@ -1,5 +1,5 @@
 import type { SavedAddress } from "@foundry/address";
-import type { DropOffCatalog } from "@/lib/catalog/drop-off";
+import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
 import { swapLabel, type SwapCategory } from "@/lib/menu/swap-rules";
 import type { CalendarDayInput, PlanContext, Trip } from "@/lib/deliveries-view";
 import type { CalendarDay, CustomerDelivery, Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
@@ -26,13 +26,13 @@ export type PlanView = {
   swapCategories: Record<string, SwapCategory>;
   /** The customer's saved addresses, for the per-delivery "Change address" sheet. */
   savedAddresses: SavedAddress[];
-  /** Address public id → its saved drop-off (strategy option public ids). */
-  addressDropOffs?: Record<string, string[]>;
+  /** Address public id → its saved drop-off. */
+  addressDropOffs?: Record<string, DropOffValue>;
   /** The drop-off questions and their options, for per-delivery changes. */
   dropOff: DropOffCatalog;
 };
 
-type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "deliveryStrategyPublicIds" | "optimoCompletionStatus"> &
+type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "dropOff" | "optimoCompletionStatus"> &
   Partial<Pick<CustomerDelivery, "addressLine" | "postalCode">>;
 
 export function toCalendarInputs(a: {
@@ -52,7 +52,7 @@ export function toCalendarInputs(a: {
       ...d,
       deliveryId: r?.publicId,
       addressOverride: r?.addressLine && r.postalCode ? { addressLine: r.addressLine, postalCode: r.postalCode } : null,
-      deliveryStrategyPublicIds: r?.deliveryStrategyPublicIds,
+      dropOff: r?.dropOff,
       optimoCompletionStatus: r?.optimoCompletionStatus,
       cutoffAt: r?.cutoffAt,
       rescheduled: r ? a.makeupSources.has(r.id.toString()) : false,

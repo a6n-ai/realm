@@ -13,7 +13,8 @@ import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { findZone } from "@/lib/catalog/zone-match";
 import type { AddressInput, AddressScope } from "@foundry/address";
 import { addressService } from "@/lib/services/addresses.service";
-import { setAddressDropOff, strategyIdsFor } from "./address-drop-off.service";
+import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
+import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
@@ -894,7 +895,7 @@ export async function resolveZoneId(tx: Tx, postalCode: string): Promise<bigint>
 
 export async function setDeliveryAddress(
   deliveryPublicId: string,
-  pick: { addressPublicId?: string; newAddress?: AddressInput; deliveryStrategyPublicIds?: string[] },
+  pick: { addressPublicId?: string; newAddress?: AddressInput; dropOff?: DropOffValue },
   scope: AddressScope,
   actorId: bigint | null,
 ): Promise<void> {
@@ -913,7 +914,7 @@ export async function setDeliveryAddress(
     } else if (pick.newAddress) {
       address = await addressService.create(scope, pick.newAddress, { tx });
       // A new address remembers the drop-off chosen with it, for its next delivery or checkout.
-      if (pick.deliveryStrategyPublicIds?.length) await setAddressDropOff(scope, { id: address.id }, pick.deliveryStrategyPublicIds, tx);
+      if (pick.dropOff?.tagId) await setAddressDropOff(scope, { id: address.id }, pick.dropOff, tx);
     }
 
     let zoneId = null;
@@ -921,8 +922,8 @@ export async function setDeliveryAddress(
       zoneId = await resolveZoneId(tx, address.postalCode);
     }
 
-    // Omitted = keep this delivery's drop-off; empty = inherit the plan's.
-    const deliveryStrategyIds = pick.deliveryStrategyPublicIds ? await strategyIdsFor(pick.deliveryStrategyPublicIds, tx) : undefined;
+    // Omitted = keep this delivery's drop-off; no tag = inherit the plan's.
+    const dropOff = pick.dropOff ? await resolveDropOff(pick.dropOff, tx) : undefined;
 
     // A saved address may carry no recipient name; fall back to the plan's.
     const [plan] = await tx.select({ fullName: orders.fullName }).from(orders).where(eq(orders.id, orderId)).limit(1);
@@ -938,7 +939,7 @@ export async function setDeliveryAddress(
         deliveryInstructions: address.deliveryInstructions,
         zoneId,
       } : {}),
-      ...(deliveryStrategyIds ? { deliveryStrategyIds } : {}),
+      ...(dropOff ? { deliveryTagId: dropOff.tagId, deliveryStrategyIds: dropOff.strategyIds } : {}),
     })
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
@@ -961,7 +962,7 @@ export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bi
     const updated = await tx.update(deliveries)
       .set({
         addressId: null, fullName: null, addressLine: null, addressUnit: null, city: null, postalCode: null,
-        deliveryInstructions: null, deliveryStrategyIds: [], addressTagId: null, zoneId: null,
+        deliveryInstructions: null, deliveryTagId: null, deliveryStrategyIds: [], addressTagId: null, zoneId: null,
       })
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
@@ -976,17 +977,20 @@ export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bi
 export function effectiveAddress(
   d: Delivery,
   order: Pick<Order, "fullName" | "addressLine" | "city" | "postalCode" | "zoneId"> &
-    Partial<Pick<Order, "addressUnit" | "deliveryInstructions" | "deliveryStrategyIds">>,
+    Partial<Pick<Order, "addressUnit" | "deliveryInstructions" | "deliveryTagId" | "deliveryStrategyIds">>,
 ) {
   return d.addressLine === null
     ? {
         fullName: order.fullName, addressLine: order.addressLine, addressUnit: order.addressUnit ?? null, city: order.city,
         postalCode: order.postalCode, deliveryInstructions: order.deliveryInstructions ?? null, zoneId: order.zoneId,
+        deliveryTagId: order.deliveryTagId ?? null,
         deliveryStrategyIds: order.deliveryStrategyIds ?? [],
       }
     : {
         fullName: d.fullName!, addressLine: d.addressLine, addressUnit: d.addressUnit, city: d.city!,
         postalCode: d.postalCode!, deliveryInstructions: d.deliveryInstructions, zoneId: d.zoneId,
-        deliveryStrategyIds: d.deliveryStrategyIds.length ? d.deliveryStrategyIds : (order.deliveryStrategyIds ?? []),
+        ...(d.deliveryTagId != null
+          ? { deliveryTagId: d.deliveryTagId, deliveryStrategyIds: d.deliveryStrategyIds }
+          : { deliveryTagId: order.deliveryTagId ?? null, deliveryStrategyIds: order.deliveryStrategyIds ?? [] }),
       };
 }

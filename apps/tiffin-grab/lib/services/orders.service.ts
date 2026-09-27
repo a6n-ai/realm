@@ -28,10 +28,11 @@ import {
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/lib/catalog/load";
+import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { findZone } from "@/lib/catalog/zone-match";
 import { addressService } from "./addresses.service";
-import { setAddressDropOff } from "./address-drop-off.service";
+import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
@@ -361,8 +362,8 @@ export async function createOrder(
           coords: input.contact.lat != null && input.contact.lng != null ? { lat: input.contact.lat, lng: input.contact.lng } : null,
         });
     // A new address remembers the drop-off chosen at checkout, for its next delivery or order.
-    if (!input.addressPublicId && input.selections.deliveryStrategyIds?.length) {
-      await setAddressDropOff(addressScope, { id: savedAddress.id }, input.selections.deliveryStrategyIds, tx);
+    if (!input.addressPublicId && (input.selections.deliveryTagId || input.selections.deliveryStrategyIds?.length)) {
+      await setAddressDropOff(addressScope, { id: savedAddress.id }, { tagId: input.selections.deliveryTagId ?? null, strategyIds: input.selections.deliveryStrategyIds ?? [] }, tx);
     }
     if (input.addressPublicId) {
       const movedPostal = savedAddress.postalCode !== input.contact.postalCode;
@@ -538,6 +539,11 @@ export async function createOrder(
     const selectedStrategyIds = (input.selections.deliveryStrategyIds ?? []).flatMap(
       (id) => snapshot.deliveryCharges?.deliveryStrategies.find((s) => s.publicId === id)?.id ?? [],
     );
+    // The place type: picked, else the strategies' own (buildPricingCatalog checked they agree).
+    const tagPublicId = input.selections.deliveryTagId
+      ?? snapshot.deliveryCharges?.deliveryStrategies.find((s) => s.publicId === input.selections.deliveryStrategyIds?.[0])?.groupPublicId
+      ?? null;
+    const selectedTagId = tagPublicId ? (await resolveDropOff({ tagId: tagPublicId, strategyIds: [] }, tx)).tagId : null;
     const selectedAddressTag = input.selections.addressTagId
       ? snapshot.deliveryCharges?.addressTags.find((a) => a.publicId === input.selections.addressTagId)
       : null;
@@ -564,6 +570,7 @@ export async function createOrder(
         total: pricing.total.toFixed(2),
         deliveryCharge: (pricing.deliveryCharge?.totalDeliveryCharge ?? 0).toFixed(2),
         deliveryStrategyIds: selectedStrategyIds,
+        deliveryTagId: selectedTagId,
         addressTagId: selectedAddressTag?.id ?? null,
         status,
         deploymentId,
@@ -1656,10 +1663,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       includeSunday: order.includeSunday,
       durationWeeks: order.durationWeeks,
       startDate: order.startDate,
-      // Keep the order's drop-off surcharges; an option retired since checkout is dropped.
-      deliveryStrategyIds: order.deliveryStrategyIds.flatMap(
-        (id) => pricingSnapshot.deliveryCharges?.deliveryStrategies.find((s) => s.id === id)?.publicId ?? [],
-      ),
+      // Keep the order's drop-off surcharges. One retired, or re-tagged / re-connected since
+      // checkout so it no longer fits with the rest, is dropped rather than failing the change.
+      deliveryStrategyIds: stillValidPicks(pricingSnapshot, order.deliveryStrategyIds),
     };
     const pricingCatalog = buildPricingCatalog(pricingSnapshot, selections);
     const pricing = priceSubscription(selections, pricingCatalog, [], taxes);
@@ -1733,4 +1739,20 @@ export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
   await db.update(subscriptionPauses)
     .set({ resumedAt: new Date() })
     .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
+}
+
+/** The order's strategy picks that still price together: active, one tag, one per connected set. */
+function stillValidPicks(snapshot: CatalogSnapshot, ids: bigint[]): string[] {
+  const rows = ids.flatMap((id) => snapshot.deliveryCharges?.deliveryStrategies.find((s) => s.id === id) ?? []);
+  const tag = rows[0]?.groupPublicId;
+  const sets = new Set<string>();
+  return rows
+    .filter((s) => {
+      if (s.groupPublicId !== tag) return false;
+      if (!s.connectionPublicId) return true;
+      if (sets.has(s.connectionPublicId)) return false;
+      sets.add(s.connectionPublicId);
+      return true;
+    })
+    .map((s) => s.publicId);
 }

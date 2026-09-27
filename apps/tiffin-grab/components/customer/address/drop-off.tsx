@@ -1,14 +1,13 @@
 "use client";
-import { useState } from "react";
-import { PillToggle } from "@/components/customer/kit";
+import { OptionCard, PillToggle } from "@/components/customer/kit";
 import { ChoiceRow } from "@/components/customer/deliveries/actions/choice-row";
-import { dropOffLabel, pickDropOff, type DropOffCatalog } from "@/lib/catalog/drop-off";
+import { dropOffLabel, pickInConnection, pickTag, toggleStrategy, type DropOffCatalog, type DropOffValue } from "@/lib/catalog/drop-off";
 
 const NONE = "";
 
 /**
- * Delivery strategies, tags first: a chip per tag (with its pick, once made), and the
- * open tag's strategies under it. The customer picks one strategy per tag.
+ * Under the address: the kind of place (tag) first, then that tag's strategies. Strategies in a
+ * connected set are a pick-one row; the rest toggle freely. Everything is optional.
  */
 export function DropOffPicker({
   catalog,
@@ -17,51 +16,72 @@ export function DropOffPicker({
   disabled = false,
 }: {
   catalog: DropOffCatalog;
-  /** Picked strategy public ids, at most one per tag. */
-  value: string[];
-  onChange: (value: string[]) => void;
+  value: DropOffValue;
+  onChange: (value: DropOffValue) => void;
   disabled?: boolean;
 }) {
-  const pickIn = (groupId: string) => catalog.options.find((o) => o.groupId === groupId && value.includes(o.publicId));
-  // Open the first required tag still unanswered, else the first tag.
-  const [openId, setOpenId] = useState(
-    () => (catalog.groups.find((g) => g.required && !pickIn(g.publicId)) ?? catalog.groups[0])?.publicId,
-  );
-  const open = catalog.groups.find((g) => g.publicId === openId) ?? catalog.groups[0];
-  if (!open) return null;
-  const options = catalog.options.filter((o) => o.groupId === open.publicId);
+  const tags = catalog.groups.filter((g) => catalog.options.some((o) => o.groupId === g.publicId));
+  if (tags.length === 0) return null;
+  const tag = tags.find((g) => g.publicId === value.tagId);
+  const options = tag ? catalog.options.filter((o) => o.groupId === tag.publicId) : [];
+  const sets = tag ? catalog.connections.filter((c) => c.groupId === tag.publicId && options.some((o) => o.connectionId === c.publicId)) : [];
+  const loose = options.filter((o) => !o.connectionId || !sets.some((c) => c.publicId === o.connectionId));
 
   return (
-    <div className="grid gap-3">
-      <div role="tablist" aria-label="Delivery" className="flex flex-wrap gap-2">
-        {catalog.groups.map((g) => {
-          const picked = pickIn(g.publicId);
-          return (
+    <div className="grid gap-4">
+      <div className="grid gap-2">
+        <p className="text-[15px] font-semibold">Place</p>
+        <div role="radiogroup" aria-label="Place" className="flex flex-wrap gap-2">
+          {tags.map((g) => (
             <PillToggle
               key={g.publicId}
-              role="tab"
-              aria-selected={g.publicId === open.publicId}
-              on={g.publicId === open.publicId}
-              onClick={() => setOpenId(g.publicId)}
+              role="radio"
+              aria-checked={g.publicId === value.tagId}
+              on={g.publicId === value.tagId}
+              disabled={disabled}
+              // Tapping the picked place again clears it: every choice here is optional.
+              onClick={() => onChange(pickTag(value, g.publicId === value.tagId ? null : g.publicId))}
               className="h-10 flex-none px-4 text-[14px] sm:text-[14px]"
             >
               {g.name}
-              {picked && <span className="font-normal opacity-80">&nbsp;· {picked.name}</span>}
-              {g.required && !picked && <span aria-label="required">&nbsp;*</span>}
             </PillToggle>
-          );
-        })}
+          ))}
+        </div>
+        {tag?.description && <p className="text-[13px] text-[var(--muted-foreground)]">{tag.description}</p>}
       </div>
-      <ChoiceRow
-        label={open.name}
-        hint={open.description ?? undefined}
-        choices={[
-          ...(open.required ? [] : [{ value: NONE, label: "No preference", disabled }]),
-          ...options.map((o) => ({ value: o.publicId, label: dropOffLabel(o), disabled })),
-        ]}
-        value={pickIn(open.publicId)?.publicId ?? NONE}
-        onChange={(v) => onChange(pickDropOff(catalog, value, open.publicId, v === NONE ? null : v))}
-      />
+
+      {sets.map((c) => (
+        <ChoiceRow
+          key={c.publicId}
+          label={c.name}
+          hint="Pick one"
+          choices={[
+            { value: NONE, label: "No preference", disabled },
+            ...options.filter((o) => o.connectionId === c.publicId).map((o) => ({ value: o.publicId, label: dropOffLabel(o), disabled })),
+          ]}
+          value={options.find((o) => o.connectionId === c.publicId && value.strategyIds.includes(o.publicId))?.publicId ?? NONE}
+          onChange={(v) => onChange(pickInConnection(catalog, value, c.publicId, v === NONE ? null : v))}
+        />
+      ))}
+
+      {loose.length > 0 && (
+        <div className="grid gap-2">
+          {sets.length > 0 && <p className="text-[15px] font-semibold">Also</p>}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {loose.map((o) => (
+              <OptionCard
+                key={o.publicId}
+                selected={value.strategyIds.includes(o.publicId)}
+                disabled={disabled}
+                onClick={() => onChange(toggleStrategy(catalog, value, o.publicId))}
+                className="min-h-12 px-3.5 py-3 text-[15px] font-semibold"
+              >
+                {dropOffLabel(o)}
+              </OptionCard>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

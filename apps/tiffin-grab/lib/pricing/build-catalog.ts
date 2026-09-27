@@ -59,18 +59,30 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   let deliveryChargeConfig: PricingCatalog["deliveryChargeConfig"] = undefined;
   if (snapshot.deliveryCharges) {
     const dc = snapshot.deliveryCharges;
-    const answered = new Set<string>();
     const picks: unknown = selections.deliveryStrategyIds ?? [];
+    const tagPick: unknown = selections.deliveryTagId ?? null;
     // Server-action input: the shape is not guaranteed by the type.
-    if (!Array.isArray(picks) || picks.some((p) => typeof p !== "string")) throw new ValidationError("Invalid delivery options");
+    if (!Array.isArray(picks) || picks.some((p) => typeof p !== "string") || (tagPick !== null && typeof tagPick !== "string")) {
+      throw new ValidationError("Invalid delivery options");
+    }
+    if (tagPick && !dc.strategyGroups?.some((g) => g.publicId === tagPick)) throw new ValidationError("That place type isn't available");
+    const sets = new Set<string>();
     const strategies = (picks as string[]).map((id) => {
       const s = dc.deliveryStrategies.find((o) => o.publicId === id && o.active);
       if (!s) throw new ValidationError("That delivery strategy isn't available");
+      // Every pick sits under the one place type the customer chose.
+      if (s.groupPublicId !== (tagPick ?? (dc.deliveryStrategies.find((o) => o.publicId === picks[0])?.groupPublicId ?? null))) {
+        throw new ValidationError("Delivery strategies must all be for the chosen place");
+      }
+      // One pick per connected set: they are alternatives, each with its own price.
+      if (s.connectionPublicId) {
+        if (sets.has(s.connectionPublicId)) {
+          const set = dc.strategyConnections?.find((c) => c.publicId === s.connectionPublicId);
+          throw new ValidationError(`Pick only one of ${set?.name ?? "those strategies"}`);
+        }
+        sets.add(s.connectionPublicId);
+      }
       const group = dc.strategyGroups?.find((g) => g.publicId === s.groupPublicId);
-      // One pick per tag: two would stack both surcharges for one question.
-      const key = s.groupPublicId ?? s.publicId;
-      if (answered.has(key)) throw new ValidationError(`Pick one strategy for ${group?.name ?? "each tag"}`);
-      answered.add(key);
       return { id: s.publicId, name: s.name, group: group?.name ?? null, chargeType: s.chargeType, chargeValue: s.chargeValue };
     });
 
@@ -99,17 +111,3 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   };
 }
 
-/**
- * The first required tag the picks leave unanswered, or null. Checked on the
- * customer's checkout only: staff-created orders and re-pricing may carry no picks.
- */
-export function missingRequiredStrategy(snapshot: CatalogSnapshot, picks: string[] | undefined): string | null {
-  const dc = snapshot.deliveryCharges;
-  if (!dc?.strategyGroups?.length) return null;
-  const answered = new Set(
-    (picks ?? []).map((id) => dc.deliveryStrategies.find((o) => o.publicId === id)?.groupPublicId).filter(Boolean),
-  );
-  // A required tag with no active strategy can't be answered, so it can't block checkout.
-  const offered = new Set(dc.deliveryStrategies.filter((o) => o.active).map((o) => o.groupPublicId));
-  return dc.strategyGroups.find((g) => g.required && offered.has(g.publicId) && !answered.has(g.publicId))?.name ?? null;
-}

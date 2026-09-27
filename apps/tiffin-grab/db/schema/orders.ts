@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { bigint, boolean, date, doublePrecision, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, mealSizes, plans } from "./catalog";
 import { deliveryZones } from "./delivery";
-import { deliveryStrategies, addressTags } from "./delivery";
+import { deliveryStrategies, deliveryStrategyGroups, addressTags } from "./delivery";
 import { customerAddresses } from "./addresses";
 import { users } from "./auth";
 import { organization } from "./organizations";
@@ -72,6 +72,8 @@ export const orders = pgTable("orders", {
   // Picked strategy options, at most one per strategy group. No FK on arrays; options are
   // soft-deleted, so ids stay resolvable. Supersedes delivery_strategy_id.
   deliveryStrategyIds: bigint("delivery_strategy_ids", { mode: "bigint" }).array().notNull().default(sql`'{}'::bigint[]`),
+  // The tag (Home, Apartment…) picked with the plan's address, optional.
+  deliveryTagId: bigint("delivery_tag_id", { mode: "bigint" }).references(() => deliveryStrategyGroups.id),
   addressTagId: bigint("address_tag_id", { mode: "bigint" }).references(() => addressTags.id),
   city: text("city").notNull(),
   postalCode: text("postal_code").notNull(),

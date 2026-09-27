@@ -1,5 +1,6 @@
 "use server";
 
+import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import type { AddressInput } from "@foundry/address";
@@ -43,7 +44,7 @@ async function assertDeliveryUnlocked(deliveryPublicId: string) {
 
 export async function setMyDeliveryAddress(
   deliveryPublicId: string,
-  pick: { addressPublicId?: string; newAddress?: AddressInput; deliveryStrategyPublicIds?: string[] },
+  pick: { addressPublicId?: string; newAddress?: AddressInput; dropOff?: DropOffValue },
 ): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);

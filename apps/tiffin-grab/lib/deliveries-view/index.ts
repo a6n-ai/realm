@@ -1,3 +1,4 @@
+import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
 
@@ -34,8 +35,8 @@ export type CalendarDayInput = {
   emptied?: boolean;
   /** This delivery's own address when re-addressed; null/absent = it follows the plan. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
-  /** This delivery's own drop-off options when re-addressed; empty/absent = it follows the plan. */
-  deliveryStrategyPublicIds?: string[];
+  /** This delivery's own drop-off when re-addressed; absent / no tag = it follows the plan. */
+  dropOff?: DropOffValue;
   optimoCompletionStatus?: string | null;
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
@@ -80,8 +81,8 @@ export type Trip = {
   movesOut?: TiffinMove[];
   /** This delivery's own address when re-addressed; null = it follows the plan's address. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
-  /** This delivery's own drop-off options when re-addressed; empty = it follows the plan's. */
-  deliveryStrategyPublicIds?: string[];
+  /** This delivery's own drop-off when re-addressed; absent / no tag = it follows the plan's. */
+  dropOff?: DropOffValue;
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
   optimoCompletionStatus?: string | null;
@@ -131,7 +132,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         date: d.date,
         deliveryId: d.deliveryId ?? null,
         addressOverride: d.addressOverride ?? null,
-        deliveryStrategyPublicIds: d.deliveryStrategyPublicIds ?? [],
+        dropOff: d.dropOff,
         optimoCompletionStatus: d.optimoCompletionStatus ?? null,
         units: d.units ?? 1,
         coversDates: covers,

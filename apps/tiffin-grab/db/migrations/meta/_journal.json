@@ -407,6 +407,13 @@
       "when": 1790513903325,
       "tag": "0057_drop_strategy_tag_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1790517475191,
+      "tag": "0058_strategy_connected_sets",
+      "breakpoints": true
     }
   ]
 }

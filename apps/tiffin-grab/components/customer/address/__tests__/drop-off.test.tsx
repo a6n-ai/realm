@@ -9,35 +9,38 @@ afterEach(cleanup);
 
 const catalog: DropOffCatalog = {
   groups: [
-    { publicId: "spot", name: "Drop-off spot", description: null, required: false },
-    { publicId: "contact", name: "Contact", description: null, required: true },
+    { publicId: "apt", name: "Apartment", description: null },
+    { publicId: "home", name: "Home", description: null },
   ],
+  connections: [{ publicId: "spot", name: "Drop-off", groupId: "apt" }],
   options: [
-    { publicId: "door", name: "Frontdoor", chargeType: "none", chargeValue: 0, groupId: "spot" },
-    { publicId: "lobby", name: "Lobby", chargeType: "fixed", chargeValue: 1.5, groupId: "spot" },
-    { publicId: "call", name: "Call on arrival", chargeType: "none", chargeValue: 0, groupId: "contact" },
+    { publicId: "lobby", name: "Lobby", chargeType: "none", chargeValue: 0, groupId: "apt", connectionId: "spot" },
+    { publicId: "door", name: "Leave at door", chargeType: "fixed", chargeValue: 1.5, groupId: "apt", connectionId: "spot" },
+    { publicId: "call", name: "Call on arrival", chargeType: "none", chargeValue: 0.5, groupId: "apt", connectionId: null },
+    { publicId: "porch", name: "Porch", chargeType: "none", chargeValue: 0, groupId: "home", connectionId: null },
   ],
 };
 
 describe("DropOffPicker", () => {
-  it("shows every tag first and opens the unanswered required one", () => {
-    render(<DropOffPicker catalog={catalog} value={[]} onChange={() => {}} />);
-    expect(screen.getAllByRole("tab").map((t) => t.textContent?.replace(/\u00a0/g, " "))).toEqual(["Drop-off spot", "Contact *"]);
-    expect(screen.getByRole("tab", { name: /Contact/ })).toHaveAttribute("aria-selected", "true");
-    // Required: no "No preference".
-    expect(screen.queryByText("No preference")).toBeNull();
-    expect(screen.getByText("Call on arrival")).toBeInTheDocument();
+  it("shows the place types first and nothing else until one is picked", () => {
+    const onChange = vi.fn();
+    render(<DropOffPicker catalog={catalog} value={{ tagId: null, strategyIds: [] }} onChange={onChange} />);
+    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(["Apartment", "Home"]);
+    expect(screen.queryByText("Lobby")).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "Apartment" }));
+    expect(onChange).toHaveBeenCalledWith({ tagId: "apt", strategyIds: [] });
   });
 
-  it("switching tags shows that tag's strategies, and a pick replaces only its own tag", () => {
+  it("a connected set is a pick-one row; other strategies toggle alongside it", () => {
     const onChange = vi.fn();
-    render(<DropOffPicker catalog={catalog} value={["call"]} onChange={onChange} />);
-    fireEvent.click(screen.getByRole("tab", { name: /Drop-off spot/ }));
-    expect(screen.getByText("Lobby · +$1.50")).toBeInTheDocument();
-    expect(screen.getByText("No preference")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Lobby · +$1.50"));
-    expect(onChange).toHaveBeenCalledWith(["call", "lobby"]);
-    // The answered tag shows its pick on the chip.
-    expect(screen.getByRole("tab", { name: /Contact/ })).toHaveTextContent("Contact · Call on arrival");
+    render(<DropOffPicker catalog={catalog} value={{ tagId: "apt", strategyIds: ["lobby"] }} onChange={onChange} />);
+    expect(screen.getByText("Drop-off")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Leave at door · +$1.50"));
+    expect(onChange).toHaveBeenLastCalledWith({ tagId: "apt", strategyIds: ["door"] });
+    fireEvent.click(screen.getByRole("button", { name: "Call on arrival" }));
+    expect(onChange).toHaveBeenLastCalledWith({ tagId: "apt", strategyIds: ["lobby", "call"] });
+    // Tapping the picked place again clears everything: it is all optional.
+    fireEvent.click(screen.getByRole("radio", { name: "Apartment" }));
+    expect(onChange).toHaveBeenLastCalledWith({ tagId: null, strategyIds: [] });
   });
 });

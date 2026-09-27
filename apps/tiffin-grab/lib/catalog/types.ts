@@ -36,12 +36,19 @@ export interface CatalogDiscount {
 
 // Server-side snapshot: carries BOTH the internal bigint id (for FK resolution
 // in createOrder) and the public_id. The bigint id never leaves the server.
-/** A tag ("Drop-off spot"): customers see it first, then pick one of its strategies. */
+/** A tag: the kind of place (Home, Apartment, Office). Customers pick one, then its strategies. */
 export interface StrategyGroupView {
   publicId: string;
   name: string;
   description: string | null;
-  required: boolean;
+}
+
+/** Strategies of one tag the customer picks at most one of. */
+export interface StrategyConnectionView {
+  publicId: string;
+  name: string;
+  /** Tag public id. */
+  groupId: string;
 }
 
 export interface CatalogSnapshot {
@@ -68,8 +75,9 @@ export interface CatalogSnapshot {
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
-    /** Active tags; the customer picks at most one strategy in each. */
+    /** Active tags; the customer picks at most one. */
     strategyGroups?: StrategyGroupView[];
+    strategyConnections?: StrategyConnectionView[];
     /** Strategies under an active tag only. */
     deliveryStrategies: {
       id: bigint;
@@ -81,6 +89,7 @@ export interface CatalogSnapshot {
       active: boolean;
       sortOrder: number;
       groupPublicId?: string | null;
+      connectionPublicId?: string | null;
     }[];
     addressTags: {
       id: bigint;
@@ -117,6 +126,7 @@ export interface ClientCatalogSnapshot {
   deliveryCharges?: {
     baseCharge: number;
     strategyGroups: StrategyGroupView[];
+    strategyConnections: StrategyConnectionView[];
     deliveryStrategies: {
       id: string; // publicId
       name: string;
@@ -124,6 +134,7 @@ export interface ClientCatalogSnapshot {
       chargeType: "none" | "fixed" | "percent";
       chargeValue: number;
       groupId: string | null; // tag publicId
+      connectionId: string | null; // connected set publicId
     }[];
     addressTags: {
       id: string; // publicId
@@ -161,6 +172,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
       ? {
           baseCharge: snapshot.deliveryCharges.baseCharge,
           strategyGroups: snapshot.deliveryCharges.strategyGroups ?? [],
+          strategyConnections: snapshot.deliveryCharges.strategyConnections ?? [],
           deliveryStrategies: snapshot.deliveryCharges.deliveryStrategies
             .filter((d) => d.active)
             .map((d) => ({
@@ -170,6 +182,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
               chargeType: d.chargeType,
               chargeValue: d.chargeValue,
               groupId: d.groupPublicId ?? null,
+              connectionId: d.connectionPublicId ?? null,
             })),
           addressTags: snapshot.deliveryCharges.addressTags
             .filter((a) => a.active)

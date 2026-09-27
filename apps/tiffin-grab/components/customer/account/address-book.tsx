@@ -11,11 +11,11 @@ import { Button, Card, Field, IconButton, Notice, Pill, Sheet } from "@/componen
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { nameTaken } from "@/components/customer/address/address-name";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
-import { dropOffSummary, EMPTY_DROP_OFF, type DropOffCatalog } from "@/lib/catalog/drop-off";
+import { dropOffSummary, EMPTY_DROP_OFF, NO_DROP_OFF, type DropOffCatalog, type DropOffValue } from "@/lib/catalog/drop-off";
 
-const withDropOff = (d: Record<string, string[]>, publicId: string, dropOff: string[]) => {
+const withDropOff = (d: Record<string, DropOffValue>, publicId: string, dropOff: DropOffValue) => {
   const next = { ...d };
-  if (dropOff.length) next[publicId] = dropOff;
+  if (dropOff.tagId) next[publicId] = dropOff;
   else delete next[publicId];
   return next;
 };
@@ -75,7 +75,7 @@ import {
 } from "@/app/(customer)/me/account/address-actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 
-type Editing = { publicId: string | null; label: string; values: AddressValues; dropOff: string[] };
+type Editing = { publicId: string | null; label: string; values: AddressValues; dropOff: DropOffValue };
 
 const toValues = (a: SavedAddress): AddressValues => ({
   addressLine: a.addressLine,
@@ -103,8 +103,8 @@ export function AddressBook({
   initial: SavedAddress[];
   /** Drop-off questions a customer answers per address. */
   dropOff?: DropOffCatalog;
-  /** Address public id → its drop-off option public ids. */
-  initialDropOffs?: Record<string, string[]>;
+  /** Address public id → its drop-off. */
+  initialDropOffs?: Record<string, DropOffValue>;
 }) {
   const [dropOffs, setDropOffs] = useState(initialDropOffs);
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -112,13 +112,13 @@ export function AddressBook({
     initial,
     actions: {
       create: async (input) => {
-        const saved = await unwrapAction(createMyAddress(input, editing?.dropOff ?? []));
-        setDropOffs((d) => withDropOff(d, saved.publicId, editing?.dropOff ?? []));
+        const saved = await unwrapAction(createMyAddress(input, editing?.dropOff ?? NO_DROP_OFF));
+        setDropOffs((d) => withDropOff(d, saved.publicId, editing?.dropOff ?? NO_DROP_OFF));
         return saved;
       },
       update: async (publicId, input) => {
-        const saved = await unwrapAction(updateSavedAddress(publicId, input, editing?.dropOff ?? []));
-        setDropOffs((d) => withDropOff(d, publicId, editing?.dropOff ?? []));
+        const saved = await unwrapAction(updateSavedAddress(publicId, input, editing?.dropOff ?? NO_DROP_OFF));
+        setDropOffs((d) => withDropOff(d, publicId, editing?.dropOff ?? NO_DROP_OFF));
         return saved;
       },
       setDefault: async (publicId) => {
@@ -184,7 +184,7 @@ export function AddressBook({
             </div>
             <div className="flex shrink-0 gap-1">
               <DefaultStar on={a.isDefault} label={a.label} onSelect={() => book.setDefault(a.publicId)} />
-              <IconButton aria-label={`Edit ${a.label}`} onClick={() => setEditing({ publicId: a.publicId, label: a.label, values: toValues(a), dropOff: dropOffs[a.publicId] ?? [] })}>
+              <IconButton aria-label={`Edit ${a.label}`} onClick={() => setEditing({ publicId: a.publicId, label: a.label, values: toValues(a), dropOff: dropOffs[a.publicId] ?? NO_DROP_OFF })}>
                 <PencilIcon className="size-4" />
               </IconButton>
               {!a.isDefault && (
@@ -201,7 +201,7 @@ export function AddressBook({
       {/* Sheet actions show their error inside the sheet; this covers make-default. */}
       {book.error && !editing && !deleting && <Notice tone="error">{book.error}</Notice>}
 
-      <Button pill onClick={() => setEditing({ publicId: null, label: "", values: {}, dropOff: [] })}>
+      <Button pill onClick={() => setEditing({ publicId: null, label: "", values: {}, dropOff: NO_DROP_OFF })}>
         <PlusIcon className="size-4" /> Add address
       </Button>
 

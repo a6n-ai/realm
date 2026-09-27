@@ -71,6 +71,7 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     expect(eff).toEqual({
       addressUnit: null,
       deliveryInstructions: null,
+      deliveryTagId: null,
       deliveryStrategyIds: [],
       fullName: order.fullName,
       addressLine: order.addressLine,
@@ -100,6 +101,7 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     expect(eff).toEqual({
       addressUnit: null,
       deliveryInstructions: null,
+      deliveryTagId: null,
       deliveryStrategyIds: [],
       fullName: "New Name",
       addressLine: "2 Other St",
@@ -183,6 +185,7 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     expect(eff).toEqual({
       addressUnit: null,
       deliveryInstructions: null,
+      deliveryTagId: null,
       deliveryStrategyIds: [],
       fullName: order.fullName,
       addressLine: order.addressLine,

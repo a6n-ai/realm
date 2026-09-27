@@ -239,11 +239,11 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, movedInNote(row), t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
-        {(t.addressOverride || (t.deliveryStrategyPublicIds?.length ?? 0) > 0) && (
+        {(t.addressOverride || t.dropOff?.tagId) && (
           <div className="rounded-md border p-3 text-sm space-y-1">
             <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-2">Delivery Override</span>
-            {(t.deliveryStrategyPublicIds?.length ?? 0) > 0 && (
-              <p>Drop-off: <span className="font-medium">{dropOffSummary(plan.dropOff, t.deliveryStrategyPublicIds) || "No longer offered"}</span></p>
+            {t.dropOff?.tagId && (
+              <p>Drop-off: <span className="font-medium">{dropOffSummary(plan.dropOff, t.dropOff) || "No longer offered"}</span></p>
             )}
             {t.addressOverride && (
               <p>Address: <span className="font-medium">{t.addressOverride.addressLine}, {t.addressOverride.postalCode}</span></p>

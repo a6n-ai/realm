@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateDeliveryCharge } from "@foundry/delivery";
 import { priceSubscription } from "../engine";
-import { buildPricingCatalog, missingRequiredStrategy } from "../build-catalog";
+import { buildPricingCatalog } from "../build-catalog";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "../types";
 import type { PricingTier } from "../tiers";
@@ -189,14 +189,16 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
       deliveryCharges: {
         baseCharge: 2,
         strategyGroups: [
-          { publicId: "grp_spot", name: "Drop-off spot", description: null, required: true },
-          { publicId: "grp_contact", name: "Contact", description: null, required: false },
+          { publicId: "grp_apt", name: "Apartment", description: null },
+          { publicId: "grp_home", name: "Home", description: null },
         ],
+        strategyConnections: [{ publicId: "set_spot", name: "Drop-off", groupId: "grp_apt" }],
         deliveryStrategies: [
-          { id: 1n, publicId: "dt_active", name: "Lobby", description: null, chargeType: "fixed", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_spot" },
-          { id: 2n, publicId: "dt_inactive", name: "Old Type", description: null, chargeType: "fixed", chargeValue: 5, active: false, sortOrder: 1, groupPublicId: "grp_spot" },
-          { id: 3n, publicId: "dt_door", name: "Doorstep", description: null, chargeType: "none", chargeValue: 0, active: true, sortOrder: 2, groupPublicId: "grp_spot" },
-          { id: 4n, publicId: "dt_call", name: "Call on arrival", description: null, chargeType: "percent", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_contact" },
+          { id: 1n, publicId: "dt_active", name: "Lobby", description: null, chargeType: "fixed", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_apt", connectionPublicId: "set_spot" },
+          { id: 2n, publicId: "dt_inactive", name: "Old Type", description: null, chargeType: "fixed", chargeValue: 5, active: false, sortOrder: 1, groupPublicId: "grp_apt", connectionPublicId: null },
+          { id: 3n, publicId: "dt_door", name: "Leave at door", description: null, chargeType: "fixed", chargeValue: 2, active: true, sortOrder: 2, groupPublicId: "grp_apt", connectionPublicId: "set_spot" },
+          { id: 4n, publicId: "dt_call", name: "Call on arrival", description: null, chargeType: "percent", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_apt", connectionPublicId: null },
+          { id: 5n, publicId: "dt_porch", name: "Porch", description: null, chargeType: "none", chargeValue: 0, active: true, sortOrder: 0, groupPublicId: "grp_home", connectionPublicId: null },
         ],
         addressTags: [
           { id: 1n, publicId: "at_active", name: "House", description: null, chargeType: "none", chargeValue: 0, active: true, sortOrder: 0 },
@@ -205,29 +207,39 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
       },
     };
 
-    // One pick per group, each labelled by its group
+    // A set pick plus a free strategy, each labelled by the place type
     const validCat = buildPricingCatalog(mockSnapshot, sel({
+      deliveryTagId: "grp_apt",
       deliveryStrategyIds: ["dt_active", "dt_call"],
       addressTagId: "at_active",
     }));
     expect(validCat.deliveryChargeConfig?.baseCharge).toBe(2);
     expect(validCat.deliveryChargeConfig?.deliveryStrategies?.map((s) => [s.group, s.name])).toEqual([
-      ["Drop-off spot", "Lobby"],
-      ["Contact", "Call on arrival"],
+      ["Apartment", "Lobby"],
+      ["Apartment", "Call on arrival"],
     ]);
     expect(validCat.deliveryChargeConfig?.addressTag?.name).toBe("House");
-    // $100 plan: base 2 + Lobby 1 + 1% contact = $4
+    // $100 plan: base 2 + Lobby 1 + 1% call = $4
     expect(priceSubscription(sel(), validCat).deliveryCharge?.lines.map((l) => l.label)).toEqual([
       "Base delivery charge",
-      "Drop-off spot: Lobby",
-      "Contact: Call on arrival (1%)",
+      "Apartment: Lobby",
+      "Apartment: Call on arrival (1%)",
     ]);
+    // Connected strategies can each carry their own price
+    expect(priceSubscription(sel(), buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_door"] }))).deliveryCharge?.totalDeliveryCharge).toBe(4);
+    // Everything is optional: a place type alone, or nothing at all
+    expect(buildPricingCatalog(mockSnapshot, sel({ deliveryTagId: "grp_home" })).deliveryChargeConfig?.deliveryStrategies).toEqual([]);
+    expect(buildPricingCatalog(mockSnapshot, sel()).deliveryChargeConfig?.deliveryStrategies).toEqual([]);
 
-    // Inactive or unknown options are refused
+    // Inactive or unknown strategies and place types are refused
     expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_inactive"] }))).toThrow("isn't available");
     expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["non_existent"] }))).toThrow("isn't available");
-    // Two answers to one question would stack both surcharges
-    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_active", "dt_door"] }))).toThrow("Pick one strategy for Drop-off spot");
+    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryTagId: "grp_gone" }))).toThrow("isn't available");
+    // Two from one connected set would stack alternatives
+    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_active", "dt_door"] }))).toThrow("Pick only one of Drop-off");
+    // Strategies must belong to the chosen place type
+    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryTagId: "grp_home", deliveryStrategyIds: ["dt_call"] }))).toThrow("chosen place");
+    expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_call", "dt_porch"] }))).toThrow("chosen place");
     // Not an array of strings (server-action input)
     expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: "dt_active" as unknown as string[] }))).toThrow("Invalid delivery options");
 
@@ -235,11 +247,6 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     expect(() => buildPricingCatalog(mockSnapshot, sel({
       addressTagId: "at_inactive",
     }))).toThrow("Invalid address tag");
-
-    // Required groups: only the customer checkout enforces them
-    expect(missingRequiredStrategy(mockSnapshot, [])).toBe("Drop-off spot");
-    expect(missingRequiredStrategy(mockSnapshot, ["dt_call"])).toBe("Drop-off spot");
-    expect(missingRequiredStrategy(mockSnapshot, ["dt_door"])).toBeNull();
   });
 
   // Scenario 7: Order Total includes Plan Price + Delivery Charge + Addons - Discounts + Taxes

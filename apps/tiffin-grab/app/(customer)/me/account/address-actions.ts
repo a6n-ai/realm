@@ -5,7 +5,8 @@ import type { AddressInput, SavedAddress } from "@foundry/address";
 import { AuthError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
-import { setAddressDropOff, strategyIdsFor } from "@/lib/services/address-drop-off.service";
+import { resolveDropOff, setAddressDropOff } from "@/lib/services/address-drop-off.service";
+import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { runAction, type ActionResult } from "../action-result";
 
 // Every action returns { error } instead of throwing: production builds redact thrown
@@ -23,14 +24,14 @@ function refresh() {
 }
 
 /**
- * `dropOff`: the delivery strategy option public ids (one per strategy) this address is
- * delivered with; null or [] clears them,
+ * `dropOff`: the place type and delivery strategies this address is delivered with; null
+ * clears them,
  * undefined leaves it. Checked before the address is written so a bad pick saves nothing.
  */
-export async function createMyAddress(input: AddressInput, dropOff?: string[] | null): Promise<ActionResult<SavedAddress>> {
+export async function createMyAddress(input: AddressInput, dropOff?: DropOffValue | null): Promise<ActionResult<SavedAddress>> {
   return runAction(async () => {
     const s = await scope();
-    await strategyIdsFor(dropOff);
+    await resolveDropOff(dropOff);
     const { id, ...saved } = await addressService.create(s, input);
     if (dropOff !== undefined) await setAddressDropOff(s, { id }, dropOff);
     refresh();
@@ -38,10 +39,10 @@ export async function createMyAddress(input: AddressInput, dropOff?: string[] | 
   });
 }
 
-export async function updateSavedAddress(publicId: string, input: AddressInput, dropOff?: string[] | null): Promise<ActionResult<SavedAddress>> {
+export async function updateSavedAddress(publicId: string, input: AddressInput, dropOff?: DropOffValue | null): Promise<ActionResult<SavedAddress>> {
   return runAction(async () => {
     const s = await scope();
-    await strategyIdsFor(dropOff);
+    await resolveDropOff(dropOff);
     const saved = await addressService.update(s, publicId, input);
     if (dropOff !== undefined) await setAddressDropOff(s, { publicId }, dropOff);
     refresh();
