@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEatingDays, deliveryLine, eatingRowsInWeek } from "../eating";
+import { buildEatingDays, deliveryLine, eatingRowsInWeek, movedInNote } from "../eating";
 import type { Trip } from "../index";
 
 const day = (date: string, dish: string | null = null, locksWith: string | null = null) => ({ date, dishSummary: dish, swaps: [], locksWith });
@@ -30,7 +30,8 @@ describe("one eating day moved off a Fri+Sat+Sun trip", () => {
   const lines = Object.fromEntries(rows.map((r) => [r.date, deliveryLine(r)]));
 
   it("Wed carries its own tiffin plus Fri's, both on Wed's meal", () => {
-    expect(lines["2026-09-23"]).toBe("Arrives Wed, Sep 23 · Fri's tiffin moved here, same meal");
+    expect(lines["2026-09-23"]).toBe("Arrives Wed, Sep 23");
+    expect(movedInNote(rows.find((r) => r.date === "2026-09-23")!)).toBe("Fri's tiffin moved here, same meal");
     expect(rows.find((r) => r.date === "2026-09-23")!.dish).toBe("Dal");
   });
   it("Fri and Sat read Moved to; Sun still arrives on Friday's truck", () => {

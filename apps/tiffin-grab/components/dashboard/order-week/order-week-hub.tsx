@@ -23,7 +23,7 @@ import {
 } from "@/app/(customer)/me/deliveries/actions";
 import { buildVacationPauseRequest } from "@/app/(customer)/me/deliveries/vacation-pause";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { deliveryLine, eatingRowsInWeek, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, eatingRowsInWeek, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { moveLockReason, moveOptions } from "@/lib/deliveries-view/move";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
 import { applySwapsToCounts, exchangeOverride, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
@@ -175,6 +175,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground text-sm">
                   {tiffins(trip.units)} covering {trip.coversDates.map(weekdayShort).join(" + ")}
+                  {movedInNote(row) && ` · ${movedInNote(row)}`}
                   {trip.status === "upcoming" && ` · changes close ${formatCutoff(trip.cutoffAt, tz)}`}
                   {!row.own && trip.status === "upcoming" && ` · ${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery`}
                 </p>
@@ -252,7 +253,7 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, movedInNote(row), t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
         {(t.addressOverride || t.deliveryStrategyPublicId) && (
           <div className="rounded-md border p-3 text-sm space-y-1">
             <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-2">Delivery Override</span>

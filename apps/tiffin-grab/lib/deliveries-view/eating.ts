@@ -62,18 +62,16 @@ export function eatingRowsInWeek(trips: Trip[], weekStart: string, weekEnd: stri
   });
 }
 
-const movedInNote = (from: (string | null)[]): string => {
-  const names = from.map((d) => (d ? `${weekdayShort(d)}'s` : "a pool"));
-  return ` · ${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} tiffins` : `${names[0]} tiffin`} moved here, same meal`;
-};
+/** "Fri's tiffin moved here, same meal" for a day carrying moved-in tiffins; null otherwise. */
+export function movedInNote(r: EatingRow): string | null {
+  if (!r.movedFrom?.length) return null;
+  const names = r.movedFrom.map((d) => (d ? `${weekdayShort(d)}'s` : "a pool"));
+  return `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} tiffins` : `${names[0]} tiffin`} moved here, same meal`;
+}
 
 /** "Arrives Mon, Sep 21 with Mon" / "Delivered Mon, Sep 21" / "Moved to Wed, Sep 23": which truck feeds this eating day. */
 export function deliveryLine(r: EatingRow): string {
   if (r.movedTo) return `Moved to ${humanDate(r.movedTo)}`;
-  return baseLine(r) + (r.movedFrom?.length ? movedInNote(r.movedFrom) : "");
-}
-
-function baseLine(r: EatingRow): string {
   const t = r.trip;
   const day = humanDate(t.date);
   const with_ = r.own ? "" : ` with ${weekdayShort(t.date)}`;

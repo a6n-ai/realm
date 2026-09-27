@@ -77,7 +77,7 @@ export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionS
               {!chosen && <Reason>Choose a day to continue.</Reason>}
               {chosen?.merge ? (
                 <Notice>
-                  It rides the {humanDate(chosen.carriedOn)} delivery: {tiffins(chosen.merge.units)} on that truck. {formatCoversLabel(chosen.merge.covers)}.
+                  It rides the {humanDate(chosen.carriedOn)} delivery: {tiffins(chosen.merge.units)} on that truck.{formatCoversLabel(chosen.merge.covers) && ` ${formatCoversLabel(chosen.merge.covers)}.`}
                 </Notice>
               ) : chosen && chosen.carriedOn !== chosen.date ? (
                 <Notice>{humanDate(chosen.date)} will arrive {humanDate(chosen.carriedOn)} with {weekdayShort(chosen.carriedOn)}. We don&apos;t deliver on {weekdayShort(chosen.date)}s, so it rides on the earlier delivery.</Notice>

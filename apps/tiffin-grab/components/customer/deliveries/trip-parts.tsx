@@ -3,7 +3,7 @@ import { Info, Truck, Utensils } from "lucide-react";
 import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { formatCutoff, humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
@@ -161,6 +161,7 @@ export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow
   const covers = trip.coversDates.map(weekdayShort).join(" + ");
   const facts = [
     `${tiffins(trip.units)} covering ${covers}`,
+    movedInNote(row),
     trip.status === "upcoming" ? `Changes close ${formatCutoff(trip.cutoffAt, tz)}` : reason,
     !row.own && trip.status === "upcoming" ? `${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery` : null,
   ].filter(Boolean);
@@ -207,6 +208,7 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
   const delivery = [
     deliveryLine(row),
     `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
+    movedInNote(row),
     t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null,
   ].filter(Boolean).join(" · ");
   return (
