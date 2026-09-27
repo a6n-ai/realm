@@ -7,7 +7,6 @@ import { resolveAndPersist } from "@foundry/places";
 import {
   deliveryService,
   type DeliveryChargeRuleInput,
-  type DeliveryStrategyConnectionInput,
   type DeliveryStrategyGroupInput,
 } from "@/lib/services/delivery.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
@@ -68,23 +67,14 @@ export async function deleteDeliveryStrategyGroupAction(id: string) {
   return result;
 }
 
-export async function saveDeliveryStrategyConnectionAction(input: DeliveryStrategyConnectionInput) {
+export async function connectDeliveryStrategyAction(id: string, connectedTo: string[]) {
   await requireAdmin();
   const orgId = await resolveRequestOrg();
-  const result = await deliveryService.saveDeliveryStrategyConnection(input, orgId);
+  const result = await deliveryService.connectDeliveryStrategy(id, connectedTo, orgId);
   await invalidateCatalogSnapshot();
   revalidatePath("/dashboard/delivery/charges");
   revalidatePath("/checkout");
   return result;
-}
-
-export async function deleteDeliveryStrategyConnectionAction(id: string) {
-  await requireAdmin();
-  const orgId = await resolveRequestOrg();
-  await deliveryService.deleteDeliveryStrategyConnection(id, orgId);
-  await invalidateCatalogSnapshot();
-  revalidatePath("/dashboard/delivery/charges");
-  revalidatePath("/checkout");
 }
 
 export async function saveAddressTagAction(input: DeliveryChargeRuleInput) {

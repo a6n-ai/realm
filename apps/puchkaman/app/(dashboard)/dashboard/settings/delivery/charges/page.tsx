@@ -8,11 +8,10 @@ import { deliveryChargesActions } from "../admin-actions";
 export default async function DeliveryChargesPage() {
   await requireAdmin();
   const orgId = await resolveActingOrgId();
-  const [baseCharge, strategies, strategyGroups, strategyConnections, tags] = await Promise.all([
+  const [baseCharge, strategies, strategyGroups, tags] = await Promise.all([
     deliveryService.getBaseDeliveryCharge(orgId),
     deliveryService.listDeliveryStrategies({ includeInactive: true, orgId }),
     deliveryService.listDeliveryStrategyGroups({ includeInactive: true, orgId }),
-    deliveryService.listDeliveryStrategyConnections({ orgId }),
     deliveryService.listAddressTags({ includeInactive: true, orgId }),
   ]);
 
@@ -22,7 +21,6 @@ export default async function DeliveryChargesPage() {
         initialBaseCharge={baseCharge}
         initialDeliveryStrategies={strategies}
         initialStrategyGroups={strategyGroups}
-        initialStrategyConnections={strategyConnections}
         initialAddressTags={tags}
         actions={deliveryChargesActions}
       />

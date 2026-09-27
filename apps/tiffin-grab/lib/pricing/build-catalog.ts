@@ -78,7 +78,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
       if (s.connectionPublicId) {
         if (sets.has(s.connectionPublicId)) {
           const set = dc.strategyConnections?.find((c) => c.publicId === s.connectionPublicId);
-          throw new ValidationError(`Pick only one of ${set?.name ?? "those strategies"}`);
+          throw new ValidationError(`Pick only one of ${set?.name || "those connected strategies"}`);
         }
         sets.add(s.connectionPublicId);
       }

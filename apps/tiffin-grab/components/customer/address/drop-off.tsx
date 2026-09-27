@@ -53,8 +53,8 @@ export function DropOffPicker({
       {sets.map((c) => (
         <ChoiceRow
           key={c.publicId}
-          label={c.name}
-          hint="Pick one"
+          // Sets are made by connecting strategies in admin, so they have no name to show.
+          label={c.name || "Choose one"}
           choices={[
             { value: NONE, label: "No preference", disabled },
             ...options.filter((o) => o.connectionId === c.publicId).map((o) => ({ value: o.publicId, label: dropOffLabel(o), disabled })),

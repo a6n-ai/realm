@@ -4,15 +4,11 @@ import { test, expect } from "../fixtures";
 
 const shots = path.join(process.cwd(), "e2e/test-results/delivery-strategies");
 
-async function addStrategy(page: Page, o: { name: string; tag: string; set?: string; amount?: string }) {
+async function addStrategy(page: Page, o: { name: string; tag: string; connectTo?: string; amount?: string }) {
   await page.getByRole("button", { name: "Add delivery strategy" }).click();
   await page.getByLabel("Name").fill(o.name);
-  await page.getByLabel("Tag").click();
-  await page.getByRole("option", { name: o.tag }).click();
-  if (o.set) {
-    await page.getByLabel(/Connected set/).click();
-    await page.getByRole("option", { name: o.set }).click();
-  }
+  await page.getByRole("radio", { name: o.tag }).click();
+  if (o.connectTo) await page.getByRole("button", { name: o.connectTo, exact: true }).click();
   if (o.amount) {
     await page.getByLabel("Charge type").click();
     await page.getByRole("option", { name: /Fixed amount/ }).click();
@@ -22,13 +18,12 @@ async function addStrategy(page: Page, o: { name: string; tag: string; set?: str
   await expect(page.getByRole("row", { name: new RegExp(`^${o.name}`) })).toBeVisible();
 }
 
-// Admin: a place type (tag), a connected set in it, and strategies (two connected, one free).
+// Admin: a place type (tag) and strategies under it, two connected to each other, one free.
 // Customer: picks the place first, then one of the set and any free strategy. Cleans up after.
 // Run with the setup-customer project too: it reuses the saved customer session.
-test("tag, connected set and strategies in admin; place first for the customer", async ({ page, browser, baseURL }) => {
+test("tag and connected strategies in admin; place first for the customer", async ({ page, browser, baseURL }) => {
   const stamp = String(Date.now()).slice(-6);
   const tag = `E2E Apt ${stamp}`;
-  const set = `E2E Drop ${stamp}`;
   const lobby = `E2E Lobby ${stamp}`;
   const door = `E2E Door ${stamp}`;
   const call = `E2E Call ${stamp}`;
@@ -41,29 +36,23 @@ test("tag, connected set and strategies in admin; place first for the customer",
   const tagRow = page.getByRole("row", { name: new RegExp(`^${tag}`) });
   await expect(tagRow).toBeVisible();
 
-  await page.getByRole("button", { name: "Add connected set" }).click();
-  await page.getByLabel("Name").fill(set);
-  await page.getByLabel("Tag").click();
-  await page.getByRole("option", { name: tag }).click();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  const setRow = page.getByRole("row", { name: new RegExp(`^${set}`) });
-  await expect(setRow).toBeVisible();
-
-  await addStrategy(page, { name: lobby, tag, set });
-  await addStrategy(page, { name: door, tag, set, amount: "1.50" });
+  await addStrategy(page, { name: lobby, tag });
+  await addStrategy(page, { name: door, tag, connectTo: lobby, amount: "1.50" });
   await addStrategy(page, { name: call, tag, amount: "0.50" });
 
-  // The set lists its members; each strategy row shows its tag and set.
-  await expect(setRow).toContainText(`${lobby}, ${door}`);
-  await expect(page.getByRole("row", { name: new RegExp(`^${door}`) })).toContainText(set);
+  // Each row shows its tag and what it is connected to, both ways.
+  await expect(page.getByRole("row", { name: new RegExp(`^${door}`) })).toContainText(lobby);
+  await expect(page.getByRole("row", { name: new RegExp(`^${lobby}`) })).toContainText(door);
   await expect(page.getByRole("row", { name: new RegExp(`^${call}`) })).toContainText(tag);
   await expect(tagRow.getByRole("cell").nth(2)).toHaveText("3");
   await page.screenshot({ path: `${shots}/admin.png`, fullPage: true });
 
-  // Editing a strategy shows its tag and set, ready to change.
+  // Editing a strategy shows its tag and connections as pills, ready to change.
   await page.getByRole("row", { name: new RegExp(`^${door}`) }).getByRole("button", { name: `Edit ${door}` }).click();
-  await expect(page.getByLabel("Tag")).toContainText(tag);
-  await expect(page.getByLabel(/Connected set/)).toContainText(set);
+  await expect(page.getByRole("radio", { name: tag })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("button", { name: lobby, exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: call, exact: true })).toHaveAttribute("aria-pressed", "false");
+  await page.screenshot({ path: `${shots}/admin-edit.png` });
   await page.keyboard.press("Escape");
 
   const customer = await browser.newContext({ baseURL, storageState: path.join(process.cwd(), "e2e/.auth/customer.json"), viewport: { width: 390, height: 844 } });
@@ -84,13 +73,11 @@ test("tag, connected set and strategies in admin; place first for the customer",
   await cp.screenshot({ path: `${shots}/customer-address.png` });
   await customer.close();
 
-  // Clean up: strategies, the set, then the tag.
+  // Clean up: strategies (their set goes with them), then the tag.
   for (const name of [lobby, door, call]) {
     await page.getByRole("row", { name: new RegExp(`^${name}`) }).getByRole("button", { name: `Delete ${name}` }).click();
     await expect(page.getByRole("row", { name: new RegExp(`^${name}`) })).toHaveCount(0);
   }
-  await setRow.getByRole("button", { name: `Delete ${set}` }).click();
-  await expect(setRow).toHaveCount(0);
   await tagRow.getByRole("button", { name: `Delete ${tag}` }).click();
   await expect(tagRow).toHaveCount(0);
 });

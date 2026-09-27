@@ -35,14 +35,15 @@ describe("Order Delivery Charges (Integration)", () => {
     await deliveryService.updateBaseDeliveryCharge(2); // Base = $2.00
     const spot = await deliveryService.saveDeliveryStrategyGroup({ name: "Apartment" });
     const home = await deliveryService.saveDeliveryStrategyGroup({ name: "Home" });
-    const set = await deliveryService.saveDeliveryStrategyConnection({ name: "Drop-off", groupId: spot.id });
     const dt = await deliveryService.saveDeliveryStrategy({
       name: "Doorstep",
       chargeType: "fixed",
       chargeValue: 1.5,
       groupId: spot.id,
-      connectionId: set.id,
     });
+    const lobby = await deliveryService.saveDeliveryStrategy({ name: "Lobby", chargeType: "none", chargeValue: 0, groupId: spot.id });
+    const porch = await deliveryService.saveDeliveryStrategy({ name: "Porch", chargeType: "none", chargeValue: 0, groupId: home.id });
+    await deliveryService.connectDeliveryStrategy(dt.id, [lobby.id]);
     const call = await deliveryService.saveDeliveryStrategy({
       name: "Call on arrival",
       chargeType: "fixed",
@@ -50,9 +51,8 @@ describe("Order Delivery Charges (Integration)", () => {
       groupId: spot.id,
     });
     expect(dt.groupId).toBe(spot.id);
-    expect(dt.connectionId).toBe(set.id);
-    // A set only connects strategies of its own tag.
-    await expect(deliveryService.saveDeliveryStrategy({ name: "Porch", chargeType: "none", chargeValue: 0, groupId: home.id, connectionId: set.id })).rejects.toThrow("own tag");
+    // Connections never span tags.
+    await expect(deliveryService.connectDeliveryStrategy(dt.id, [porch.id])).rejects.toThrow("own tag");
     // Every strategy needs a tag.
     await expect(deliveryService.saveDeliveryStrategy({ name: "Loose", chargeType: "none", chargeValue: 0 })).rejects.toThrow("Pick a tag");
     const at = await deliveryService.saveAddressTag({
@@ -200,10 +200,21 @@ describe("Order Delivery Charges (Integration)", () => {
     expect(snap.deliveryCharges?.strategyGroups?.map((g) => g.name)).toEqual(["Office"]);
     expect(snap.deliveryCharges?.deliveryStrategies.some((o) => o.publicId === lobby.id)).toBe(false);
 
-    // Deleting a connected set frees its strategies.
-    const set = await deliveryService.saveDeliveryStrategyConnection({ name: "Drop-off", groupId: other.id });
-    const door = await deliveryService.saveDeliveryStrategy({ name: "Door", chargeType: "none", chargeValue: 0, groupId: other.id, connectionId: set.id });
-    await deliveryService.deleteDeliveryStrategyConnection(set.id);
-    expect((await deliveryService.listDeliveryStrategies()).find((o) => o.id === door.id)?.connectionId).toBeNull();
+    // Connections are shared: A→B, then C→B puts all three in one set.
+    const mk = (name: string) => deliveryService.saveDeliveryStrategy({ name, chargeType: "none", chargeValue: 0, groupId: other.id });
+    const [a, b, c] = [await mk("A"), await mk("B"), await mk("C")];
+    await deliveryService.connectDeliveryStrategy(a.id, [b.id]);
+    let all = await deliveryService.connectDeliveryStrategy(c.id, [a.id, b.id]);
+    const setOf = (id: string) => all.find((o) => o.id === id)?.connectionId;
+    expect(setOf(a.id)).toBeTruthy();
+    expect(new Set([setOf(a.id), setOf(b.id), setOf(c.id)]).size).toBe(1);
+    // Unpicking B from C's connections takes B out of the set; A and C stay connected.
+    all = await deliveryService.connectDeliveryStrategy(c.id, [a.id]);
+    expect(setOf(b.id)).toBeNull();
+    expect(setOf(a.id)).toBe(setOf(c.id));
+    // Leaving one alone in a set drops the set.
+    all = await deliveryService.connectDeliveryStrategy(a.id, []);
+    expect([setOf(a.id), setOf(c.id)]).toEqual([null, null]);
+    expect(await db.select().from(deliveryStrategyConnections)).toHaveLength(0);
   });
 });
