@@ -22,6 +22,9 @@ export default defineConfig({
     env: {
       DATABASE_URL: process.env.DATABASE_URL ?? "postgres://localhost:5432/puchkaman",
     },
+    // Integration suites share one Postgres and clean up their own rows; in parallel one
+    // file's cleanup deletes users another file is mid-way through notifying.
+    fileParallelism: false,
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, ".") },

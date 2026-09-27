@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ensureSystemUser } from "@/db/test-helpers";
 import { eq } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -27,7 +28,10 @@ async function reset() {
 }
 
 describe("audit logging via the intermediate layer (integration)", () => {
-  beforeEach(reset);
+  beforeEach(async () => {
+    await reset();
+    await ensureSystemUser();
+  });
   afterAll(reset);
 
   it("writes a create audit row when a service creates an entity", async () => {

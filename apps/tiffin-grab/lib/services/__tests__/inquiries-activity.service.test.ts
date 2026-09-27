@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ensureSystemUser } from "@/db/test-helpers";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, users } from "@/db/schema";
@@ -25,7 +26,10 @@ async function makeInquiry() {
 }
 
 describe("inquiriesService.logActivity + markLost", () => {
-  beforeEach(reset);
+  beforeEach(async () => {
+    await reset();
+    await ensureSystemUser();
+  });
   afterAll(reset);
 
   it("logActivity inserts a typed activity with outcome + nextFollowUpAt", async () => {

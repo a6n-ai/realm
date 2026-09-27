@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ensureSystemUser } from "@/db/test-helpers";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities } from "@/db/schema";
@@ -19,7 +20,10 @@ async function reset() {
 }
 
 describe("inquiriesService", () => {
-  beforeEach(reset);
+  beforeEach(async () => {
+    await reset();
+    await ensureSystemUser();
+  });
   afterAll(reset);
 
   it("create writes a 'created' activity", async () => {

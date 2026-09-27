@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ensureSystemUser } from "@/db/test-helpers";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities } from "@/db/schema";
 
@@ -15,7 +16,10 @@ async function reset() {
 }
 
 describe("inquiriesService.findOpenByPhone", () => {
-  beforeEach(reset);
+  beforeEach(async () => {
+    await reset();
+    await ensureSystemUser();
+  });
   afterAll(reset);
 
   it("returns open inquiries for a phone, newest first, with source key+label", async () => {

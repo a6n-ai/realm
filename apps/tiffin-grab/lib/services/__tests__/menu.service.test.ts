@@ -97,7 +97,11 @@ describe("menuService (integration)", () => {
     // No organizationId — existing unscoped behavior, untouched.
     expect((await menuService.getPublishedWeek("2099-06-01"))?.weekStart).toBe("2099-06-01");
 
-    const [brandOrg] = await db.select({ id: organization.id }).from(organization).limit(1);
+    // Other suites delete organizations, so don't assume the seeded brand org survived.
+    let [brandOrg] = await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, "TG")).limit(1);
+    brandOrg ??= (
+      await db.insert(organization).values({ name: "Tiffin Grab", clientCode: "TG", parentOrganizationId: null }).returning({ id: organization.id })
+    )[0];
     expect(brandOrg).toBeTruthy();
     expect((await menuService.getPublishedWeek("2099-06-01", brandOrg!.id))?.weekStart).toBe("2099-06-01");
 
