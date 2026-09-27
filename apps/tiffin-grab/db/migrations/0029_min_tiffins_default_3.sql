@@ -1,1 +1,0 @@
-ALTER TABLE "app" ALTER COLUMN "min_tiffins_per_week" SET DEFAULT 3;

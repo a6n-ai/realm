@@ -1,1 +1,0 @@
-ALTER TYPE "public"."app_event" ADD VALUE IF NOT EXISTS 'customer_invitation';

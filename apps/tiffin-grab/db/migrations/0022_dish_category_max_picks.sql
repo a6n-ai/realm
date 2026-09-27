@@ -1,1 +1,0 @@
-ALTER TABLE "dish_categories" ADD COLUMN "max_picks_per_tiffin" integer;

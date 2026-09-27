@@ -1,1 +1,0 @@
-ALTER TABLE "app" ADD COLUMN "max_coin_redeem_pct_of_balance" integer;
