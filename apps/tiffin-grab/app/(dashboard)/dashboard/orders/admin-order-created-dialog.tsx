@@ -56,7 +56,7 @@ export function AdminOrderCreatedDialog({
       description="Share the payment link with the customer, then open the order to manage deliveries."
       contentClassName="sm:max-w-md"
       footer={
-        <div className="flex flex-wrap justify-end gap-2 px-4 pb-2 md:px-0">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
@@ -64,7 +64,7 @@ export function AdminOrderCreatedDialog({
         </div>
       }
     >
-      <div className="space-y-4 px-4 py-2 md:px-0">
+      <div className="space-y-4">
         <div className="rounded-lg border bg-muted/30 p-3 text-sm">
           <p className="text-muted-foreground text-xs uppercase tracking-wide">Deployment</p>
           <p className="mt-0.5 font-medium nums">{result.deploymentId}</p>

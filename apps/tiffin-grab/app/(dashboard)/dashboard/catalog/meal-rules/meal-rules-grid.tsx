@@ -220,7 +220,7 @@ function MealRuleDialog({
         </div>
       }
     >
-      <div className="space-y-4 px-4 py-3">
+      <div className="space-y-4">
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Plan</span>
           <Select value={planPublicId} onValueChange={setPlanPublicId} disabled={Boolean(editing)}>

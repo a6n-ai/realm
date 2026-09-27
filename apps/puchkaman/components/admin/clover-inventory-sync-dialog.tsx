@@ -103,7 +103,7 @@ export function CloverInventorySyncDialog({
           ) : undefined
         }
       >
-        <div className="grid gap-4 px-4 py-4">
+        <div className="grid gap-5">
           {!response && !error && !busy ? (
             <>
               {!cloverConnected ? (

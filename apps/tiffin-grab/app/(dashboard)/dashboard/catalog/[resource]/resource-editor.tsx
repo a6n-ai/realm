@@ -626,7 +626,7 @@ function EditorDialog({
     >
       <Form {...form}>
         <form id="resource-editor-form" onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {def.note ? <p className="text-muted-foreground text-sm sm:col-span-2">{def.note}</p> : null}
             {def.fields.map((f, i) => {
               const prevSection = i > 0 ? def.fields[i - 1].section : undefined;

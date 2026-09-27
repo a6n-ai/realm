@@ -183,7 +183,7 @@ export function RemoveControl({
           </div>
         }
       >
-        <div className="space-y-3 px-4 py-3">
+        <div className="space-y-3">
           {emptyingTheDay ? (
             <p className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
               <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />

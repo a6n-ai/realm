@@ -85,7 +85,7 @@ export function DiscountEditDialog({
       description="The amount still comes from Clover. These rules are local to puchkaman."
       contentClassName="sm:max-w-lg"
     >
-      <div className="grid gap-4 px-4 py-4">
+      <div className="grid gap-5">
         <div className="flex items-center justify-between rounded-lg border p-3">
           <div>
             <p className="text-sm font-medium">Offer at checkout</p>

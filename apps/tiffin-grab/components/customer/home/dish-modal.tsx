@@ -14,7 +14,7 @@ export function DishModal({ dish, daysOnMenu, open, onOpenChange }: {
 }) {
   return (
     <ResponsiveDialog open={open} onOpenChange={onOpenChange} title={dish.name}>
-      <div className="space-y-3 px-4 pb-4 sm:px-0 sm:pb-0">
+      <div className="space-y-3">
         <div className="aspect-video overflow-hidden rounded-lg">
           <DishImage image={dish.image} name={dish.name} />
         </div>

@@ -75,7 +75,7 @@ export function DeleteAllProductsDialog({
       description="Clears the catalogue so a Clover pull can rebuild it from the POS."
       contentClassName="sm:max-w-lg"
     >
-      <div className="grid gap-4 px-4 py-4">
+      <div className="grid gap-5">
         <div className="border-destructive/40 bg-destructive/5 flex gap-3 rounded-lg border p-3">
           <AlertTriangleIcon className="text-destructive mt-0.5 size-4 shrink-0" />
           <div className="text-sm">

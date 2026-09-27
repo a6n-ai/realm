@@ -4,7 +4,7 @@ import { cn } from "@foundry/ui/cn";
 /** Compact numbered stepper for the 2-step lead sheets (Customer → Order). */
 export function StepHeader({ step, steps }: { step: number; steps: string[] }) {
   return (
-    <div className="border-border/70 flex items-center gap-2 border-b px-5 py-3">
+    <div className="border-border/70 flex items-center gap-2 border-b px-5 py-3 sm:px-6">
       {steps.map((label, i) => {
         const n = i + 1;
         const active = n === step;

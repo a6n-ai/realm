@@ -95,7 +95,7 @@ export function SyncCustomerToCloverButton({
       title="Sync to Clover"
       description="Check for an existing Clover customer before creating a new one."
     >
-      <div className="space-y-3 p-4">
+      <div className="space-y-3">
         {confirming ? (
           <div className="space-y-3 rounded-lg border p-3">
             {confirming === "create" ? (
