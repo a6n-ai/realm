@@ -3,7 +3,7 @@ import { Info, Truck, Utensils } from "lucide-react";
 import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { formatCutoff, humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, isDone, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
@@ -24,6 +24,16 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "failed": return { label: "Failed (On Hold)", tone: "hold", dot: "hold" };
   }
 }
+
+const MOVED_TRIP: Trip["status"][] = ["rescheduled", "combined-into"];
+
+/** A moved-away eating day reads "Moved" even while its old trip keeps delivering other days. */
+export function rowMeta(row: EatingRow): ReturnType<typeof statusMeta> {
+  return row.movedTo && !MOVED_TRIP.includes(row.trip.status) ? { label: "Moved", tone: "neutral", dot: "combined" } : statusMeta(row.trip);
+}
+
+/** Card facts for a moved-away day: where its tiffin is eaten now, not the old trip's count. */
+export const movedFact = (row: EatingRow): string => `${weekdayShort(row.date)}'s tiffin is eaten ${humanDate(row.movedTo!)} now, with that day's meal`;
 
 export type PlanTagInfo = { color: string; label: string };
 export function PlanTag({ plan }: { plan: PlanTagInfo }) {
@@ -124,7 +134,7 @@ const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
 
 /** One eating day of the selected week: date + dishes; a truck marks the delivery day, the "i" button (beside the row) holds the rest. */
 export function EatingRowButton({ row, selected, onSelect, plan, menuOut }: { row: EatingRow; selected: boolean; onSelect: (row: EatingRow) => void; plan?: PlanTagInfo; menuOut?: boolean }) {
-  const m = statusMeta(row.trip);
+  const m = rowMeta(row);
   const dish = dedupeDishes(row.dish).join(", ");
   return (
     <button
@@ -144,7 +154,7 @@ export function EatingRowButton({ row, selected, onSelect, plan, menuOut }: { ro
         <span className="flex items-center gap-2 text-[15px] font-semibold">
           {humanDate(row.date)}
         </span>
-        <span className={cn(HELP, "block truncate")}>{menuOut ? "Menu not released yet" : dish || "Default menu"}</span>
+        <span className={cn(HELP, "block truncate")}>{row.movedTo ? `Moved to ${humanDate(row.movedTo)}` : menuOut ? "Menu not released yet" : dish || "Default menu"}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
         {m.dot && <StatusDot decorative status={m.dot} />}
@@ -157,9 +167,9 @@ export function EatingRowButton({ row, selected, onSelect, plan, menuOut }: { ro
 /** Delivery card for the selected eating day: which truck feeds it, how many tiffins, when it locks. Dishes live in the list, not here. */
 export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; children?: React.ReactNode }) {
   const { trip } = row;
-  const m = statusMeta(trip);
+  const m = rowMeta(row);
   const covers = trip.coversDates.map(weekdayShort).join(" + ");
-  const facts = [
+  const facts = row.movedTo ? [movedFact(row)] : isDone(row) ? [reason] : [
     `${tiffins(trip.units)} covering ${covers}`,
     movedInNote(row),
     trip.status === "upcoming" ? `Changes close ${formatCutoff(trip.cutoffAt, tz)}` : reason,
@@ -205,7 +215,7 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
     if (slots?.length) return slots[pickIndex] ?? slots[slots.length - 1] ?? null;
     return plan?.categoryPortions[category] ?? null;
   };
-  const delivery = [
+  const delivery = row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [
     deliveryLine(row),
     `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
     movedInNote(row),

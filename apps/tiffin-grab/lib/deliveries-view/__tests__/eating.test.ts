@@ -44,6 +44,14 @@ describe("one eating day moved off a Fri+Sat+Sun trip", () => {
   });
 });
 
+describe("settled days", () => {
+  it("a delivered or failed day just says so, without carried-day or moved-in details", () => {
+    const [own, carried] = buildEatingDays([trip({ status: "delivered", movesIn: [{ from: "2026-09-25", to: "2026-09-21" }] })]);
+    expect([deliveryLine(own!), deliveryLine(carried!), movedInNote(own!)]).toEqual(["Delivered Mon, Sep 21", "Delivered Mon, Sep 21", null]);
+    expect(deliveryLine(buildEatingDays([trip({ status: "failed" })])[0]!)).toBe("Delivery failed Mon, Sep 21");
+  });
+});
+
 describe("buildEatingDays", () => {
   it("a Mon trip covering Mon+Tue yields two eating days, only Mon is the delivery day", () => {
     const rows = buildEatingDays([trip({})]);

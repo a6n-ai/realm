@@ -31,6 +31,8 @@ export type CalendarDayInput = {
   /** Tiffins the customer moved onto this trip (null from = scheduled from the pool) and off it. */
   movesIn?: TiffinMove[];
   movesOut?: TiffinMove[];
+  /** Every tiffin left this row: its date is free for a move again. */
+  emptied?: boolean;
   /** This delivery's own address when re-addressed; null/absent = it follows the plan. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
   /** This delivery's own strategy when re-addressed; null/absent = it follows the plan. */

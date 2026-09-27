@@ -114,11 +114,11 @@ describe("DeliveriesView (one plan)", () => {
     view("2026-09-21");
     expect(screen.queryByRole("button", { name: /Edit meal/ })).toBeNull();
   });
-  it("a trip covering Mon + Tue: Tue names the delivery that feeds it", () => {
+  it("a delivered day carried on Monday's trip just reads Delivered, without trip details", () => {
     view("2026-09-22");
     expect(screen.getByRole("heading", { name: /Delivered Mon, Sep 21/ })).toBeInTheDocument();
     expect(screen.getByTestId("delivery-block")).toHaveTextContent("Delivered Mon, Sep 21");
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("2 tiffins covering Mon + Tue");
+    expect(screen.getByTestId("delivery-block")).not.toHaveTextContent(/tiffins covering/);
   });
   it("selecting another row swaps the detail; rows show no delivery text, just date, dishes, status", () => {
     view();

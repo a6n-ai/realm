@@ -28,7 +28,7 @@ import { moveLockReason, moveOptions } from "@/lib/deliveries-view/move";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
 import { applySwapsToCounts, exchangeOverride, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { OrderWeek } from "@/lib/services/order-week.service";
-import { statusMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
+import { movedFact, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
@@ -145,7 +145,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
           <div className="space-y-1" role="list" aria-label="Eating days">
             {rows.map((r) => {
-              const m = statusMeta(r.trip);
+              const m = rowMeta(r);
               const on = row?.date === r.date;
               return (
                 <div key={r.date} role="listitem" className="flex items-center">
@@ -153,7 +153,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                     <Utensils aria-hidden className="text-muted-foreground size-4 shrink-0" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium">{humanDate(r.date)}</span>
-                      <span className="text-muted-foreground block truncate text-xs">{r.dish ?? "Default menu"}</span>
+                      <span className="text-muted-foreground block truncate text-xs">{r.movedTo ? `Moved to ${humanDate(r.movedTo)}` : r.dish ?? "Default menu"}</span>
                     </span>
                     <Badge variant="outline">{m.label}</Badge>
                   </button>
@@ -169,10 +169,11 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                 <CardTitle className="flex flex-wrap items-center gap-2" data-testid="delivery-block">
                   <Truck className="size-5" aria-hidden />
                   {deliveryLine(row)}
-                  <Badge variant="outline">{statusMeta(trip).label}</Badge>
+                  <Badge variant="outline">{rowMeta(row).label}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {row.movedTo ? <p className="text-muted-foreground text-sm">{movedFact(row)}</p> : <>
                 <p className="text-muted-foreground text-sm">
                   {tiffins(trip.units)} covering {trip.coversDates.map(weekdayShort).join(" + ")}
                   {movedInNote(row) && ` · ${movedInNote(row)}`}
@@ -183,6 +184,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                   const r = await unskipMyDelivery(trip.deliveryId!);
                   "error" in r ? toast.error(r.error) : refresh(`Resumed ${humanDate(trip.date)}.`);
                 }} />
+                </>}
                 <p className="text-muted-foreground text-xs">Meal picks for the week are in &quot;This week&apos;s meals&quot; below.</p>
               </CardContent>
             </Card>
@@ -207,7 +209,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                   {x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : `with ${weekdayShort(x.deliveryDate)}, ${humanDate(x.deliveryDate)}`}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{x.truck ? x.units : ""}</TableCell>
-                <TableCell><Badge variant="outline">{dotStatus(x, now) === "delivered" ? "Delivered" : dotStatus(x, now) === "hold" ? "On hold" : dotStatus(x, now) === "vacation" ? "Vacation" : "Upcoming"}</Badge></TableCell>
+                <TableCell><Badge variant="outline">{x.moved ? "Moved" : dotStatus(x, now) === "delivered" ? "Delivered" : dotStatus(x, now) === "hold" ? "On hold" : dotStatus(x, now) === "vacation" ? "Vacation" : "Upcoming"}</Badge></TableCell>
               </>
             )}
           />

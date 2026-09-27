@@ -14,6 +14,10 @@ describe("actionModel", () => {
     expect(m.bar).toEqual(["pick", "move"]);
     expect(m.rows.find((r) => r.key === "pick")?.label).toBe("Edit meal");
   });
+  it("a moved-away day on a live trip: no edits, only a way to where its tiffin is eaten now", () => {
+    const m = actionModel(trip(), Date.now(), ctx, { movedTo: "2026-09-29" });
+    expect([m.primary, m.rows, m.bar, m.goTo, m.closedReason]).toEqual([null, [], [], "2026-09-29", null]);
+  });
   it("on hold: resume is offered and becomes primary", () => {
     const m = actionModel(trip({ status: "hold" }), Date.now(), ctx);
     expect(m.primary).toBe("resume");

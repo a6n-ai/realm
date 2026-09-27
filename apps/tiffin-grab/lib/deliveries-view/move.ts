@@ -46,8 +46,9 @@ export function moveLockReason(trip: Pick<Trip, "coversDates" | "extraDates" | "
  * Every check (past, cutoff, held target, 3-tiffin cap) runs on the carrying trip. The server
  * stays authoritative. A pooled miss still moves whole.
  */
-export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon?: number, sourceDate: string = trip.date): MoveOption[] {
-  const byDate = new Map(days.map((d) => [d.date, d]));
+export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras" | "emptied">[], now: number, ctx: PlanContext, today: string, horizon?: number, sourceDate: string = trip.date): MoveOption[] {
+  // An emptied row (all its tiffins moved away) is a free day again: the server revives it.
+  const byDate = new Map(days.filter((d) => !d.emptied).map((d) => [d.date, d]));
   const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun") as DayOfWeek[];
   const out: MoveOption[] = [];
   // A plan that hasn't started yet offers dates from its own start; an active plan starts from today.

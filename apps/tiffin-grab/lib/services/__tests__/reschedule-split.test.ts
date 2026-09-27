@@ -183,4 +183,29 @@ describe("rescheduleDelivery: splitting one eating day off a multi-day trip", ()
     const [f] = await db.select().from(deliveries).where(eq(deliveries.id, fri.id));
     expect([f.status, f.coversDates, await extrasOf(f.id), f.tiffinUnits]).toEqual(["scheduled", ["2030-01-12", "2030-01-13"], ["2030-01-12"], 3]);
   });
+
+  it("a day whose tiffins all moved away can take a move again: the emptied row is revived", async () => {
+    const { mon, wed, fri } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-11"], tiffinUnits: 1 }).where(eq(deliveries.id, fri.id));
+    await rescheduleDelivery(fri.publicId, "2030-01-10", 1n, "2030-01-11"); // Fri's only tiffin -> Thu, merges onto Wed
+    const [gone] = await db.select().from(deliveries).where(eq(deliveries.id, fri.id));
+    expect(gone.mergedIntoDeliveryId).toBe(wed.id);
+
+    await rescheduleDelivery(mon.publicId, "2030-01-12", 1n, "2030-01-07"); // Mon's tiffin -> Sat, rides Friday
+    const [f] = await db.select().from(deliveries).where(eq(deliveries.id, fri.id));
+    expect([f.status, f.mergedIntoDeliveryId, f.coversDates, f.tiffinUnits]).toEqual(["scheduled", null, ["2030-01-12"], 1]);
+  });
+
+  it("a day emptied by a make-up is revived too, and the make-up keeps its tiffin", async () => {
+    const { mon, fri } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-11"], tiffinUnits: 1 }).where(eq(deliveries.id, fri.id));
+    await rescheduleDelivery(fri.publicId, "2030-01-18", 1n, "2030-01-11"); // onto an open next Friday: a make-up row
+    const [makeup] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, fri.id));
+    await rescheduleDelivery(mon.publicId, "2030-01-11", 1n, "2030-01-07");
+    const [f] = await db.select().from(deliveries).where(eq(deliveries.id, fri.id));
+    expect([f.status, f.coversDates]).toEqual(["scheduled", ["2030-01-11"]]);
+    const [m] = await db.select().from(deliveries).where(eq(deliveries.id, makeup.id));
+    expect([m.status, m.coversDates, m.makeupForDeliveryId]).toEqual(["scheduled", ["2030-01-18"], null]);
+    await expect(rescheduleDelivery(m.publicId, "2030-01-21", 1n)).rejects.toThrow(/already moved/);
+  });
 });

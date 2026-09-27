@@ -62,9 +62,12 @@ export function eatingRowsInWeek(trips: Trip[], weekStart: string, weekEnd: stri
   });
 }
 
+/** Delivered or failed: the day is settled, so it reads as just that, without how it got there. */
+export const isDone = (r: EatingRow): boolean => r.trip.status === "delivered" || r.trip.status === "failed";
+
 /** "Fri's tiffin moved here, same meal" for a day carrying moved-in tiffins; null otherwise. */
 export function movedInNote(r: EatingRow): string | null {
-  if (!r.movedFrom?.length) return null;
+  if (!r.movedFrom?.length || isDone(r)) return null;
   const names = r.movedFrom.map((d) => (d ? `${weekdayShort(d)}'s` : "a pool"));
   return `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} tiffins` : `${names[0]} tiffin`} moved here, same meal`;
 }
@@ -76,7 +79,8 @@ export function deliveryLine(r: EatingRow): string {
   const day = humanDate(t.date);
   const with_ = r.own ? "" : ` with ${weekdayShort(t.date)}`;
   switch (t.status) {
-    case "delivered": return `Delivered ${day}${with_}`;
+    case "delivered": return `Delivered ${day}`;
+    case "failed": return `Delivery failed ${day}`;
     case "cutoff-passed": return `Being prepared, arrives ${day}${with_}`;
     case "upcoming": return `Arrives ${day}${with_}`;
     case "rescheduled": case "combined-into": return t.movedTo ? `Moved to ${humanDate(t.movedTo)}` : "Moved";

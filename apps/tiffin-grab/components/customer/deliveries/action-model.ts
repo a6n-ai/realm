@@ -22,10 +22,11 @@ const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet
  * it is no longer a separate customer action — `canSwap` is ignored for listing.
  * `locked`: payment unconfirmed, so the plan is read-only: no actions at all.
  */
-export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean; isDeliveryDay?: boolean } = {}) {
+export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean; isDeliveryDay?: boolean; movedTo?: string } = {}) {
   const av = actionAvailability(trip, now, ctx);
   const held = trip.status === "hold" || trip.status === "rescheduled" || trip.status === "failed";
-  const closed = CLOSED.has(trip.status);
+  // A moved-away day has nothing left to edit here: only "go to" where its tiffin is eaten now.
+  const closed = CLOSED.has(trip.status) || !!opts.movedTo;
   const pickAv: Availability = opts.menuOut && !closed ? MENU_NOT_RELEASED : av.pick;
   const showAddress = opts.isDeliveryDay !== false;
   const keys: TripAction[] = closed || opts.locked
@@ -36,15 +37,15 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
     : trip.status === "vacation" ? "vacation" : held ? "resume" : trip.status === "upcoming" ? "pick" : null;
   return {
     av,
-    primary,
+    primary: opts.movedTo ? null : primary,
     rows: keys.map((key) => ({
       key,
       label: key === "vacation" ? "Resume deliveries" : ACTION_LABEL[key],
       av: key === "pick" ? pickAv : (av[key] as Availability),
     })),
     bar: (closed || opts.locked ? [] : (["pick", "move"] as TripAction[])),
-    closedReason: closed ? av.pick.why : null,
-    goTo: trip.status === "combined-into" ? trip.mergedInto : null,
+    closedReason: opts.movedTo ? null : closed ? av.pick.why : null,
+    goTo: opts.movedTo ?? (trip.status === "combined-into" ? trip.mergedInto : null),
   };
 }
 

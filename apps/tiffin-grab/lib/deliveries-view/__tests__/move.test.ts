@@ -68,6 +68,10 @@ describe("moveOptions", () => {
     const t2 = { ...t, movesIn: [...t.movesIn!, { from: "2026-09-21", to: "2026-09-23" }] } as Trip;
     expect(moveLockReason(t2, "2026-09-23")).toMatch(/already moved/);
   });
+  it("a day emptied by moves is open again, not a held trip", () => {
+    const o = moveOptions({ ...trip, status: "upcoming" } as Trip, [{ date: "2026-09-25", status: "skipped", emptied: true }], NOW, ctx, "2026-09-21", 5);
+    expect(o.find((x) => x.date === "2026-09-25")).toMatchObject({ disabledReason: undefined, merge: null });
+  });
   it("blocks a move onto a delivery already carrying 3 tiffins, including days it carries", () => {
     const days = [{ date: "2026-09-23", status: "scheduled" as const, units: 3, covers: ["2026-09-23", "2026-09-24"], extras: ["2026-09-23"] }];
     const o = moveOptions({ ...trip, date: "2026-09-25", coversDates: ["2026-09-25"] } as Trip, days, NOW, ctx, "2026-09-22", 4);

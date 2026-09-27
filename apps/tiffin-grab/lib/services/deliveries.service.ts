@@ -692,6 +692,28 @@ async function dropDeliverySwapsForDate(tx: Tx, deliveryId: bigint, tripDate: st
 }
 
 /**
+ * A row whose tiffins all left (merged into another trip, or replaced by a make-up) still owns
+ * its date under deliveries_order_date_unique but carries nothing, which used to block every
+ * later move onto that day. A move landing there revives it as a fresh, empty scheduled trip.
+ * Pooled rows stay out: the pool already counted their tiffins.
+ */
+async function reviveIfEmptied(tx: Tx, row: Delivery, cutoffAt: number): Promise<Delivery> {
+  if (row.status === "scheduled" || row.pooledAt != null) return row;
+  const [child] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
+  if (row.mergedIntoDeliveryId == null && !child) return row;
+  // The make-up keeps its tiffin but stops pointing here; delivery_moves still records the move and keeps it locked.
+  if (child) await tx.update(deliveries).set({ makeupForDeliveryId: null }).where(eq(deliveries.id, child.id));
+  const [revived] = await tx.update(deliveries).set({
+    status: "scheduled", cutoffAt, mergedIntoDeliveryId: null, coversDates: [], tiffinUnits: 0,
+    routeDriverSerial: null, routeDriverName: null, routeStopNumber: null, routeSyncedAt: null,
+    optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null,
+  }).where(eq(deliveries.id, row.id)).returning();
+  await replaceExtras(tx, row.id, []);
+  await tx.delete(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id));
+  return revived!;
+}
+
+/**
  * Moves a WHOLE trip onto `targetDate` (a delivery weekday): payment-shift, re-delivery, a
  * single-tiffin reschedule, or a pooled miss. If a SCHEDULED trip already sits on targetDate
  * the tiffins merge into it (units add, coverage unions); otherwise a make-up row is inserted.
@@ -710,8 +732,9 @@ async function moveTrip(
   const own = coveredDates(source);
   const carried = eatingDateIso && own.length === 1 ? [eatingDateIso] : own;
   const relabel = carried.length === 1 && own.length === 1 && carried[0] !== own[0];
-  const [target] = await tx.select().from(deliveries)
+  const [found] = await tx.select().from(deliveries)
     .where(and(eq(deliveries.orderId, source.orderId), eq(deliveries.deliveryDate, targetDate))).limit(1);
+  const target = found && (await reviveIfEmptied(tx, found, targetCutoff));
   // Legacy rows (no covers_dates) keep their stored units: a bundled Friday must not drop to one day.
   const srcExtraDates = (await loadExtraDates(tx, [source.id])).get(source.id) ?? [];
   const movingExtras = carriedExtras(srcExtraDates, eatingDateIso, own);
@@ -794,8 +817,9 @@ async function moveOneTiffin(
     return { id: source.id, merged: true };
   }
 
-  const [target] = await tx.select().from(deliveries)
+  const [found] = await tx.select().from(deliveries)
     .where(and(eq(deliveries.orderId, source.orderId), eq(deliveries.deliveryDate, targetDate))).limit(1);
+  const target = found && (await reviveIfEmptied(tx, found, targetCutoff));
   let targetId: bigint;
   if (target) {
     if (target.status !== "scheduled" || target.mergedIntoDeliveryId) throw new ValidationError("You already have a delivery on that day");

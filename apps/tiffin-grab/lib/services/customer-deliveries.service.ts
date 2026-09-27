@@ -711,6 +711,8 @@ export type CalendarDay = {
   coversLabel?: string | null;
   /** Delivery date of the trip this row was merged into ("Combined into Wed's delivery"); null otherwise. */
   combinedInto?: string | null;
+  /** Every tiffin left this row (merged away or replaced by a make-up): a move may land on its date again. */
+  emptied?: boolean;
   /** Tiffins moved onto this trip (null from = from the pool) and off it, by eat date. */
   movesIn?: { from: string | null; to: string }[];
   movesOut?: { from: string | null; to: string }[];
@@ -774,9 +776,11 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   const rowIds = rows.map((r) => r.id);
   const moves = await db.select({ fromId: deliveryMoves.fromDeliveryId, toId: deliveryMoves.toDeliveryId, from: deliveryMoves.fromEatDate, to: deliveryMoves.toEatDate })
     .from(deliveryMoves).where(or(inArray(deliveryMoves.toDeliveryId, rowIds), inArray(deliveryMoves.fromDeliveryId, rowIds)));
+  const replaced = new Set((await db.select({ src: deliveries.makeupForDeliveryId }).from(deliveries).where(inArray(deliveries.makeupForDeliveryId, rowIds))).map((r) => r.src));
   const tripFields = (row: CustomerDelivery) => {
     const covers = coveredDates(row);
     return {
+      emptied: row.status !== "scheduled" && row.pooledAt == null && (row.mergedIntoDeliveryId != null || replaced.has(row.id)),
       movesIn: moves.filter((m) => m.toId === row.id).map(({ from, to }) => ({ from, to })),
       movesOut: moves.filter((m) => m.fromId === row.id && m.toId !== row.id).map(({ from, to }) => ({ from, to })),
       units: row.mergedIntoDeliveryId ? 0 : row.tiffinUnits,
