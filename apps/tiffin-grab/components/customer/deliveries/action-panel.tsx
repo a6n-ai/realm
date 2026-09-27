@@ -51,6 +51,7 @@ export function TripActions({ model, layout, onAction, onGoTo }: Props) {
     <div className={cn(FONT, bar ? "space-y-2" : "space-y-3")}>
       {reason && <div role="status"><Reason>{reason}</Reason></div>}
       <div className={cn("flex gap-2", !bar && !cardRow && "flex-col")}>
+        {!primary && model.goTo && <Button variant="primary" size="lg" className={cn("min-w-0 whitespace-nowrap px-3", bar ? "flex-[2]" : cardRow ? "flex-1" : "w-full")} onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
         {primary && (
           <Button
             variant="primary"

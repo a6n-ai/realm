@@ -14,9 +14,13 @@ describe("actionModel", () => {
     expect(m.bar).toEqual(["pick", "move"]);
     expect(m.rows.find((r) => r.key === "pick")?.label).toBe("Edit meal");
   });
-  it("a moved-away day on a live trip: no edits, only a way to where its tiffin is eaten now", () => {
+  it("a moved-away delivery day on a live trip keeps its truck's Address, plus a way to where its tiffin is eaten now", () => {
     const m = actionModel(trip(), Date.now(), ctx, { movedTo: "2026-09-29" });
-    expect([m.primary, m.rows, m.bar, m.goTo, m.closedReason]).toEqual([null, [], [], "2026-09-29", null]);
+    expect([m.primary, m.rows.map((r) => r.key), m.bar, m.goTo, m.closedReason]).toEqual([null, ["address"], ["address"], "2026-09-29", null]);
+  });
+  it("a moved-away eating day that isn't the delivery day has nothing to edit", () => {
+    const m = actionModel(trip(), Date.now(), ctx, { movedTo: "2026-09-29", isDeliveryDay: false });
+    expect([m.rows, m.bar, m.goTo]).toEqual([[], [], "2026-09-29"]);
   });
   it("failed drop: Move is the only action and the primary", () => {
     const m = actionModel(trip({ status: "failed" }), Date.now(), ctx);
