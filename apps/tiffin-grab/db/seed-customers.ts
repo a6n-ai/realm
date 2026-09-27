@@ -18,7 +18,7 @@
  */
 import { eq, isNull, or } from "drizzle-orm";
 import mysql from "mysql2/promise";
-import { emailSchema, phoneSchema } from "@foundry/commons";
+import { emailSchema } from "@foundry/commons";
 import { db } from "./client";
 import { orderActivities, orders, organization, users } from "./schema";
 import { loadCatalogSnapshot } from "../lib/catalog/load";
@@ -28,7 +28,6 @@ import type { DayOfWeek } from "../lib/menu/delivery-days";
 import { tripsFor } from "../lib/orders/bounded-deliveries";
 import { provisionCustomerByPhone } from "../lib/services/customers.service";
 import { addressService } from "../lib/services/addresses.service";
-import { normalisePhone } from "../lib/services/optimoroute/push";
 import type { OrderPricingSnapshot } from "../lib/pricing/types";
 
 export const MIGRATION_TAG = "Migrated from WordPress";
@@ -218,13 +217,21 @@ function instructionsFor(row: WpRow): string | null {
   return parts.length ? parts.join(". ") : null;
 }
 
+/** 10 NANP digits, or "" for anything else (never guesses a country code). */
+function nanpDigits(raw: string | null): string {
+  const d = (raw ?? "").replace(/\D/g, "");
+  if (d.length === 10) return d;
+  if (d.length === 11 && d.startsWith("1")) return d.slice(1);
+  return "";
+}
+
 export function mapRow(row: WpRow): MigrationRecord {
   const { frequencyKey, eatingDays, includeSaturday, includeSunday } = parsePreferredDays(row.preferredDays);
   return {
     wpOrderId: row.id,
     wpStatus: row.status,
     fullName: [row.firstName, row.lastName].map((s) => (s ?? "").trim()).filter(Boolean).join(" "),
-    phone: normalisePhone(row.phone ?? ""),
+    phone: nanpDigits(row.phone),
     email: (row.email ?? "").trim().toLowerCase(),
     addressLine: (row.address1 ?? "").trim(),
     addressUnit: (row.address2 ?? "").trim() || null,
@@ -332,7 +339,7 @@ export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot): { results: P
   for (const row of rows) {
     const record = mapRow(row);
     const skip = (reason: string) => results.push({ kind: "skipped", wpOrderId: row.id, reason });
-    if (!record.phone) { skip("no phone"); continue; }
+    if (!/^\d{10}$/.test(record.phone)) { skip(`phone not 10 digits: "${row.phone ?? ""}"`); continue; }
     if (!emailSchema.safeParse(record.email).success) { skip("no usable email (invite needs one)"); continue; }
     if (hasVegConflict(row)) { skip(`veg conflict: product "${record.productText}" vs meta "${row.veg}"`); continue; }
     if (record.tiffinCount <= 0) { skip("zero remaining tiffins"); continue; }
@@ -386,7 +393,9 @@ async function brandOrgId(): Promise<string | null> {
 async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: CatalogSnapshot, orgId: string | null): Promise<Outcome> {
   const x = r.record;
   const deploymentId = `wc-${x.wpOrderId}`;
-  const phone = phoneSchema().parse(x.phone);
+  // phoneSchema() crashes under tsx (libphonenumber CJS/ESM interop); planSeed already
+  // required 10 NANP digits, so this is the E.164 form phoneSchema would store.
+  const phone = `+1${x.phone}`;
   const plan = snapshot.plans.find((p) => p.key === x.planKey);
   const frequency = snapshot.frequencies.find((f) => f.key === x.frequencyKey);
   if (!plan || !frequency) throw new Error(`catalog has no plan ${x.planKey} / frequency ${x.frequencyKey}`);
