@@ -88,9 +88,9 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
             ) : (
               <p className="text-muted-foreground">
                 Sign in to see payment details and confirm what you sent.{" "}
-                <a className="text-primary font-medium underline-offset-4 hover:underline" href="/me/wallet?tab=bills">
+                <Link className="text-primary font-medium underline-offset-4 hover:underline" href="/me/wallet?tab=bills">
                   Open Finances
-                </a>
+                </Link>
               </p>
             )}
           </div>
@@ -107,12 +107,12 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
         )}
 
         {waitlisted ? (
-          <a
+          <Link
             className="border-border text-foreground mt-6 inline-flex h-12 items-center justify-center rounded-full border px-6 text-sm font-semibold transition-transform active:scale-[0.98]"
             href="/"
           >
             Back to home
-          </a>
+          </Link>
         ) : claimable ? (
           <Link
             className="border-border text-foreground mt-6 inline-flex h-12 items-center justify-center rounded-full border px-6 text-sm font-semibold transition-transform active:scale-[0.98]"

@@ -13,7 +13,13 @@ const kitAddressUi: AddressUi = {
     <div className={cn("flex flex-col gap-2", wide && "sm:col-span-2", combo && "relative")}>
       <div className={cn(!!footer && "flex items-end gap-2")}>
         <div className="min-w-0 flex-1">
-          <Field id={id} label={label} error={error} {...inputProps} />
+          <Field
+            id={id}
+            label={label}
+            error={error}
+            hint={inputProps.name === "deliveryInstructions" ? "* Please add buzzer code if you have any and parking details for better delivery." : undefined}
+            {...inputProps}
+          />
         </div>
         {footer}
       </div>

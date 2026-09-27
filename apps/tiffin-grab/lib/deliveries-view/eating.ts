@@ -47,6 +47,17 @@ export function buildEatingDays(trips: Trip[]): EatingRow[] {
   return rows.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * The row that carries its truck's "Change address": the delivery day itself (even when its own
+ * tiffin moved away, since the truck still goes), else the truck's first eating day when its own
+ * date isn't an eating day. Address belongs to the delivery, which never moves.
+ */
+export function isAddressRow(rows: EatingRow[], row: EatingRow): boolean {
+  const own = rows.filter((r) => r.trip === row.trip);
+  const anchor = own.find((r) => r.date === row.trip.date) ?? own[0];
+  return anchor === row;
+}
+
 const ARRIVING: TripStatus[] = ["upcoming", "delivered", "cutoff-passed", "locked"];
 
 /**

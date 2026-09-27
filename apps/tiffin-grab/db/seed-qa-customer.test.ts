@@ -92,7 +92,7 @@ describe("seed QA customer", () => {
       .limit(1);
 
     if (live) {
-      // eslint-disable-next-line no-console
+       
       console.log(`login: ${EMAIL} / ${PASSWORD}; existing order: ${live.deploymentId}`);
       return;
     }
@@ -124,7 +124,7 @@ describe("seed QA customer", () => {
 
     expect(deploymentId).toMatch(/^SUB-/);
     expect(orderPublicId).toMatch(/^ord_/);
-    // eslint-disable-next-line no-console
+     
     console.log(`login: ${EMAIL} / ${PASSWORD}; order: ${deploymentId}`);
   }, 60_000);
 });

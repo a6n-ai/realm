@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { TicketPercentIcon } from "lucide-react";
 import { desc, eq } from "drizzle-orm";

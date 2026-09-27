@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEatingDays, deliveryLine, eatingRowsInWeek, movedInNote } from "../eating";
+import { buildEatingDays, deliveryLine, eatingRowsInWeek, isAddressRow, movedInNote } from "../eating";
 import type { Trip } from "../index";
 
 const day = (date: string, dish: string | null = null, locksWith: string | null = null) => ({ date, dishSummary: dish, swaps: [], locksWith });
@@ -38,6 +38,15 @@ describe("one eating day moved off a Fri+Sat+Sun trip", () => {
     expect(lines["2026-09-25"]).toBe("Moved to Wed, Sep 23");
     expect(lines["2026-09-26"]).toBe("Moved to Tue, Sep 29");
     expect(lines["2026-09-27"]).toBe("Arrives Fri, Sep 25 with Fri");
+  });
+  it("Change address sits on the delivery day, even after its own tiffin moved away", () => {
+    const fri = rows.filter((r) => r.trip.date === "2026-09-25");
+    expect(fri.filter((r) => isAddressRow(rows, r)).map((r) => r.date)).toEqual(["2026-09-25"]);
+  });
+  it("a truck whose own day isn't an eating day offers it on its first eating day", () => {
+    const sat = trip({ date: "2026-09-25", coversDates: ["2026-09-26", "2026-09-27"], eatingDays: [day("2026-09-26"), day("2026-09-27")] });
+    const r = buildEatingDays([sat]);
+    expect(r.filter((x) => isAddressRow(r, x)).map((x) => x.date)).toEqual(["2026-09-26"]);
   });
   it("a moved-away day shows only in its own week", () => {
     expect(eatingRowsInWeek([wed, fri, tue], "2026-09-28", "2026-10-04").map((r) => r.date)).toEqual(["2026-09-29"]);

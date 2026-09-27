@@ -34,7 +34,7 @@ describe("seed QA second subscription", () => {
       .where(and(eq(orders.userId, u!.id), inArray(orders.status, ["active", "paused"])));
 
     if (live.length >= 2) {
-      // eslint-disable-next-line no-console
+       
       console.log(`already have ${live.length} live subs`);
       return;
     }
@@ -80,7 +80,7 @@ describe("seed QA second subscription", () => {
     );
 
     expect(publicId).toMatch(/^ord_/);
-    // eslint-disable-next-line no-console
+     
     console.log(`second sub: ${publicId} plan=${plan.name}`);
   }, 60_000);
 });

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity */
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";

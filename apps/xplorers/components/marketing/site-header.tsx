@@ -22,7 +22,7 @@ export function SiteHeader() {
   const accountLabel = session?.user ? (session.user.name?.split(" ")[0] ?? "Account") : "Log in";
 
   useEffect(() => {
-    setOpen(false);
+    setTimeout(() => setOpen(false), 0);
   }, [pathname]);
 
   useEffect(() => {

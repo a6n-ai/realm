@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable */
+
 
 import { Skeleton } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";

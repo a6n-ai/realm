@@ -171,7 +171,7 @@ describe("seed QA plans", () => {
       }
       logins.push({ email: a.email, plan: a.size.plan, size: a.size.name, order: deploymentId! });
     }
-    // eslint-disable-next-line no-console
+     
     console.table(logins);
     expect(logins).toHaveLength(accounts.length);
   }, 300_000);

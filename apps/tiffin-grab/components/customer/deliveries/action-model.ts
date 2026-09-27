@@ -21,14 +21,17 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
   const av = actionAvailability(trip, now, ctx);
   // Not delivered (a failed drop, or a legacy paused day): the only thing to do is move it.
   const moveOnly = trip.status === "failed" || trip.status === "vacation";
-  // A moved-away day has nothing left to edit here: only "go to" where its tiffin is eaten now.
-  const closed = CLOSED.has(trip.status) || !!opts.movedTo;
+  // A moved-away eating day has nothing to edit here except its truck's address (the delivery
+  // day never moves), plus "go to" where its tiffin is eaten now.
+  const movedAway = !!opts.movedTo;
+  const closed = CLOSED.has(trip.status);
   const pickAv: Availability = opts.menuOut && !closed ? MENU_NOT_RELEASED : av.pick;
   const showAddress = opts.isDeliveryDay !== false;
   const keys: TripAction[] = closed || opts.locked ? []
+    : movedAway ? (showAddress ? ["address"] : [])
     : moveOnly ? ["move"]
     : ["pick", "move", ...(showAddress ? (["address"] as const) : [])];
-  const primary: TripAction | null = opts.locked || closed ? null
+  const primary: TripAction | null = opts.locked || closed || movedAway ? null
     : moveOnly ? "move" : trip.status === "upcoming" ? "pick" : null;
   return {
     av,
@@ -38,8 +41,8 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
       label: ACTION_LABEL[key],
       av: key === "pick" ? pickAv : (av[key] as Availability),
     })),
-    bar: (closed || opts.locked ? [] : moveOnly ? ["move"] : ["pick", "move"]) as TripAction[],
-    closedReason: opts.movedTo ? null : closed ? av.pick.why : null,
+    bar: (closed || opts.locked ? [] : movedAway ? (showAddress ? ["address"] : []) : moveOnly ? ["move"] : ["pick", "move"]) as TripAction[],
+    closedReason: movedAway ? null : closed ? av.pick.why : null,
     goTo: opts.movedTo ?? (trip.status === "combined-into" ? trip.mergedInto : trip.status === "rescheduled" ? (trip.movedTo ?? null) : null),
   };
 }

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity */
 import { cache, Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";

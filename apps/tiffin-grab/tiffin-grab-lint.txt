@@ -1,0 +1,537 @@
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(customer)/me/deliveries/hub.tsx
+  30:3  warning  'myPrimarySubscription' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(customer)/me/design-system/gallery.tsx
+  121:28  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(customer)/me/design-system/gallery.tsx:121:28
+  119 |           }} />
+  120 |         </Card>
+> 121 |         <Countdown target={Date.now() + 26 * 3600_000} />
+      |                            ^^^^^^^^^^ Cannot call impure function
+  122 |       </Block>
+  123 |       <Block title="Rows, notices">
+  124 |         <Card className="p-2">  react-hooks/purity
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(customer)/me/meals/actions.ts
+  4:10  warning  'AppError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/_leads/inquiry-match.tsx
+  29:9  warning  The 'matches' conditional could make the dependencies of useEffect Hook (at line 47) change on every render. To fix this, wrap the initialization of 'matches' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/analytics/profitability/page.tsx
+  91:53  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/analytics/profitability/page.tsx:91:53
+  89 |       view={report.grain}
+  90 |       month={report.month}
+> 91 |       aside={<LiveRefresh updatedLabel={clockInZone(Date.now(), timezone)} refreshAt={report.nextCutoffAt} />}
+     |                                                     ^^^^^^^^^^ Cannot call impure function
+  92 |     />
+  93 |   );
+  94 | }  react-hooks/purity
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/analytics/revenue/page.tsx
+  87:48  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/analytics/revenue/page.tsx:87:48
+  85 |       <div className="flex flex-wrap items-center gap-3">
+  86 |         <span className="text-muted-foreground text-xs">{rangeLabel(report.from, report.to)}</span>
+> 87 |         <LiveRefresh updatedLabel={clockInZone(Date.now(), timezone)} />
+     |                                                ^^^^^^^^^^ Cannot call impure function
+  88 |       </div>
+  89 |     </div>
+  90 |   );  react-hooks/purity
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/catalog/[resource]/page.tsx
+   7:56  warning  'deliveryZones' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  10:10  warning  'dishesService' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/catalog/[resource]/resource-editor.tsx
+  317:3   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/purity')
+  322:3   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/purity')
+  333:3   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/purity')
+  346:15  error    Do not use an `<a>` element to navigate to `/dashboard/catalog/discounts/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @next/next/no-html-link-for-pages
+  589:19  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/catalog/[resource]/resource-editor.tsx:589:19
+  587 |   // On create, mirror `key` to slug(name) until the user unlocks it manually.
+  588 |   const [keyManual, setKeyManual] = useState(false);
+> 589 |   const nameVal = form.watch("name");
+      |                   ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  590 |   useEffect(() => {
+  591 |     if (isNew && def.keyed && !keyManual) form.setValue("key", slug(String(nameVal ?? "")));
+  592 |   }, [isNew, def.keyed, keyManual, nameVal, form]);  react-hooks/incompatible-library
+  755:9   warning  'activeCount' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/catalog/discounts/page.tsx
+  36:10  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/catalog/discounts/page.tsx:36:10
+  34 |     mealSizes: sizes,
+  35 |     coupons: cRows.slice(0, COUPON_LIMIT),
+> 36 |     now: Date.now(),
+     |          ^^^^^^^^^^ Cannot call impure function
+  37 |   });
+  38 |   return <AllDiscountsTable rows={rows} options={{ frequencies: freqs, durations: durs }} moreCoupons={cRows.length > COUPON_LIMIT} />;
+  39 | }  react-hooks/purity
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/customers/[id]/page.tsx
+  63:58  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/customers/[id]/page.tsx:63:58
+  61 |   const [{ timezone }, coinBalance] = await Promise.all([settingsP, walletService.balance(data.profile.id)]);
+  62 |   const [addressChanges, savedAddresses] = await Promise.all([
+> 63 |     upcomingAddressChanges(data.profile.id, zonedDateIso(Date.now(), timezone)),
+     |                                                          ^^^^^^^^^^ Cannot call impure function
+  64 |     addressService.list(await addressScopeFor(id)),
+  65 |   ]);
+  66 |  react-hooks/purity
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/customers/page.tsx
+  114:11  warning  'condition' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  114:22  warning  'page' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/inquiries/[id]/order/order-form.tsx
+  106:19  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/inquiries/[id]/order/order-form.tsx:106:19
+  104 |   const minStart = nextWeekday(new Date()).toISOString().slice(0, 10);
+  105 |
+> 106 |   const planKey = form.watch("planKey");
+      |                   ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  107 |   const mealSizeId = form.watch("mealSizeId");
+  108 |   const frequencyKey = form.watch("frequencyKey");
+  109 |   const eatingDays = form.watch("eatingDays") as DayOfWeek[];  react-hooks/incompatible-library
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/inquiries/import/import-form.tsx
+  163:15  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  163:59  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  164:17  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  195:63  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/inquiries/new-inquiry-form.tsx
+  383:37  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/inquiries/new-inquiry-form.tsx:383:37
+  381 |                         mealSizeInterest: String(form.watch("mealSizeInterest") ?? ""),
+  382 |                         personsInterest: (() => {
+> 383 |                           const v = form.watch("personsInterest");
+      |                                     ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  384 |                           return typeof v === "number" ? v : "";
+  385 |                         })(),
+  386 |                         frequencyKeyInterest: String(form.watch("frequencyKeyInterest") ?? ""),  react-hooks/incompatible-library
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/labels/__tests__/labels-print-button.test.tsx
+  3:46  warning  'waitFor' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/labels/labels-print-button.tsx
+  89:29  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/menus/__tests__/menu-builder.test.tsx
+  37:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/orders/[id]/page.tsx
+   93:38  error    Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/orders/[id]/page.tsx:93:38
+  91 |   ]);
+  92 |
+> 93 |   const settingsToday = zonedDateIso(Date.now(), settings.timezone);
+     |                                      ^^^^^^^^^^ Cannot call impure function
+  94 |   const optimoRows = deliveryRows
+  95 |     .filter((r) => r.deliveryDate >= settingsToday && r.status !== "cancelled")
+  96 |     .map((r) => ({  react-hooks/purity
+  105:9   warning  'categoryCounts' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/organization/invites/invites-list.tsx
+  49:83  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/organization/invites/invites-list.tsx:49:83
+  47 | function InviteRowCells({ row, canAct }: { row: InviteRow; canAct: boolean }) {
+  48 |   const [pending, start] = useTransition();
+> 49 |   const expired = row.status === "pending" && new Date(row.expiresAt).getTime() < Date.now();
+     |                                                                                   ^^^^^^^^^^ Cannot call impure function
+  50 |   const displayStatus = expired ? "expired" : row.status;
+  51 |
+  52 |   const onResend = () =>  react-hooks/purity
+  93:83  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/organization/invites/invites-list.tsx:93:83
+  91 | function InviteRowCard({ row, canAct }: { row: InviteRow; canAct: boolean }) {
+  92 |   const [pending, start] = useTransition();
+> 93 |   const expired = row.status === "pending" && new Date(row.expiresAt).getTime() < Date.now();
+     |                                                                                   ^^^^^^^^^^ Cannot call impure function
+  94 |   const displayStatus = expired ? "expired" : row.status;
+  95 |
+  96 |   const onResend = () =>   react-hooks/purity
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/organization/settings/user-picker.tsx
+  27:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/organization/settings/user-picker.tsx:27:7
+  25 |   useEffect(() => {
+  26 |     if (!query.trim()) {
+> 27 |       setResults([]);
+     |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  28 |       return;
+  29 |     }
+  30 |     const handle = setTimeout(() => {  react-hooks/set-state-in-effect
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(dashboard)/dashboard/settings/integrations/actions.ts
+  43:5  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/app/(public)/activate/[deploymentId]/page.tsx
+  109:11  error  Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/analytics/live-refresh.tsx
+  40:3  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/analytics/live-refresh.tsx:40:3
+  38 |
+  39 |   const onEvent = useRef((_e: RealtimeEvent) => {});
+> 40 |   onEvent.current = (e: RealtimeEvent) => {
+     |   ^^^^^^^^^^^^^^^ Cannot update ref during render
+  41 |     if (e.type === "message") refresh();
+  42 |   };
+  43 |   useChannel(ANALYTICS_LIVE, (e) => onEvent.current(e));  react-hooks/refs
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/checkout/__tests__/renewal-contact-lock.test.tsx
+  2:35  warning  'fireEvent' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/deliveries/actions/address-sheet.tsx
+  20:39  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/deliveries/actions/address-sheet.tsx:20:39
+  18 | /** Send one delivery somewhere else: a saved address or a new one (saved to the book). Never charged. */
+  19 | export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
+> 20 |   const av = actionAvailability(trip, Date.now(), plan.ctx).address;
+     |                                       ^^^^^^^^^^ Cannot call impure function
+  21 |   const addresses = plan.savedAddresses;
+  22 |   const [picked, setPicked] = useState<string | null>(() =>
+  23 |     currentSavedAddressId(trip.addressOverride ?? null, plan.sub, addresses),  react-hooks/purity
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/deliveries/actions/pick-sheet.tsx
+  282:20  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/deliveries/actions/pick-sheet.tsx:282:20
+  280 |     const toPicks = override?.qtyTo ?? bundle?.toPicks ?? fromPicks;
+  281 |     const receiveTu = override?.receiveTu ?? null;
+> 282 |     const swapId = Math.random().toString(36).slice(2);
+      |                    ^^^^^^^^^^^^^ Cannot call impure function
+  283 |     // Functional update: one tap can queue several (undoing a multi-row saved swap re-adds its other rows).
+  284 |     setPendingApplies((prev) => [...prev, { id: swapId, day: activeDay, fromCategory, toCategory, fromPicks, toPicks, fromRow, receiveTu }]);
+  285 |     if (toDishId) setPendingToPick({ swapId, dishId: toDishId });  react-hooks/purity
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/deliveries/deliveries-view.tsx
+    9:10  warning  'actionAvailability' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   10:27  warning  'deliveryLine' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  108:48  warning  Expected an assignment or function call and instead saw an expression                 @typescript-eslint/no-unused-expressions
+  135:9   warning  'linkCls' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/deliveries/week-strip.tsx
+  41:82  warning  'colorOf' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/home/this-week-menu-section.tsx
+   3:10  warning  'Skeleton' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   4:10  warning  'cn' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  15:3   warning  'todayKey' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  74:35  error    Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  85:35  error    Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  85:61  error    Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/kit/countdown.tsx
+  26:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/kit/countdown.tsx:26:5
+  24 |   const [now, setNow] = useState<number | null>(null);
+  25 |   useEffect(() => {
+> 26 |     setNow(Date.now());
+     |     ^^^^^^ Avoid calling setState() directly within an effect
+  27 |     const i = setInterval(() => setNow(Date.now()), 60_000);
+  28 |     return () => clearInterval(i);
+  29 |   }, []);  react-hooks/set-state-in-effect
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/kit/sheet.tsx
+  35:15  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/kit/sheet.tsx:35:15
+  33 |
+  34 |   useEffect(() => {
+> 35 |     if (open) setPresent(true);
+     |               ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  36 |   }, [open]);
+  37 |
+  38 |   const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;  react-hooks/set-state-in-effect
+  78:63  warning  Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-expressions
+  79:42  warning  Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-expressions
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/shell/customer-shell.tsx
+  63:19  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/shell/customer-shell.tsx:63:19
+  61 |   const tab = activeTab(pathname);
+  62 |
+> 63 |   useEffect(() => setOpen(false), [pathname]);
+     |                   ^^^^^^^ Avoid calling setState() directly within an effect
+  64 |
+  65 |   useEffect(() => {
+  66 |     const source = new EventSource(`/api/realtime?channel=${encodeURIComponent(`refresh:${userPublicId}`)}`);  react-hooks/set-state-in-effect
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/support/ticket-thread.tsx
+  4:23  warning  'useTyping' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/customer/wallet/__tests__/claim-payment.test.tsx
+  4:21  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/dashboard/app-sidebar.tsx
+  272:95  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/dashboard/global-search.tsx
+  127:5  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/dashboard/global-search.tsx:127:5
+  125 |   useEffect(() => {
+  126 |     const urlQ = searchParams.get("q") ?? "";
+> 127 |     setTyped((prev) => (prev.path === pathname && prev.q !== urlQ ? { path: pathname, q: urlQ } : prev));
+      |     ^^^^^^^^ Avoid calling setState() directly within an effect
+  128 |   }, [searchParams, pathname]);
+  129 |
+  130 |   const go = useCallback(  react-hooks/set-state-in-effect
+  137:5  warning  React Hook useCallback has a missing dependency: 'setQuery'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react-hooks/exhaustive-deps
+  147:5  warning  React Hook useCallback has a missing dependency: 'setQuery'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react-hooks/exhaustive-deps
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/dashboard/inbox-realtime.tsx
+  19:3  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/dashboard/inbox-realtime.tsx:19:3
+  17 |     if (e.type === "message") router.refresh();
+  18 |   });
+> 19 |   onEvent.current = (e: RealtimeEvent) => {
+     |   ^^^^^^^^^^^^^^^ Cannot update ref during render
+  20 |     if (e.type === "message") router.refresh();
+  21 |   };
+  22 |   useChannel(channel, (e) => onEvent.current(e));  react-hooks/refs
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/dashboard/more-drawer.tsx
+  75:62  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/dashboard/order-week/order-week-hub.tsx
+   15:10   warning  'Select' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+   15:18   warning  'SelectContent' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   15:33   warning  'SelectItem' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+   15:45   warning  'SelectTrigger' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   15:60   warning  'SelectValue' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+   47:25   warning  Expected an assignment or function call and instead saw an expression            @typescript-eslint/no-unused-expressions
+  284:33   warning  Expected an assignment or function call and instead saw an expression            @typescript-eslint/no-unused-expressions
+  308:285  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                  react/no-unescaped-entities
+  308:309  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                  react/no-unescaped-entities
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/notifications/template-list.tsx
+  11:8  warning  'Column' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/wizard/steps/step-duration.tsx
+  22:3  warning  'result' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/wizard/wizard.tsx
+  56:29  error    Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/wizard/wizard.tsx:56:29
+  54 |   const [result, setResult] = useState<PricingResult | null>(null);
+  55 |   const prevStep = useRef(0);
+> 56 |   const direction = step >= prevStep.current ? "forward" : "back";
+     |                             ^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  57 |   useEffect(() => {
+  58 |     if (prevStep.current !== step) window.scrollTo({ top: 0 });
+  59 |     prevStep.current = step;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react-hooks/refs
+  87:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/set-state-in-effect')
+  89:63  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/components/wizard/wizard.tsx:89:63
+  87 |     // eslint-disable-next-line react-hooks/set-state-in-effect
+  88 |     // No frequency until the Schedule step: pricing would throw "Invalid frequency" (a 500) on every Bundle pick.
+> 89 |     if (!selections.mealSizeId || !selections.frequencyKey) { setResult(null); return; }
+     |                                                               ^^^^^^^^^ Avoid calling setState() directly within an effect
+  90 |     let active = true;
+  91 |     reprice(selections, undefined, selections.planKey ?? undefined)
+  92 |       .then((r) => { if (active) setResult(r.pricing); })  react-hooks/set-state-in-effect
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/db/__tests__/schema-mealsize-category.test.ts
+  1:10  warning  'and' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/db/seed-qa-customer.test.ts
+   95:7  warning  Unused eslint-disable directive (no problems were reported from 'no-console')
+  127:5  warning  Unused eslint-disable directive (no problems were reported from 'no-console')
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/db/seed-qa-plans.test.ts
+  174:5  warning  Unused eslint-disable directive (no problems were reported from 'no-console')
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/db/seed-qa-second-sub.test.ts
+  37:7  warning  Unused eslint-disable directive (no problems were reported from 'no-console')
+  83:5  warning  Unused eslint-disable directive (no problems were reported from 'no-console')
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/deliveries-view/__tests__/deliveries-view.test.ts
+  13:7  warning  'CLOSED' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/deliveries-view/move.ts
+  1:40  warning  'weekdayKey' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+  7:7   warning  'weekdayName' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/menu/__tests__/container-slots-universal.test.ts
+    4:72  warning  'PickCategoryGroup' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  267:11  warning  'tuTotal' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/menu/__tests__/meals-grid.test.ts
+  19:23  warning  'pauseRange' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/menu/selections.service.ts
+  8:10  warning  'deliveries' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/recovery/__tests__/passes.test.ts
+  8:59  warning  'deliveries' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/customer-deliveries.service.test.ts
+  290:35  warning  'planType' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/deliveries-merge.test.ts
+  8:83  warning  'orders' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/deliveries-skip.test.ts
+  8:21  warning  'deliveryFrequencies' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/inquiries-activity.service.test.ts
+  5:40  warning  'users' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/inquiries-prefs.service.test.ts
+  5:55  warning  'users' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/inquiries.service.test.ts
+  6:10  warning  'ValidationError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/menu-save-week.test.ts
+  7:10  warning  'categoryIdFor' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/menu.service.test.ts
+  2:10  warning  'asc' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/my-delivery-activity.test.ts
+  16:10  warning  'actAs' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/order-delivery-charges.test.ts
+  70:13  warning  'deploymentId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/orders.service.test.ts
+  169:13  warning  'deploymentId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/reschedule-paused.test.ts
+  54:16  warning  'firstDeliveryOf' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/reschedule-split.test.ts
+  12:81  warning  'orders' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/reschedule-weekend.test.ts
+  124:11  warning  'mon' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/swap-provisional.test.ts
+   2:33  warning  'validateProposedSwap' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   4:10  warning  'portionsByCategory' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  12:9   warning  'tuMap' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/tickets.service.test.ts
+  5:26  warning  'ValidationError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/__tests__/wallet-activation.test.ts
+  11:23  warning  'ne' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/app-settings.service.ts
+  9:10  warning  'DEFAULT_PAYMENT_CONFIG' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/catalog.service.ts
+  7:56  warning  'deliveryZones' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/deliveries.service.ts
+   3:42  warning  'isNotNull' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  10:10  warning  'MAX_TIFFINS_PER_TRIP' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  10:94  warning  'mergeCoverage' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/menu.service.ts
+  4:30  warning  'gte' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/lib/services/optimoroute/completions.ts
+  5:34  warning  'DayDeliveryRow' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/muskangupta/Desktop/Github/realm/apps/tiffin-grab/proxy.ts
+  66:9  warning  'onDashboard' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+✖ 117 problems (32 errors, 85 warnings)
+  0 errors and 9 warnings potentially fixable with the `--fix` option.
+

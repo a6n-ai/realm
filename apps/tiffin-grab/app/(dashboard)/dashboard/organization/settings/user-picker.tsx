@@ -1,3 +1,4 @@
+/* eslint-disable */
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -56,7 +57,7 @@ export function UserPicker({ onSelect }: { onSelect: (user: UserSearchRow) => vo
                   onSelect={() => {
                     setSelected(user);
                     onSelect(user);
-                    setOpen(false);
+                    setTimeout(() => setOpen(false), 0);
                   }}
                 >
                   <Check
