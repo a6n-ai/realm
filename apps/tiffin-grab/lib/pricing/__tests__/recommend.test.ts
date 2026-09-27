@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareOptions, recommendDeals } from "../recommend";
+import { compareOptions, durationSavings, recommendDeals } from "../recommend";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingSelections } from "../types";
 
@@ -25,8 +25,17 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
 const d = (key: string, kind: "delivery" | "duration", over = {}) => ({ key, name: key, kind, targetPublicId: null, percent: 10, minWeeks: null, ...over });
 
 describe("recommendDeals", () => {
-  it("finds a cheaper per-tiffin price via a longer duration", () => {
-    const [best] = recommendDeals({ snapshot: snapshot(), selections: sel() });
+  it("tier uplift alone is never advertised as a saving", () => {
+    // 1wk x3 = 3 tiffins pays +20%, 8wk x3 = 24 pays 0% — cheaper per tiffin, but no discount exists.
+    expect(recommendDeals({ snapshot: snapshot(), selections: sel(), cap: 9 })).toEqual([]);
+    expect(durationSavings(snapshot(), sel())).toEqual({});
+    expect(compareOptions({ snapshot: snapshot(), selections: sel({ durationWeeks: 8 }), vary: "duration" }).state).toBe("none");
+  });
+
+  it("finds a longer duration that carries a plan-length discount", () => {
+    const s = snapshot({ discounts: [d("dd", "duration", { targetPublicId: "dur_8", percent: 5 })] });
+    expect(durationSavings(s, sel())).toEqual({ 8: 5 });
+    const [best] = recommendDeals({ snapshot: s, selections: sel() });
     expect(best.payload.durationWeeks).toBe(8);
     expect(best.savingPct).toBeGreaterThan(1);
     expect(best.totalDelta).toBeGreaterThan(0);
@@ -43,7 +52,7 @@ describe("recommendDeals", () => {
   });
 
   it("respects the discount cap when pricing alternatives", () => {
-    const s = snapshot({ discounts: [d("big", "duration", { percent: 90 })], maxDiscountPct: 10 });
+    const s = snapshot({ discounts: [d("big", "duration", { targetPublicId: "dur_8", percent: 90 })], maxDiscountPct: 10 });
     const [best] = recommendDeals({ snapshot: s, selections: sel(), cap: 5 });
     // 8wk x3 = 24 tiffins at base 10 (tier 0%): capped 10% => 216
     expect(best.payload.total).toBe(216);
@@ -65,7 +74,8 @@ describe("recommendDeals vary", () => {
     expect(deals[0].payload.includes).toEqual([{ name: "dl", percent: 10 }]);
   });
   it("duration never changes frequency", () => {
-    const deals = recommendDeals({ snapshot: s, selections: sel(), vary: "duration", cap: 9 });
+    const withDur = snapshot({ discounts: [d("dl", "delivery", { targetPublicId: "frq_3", percent: 10 }), d("dd", "duration", { targetPublicId: "dur_8", percent: 5 })] });
+    const deals = recommendDeals({ snapshot: withDur, selections: sel(), vary: "duration", cap: 9 });
     expect(deals.length).toBeGreaterThan(0);
     expect(deals.every((x) => x.payload.frequencyKey === "5_day")).toBe(true);
   });
@@ -86,7 +96,8 @@ describe("compareOptions", () => {
     }
   });
   it("applied for duration", () => {
-    expect(compareOptions({ snapshot: snapshot(), selections: sel({ durationWeeks: 8 }), vary: "duration" }).state).toBe("applied");
+    const s = snapshot({ discounts: [d("dd", "duration", { targetPublicId: "dur_8", percent: 5 })] });
+    expect(compareOptions({ snapshot: s, selections: sel({ durationWeeks: 8 }), vary: "duration" }).state).toBe("applied");
   });
   it("none when nothing differs", () => {
     const flat = snapshot({ tiers: [{ minQty: 1, maxQty: null, upliftPct: 0 }] } as never);

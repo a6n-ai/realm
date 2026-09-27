@@ -18,27 +18,34 @@ export interface DealPayload {
 const price = (snapshot: ClientCatalogSnapshot, s: PricingSelections) => {
   try {
     const r = priceSubscription(s, buildPricingCatalog(snapshot as never, s));
-    return { total: r.total, units: r.tiffinCount, adjustments: r.adjustments, tierMinQty: r.tier.minQty };
+    const tiffinSubtotal = r.lineItems[0]?.amount ?? 0;
+    const ruleKeys = new Set((snapshot.discounts ?? []).map((d) => d.key));
+    const discounted = r.adjustments.filter((a) => a.discountKey && ruleKeys.has(a.discountKey)).reduce((sum, a) => sum + a.amount, 0);
+    // Share of the food price taken off by configured discounts. Deals compare on this alone: the
+    // small-order uplift dropping away or a flat delivery fee spread over more tiffins is cheaper
+    // per tiffin, but it isn't a discount and must not be advertised as "Save N%".
+    const discountPct = tiffinSubtotal > 0 ? (discounted / tiffinSubtotal) * 100 : 0;
+    return { total: r.total, units: r.tiffinCount, adjustments: r.adjustments, tierMinQty: r.tier.minQty, discountPct };
   } catch {
     return null;
   }
 };
 
-/** Per-tiffin saving of each plan length vs the shortest one (same delivery type, eating days and meal),
- * as whole percents — includes configured discounts and the small-order price uplift dropping away. */
+// rankDeals compares total/units; feeding it (100 - discountPct) per unit ranks on discounts only.
+const dealBasis = (p: { units: number; discountPct: number }) => ({ total: p.units * (100 - p.discountPct), units: p.units });
+
+/** Per-tiffin discount of each plan length vs the shortest one (same delivery type, eating days and meal),
+ * as whole percents — configured discounts only, never the tier uplift. */
 export function durationSavings(snapshot: ClientCatalogSnapshot, selections: PricingSelections): Record<number, number> {
   const weeks = snapshot.durations.map((d) => d.weeks).sort((a, b) => a - b);
-  const perTiffin = (w: number) => {
-    const p = price(snapshot, { ...selections, durationWeeks: w });
-    return p && p.units > 0 ? p.total / p.units : null;
-  };
-  const base = weeks.length ? perTiffin(weeks[0]) : null;
+  const pctFor = (w: number) => price(snapshot, { ...selections, durationWeeks: w })?.discountPct ?? null;
+  const base = weeks.length ? pctFor(weeks[0]) : null;
   const out: Record<number, number> = {};
-  if (!base) return out;
+  if (base == null) return out;
   for (const w of weeks.slice(1)) {
-    const per = perTiffin(w);
-    const pct = per == null ? 0 : Math.round((1 - per / base) * 100);
-    if (pct >= 1) out[w] = pct;
+    const pct = pctFor(w);
+    const save = pct == null ? 0 : Math.round((1 - (100 - pct) / (100 - base)) * 100);
+    if (save >= 1) out[w] = save;
   }
   return out;
 }
@@ -67,20 +74,23 @@ function options(snapshot: ClientCatalogSnapshot, selections: PricingSelections,
       const alt: Alt = {
         id: `${f.key}:${d.weeks}`,
         label: vary === "frequency" ? `${f.weekdays.length}-day delivery` : vary === "duration" ? `${d.weeks} weeks` : `${d.weeks} weeks on ${f.weekdays.length}-day delivery`,
-        total: p.total,
-        units: p.units,
+        ...dealBasis(p),
         payload: { frequencyKey: f.key, durationWeeks: d.weeks, tiffinCount: p.units, total: p.total, includes, tierMinQty: p.tierMinQty, tierChanged: p.tierMinQty !== current.tierMinQty },
       };
       if (isCurrent) currentAlt = alt;
       else alternatives.push(alt);
     }
   }
+  // rankDeals keeps input order on equal savings: list the option that changes the least first,
+  // so the same discount never suggests switching plan length (or delivery) for nothing.
+  const changes = (a: Alt) => Number(a.payload.frequencyKey !== selections.frequencyKey) + Number(a.payload.durationWeeks !== selections.durationWeeks);
+  alternatives.sort((a, b) => changes(a) - changes(b));
   return { current, currentAlt, alternatives };
 }
 
 export function recommendDeals({ snapshot, selections, cap = 1, vary }: { snapshot: ClientCatalogSnapshot; selections: PricingSelections; cap?: number; vary?: "frequency" | "duration" }): RankedDeal<DealPayload>[] {
   const o = options(snapshot, selections, vary);
-  return o ? rankDeals(o.current, o.alternatives, { limit: cap }) : [];
+  return o ? rankDeals(dealBasis(o.current), o.alternatives, { limit: cap }) : [];
 }
 
 export type DealComparison =
@@ -97,7 +107,7 @@ export function compareOptions({ snapshot, selections, vary }: { snapshot: Clien
   const o = options(snapshot, selections, vary);
   if (!o?.currentAlt) return { state: "none" };
   const cur = perUnit(o.currentAlt);
-  const cheaper = rankDeals(o.current, o.alternatives, { limit: 1 })[0];
+  const cheaper = rankDeals(dealBasis(o.current), o.alternatives, { limit: 1 })[0];
   if (cheaper) return { state: "recommend", deal: cheaper };
   const least = o.alternatives.filter((a) => a.units > 0).reduce<Alt | null>((w, a) => (w === null || perUnit(a) > perUnit(w) ? a : w), null);
   if (!least) return { state: "none" };
