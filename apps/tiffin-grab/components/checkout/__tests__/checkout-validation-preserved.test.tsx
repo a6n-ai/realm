@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
+import { enterAddress } from "./address-helper";
 
 // Guardrail (Spec-B): the visual revamp of the checkout MUST NOT alter any
 // validation gate. This locks the "Continue to payment" enable condition, the
@@ -77,14 +78,11 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
-    await screen.findByLabelText(/full name/i);
+    await screen.findByLabelText(/phone/i);
     expect(continueBtn().getAttribute("aria-disabled") === "true").toBe(true);
 
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "jane@example.com" } });
-    fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
-    fireEvent.blur(screen.getByLabelText(/postal code/i));
+    await enterAddress("12345");
 
     await waitFor(() => expect(continueBtn().getAttribute("aria-disabled") === "true").toBe(false));
   });
@@ -94,14 +92,11 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
-    await screen.findByLabelText(/full name/i);
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
+    await screen.findByLabelText(/phone/i);
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
     // Email is required to log in as a customer, so the waitlist button (like
     // Continue) is gated on emailValid too — not just fullName/phone/postal.
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "jane@example.com" } });
-    fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "99999" } });
-    fireEvent.blur(screen.getByLabelText(/postal code/i));
+    await enterAddress("99999");
 
     const waitlistBtn = await screen.findByRole("button", { name: /join waitlist/i });
     expect(continueBtn().getAttribute("aria-disabled") === "true").toBe(true);
@@ -123,6 +118,11 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
+    // The coupon lives on the Payment step.
+    fireEvent.change(await screen.findByLabelText(/phone/i), { target: { value: "4165551234" } });
+    await enterAddress("M5H 1A1");
+    await waitFor(() => expect(continueBtn().getAttribute("aria-disabled")).toBeNull());
+    fireEvent.click(continueBtn());
     await screen.findByLabelText(/coupon code/i);
     fireEvent.change(screen.getByLabelText(/coupon code/i), { target: { value: "BOGUS" } });
     fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));

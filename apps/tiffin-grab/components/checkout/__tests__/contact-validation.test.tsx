@@ -3,6 +3,7 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Checkout } from "../checkout";
+import { enterAddress } from "./address-helper";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
@@ -55,10 +56,9 @@ describe("Checkout contact format validation", () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 
-    await screen.findByLabelText(/full name/i);
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
+    await screen.findByLabelText(/phone/i);
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "123" } });
-    fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
+    await enterAddress("12345");
 
     expect(screen.getByText(/enter a valid phone number/i)).toBeTruthy();
     expect(

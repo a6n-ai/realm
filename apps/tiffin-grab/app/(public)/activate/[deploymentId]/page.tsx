@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
@@ -117,6 +117,7 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
           <Link
             className="border-border text-foreground mt-6 inline-flex h-12 items-center justify-center rounded-full border px-6 text-sm font-semibold transition-transform active:scale-[0.98]"
             href="/me"
+            transitionTypes={["nav-forward"]}
           >
             Back to home
           </Link>
@@ -124,6 +125,7 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
           <Link
             className="bg-primary text-primary-foreground mt-6 inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold transition-transform active:scale-[0.98]"
             href="/me"
+            transitionTypes={["nav-forward"]}
           >
             View my deliveries
           </Link>

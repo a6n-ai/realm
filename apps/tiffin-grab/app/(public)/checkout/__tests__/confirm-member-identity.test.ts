@@ -13,6 +13,8 @@ vi.mock("@/lib/catalog/load", () => ({ loadCatalogSnapshot: async () => ({ zones
 // Checkout gates on findZone (postal coverage, then radius); the stub stands in for both.
 vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async (...a: unknown[]) => matchZone(...a) }));
 vi.mock("@/lib/services/orders.service", () => ({ createOrder: (...a: unknown[]) => createOrder(...a) }));
+const updateContact = vi.fn(async (..._a: unknown[]) => ({}));
+vi.mock("@/lib/services/users.service", () => ({ usersService: { updateContact: (...a: unknown[]) => updateContact(...a) } }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: async () => null }));
 const createWebsiteInquiry = vi.fn();
 vi.mock("@/app/(marketing)/contact/actions", () => ({ createWebsiteInquiry: (...a: unknown[]) => createWebsiteInquiry(...a) }));
@@ -72,6 +74,21 @@ describe("confirmSubscription: a signed-in member keeps their account identity",
     expect(sentContact()).toMatchObject({ fullName: "Priya Shah", email: "priya@example.com" });
     await confirmSubscription({ ...submitted, renewal: true });
     expect(sentContact()).toMatchObject({ fullName: "Priya Shah", email: "priya@example.com" });
+  });
+
+  it("saves the confirmed phone to the account before placing the order", async () => {
+    updateContact.mockClear();
+    await confirmSubscription(submitted);
+    expect(updateContact).toHaveBeenCalledWith("usr_7", { phone: "+14165559999" });
+    expect(updateContact.mock.invocationCallOrder[0]!).toBeLessThan(createOrder.mock.invocationCallOrder.at(-1)!);
+  });
+
+  it("places no order when the phone can't be saved (another account holds it)", async () => {
+    updateContact.mockRejectedValueOnce(new (await import("@foundry/commons")).ValidationError("That phone is already in use"));
+    createOrder.mockClear();
+    const res = await confirmSubscription(submitted);
+    expect(res).toMatchObject({ error: expect.stringMatching(/phone/i) });
+    expect(createOrder).not.toHaveBeenCalled();
   });
 
   it("honours an edited phone, address and delivery instructions for this order", async () => {

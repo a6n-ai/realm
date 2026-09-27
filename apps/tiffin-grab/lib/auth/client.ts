@@ -8,4 +8,15 @@ export const authClient = createAuthClient({
   plugins: [emailOTPClient()],
 });
 
-export const { signIn, signOut, signUp, useSession } = authClient;
+export const { signIn, signUp, useSession } = authClient;
+
+// The wizard keeps the plan being built in this tab's sessionStorage (tiffin.wizard*).
+// Without this, the next person to sign in on the same tab gets the previous customer's plan.
+const WIZARD_DRAFT_PREFIX = "tiffin.wizard";
+
+export const signOut: typeof authClient.signOut = (...args) => {
+  try {
+    for (const key of Object.keys(sessionStorage)) if (key.startsWith(WIZARD_DRAFT_PREFIX)) sessionStorage.removeItem(key);
+  } catch { /* storage unavailable */ }
+  return authClient.signOut(...args);
+};

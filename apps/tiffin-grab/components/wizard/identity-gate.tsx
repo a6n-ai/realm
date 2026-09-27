@@ -61,7 +61,9 @@ export function IdentityGate() {
 
   async function sendCode(to: string) {
     try {
-      await authClient.emailOtp.sendVerificationOtp({ email: to, type: "sign-in" });
+      // The auth client reports a failed send (403, rate limit) as `error`, not a throw.
+      const res = await authClient.emailOtp.sendVerificationOtp({ email: to, type: "sign-in" });
+      if (res?.error) throw res.error;
       setPhase("otp");
       return true;
     } catch {
@@ -99,7 +101,7 @@ export function IdentityGate() {
     if (result?.error) return setError({ field: "code", message: "That code is wrong or expired. Try again or resend it." });
     // replace, not push: /subscribe redirects a signed-in customer back to /me/renew, so
     // leaving it in history turns the wizard's Back (and the phone's back gesture) into a loop.
-    router.replace("/me/renew");
+    router.replace("/me/renew", { transitionTypes: ["nav-forward"] });
     router.refresh();
   }
 

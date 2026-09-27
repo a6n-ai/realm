@@ -9,6 +9,7 @@ import { useTheme } from "@foundry/themes";
 import { signOut } from "@/lib/auth/client";
 import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet, ThemeToggle } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { PageTransition } from "@/components/motion/page-transition";
 
 const ACCOUNT_PATHS = ["/me/account"];
 const MENU_PATHS = ["/me/menu", "/me/renew", "/me/support"];
@@ -93,7 +94,7 @@ export function CustomerShell({ coinBalance, userPublicId, children }: { coinBal
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1280px] px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 lg:px-6 lg:pb-10 lg:pt-6">{children}</main>
+      <main className="mx-auto w-full max-w-[1280px] px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 lg:px-6 lg:pb-10 lg:pt-6"><PageTransition>{children}</PageTransition></main>
 
       <nav aria-label="Primary" className="c-glass fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div className="relative mx-auto flex max-w-md items-stretch">

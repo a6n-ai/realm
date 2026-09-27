@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { currentUserId } from "@/lib/services/session-service";
 import { getContactOnFile } from "@/lib/services/contact-on-file";
 import { createOrder, type CreateOrderInput } from "@/lib/services/orders.service";
+import { usersService } from "@/lib/services/users.service";
 import { sendAccountSetupEmail } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { findZone } from "@/lib/catalog/zone-match";
@@ -116,6 +117,11 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
           .join(", "),
       }).catch(() => null)
     : null;
+
+  // A plan needs a phone, and it lives on the account: the number confirmed here becomes the
+  // account's, so the next checkout (and delivery updates) already have it. Before the order,
+  // so a number another account holds fails here instead of after the order exists.
+  if (userId) await usersService.updateContact(userId, { phone: input.contact.phone ?? "" });
 
   // Defense-in-depth: rep coupons flow only through the staff convert path. Never
   // honor a repCoupon arriving on the public checkout payload — even from a
