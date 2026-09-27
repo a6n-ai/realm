@@ -181,6 +181,9 @@ export function AddressBook({
               {dropOffSummary(dropOff, dropOffs[a.publicId]) && (
                 <p className="text-sm text-[var(--muted-foreground)]">{dropOffSummary(dropOff, dropOffs[a.publicId])}</p>
               )}
+              {a.deliveryInstructions && (
+                <p className="line-clamp-2 text-sm text-[var(--muted-foreground)]">Note: {a.deliveryInstructions}</p>
+              )}
             </div>
             <div className="flex shrink-0 gap-1">
               <DefaultStar on={a.isDefault} label={a.label} onSelect={() => book.setDefault(a.publicId)} />

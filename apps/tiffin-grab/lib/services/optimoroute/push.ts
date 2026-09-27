@@ -4,7 +4,7 @@ import { deliveries, orderActivities, orders, users } from "@/db/schema";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { getOptimoRouteConfig, looksUpstairs, stopDuration } from "./config";
-import { loadTripDetails } from "./trip-notes";
+import { loadTripDetails, stopNotes } from "./trip-notes";
 import {
   createOrder,
   deleteOrder,
@@ -25,7 +25,7 @@ export type PlannedOrder = {
   city: string;
   postalCode: string;
   durationMins: number;
-  /** Customer delivery notes plus the coverage line and per-day dishes, as the driver sees them. */
+  /** Unit, drop-off and address note (as on the label), then coverage and per-day dishes. */
   notes: string;
   tiffinUnits: number;
   coveredDates: string[];
@@ -79,14 +79,14 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
 
   return rows.map((row) => {
     const address = effectiveAddress(row.delivery, row.order);
-    const customerNotes = row.customerNotes?.trim() ?? "";
+    const note = row.driverNote ?? "";
     const trip = trips.get(row.delivery.id)!;
-    // Appended, never replacing: drivers still read the customer's own note first.
-    const notes = [customerNotes, trip.coverage, ...trip.dishLines].filter(Boolean).join("\n");
+    const unit = address.addressUnit?.trim() || null;
+    const notes = stopNotes(unit, note, trip);
     // Upstairs is a property of the customer's note, not of our appended coverage text.
     const durationMins = stopDuration(cfg.duration, {
       city: address.city,
-      upstairs: looksUpstairs(customerNotes),
+      upstairs: looksUpstairs(note),
       extraTiffins: trip.extraTiffins,
     });
     const phone = normalisePhone(row.customerPhone);
@@ -118,7 +118,9 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
         duration: durationMins,
         notes,
         ...(phone ? { phone } : {}),
-        location: { address: fullAddress, locationName: fullAddress },
+        // The unit stays out of `address` so geocoding matches the building; the name the
+        // driver sees carries it ("5-123 Main St"), the Canadian unit-civic form.
+        location: { address: fullAddress, locationName: unit ? `${unit}-${fullAddress}` : fullAddress },
         // Mapping preserved from the Route Maker sheet — drivers read these fields in the
         // OptimoRoute mobile app, so changing the slots changes what they see at the door.
         customField1: phone,
@@ -126,6 +128,9 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
         customField4: plan,
         // customField3 was unused; 1/2/4 must stay as they are (completions matching reads them).
         ...(trip.coverage ? { customField3: trip.coverage } : {}),
+        // Delivery type: the address's drop-off ("Apartment: Lobby, Call on arrival").
+        // Always sent: MERGE keeps an omitted field, so a cleared drop-off would linger.
+        customField5: row.dropOff ?? "",
         ...(cfg.sendLoad ? { load1: trip.units } : {}),
       } satisfies OptimoOrderPayload,
     };

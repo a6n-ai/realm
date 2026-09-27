@@ -280,20 +280,6 @@ export function DietaryForm({ allergens, dietaryNotes }: { allergens: string[]; 
   );
 }
 
-export function DeliveryNotesForm({ deliveryNotes }: { deliveryNotes: string }) {
-  const [v, setV] = useState(deliveryNotes);
-  const [saved, setSaved] = useState(deliveryNotes);
-  const s = useSave();
-  return (
-    <Block title="Delivery notes" subtitle="Help the driver find you: gate code, drop-off spot, or a nearby landmark.">
-      <form onSubmit={submit(() => s.run(() => updateMyPreferences({ deliveryNotes: v.trim() }), "Delivery notes saved.", () => setSaved(v.trim())))} className="space-y-4">
-        <Textarea label="Notes for the driver" value={v} maxLength={500} onChange={(e) => setV(e.target.value)} placeholder="e.g. Gate code 1234, leave at the side door." hint="Shown to the driver at drop-off. Avoid sensitive personal info." />
-        <SaveBar pending={s.pending} dirty={v !== saved} status={s.status} label="Save notes" />
-      </form>
-    </Block>
-  );
-}
-
 export function NotificationsForm({ notifyEmail }: { notifyEmail: boolean }) {
   const [state, setState] = useState({ notifyEmail });
   const s = useSave();

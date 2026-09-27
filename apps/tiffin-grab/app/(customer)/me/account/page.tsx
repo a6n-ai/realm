@@ -39,7 +39,6 @@ export default async function MeAccountPage({ searchParams }: { searchParams: Pr
         province: user.province ?? "",
         dietaryNotes: user.dietaryNotes ?? "",
         allergens: (user.allergens ?? "").split(",").map((s: string) => s.trim()).filter(Boolean),
-        deliveryNotes: user.deliveryNotes ?? "",
         notifyEmail: user.notifyEmail ?? true,
         notifySms: user.notifySms ?? false,
         hasPin: Boolean(user.pinHash),

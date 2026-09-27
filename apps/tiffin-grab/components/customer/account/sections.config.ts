@@ -1,6 +1,5 @@
 import {
   BellIcon,
-  ClipboardListIcon,
   MapPinIcon,
   PhoneIcon,
   ShieldIcon,
@@ -16,7 +15,6 @@ export type AccountSectionKey =
   | "contact"
   | "address"
   | "dietary"
-  | "deliveryNotes"
   | "notifications"
   | "security";
 
@@ -32,9 +30,8 @@ export type AccountSection = {
 export const ACCOUNT_SECTIONS: AccountSection[] = [
   { key: "profile", slug: "profile", label: "Profile", hint: "Photo, name, username", icon: UserIcon },
   { key: "security", slug: "security", label: "Security", hint: "Email, password, delete account", icon: ShieldIcon },
-  { key: "address", slug: "address", label: "Delivery address", hint: "Where your tiffins go", icon: MapPinIcon },
+  { key: "address", slug: "address", label: "Delivery address", hint: "Where your tiffins go, drop-off notes", icon: MapPinIcon },
   { key: "dietary", slug: "dietary", label: "Dietary & allergens", hint: "What the kitchen avoids", icon: UtensilsCrossedIcon },
-  { key: "deliveryNotes", slug: "delivery-notes", label: "Delivery notes", hint: "Gate code, drop-off spot", icon: ClipboardListIcon },
   { key: "notifications", slug: "notifications", label: "Notifications", hint: "Email and SMS alerts", icon: BellIcon },
   { key: "contact", slug: "contact", label: "Phone", hint: "How we reach you", icon: PhoneIcon },
 ];
