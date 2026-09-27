@@ -108,11 +108,6 @@ const mealSizesSchema = z.object({
   carbsG: optNum(z.coerce.number().int().nonnegative()),
   fatG: optNum(z.coerce.number().int().nonnegative()),
   basePrice: reqNum(z.coerce.number().nonnegative()),
-  // "none" is the off-switch — discountValue is ignored (ok to leave stale/0) when type is
-  // "none". Mirrors db/schema/catalog.ts's mealSizeDiscountType — never two separate nullable
-  // percent/flat columns, which would leave an ambiguous both-set case.
-  discountType: z.enum(["none", "percent", "flat"]).default("none"),
-  discountValue: reqNum(z.coerce.number().nonnegative().default(0)),
   active,
 });
 
@@ -140,13 +135,15 @@ const blankToNull = (v: unknown) => (v === "" || v === "all" || v == null ? null
 const isoDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date");
 
 // Blank key is derived from name by the service. targetId is a delivery_frequencies /
-// duration_packages publicId (resolved + checked against kind server-side); blank/"all" = every row.
+// duration_packages / meal_sizes publicId (resolved + checked against kind server-side); blank/"all" = every row.
+// amount (flat $) is meal_size only — the service enforces that, since a refined schema can't be .partial()'d.
 const discountsSchema = z.object({
   key: z.preprocess((v) => (v === "" || v == null ? undefined : v), key.optional()),
   name,
-  kind: z.enum(["delivery", "duration"]),
+  kind: z.enum(["delivery", "duration", "meal_size"]),
   targetId: z.preprocess(blankToNull, z.string().trim().nullable().optional()),
   percent: reqNum(z.coerce.number().min(0, "Min 0%").max(100, "Max 100%").transform((n) => n.toFixed(2))),
+  amount: z.preprocess(blankToNull, z.coerce.number().positive("Must be more than $0").transform((n) => n.toFixed(2)).nullable().optional()),
   minWeeks: optNum(z.coerce.number().int().positive()),
   startsAt: z.preprocess(blankToNull, isoDate.nullable().optional()),
   endsAt: z.preprocess(blankToNull, isoDate.nullable().optional()),
@@ -271,9 +268,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
       { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
       { key: "basePrice", label: "Base price", type: "number", unit: "$", section: "Pricing" },
-      { key: "discountType", label: "Discount type", type: "select", options: ["none", "percent", "flat"], optionLabels: { none: "No discount", percent: "Percent", flat: "Flat $" }, section: "Pricing" },
-      { key: "discountValue", label: "Discount value", type: "number", unit: "", section: "Pricing" },
     ],
+    note: "Discounts are managed in Discounts",
   },
   "delivery-frequencies": {
     key: "delivery-frequencies", label: "Delivery frequencies", singular: "delivery frequency", keyed: true, schema: deliveryFrequenciesSchema as unknown as z.ZodObject,
@@ -299,9 +295,10 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true, optional: true, tableHidden: true },
       { key: "name", label: "Name", type: "text" },
-      { key: "kind", label: "Applies to", type: "select", options: ["delivery", "duration"], optionLabels: { delivery: "Delivery frequency", duration: "Duration package" } },
+      { key: "kind", label: "Applies to", type: "select", options: ["delivery", "duration", "meal_size"], optionLabels: { delivery: "Delivery frequency", duration: "Duration package", meal_size: "Meal size" } },
       { key: "targetId", label: "Target", type: "select", optionsSource: "discount-targets" },
       { key: "percent", label: "Percent", type: "number", unit: "%" },
+      { key: "amount", label: "Flat $ off", type: "number", unit: "$", optional: true, help: "Meal sizes only; leave percent at 0" },
       { key: "minWeeks", label: "Min weeks", type: "number", optional: true, help: "Only applies to orders of at least this many weeks" },
       { key: "startsAt", label: "Starts", type: "date", optional: true },
       { key: "endsAt", label: "Ends", type: "date", optional: true },

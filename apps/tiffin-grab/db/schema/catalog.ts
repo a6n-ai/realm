@@ -5,7 +5,6 @@ import { organization } from "./organizations";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
-export const mealSizeDiscountType = pgEnum("meal_size_discount_type", ["none", "percent", "flat"]);
 
 export const plans = pgTable("plans", {
   ...updatableColumns("pln"),
@@ -66,11 +65,6 @@ export const mealSizes = pgTable("meal_sizes", {
   carbsG: integer("carbs_g"),
   fatG: integer("fat_g"),
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
-  // "none" is the off-switch — discountValue is meaningless (and ignored) when type is "none",
-  // rather than modeling percent/flat as two separate nullable columns with an ambiguous
-  // both-set case. See lib/pricing/meal-size-discount.ts for the one place this is interpreted.
-  discountType: mealSizeDiscountType("discount_type").notNull().default("none"),
-  discountValue: numeric("discount_value", { precision: 10, scale: 2 }).notNull().default("0"),
   trial: boolean("trial").notNull().default(false),
   active: boolean("active").notNull().default(true),
   // Client-scoping — see dishes.organizationId for the pattern.

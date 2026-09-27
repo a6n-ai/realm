@@ -428,6 +428,13 @@
       "when": 1790541085134,
       "tag": "0060_drop_legacy_discount_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1790542073943,
+      "tag": "0061_meal_size_discounts_central",
+      "breakpoints": true
     }
   ]
 }

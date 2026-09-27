@@ -183,6 +183,12 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
   }
 }
 
+const DISCOUNT_TARGETS = {
+  delivery: { table: deliveryFrequencies, label: "delivery frequency" },
+  duration: { table: durationPackages, label: "duration package" },
+  meal_size: { table: mealSizes, label: "meal size" },
+} as const;
+
 // Discounts store dates as epoch ms and the target as a bigint soft ref, while the form
 // works in yyyy-mm-dd and target publicIds — this resolves both and checks target vs kind.
 class DiscountService extends SoftDeleteService<typeof discounts> {
@@ -214,12 +220,15 @@ class DiscountService extends SoftDeleteService<typeof discounts> {
     if (parsed.targetId !== undefined) {
       if (parsed.targetId === null) out.targetId = null;
       else {
-        const table = kind === "duration" ? durationPackages : deliveryFrequencies;
+        const { table, label } = DISCOUNT_TARGETS[kind as keyof typeof DISCOUNT_TARGETS] ?? DISCOUNT_TARGETS.delivery;
         const [row] = await db.select({ id: table.id }).from(table).where(eq(table.publicId, parsed.targetId as string)).limit(1);
-        if (!row) throw new ValidationError(`Target does not match a ${kind === "duration" ? "duration package" : "delivery frequency"}`);
+        if (!row) throw new ValidationError(`Target does not match a ${label}`);
         out.targetId = row.id;
       }
     }
+    // Flat $ only means something as a meal size's list price; the additive engine reads percent alone.
+    if (parsed.amount != null && kind !== undefined && kind !== "meal_size") throw new ValidationError("A flat $ amount is only for meal-size discounts");
+    if (parsed.amount != null && Number(parsed.percent ?? 0) > 0) throw new ValidationError("Use a percent or a flat $ amount, not both");
     const { timezone } = await getAppSettings();
     if (parsed.startsAt !== undefined) out.startsAt = parsed.startsAt ? cutoffMsFor(parsed.startsAt as string, 0, timezone) : null;
     // Inclusive end date: last minute of that local day.

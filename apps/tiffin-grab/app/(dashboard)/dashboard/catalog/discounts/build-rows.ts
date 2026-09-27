@@ -1,4 +1,4 @@
-export type DiscountKind = "delivery" | "duration";
+export type DiscountKind = "delivery" | "duration" | "meal_size";
 
 export interface DiscountDto {
   publicId: string;
@@ -6,6 +6,8 @@ export interface DiscountDto {
   kind: DiscountKind;
   targetPublicId: string | null;
   percent: number;
+  /** Flat $ off; meal_size only. */
+  amount: number | null;
   minWeeks: number | null;
   startsAt: string;
   endsAt: string;
@@ -15,7 +17,7 @@ export interface DiscountDto {
 }
 
 export type DiscountStatus = "active" | "inactive" | "scheduled" | "expired";
-export type RowType = "delivery" | "duration" | "list_price" | "coupon";
+export type RowType = DiscountKind | "coupon";
 
 export interface AllRow {
   id: string;
@@ -31,11 +33,10 @@ export interface AllRow {
 export const TYPE_LABELS: Record<RowType, string> = {
   delivery: "Delivery frequency",
   duration: "Plan length",
-  list_price: "List price",
+  meal_size: "Meal size",
   coupon: "Coupon",
 };
 
-export const MEAL_SIZES_HREF = "/dashboard/catalog/meal-sizes";
 export const COUPONS_HREF = "/dashboard/discounts/coupons";
 
 export function discountStatus(
@@ -50,44 +51,40 @@ export function discountStatus(
 
 const fmt = (n: number) => `${Number(n)}`;
 
+export const ALL_TARGETS_LABEL: Record<DiscountKind, string> = {
+  delivery: "All delivery frequencies",
+  duration: "All plan lengths",
+  meal_size: "All meal sizes",
+};
+
+export const discountValueLabel = (d: Pick<DiscountDto, "percent" | "amount">) =>
+  d.amount != null && d.amount > 0 ? `$${fmt(d.amount)} off` : `${fmt(d.percent)}%`;
+
 export function buildRows(input: {
   discounts: DiscountDto[];
   frequencies: { publicId: string; name: string }[];
   durations: { publicId: string; weeks: number }[];
-  mealSizes: { publicId: string; name: string; type: string; value: string | number }[];
+  mealSizes: { publicId: string; name: string }[];
   coupons: { publicId: string; code: string; kind: string; valuePct: string | null; valueAmount: string | null; active: boolean; startsAt: number | null; expiresAt: number | null }[];
   now: number;
 }): AllRow[] {
-  const freq = new Map(input.frequencies.map((f) => [f.publicId, f.name]));
-  const dur = new Map(input.durations.map((d) => [d.publicId, `${d.weeks} weeks`]));
+  const names: Record<DiscountKind, Map<string, string>> = {
+    delivery: new Map(input.frequencies.map((f) => [f.publicId, f.name])),
+    duration: new Map(input.durations.map((d) => [d.publicId, `${d.weeks} weeks`])),
+    meal_size: new Map(input.mealSizes.map((m) => [m.publicId, m.name])),
+  };
   const rows: AllRow[] = [];
 
   for (const d of input.discounts) {
-    const names = d.kind === "delivery" ? freq : dur;
     rows.push({
       id: d.publicId,
       type: d.kind,
       typeLabel: TYPE_LABELS[d.kind],
-      appliesTo: d.targetPublicId == null
-        ? (d.kind === "delivery" ? "All delivery frequencies" : "All plan lengths")
-        : (names.get(d.targetPublicId) ?? "Unknown target"),
-      value: `${fmt(d.percent)}%`,
+      appliesTo: d.targetPublicId == null ? ALL_TARGETS_LABEL[d.kind] : (names[d.kind].get(d.targetPublicId) ?? "Unknown target"),
+      value: discountValueLabel(d),
       status: discountStatus(d, input.now),
       href: null,
       discount: d,
-    });
-  }
-  for (const m of input.mealSizes) {
-    if (m.type === "none") continue;
-    rows.push({
-      id: m.publicId,
-      type: "list_price",
-      typeLabel: TYPE_LABELS.list_price,
-      appliesTo: m.name,
-      value: m.type === "percent" ? `${fmt(Number(m.value))}%` : `$${fmt(Number(m.value))} off`,
-      status: "active",
-      href: MEAL_SIZES_HREF,
-      discount: null,
     });
   }
   for (const c of input.coupons) {
