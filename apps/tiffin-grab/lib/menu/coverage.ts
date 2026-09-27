@@ -30,18 +30,7 @@ export function mergeCoverage(a: string[], b: string[]): string[] {
   return [...new Set([...a, ...b])].sort();
 }
 
-/**
- * One eating day leaving a multi-day trip. The other days stay on the original
- * delivery — including when the day leaving is the delivery day itself (Friday
- * of a Fri+Sat+Sun bundle). Otherwise the whole bundle rides along and blows
- * the 3-tiffin cap on the day it lands.
- */
-export function movesOneEatDay(covers: readonly string[], sourceDate: string): boolean {
-  return covers.length > 1 && covers.includes(sourceDate);
-}
-
-/** A day holds at most 2 tiffins (its own + one moved in); a trip carries at most 3. */
-export const MAX_TIFFINS_PER_DAY = 2;
+/** A delivery carries at most 3 tiffins per person. A day may repeat (its own + moved-in ones) within that. */
 export const MAX_TIFFINS_PER_TRIP = 3;
 
 /** Tiffins per eating day on a trip: 1 for each covered date, +1 for each extra. */
@@ -52,12 +41,28 @@ export function dateCounts(d: { deliveryDate: string; coversDates: string[] | nu
   return m;
 }
 
+/** Back from counts to storage: covers_dates (each day once, sorted) + one extra per repeat. */
+export function countsToCoverage(counts: Map<string, number>): { covers: string[]; extras: string[] } {
+  const covers = [...counts.keys()].filter((k) => counts.get(k)! > 0).sort();
+  return { covers, extras: covers.flatMap((c) => Array<string>(counts.get(c)! - 1).fill(c)) };
+}
+
+/** Counts after one tiffin eaten on `from` leaves and one eaten on `to` arrives (either side optional). */
+export function shiftTiffin(counts: Map<string, number>, from: string | null, to: string | null): Map<string, number> {
+  const m = new Map(counts);
+  if (from) {
+    const n = (m.get(from) ?? 0) - 1;
+    if (n > 0) m.set(from, n); else m.delete(from);
+  }
+  if (to) m.set(to, (m.get(to) ?? 0) + 1);
+  return m;
+}
+
+export const tiffinTotal = (counts: Map<string, number>): number => [...counts.values()].reduce((a, b) => a + b, 0);
+
 /** Why `incoming` (date -> tiffins) cannot join `target`, or null when it fits. */
 export function mergeBlockReason(target: Map<string, number>, incoming: Map<string, number>): string | null {
-  const merged = new Map(target);
-  for (const [k, v] of incoming) merged.set(k, (merged.get(k) ?? 0) + v);
-  if ([...merged.values()].some((n) => n > MAX_TIFFINS_PER_DAY)) return `A day can hold at most ${MAX_TIFFINS_PER_DAY} tiffins.`;
-  if ([...merged.values()].reduce((a, b) => a + b, 0) > MAX_TIFFINS_PER_TRIP) return `A delivery can carry at most ${MAX_TIFFINS_PER_TRIP} tiffins.`;
+  if (tiffinTotal(target) + tiffinTotal(incoming) > MAX_TIFFINS_PER_TRIP) return `A delivery can carry at most ${MAX_TIFFINS_PER_TRIP} tiffins.`;
   return null;
 }
 

@@ -95,7 +95,7 @@ describe("MoveSheet", () => {
     expect(screen.getByText(/Only one move is allowed per meal/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
-    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", undefined);
+    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23");
   });
   it("multi-day bundle splits only the chosen day's tiffin", async () => {
     a.move.mockResolvedValue({ ok: true, message: "moved" });
@@ -110,9 +110,9 @@ describe("MoveSheet", () => {
     a.move.mockResolvedValue({ ok: true, message: "merged" });
     const onDone = mount(MoveSheet, trip({ units: 1, coversDates: ["2026-09-23"], coversLabel: null }));
     fireEvent.click(screen.getByRole("button", { name: /Friday, September 25/ }));
-    expect(screen.getByText(/already has a delivery. Both trips combine into one: 3 tiffins on Fri, Sep 25. Covers Thu \+ Fri/)).toBeInTheDocument();
+    expect(screen.getByText(/It rides the Fri, Sep 25 delivery: 3 tiffins on that truck. Covers Thu \+ Fri/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Fri, Sep 25" }));
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(expect.stringMatching(/combined with that trip/)));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Fri, Sep 25."));
   });
   it("a delivery that would exceed 3 tiffins is not offered", () => {
     const fullPlan = {

@@ -7,8 +7,8 @@ import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import { weekdayShort } from "@/lib/deliveries-view/eating";
 import { mondayOf } from "@/lib/deliveries-view/week";
 import { WeekStrip } from "../week-strip";
-import { moveOptions } from "@/lib/deliveries-view/move";
-import { formatCoversLabel, movesOneEatDay } from "@/lib/menu/coverage";
+import { moveLockReason, moveOptions } from "@/lib/deliveries-view/move";
+import { formatCoversLabel } from "@/lib/menu/coverage";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
 
@@ -16,10 +16,11 @@ const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
 export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionSheetProps) {
   const [now] = useState(() => Date.now());
-  const av = actionAvailability(trip, now, plan.ctx).move;
   // Which eating day is moving: the one the customer selected, or the trip's own date if none was passed.
   const source = sourceDate ?? trip.date;
-  const split = movesOneEatDay(trip.coversDates, source);
+  const lock = moveLockReason(trip, source);
+  const av = lock ? { ok: false, why: lock, sub: "" } : actionAvailability(trip, now, plan.ctx).move;
+  const split = trip.coversDates.length + (trip.extraDates?.length ?? 0) > 1;
   const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today, undefined, source), [trip, plan, now, source]);
   const [picked, setPickedRaw] = useState<string | null>(null);
   const [week, setWeek] = useState<string | null>(null);
@@ -38,8 +39,8 @@ export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionS
   const confirm = () => {
     if (!trip.deliveryId || !picked) return;
     void run(
-      () => rescheduleMyDelivery(trip.deliveryId!, picked, split ? source : undefined),
-      (r) => (r.message === "merged" ? `Moved ${day} to ${humanDate(picked)} and combined with that trip.` : `Moved ${day} to ${humanDate(picked)}.`),
+      () => rescheduleMyDelivery(trip.deliveryId!, picked, source),
+      () => `Moved ${day} to ${humanDate(picked)}.`,
     );
   };
 
@@ -76,7 +77,7 @@ export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionS
               {!chosen && <Reason>Choose a day to continue.</Reason>}
               {chosen?.merge ? (
                 <Notice>
-                  {humanDate(chosen.date)} already has a delivery. Both trips combine into one: {tiffins(chosen.merge.units)} on {humanDate(chosen.date)}. {formatCoversLabel(chosen.merge.covers)}.
+                  It rides the {humanDate(chosen.carriedOn)} delivery: {tiffins(chosen.merge.units)} on that truck. {formatCoversLabel(chosen.merge.covers)}.
                 </Notice>
               ) : chosen && chosen.carriedOn !== chosen.date ? (
                 <Notice>{humanDate(chosen.date)} will arrive {humanDate(chosen.carriedOn)} with {weekdayShort(chosen.carriedOn)}. We don&apos;t deliver on {weekdayShort(chosen.date)}s, so it rides on the earlier delivery.</Notice>
@@ -85,7 +86,7 @@ export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionS
               ) : null}
               {chosen && (
                 <Notice>
-                  Only one move is allowed per meal. Once you move it, you can&apos;t move it again, move it back to {humanDate(source)}, or put it on hold.
+                  It becomes {weekdayShort(chosen.date)}&apos;s tiffin, with {weekdayShort(chosen.date)}&apos;s menu. Any meal you pick for {weekdayShort(chosen.date)} applies to it too. Only one move is allowed per meal. Once you move it, you can&apos;t move it again, move it back to {humanDate(source)}, or put it on hold.
                 </Notice>
               )}
               <Reason>

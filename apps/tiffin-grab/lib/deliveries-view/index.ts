@@ -28,6 +28,9 @@ export type CalendarDayInput = {
   rescheduled?: boolean;
   /** Day this trip's tiffin moved to (make-up row), for the "Moved to" label. */
   movedTo?: string;
+  /** Tiffins the customer moved onto this trip (null from = scheduled from the pool) and off it. */
+  movesIn?: TiffinMove[];
+  movesOut?: TiffinMove[];
   /** This delivery's own address when re-addressed; null/absent = it follows the plan. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
   /** This delivery's own strategy when re-addressed; null/absent = it follows the plan. */
@@ -36,6 +39,8 @@ export type CalendarDayInput = {
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
 };
+
+export type TiffinMove = { from: string | null; to: string };
 
 export type PlanContext = {
   cutoffHour: number;
@@ -71,8 +76,9 @@ export type Trip = {
   rescheduled: boolean;
   /** Where a moved trip went: the eat day it was moved to, or the trip it combined into. */
   movedTo?: string | null;
-  /** Another trip was merged into this one: it carries a moved tiffin, so it cannot be moved again. */
-  hasMovedIn?: boolean;
+  /** Tiffins moved onto this trip (they can't move again) and off it (their old day reads "Moved to"). */
+  movesIn?: TiffinMove[];
+  movesOut?: TiffinMove[];
   /** This delivery's own address when re-addressed; null = it follows the plan's address. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
   /** This delivery's own strategy when re-addressed; null = it follows the plan's strategy. */
@@ -103,9 +109,6 @@ function summarize(meal: MealLike | null | undefined): string | null {
 }
 
 export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanContext, orderId = ""): Trip[] {
-  // A full merge marks the TARGET via combinedInto (on the source row); a split lands as an
-  // extra on the target's own row instead, so extras also count as "received a moved-in tiffin".
-  const movedIn = new Set(days.flatMap((d) => [...(d.combinedInto ? [d.combinedInto] : []), ...(d.extras?.length ? [d.date] : [])]));
   return days
     .map((d): Trip => {
       const cutoffAt = d.cutoffAt ?? cutoffMsFor(d.date, plan.cutoffHour, plan.timezone);
@@ -147,7 +150,8 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         pooled: !!d.pooled,
         rescheduled,
         movedTo: d.movedTo ?? d.combinedInto ?? null,
-        hasMovedIn: movedIn.has(d.date),
+        movesIn: d.movesIn ?? [],
+        movesOut: d.movesOut ?? [],
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -208,8 +212,7 @@ export function actionAvailability(trip: Trip, _now: number, plan: PlanContext):
     hold = editable ? yes("Adds 1 hold day back to your plan")
       : s === "hold" || s === "rescheduled" || s === "failed" ? no("Already on hold. Resume it instead.")
       : no(blocked("Already delivered."));
-    move = editable && trip.hasMovedIn ? no("This trip already carries a moved tiffin. Only one move is allowed.")
-      : editable ? yes("Pick a new delivery day")
+    move = editable ? yes("Pick a new delivery day")
       : (s === "hold" || s === "failed") && trip.pooled ? yes(plan.lastDeliveryDate ? `Only days after ${humanDate(plan.lastDeliveryDate)}` : "Only days after your last delivery")
       : (s === "hold" || s === "failed") ? yes("Uses one of your hold days")
       : resumeVacation ? yes("Uses one of your hold days")

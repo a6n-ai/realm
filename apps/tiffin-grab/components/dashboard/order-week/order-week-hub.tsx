@@ -24,8 +24,7 @@ import {
 import { buildVacationPauseRequest } from "@/app/(customer)/me/deliveries/vacation-pause";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { deliveryLine, eatingRowsInWeek, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { moveOptions } from "@/lib/deliveries-view/move";
-import { movesOneEatDay } from "@/lib/menu/coverage";
+import { moveLockReason, moveOptions } from "@/lib/deliveries-view/move";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
 import { applySwapsToCounts, exchangeOverride, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { OrderWeek } from "@/lib/services/order-week.service";
@@ -305,7 +304,8 @@ const Err = ({ e }: { e: string | null }) => (e ? <p role="alert" className="tex
 function RescheduleDialog({ trip, day: sourceDate, data, onClose, onDone }: { trip: Trip; day?: string; data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
   const { plan, now } = data;
   const source = sourceDate ?? trip.date;
-  const split = movesOneEatDay(trip.coversDates, source);
+  const split = trip.coversDates.length + (trip.extraDates?.length ?? 0) > 1;
+  const lock = moveLockReason(trip, source);
   const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today, undefined, source), [trip, plan, now, source]);
   const byDate = useMemo(() => new Map(options.map((o) => [o.date, o])), [options]);
   const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason; };
@@ -319,7 +319,9 @@ function RescheduleDialog({ trip, day: sourceDate, data, onClose, onDone }: { tr
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Move {humanDate(source)}</DialogTitle><DialogDescription>Pick the day the customer wants to eat. The delivery day is chosen automatically from the plan (truck marks delivery days).{split && " Other days stay on this trip."}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Move {humanDate(source)}</DialogTitle><DialogDescription>Pick the day the customer wants to eat. The delivery day is chosen automatically from the plan (truck marks delivery days).{split && " Other days stay on this trip."} It becomes the picked day's tiffin, with that day's menu.</DialogDescription></DialogHeader>
+        {lock && <p role="alert" className="text-destructive text-sm">{lock}</p>}
+
         <div className="rounded-md border p-2" data-testid="move-week">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-muted-foreground px-1 text-xs font-semibold uppercase tracking-wider">{MON.format(d(week))} {d(week).getUTCDate()} – {MON.format(d(addDays(week, 6)))} {d(addDays(week, 6)).getUTCDate()}</span>
@@ -351,11 +353,11 @@ function RescheduleDialog({ trip, day: sourceDate, data, onClose, onDone }: { tr
         </div>
         {note && <p className="text-muted-foreground text-sm">{note}</p>}
         {date && byDate.get(date) && byDate.get(date)!.carriedOn !== date && !byDate.get(date)!.merge && <p className="text-muted-foreground text-sm">{humanDate(date)} will arrive {humanDate(byDate.get(date)!.carriedOn)} with {weekdayShort(byDate.get(date)!.carriedOn)}.</p>}
-        {date && byDate.get(date)?.merge && <p className="text-muted-foreground text-sm">{humanDate(date)} already has a delivery: both trips combine into {tiffins(byDate.get(date)!.merge!.units)}.</p>}
+        {date && byDate.get(date)?.merge && <p className="text-muted-foreground text-sm">{humanDate(date)} already has a delivery: it rides that truck, {tiffins(byDate.get(date)!.merge!.units)} in all.</p>}
         <Err e={error} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={!date || pending} onClick={() => run(() => rescheduleMyDelivery(trip.deliveryId!, date, split ? source : undefined), `Moved ${humanDate(source)} to ${humanDate(date)}.`)}>{pending ? "Saving…" : date ? `Move to ${humanDate(date)}` : "Move trip"}</Button>
+          <Button disabled={!date || pending || !!lock} onClick={() => run(() => rescheduleMyDelivery(trip.deliveryId!, date, source), `Moved ${humanDate(source)} to ${humanDate(date)}.`)}>{pending ? "Saving…" : date ? `Move to ${humanDate(date)}` : "Move trip"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

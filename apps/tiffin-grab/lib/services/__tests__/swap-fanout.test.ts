@@ -70,7 +70,7 @@ function orderInput(mealSizeId: string, planKey: string) {
 }
 
 describe("delivery swap reschedule carry-over", () => {
-  it("carries a day's own swap onto its rescheduled replacement", async () => {
+  it("a moved tiffin takes its new day's meal: the old day's swap does not follow it", async () => {
     const size = await mealSizeWithRiceAndRoti();
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
@@ -80,28 +80,18 @@ describe("delivery swap reschedule carry-over", () => {
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id))
       .orderBy(asc(deliveries.deliveryDate));
     const source = rows[0];
-    // Give up the single rice pick (1 TU) for the meal's one roti row (1 TU = 4 roti).
     await applyDeliverySwap(source.publicId, "rice", "roti", 1, null);
 
-    // A day the order does not already cover, on the same weekday pattern.
-    const target = rows[rows.length - 1].deliveryDate;
-    const nextIso = new Date(`${target}T00:00:00.000Z`);
+    const nextIso = new Date(`${rows[rows.length - 1].deliveryDate}T00:00:00.000Z`);
     nextIso.setUTCDate(nextIso.getUTCDate() + 7);
+    const { carriedOn } = await rescheduleDelivery(source.publicId, nextIso.toISOString().slice(0, 10), null);
 
-    await rescheduleDelivery(source.publicId, nextIso.toISOString().slice(0, 10), null);
-
-    const [replacement] = await db.select().from(deliveries)
-      .where(eq(deliveries.makeupForDeliveryId, source.id)).limit(1);
-    const swaps = await db.select().from(deliveryCategorySwaps)
-      .where(eq(deliveryCategorySwaps.deliveryId, replacement.id));
-    expect(swaps).toHaveLength(1);
-    expect(swaps[0].fromCategory).toBe("rice");
-    expect(swaps[0].toCategory).toBe("roti");
-    expect(swaps[0].qtyFrom).toBe(1);
-    expect(swaps[0].qtyTo).toBe(1);
+    const [target] = await db.select().from(deliveries)
+      .where(and(eq(deliveries.orderId, order.id), eq(deliveries.deliveryDate, carriedOn))).limit(1);
+    expect(await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, target.id))).toEqual([]);
   });
 
-  it("snapshots the pair's exchange override, carries it, and ignores later override edits", async () => {
+  it("snapshots the pair's exchange override and ignores later override edits", async () => {
     const size = await mealSizeWithRiceAndRoti();
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
@@ -128,12 +118,8 @@ describe("delivery swap reschedule carry-over", () => {
       // Editing the override later must not resize the swap already made.
       await db.update(categorySwapPairs).set({ exchangeOverrides: [{ giveTu: riceTu, receiveTu: 3 }] }).where(pairWhere);
 
-      const next = new Date(`${rows[rows.length - 1].deliveryDate}T00:00:00.000Z`);
-      next.setUTCDate(next.getUTCDate() + 7);
-      await rescheduleDelivery(source.publicId, next.toISOString().slice(0, 10), null);
-      const [replacement] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, source.id)).limit(1);
-      const [carried] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, replacement.id));
-      expect(carried).toMatchObject({ fromCategory: "rice", toCategory: "roti", qtyTo: 1, receiveTu: 2 });
+      const [kept] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, source.id));
+      expect(kept).toMatchObject({ fromCategory: "rice", toCategory: "roti", qtyTo: 1, receiveTu: 2 });
     } finally {
       await db.update(categorySwapPairs).set({ exchangeOverrides: pair.exchangeOverrides }).where(pairWhere);
     }

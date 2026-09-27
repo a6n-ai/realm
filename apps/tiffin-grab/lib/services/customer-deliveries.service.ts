@@ -1,9 +1,9 @@
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { NotFoundError, Role, ValidationError, weekdayKey, zonedDateIso } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryStrategies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, deliveryStrategies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
@@ -292,6 +292,16 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     if (d.status === "scheduled" && !covers.includes(d.deliveryDate)) {
       (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers, optimoCompletionStatus: d.optimoCompletionStatus });
     }
+  }
+  // A moved tiffin eats on its new day now; its old day keeps a "moved" dot unless another tiffin still eats there.
+  const byId = new Map(rows.map((r) => [r.d.id, r]));
+  const moves = rows.length === 0 ? [] : await db.select({ fromId: deliveryMoves.fromDeliveryId, toId: deliveryMoves.toDeliveryId, from: deliveryMoves.fromEatDate })
+    .from(deliveryMoves).where(inArray(deliveryMoves.fromDeliveryId, rows.map((r) => r.d.id)));
+  for (const m of moves) {
+    const src = byId.get(m.fromId!)!;
+    if (!m.from || m.from < from || m.from > until || out[m.from]?.some((x) => x.orderId === src.orderId)) continue;
+    const t = byId.get(m.toId)?.d ?? src.d;
+    out[m.from] = [{ orderId: src.orderId, status: t.status as AgendaDay["status"], cutoffAt: Number(t.cutoffAt), deliveryDate: t.deliveryDate, truck: false, units: t.tiffinUnits, covers: coveredDates(t), moved: true, optimoCompletionStatus: t.optimoCompletionStatus }];
   }
   return out;
 }
@@ -701,6 +711,9 @@ export type CalendarDay = {
   coversLabel?: string | null;
   /** Delivery date of the trip this row was merged into ("Combined into Wed's delivery"); null otherwise. */
   combinedInto?: string | null;
+  /** Tiffins moved onto this trip (null from = from the pool) and off it, by eat date. */
+  movesIn?: { from: string | null; to: string }[];
+  movesOut?: { from: string | null; to: string }[];
   /** One entry per covered eating day, in date order. Swaps here apply only to that day; lock follows the trip's cutoff (`locked`). */
   eatingDays?: EatingDaySwaps[];
   /**
@@ -758,9 +771,14 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     .where(inArray(deliveries.id, mergeTargetIds));
   const targetDateById = new Map(mergeTargets.map((t) => [t.id, t.deliveryDate]));
   const extrasById = await loadExtraDates(db, rows.map((r) => r.id));
+  const rowIds = rows.map((r) => r.id);
+  const moves = await db.select({ fromId: deliveryMoves.fromDeliveryId, toId: deliveryMoves.toDeliveryId, from: deliveryMoves.fromEatDate, to: deliveryMoves.toEatDate })
+    .from(deliveryMoves).where(or(inArray(deliveryMoves.toDeliveryId, rowIds), inArray(deliveryMoves.fromDeliveryId, rowIds)));
   const tripFields = (row: CustomerDelivery) => {
     const covers = coveredDates(row);
     return {
+      movesIn: moves.filter((m) => m.toId === row.id).map(({ from, to }) => ({ from, to })),
+      movesOut: moves.filter((m) => m.fromId === row.id && m.toId !== row.id).map(({ from, to }) => ({ from, to })),
       units: row.mergedIntoDeliveryId ? 0 : row.tiffinUnits,
       covers,
       extras: row.mergedIntoDeliveryId ? [] : (extrasById.get(row.id) ?? []),

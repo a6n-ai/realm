@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moveOptions } from "../move";
+import { moveLockReason, moveOptions } from "../move";
 import type { PlanContext, Trip } from "../index";
 
 const NOW = Date.parse("2026-09-21T12:00:00Z");
@@ -43,12 +43,30 @@ describe("moveOptions", () => {
     expect(at("2026-09-28").disabledReason).toMatch(/held/);
   });
   it("eat-day picks snap to the carrying trip: weekends ride Friday, off-pattern days the earlier trip", () => {
-    const o = moveOptions(trip, [{ date: "2026-09-25", status: "scheduled", units: 1, covers: ["2026-09-25"] }], NOW, ctx, "2026-09-24", 5);
+    const o = moveOptions({ ...trip, status: "upcoming" } as Trip, [{ date: "2026-09-25", status: "scheduled", units: 1, covers: ["2026-09-25"] }], NOW, ctx, "2026-09-24", 5);
     const sat = o.find((x) => x.date === "2026-09-26")!;
     expect(sat).toMatchObject({ carriedOn: "2026-09-25", disabledReason: undefined });
     expect(sat.merge!.covers).toEqual(["2026-09-25", "2026-09-26"]);
-    expect(o.find((x) => x.date === "2026-09-24")).toMatchObject({ carriedOn: "2026-09-23", disabledReason: "That day already rides on this trip." });
+    expect(o.find((x) => x.date === "2026-09-24")).toMatchObject({ carriedOn: "2026-09-23", disabledReason: expect.stringMatching(/closed/) });
     expect(o.find((x) => x.date === "2026-09-27")!.carriedOn).toBe("2026-09-25");
+  });
+  it("same truck: Wed's tiffin can become Thu's on the Wed delivery, units unchanged; not on a held trip", () => {
+    const up = { ...trip, status: "upcoming" } as Trip;
+    const thu = moveOptions(up, [], NOW, ctx, "2026-09-21", 4).find((x) => x.date === "2026-09-24")!;
+    expect(thu).toMatchObject({ carriedOn: "2026-09-23", disabledReason: undefined, merge: { units: 1, covers: ["2026-09-24"] } });
+    const held = moveOptions({ ...trip, status: "hold" } as Trip, [], NOW, ctx, "2026-09-21", 4).find((x) => x.date === "2026-09-24")!;
+    expect(held.disabledReason).toMatch(/isn't on hold/);
+  });
+  it("no per-day cap: a day may take a third tiffin as long as the delivery stays at 3", () => {
+    const days = [{ date: "2026-09-25", status: "scheduled" as const, units: 2, covers: ["2026-09-25"], extras: ["2026-09-25"] }];
+    const o = moveOptions({ ...trip, status: "upcoming", coversDates: ["2026-09-23", "2026-09-24"], units: 2 } as Trip, days, NOW, ctx, "2026-09-21", 5);
+    expect(o.find((x) => x.date === "2026-09-25")).toMatchObject({ disabledReason: undefined, merge: { units: 3, covers: ["2026-09-25"] } });
+  });
+  it("a tiffin moved onto a day can't move again; the day's own tiffin still can", () => {
+    const t = { ...trip, coversDates: ["2026-09-23"], extraDates: ["2026-09-23"], movesIn: [{ from: "2026-09-25", to: "2026-09-23" }] } as Trip;
+    expect(moveLockReason(t, "2026-09-23")).toBeNull();
+    const t2 = { ...t, movesIn: [...t.movesIn!, { from: "2026-09-21", to: "2026-09-23" }] } as Trip;
+    expect(moveLockReason(t2, "2026-09-23")).toMatch(/already moved/);
   });
   it("blocks a move onto a delivery already carrying 3 tiffins, including days it carries", () => {
     const days = [{ date: "2026-09-23", status: "scheduled" as const, units: 3, covers: ["2026-09-23", "2026-09-24"], extras: ["2026-09-23"] }];
@@ -69,7 +87,7 @@ describe("moveOptions", () => {
     const mon = o.find((x) => x.date === "2026-09-28")!;
     expect(mon.disabledReason).toBeUndefined();
     // Monday (1 unit) + split Friday (1 unit) = 2 units (not 1 + 3 = 4)
-    expect(mon.merge).toEqual({ units: 2, covers: ["2026-09-25", "2026-09-28"] });
+    expect(mon.merge).toEqual({ units: 2, covers: ["2026-09-28"] }); // Fri's tiffin becomes a second Monday tiffin
   });
   it("splits Friday lead day (1 tiffin) on mwf, so it does not drag Sat and Sun along", () => {
     const friTrip = { date: "2026-09-25", units: 3, coversDates: ["2026-09-25", "2026-09-26", "2026-09-27"], pooled: false } as Trip;
@@ -79,7 +97,7 @@ describe("moveOptions", () => {
     const mon = o.find((x) => x.date === "2026-09-28")!;
     expect(mon.disabledReason).toBeUndefined();
     // Monday (1 unit) + Friday only (1 unit) = 2, not the whole Fri+Sat+Sun bundle
-    expect(mon.merge).toEqual({ units: 2, covers: ["2026-09-25", "2026-09-28"] });
+    expect(mon.merge).toEqual({ units: 2, covers: ["2026-09-28"] }); // Fri's tiffin becomes a second Monday tiffin
   });
   it("splits Saturday off Friday (1 tiffin) even on mwf", () => {
     const friTrip = { date: "2026-09-25", units: 3, coversDates: ["2026-09-25", "2026-09-26", "2026-09-27"], pooled: false } as Trip;
@@ -89,6 +107,6 @@ describe("moveOptions", () => {
     const mon = o.find((x) => x.date === "2026-09-28")!;
     expect(mon.disabledReason).toBeUndefined();
     // Monday (1 unit) + split Saturday (1 unit) = 2 units
-    expect(mon.merge).toEqual({ units: 2, covers: ["2026-09-26", "2026-09-28"] });
+    expect(mon.merge).toEqual({ units: 2, covers: ["2026-09-28"] });
   });
 });

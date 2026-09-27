@@ -21,6 +21,28 @@ describe("moved days", () => {
   });
 });
 
+describe("one eating day moved off a Fri+Sat+Sun trip", () => {
+  // Fri's tiffin moved to Wed (same week), Sat's to next Tue. Fri's truck brings only Sun.
+  const wed = trip({ date: "2026-09-23", coversDates: ["2026-09-23"], extraDates: ["2026-09-23"], units: 2, eatingDays: [day("2026-09-23", "Dal")], movesIn: [{ from: "2026-09-25", to: "2026-09-23" }] });
+  const fri = trip({ date: "2026-09-25", coversDates: ["2026-09-27"], units: 1, eatingDays: [day("2026-09-27", "Kadhi", "2026-09-25")], movesOut: [{ from: "2026-09-25", to: "2026-09-23" }, { from: "2026-09-26", to: "2026-09-29" }] });
+  const tue = trip({ date: "2026-09-29", coversDates: ["2026-09-29"], extraDates: ["2026-09-29"], units: 2, eatingDays: [day("2026-09-29")], movesIn: [{ from: "2026-09-26", to: "2026-09-29" }] });
+  const rows = buildEatingDays([wed, fri, tue]);
+  const lines = Object.fromEntries(rows.map((r) => [r.date, deliveryLine(r)]));
+
+  it("Wed carries its own tiffin plus Fri's, both on Wed's meal", () => {
+    expect(lines["2026-09-23"]).toBe("Arrives Wed, Sep 23 · Fri's tiffin moved here, same meal");
+    expect(rows.find((r) => r.date === "2026-09-23")!.dish).toBe("Dal");
+  });
+  it("Fri and Sat read Moved to; Sun still arrives on Friday's truck", () => {
+    expect(lines["2026-09-25"]).toBe("Moved to Wed, Sep 23");
+    expect(lines["2026-09-26"]).toBe("Moved to Tue, Sep 29");
+    expect(lines["2026-09-27"]).toBe("Arrives Fri, Sep 25 with Fri");
+  });
+  it("a moved-away day shows only in its own week", () => {
+    expect(eatingRowsInWeek([wed, fri, tue], "2026-09-28", "2026-10-04").map((r) => r.date)).toEqual(["2026-09-29"]);
+  });
+});
+
 describe("buildEatingDays", () => {
   it("a Mon trip covering Mon+Tue yields two eating days, only Mon is the delivery day", () => {
     const rows = buildEatingDays([trip({})]);

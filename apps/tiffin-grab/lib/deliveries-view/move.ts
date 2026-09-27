@@ -1,5 +1,5 @@
 import { cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { dateCounts, mergeBlockReason, mergeCoverage, movesOneEatDay } from "@/lib/menu/coverage";
+import { countsToCoverage, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, tiffinTotal } from "@/lib/menu/coverage";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from "./index";
@@ -25,14 +25,26 @@ export type MoveOption = {
   carriedOn: string;
 };
 
+/** Tiffins per eating day on a trip: covers once each, plus one per extra. */
+export function tripCounts(trip: Pick<Trip, "coversDates" | "extraDates">): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const c of [...trip.coversDates, ...(trip.extraDates ?? [])]) m.set(c, (m.get(c) ?? 0) + 1);
+  return m;
+}
+
+/** Why `date`'s tiffin on this trip can't move, or null: a tiffin that was moved in never moves again. */
+export function moveLockReason(trip: Pick<Trip, "coversDates" | "extraDates" | "movesIn" | "isMakeup">, date: string): string | null {
+  if (trip.isMakeup) return "This tiffin was already moved once. It can't move again.";
+  const movedIn = (trip.movesIn ?? []).filter((m) => m.to === date).length;
+  return (tripCounts(trip).get(date) ?? 0) - movedIn < 1 ? "This tiffin was already moved once. It can't move again." : null;
+}
+
 /**
- * Mirrors rescheduleDelivery: the customer picks the day they want to EAT; it snaps to the carrying
- * trip (nearest plan weekday on or before it, so weekends ride Friday). Every check (past, cutoff,
- * held target, already-covered) runs on the carrying trip. The server stays authoritative.
- *
- * `sourceDate` is WHICH eating day the customer is moving. On a multi-day trip only that
- * tiffin leaves, even when it is the delivery day itself — weekend riders stay on the
- * original Friday. The whole trip moves only when it covers just that one day.
+ * Mirrors rescheduleDelivery: ONE eating day's tiffin moves. The customer picks the day they
+ * want to EAT it; it becomes that day's tiffin (that day's menu) and rides the carrying trip
+ * (nearest plan weekday on or before it, so weekends ride Friday) — possibly this same trip.
+ * Every check (past, cutoff, held target, 3-tiffin cap) runs on the carrying trip. The server
+ * stays authoritative. A pooled miss still moves whole.
  */
 export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "status" | "units" | "covers" | "extras">[], now: number, ctx: PlanContext, today: string, horizon?: number, sourceDate: string = trip.date): MoveOption[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
@@ -42,35 +54,29 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
   const rangeStart = ctx.startDate && ctx.startDate > today ? ctx.startDate : today;
   const span = horizon ?? defaultHorizon(ctx, rangeStart);
   const cursor = parseIsoDateUtc(rangeStart);
-  const split = typeof movesOneEatDay === "function"
-    ? movesOneEatDay(trip.coversDates, sourceDate)
-    : (trip.coversDates.length > 1 && trip.coversDates.includes(sourceDate));
-  const splitExtras = (trip.extraDates ?? []).filter((d) => d === sourceDate);
-  // Per-tiffin unit count, derived rather than plumbed: units already includes any extras.
-  const perTiffin = trip.units / Math.max(1, trip.coversDates.length + (trip.extraDates?.length ?? 0));
+  const counts = tripCounts(trip);
+  const perTiffin = trip.units / Math.max(1, tiffinTotal(counts));
+  const wholePool = trip.pooled && tiffinTotal(counts) > 1;
   for (let i = 0; i < span; i++, cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     const date = cursor.toISOString().slice(0, 10);
     const carriedOn = carryTripDateIso(date, weekdays);
     if (!carriedOn) continue;
     const target = byDate.get(carriedOn);
     let disabledReason: string | undefined;
-    if (carriedOn === trip.date) disabledReason = date === sourceDate ? "This is the day you're moving from." : "That day already rides on this trip.";
+    let merge: MoveOption["merge"] = null;
+    if (date === sourceDate) disabledReason = "This is the day you're moving from.";
     else if (carriedOn < today || now > cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
+    else if (carriedOn === trip.date) {
+      if (trip.status !== "upcoming") disabledReason = "Pick a day on a delivery that isn't on hold.";
+      else merge = { units: trip.units, covers: countsToCoverage(shiftTiffin(counts, sourceDate, date)).covers };
+    }
     else if (trip.pooled && ctx.lastDeliveryDate && carriedOn <= ctx.lastDeliveryDate) disabledReason = `A pooled tiffin can only go after ${humanDate(ctx.lastDeliveryDate)}.`;
     else if (target && target.status !== "scheduled") disabledReason = `${humanDate(carriedOn)} already has a held trip. Pick another day.`;
     else if (target && trip.pooled) disabledReason = `${humanDate(carriedOn)} already has a delivery. Pick an open day for a pooled tiffin.`;
-    let merge: MoveOption["merge"] = null;
     if (target?.status === "scheduled" && carriedOn !== trip.date) {
-      const carried = split ? [sourceDate] : (trip.coversDates.length === 1 ? [date] : trip.coversDates);
-      const movingExtras = split ? splitExtras : (trip.extraDates ?? []);
-      if (!disabledReason) {
-        const incoming = new Map<string, number>();
-        for (const c of [...carried, ...movingExtras]) incoming.set(c, (incoming.get(c) ?? 0) + 1);
-        disabledReason = mergeBlockReason(dateCounts({ deliveryDate: carriedOn, coversDates: target.covers ?? null }, target.extras), incoming) ?? undefined;
-      }
-      const covers = mergeCoverage(carried, target.covers ?? [carriedOn]);
-      const movingUnits = split ? (carried.length + movingExtras.length) * perTiffin : trip.units;
-      merge = { units: (target.units ?? 1) + movingUnits, covers };
+      const incoming = wholePool ? counts : new Map([[date, 1]]);
+      disabledReason ??= mergeBlockReason(dateCounts({ deliveryDate: carriedOn, coversDates: target.covers ?? null }, target.extras), incoming) ?? undefined;
+      merge = { units: (target.units ?? 1) + tiffinTotal(incoming) * perTiffin, covers: mergeCoverage([...incoming.keys()], target.covers ?? [carriedOn]) };
     }
     out.push({ date, disabledReason, merge, carriedOn });
   }

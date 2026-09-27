@@ -5,8 +5,8 @@ import { organization } from "./organizations";
 
 // One row per EXTRA tiffin a trip carries on an eating day it already covers (a moved tiffin
 // landed on a day the customer eats anyway). A day's count is 1 (covers_dates) + its rows here.
-// Deliberately no unique (delivery_id, eat_date): the per-day cap is MAX_TIFFINS_PER_DAY in
-// lib/menu/coverage.ts, so raising it needs no migration.
+// Deliberately no unique (delivery_id, eat_date): a day may repeat; the only cap is
+// MAX_TIFFINS_PER_TRIP in lib/menu/coverage.ts.
 // Invariant: tiffin_units = (covers_dates + extra rows) * persons.
 export const deliveryExtraTiffins = pgTable("delivery_extra_tiffins", {
   ...baseColumns("dxt"),

@@ -3,11 +3,11 @@ import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryZones, deliveryStrategies, orderActivities, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, deliveryStrategies, orderActivities, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
-import { MAX_TIFFINS_PER_TRIP, coveredDates, dateCounts, mergeBlockReason, mergeCoverage, movesOneEatDay, swapAppliesTo, tripCoverage } from "@/lib/menu/coverage";
+import { MAX_TIFFINS_PER_TRIP, countsToCoverage, coveredDates, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { findZone } from "@/lib/catalog/zone-match";
@@ -616,6 +616,7 @@ export async function scheduleFromPool(
         coversDates: covers,
       }).where(eq(deliveries.id, occupant.id));
       await replaceExtras(tx, occupant.id, covers.flatMap((c) => Array<string>(merged.get(c)! - 1).fill(c)));
+      await tx.insert(deliveryMoves).values({ orderId, fromDeliveryId: null, toDeliveryId: occupant.id, fromEatDate: null, toEatDate: eatingDateIso, organizationId: occupant.organizationId });
       await tx.update(orders)
         .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} - ${units}` })
         .where(eq(orders.id, orderId));
@@ -683,24 +684,19 @@ async function replaceExtras(tx: Tx, deliveryId: bigint, eatDates: string[]): Pr
   if (eatDates.length) await tx.insert(deliveryExtraTiffins).values(eatDates.map((eatDate) => ({ deliveryId, eatDate })));
 }
 
-/** Moves only the swaps that apply to `eatDate` (never the whole delivery's swaps) from one delivery to another. */
-async function moveDeliverySwapsForDate(tx: Tx, fromDeliveryId: bigint, toDeliveryId: bigint, tripDate: string, eatDate: string): Promise<void> {
-  const rows = await tx.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, fromDeliveryId)).orderBy(asc(deliveryCategorySwaps.id));
-  const moving = rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatDate));
-  if (moving.length === 0) return;
-  await tx.insert(deliveryCategorySwaps).values(moving.map((r) => ({
-    deliveryId: toDeliveryId, fromCategory: r.fromCategory, toCategory: r.toCategory, qtyFrom: r.qtyFrom, qtyTo: r.qtyTo, fromRow: r.fromRow, receiveTu: r.receiveTu, forDate: eatDate,
-  })));
-  await tx.delete(deliveryCategorySwaps).where(inArray(deliveryCategorySwaps.id, moving.map((r) => r.id)));
+/** Drops the swaps that apply to `eatDate`: that day no longer rides this delivery. */
+async function dropDeliverySwapsForDate(tx: Tx, deliveryId: bigint, tripDate: string, eatDate: string): Promise<void> {
+  const rows = await tx.select({ id: deliveryCategorySwaps.id, forDate: deliveryCategorySwaps.forDate }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, deliveryId));
+  const gone = rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatDate)).map((r) => r.id);
+  if (gone.length) await tx.delete(deliveryCategorySwaps).where(inArray(deliveryCategorySwaps.id, gone));
 }
 
 /**
- * Moves a trip onto `targetDate` (a delivery weekday). `sourceEatDate` says WHICH eating day is
- * moving. On a scheduled multi-day trip only that one tiffin leaves — even when it is the
- * delivery day itself — and the source keeps the remaining days, still delivered on its own
- * date. Null moves the whole trip. If a SCHEDULED trip already sits on targetDate the moving
- * day merges into it (units add, coverage unions); otherwise a make-up row is inserted.
- * Never creates weekend delivery rows.
+ * Moves a WHOLE trip onto `targetDate` (a delivery weekday): payment-shift, re-delivery, a
+ * single-tiffin reschedule, or a pooled miss. If a SCHEDULED trip already sits on targetDate
+ * the tiffins merge into it (units add, coverage unions); otherwise a make-up row is inserted.
+ * A single-tiffin trip moved to another eat day (`eatingDateIso`) becomes that day's tiffin and
+ * takes that day's menu, so its old swaps stay behind. Never creates weekend delivery rows.
  */
 async function moveTrip(
   tx: Tx,
@@ -710,18 +706,15 @@ async function moveTrip(
   eatingDateIso: string | null,
   persons: number,
   enforceCaps = true,
-  sourceEatDate: string | null = null,
 ): Promise<{ id: bigint; merged: boolean; coversDates: string[] }> {
   const own = coveredDates(source);
-  const split = sourceEatDate != null && movesOneEatDay(own, sourceEatDate);
-  const remaining = split ? own.filter((d) => d !== sourceEatDate) : [];
-  const carried = split ? [sourceEatDate!] : (eatingDateIso && own.length === 1 ? [eatingDateIso] : own);
+  const carried = eatingDateIso && own.length === 1 ? [eatingDateIso] : own;
+  const relabel = carried.length === 1 && own.length === 1 && carried[0] !== own[0];
   const [target] = await tx.select().from(deliveries)
     .where(and(eq(deliveries.orderId, source.orderId), eq(deliveries.deliveryDate, targetDate))).limit(1);
   // Legacy rows (no covers_dates) keep their stored units: a bundled Friday must not drop to one day.
   const srcExtraDates = (await loadExtraDates(tx, [source.id])).get(source.id) ?? [];
-  const movingExtras = split ? srcExtraDates.filter((d) => d === sourceEatDate) : carriedExtras(srcExtraDates, eatingDateIso, own);
-  const stayingExtras = split ? srcExtraDates.filter((d) => d !== sourceEatDate) : [];
+  const movingExtras = carriedExtras(srcExtraDates, eatingDateIso, own);
   const explicit = (d: Delivery, extraCount: number) => (d.coversDates ? (coveredDates(d).length + extraCount) * Math.max(1, persons) : d.tiffinUnits);
   // Swaps written for the trip's own date (NULL for_date) must follow the day they were for.
   const nullFollows = source.coversDates || eatingDateIso == null ? source.deliveryDate : eatingDateIso;
@@ -733,22 +726,13 @@ async function moveTrip(
       deliveryDate: targetDate,
       status: "scheduled",
       cutoffAt: targetCutoff,
-      makeupForDeliveryId: split ? null : source.id,
+      makeupForDeliveryId: source.id,
       tiffinUnits: source.coversDates ? (covers.length + movingExtras.length) * Math.max(1, persons) : source.tiffinUnits,
       coversDates: source.coversDates || eatingDateIso ? covers : null,
     }).returning({ id: deliveries.id });
     await replaceExtras(tx, inserted.id, movingExtras);
-    if (split) {
-      await tx.update(deliveries).set({
-        coversDates: remaining,
-        tiffinUnits: (remaining.length + stayingExtras.length) * Math.max(1, persons),
-      }).where(eq(deliveries.id, source.id));
-      await replaceExtras(tx, source.id, stayingExtras);
-      await moveDeliverySwapsForDate(tx, source.id, inserted.id, source.deliveryDate, sourceEatDate!);
-    } else {
-      await replaceExtras(tx, source.id, []);
-      await copyDeliverySwaps(tx, source.id, inserted.id, source.coversDates ? source.deliveryDate : (eatingDateIso ?? undefined));
-    }
+    await replaceExtras(tx, source.id, []);
+    if (!relabel) await copyDeliverySwaps(tx, source.id, inserted.id, source.coversDates ? source.deliveryDate : (eatingDateIso ?? undefined));
     return { id: inserted.id, merged: false, coversDates: covers };
   }
 
@@ -763,28 +747,77 @@ async function moveTrip(
   if (blocked) throw new ValidationError(blocked);
   const merged = new Map(dateCounts(target, targetExtras));
   for (const [k, v] of incoming) merged.set(k, (merged.get(k) ?? 0) + v);
-  const covers = [...merged.keys()].sort();
-  const extras = covers.flatMap((c) => Array<string>(merged.get(c)! - 1).fill(c));
+  const { covers, extras } = countsToCoverage(merged);
   // Units add even when coverage overlaps (moving Wed's tiffin onto a Fri that already eats Fri):
   // the customer paid for both tiffins, the doubled day is recorded in delivery_extra_tiffins.
   await tx.update(deliveries).set({
-    tiffinUnits: (split ? (carried.length + movingExtras.length) * Math.max(1, persons) : explicit(source, srcExtraDates.length)) + target.tiffinUnits,
+    tiffinUnits: explicit(source, srcExtraDates.length) + target.tiffinUnits,
     coversDates: covers,
   }).where(eq(deliveries.id, target.id));
   await replaceExtras(tx, target.id, extras);
-  if (split) {
-    await tx.update(deliveries).set({
-      coversDates: remaining,
-      tiffinUnits: (remaining.length + stayingExtras.length) * Math.max(1, persons),
-    }).where(eq(deliveries.id, source.id));
-    await replaceExtras(tx, source.id, stayingExtras);
-    await moveDeliverySwapsForDate(tx, source.id, target.id, source.deliveryDate, sourceEatDate!);
-  } else {
-    await replaceExtras(tx, source.id, []);
-    await copyDeliverySwaps(tx, source.id, target.id, nullFollows);
-    await tx.update(deliveries).set({ mergedIntoDeliveryId: target.id }).where(eq(deliveries.id, source.id));
-  }
+  await replaceExtras(tx, source.id, []);
+  if (!relabel) await copyDeliverySwaps(tx, source.id, target.id, nullFollows);
+  await tx.update(deliveries).set({ mergedIntoDeliveryId: target.id }).where(eq(deliveries.id, source.id));
   return { id: target.id, merged: true, coversDates: covers };
+}
+
+/**
+ * One tiffin leaves a trip that carries several: eaten on `fromEat`, it becomes a tiffin eaten
+ * on `toEat`, riding the trip on `targetDate` (possibly the same trip) with that day's menu.
+ * The source keeps its status and every other tiffin. A scheduled trip already on targetDate
+ * takes it within the 3-tiffin cap; otherwise a new row is inserted (not a make-up: the source
+ * is still a live trip).
+ */
+async function moveOneTiffin(
+  tx: Tx,
+  source: Delivery,
+  fromEat: string,
+  toEat: string,
+  targetDate: string,
+  targetCutoff: number,
+  persons: number,
+): Promise<{ id: bigint; merged: boolean }> {
+  const per = Math.max(1, persons);
+  const srcCounts = dateCounts(source, (await loadExtraDates(tx, [source.id])).get(source.id) ?? []);
+  const writeCounts = async (id: bigint, counts: Map<string, number>) => {
+    const { covers, extras } = countsToCoverage(counts);
+    await tx.update(deliveries).set({ coversDates: covers, tiffinUnits: tiffinTotal(counts) * per }).where(eq(deliveries.id, id));
+    await replaceExtras(tx, id, extras);
+  };
+  const leftSource = shiftTiffin(srcCounts, fromEat, null);
+  const dropSwaps = () => (leftSource.has(fromEat) ? Promise.resolve() : dropDeliverySwapsForDate(tx, source.id, source.deliveryDate, fromEat));
+
+  if (targetDate === source.deliveryDate) {
+    if (source.status !== "scheduled") throw new ValidationError("Pick a day on a delivery that isn't on hold.");
+    await writeCounts(source.id, shiftTiffin(srcCounts, fromEat, toEat));
+    await dropSwaps();
+    return { id: source.id, merged: true };
+  }
+
+  const [target] = await tx.select().from(deliveries)
+    .where(and(eq(deliveries.orderId, source.orderId), eq(deliveries.deliveryDate, targetDate))).limit(1);
+  let targetId: bigint;
+  if (target) {
+    if (target.status !== "scheduled" || target.mergedIntoDeliveryId) throw new ValidationError("You already have a delivery on that day");
+    const targetCounts = dateCounts(target, (await loadExtraDates(tx, [target.id])).get(target.id) ?? []);
+    const blocked = mergeBlockReason(targetCounts, new Map([[toEat, 1]]));
+    if (blocked) throw new ValidationError(blocked);
+    await writeCounts(target.id, shiftTiffin(targetCounts, null, toEat));
+    targetId = target.id;
+  } else {
+    const [inserted] = await tx.insert(deliveries).values({
+      orderId: source.orderId,
+      deliveryDate: targetDate,
+      status: "scheduled",
+      cutoffAt: targetCutoff,
+      tiffinUnits: per,
+      coversDates: [toEat],
+    }).returning({ id: deliveries.id });
+    targetId = inserted.id;
+  }
+  await writeCounts(source.id, leftSource);
+  await dropSwaps();
+  return { id: targetId, merged: !!target };
 }
 
 /**
@@ -837,16 +870,15 @@ export async function shiftMissedDeliveries(
 }
 
 /**
- * Reschedule: customer picks the day they want to EAT (`eatingDateIso`). That date snaps to
- * its carrying trip (nearest earlier-or-equal frequency weekday — weekends → Friday). All
- * cutoff / past checks use the carrying trip. Existing trip on that date MERGES instead of
- * rejecting. Never writes a Saturday/Sunday delivery row.
+ * Reschedule moves ONE eating day's tiffin, never a whole bundle. The customer picks the day
+ * they want to EAT it (`eatingDateIso`); it snaps to its carrying trip (nearest earlier-or-equal
+ * plan weekday — weekends ride Friday) and from then on it IS that day's tiffin: that day's
+ * menu, that day's meal picks. All cutoff / past checks use the carrying trip; a trip may carry
+ * at most 3 tiffins. Never writes a Saturday/Sunday delivery row.
  *
- * `sourceEatDate` says WHICH of the trip's eating days is moving. On a still-scheduled
- * multi-day trip only that tiffin leaves, even when it is the delivery day (Friday of
- * Fri+Sat+Sun). The trip keeps delivering its remaining days, never marked skipped or merged.
- * Left null, the whole trip moves. A held/paused trip always moves whole: nothing remains
- * to keep delivering.
+ * `sourceEatDate` says WHICH eating day's tiffin leaves (required when the trip carries more
+ * than one day). The trip keeps delivering (or stays on hold with) everything else. A tiffin
+ * that was itself moved in can't move again; the day's own tiffin still can.
  */
 export async function rescheduleDelivery(
   deliveryPublicId: string,
@@ -859,8 +891,7 @@ export async function rescheduleDelivery(
   if (sourceEatDate != null && !isoDateRegex.test(sourceEatDate)) throw new ValidationError("Source date must be ISO YYYY-MM-DD");
 
   let oldStop: OptimoSyncedRow | null = null;
-  let splitSourceId: bigint | null = null;
-  let targetId: bigint;
+  const refreshIds: bigint[] = [];
   const result = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
@@ -894,9 +925,6 @@ export async function rescheduleDelivery(
     const deliveryWeekdays = [...deliveryDays].filter((d) => d !== "sat" && d !== "sun") as DayOfWeek[];
     const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
     if (!carriedOn) throw new ValidationError("That day isn't on your plan");
-    if (carriedOn === row.deliveryDate) {
-      throw new ValidationError("Pick a different day");
-    }
 
     const { timezone, cutoffHour } = await getAppSettings();
     const today = zonedDateIso(Date.now(), timezone);
@@ -907,61 +935,64 @@ export async function rescheduleDelivery(
     const [existingMakeup] = await tx.select({ id: deliveries.id }).from(deliveries)
       .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
     if (existingMakeup || row.mergedIntoDeliveryId) throw new ValidationError("This delivery has already been rescheduled");
-    const [movedIn] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.mergedIntoDeliveryId, row.id)).limit(1);
-    if (row.makeupForDeliveryId != null || movedIn) throw new ValidationError("This delivery was already moved. Only one move is allowed.");
+    // Make-up rows only ever carry moved or pooled tiffins.
+    if (row.makeupForDeliveryId != null) throw new ValidationError("This tiffin was already moved once. It can't move again.");
 
     const own = coveredDates(row);
-    if (sourceEatDate != null && !own.includes(sourceEatDate)) {
-      throw new ValidationError("That day isn't part of this trip anymore.");
-    }
-    const willSplit = row.status === "scheduled" && sourceEatDate != null && movesOneEatDay(own, sourceEatDate);
+    // No source given: the trip's own day, or its only day when it no longer carries its own.
+    const fromEat = sourceEatDate ?? (own.includes(row.deliveryDate) ? row.deliveryDate : own.length === 1 ? own[0]! : null);
+    if (!fromEat) throw new ValidationError("Pick which day's tiffin to move.");
+    const counts = dateCounts(row, (await loadExtraDates(tx, [row.id])).get(row.id) ?? []);
+    if (!counts.has(fromEat)) throw new ValidationError("That day isn't part of this trip anymore.");
+    if (fromEat === eatingDateIso) throw new ValidationError("Pick a different day");
+    const [{ movedIn }] = await tx.select({ movedIn: sql<number>`count(*)::int` }).from(deliveryMoves)
+      .where(and(eq(deliveryMoves.toDeliveryId, row.id), eq(deliveryMoves.toEatDate, fromEat)));
+    if (counts.get(fromEat)! - movedIn < 1) throw new ValidationError("This tiffin was already moved once. It can't move again.");
 
-    if (row.status === "scheduled" && !willSplit) {
-      const skipped = await tx.update(deliveries).set({ status: "skipped" })
-        .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
-        .returning({ id: deliveries.id });
-      if (skipped.length === 0) throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
-    }
-
-    const moved = await moveTrip(tx, row, carriedOn, newCutoff, eatingDateIso, order.persons, true, willSplit ? sourceEatDate : null);
-
-    if (willSplit) {
-      await tx.insert(orderActivities).values(
-        moved.merged
-          ? [
-              { orderId, deliveryId: row.id, type: "note", note: `Moved eat-day ${sourceEatDate} off this trip onto ${carriedOn} (merged); still covers ${own.filter((d) => d !== sourceEatDate).join(", ")}`, createdBy: actorId },
-              { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Merged eat-day ${sourceEatDate} from ${row.deliveryDate}; covers ${moved.coversDates.join(", ")}`, createdBy: actorId },
-            ]
-          : [
-              { orderId, deliveryId: row.id, type: "note", note: `Moved eat-day ${sourceEatDate} off this trip onto ${carriedOn}; still covers ${own.filter((d) => d !== sourceEatDate).join(", ")}`, createdBy: actorId },
-              { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Split from ${row.deliveryDate} (eat ${sourceEatDate})`, createdBy: actorId },
-            ],
-      );
-      splitSourceId = row.id;
-    } else if (moved.merged) {
-      await tx.insert(orderActivities).values([
-        { orderId, deliveryId: row.id, type: row.status === "scheduled" ? "skipped" : "note", note: eatingDateIso === carriedOn ? `Moved to ${carriedOn} (merged)` : `Moved eat-day ${eatingDateIso} onto ${carriedOn} (merged)`, createdBy: actorId },
-        { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Merged trip from ${row.deliveryDate}; covers ${moved.coversDates.join(", ")}`, createdBy: actorId },
-      ]);
+    // A pooled miss is already credited to the pool as a whole; it moves whole.
+    const whole = tiffinTotal(counts) === 1 || row.pooledAt != null;
+    let moved: { id: bigint; merged: boolean };
+    if (whole) {
+      if (carriedOn === row.deliveryDate && row.status === "scheduled") {
+        // Same truck, other eat day (Fri's only tiffin eaten Sat instead): relabel in place.
+        moved = await moveOneTiffin(tx, row, fromEat, eatingDateIso, carriedOn, newCutoff, order.persons);
+      } else {
+        if (carriedOn === row.deliveryDate) throw new ValidationError("Pick a day on a delivery that isn't on hold.");
+        if (row.status === "scheduled") {
+          const skipped = await tx.update(deliveries).set({ status: "skipped" })
+            .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
+            .returning({ id: deliveries.id });
+          if (skipped.length === 0) throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
+          oldStop = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
+        }
+        moved = await moveTrip(tx, row, carriedOn, newCutoff, eatingDateIso, order.persons);
+      }
     } else {
-      await tx.insert(orderActivities).values(
-        row.status === "scheduled"
-          ? [
-              { orderId, deliveryId: row.id, type: "skipped", note: `Rescheduled eat-day ${eatingDateIso} onto ${carriedOn}`, createdBy: actorId },
-              { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate} (eat ${eatingDateIso})`, createdBy: actorId },
-            ]
-          : [
-              { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate} (${row.status}, eat ${eatingDateIso})`, createdBy: actorId },
-            ],
-      );
+      moved = await moveOneTiffin(tx, row, fromEat, eatingDateIso, carriedOn, newCutoff, order.persons);
     }
-    if (row.status === "scheduled" && !willSplit) oldStop = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
-    targetId = moved.id;
+    // Re-push every synced stop whose tiffins changed: the source if it keeps delivering, the target on a merge.
+    if (row.status === "scheduled" && (!whole || moved.id === row.id)) refreshIds.push(row.id);
+    if (moved.merged && moved.id !== row.id) refreshIds.push(moved.id);
+
+    // A pooled multi-day miss moves whole as a make-up, which already locks it.
+    if (!(row.pooledAt != null && tiffinTotal(counts) > 1)) {
+      await tx.insert(deliveryMoves).values({
+        orderId, fromDeliveryId: row.id, toDeliveryId: moved.id, fromEatDate: fromEat, toEatDate: eatingDateIso, organizationId: row.organizationId,
+      });
+    }
+    const where = carriedOn === eatingDateIso ? carriedOn : `${eatingDateIso} (rides ${carriedOn})`;
+    await tx.insert(orderActivities).values(
+      moved.id === row.id
+        ? [{ orderId, deliveryId: row.id, type: "note", note: `Moved ${fromEat}'s tiffin to ${eatingDateIso} on the same delivery`, createdBy: actorId }]
+        : [
+            { orderId, deliveryId: row.id, type: whole && row.status === "scheduled" ? "skipped" : "note", note: `Moved ${fromEat}'s tiffin to ${where}${moved.merged ? " (merged)" : ""}`, createdBy: actorId },
+            { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `${fromEat}'s tiffin from ${row.deliveryDate}, now eaten ${eatingDateIso}`, createdBy: actorId },
+          ],
+    );
     return { merged: moved.merged, carriedOn };
   });
   if (oldStop) await deleteFromOptimoRouteBestEffort([oldStop]);
-  if (splitSourceId) await refreshStopBestEffort(splitSourceId);
-  if (result.merged) await refreshStopBestEffort(targetId!);
+  for (const id of refreshIds) await refreshStopBestEffort(id);
   publishAnalyticsLive();
   return result;
 }
