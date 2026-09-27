@@ -119,7 +119,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses,
     addressDropOffs,
-    dropOff: dropOffCatalog(toClientCatalog(catalog).deliveryCharges),
+    dropOff: dropOffCatalog(toClientCatalog(catalog).deliveryCharges, catalog.waivers),
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
   const trips = buildTrips(inputs, now, ctx, sub.publicId);

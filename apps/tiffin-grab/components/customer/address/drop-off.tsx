@@ -1,7 +1,8 @@
 "use client";
 import type { ReactNode } from "react";
+import { SparklesIcon } from "lucide-react";
 import { PillToggle } from "@/components/customer/kit";
-import { dropOffLabel, dropOffSummary, pickInConnection, pickTag, toggleStrategy, type DropOffCatalog, type DropOffValue } from "@/lib/catalog/drop-off";
+import { cheaperDropOff, dropOffFee, dropOffSummary, pickInConnection, pickTag, toggleStrategy, type DropOffCatalog, type DropOffOption, type DropOffValue } from "@/lib/catalog/drop-off";
 
 /** Under an address's one-liner: its drop-off and its note, read-only. Nothing when both are empty. */
 export function AddressDropOffLines({ catalog, value, note }: { catalog: DropOffCatalog; value: DropOffValue | null | undefined; note: string | null | undefined }) {
@@ -19,8 +20,32 @@ export function AddressDropOffPanel({ children }: { children: ReactNode }) {
   return <div className="ml-3 border-l-2 border-[var(--border)] pl-4">{children}</div>;
 }
 
-/** Small pills: several strategies fit on one line instead of a stack of full-width buttons. */
-const PILL = "h-7 flex-none px-2.5 text-[12px] font-medium sm:px-2.5 sm:text-[12px]";
+/**
+ * Compact one-line pills so several strategies share a row. 32px to the eye; the invisible
+ * ::before strip takes the tap target to ~44px so a small pill is still easy to hit.
+ */
+const PILL =
+  "relative h-8 flex-none gap-1.5 whitespace-nowrap px-3 text-[13px] font-medium sm:px-3 sm:text-[13px] before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-['']";
+
+/** Name, then its fee as a quieter tag; a waived fee is struck through with the saving in green. */
+function StrategyLabel({ o, on }: { o: DropOffOption; on: boolean }) {
+  const fee = dropOffFee(o);
+  const green = on ? "text-current" : "text-emerald-700 dark:text-emerald-400";
+  return (
+    <>
+      {/* Real spaces between parts so the accessible name reads "Upstairs +$1.50 Free", not run together. */}
+      <span>{o.name}</span>
+      {fee && o.waivedPct > 0 ? (
+        <>
+          {" "}<s className="text-[12px] tabular-nums opacity-60">{fee}</s>
+          {" "}<span className={`text-[12px] font-semibold ${green}`}>{o.waivedPct >= 100 ? "Free" : `−${o.waivedPct}%`}</span>
+        </>
+      ) : fee ? (
+        <>{" "}<span className="text-[12px] tabular-nums opacity-70">{fee}</span></>
+      ) : null}
+    </>
+  );
+}
 
 /**
  * Under the address: the kind of place (tag) first, then that tag's strategies. Strategies in a
@@ -85,7 +110,7 @@ export function DropOffPicker({
                   onClick={() => onChange(pickInConnection(catalog, value, c.publicId, o.publicId === picked ? null : o.publicId))}
                   className={PILL}
                 >
-                  {dropOffLabel(o)}
+                  <StrategyLabel o={o} on={o.publicId === picked} />
                 </PillToggle>
               ))}
             </div>
@@ -105,10 +130,47 @@ export function DropOffPicker({
                 onClick={() => onChange(toggleStrategy(catalog, value, o.publicId))}
                 className={PILL}
               >
-                {dropOffLabel(o)}
+                <StrategyLabel o={o} on={value.strategyIds.includes(o.publicId)} />
               </PillToggle>
             ))}
           </div>
+        </div>
+      )}
+
+      <DropOffTips catalog={catalog} value={value} onChange={onChange} disabled={disabled} />
+    </div>
+  );
+}
+
+/** Live delivery offers, and a nudge when the same set has a cheaper drop-off than the one picked. */
+function DropOffTips({ catalog, value, onChange, disabled }: { catalog: DropOffCatalog; value: DropOffValue; onChange: (value: DropOffValue) => void; disabled: boolean }) {
+  const cheaper = cheaperDropOff(catalog, value);
+  if (catalog.offers.length === 0 && !cheaper) return null;
+  return (
+    <div className="grid gap-2">
+      {catalog.offers.map((offer) => (
+        <p key={offer.name} className="flex items-center gap-2 rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[13px] text-pretty">
+          <SparklesIcon aria-hidden className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <span>
+            <span className="font-semibold text-emerald-700 dark:text-emerald-400">{offer.name}</span>
+            <span className="text-[var(--muted-foreground)]"> · {offer.percent >= 100 ? "delivery fees waived" : `${offer.percent}% off delivery fees`}</span>
+          </span>
+        </p>
+      ))}
+      {cheaper && (
+        <div className="flex items-center gap-2 rounded-2xl border-2 border-[var(--primary)]/30 bg-[var(--primary)]/10 py-1.5 pr-1.5 pl-3">
+          <p className="min-w-0 flex-1 text-[13px] leading-snug text-pretty">
+            <span className="font-semibold">{cheaper.alt.name}</span>
+            <span className="text-[var(--muted-foreground)]"> saves ${cheaper.saves.toFixed(2)} on {cheaper.picked.name}</span>
+          </p>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(pickInConnection(catalog, value, cheaper.picked.connectionId!, cheaper.alt.publicId))}
+            className="relative h-8 shrink-0 cursor-pointer rounded-full bg-[var(--primary)] px-3.5 text-[13px] font-semibold text-[var(--primary-foreground,#fff)] transition-transform duration-100 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] active:scale-[0.97] disabled:opacity-40 motion-reduce:active:scale-100"
+          >
+            Switch
+          </button>
         </div>
       )}
     </div>

@@ -10,6 +10,8 @@ export type DropOffOption = {
   groupId: string;
   /** Its connected set's public id; null = combines freely. */
   connectionId: string | null;
+  /** Share of its fee waived by an active waiver (0 = none, 100 = free). */
+  waivedPct: number;
 };
 
 /** A tag: the kind of place (Home, Apartment, Office). */
@@ -18,22 +20,57 @@ export type DropOffGroup = { publicId: string; name: string; description: string
 /** Strategies of one tag the customer picks at most one of. */
 export type DropOffConnection = { publicId: string; name: string; groupId: string };
 
-export type DropOffCatalog = { groups: DropOffGroup[]; options: DropOffOption[]; connections: DropOffConnection[] };
+/** An active delivery-fee waiver, named as the admin named it ("Launch offer"). */
+export type DropOffOffer = { name: string; percent: number };
+
+export type DropOffCatalog = { groups: DropOffGroup[]; options: DropOffOption[]; connections: DropOffConnection[]; offers: DropOffOffer[] };
 
 /** What the customer picked: at most one tag, and any of its strategies (one per connected set). */
 export type DropOffValue = { tagId: string | null; strategyIds: string[] };
 
-export const EMPTY_DROP_OFF: DropOffCatalog = { groups: [], options: [], connections: [] };
+export const EMPTY_DROP_OFF: DropOffCatalog = { groups: [], options: [], connections: [], offers: [] };
 export const NO_DROP_OFF: DropOffValue = { tagId: null, strategyIds: [] };
 
-export function dropOffCatalog(dc: ClientCatalogSnapshot["deliveryCharges"] | undefined): DropOffCatalog {
+export function dropOffCatalog(dc: ClientCatalogSnapshot["deliveryCharges"] | undefined, waivers: ClientCatalogSnapshot["waivers"] = []): DropOffCatalog {
   if (!dc) return EMPTY_DROP_OFF;
+  const list = waivers ?? [];
+  // Mirrors the engine: a strategy's fee is waived by its strongest matching waiver.
+  const waivedPct = (strategyId: string) =>
+    Math.min(100, Math.max(0, ...list.filter((w) => w.kind === "waiver_delivery" || (w.kind === "waiver_strategy" && w.targetPublicId === strategyId)).map((w) => w.percent)));
   const options = dc.deliveryStrategies.flatMap((s) =>
     s.groupId
-      ? [{ publicId: s.id, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue, groupId: s.groupId, connectionId: s.connectionId ?? null }]
+      ? [{ publicId: s.id, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue, groupId: s.groupId, connectionId: s.connectionId ?? null, waivedPct: waivedPct(s.id) }]
       : [],
   );
-  return { groups: dc.strategyGroups ?? [], options, connections: dc.strategyConnections ?? [] };
+  const offers = list.filter((w) => (w.kind === "waiver_delivery" || w.kind === "waiver_base") && w.percent > 0).map((w) => ({ name: w.name, percent: w.percent }));
+  return { groups: dc.strategyGroups ?? [], options, connections: dc.strategyConnections ?? [], offers };
+}
+
+/** What a strategy adds, after waivers: "+$1.50", "+5%", or null when it costs nothing. */
+export function dropOffFee(o: Pick<DropOffOption, "chargeType" | "chargeValue">): string | null {
+  if (o.chargeType === "fixed" && o.chargeValue > 0) return `+$${o.chargeValue.toFixed(2)}`;
+  if (o.chargeType === "percent" && o.chargeValue > 0) return `+${o.chargeValue}%`;
+  return null;
+}
+
+/** Fee left to pay on a fixed-fee strategy; null when it's a percent (unknown until priced). */
+const fixedCost = (o: DropOffOption) =>
+  o.chargeType === "none" || o.chargeValue <= 0 || o.waivedPct >= 100 ? 0 : o.chargeType === "fixed" ? o.chargeValue * (1 - o.waivedPct / 100) : null;
+
+/** A picked, paid strategy with a cheaper one in the same pick-one set — the address tip. */
+export function cheaperDropOff(catalog: DropOffCatalog, value: DropOffValue): { picked: DropOffOption; alt: DropOffOption; saves: number } | null {
+  for (const id of value.strategyIds) {
+    const picked = catalog.options.find((o) => o.publicId === id);
+    const cost = picked ? fixedCost(picked) : null;
+    if (!picked?.connectionId || cost == null || cost <= 0) continue;
+    const alt = catalog.options
+      .filter((o) => o.connectionId === picked.connectionId && o.publicId !== id)
+      .map((o) => ({ o, c: fixedCost(o) }))
+      .filter((x): x is { o: DropOffOption; c: number } => x.c != null && x.c < cost)
+      .sort((a, b) => a.c - b.c)[0];
+    if (alt) return { picked, alt: alt.o, saves: Math.round((cost - alt.c) * 100) / 100 };
+  }
+  return null;
 }
 
 /** Picks a tag (null clears). A different tag drops the old tag's strategies. */
@@ -74,13 +111,6 @@ export function validDropOff(catalog: DropOffCatalog, value: DropOffValue | null
     return true;
   });
   return { tagId: value.tagId, strategyIds };
-}
-
-/** "Back door · +$1.50", "Lobby · +5%", or just the name when it is free. */
-export function dropOffLabel(o: Pick<DropOffOption, "name" | "chargeType" | "chargeValue">): string {
-  if (o.chargeType === "fixed" && o.chargeValue > 0) return `${o.name} · +$${o.chargeValue.toFixed(2)}`;
-  if (o.chargeType === "percent" && o.chargeValue > 0) return `${o.name} · +${o.chargeValue}%`;
-  return o.name;
 }
 
 /** "Apartment: Lobby, Call on arrival" for read-only rows; "" when nothing is picked. */

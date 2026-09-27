@@ -16,7 +16,7 @@ export default async function MeAccountPage({ searchParams }: { searchParams: Pr
   const [dropOffs, catalog] = onAddresses
     ? await Promise.all([dropOffsFor(addresses.map((a) => a.publicId)), loadCatalogSnapshot(await resolveRequestOrg())])
     : [{}, null];
-  const dropOff = catalog ? dropOffCatalog(toClientCatalog(catalog).deliveryCharges) : undefined;
+  const dropOff = catalog ? dropOffCatalog(toClientCatalog(catalog).deliveryCharges, catalog.waivers) : undefined;
   return (
     <AccountPage
       role={role}

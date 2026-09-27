@@ -84,7 +84,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses,
     addressDropOffs: await dropOffsFor(savedAddresses.map((a) => a.publicId)),
-    dropOff: dropOffCatalog(toClientCatalog(catalog).deliveryCharges),
+    dropOff: dropOffCatalog(toClientCatalog(catalog).deliveryCharges, catalog.waivers),
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
   return { plan, trips: buildTrips(inputs, now, ctx, sub.publicId), agenda, weekStart, firstWeek, lastWeek, now };

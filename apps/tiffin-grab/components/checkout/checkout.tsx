@@ -111,7 +111,7 @@ export function Checkout({
   addressDropOffs?: Record<string, DropOffValue>;
 }) {
   const router = useRouter();
-  const dropOff = dropOffCatalog(catalog?.deliveryCharges);
+  const dropOff = dropOffCatalog(catalog?.deliveryCharges, catalog?.waivers);
   const defaultAddress = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0] ?? null;
   /** The wizard's saved plan, plus the default address's own drop-off unless this order already chose one. */
   const seed = (raw: string): WizardSelections => {
