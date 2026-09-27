@@ -40,7 +40,6 @@ export const ROUTES: RouteSpec[] = [
   { path: "/dashboard/account/address", label: "account-address" },
   { path: "/dashboard/account/security", label: "account-security" },
   { path: "/dashboard/account/dietary", label: "account-dietary" },
-  { path: "/dashboard/account/delivery-notes", label: "account-delivery-notes" },
   { path: "/dashboard/account/notifications", label: "account-notifications" },
   // dashboard — dynamic detail
   // seed.sql seeds no customers/staff/orders/inquiries/tickets rows (they're

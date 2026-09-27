@@ -33,6 +33,11 @@ export function coverageLine(covered: string[], units: number, doubledDates: rea
   return `${days}${units} tiffin${units === 1 ? "" : "s"}${flag}`;
 }
 
+/** The stop's notes: unit (the geocoded address leaves it out), the label's driver note, then coverage and dishes. */
+export function stopNotes(unit: string | null | undefined, driverNote: string | null, trip: Pick<TripDetail, "coverage" | "dishLines">): string {
+  return [unit?.trim() && `Unit ${unit.trim()}`, driverNote, trip.coverage, ...trip.dishLines].filter(Boolean).join("\n");
+}
+
 export function tripDetail(row: DayDeliveryRow, extraDates: readonly string[] = []): Omit<TripDetail, "dishLines"> {
   const covered = coveredDates(row.delivery);
   const units = row.delivery.tiffinUnits;

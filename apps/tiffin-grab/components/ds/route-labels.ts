@@ -26,7 +26,6 @@ export const ROUTE_LABELS: Record<string, string> = {
   contact: "Contact",
   address: "Delivery address",
   dietary: "Dietary & allergens",
-  "delivery-notes": "Delivery notes",
   notifications: "Notifications",
   security: "Security",
   delivery: "Delivery",

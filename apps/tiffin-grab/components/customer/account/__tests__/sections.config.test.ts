@@ -14,7 +14,6 @@ describe("account sections", () => {
       expect(keys(role)).toEqual(expect.arrayContaining(["profile", "security"]));
       expect(keys(role)).not.toEqual(expect.arrayContaining(["address"]));
       expect(keys(role)).not.toEqual(expect.arrayContaining(["dietary"]));
-      expect(keys(role)).not.toEqual(expect.arrayContaining(["deliveryNotes"]));
       expect(keys(role)).not.toEqual(expect.arrayContaining(["notifications"]));
     }
   });
@@ -24,7 +23,7 @@ describe("account sections", () => {
   });
 
   it("resolves slugs only within the allowed set", () => {
-    expect(sectionFromSlug("delivery-notes", sectionsForRole(Role.USER))?.key).toBe("deliveryNotes");
+    expect(sectionFromSlug("delivery-notes", sectionsForRole(Role.USER))).toBeNull();
     expect(sectionFromSlug("address", sectionsForRole(Role.ADMIN))).toBeNull();
     expect(sectionFromSlug(undefined, sectionsForRole(Role.USER))).toBeNull();
   });

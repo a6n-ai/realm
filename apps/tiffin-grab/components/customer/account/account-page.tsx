@@ -7,7 +7,7 @@ import { SignOutRow } from "./sign-out-row";
 import type { SavedAddress } from "@foundry/address";
 import { AddressBook } from "./address-book";
 import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
-import { ContactForm, DeliveryNotesForm, DietaryForm, NotificationsForm, ProfileForm, SecurityPanel } from "./forms";
+import { ContactForm, DietaryForm, NotificationsForm, ProfileForm, SecurityPanel } from "./forms";
 import { accountSectionHref, sectionsForRole, type AccountSection, type AccountSectionKey } from "./sections.config";
 
 export type AccountUser = {
@@ -25,7 +25,6 @@ export type AccountUser = {
   province: string;
   dietaryNotes: string;
   allergens: string[];
-  deliveryNotes: string;
   notifyEmail: boolean;
   notifySms: boolean;
   hasPin: boolean;
@@ -41,8 +40,6 @@ function SectionBody({ k, user, role, addresses, dropOff, dropOffs }: { k: Accou
       return <AddressBook initial={addresses} dropOff={dropOff} initialDropOffs={dropOffs} />;
     case "dietary":
       return <DietaryForm allergens={user.allergens} dietaryNotes={user.dietaryNotes} />;
-    case "deliveryNotes":
-      return <DeliveryNotesForm deliveryNotes={user.deliveryNotes} />;
     case "notifications":
       return <NotificationsForm notifyEmail={user.notifyEmail} />;
     case "security":

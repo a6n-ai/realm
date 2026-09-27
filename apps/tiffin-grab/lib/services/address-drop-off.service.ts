@@ -92,6 +92,33 @@ export async function toDropOffValues(rows: ResolvedDropOff[]): Promise<DropOffV
   });
 }
 
+/**
+ * "Apartment: Lobby, Call on arrival" per row, the dropOffSummary wording, for driver-facing
+ * text (labels, OptimoRoute). Retired tags and strategies drop out, as they do for the customer.
+ */
+export async function dropOffTexts(rows: ResolvedDropOff[]): Promise<(string | null)[]> {
+  const tagIds = [...new Set(rows.flatMap((r) => (r.tagId == null ? [] : [r.tagId])))];
+  const strategyIds = [...new Set(rows.flatMap((r) => r.strategyIds))];
+  const [tags, strategies] = await Promise.all([
+    tagIds.length
+      ? db.select({ id: deliveryStrategyGroups.id, name: deliveryStrategyGroups.name }).from(deliveryStrategyGroups)
+          .where(and(inArray(deliveryStrategyGroups.id, tagIds), eq(deliveryStrategyGroups.active, true)))
+      : [],
+    strategyIds.length
+      ? db.select({ id: deliveryStrategies.id, name: deliveryStrategies.name }).from(deliveryStrategies)
+          .where(and(inArray(deliveryStrategies.id, strategyIds), eq(deliveryStrategies.active, true)))
+      : [],
+  ]);
+  const tag = new Map(tags.map((t) => [t.id, t.name]));
+  const strategy = new Map(strategies.map((s) => [s.id, s.name]));
+  return rows.map((r) => {
+    const tagName = r.tagId == null ? undefined : tag.get(r.tagId);
+    if (!tagName) return null;
+    const names = r.strategyIds.flatMap((id) => strategy.get(id) ?? []);
+    return names.length ? `${tagName}: ${names.join(", ")}` : tagName;
+  });
+}
+
 /** Address public id → its drop-off (addresses with none are left out). */
 export async function dropOffsFor(addressPublicIds: string[]): Promise<Record<string, DropOffValue>> {
   if (addressPublicIds.length === 0) return {};

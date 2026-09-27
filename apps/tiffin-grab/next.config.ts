@@ -32,9 +32,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ protocol: "https", hostname: "commons.wikimedia.org", pathname: "/wiki/Special:FilePath/**" }],
   },
   async redirects() {
-    const slugs = ["profile", "security", "address", "dietary", "delivery-notes", "notifications", "contact"];
+    const slugs = ["profile", "security", "address", "dietary", "notifications", "contact"];
     return [
       ...slugs.map((s) => ({ source: `/me/${s}`, destination: `/me/account?section=${s}`, permanent: true })),
+      // Delivery notes moved onto each saved address.
+      { source: "/me/delivery-notes", destination: "/me/account?section=address", permanent: true },
       { source: "/me/usage", destination: "/me/wallet", permanent: true },
     ];
   },
