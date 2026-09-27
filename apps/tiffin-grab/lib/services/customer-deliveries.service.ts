@@ -3,7 +3,7 @@ import { NotFoundError, Role, ValidationError, weekdayKey, zonedDateIso } from "
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, deliveryStrategies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
@@ -22,6 +22,7 @@ import { isPaymentReviewStatus } from "@/lib/orders/display-status";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
+import { activeStrategyPublicIds } from "./address-drop-off.service";
 import { reservedEndDatesExclusive } from "./order-window";
 import { getAppSettings } from "./app-settings.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
@@ -75,7 +76,7 @@ export async function assertOrderUnlocked(orderPublicId: string): Promise<void> 
 }
 
 type Delivery = typeof deliveries.$inferSelect;
-export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean; deliveryStrategyPublicId?: string | null };
+export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean; deliveryStrategyPublicIds?: string[] };
 export type Subscription = {
   publicId: string;
   planName: string;
@@ -98,7 +99,8 @@ export type Subscription = {
   tagLabel?: string | null;
   tagColor?: string | null;
   frequencyKey?: string;
-  deliveryStrategyPublicId?: string | null;
+  /** The plan's drop-off options still offered (one per strategy). */
+  deliveryStrategyPublicIds?: string[];
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
@@ -146,14 +148,14 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       tagLabel: plans.tagLabel,
       tagColor: plans.tagColor,
       frequencyKey: deliveryFrequencies.key,
-      deliveryStrategyPublicId: deliveryStrategies.publicId,
+      deliveryStrategyIds: orders.deliveryStrategyIds,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
-    .leftJoin(deliveryStrategies, eq(orders.deliveryStrategyId, deliveryStrategies.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
+  const strategyPublicIds = await activeStrategyPublicIds([...new Set(rows.flatMap((r) => r.deliveryStrategyIds))]);
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
   return rows
@@ -179,6 +181,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
         tagLabel: r.tagLabel,
         tagColor: r.tagColor,
         frequencyKey: r.frequencyKey,
+        deliveryStrategyPublicIds: r.deliveryStrategyIds.flatMap((id) => strategyPublicIds.get(id) ?? []),
       };
     });
 }
@@ -316,11 +319,10 @@ export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
 // affected row cancelled directly, so no separate orders.status check is needed.
 export async function myDeliveries(userId: bigint, from: string, until: string): Promise<CustomerDelivery[]> {
   const rows = await db
-    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name, deliveryStrategyPublicId: deliveryStrategies.publicId })
+    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
-    .leftJoin(deliveryStrategies, eq(deliveries.deliveryStrategyId, deliveryStrategies.id))
     .where(
       and(
         eq(orders.userId, userId),
@@ -330,12 +332,14 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
       ),
     )
     .orderBy(asc(deliveries.deliveryDate));
+  const strategyPublicIds = await activeStrategyPublicIds([...new Set(rows.flatMap((r) => r.d.deliveryStrategyIds))]);
   return rows.map((r) => ({
     ...r.d,
     orderPublicId: r.orderPublicId,
     planName: r.planName,
     isMakeup: r.d.makeupForDeliveryId !== null,
-    deliveryStrategyPublicId: r.deliveryStrategyPublicId,
+    // The delivery's own drop-off; empty = the plan's.
+    deliveryStrategyPublicIds: r.d.deliveryStrategyIds.flatMap((id) => strategyPublicIds.get(id) ?? []),
   }));
 }
 

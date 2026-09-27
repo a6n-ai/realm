@@ -20,7 +20,8 @@ export interface PricingSelections {
   // Add-ons picked in the wizard, with quantity. Optional — omitted/empty means
   // no add-ons, so existing callers built before add-ons existed keep working.
   addonSelections?: { key: string; qty: number }[];
-  deliveryStrategyId?: string | null;
+  /** Picked strategy option public ids, at most one per strategy group. */
+  deliveryStrategyIds?: string[];
   addressTagId?: string | null;
 }
 
@@ -38,7 +39,7 @@ export interface PricingCatalog {
   maxDiscountPct?: number;
   deliveryChargeConfig?: {
     baseCharge: number;
-    deliveryStrategy?: DeliveryChargeItemLike | null;
+    deliveryStrategies?: DeliveryChargeItemLike[];
     addressTag?: DeliveryChargeItemLike | null;
   };
 }

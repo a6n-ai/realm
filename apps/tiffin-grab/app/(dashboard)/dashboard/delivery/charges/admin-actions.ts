@@ -2,10 +2,12 @@ import type { DeliveryAdminActions, DeliveryChargesActions } from "@foundry/deli
 import {
   deleteAddressTagAction,
   deleteDeliveryStrategyAction,
+  deleteDeliveryStrategyGroupAction,
   retireDeliveryTypeAction,
   retireZoneAction,
   saveAddressTagAction,
   saveDeliveryStrategyAction,
+  saveDeliveryStrategyGroupAction,
   saveDeliveryTypeAction,
   saveStoreOriginAction,
   saveStoreOriginFromAddressAction,
@@ -29,6 +31,8 @@ export const deliveryChargesActions: DeliveryChargesActions = {
   updateBaseCharge: updateBaseChargeAction,
   saveDeliveryStrategy: saveDeliveryStrategyAction,
   deleteDeliveryStrategy: deleteDeliveryStrategyAction,
+  saveDeliveryStrategyGroup: saveDeliveryStrategyGroupAction,
+  deleteDeliveryStrategyGroup: deleteDeliveryStrategyGroupAction,
   saveAddressTag: saveAddressTagAction,
   deleteAddressTag: deleteAddressTagAction,
 };

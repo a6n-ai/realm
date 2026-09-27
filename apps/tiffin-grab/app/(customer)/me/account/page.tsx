@@ -4,6 +4,8 @@ import { sectionFromSlug, sectionsForRole } from "@/components/customer/account/
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
 import { dropOffsFor } from "@/lib/services/address-drop-off.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { toClientCatalog } from "@/lib/catalog/types";
+import { dropOffCatalog } from "@/lib/catalog/drop-off";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 export default async function MeAccountPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
@@ -14,15 +16,13 @@ export default async function MeAccountPage({ searchParams }: { searchParams: Pr
   const [dropOffs, catalog] = onAddresses
     ? await Promise.all([dropOffsFor(addresses.map((a) => a.publicId)), loadCatalogSnapshot(await resolveRequestOrg())])
     : [{}, null];
-  const dropOffOptions = (catalog?.deliveryCharges?.deliveryStrategies ?? []).map((s) => ({
-    publicId: s.publicId, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue,
-  }));
+  const dropOff = catalog ? dropOffCatalog(toClientCatalog(catalog).deliveryCharges) : undefined;
   return (
     <AccountPage
       role={role}
       active={active}
       addresses={addresses}
-      dropOffOptions={dropOffOptions}
+      dropOff={dropOff}
       dropOffs={dropOffs}
       user={{
         name: user.name ?? null,

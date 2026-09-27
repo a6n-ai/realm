@@ -393,6 +393,13 @@
       "when": 1790507025497,
       "tag": "0055_delivery_moves",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1790510567847,
+      "tag": "0056_delivery_strategy_groups",
+      "breakpoints": true
     }
   ]
 }

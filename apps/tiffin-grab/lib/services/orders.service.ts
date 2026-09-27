@@ -361,8 +361,8 @@ export async function createOrder(
           coords: input.contact.lat != null && input.contact.lng != null ? { lat: input.contact.lat, lng: input.contact.lng } : null,
         });
     // A new address remembers the drop-off chosen at checkout, for its next delivery or order.
-    if (!input.addressPublicId && input.selections.deliveryStrategyId) {
-      await setAddressDropOff(addressScope, { id: savedAddress.id }, input.selections.deliveryStrategyId, tx);
+    if (!input.addressPublicId && input.selections.deliveryStrategyIds?.length) {
+      await setAddressDropOff(addressScope, { id: savedAddress.id }, input.selections.deliveryStrategyIds, tx);
     }
     if (input.addressPublicId) {
       const movedPostal = savedAddress.postalCode !== input.contact.postalCode;
@@ -534,9 +534,10 @@ export async function createOrder(
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
 
-    const selectedDeliveryStrategy = input.selections.deliveryStrategyId
-      ? snapshot.deliveryCharges?.deliveryStrategies.find((s) => s.publicId === input.selections.deliveryStrategyId)
-      : null;
+    // buildPricingCatalog already refused unknown/retired picks, so every id resolves.
+    const selectedStrategyIds = (input.selections.deliveryStrategyIds ?? []).flatMap(
+      (id) => snapshot.deliveryCharges?.deliveryStrategies.find((s) => s.publicId === id)?.id ?? [],
+    );
     const selectedAddressTag = input.selections.addressTagId
       ? snapshot.deliveryCharges?.addressTags.find((a) => a.publicId === input.selections.addressTagId)
       : null;
@@ -562,7 +563,7 @@ export async function createOrder(
         pricingSnapshot,
         total: pricing.total.toFixed(2),
         deliveryCharge: (pricing.deliveryCharge?.totalDeliveryCharge ?? 0).toFixed(2),
-        deliveryStrategyId: selectedDeliveryStrategy?.id ?? null,
+        deliveryStrategyIds: selectedStrategyIds,
         addressTagId: selectedAddressTag?.id ?? null,
         status,
         deploymentId,
@@ -1655,6 +1656,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       includeSunday: order.includeSunday,
       durationWeeks: order.durationWeeks,
       startDate: order.startDate,
+      // Keep the order's drop-off surcharges; an option retired since checkout is dropped.
+      deliveryStrategyIds: order.deliveryStrategyIds.flatMap(
+        (id) => pricingSnapshot.deliveryCharges?.deliveryStrategies.find((s) => s.id === id)?.publicId ?? [],
+      ),
     };
     const pricingCatalog = buildPricingCatalog(pricingSnapshot, selections);
     const pricing = priceSubscription(selections, pricingCatalog, [], taxes);

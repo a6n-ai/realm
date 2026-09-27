@@ -10,11 +10,12 @@ import { formatAddress } from "@foundry/address/ui";
 import { Button, Card, Field, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { nameTaken } from "@/components/customer/address/address-name";
-import { DropOffPicker, type DropOffOption } from "@/components/customer/address/drop-off";
+import { DropOffPicker } from "@/components/customer/address/drop-off";
+import { dropOffSummary, EMPTY_DROP_OFF, type DropOffCatalog } from "@/lib/catalog/drop-off";
 
-const withDropOff = (d: Record<string, string>, publicId: string, dropOff: string | null) => {
+const withDropOff = (d: Record<string, string[]>, publicId: string, dropOff: string[]) => {
   const next = { ...d };
-  if (dropOff) next[publicId] = dropOff;
+  if (dropOff.length) next[publicId] = dropOff;
   else delete next[publicId];
   return next;
 };
@@ -66,8 +67,6 @@ function DefaultStar({ on, label, onSelect }: { on: boolean; label: string; onSe
   );
 }
 
-const dropOffName = (options: DropOffOption[], publicId: string | undefined) =>
-  publicId ? options.find((o) => o.publicId === publicId)?.name : undefined;
 import {
   archiveMyAddress,
   createMyAddress,
@@ -76,7 +75,7 @@ import {
 } from "@/app/(customer)/me/account/address-actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 
-type Editing = { publicId: string | null; label: string; values: AddressValues; dropOff: string | null };
+type Editing = { publicId: string | null; label: string; values: AddressValues; dropOff: string[] };
 
 const toValues = (a: SavedAddress): AddressValues => ({
   addressLine: a.addressLine,
@@ -98,14 +97,14 @@ const toInput = (e: Editing): AddressInput => ({
 /** Saved delivery addresses. The default is what checkout preselects and can't be deleted. */
 export function AddressBook({
   initial,
-  dropOffOptions = [],
+  dropOff = EMPTY_DROP_OFF,
   initialDropOffs = {},
 }: {
   initial: SavedAddress[];
-  /** Admin delivery strategies a customer can pick per address. */
-  dropOffOptions?: DropOffOption[];
-  /** Address public id → its drop-off's strategy public id. */
-  initialDropOffs?: Record<string, string>;
+  /** Drop-off questions a customer answers per address. */
+  dropOff?: DropOffCatalog;
+  /** Address public id → its drop-off option public ids. */
+  initialDropOffs?: Record<string, string[]>;
 }) {
   const [dropOffs, setDropOffs] = useState(initialDropOffs);
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -113,13 +112,13 @@ export function AddressBook({
     initial,
     actions: {
       create: async (input) => {
-        const saved = await unwrapAction(createMyAddress(input, editing?.dropOff ?? null));
-        setDropOffs((d) => withDropOff(d, saved.publicId, editing?.dropOff ?? null));
+        const saved = await unwrapAction(createMyAddress(input, editing?.dropOff ?? []));
+        setDropOffs((d) => withDropOff(d, saved.publicId, editing?.dropOff ?? []));
         return saved;
       },
       update: async (publicId, input) => {
-        const saved = await unwrapAction(updateSavedAddress(publicId, input, editing?.dropOff ?? null));
-        setDropOffs((d) => withDropOff(d, publicId, editing?.dropOff ?? null));
+        const saved = await unwrapAction(updateSavedAddress(publicId, input, editing?.dropOff ?? []));
+        setDropOffs((d) => withDropOff(d, publicId, editing?.dropOff ?? []));
         return saved;
       },
       setDefault: async (publicId) => {
@@ -179,13 +178,13 @@ export function AddressBook({
                 </AnimatePresence>
               </p>
               <p className="truncate text-sm text-[var(--muted-foreground)]">{formatAddress(a)}</p>
-              {dropOffName(dropOffOptions, dropOffs[a.publicId]) && (
-                <p className="text-sm text-[var(--muted-foreground)]">Drop-off: {dropOffName(dropOffOptions, dropOffs[a.publicId])}</p>
+              {dropOffSummary(dropOff, dropOffs[a.publicId]) && (
+                <p className="text-sm text-[var(--muted-foreground)]">{dropOffSummary(dropOff, dropOffs[a.publicId])}</p>
               )}
             </div>
             <div className="flex shrink-0 gap-1">
               <DefaultStar on={a.isDefault} label={a.label} onSelect={() => book.setDefault(a.publicId)} />
-              <IconButton aria-label={`Edit ${a.label}`} onClick={() => setEditing({ publicId: a.publicId, label: a.label, values: toValues(a), dropOff: dropOffs[a.publicId] ?? null })}>
+              <IconButton aria-label={`Edit ${a.label}`} onClick={() => setEditing({ publicId: a.publicId, label: a.label, values: toValues(a), dropOff: dropOffs[a.publicId] ?? [] })}>
                 <PencilIcon className="size-4" />
               </IconButton>
               {!a.isDefault && (
@@ -202,7 +201,7 @@ export function AddressBook({
       {/* Sheet actions show their error inside the sheet; this covers make-default. */}
       {book.error && !editing && !deleting && <Notice tone="error">{book.error}</Notice>}
 
-      <Button pill onClick={() => setEditing({ publicId: null, label: "", values: {}, dropOff: null })}>
+      <Button pill onClick={() => setEditing({ publicId: null, label: "", values: {}, dropOff: [] })}>
         <PlusIcon className="size-4" /> Add address
       </Button>
 
@@ -234,7 +233,7 @@ export function AddressBook({
               resolveUrl="/api/address/resolve"
               onChange={(patch) => setEditing({ ...editing, values: { ...editing.values, ...patch } })}
             />
-            <DropOffPicker options={dropOffOptions} value={editing.dropOff} onChange={(dropOff) => setEditing({ ...editing, dropOff })} />
+            <DropOffPicker catalog={dropOff} value={editing.dropOff} onChange={(picks) => setEditing({ ...editing, dropOff: picks })} />
             {book.error && <Notice tone="error">{book.error}</Notice>}
           </div>
         )}

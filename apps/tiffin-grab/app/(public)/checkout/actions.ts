@@ -1,5 +1,6 @@
 "use server";
 
+import { missingRequiredStrategy } from "@/lib/pricing/build-catalog";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { resolveAndPersist } from "@foundry/places";
@@ -86,7 +87,10 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
   // side so a non-serviceable checkout NEVER creates an order or takes payment —
   // capture the lead as a waitlist inquiry instead.
   const orgId = await resolveRequestOrg();
-  const { zones } = await loadCatalogSnapshot(orgId);
+  const snapshot = await loadCatalogSnapshot(orgId);
+  const { zones } = snapshot;
+  const unanswered = missingRequiredStrategy(snapshot, input.selections.deliveryStrategyIds);
+  if (unanswered) throw new ValidationError(`Choose an option for ${unanswered}.`);
   const address = [input.contact.addressLine, input.contact.city, input.contact.postalCode].filter(Boolean).join(", ");
   if ((await findZone(zones, { postalCode: input.contact.postalCode, address }, orgId)) == null) {
     await createWebsiteInquiry({

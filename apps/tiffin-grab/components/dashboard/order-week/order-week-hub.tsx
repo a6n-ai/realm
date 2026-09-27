@@ -1,5 +1,6 @@
 "use client";
 
+import { dropOffSummary } from "@/lib/catalog/drop-off";
 import { ChevronLeft, ChevronRight, Info, Truck, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -256,11 +257,11 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, movedInNote(row), t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
-        {(t.addressOverride || t.deliveryStrategyPublicId) && (
+        {(t.addressOverride || (t.deliveryStrategyPublicIds?.length ?? 0) > 0) && (
           <div className="rounded-md border p-3 text-sm space-y-1">
             <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-2">Delivery Override</span>
-            {t.deliveryStrategyPublicId && (
-              <p>Type: <span className="font-medium">{plan.deliveryStrategies.find(s => s.publicId === t.deliveryStrategyPublicId)?.name ?? "Unknown"}</span></p>
+            {(t.deliveryStrategyPublicIds?.length ?? 0) > 0 && (
+              <p>Drop-off: <span className="font-medium">{dropOffSummary(plan.dropOff, t.deliveryStrategyPublicIds) || "No longer offered"}</span></p>
             )}
             {t.addressOverride && (
               <p>Address: <span className="font-medium">{t.addressOverride.addressLine}, {t.addressOverride.postalCode}</span></p>

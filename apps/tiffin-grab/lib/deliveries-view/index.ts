@@ -35,8 +35,8 @@ export type CalendarDayInput = {
   emptied?: boolean;
   /** This delivery's own address when re-addressed; null/absent = it follows the plan. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
-  /** This delivery's own strategy when re-addressed; null/absent = it follows the plan. */
-  deliveryStrategyPublicId?: string | null;
+  /** This delivery's own drop-off options when re-addressed; empty/absent = it follows the plan. */
+  deliveryStrategyPublicIds?: string[];
   optimoCompletionStatus?: string | null;
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
@@ -83,8 +83,8 @@ export type Trip = {
   movesOut?: TiffinMove[];
   /** This delivery's own address when re-addressed; null = it follows the plan's address. */
   addressOverride?: { addressLine: string; postalCode: string } | null;
-  /** This delivery's own strategy when re-addressed; null = it follows the plan's strategy. */
-  deliveryStrategyPublicId?: string | null;
+  /** This delivery's own drop-off options when re-addressed; empty = it follows the plan's. */
+  deliveryStrategyPublicIds?: string[];
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
   optimoCompletionStatus?: string | null;
@@ -133,7 +133,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         date: d.date,
         deliveryId: d.deliveryId ?? null,
         addressOverride: d.addressOverride ?? null,
-        deliveryStrategyPublicId: d.deliveryStrategyPublicId ?? null,
+        deliveryStrategyPublicIds: d.deliveryStrategyPublicIds ?? [],
         optimoCompletionStatus: d.optimoCompletionStatus ?? null,
         units: d.units ?? 1,
         coversDates: covers,

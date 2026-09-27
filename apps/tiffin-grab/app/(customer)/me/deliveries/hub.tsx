@@ -1,3 +1,5 @@
+import { toClientCatalog } from "@/lib/catalog/types";
+import { dropOffCatalog } from "@/lib/catalog/drop-off";
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -117,9 +119,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses,
     addressDropOffs,
-    deliveryStrategies: catalog.deliveryCharges?.deliveryStrategies.map((s) => ({
-      publicId: s.publicId, name: s.name, chargeType: s.chargeType, chargeValue: s.chargeValue,
-    })) ?? [],
+    dropOff: dropOffCatalog(toClientCatalog(catalog).deliveryCharges),
   };
   const inputs = toCalendarInputs({ days, rows: rows.filter((r) => r.orderPublicId === sub.publicId), makeupSources, categoryLabels, swapCategories: Object.fromEntries(swapCategories) });
   const trips = buildTrips(inputs, now, ctx, sub.publicId);

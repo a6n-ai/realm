@@ -95,15 +95,8 @@ export function OrderSummaryPanel({
           {order.addressLine}
           {order.addressUnit ? `, Unit ${order.addressUnit}` : ""}, {order.city} {order.postalCode}
         </DetailRow>
-        {snap && isPricingSnapshot(snap) && (snap.deliveryCharge?.addressTag || snap.deliveryCharge?.deliveryStrategy) ? (
-          <DetailRow label="Delivery details">
-            {[
-              snap.deliveryCharge.addressTag ? `Address tag: ${snap.deliveryCharge.addressTag.name}` : null,
-              snap.deliveryCharge.deliveryStrategy ? `Delivery strategy: ${snap.deliveryCharge.deliveryStrategy.name}` : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </DetailRow>
+        {snap && isPricingSnapshot(snap) && deliveryDetails(snap.deliveryCharge) ? (
+          <DetailRow label="Delivery details">{deliveryDetails(snap.deliveryCharge)}</DetailRow>
         ) : null}
         {order.deliveryInstructions ? (
           <DetailRow label="Delivery instructions">{order.deliveryInstructions}</DetailRow>
@@ -137,4 +130,22 @@ export function OrderSummaryPanel({
       </div>
     </div>
   );
+}
+
+type ChargeSnapshot = {
+  deliveryStrategies?: { name: string; group?: string | null }[];
+  /** Orders placed before strategy groups carried one strategy. */
+  deliveryStrategy?: { name: string } | null;
+  addressTag?: { name: string } | null;
+};
+
+function deliveryDetails(charge: ChargeSnapshot | undefined): string {
+  if (!charge) return "";
+  const strategies = charge.deliveryStrategies ?? (charge.deliveryStrategy ? [charge.deliveryStrategy] : []);
+  return [
+    charge.addressTag ? `Address tag: ${charge.addressTag.name}` : null,
+    ...strategies.map((s) => `${("group" in s && s.group) || "Delivery strategy"}: ${s.name}`),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
