@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ensureSystemUser } from "@/db/test-helpers";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, inquiryActivities, users } from "@/db/schema";
@@ -21,18 +22,6 @@ async function reset() {
   await ensureSystemUser();
 }
 
-// inquiriesService.create resolves an inbound lead's owner to the system user and
-// throws "system user not seeded" without one. seed.sql creates no logins, and the
-// only files that insert this row are inquiries-assignment / inquiries-source-owner
-// — so this suite passed only when one of those happened to run first. Idempotent,
-// same shape as ensureZone below.
-async function ensureSystemUser() {
-  const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
-  if (sys) return;
-  await db
-    .insert(users)
-    .values({ name: "System", email: "system@tiffingrab.internal", role: "admin", isSystem: true });
-}
 
 async function ensureZone(): Promise<bigint> {
   const [existing] = await db

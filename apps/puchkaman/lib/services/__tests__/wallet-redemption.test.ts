@@ -79,8 +79,9 @@ vi.mock("@/lib/clover/client", () => ({
     createAtomicOrder: async (input: { discounts?: { name: string; amount: number }[] }) => {
       clover.payloads.push(input);
       if (clover.failCreate) throw new Error("Clover POS unreachable");
-      return { id: `clv_${Date.now()}` };
+      return { id: `clv_${crypto.randomUUID()}` };
     },
+    sendAppNotification: async () => {},
     getEcommerceOrder: async () => {
       await clover.duringFetch?.();
       return {

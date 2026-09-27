@@ -1,6 +1,17 @@
 import { count, eq, inArray } from "drizzle-orm";
 import { db } from "./client";
-import { categoryPlans, dishCategories, dishes, plans } from "./schema";
+import { categoryPlans, dishCategories, dishes, plans, users } from "./schema";
+
+/**
+ * inquiriesService.create resolves an inbound lead's owner to the system user and throws
+ * "system user not seeded" without one. seed.sql creates no logins, so a suite that creates
+ * inquiries must not rely on an earlier file having inserted it. Idempotent.
+ */
+export async function ensureSystemUser(): Promise<void> {
+  const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
+  if (sys) return;
+  await db.insert(users).values({ name: "System", email: "system@tiffingrab.internal", role: "admin", isSystem: true });
+}
 
 /**
  * The veg plan's id, for fixtures that need SOME valid dishes.planId and don't

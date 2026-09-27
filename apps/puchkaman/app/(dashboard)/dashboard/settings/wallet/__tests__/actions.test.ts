@@ -13,7 +13,10 @@ const state = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: async () => {} }));
-vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 1n }));
+vi.mock("@/lib/services/session-service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/services/session-service")>()),
+  currentUserId: async () => 1n,
+}));
 vi.mock("@/db/client", () => ({
   db: {
     select: () => ({ from: () => ({ limit: async () => state.coinRateRows }) }),

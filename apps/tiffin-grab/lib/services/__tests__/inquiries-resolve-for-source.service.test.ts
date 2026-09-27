@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ensureSystemUser } from "@/db/test-helpers";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities } from "@/db/schema";
 import { ValidationError } from "@foundry/commons";
@@ -17,7 +18,10 @@ async function reset() {
 const base = { fullName: "Resolver", email: testEmail() as string | undefined };
 
 describe("inquiriesService.resolveForSource", () => {
-  beforeEach(reset);
+  beforeEach(async () => {
+    await reset();
+    await ensureSystemUser();
+  });
   afterAll(reset);
 
   it("reuses an open inquiry with the same phone + source", async () => {
@@ -62,7 +66,10 @@ describe("inquiriesService.resolveForSource", () => {
 // hold for ALL callers — including the plain add-inquiry form — by reusing the
 // existing open inquiry on conflict instead of erroring.
 describe("inquiriesService.create — open-lead dedup", () => {
-  beforeEach(reset);
+  beforeEach(async () => {
+    await reset();
+    await ensureSystemUser();
+  });
   afterAll(reset);
 
   it("reuses the existing open inquiry on a same phone+source create (no duplicate row, no extra activity)", async () => {

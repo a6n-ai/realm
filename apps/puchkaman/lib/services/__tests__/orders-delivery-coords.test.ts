@@ -37,8 +37,9 @@ vi.mock("@/lib/clover/client", () => ({
     },
     createAtomicOrder: async (input: unknown) => {
       clover.payloads.push(input);
-      return { id: `clv_${Date.now()}` };
+      return { id: `clv_${crypto.randomUUID()}` };
     },
+    sendAppNotification: async () => {},
   }),
 }));
 
