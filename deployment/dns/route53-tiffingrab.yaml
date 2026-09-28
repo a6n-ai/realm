@@ -1,24 +1,24 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >-
-  Route 53 public hosted zone for tiffingrab.ca, migrated from Hostinger. Copies
-  every existing record (Titan mailboxes, Brevo sending, the EC2 app subdomain,
-  Hostinger FTP, the WordPress apex/www) so switching the registrar nameservers
-  to this zone's NS set is non-disruptive. SES sending records are added later
-  (see comment at the bottom) once the SES identity stack outputs its DKIM tokens.
+  Route 53 public hosted zone for tiffingrab.ca, migrated from Hostinger DNS. Copies
+  every record of the Hostinger zone export (2026-09-28): Titan mailboxes, Brevo
+  sending, SES sending (DKIM + mail-from), the EC2 app subdomain, Hostinger FTP and
+  the WordPress apex/www, so moving the registrar nameservers to this zone is
+  non-disruptive.
 
-  APEX CAVEAT: tiffingrab.ca / www serve a Hostinger-hosted WordPress site via a
-  proprietary ALIAS -> *.cdn.hstgr.net. Route 53 cannot alias the apex to an
-  external hostname, so the apex is pinned to Hostinger's current CDN IPs
-  (ApexIps param). Those IPs can rotate; this is a short-lived bridge until the
-  WP site moves into the app. Update ApexIps if the apex site starts failing.
+  APEX: Hostinger served the apex through its CDN as an ALIAS whose IPs rotate on
+  every query (60s TTL). Route 53 cannot alias the apex to an external hostname, so
+  Hostinger CDN is turned off and the apex points at the Hostinger server IP
+  (WordPressIp). www follows the apex.
 
 Parameters:
-  ApexIps:
-    Type: CommaDelimitedList
-    Default: "93.127.173.143,91.108.106.237"
+  WordPressIp:
+    Type: String
+    AllowedPattern: "^\\d{1,3}(\\.\\d{1,3}){3}$"
     Description: >-
-      Hostinger CDN IPs the WordPress apex resolves to (captured 2026-07-18).
-      Temporary bridge; may rotate. Update and redeploy if the apex site breaks.
+      Hostinger hosting server IPv4 for the WordPress site, read from hPanel AFTER
+      Hostinger CDN is turned off. No default on purpose: pinning rotating CDN IPs
+      breaks the site.
   AppIp:
     Type: String
     Default: "52.73.226.216"
@@ -34,7 +34,7 @@ Resources:
     Properties:
       Name: tiffingrab.ca
 
-  # --- Apex WordPress site (Hostinger). Temporary A-record bridge (see caveat). ---
+  # --- WordPress on Hostinger (apex + www) ---
   ApexA:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -42,7 +42,8 @@ Resources:
       Name: tiffingrab.ca
       Type: A
       TTL: 300
-      ResourceRecords: !Ref ApexIps
+      ResourceRecords:
+        - !Ref WordPressIp
 
   WwwCname:
     Type: AWS::Route53::RecordSet
@@ -52,7 +53,7 @@ Resources:
       Type: CNAME
       TTL: 300
       ResourceRecords:
-        - www.tiffingrab.ca.cdn.hstgr.net
+        - tiffingrab.ca
 
   # --- Titan Email (mailboxes: info@tiffingrab.ca receives here) ---
   ApexMx:
@@ -83,7 +84,7 @@ Resources:
       HostedZoneId: !Ref HostedZone
       Name: tiffingrab.ca
       Type: TXT
-      TTL: 3600
+      TTL: 14400
       ResourceRecords:
         - '"brevo-code:f4115d4076dac4f7b4a0f2b6158a95aa"'
         - '"v=spf1 include:spf.titan.email ~all"'
@@ -98,7 +99,7 @@ Resources:
       ResourceRecords:
         - '"v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com"'
 
-  # --- Brevo (transactional/marketing sending) DKIM ---
+  # --- Brevo (marketing sending) DKIM ---
   Brevo1Dkim:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -118,6 +119,58 @@ Resources:
       TTL: 14400
       ResourceRecords:
         - b2.tiffingrab-ca.dkim.brevo.com
+
+  # --- SES (app email: invites, OTP, notifications). Identity tiffingrab.ca, EasyDKIM,
+  #     custom MAIL FROM mail.tiffingrab.ca (deployment/email/ses-tiffin-grab.yaml). ---
+  SesDkim1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: sor35gqoewzgywsllpbzakykt3pqyajy._domainkey.tiffingrab.ca
+      Type: CNAME
+      TTL: 14400
+      ResourceRecords:
+        - sor35gqoewzgywsllpbzakykt3pqyajy.dkim.amazonses.com
+
+  SesDkim2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: pa6mtp44zgjhl2pdp3xyyyudcs4dksvr._domainkey.tiffingrab.ca
+      Type: CNAME
+      TTL: 14400
+      ResourceRecords:
+        - pa6mtp44zgjhl2pdp3xyyyudcs4dksvr.dkim.amazonses.com
+
+  SesDkim3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: 5gbh2fe32u6t5gvlgz5ctapoftrc4dyk._domainkey.tiffingrab.ca
+      Type: CNAME
+      TTL: 14400
+      ResourceRecords:
+        - 5gbh2fe32u6t5gvlgz5ctapoftrc4dyk.dkim.amazonses.com
+
+  SesMailFromMx:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: mail.tiffingrab.ca
+      Type: MX
+      TTL: 14400
+      ResourceRecords:
+        - "10 feedback-smtp.us-east-1.amazonses.com"
+
+  SesMailFromSpf:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: mail.tiffingrab.ca
+      Type: TXT
+      TTL: 14400
+      ResourceRecords:
+        - '"v=spf1 include:amazonses.com ~all"'
 
   # --- The Realm app on EC2 ---
   AppA:
@@ -141,18 +194,13 @@ Resources:
       ResourceRecords:
         - "82.180.129.236"
 
-  # --- SES sending records (DKIM x3 + mail-from MX/SPF) are NOT here yet:
-  #     the EasyDKIM tokens don't exist until deployment/email/ses-tiffin-grab.yaml
-  #     is deployed. After that, add them to THIS zone (additive, safe to apply to
-  #     the live zone at any time), then SES verifies. See deployment/email/README.md.
-
 Outputs:
   HostedZoneId:
-    Description: Route 53 hosted zone id (use when adding SES records later).
+    Description: Route 53 hosted zone id.
     Value: !Ref HostedZone
   NameServers:
     Description: >-
-      Set these 4 as the custom nameservers at the registrar (Hostinger) to
-      delegate tiffingrab.ca to Route 53. Do this only after verifying the
-      records above match the Hostinger zone.
+      Set these 4 as the custom nameservers in Hostinger (registrar Openprovider) to
+      delegate tiffingrab.ca to Route 53. Only after deployment/dns/verify-tiffingrab.sh
+      shows no differences.
     Value: !Join [", ", !GetAtt HostedZone.NameServers]
