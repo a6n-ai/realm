@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
+import { eq, inArray, like } from "drizzle-orm";
 import type { CategoryUnit } from "../lib/custom-meal/composition";
-import { catalogKeyFor, dedupeByPhone, hasVegConflict, mapRow, planSeed, remainingTiffins, type WpRow } from "./seed-customers";
+import { db } from "./client";
+import { mealSizes, orderActivities, orders, users } from "./schema";
+import { loadCatalogSnapshot } from "../lib/catalog/load";
+import { loadCategoryUnits } from "../lib/services/custom-meal.service";
+import {
+  applyOne, catalogKeyFor, dedupeByPhone, hasVegConflict, mapRow, mixedKindDuplicates, planSeed, remainingTiffins, type WpRow,
+} from "./seed-customers";
 
 function row(over: Partial<WpRow> = {}): WpRow {
   return {
@@ -170,5 +177,54 @@ describe("planSeed custom meals", () => {
   it("uses the parsed diet for the plan when WordPress meta says veg but the meal has non-veg", () => {
     const { results } = planSeed([row({ products: "Custom Meal - 1 Non-Veg(8oz) + 4 Rotis", veg: "veg" })], snapshot, units);
     expect(results[0]).toMatchObject({ kind: "planned", record: { planKey: "non-veg" } });
+  });
+});
+
+describe("mixedKindDuplicates", () => {
+  it("pairs a custom and a regular record for the same phone", () => {
+    const regular = mapRow(row({ id: 1, totalTiffins: "5" }));
+    const custom = mapRow(row({ id: 2, totalTiffins: "12", products: "Custom Meal - 2 Veg(8oz) + 4 Rotis" }));
+    const other = mapRow(row({ id: 3, phone: "647-111-1111", totalTiffins: "3", products: "Maharaja Thali" }));
+    const { kept, dropped } = dedupeByPhone([regular, custom, other]);
+    expect(mixedKindDuplicates(kept, dropped).map((p) => [p.kept.wpOrderId, p.dropped.wpOrderId])).toEqual([[2, 1]]);
+  });
+
+  it("ignores two regular plans on one phone", () => {
+    const { kept, dropped } = dedupeByPhone([mapRow(row({ id: 1 })), mapRow(row({ id: 2, products: "Maharaja Thali" }))]);
+    expect(dropped).toHaveLength(1);
+    expect(mixedKindDuplicates(kept, dropped)).toEqual([]);
+  });
+});
+
+describe("applyOne (tiffin_v2)", () => {
+  const PHONE = "6470009871";
+  const EMAIL = "zz-seed-liveplan@example.test";
+  const ids = [990001, 990002];
+
+  afterAll(async () => {
+    const os = await db.select({ id: orders.id }).from(orders).where(inArray(orders.deploymentId, ids.map((i) => `wc-${i}`)));
+    if (os.length) {
+      await db.delete(orderActivities).where(inArray(orderActivities.orderId, os.map((o) => o.id)));
+      await db.delete(orders).where(inArray(orders.id, os.map((o) => o.id)));
+    }
+    await db.delete(users).where(eq(users.email, EMAIL));
+  });
+
+  it("skips a new order when the customer already has a live plan, creating nothing", async () => {
+    const [snapshot, units] = await Promise.all([loadCatalogSnapshot(), loadCategoryUnits()]);
+    const plan = (r: WpRow) => {
+      const res = planSeed([r], snapshot, units).results[0];
+      if (res.kind !== "planned") throw new Error(`not planned: ${res.reason}`);
+      return res;
+    };
+    const base = { phone: PHONE, email: EMAIL };
+    expect(await applyOne(plan(row({ ...base, id: ids[0] })), snapshot, null)).toBe("created");
+
+    const customsBefore = await db.select({ id: mealSizes.id }).from(mealSizes).where(like(mealSizes.key, "custom_%"));
+    await expect(applyOne(plan(row({ ...base, id: ids[1], products: "Custom Meal - 3 Veg(8oz) + 8 Rotis + 2 Rice" })), snapshot, null))
+      .rejects.toThrow(`customer already has a live plan: wc-${ids[0]}`);
+    const customsAfter = await db.select({ id: mealSizes.id }).from(mealSizes).where(like(mealSizes.key, "custom_%"));
+    expect(customsAfter.length).toBe(customsBefore.length);
+    expect(await db.select().from(orders).where(eq(orders.deploymentId, `wc-${ids[1]}`))).toEqual([]);
   });
 });

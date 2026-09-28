@@ -16,7 +16,7 @@
  * `wc-<wordpress order id>`: a `pending` one is refreshed with WordPress's current
  * balance and address; one staff already started is never touched again.
  */
-import { eq, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import mysql from "mysql2/promise";
 import { emailSchema } from "@foundry/commons";
 import { db } from "./client";
@@ -283,6 +283,15 @@ export function dedupeByPhone(records: MigrationRecord[]): { kept: MigrationReco
   return { kept: [...byPhone.values()], dropped };
 }
 
+/** A custom and a regular plan on one phone: dedupe kept one, the other needs a person. */
+export function mixedKindDuplicates(kept: MigrationRecord[], dropped: MigrationRecord[]): { kept: MigrationRecord; dropped: MigrationRecord }[] {
+  const byPhone = new Map(kept.map((k) => [k.phone, k]));
+  return dropped.flatMap((d) => {
+    const k = byPhone.get(d.phone);
+    return k && isCustomMeal(k.productText) !== isCustomMeal(d.productText) ? [{ kept: k, dropped: d }] : [];
+  });
+}
+
 // ---------- meal size matching ----------
 
 type CatalogSnapshot = Awaited<ReturnType<typeof loadCatalogSnapshot>>;
@@ -344,7 +353,7 @@ function redactPhone(phone: string): string {
 
 const MANUAL_MAPPING = "custom meal, map by hand";
 
-export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot, units: Map<string, CategoryUnit>): { results: PlanResult[]; duplicates: MigrationRecord[] } {
+export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot, units: Map<string, CategoryUnit>): { results: PlanResult[]; duplicates: MigrationRecord[]; mixedKind: ReturnType<typeof mixedKindDuplicates> } {
   const results: PlanResult[] = [];
   const candidates: MigrationRecord[] = [];
   const customByWpId = new Map<number, CustomMealItem[]>();
@@ -383,10 +392,10 @@ export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot, units: Map<st
       results.push({ kind: "skipped", wpOrderId: record.wpOrderId, reason: err instanceof Error ? err.message : String(err) });
     }
   }
-  return { results, duplicates: dropped };
+  return { results, duplicates: dropped, mixedKind: mixedKindDuplicates(kept, dropped) };
 }
 
-function printReport(totalRows: number, results: PlanResult[], duplicates: MigrationRecord[], units: Map<string, CategoryUnit>): void {
+function printReport(totalRows: number, results: PlanResult[], duplicates: MigrationRecord[], mixedKind: ReturnType<typeof mixedKindDuplicates>, units: Map<string, CategoryUnit>): void {
   const planned = results.filter((r): r is Extract<PlanResult, { kind: "planned" }> => r.kind === "planned");
   const skipped = results.filter((r): r is Extract<PlanResult, { kind: "skipped" }> => r.kind === "skipped");
   const fallback = planned.filter((r) => r.isCustomFallback);
@@ -401,6 +410,9 @@ function printReport(totalRows: number, results: PlanResult[], duplicates: Migra
   for (const d of duplicates) console.log(`  DUP  wc-${d.wpOrderId} ${redactPhone(d.phone)} (${d.tiffinCount} left)`);
   console.log(`\n--- Custom meals needing manual mapping ---`);
   for (const s of skipped) if (s.reason.startsWith(MANUAL_MAPPING)) console.log(`  wc-${s.wpOrderId}: ${s.reason}`);
+  for (const { kept, dropped } of mixedKind) {
+    console.log(`  MIXED ${redactPhone(kept.phone)}: kept wc-${kept.wpOrderId} "${kept.productText}" (${kept.tiffinCount} left), NOT imported wc-${dropped.wpOrderId} "${dropped.productText}" (${dropped.tiffinCount} left)`);
+  }
   console.log(`\n--- Planned ---`);
   for (const r of planned) {
     const x = r.record;
@@ -419,7 +431,7 @@ async function brandOrgId(): Promise<string | null> {
   return row?.id ?? null;
 }
 
-async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: CatalogSnapshot, orgId: string | null): Promise<Outcome> {
+export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: CatalogSnapshot, orgId: string | null): Promise<Outcome> {
   const x = r.record;
   const deploymentId = `wc-${x.wpOrderId}`;
   // phoneSchema() crashes under tsx (libphonenumber CJS/ESM interop); planSeed already
@@ -470,20 +482,23 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
   };
 
   return db.transaction(async (tx) => {
-    let mealSizeId = r.mealSize.id;
-    let categoryCounts = categoryCountsFromItems(r.mealSize.items);
-    if (r.customItems) {
-      const size = await findOrCreateCustomMealSize(r.customItems, { actorId: null, tx });
-      mealSizeId = size.id;
-      categoryCounts = categoryCountsFromItems(r.customItems);
-    }
-    const planFields = { ...baseFields, mealSizeId, mealSlots: Object.keys(categoryCounts), categoryCounts };
+    // Resolved only once the order is known to be written, so a skipped row never leaves a custom size.
+    const planFields = async () => {
+      let mealSizeId = r.mealSize.id;
+      let categoryCounts = categoryCountsFromItems(r.mealSize.items);
+      if (r.customItems) {
+        const size = await findOrCreateCustomMealSize(r.customItems, { actorId: null, tx });
+        mealSizeId = size.id;
+        categoryCounts = categoryCountsFromItems(r.customItems);
+      }
+      return { ...baseFields, mealSizeId, mealSlots: Object.keys(categoryCounts), categoryCounts };
+    };
 
     const [existingOrder] = await tx.select({ id: orders.id, status: orders.status }).from(orders)
       .where(eq(orders.deploymentId, deploymentId)).limit(1);
     if (existingOrder) {
       if (existingOrder.status !== "pending") return "unchanged (already started)";
-      await tx.update(orders).set({ ...planFields, updatedAt: Date.now() }).where(eq(orders.id, existingOrder.id));
+      await tx.update(orders).set({ ...(await planFields()), updatedAt: Date.now() }).where(eq(orders.id, existingOrder.id));
       return "refreshed";
     }
 
@@ -491,12 +506,19 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
     const [existingUser] = await tx.select({ id: users.id, role: users.role }).from(users)
       .where(or(eq(users.phone, phone), eq(users.email, x.email))).limit(1);
     if (existingUser && existingUser.role !== "user") throw new Error("phone/email belongs to a staff account");
+    // R13: plans cannot overlap, so a second live plan would double-book the customer's days.
+    if (existingUser) {
+      const [live] = await tx.select({ deploymentId: orders.deploymentId }).from(orders)
+        .where(and(eq(orders.userId, existingUser.id), inArray(orders.status, ["pending", "active", "paused"]), ne(orders.deploymentId, deploymentId)))
+        .limit(1);
+      if (live) throw new Error(`customer already has a live plan: ${live.deploymentId}`);
+    }
     const userId = existingUser?.id ?? await provisionCustomerByPhone(tx, { fullName: contact.fullName, phone, email: x.email, addressLine: x.addressLine, city: x.city, postalCode: x.postalCode }, null);
 
     const address = await addressService.create({ userId, orgId }, contact, { tx, coords: null });
 
     const [order] = await tx.insert(orders).values({
-      ...planFields,
+      ...(await planFields()),
       userId,
       status: "pending",
       deploymentId,
@@ -541,8 +563,8 @@ if (isDirectRun) {
     const rows = await readWordPress();
     const snapshot = await loadCatalogSnapshot();
     const units = await loadCategoryUnits();
-    const { results, duplicates } = planSeed(rows, snapshot, units);
-    printReport(rows.length, results, duplicates, units);
+    const { results, duplicates, mixedKind } = planSeed(rows, snapshot, units);
+    printReport(rows.length, results, duplicates, mixedKind, units);
     if (!process.argv.includes("--apply")) {
       console.log(`\nDry run only — pass --apply to write.`);
       return;
