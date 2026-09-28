@@ -127,7 +127,8 @@ ON CONFLICT (key) DO NOTHING;
 -- and a meal's roti is ONE row (8 roti = 2 TU) — a row is one dish pick, not one piece;
 -- rice has no weight, 1 unit/TU, 1 row per pick.
 -- meal_size_id is NOT NULL so a mistyped meal_size_key fails the insert loudly instead of orphaning a row.)
-DELETE FROM meal_size_items WHERE id > 0;
+-- Custom meal sizes (lib/custom-meal) own their items and are not reseeded.
+DELETE FROM meal_size_items WHERE meal_size_id NOT IN (SELECT id FROM meal_sizes WHERE custom);
 -- item_plan_key overrides the item's own plan when it differs from the meal
 -- size's own plan (NULL = inherit the meal size's plan, the common case). A
 -- non-veg meal size with 2+ Sabzi rows keeps only its largest-tuAmount row as
