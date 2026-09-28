@@ -437,6 +437,9 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * exchange overrides: a plan-scoped rule's win over an all-plans rule for the same pair.
    */
   private async allowedSwapPairKeys(mealSizeId: bigint): Promise<Map<string, ExchangeOverride[]>> {
+    // Custom meals are a fixed per-customer composition: never swappable (spec 2026-09-28).
+    const [size] = await db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
+    if (!size || size.custom) return new Map();
     const planIds = await this.reachablePlanIdsForMealSize(mealSizeId);
     if (!planIds.length) return new Map();
     const [pairs, cats, dishCats] = await Promise.all([
