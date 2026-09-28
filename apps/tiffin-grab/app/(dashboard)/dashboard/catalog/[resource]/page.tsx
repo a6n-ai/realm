@@ -186,6 +186,13 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     categoriesByPlan = Object.fromEntries(entries);
   }
 
+  // The table is paginated, so the duplicate hint needs the whole catalog, not
+  // just this page's rows. Inactive included: the server rejects those too.
+  const dishNames = resource === "dishes"
+    ? (await db.select({ id: dishes.publicId, name: dishes.name, planName: plans.name, active: dishes.active })
+        .from(dishes).innerJoin(plans, eq(plans.id, dishes.planId)))
+    : undefined;
+
   // Meal-size composition rows: category comes FIRST (not every category is
   // attached to every plan), then the plan select is scoped to whichever plans
   // that category actually belongs to (category_plans, via plansByCategoryKey).
@@ -344,6 +351,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       categoriesByPlan={categoriesByPlan}
       compositionCategories={compositionCategories}
       plansByCategory={plansByCategory}
+      dishNames={dishNames}
       spec={spec}
       total={total}
       page={page.page}
