@@ -20,6 +20,7 @@ import {
 import { Input } from "@foundry/ui/input";
 import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
 import { verifyPinAction } from "./actions";
+import { AuthBrandPanel } from "../auth-brand-panel";
 
 // Login is the shared gateway into both the customer and staff shells, so it
 // stays on the same iOS-sized control convention (IOS_BUTTON/IOS_PRESS, 50px
@@ -60,15 +61,7 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
               />
             )}
           </div>
-          <div className="bg-muted text-muted-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
-            <div className="bg-primary text-primary-foreground mb-1 flex size-12 items-center justify-center rounded-2xl text-xl font-bold">
-              T
-            </div>
-            <span className="text-foreground text-2xl font-bold tracking-[-0.02em]">Tiffin Grab</span>
-            <p className="text-balance text-center text-sm">
-              Fresh tiffin meals, delivered on your schedule.
-            </p>
-          </div>
+          <AuthBrandPanel />
         </CardContent>
       </Card>
       <div className="text-muted-foreground hover:[&_a]:text-primary text-balance text-center text-xs [&_a]:underline [&_a]:underline-offset-4">
