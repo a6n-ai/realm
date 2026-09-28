@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >-
   Route 53 public hosted zone for tiffingrab.ca, migrated from Hostinger DNS. Copies
-  every record of the Hostinger zone export (2026-09-28): Titan mailboxes, Brevo
-  sending, SES sending (DKIM + mail-from), the EC2 app subdomain, Hostinger FTP and
+  every record of the Hostinger zone export (2026-09-28) except Brevo (unused, dropped):
+  Titan mailboxes, SES sending (DKIM + mail-from), the EC2 app subdomain, Hostinger FTP and
   the WordPress apex/www, so moving the registrar nameservers to this zone is
   non-disruptive.
 
@@ -77,7 +77,7 @@ Resources:
       ResourceRecords:
         - '"v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCQ88svj2uPHmAFpFZRrLyS1l04ps4VVt4BWcF/rqaldaolitH+2AbbgjG9qRI6QxHNPWvN4UGZOEeS7gnU3mqqtVN9bIXT9FC5dVmm8UprC2SL7oP1caI/kTV1eEmBwe3QubnXtc2xLfMM6inDVWZdETejB5tH+G8DZNB4HRmv5QIDAQAB"'
 
-  # --- Apex TXT: Brevo verification + Titan SPF (both in one record set) ---
+  # --- Apex TXT: Titan SPF ---
   ApexTxt:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -86,7 +86,6 @@ Resources:
       Type: TXT
       TTL: 14400
       ResourceRecords:
-        - '"brevo-code:f4115d4076dac4f7b4a0f2b6158a95aa"'
         - '"v=spf1 include:spf.titan.email ~all"'
 
   Dmarc:
@@ -97,28 +96,8 @@ Resources:
       Type: TXT
       TTL: 14400
       ResourceRecords:
-        - '"v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com"'
-
-  # --- Brevo (marketing sending) DKIM ---
-  Brevo1Dkim:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: brevo1._domainkey.tiffingrab.ca
-      Type: CNAME
-      TTL: 14400
-      ResourceRecords:
-        - b1.tiffingrab-ca.dkim.brevo.com
-
-  Brevo2Dkim:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: brevo2._domainkey.tiffingrab.ca
-      Type: CNAME
-      TTL: 14400
-      ResourceRecords:
-        - b2.tiffingrab-ca.dkim.brevo.com
+        # Reports went to Brevo's collector (rua); Brevo is gone, so no report address.
+        - '"v=DMARC1; p=none"'
 
   # --- SES (app email: invites, OTP, notifications). Identity tiffingrab.ca, EasyDKIM,
   #     custom MAIL FROM mail.tiffingrab.ca (deployment/email/ses-tiffin-grab.yaml). ---

@@ -7,6 +7,7 @@
 # Exits non-zero on any difference. The website records are checked against what the
 # Route 53 zone must serve, not against Hostinger: its apex was a CDN ALIAS whose IPs
 # rotate per query. Apex A must be <wordpress-ip>; www must be a CNAME to the apex.
+# Brevo records are dropped on purpose, so those are checked against their new values.
 set -euo pipefail
 
 new="${1:?usage: $0 <route53-ns> <wordpress-ip> [old-ns]}"
@@ -14,10 +15,9 @@ wp_ip="${2:?usage: $0 <route53-ns> <wordpress-ip> [old-ns]}"
 old="${3:-ns1.dns-parking.com}"
 
 RECORDS=(
-  "tiffingrab.ca MX" "tiffingrab.ca TXT"
+  "tiffingrab.ca MX"
   "app.tiffingrab.ca A" "ftp.tiffingrab.ca A"
-  "_dmarc.tiffingrab.ca TXT" "titan1._domainkey.tiffingrab.ca TXT"
-  "brevo1._domainkey.tiffingrab.ca CNAME" "brevo2._domainkey.tiffingrab.ca CNAME"
+  "titan1._domainkey.tiffingrab.ca TXT"
   "sor35gqoewzgywsllpbzakykt3pqyajy._domainkey.tiffingrab.ca CNAME"
   "pa6mtp44zgjhl2pdp3xyyyudcs4dksvr._domainkey.tiffingrab.ca CNAME"
   "5gbh2fe32u6t5gvlgz5ctapoftrc4dyk._domainkey.tiffingrab.ca CNAME"
@@ -49,4 +49,8 @@ expect() {
 }
 expect tiffingrab.ca A "$wp_ip"
 expect www.tiffingrab.ca CNAME tiffingrab.ca
+# Brevo dropped on purpose: its verification TXT, DKIM and DMARC report address.
+expect tiffingrab.ca TXT '"v=spf1 include:spf.titan.email ~all"'
+expect _dmarc.tiffingrab.ca TXT '"v=dmarc1; p=none"'
+expect brevo1._domainkey.tiffingrab.ca CNAME ""
 exit $bad
