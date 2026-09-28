@@ -51,6 +51,7 @@ export async function getOrdersByTier() {
     .select({ tier: mealSizes.tier, n: intCount })
     .from(orders)
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .where(eq(mealSizes.custom, false))
     .groupBy(mealSizes.tier);
   return rows.map((r) => ({ tier: TIER_LABELS[r.tier] ?? r.tier, n: r.n }));
 }

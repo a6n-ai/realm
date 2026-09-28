@@ -10,7 +10,7 @@ export async function loadDiscountData() {
     getAppSettings(),
     db.select({ id: deliveryFrequencies.id, publicId: deliveryFrequencies.publicId, name: deliveryFrequencies.name }).from(deliveryFrequencies),
     db.select({ id: durationPackages.id, publicId: durationPackages.publicId, weeks: durationPackages.weeks }).from(durationPackages).orderBy(asc(durationPackages.weeks)),
-    db.select({ id: mealSizes.id, publicId: mealSizes.publicId, name: mealSizes.name }).from(mealSizes).orderBy(asc(mealSizes.name)),
+    db.select({ id: mealSizes.id, publicId: mealSizes.publicId, name: mealSizes.name, custom: mealSizes.custom }).from(mealSizes).orderBy(asc(mealSizes.name)),
     db.select({ id: deliveryStrategies.id, publicId: deliveryStrategies.publicId, name: deliveryStrategies.name, group: deliveryStrategyGroups.name })
       .from(deliveryStrategies).leftJoin(deliveryStrategyGroups, eq(deliveryStrategyGroups.id, deliveryStrategies.groupId))
       .orderBy(asc(deliveryStrategyGroups.name), asc(deliveryStrategies.name)),
@@ -39,5 +39,6 @@ export async function loadDiscountData() {
   }));
   // Same name twice under different place types (Home/Apartment "Upstairs") needs the group to tell apart.
   const strategies = strategyRows.map((s) => ({ publicId: s.publicId, name: s.group ? `${s.group} · ${s.name}` : s.name }));
-  return { freqs, durs, sizes, strategies, dtos };
+  // Unfiltered above: publicById must still resolve a discount that targets a custom size.
+  return { freqs, durs, sizes: sizes.filter((s) => !s.custom), strategies, dtos };
 }

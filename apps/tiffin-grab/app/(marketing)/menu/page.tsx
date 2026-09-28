@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { listableMealSizes } from "@/lib/catalog/types";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { Section } from "@/components/marketing/section";
 import { MealCard } from "@/components/marketing/meal-card";
@@ -30,7 +31,7 @@ export default async function MenuPage() {
         <p className="text-muted-foreground mt-3">Meal sizes across three tiers — pick what fits your appetite and macros.</p>
       </div>
       {TIERS.map((tier) => {
-        const meals = mealSizes.filter((m) => m.tier === tier.key);
+        const meals = listableMealSizes(mealSizes).filter((m) => m.tier === tier.key);
         if (meals.length === 0) return null;
         return (
           <div key={tier.key} className="space-y-4">

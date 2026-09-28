@@ -8,6 +8,7 @@ import { deliveryZones, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { listableMealSizes } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
 
@@ -63,7 +64,7 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
     zones,
     catalog: {
       plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-      mealSizes: catalog.mealSizes.map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey })),
+      mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey })),
       frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,

@@ -54,7 +54,7 @@ async function MealRulesData() {
     dishCategoriesService.enabledCategories(),
     db.select({ publicId: plans.publicId, name: plans.name }).from(plans).where(eq(plans.active, true)).orderBy(asc(plans.name)),
     db.select({ publicId: dishes.publicId, name: dishes.name }).from(dishes).orderBy(asc(dishes.name)),
-    db.select({ publicId: mealSizes.publicId, name: mealSizes.name }).from(mealSizes).orderBy(asc(mealSizes.name)),
+    db.select({ publicId: mealSizes.publicId, name: mealSizes.name }).from(mealSizes).where(eq(mealSizes.custom, false)).orderBy(asc(mealSizes.name)),
   ]);
 
   // Same generator the customer sees, so an admin previews the real sentence

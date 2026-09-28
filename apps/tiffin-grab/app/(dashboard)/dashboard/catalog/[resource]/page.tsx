@@ -140,7 +140,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       ? Promise.all([
           db.select({ id: deliveryFrequencies.id, publicId: deliveryFrequencies.publicId, name: deliveryFrequencies.name }).from(deliveryFrequencies),
           db.select({ id: durationPackages.id, publicId: durationPackages.publicId, weeks: durationPackages.weeks }).from(durationPackages).orderBy(asc(durationPackages.weeks)),
-          db.select({ publicId: mealSizes.publicId, name: mealSizes.name }).from(mealSizes).orderBy(asc(mealSizes.name)),
+          db.select({ publicId: mealSizes.publicId, name: mealSizes.name }).from(mealSizes).where(eq(mealSizes.custom, false)).orderBy(asc(mealSizes.name)),
         ])
       : Promise.resolve(null),
   ]);

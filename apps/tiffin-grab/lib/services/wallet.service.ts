@@ -139,8 +139,11 @@ async function awardMealPayoutRule(ruleId: bigint): Promise<{ matched: number; a
     matches = await db
       .select({ id: orders.id, publicId: orders.publicId, userId: orders.userId })
       .from(orders)
+      .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
       .where(and(
         eq(orders.status, "active"),
+        // Custom meals earn no meal payouts (spec 2026-09-28-custom-meal, decision 4).
+        eq(mealSizes.custom, false),
         notExists(
           db.select({ one: mealPayout.id }).from(mealPayout)
             .innerJoin(durationPackages, eq(durationPackages.id, mealPayout.durationPackageId))

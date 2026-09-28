@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { durationPackages, eventPayout, mealPayout, mealSizes } from "@/db/schema";
@@ -47,7 +47,7 @@ async function PayoutsData() {
     db
       .select({ publicId: mealSizes.publicId, name: mealSizes.name })
       .from(mealSizes)
-      .where(eq(mealSizes.active, true))
+      .where(and(eq(mealSizes.active, true), eq(mealSizes.custom, false)))
       .orderBy(asc(mealSizes.name)),
     db
       .select({ publicId: durationPackages.publicId, weeks: durationPackages.weeks })

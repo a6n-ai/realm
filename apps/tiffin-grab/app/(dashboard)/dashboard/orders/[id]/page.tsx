@@ -11,6 +11,7 @@ import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPa
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { listableMealSizes } from "@/lib/catalog/types";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
@@ -111,7 +112,8 @@ async function OrderDetail({
     ? findMethod(paymentCfg, checkoutMethodId)?.label ?? checkoutMethodId
     : null;
   const catalogSnapshot = await loadCatalogSnapshot(order.organizationId);
-  const mealSizeOptions = catalogSnapshot.mealSizes.map((m) => ({
+  const currentMealSizePublicId = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.publicId;
+  const mealSizeOptions = listableMealSizes(catalogSnapshot.mealSizes, currentMealSizePublicId).map((m) => ({
     publicId: m.publicId,
     name: m.name,
     planKey: m.planKey,

@@ -1,4 +1,4 @@
-import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/types";
+import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
 import { compareOptions, type DealComparison } from "@/lib/pricing/recommend";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import { scheduleError, type WizardSelections } from "./selections";
@@ -13,7 +13,7 @@ export const mealOffPct = (m: Pick<ClientMealSizeView, "basePrice" | "discountTy
 
 export function bundleDeal(catalog: ClientCatalogSnapshot, selections: WizardSelections): { state: "none" } | { state: "recommend" | "applied"; meal: ClientMealSizeView; pct: number } {
   let best: ClientMealSizeView | null = null;
-  for (const m of catalog.mealSizes) {
+  for (const m of listableMealSizes(catalog.mealSizes)) {
     if (m.planKey !== selections.planKey || m.trial || mealOffPct(m) <= 0) continue;
     if (!best || mealOffPct(m) > mealOffPct(best)) best = m;
   }

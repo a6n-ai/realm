@@ -1,5 +1,5 @@
 import { PlusIcon } from "lucide-react";
-import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/types";
+import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
 import { Button, OptionCard, Pill, Stepper } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
@@ -20,7 +20,7 @@ export function StepBundle({
   set: (patch: Partial<WizardSelections>) => void;
   currentPlan?: CurrentPlanSummary | null;
 }) {
-  const meals = catalog.mealSizes.filter((m) => m.planKey === selections.planKey && !m.trial);
+  const meals = listableMealSizes(catalog.mealSizes, selections.mealSizeId).filter((m) => m.planKey === selections.planKey && !m.trial);
   const selectedMeal = meals.find((m) => m.publicId === selections.mealSizeId);
 
   // Only categories an admin explicitly attached add-ons to show up — see
