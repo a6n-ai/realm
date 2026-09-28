@@ -7,11 +7,15 @@ import type { OrderWeek } from "@/lib/services/order-week.service";
 import { OrderWeekHub } from "../order-week-hub";
 
 const replace = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), replace }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), replace }),
+  useSearchParams: () => new URLSearchParams("tab=deliveries"),
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
   applyMyDeliverySwap: vi.fn(), pauseMySubscription: vi.fn(), removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
   resumeMySubscription: vi.fn(), scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
+  setMyDeliveryAddress: vi.fn(), clearMyDeliveryAddress: vi.fn(),
 }));
 afterEach(cleanup);
 
@@ -63,12 +67,12 @@ describe("PagedTable (shadcn)", () => {
 });
 
 describe("OrderWeekHub (admin, shadcn)", () => {
-  it("menu not released: only the message, no list/delivery/actions, strip stays", () => {
+  it("menu not released: notice shows, but days stay listed and movable (customer parity)", () => {
     const out = { ...data, plan: { ...data.plan, days: [{ date: "2026-09-21", menuWeekId: null, meal: null }] } } as unknown as OrderWeek;
     render(<OrderWeekHub data={out} />);
     expect(screen.getByTestId("menu-not-released")).toHaveTextContent("Menu not released yet.");
-    expect(screen.queryAllByTestId("trip-row")).toHaveLength(0);
-    expect(screen.queryByTestId("next-delivery")).toBeNull();
+    expect(screen.queryAllByTestId("trip-row").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Move to another day" })).toBeTruthy();
     expect(screen.getByTestId("week-strip")).toBeInTheDocument();
   });
   it("lists every eating day in a paginated table; a row opens its week", () => {
@@ -90,22 +94,29 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(within(screen.getByTestId("week-strip")).getByRole("button", { name: /Mon, Sep 21, eating, delivery arrives/ })).toBeInTheDocument();
     expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21, 2 tiffins (Mon + Tue)");
   });
-  it("has Move and Swap but no Hold; Move opens an eating-day picker", () => {
+  it("offers the customer's three actions (Edit meal, Move, Change address), no Swap or Hold; Move opens an eating-day picker", () => {
     render(<OrderWeekHub data={data} />);
     expect(screen.queryByRole("button", { name: /^Hold/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Move this day" }));
+    expect(screen.queryByRole("button", { name: /^Swap/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Edit meal" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Change address" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Move to another day" }));
     expect(screen.getByRole("dialog", { name: /Move Mon, Sep 21/ })).toBeInTheDocument();
   });
   it("reschedule shows all eating days in a week picker (week label + arrows); the delivery day is chosen automatically", () => {
     const d2 = { ...data, plan: { ...data.plan, ctx: { ...data.plan.ctx, deliveryWeekdays: ["mon", "tue", "wed", "thu", "fri"] } } } as unknown as OrderWeek;
+    // The shared Move sheet reads the wall clock (same as the customer's); pin it to the fixture.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(data.now);
     render(<OrderWeekHub data={d2} />);
-    fireEvent.click(screen.getByRole("button", { name: "Move this day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move to another day" }));
     const picker = within(screen.getByTestId("move-week"));
     expect(picker.getByRole("button", { name: "Next week" })).toBeInTheDocument();
-    const sat = picker.getByRole("button", { name: /Sat, Sep 26/ });
+    const sat = picker.getByRole("button", { name: /Saturday, September 26/ });
     expect(sat).not.toHaveAttribute("aria-disabled");
     fireEvent.click(sat);
-    expect(screen.getByText(/Sat, Sep 26 will arrive Fri, Sep 25 with Fri/)).toBeInTheDocument();
+    expect(screen.getByText(/Sat, Sep 26 will arrive Fri, Sep 25 with Fri|rides the Fri, Sep 25 delivery/)).toBeInTheDocument();
+    vi.useRealTimers();
   });
   it("info button explains the trip", () => {
     render(<OrderWeekHub data={data} />);
@@ -117,5 +128,13 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     render(<OrderWeekHub data={data} />);
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     expect(replace.mock.calls[0]![0]).toContain("week=2026-09-28");
+    // The open admin tab survives a week change.
+    expect(replace.mock.calls[0]![0]).toContain("tab=deliveries");
+  });
+
+  it("gives staff the customer's address action, and no vacation (customer is move-only)", () => {
+    render(<OrderWeekHub data={data} />);
+    expect(screen.getByRole("button", { name: "Change address" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /vacation|resume deliveries/i })).toBeNull();
   });
 });

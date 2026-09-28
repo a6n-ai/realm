@@ -267,7 +267,7 @@ function PaymentRow({
           )}
           {canVerify && (
             <Button size="sm" disabled={pending} onClick={verify}>
-              Verify
+              Approve payment
             </Button>
           )}
           {canReject && (
@@ -289,21 +289,30 @@ function PaymentRow({
         {payment.capturedAt != null && <MetaRow label="Verified">{fmt(payment.capturedAt)}</MetaRow>}
       </div>
 
-      {payment.proofThumbUrl && (
-        <a
-          href={payment.proofHref ?? payment.proofThumbUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-block"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={payment.proofThumbUrl}
-            alt={payment.proof?.name ?? "Payment proof"}
-            className="size-24 rounded-md border object-cover"
-          />
-        </a>
-      )}
+      {payment.proofThumbUrl ? (
+        <div className="space-y-1.5 border-t pt-3">
+          <p className="text-sm font-medium">Payment screenshot</p>
+          <a
+            href={payment.proofHref ?? payment.proofThumbUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="group inline-block"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={payment.proofThumbUrl}
+              alt={payment.proof?.name ?? "Payment proof"}
+              className="max-h-64 w-auto max-w-full rounded-md border object-contain transition-opacity group-hover:opacity-90"
+            />
+            <span className="text-primary mt-1 inline-flex items-center gap-1 text-xs underline-offset-2 group-hover:underline">
+              <ExternalLinkIcon className="size-3" aria-hidden />
+              Open full size
+            </span>
+          </a>
+        </div>
+      ) : payment.method === "etransfer" && payment.status === "pending_verification" ? (
+        <p className="text-muted-foreground border-t pt-3 text-sm">No screenshot uploaded. Match the reference against the bank deposit before approving.</p>
+      ) : null}
 
       {canClaim && claimCtx && (
         <div className="border-t pt-3" data-testid="admin-payment-claim">

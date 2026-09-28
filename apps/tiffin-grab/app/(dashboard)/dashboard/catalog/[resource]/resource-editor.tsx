@@ -18,6 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@foundry/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Switch } from "@foundry/ui/switch";
+import { findSimilarDishes } from "@/lib/menu/similar-dishes";
 import { TableCell } from "@foundry/ui/table";
 import { cn } from "@foundry/ui/cn";
 import type { SortState } from "@/lib/list/sort";
@@ -28,6 +29,8 @@ import {
 import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
 import { discountValueLabel, type DiscountDto, type DiscountKind } from "../discounts/build-rows";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
+
+type DishName = { id: string; name: string; planName: string; active: boolean };
 
 type Row = Record<string, unknown> & { publicId: string };
 type Options = Record<string, { value: string; label: string; group?: string }[]>;
@@ -562,7 +565,7 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
 }
 
 function EditorDialog({
-  resource, def, options, editing, onClose, categoriesByPlan, compositionCategories, plansByCategory,
+  resource, def, options, editing, onClose, categoriesByPlan, compositionCategories, plansByCategory, dishNames,
 }: {
   resource: string;
   def: ResourceDef;
@@ -572,6 +575,7 @@ function EditorDialog({
   categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
   compositionCategories?: CompositionCategoryOption[];
   plansByCategory?: Record<string, { value: string; label: string }[]>;
+  dishNames?: DishName[];
 }) {
   const router = useRouter();
   const isNew = editing.id === "__new__";
@@ -583,6 +587,9 @@ function EditorDialog({
   // On create, mirror `key` to slug(name) until the user unlocks it manually.
   const [keyManual, setKeyManual] = useState(false);
   const nameVal = form.watch("name");
+  const similarDishes = dishNames
+    ? findSimilarDishes(String(nameVal ?? ""), dishNames.filter((d) => d.id !== editing.id))
+    : [];
   useEffect(() => {
     if (isNew && def.keyed && !keyManual) form.setValue("key", slug(String(nameVal ?? "")));
   }, [isNew, def.keyed, keyManual, nameVal, form]);
@@ -642,6 +649,16 @@ function EditorDialog({
                   ) : null}
                   <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
                     <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} compositionCategories={compositionCategories} plansByCategory={plansByCategory} />
+                    {f.key === "name" && similarDishes.length > 0 ? (
+                      <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
+                        <p className="mb-1 font-medium">Already in the catalog. Edit that one instead?</p>
+                        <ul className="space-y-0.5">
+                          {similarDishes.map((d) => (
+                            <li key={d.id}>{d.name} <span className="text-muted-foreground">· {d.planName}{d.active ? "" : " · inactive"}</span></li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
                       <button
                         type="button"
@@ -719,7 +736,7 @@ export interface DiscountCtx {
 }
 
 export function ResourceEditor({
-  discountCtx, resource, rows, dynamicOptions, sort, spec, total, page, size, categoriesByPlan, compositionCategories, plansByCategory,
+  discountCtx, resource, rows, dynamicOptions, sort, spec, total, page, size, categoriesByPlan, compositionCategories, plansByCategory, dishNames,
 }: {
   resource: string;
   rows: Row[];
@@ -730,6 +747,8 @@ export function ResourceEditor({
   // Meal-size composition rows: category comes first, plan options scoped to it.
   compositionCategories?: CompositionCategoryOption[];
   plansByCategory?: Record<string, { value: string; label: string }[]>;
+  // Dishes: whole catalog for the duplicate-name hint.
+  dishNames?: DishName[];
   discountCtx?: DiscountCtx;
   // Same server-side facet framework the orders and inquiries lists use.
   spec: FacetDef[];
@@ -866,6 +885,7 @@ export function ResourceEditor({
           categoriesByPlan={categoriesByPlan}
           compositionCategories={compositionCategories}
           plansByCategory={plansByCategory}
+          dishNames={dishNames}
           editing={editing}
           onClose={() => setEditing(null)}
         />

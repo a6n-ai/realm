@@ -39,19 +39,19 @@ test.describe("OptimoRoute live regression (local only, hits real API)", () => {
     await expect(activeRow).toBeVisible({ timeout: 15_000 });
     const href = await activeRow.getByRole("link", { name: "QA Customer" }).getAttribute("href");
     const orderId = href!.match(/ord_[A-Za-z0-9_-]+/)![0];
-    await page.goto(`/dashboard/orders/${orderId}`);
+    await page.goto(`/dashboard/orders/${orderId}?tab=deliveries`);
 
     // --- Manual per-delivery push (order detail OptimoRoute panel) ---
     const optimoCard = page
-      .getByRole("heading", { name: "OptimoRoute" })
+      .getByRole("heading", { name: "Routing" })
       .locator("xpath=ancestor::*[contains(@class,'rounded')][1]");
     await expect(optimoCard).toBeVisible();
     const firstPushButton = optimoCard.getByRole("button", { name: "Push" }).first();
-    const firstRow = firstPushButton.locator("xpath=ancestor::div[contains(@class,'items-center')][1]");
-    const deliveryDate = (await firstRow.locator("p").first().textContent())!.trim();
+    const deliveryDate = (await firstPushButton.locator("xpath=ancestor::tr[1]").getAttribute("data-date"))!;
     expect(deliveryDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
     await firstPushButton.click();
+    await page.getByRole("tab", { name: /^Activity/ }).click();
     // Manual push logs its own activity row — proves the real create_order call fired.
     await expect(page.getByText(new RegExp(`Sent to OptimoRoute for ${deliveryDate}`)).first()).toBeVisible({
       timeout: 15_000,
@@ -74,7 +74,7 @@ test.describe("OptimoRoute live regression (local only, hits real API)", () => {
     ).toBeVisible({ timeout: 15_000 });
 
     // --- Cancel triggers auto-cleanup: verify no error, order flips to cancelled ---
-    await page.goto(`/dashboard/orders/${orderId}`);
+    await page.goto(`/dashboard/orders/${orderId}?tab=deliveries`);
     await page.getByRole("button", { name: "Cancel order" }).click();
     await page.getByRole("button", { name: "Cancel order" }).last().click();
     await expect(page.getByText("Cancelled", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
