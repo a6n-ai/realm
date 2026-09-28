@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { CheckIcon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
 import { nextWeekday } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
@@ -34,6 +35,9 @@ import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
+// Custom meals: the server derives plan and meal size from the composition.
+const customMealFormSchema = orderFormSchema.extend({ planKey: z.string(), mealSizeId: z.string() });
+
 type Catalog = {
   plans: { key: string; name: string }[];
   mealSizes: { id: string; name: string; diet: string }[];
@@ -54,6 +58,7 @@ export function OrderForm({
   onCreate,
   onCreated,
   zones,
+  hideMealSizePicker = false,
 }: {
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
@@ -65,6 +70,8 @@ export function OrderForm({
   /** Called after success dialog is shown (e.g. close parent sheet). */
   onCreated?: (result: AdminOrderCreated) => void;
   zones?: ZoneLike[];
+  /** A custom meal builder replaces the plan/meal-size pills (New Order). */
+  hideMealSizePicker?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
@@ -80,7 +87,8 @@ export function OrderForm({
     : enabledSlots.slice(0, 1).map((s) => s.key);
 
   const form = useForm<OrderFormInput, unknown, OrderFormValues>({
-    resolver: zodResolver(orderFormSchema),
+    // RHF re-reads options every render, so the resolver follows the toggle.
+    resolver: zodResolver(hideMealSizePicker ? customMealFormSchema : orderFormSchema),
     defaultValues: {
       planKey: "",
       mealSizeId: "",
@@ -180,7 +188,9 @@ export function OrderForm({
       : undefined,
   });
 
-  const subtotal = preview?.subtotal ?? 0;
+  // A catalog-size preview is meaningless once the custom builder takes over.
+  const shownPreview = hideMealSizePicker ? null : preview;
+  const subtotal = shownPreview?.subtotal ?? 0;
   const ceiling = repInfo?.available
     ? round2(Math.min((subtotal * repInfo.capPct) / 100, repInfo.capAmount))
     : 0;
@@ -192,7 +202,7 @@ export function OrderForm({
   }, []);
 
   useEffect(() => {
-    if (!mealSizeId || !planKey) return;
+    if (!mealSizeId || !planKey || hideMealSizePicker) return;
     let cancelled = false;
     const repCode = repInfo?.available ? repInfo.code : undefined;
     previewPrice(
@@ -223,7 +233,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -303,16 +313,18 @@ export function OrderForm({
                   </FormItem>
                 )}
               />
-              <div className="sm:col-span-2 grid gap-4">
-                <PlanMealPicker
-                  catalog={catalog}
-                  planKey={planKey}
-                  mealSizeId={mealSizeId}
-                  planRequired
-                  onPlanChange={(key) => form.setValue("planKey", key, { shouldDirty: true, shouldValidate: true })}
-                  onMealChange={(id) => form.setValue("mealSizeId", id, { shouldDirty: true, shouldValidate: true })}
-                />
-              </div>
+              {!hideMealSizePicker && (
+                <div className="sm:col-span-2 grid gap-4">
+                  <PlanMealPicker
+                    catalog={catalog}
+                    planKey={planKey}
+                    mealSizeId={mealSizeId}
+                    planRequired
+                    onPlanChange={(key) => form.setValue("planKey", key, { shouldDirty: true, shouldValidate: true })}
+                    onMealChange={(id) => form.setValue("mealSizeId", id, { shouldDirty: true, shouldValidate: true })}
+                  />
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="persons"
@@ -510,8 +522,8 @@ export function OrderForm({
           <div className="sticky bottom-0 -mx-4 mt-2 flex items-center justify-between gap-3 border-t bg-card/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/80">
             <div className="text-sm">
               <span className="text-muted-foreground">Total </span>
-              <span className="nums font-medium">{preview ? `$${preview.total.toFixed(2)}` : "—"}</span>
-              {preview ? <span className="text-muted-foreground nums"> · {preview.tiffinCount} tiffins</span> : null}
+              <span className="nums font-medium">{shownPreview ? `$${shownPreview.total.toFixed(2)}` : "—"}</span>
+              {shownPreview ? <span className="text-muted-foreground nums"> · {shownPreview.tiffinCount} tiffins</span> : null}
             </div>
             <div className="flex flex-col items-end gap-1">
               {missing.length > 0 && <p className="text-muted-foreground text-xs">Missing: {missing.join(", ")}</p>}

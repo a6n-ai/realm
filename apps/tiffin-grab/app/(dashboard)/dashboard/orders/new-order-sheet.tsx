@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
+import { Switch } from "@foundry/ui/switch";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { isValidPhone } from "@foundry/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
@@ -22,6 +23,9 @@ import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { OrderForm } from "../inquiries/[id]/order/order-form";
 import { interestToPrefill } from "../inquiries/_leads/interest-prefill";
 import { createOrderFlow } from "./actions";
+import {
+  CustomMealBuilder, filledItems, type CustomMealCategory, type CustomMealValue,
+} from "./custom-meal-builder";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 
@@ -68,6 +72,7 @@ export function NewOrderSheet({
   catalog,
   enabledSlots,
   zones,
+  categories,
 }: {
   trigger?: React.ReactNode;
   open?: boolean;
@@ -77,6 +82,7 @@ export function NewOrderSheet({
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
   zones: ZoneLike[];
+  categories: CustomMealCategory[];
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -89,6 +95,7 @@ export function NewOrderSheet({
   const [email, setEmail] = useState("");
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
+  const [customMeal, setCustomMeal] = useState<CustomMealValue | null>(null);
   // Keyed by the inquiry it was fetched for, so clearing the pick derives an empty
   // prefill instead of writing one synchronously in the effect below.
   const [fetchedPrefill, setFetchedPrefill] = useState<{
@@ -151,6 +158,7 @@ export function NewOrderSheet({
     if (!o) {
       setStep(1);
       setFetchedPrefill(null);
+      setCustomMeal(null);
     }
   }
 
@@ -319,6 +327,22 @@ export function NewOrderSheet({
               >
                 ← <span className="font-medium">{fullName}</span>
               </button>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="customMealToggle" className="grid gap-0.5">
+                  <span>Custom meal</span>
+                  <span className="text-muted-foreground text-xs font-normal">
+                    Build the tiffin item by item instead of picking a meal size.
+                  </span>
+                </Label>
+                <Switch
+                  id="customMealToggle"
+                  checked={customMeal != null}
+                  onCheckedChange={(on) => setCustomMeal(on ? { items: [], basePriceOverride: null } : null)}
+                />
+              </div>
+              {customMeal && (
+                <CustomMealBuilder categories={categories} value={customMeal} onChange={setCustomMeal} />
+              )}
               <OrderForm
                 inquiryId=""
                 contact={{ fullName, phone, email }}
@@ -326,13 +350,14 @@ export function NewOrderSheet({
                 enabledSlots={enabledSlots}
                 zones={zones}
                 prefill={prefill}
+                hideMealSizePicker={customMeal != null}
                 onCreate={(order: CreateOrderInput) =>
                   createOrderFlow({
                     source: { sourceKey, subSourceKey: subSourceKey || undefined },
                     contact: { fullName, phone, email: email.trim() },
                     interest: {
-                      planInterest: order.planKey,
-                      mealSizeInterest: order.selections.mealSizeId,
+                      planInterest: order.planKey || undefined,
+                      mealSizeInterest: customMeal ? undefined : order.selections.mealSizeId,
                       personsInterest: order.selections.persons,
                       frequencyKeyInterest: order.selections.frequencyKey,
                       eatingDaysInterest: order.selections.eatingDays,
@@ -341,6 +366,9 @@ export function NewOrderSheet({
                     },
                     pickedInquiryId: pickedId ?? undefined,
                     order,
+                    customMeal: customMeal
+                      ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
+                      : undefined,
                   })
                 }
                 onCreated={() => resetAndClose(false)}

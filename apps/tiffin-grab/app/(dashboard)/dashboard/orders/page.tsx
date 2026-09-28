@@ -182,17 +182,20 @@ async function NewOrderAction() {
 
   return (
     <NewOrderSheet
-      defaultCountry={defaultCountry}
-      sources={sources}
-      catalog={orderCatalog}
-      enabledSlots={enabledSlots}
-      zones={zones}
+      // Keep trigger first: RSC defers elements serialized after a row passes ~3.2KB,
+      // and the dialog's Radix Slot trigger can't slot onto a deferred (lazy) child.
       trigger={
         <Button>
           <PlusIcon className="size-4" />
           New order
         </Button>
       }
+      defaultCountry={defaultCountry}
+      sources={sources}
+      catalog={orderCatalog}
+      enabledSlots={enabledSlots}
+      zones={zones}
+      categories={slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel }))}
     />
   );
 }

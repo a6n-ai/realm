@@ -62,6 +62,7 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
             catalog={data.catalog}
             enabledSlots={data.enabledSlots}
             zones={data.zones}
+            categories={data.categories}
           />
           <AddInquirySheet
             open={which === "inquiry"}
