@@ -3,34 +3,29 @@
 
 import { dropOffSummary } from "@/lib/catalog/drop-off";
 import { ChevronLeft, ChevronRight, Info, Truck, Utensils } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";
 import { cn } from "@foundry/ui/cn";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
-import { Input } from "@foundry/ui/input";
-import { Label } from "@foundry/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import {
-  applyMyDeliverySwap,
-  removeMyDeliverySwap,
-  rescheduleMyDelivery,
-} from "@/app/(customer)/me/deliveries/actions";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { deliveryLine, eatingRowsInWeek, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { moveLockReason, moveOptions } from "@/lib/deliveries-view/move";
+import { deliveryLine, eatingRowsInWeek, isAddressRow, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
-import { applySwapsToCounts, exchangeOverride, smallestSwapNote, swapAmounts, swapLabel, swapQuantities } from "@/lib/menu/swap-rules";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { movedFact, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
+import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
+import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
+import { actionModel } from "@/components/customer/deliveries/action-model";
+import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
+import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
 
-type Dlg = "reschedule" | "swap" | "info" | null;
+type Dlg = "reschedule" | "info" | "address" | "pick" | null;
 const STATUS_TONE: Record<string, string> = {
   delivered: "bg-emerald-500", upcoming: "bg-sky-500", vacation: "bg-amber-500", hold: "bg-rose-500", combined: "bg-muted-foreground",
 };
@@ -41,6 +36,7 @@ const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ?
 export function OrderWeekHub({ data }: { data: OrderWeek }) {
   const { plan, trips, agenda, weekStart, firstWeek, lastWeek, now } = data;
   const router = useRouter();
+  const params = useSearchParams();
   const [nav, startNav] = useTransition();
   const [sel, setSel] = useState<string | null>(null);
   const [dlg, setDlg] = useState<Dlg>(null);
@@ -53,16 +49,19 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
   const trip = row?.trip ?? null;
   const av = trip ? actionAvailability(trip, now, plan.ctx) : null;
   const tz = plan.ctx.timezone;
-  const eatingSwaps = row ? plan.days.find((x) => x.date === row.trip.date)?.eatingDays?.find((e) => e.date === row.date) : undefined;
-  const leftCounts = plan.sub.categoryCounts ? applySwapsToCounts(plan.sub.categoryCounts, eatingSwaps?.appliedSwaps ?? []) : null;
-  const canSwap = (eatingSwaps?.swapPairs ?? []).some((q) => !leftCounts || (leftCounts[q.fromCategory] ?? 0) >= 1);
 
   const weekDaysOfPlan = plan.days.filter((x) => x.date >= weekStart && x.date <= weekEnd);
   const menuOut = weekDaysOfPlan.length > 0 && weekDaysOfPlan.every((x) => x.menuWeekId == null);
   const scheduleRows = Object.entries(agenda).sort(([a], [b]) => a.localeCompare(b)).flatMap(([date, ds]) => ds.map((x) => ({ date, ...x })));
-  const goWeek = (m: string, tripDate?: string) =>
-    startNav(() => router.replace(`?week=${m}${tripDate ? `&trip=${tripDate}` : ""}`, { scroll: false }));
-  const refresh = (msg: string) => (toast.success(msg), setDlg(null), router.refresh());
+  // Keep ?tab (and anything else) so a week change never drops the admin back on Overview.
+  const goWeek = (m: string, tripDate?: string) => {
+    const sp = new URLSearchParams(params.toString());
+    sp.set("week", m);
+    if (tripDate) sp.set("trip", tripDate);
+    else sp.delete("trip");
+    startNav(() => router.replace(`?${sp.toString()}`, { scroll: false }));
+  };
+  const done = (msg?: string) => (msg ? (toast.success(msg), setDlg(null), router.refresh()) : setDlg(null));
   const weeks: string[] = [];
   for (let w = firstWeek; w <= lastWeek; w = addDays(w, 7)) weeks.push(w);
   const nextTruck = Object.values(agenda).flat().filter((x) => x.truck && x.status === "scheduled" && x.deliveryDate >= plan.today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
@@ -77,7 +76,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
         </span>
       </div>
 
-      {nextTruck && !menuOut && (
+      {nextTruck && (
         <Card className="py-3">
           <CardContent className="flex items-center gap-2 text-sm">
             <Truck className="size-4" aria-hidden />
@@ -128,9 +127,10 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
         <Button variant="ghost" size="icon" aria-label="Next week" disabled={weekStart >= lastWeek} onClick={() => goWeek(addDays(weekStart, 7))}><ChevronRight /></Button>
       </div>
 
-      {menuOut ? (
-        <Card data-testid="menu-not-released"><CardContent className="space-y-1 py-6"><p className="font-medium">Menu not released yet.</p><p className="text-muted-foreground text-sm">Meals for this week appear once the menu is out.</p></CardContent></Card>
-      ) : rows.length === 0 ? (
+      {menuOut && (
+        <Card data-testid="menu-not-released" className="py-3"><CardContent className="space-y-0.5"><p className="text-sm font-medium">Menu not released yet.</p><p className="text-muted-foreground text-sm">Dish picks and swaps open once the kitchen releases this week&apos;s menu. Days can still be moved or re-addressed.</p></CardContent></Card>
+      )}
+      {rows.length === 0 ? (
         <Card><CardContent className="text-muted-foreground py-6 text-sm">No eating days this week.</CardContent></Card>
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
@@ -144,7 +144,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                     <Utensils aria-hidden className="text-muted-foreground size-4 shrink-0" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium">{humanDate(r.date)}</span>
-                      <span className="text-muted-foreground block truncate text-xs">{r.movedTo ? `Moved to ${humanDate(r.movedTo)}` : r.dish ?? "Default menu"}</span>
+                      <span className="text-muted-foreground block truncate text-xs">{r.movedTo ? `Moved to ${humanDate(r.movedTo)}` : menuOut ? "Menu not released yet" : r.dish ?? "Default menu"}</span>
                     </span>
                     <Badge variant="outline">{m.label}</Badge>
                   </button>
@@ -164,16 +164,16 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {row.movedTo ? <p className="text-muted-foreground text-sm">{movedFact(row)}</p> : <>
+                {row.movedTo ? <p className="text-muted-foreground text-sm">{movedFact(row)}</p> : (
                 <p className="text-muted-foreground text-sm">
                   {tiffins(trip.units)} covering {trip.coversDates.map(weekdayShort).join(" + ")}
                   {movedInNote(row) && ` · ${movedInNote(row)}`}
                   {trip.status === "upcoming" && ` · changes close ${formatCutoff(trip.cutoffAt, tz)}`}
                   {!row.own && trip.status === "upcoming" && ` · ${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery`}
                 </p>
-                <Actions av={av} canSwap={canSwap} onOpen={setDlg} />
-                </>}
-                <p className="text-muted-foreground text-xs">Meal picks for the week are in &quot;This week&apos;s meals&quot; below.</p>
+                )}
+                {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
+                <Actions model={actionModel(trip, now, plan.ctx, { menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, isDeliveryDay: isAddressRow(rows, row), movedTo: row.movedTo })} onOpen={setDlg} />
               </CardContent>
             </Card>
           )}
@@ -205,23 +205,38 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
       </Card>
 
       {dlg === "info" && row && <InfoDialog row={row} plan={plan} tz={tz} onClose={() => setDlg(null)} />}
-      {dlg === "reschedule" && trip && <RescheduleDialog trip={trip} day={row?.date} data={data} onClose={() => setDlg(null)} onDone={refresh} />}
-      {dlg === "swap" && row && <SwapDialog row={row} data={data} onClose={() => setDlg(null)} onDone={refresh} />}
+      {/* The customer's own sheets, drawn in shadcn: one implementation of every rule. */}
+      {dlg === "reschedule" && trip && <MoveSheet open trip={trip} plan={plan} day={row?.date} onDone={done} ui={ADMIN_SHEET_UI} />}
+      {dlg === "address" && trip && <AddressSheet open trip={trip} plan={plan} onDone={done} ui={ADMIN_SHEET_UI} />}
+      {dlg === "pick" && row && trip && (
+        <PickSheet
+          open
+          trip={trip}
+          plan={plan}
+          day={row.date}
+          onDone={done}
+          onChanged={(m) => (toast.success(m), router.refresh())}
+          ui={ADMIN_SHEET_UI}
+        />
+      )}
     </div>
   );
 }
 
-function Actions({ av, canSwap, onOpen }: { av: ReturnType<typeof actionAvailability>; canSwap: boolean; onOpen: (d: Dlg) => void }) {
-  const items: { key: TripAction; label: string; run: () => void }[] = [
-    ...(canSwap ? [{ key: "swap" as const, label: "Swap items", run: () => onOpen("swap") }] : []),
-    { key: "move", label: "Move this day", run: () => onOpen("reschedule") },
-  ];
+const OPENS: Record<TripAction, Dlg> = { pick: "pick", move: "reschedule", address: "address", swap: "pick" };
+
+function Actions({ model, onOpen }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void }) {
+  if (model.rows.length === 0) return model.closedReason ? <p className="text-muted-foreground text-sm">{model.closedReason}</p> : null;
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
-        {items.map((i) => <Button key={i.key} variant="outline" size="sm" disabled={!av[i.key].ok} onClick={i.run}>{i.label}</Button>)}
+        {model.rows.map((r) => (
+          <Button key={r.key} variant={r.key === model.primary ? "default" : "outline"} size="sm" disabled={!r.av.ok} onClick={() => onOpen(OPENS[r.key])}>
+            {r.label}
+          </Button>
+        ))}
       </div>
-      {items.filter((i) => !av[i.key].ok).map((i) => <p key={i.key} className="text-muted-foreground text-xs">{i.label}: {av[i.key].why}</p>)}
+      {model.rows.filter((r) => !r.av.ok).map((r) => <p key={r.key} className="text-muted-foreground text-xs">{r.label}: {r.av.why}</p>)}
     </div>
   );
 }
@@ -276,144 +291,6 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
   );
 }
 
-type Res = { ok: true; message?: string } | { error: string };
-function useRun(onDone: (m: string) => void) {
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const run = async (fn: () => Promise<Res>, ok: string) => {
-    setPending(true); setError(null);
-    try { const r = await fn(); "error" in r ? setError(r.error) : onDone(ok); } catch { setError("Couldn't reach the server."); } finally { setPending(false); }
-  };
-  return { pending, error, run };
-}
-const Err = ({ e }: { e: string | null }) => (e ? <p role="alert" className="text-destructive text-sm">{e}</p> : null);
 
-function RescheduleDialog({ trip, day: sourceDate, data, onClose, onDone }: { trip: Trip; day?: string; data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
-  const { plan, now } = data;
-  const source = sourceDate ?? trip.date;
-  const split = trip.coversDates.length + (trip.extraDates?.length ?? 0) > 1;
-  const lock = moveLockReason(trip, source);
-  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today, undefined, source), [trip, plan, now, source]);
-  const byDate = useMemo(() => new Map(options.map((o) => [o.date, o])), [options]);
-  const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason; };
-  const first = options[0]?.date ?? plan.today;
-  const last = options[options.length - 1]?.date ?? plan.today;
-  const [week, setWeek] = useState(mondayOf(first));
-  const [date, setDate] = useState("");
-  const [note, setNote] = useState<string | null>(null);
-  const { pending, error, run } = useRun(onDone);
-  const days = weekDays(week);
-  return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Move {humanDate(source)}</DialogTitle><DialogDescription>Pick the day the customer wants to eat. The delivery day is chosen automatically from the plan (truck marks delivery days).{split && " Other days stay on this trip."} It becomes the picked day's tiffin, with that day's menu.</DialogDescription></DialogHeader>
-        {lock && <p role="alert" className="text-destructive text-sm">{lock}</p>}
 
-        <div className="rounded-md border p-2" data-testid="move-week">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="text-muted-foreground px-1 text-xs font-semibold uppercase tracking-wider">{MON.format(d(week))} {d(week).getUTCDate()} – {MON.format(d(addDays(week, 6)))} {d(addDays(week, 6)).getUTCDate()}</span>
-            <span className="flex">
-              <Button variant="ghost" size="icon" aria-label="Previous week" disabled={week <= mondayOf(first)} onClick={() => setWeek(addDays(week, -7))}><ChevronLeft /></Button>
-              <Button variant="ghost" size="icon" aria-label="Next week" disabled={week >= mondayOf(last)} onClick={() => setWeek(addDays(week, 7))}><ChevronRight /></Button>
-            </span>
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {days.map((iso) => {
-              const ok = pickable(iso);
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  aria-pressed={iso === date}
-                  aria-disabled={!ok || undefined}
-                  aria-label={`${humanDate(iso)}${byDate.get(iso)?.carriedOn === iso ? ", delivery day" : ""}${ok ? "" : ", unavailable"}`}
-                  onClick={() => (ok ? (setDate(iso), setNote(null)) : setNote(byDate.get(iso)?.disabledReason ?? "That day isn't available."))}
-                  className={cn("flex h-16 flex-col items-center justify-center gap-1 rounded-md border text-xs", iso === date ? "border-primary bg-primary/10 font-semibold" : "border-transparent", ok ? "hover:bg-muted" : "opacity-40")}
-                >
-                  <span className="text-muted-foreground">{weekdayShort(iso)[0]}</span>
-                  <b className="text-sm tabular-nums">{d(iso).getUTCDate()}</b>
-                  <span className="flex h-3 items-center gap-0.5">{ok && <Utensils aria-hidden className="text-muted-foreground size-3" />}{byDate.get(iso)?.carriedOn === iso && ok && <Truck aria-hidden className="text-muted-foreground size-3" />}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        {note && <p className="text-muted-foreground text-sm">{note}</p>}
-        {date && byDate.get(date) && byDate.get(date)!.carriedOn !== date && !byDate.get(date)!.merge && <p className="text-muted-foreground text-sm">{humanDate(date)} will arrive {humanDate(byDate.get(date)!.carriedOn)} with {weekdayShort(byDate.get(date)!.carriedOn)}.</p>}
-        {date && byDate.get(date)?.merge && <p className="text-muted-foreground text-sm">{humanDate(date)} already has a delivery: it rides that truck, {tiffins(byDate.get(date)!.merge!.units)} in all.</p>}
-        <Err e={error} />
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={!date || pending || !!lock} onClick={() => run(() => rescheduleMyDelivery(trip.deliveryId!, date, source), `Moved ${humanDate(source)} to ${humanDate(date)}.`)}>{pending ? "Saving…" : date ? `Move to ${humanDate(date)}` : "Move trip"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function SwapDialog({ row, data, onClose, onDone }: { row: EatingRow; data: OrderWeek; onClose: () => void; onDone: (m: string) => void }) {
-  const { plan } = data;
-  const trip = row.trip;
-  const label = (k: string) => plan.categoryLabels[k] ?? k;
-  const eating = plan.days.find((x) => x.date === trip.date)?.eatingDays?.find((e) => e.date === row.date);
-  const applied = eating?.appliedSwaps ?? [];
-  const left = plan.sub.categoryCounts ? applySwapsToCounts(plan.sub.categoryCounts, applied) : null;
-  const pairs = [...new Map((eating?.swapPairs ?? []).map((p) => [`${p.fromCategory}>${p.toCategory}`, p])).values()].filter((p) => !left || (left[p.fromCategory] ?? 0) >= 1);
-  const [pair, setPair] = useState("");
-  const [qty, setQty] = useState(1);
-  const chosen = pairs.find((p) => `${p.fromCategory}>${p.toCategory}` === pair);
-  const from = chosen ? plan.swapCategories[chosen.fromCategory] : undefined;
-  const to = chosen ? plan.swapCategories[chosen.toCategory] : undefined;
-  const r = from && to ? swapQuantities(from, to, qty) : null;
-  // Preview only (the server sizes the swap): an override line for the leading portion buys one pick of its size each.
-  const overrideTu = qty === 1 && from?.pickTu != null ? exchangeOverride(chosen?.exchangeOverrides, from.pickTu) : null;
-  const amounts = chosen && r?.ok ? swapAmounts(from, to, qty, overrideTu != null ? qty : r.qtyTo, overrideTu) : null;
-  const { pending, error, run } = useRun(onDone);
-  return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Swap items · {humanDate(row.date)}</DialogTitle><DialogDescription>Swaps apply to this eating day only.</DialogDescription></DialogHeader>
-        {applied.length > 0 && (
-          <ul className="space-y-1 text-sm">
-            {applied.map((s) => (
-              <li key={s.publicId} className="flex items-center justify-between gap-2">
-                <Badge variant="secondary">{swapLabel(s, label, plan.swapCategories)}</Badge>
-                <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => removeMyDeliverySwap(trip.deliveryId!, s.publicId, row.date), "Swap removed.")}>Remove</Button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {pairs.length === 0 ? <p className="text-muted-foreground text-sm">No swaps are available for this meal size.</p> : (
-          <div className="space-y-3">
-            <div className="space-y-2" role="group" aria-label="Swap options">
-              {pairs.map((p) => {
-                const k = `${p.fromCategory}>${p.toCategory}`;
-                return (
-                  <button key={k} type="button" aria-pressed={k === pair} onClick={() => (setPair(k), setQty(1))} className={cn("flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left text-sm", k === pair ? "border-primary bg-primary/10" : "hover:bg-muted")}>
-                    <span className="font-medium">{label(p.fromCategory)} → {label(p.toCategory)}</span>
-                    <span className="text-muted-foreground text-xs">{smallestSwapNote(plan.swapCategories[p.fromCategory], plan.swapCategories[p.toCategory])}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {chosen && (
-              <div className="space-y-1">
-                <Label htmlFor="swap-picks">{label(chosen.fromCategory)} picks to give up</Label>
-                <Input id="swap-picks" type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
-                <p className="text-muted-foreground text-sm">
-                  {r && !r.ok ? r.reason : amounts ? <>Give up <b>{label(chosen.fromCategory)} · {amounts.give}</b>, get <b>{label(chosen.toCategory)} · {amounts.get}</b>.</> : r?.ok ? `Give up ${qty} ${label(chosen.fromCategory)}, get ${r.qtyTo} ${label(chosen.toCategory)}.` : ""}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-        <Err e={error} />
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button disabled={!chosen || !r?.ok || pending} onClick={() => run(() => applyMyDeliverySwap(trip.deliveryId!, chosen!.fromCategory, chosen!.toCategory, qty, row.date), `Swap applied to ${humanDate(row.date)}.`)}>Apply swap</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 

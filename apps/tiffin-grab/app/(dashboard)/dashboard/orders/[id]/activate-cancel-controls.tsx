@@ -8,7 +8,7 @@ import { Input } from "@foundry/ui/input";
 import { ResponsiveDialog } from "@/components/ds";
 import { activate, cancel, startMigrated } from "./actions";
 
-/** Compact staff-only activate / cancel — vacation/skip live in the shared Deliveries calendar. */
+/** Compact staff-only activate / cancel. Per-day changes (move, swap, address) live in the Deliveries tab. */
 export function ActivateCancelControls({ orderId, status, migrated = false }: { orderId: string; status: string; migrated?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();

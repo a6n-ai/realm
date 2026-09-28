@@ -2,19 +2,19 @@
 import { Truck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
-import { Button, Notice, Reason, Sheet } from "@/components/customer/kit";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import { weekdayShort } from "@/lib/deliveries-view/eating";
 import { mondayOf } from "@/lib/deliveries-view/week";
-import { WeekStrip } from "../week-strip";
 import { moveLockReason, moveOptions } from "@/lib/deliveries-view/move";
 import { formatCoversLabel } from "@/lib/menu/coverage";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
+import { useSheetUi } from "./sheet-ui";
 
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
-export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionSheetProps) {
+export function MoveSheet({ trip, plan, day: sourceDate, open, onDone, ui }: ActionSheetProps) {
+  const { Shell, PrimaryButton, Notice, Reason, WeekStrip } = useSheetUi(ui);
   const [now] = useState(() => Date.now());
   // Which eating day is moving: the one the customer selected, or the trip's own date if none was passed.
   const source = sourceDate ?? trip.date;
@@ -44,19 +44,17 @@ export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionS
   };
 
   const footer = (
-    <Button
-      variant="primary"
-      size="lg"
+    <PrimaryButton
       pending={pending}
       disabledReason={!av.ok ? (av.why ?? undefined) : !chosen ? "Choose a day to continue." : undefined}
       onClick={confirm}
     >
       {chosen ? `Move to ${humanDate(chosen.date)}` : "Move trip"}
-    </Button>
+    </PrimaryButton>
   );
 
   return (
-    <Sheet open={open} onClose={() => onDone()} title={`Move ${day}`} footer={footer}>
+    <Shell open={open} onClose={() => onDone()} title={`Move ${day}`} footer={footer}>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 pb-2">
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>
@@ -95,6 +93,6 @@ export function MoveSheet({ trip, plan, day: sourceDate, open, onDone }: ActionS
           )}
           {error && <Notice tone="error">{error}</Notice>}
         </div>
-      </Sheet>
+      </Shell>
   );
 }

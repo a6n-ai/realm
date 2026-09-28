@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
+import { humanDate } from "@/lib/deliveries-view";
 import { pushDeliveryToOptimoAction, removeDeliveryFromOptimoAction } from "./actions";
 
 export type OptimoRouteRow = {
@@ -36,38 +39,49 @@ export function OptimoRoutePanel({ orderId, rows }: { orderId: string; rows: Opt
   }
 
   return (
-    <div className="space-y-2">
-      {rows.map((row) => (
-        <div key={row.publicId} className="flex items-center justify-between gap-3 border-b py-2 last:border-0">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">{row.deliveryDate}</p>
-            <p className="text-muted-foreground text-xs">
-              {row.routeDriverName ?? (row.routeSyncedAt ? "Synced, unassigned" : "Not synced")}
-            </p>
-            {errorFor === row.publicId ? (
-              <p className="text-destructive text-xs">Action failed — try again.</p>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pending}
-              onClick={() => run((id, date) => pushDeliveryToOptimoAction(orderId, id, date), row)}
-            >
-              Push
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pending || row.routeSyncedAt == null}
-              onClick={() => run((id, date) => removeDeliveryFromOptimoAction(orderId, id, date), row)}
-            >
-              Remove
-            </Button>
-          </div>
-        </div>
-      ))}
+    <div className="overflow-x-auto rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Delivery</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Route</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.publicId} data-date={row.deliveryDate}>
+              <TableCell className="font-medium whitespace-nowrap">{humanDate(row.deliveryDate)}</TableCell>
+              <TableCell><Badge variant="outline" className="capitalize">{row.status}</Badge></TableCell>
+              <TableCell className="text-muted-foreground">
+                {row.routeDriverName ?? (row.routeSyncedAt ? "Synced, unassigned" : "Not synced")}
+                {errorFor === row.publicId ? <span className="text-destructive block text-xs">Action failed. Try again.</span> : null}
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="inline-flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => run((id, date) => pushDeliveryToOptimoAction(orderId, id, date), row)}
+                  >
+                    Push
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending || row.routeSyncedAt == null}
+                    onClick={() => run((id, date) => removeDeliveryFromOptimoAction(orderId, id, date), row)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
