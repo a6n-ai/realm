@@ -14,7 +14,7 @@ export class OrderDetailPage {
   }
 
   /** Tabs mount their panel only while selected, so open the tab before reading it. */
-  async openTab(name: "Overview" | "Deliveries" | "Meals" | "Payments" | "Activity") {
+  async openTab(name: "Overview" | "Deliveries" | "Payments" | "Activity") {
     await this.page.getByRole("tab", { name: new RegExp(`^${name}`) }).click();
   }
 
@@ -31,7 +31,7 @@ export class OrderDetailPage {
   }
 
   async expectRevampLayout() {
-    for (const tab of ["Overview", "Deliveries", "Meals", "Payments", "Activity"]) {
+    for (const tab of ["Overview", "Deliveries", "Payments", "Activity"]) {
       await expect(this.page.getByRole("tab", { name: new RegExp(`^${tab}`) })).toBeVisible();
     }
     await expect(this.section("Plan & schedule")).toBeVisible();
@@ -40,8 +40,7 @@ export class OrderDetailPage {
     await this.openTab("Deliveries");
     await expect(this.section("Deliveries")).toBeVisible();
     await expect(this.section("Routing")).toBeVisible();
-    await this.openTab("Meals");
-    await expect(this.section(/^Meals/)).toBeVisible();
+    await expect(this.page.getByRole("tab", { name: /^Meals/ })).toHaveCount(0);
     await this.openTab("Payments");
     await expect(this.section("Payments")).toBeVisible();
     await this.openTab("Activity");

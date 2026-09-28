@@ -4,13 +4,12 @@ import type { ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ds";
 
-export const ORDER_TABS = ["overview", "deliveries", "meals", "payments", "activity"] as const;
+export const ORDER_TABS = ["overview", "deliveries", "payments", "activity"] as const;
 export type OrderTab = (typeof ORDER_TABS)[number];
 
 const LABEL: Record<OrderTab, string> = {
   overview: "Overview",
   deliveries: "Deliveries",
-  meals: "Meals",
   payments: "Payments",
   activity: "Activity",
 };

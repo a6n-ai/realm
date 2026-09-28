@@ -28,7 +28,7 @@ import { ActivateCancelControls } from "./activate-cancel-controls";
 import { ChangePlanControl } from "./change-plan-control";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
-import { DeliveriesSection, MealsSection, loadSubscription } from "@/components/dashboard/subscription-panel";
+import { DeliveriesSection, loadSubscription } from "@/components/dashboard/subscription-panel";
 
 // The full record for ONE order: what it is, what it costs, whether it is paid, and every
 // change the customer can make on it (move, swap, address, meal picks) through
@@ -129,7 +129,7 @@ async function OrderDetail({
         if (ctx) claimContexts[p.publicId] = ctx;
       }),
   );
-  const sub = await loadSubscription(order, settings, week);
+  const sub = await loadSubscription(order, week);
 
   const counts = sub.week?.plan.counts ?? null;
   const next = deliveryRows
@@ -214,7 +214,6 @@ async function OrderDetail({
               </SectionCard>
             </>
           ),
-          meals: <MealsSection data={sub} />,
           payments: (
             <SectionCard title="Payments" subtitle="Verify or reject claims, and share the pay link with the customer.">
               <PaymentsPanel

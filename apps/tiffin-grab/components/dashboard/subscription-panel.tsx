@@ -3,31 +3,25 @@ import type { OrderDetail } from "@/lib/services/orders.service";
 import { loadOrderWeek, type OrderWeek } from "@/lib/services/order-week.service";
 import { OrderWeekHub } from "@/components/dashboard/order-week/order-week-hub";
 import type { Subscription } from "@/lib/services/customer-deliveries.service";
-import { buildMealsGrid } from "@/lib/menu/meals-grid";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
-import { humanDate } from "@/lib/deliveries-view";
 import { db } from "@/db/client";
 import { plans } from "@/db/schema";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { SectionCard, SkeletonCardGrid } from "@/components/ds";
-import { MealsGrid } from "@/app/(dashboard)/dashboard/meals/meals-grid";
+import { SectionCard } from "@/components/ds";
 
 /**
- * What staff can change on ONE subscription: the delivery calendar (move, swap, address) and meal picks for the selected week. The host page loads once with
- * loadSubscription and mounts the two sections in whatever layout it wants; both read the
- * same ?week= so the Deliveries and Meals tabs always show the same week.
+ * What staff can change on ONE subscription: the delivery calendar, where each day offers the
+ * customer's own actions (Edit meal, Move, Change address). The host page loads once with
+ * loadSubscription and mounts DeliveriesSection wherever it wants.
  */
 export type SubscriptionData = {
   order: OrderDetail;
   paymentReview: boolean;
   week: OrderWeek | null;
-  grid: Awaited<ReturnType<typeof buildMealsGrid>> | null;
-  timezone: string;
 };
 
 export async function loadSubscription(
   order: OrderDetail,
-  settings: { timezone: string; cutoffHour: number },
   weekParam: string | undefined,
 ): Promise<SubscriptionData> {
   const planRow = await db
@@ -73,26 +67,8 @@ export async function loadSubscription(
     !paymentReview && subscription && order.userId != null
       ? await loadOrderWeek(order.userId, subscription, weekParam)
       : null;
-  // Meals follow the week the calendar resolved (clamped to the plan's window).
-  const grid = !paymentReview
-    ? await buildMealsGrid(
-        {
-          id: order.id,
-          publicId: order.publicId,
-          planId: order.planId,
-          mealSizeId: order.mealSizeId,
-          persons: order.persons,
-          categoryCounts,
-          mealSlots: order.mealSlots,
-          startDate: order.startDate,
-          durationWeeks: order.durationWeeks,
-        },
-        settings,
-        week?.weekStart,
-      )
-    : null;
 
-  return { order, paymentReview, week, grid, timezone: settings.timezone };
+  return { order, paymentReview, week };
 }
 
 export function DeliveriesSection({ data }: { data: SubscriptionData }) {
@@ -115,35 +91,6 @@ export function DeliveriesSection({ data }: { data: SubscriptionData }) {
   );
 }
 
-export function MealsSection({ data }: { data: SubscriptionData }) {
-  const { order, paymentReview, grid, timezone } = data;
-  const weekOf = grid?.empty === null ? grid.weekDatesView[0]?.weekStartIso : undefined;
-  const title = weekOf ? `Meals · week of ${humanDate(weekOf)}` : "Meals";
-  return (
-    <SectionCard title={title} subtitle="Change a day's dish picks. The week follows the one selected on the Deliveries tab.">
-      {paymentReview ? (
-        <p className="text-muted-foreground text-sm">Meal picks unlock after payment is confirmed.</p>
-      ) : order.status === "cancelled" ? (
-        <p className="text-muted-foreground text-sm">This order is cancelled, so meal selections are closed.</p>
-      ) : grid == null ? null : grid.empty === "no-week" ? (
-        <p className="text-muted-foreground text-sm">The menu for this week hasn&apos;t been published yet.</p>
-      ) : grid.empty === "no-dates" ? (
-        <p className="text-muted-foreground text-sm">No deliveries are scheduled for this week on this order.</p>
-      ) : grid.empty === null ? (
-        <MealsGrid
-          orderId={order.publicId}
-          menuWeekId={grid.releasedWeek.publicId}
-          grid={grid.grid}
-          persons={grid.persons}
-          weekDates={grid.weekDatesView}
-          categories={grid.categories}
-          timezone={timezone}
-        />
-      ) : null}
-    </SectionCard>
-  );
-}
-
 export function DeliveriesSectionSkeleton() {
   return (
     <SectionCard title="Deliveries">
@@ -152,14 +99,6 @@ export function DeliveriesSectionSkeleton() {
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
-    </SectionCard>
-  );
-}
-
-export function MealsSectionSkeleton() {
-  return (
-    <SectionCard title="Meals">
-      <SkeletonCardGrid count={6} />
     </SectionCard>
   );
 }
