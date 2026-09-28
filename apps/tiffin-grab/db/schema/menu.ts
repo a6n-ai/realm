@@ -217,3 +217,22 @@ export const mealSelections = pgTable(
     index("meal_selections_dish_idx").on(t.dishId),
   ],
 );
+
+// Per-TU price of one category on one plan (diet) inside a custom meal. A row
+// existing and active = that category × diet may be put in a custom meal.
+export const customMealPricing = pgTable(
+  "custom_meal_pricing",
+  {
+    ...updatableColumns("cmp"),
+    categoryId: bigint("category_id", { mode: "bigint" })
+      .notNull()
+      .references(() => dishCategories.id, { onDelete: "cascade" }),
+    planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id, { onDelete: "cascade" }),
+    pricePerTu: numeric("price_per_tu", { precision: 10, scale: 2 }).notNull(),
+    // Cap on this category × plan's TU total per tiffin. Null = uncapped.
+    maxTu: numeric("max_tu", { precision: 6, scale: 2 }),
+    active: boolean("active").notNull().default(true),
+    organizationId: text("organization_id").references(() => organization.id),
+  },
+  (t) => [uniqueIndex("custom_meal_pricing_category_plan_unique").on(t.categoryId, t.planId)],
+);

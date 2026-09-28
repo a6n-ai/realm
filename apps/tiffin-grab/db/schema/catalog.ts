@@ -1,5 +1,6 @@
 import { updatableColumns } from "@foundry/database";
 import type { FileDetail } from "@foundry/storage/model";
+import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization } from "./organizations";
 
@@ -67,9 +68,18 @@ export const mealSizes = pgTable("meal_sizes", {
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
   trial: boolean("trial").notNull().default(false),
   active: boolean("active").notNull().default(true),
+  // Hidden per-composition size staff build for a customer (spec 2026-09-28-custom-meal).
+  // Never listed in the wizard; priced live from custom_meal_pricing by the catalog loader.
+  custom: boolean("custom").notNull().default(false),
+  // Canonical "<category>:<planKey>:<tu>|..." (lib/custom-meal/composition.ts) so one
+  // composition is one row, shared by every customer on it.
+  compositionKey: text("composition_key"),
   // Client-scoping — see dishes.organizationId for the pattern.
   organizationId: text("organization_id").references(() => organization.id),
-}, (t) => [index("meal_sizes_plan_idx").on(t.planId)]);
+}, (t) => [
+  index("meal_sizes_plan_idx").on(t.planId),
+  uniqueIndex("meal_sizes_composition_key_unique").on(t.compositionKey).where(sql`${t.custom}`),
+]);
 
 export const mealSizeItems = pgTable("meal_size_items", {
   ...updatableColumns("msi"),
