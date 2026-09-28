@@ -515,6 +515,8 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             discountType: "none",
             discountValue: 0,
             trial: Boolean(values.trial),
+            custom: false,
+            priceable: true,
           }}
         />
       </div>

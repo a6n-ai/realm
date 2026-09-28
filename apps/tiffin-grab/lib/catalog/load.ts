@@ -2,7 +2,10 @@ import { and, eq, isNull, lte, gte, or, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
+import { ValidationError } from "@foundry/commons";
 import { mealSizeDiscountFor } from "@/lib/pricing/meal-size-discount";
+import { computeCustomPerTiffin } from "@/lib/custom-meal/pricing";
+import { loadPricingRows } from "@/lib/custom-meal/pricing-rows";
 import {
   addressTags,
   deliveryChargeConfigs,
@@ -67,6 +70,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     tagRows,
     groupRows,
     connectionRows,
+    pricingRows,
   ] = await Promise.all([
     db.select().from(plans).where(and(eq(plans.active, true), scopedTo(plans.organizationId, orgId))),
     db.select().from(mealSizes).where(and(eq(mealSizes.active, true), scopedTo(mealSizes.organizationId, orgId))),
@@ -86,6 +90,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     db.select().from(addressTags).where(and(eq(addressTags.active, true), scopedTo(addressTags.organizationId, orgId))).orderBy(addressTags.sortOrder, addressTags.name),
     db.select().from(deliveryStrategyGroups).where(and(eq(deliveryStrategyGroups.active, true), scopedTo(deliveryStrategyGroups.organizationId, orgId))).orderBy(deliveryStrategyGroups.sortOrder, deliveryStrategyGroups.name),
     db.select().from(deliveryStrategyConnections).where(scopedTo(deliveryStrategyConnections.organizationId, orgId)).orderBy(deliveryStrategyConnections.sortOrder, deliveryStrategyConnections.name),
+    loadPricingRows(),
   ]);
   // A strategy is offered only under an active tag; untagged (pre-tag) rows are not.
   const groupPublicIdById = new Map(groupRows.map((g) => [g.id, g.publicId]));
@@ -117,24 +122,45 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     if (bucket) bucket.push(item);
     else itemsByMealSize.set(item.mealSizeId, [item]);
   }
+  const activePricing = pricingRows.filter((r) => r.active);
+  // Custom sizes are priced live per TU, so a pricing change reaches renewals
+  // without rewriting the shared meal_sizes row.
+  const customPrice = (m: (typeof mealRows)[number], items: typeof itemRows) => {
+    if (!m.custom) return { basePrice: Number(m.basePrice), priceable: true };
+    try {
+      const basePrice = computeCustomPerTiffin(
+        items.map((i) => ({ category: i.category, planKey: planKeyById.get(i.planId) ?? "", tuAmount: Number(i.tuAmount) })),
+        activePricing,
+      );
+      return { basePrice, priceable: true };
+    } catch (err) {
+      if (err instanceof ValidationError) return { basePrice: Number(m.basePrice), priceable: false };
+      throw err;
+    }
+  };
   return {
     plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: slotKeys[p.planType as "tiffin" | "healthy"], allowedStartDays: p.allowedStartDays })),
-    mealSizes: mealRows.map((m) => ({
-      id: m.id, publicId: m.publicId, key: m.key, name: m.name, description: m.description, planId: m.planId, planKey: planKeyById.get(m.planId)!, tier: m.tier, components: m.components,
-      items: (itemsByMealSize.get(m.id) ?? []).map((i) => {
-        const tuAmount = Number(i.tuAmount);
-        const cat = tuByCategory.get(i.category) ?? null;
-        return {
-          name: i.name, category: i.category, tuAmount,
-          maxTuAmount: i.maxTuAmount == null ? null : Number(i.maxTuAmount),
-          portion: cat == null ? null : formatTuHuman(cat, tuAmount),
-        };
-      }),
-      kcalMin: m.kcalMin, kcalMax: m.kcalMax, proteinG: m.proteinG, carbsG: m.carbsG, fatG: m.fatG,
-      basePrice: Number(m.basePrice),
-      ...mealSizeDiscountFor(m.id, Number(m.basePrice), mealSizeDiscountRows),
-      trial: m.trial,
-    })),
+    mealSizes: mealRows.map((m) => {
+      const priced = customPrice(m, itemsByMealSize.get(m.id) ?? []);
+      return {
+        id: m.id, publicId: m.publicId, key: m.key, name: m.name, description: m.description, planId: m.planId, planKey: planKeyById.get(m.planId)!, tier: m.tier, components: m.components,
+        items: (itemsByMealSize.get(m.id) ?? []).map((i) => {
+          const tuAmount = Number(i.tuAmount);
+          const cat = tuByCategory.get(i.category) ?? null;
+          return {
+            name: i.name, category: i.category, tuAmount,
+            maxTuAmount: i.maxTuAmount == null ? null : Number(i.maxTuAmount),
+            portion: cat == null ? null : formatTuHuman(cat, tuAmount),
+          };
+        }),
+        kcalMin: m.kcalMin, kcalMax: m.kcalMax, proteinG: m.proteinG, carbsG: m.carbsG, fatG: m.fatG,
+        basePrice: priced.basePrice,
+        ...mealSizeDiscountFor(m.id, priced.basePrice, mealSizeDiscountRows),
+        trial: m.trial,
+        custom: m.custom,
+        priceable: priced.priceable,
+      };
+    }),
     frequencies: freqRows.map((f) => ({ id: f.id, publicId: f.publicId, key: f.key, name: f.name, daysPerWeek: f.daysPerWeek, weekdays: f.weekdays })),
     durations: durRows.map((d) => ({ id: d.id, publicId: d.publicId, weeks: d.weeks })),
     zones: zoneRows.map((z) => ({ id: z.id, publicId: z.publicId, name: z.name, radiusKm: z.radiusKm == null ? null : Number(z.radiusKm), postalPrefixes: z.postalPrefixes, slotWindow: z.slotWindow, active: z.active })),

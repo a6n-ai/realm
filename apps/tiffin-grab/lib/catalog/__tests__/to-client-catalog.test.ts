@@ -8,7 +8,7 @@ const snapshot: CatalogSnapshot = {
     {
       id: 5n, publicId: "msz_small", key: "small", name: "Small", description: null, planId: 1n, planKey: "veg",
       tier: "budget", components: [], items: [], kcalMin: 400, kcalMax: 600,
-      proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none", discountValue: 0, trial: false,
+      proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none", discountValue: 0, trial: false, custom: false, priceable: true,
     },
   ],
   frequencies: [],

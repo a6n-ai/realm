@@ -22,6 +22,15 @@ export interface MealSizeView {
   discountType: "none" | "percent" | "flat";
   discountValue: number;
   trial: boolean;
+  // Hidden per-composition size (lib/custom-meal). Never listed in pickers; see listableMealSizes.
+  custom: boolean;
+  // False only for a custom size its pricing can no longer price; buildPricingCatalog refuses it.
+  priceable: boolean;
+}
+
+/** Sizes a picker may offer: every catalog size, plus the one custom size `keepId` names (a renewal). */
+export function listableMealSizes<T extends { custom: boolean; publicId: string; priceable?: boolean }>(sizes: T[], keepId?: string | null): T[] {
+  return sizes.filter((m) => !m.custom || (keepId != null && m.publicId === keepId && m.priceable !== false));
 }
 
 // Active, in-window rows of the central `discounts` table. targetPublicId null = all rows of that kind.

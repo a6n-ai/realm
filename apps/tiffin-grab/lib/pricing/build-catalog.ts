@@ -18,6 +18,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
 
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
+  if (!mealSize.priceable) throw new ValidationError("This custom meal is no longer available. Please choose a plan.");
 
   const frequency = snapshot.frequencies.find((f) => f.key === selections.frequencyKey);
   if (!frequency) throw new ValidationError("Invalid frequency");

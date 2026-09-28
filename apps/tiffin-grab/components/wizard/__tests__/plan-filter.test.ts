@@ -6,7 +6,7 @@ function meal(key: string, planKey: string) {
   return {
     publicId: `msz_${key}`, key, name: key, description: null, planKey, tier: "budget" as const,
     components: [], items: [], swapRules: [], kcalMin: 400, kcalMax: 600,
-    proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none" as const, discountValue: 0, trial: false,
+    proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none" as const, discountValue: 0, trial: false, custom: false, priceable: true,
   };
 }
 

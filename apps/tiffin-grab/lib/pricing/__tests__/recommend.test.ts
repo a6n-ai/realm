@@ -5,7 +5,7 @@ import type { PricingSelections } from "../types";
 
 const snapshot = (over: Partial<ClientCatalogSnapshot> = {}): ClientCatalogSnapshot => ({
   plans: [],
-  mealSizes: [{ publicId: "msz_1", key: "k", name: "K", description: null, planKey: "veg", tier: "budget", components: [], items: [], kcalMin: 1, kcalMax: 2, proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none", discountValue: 0, trial: false }],
+  mealSizes: [{ publicId: "msz_1", key: "k", name: "K", description: null, planKey: "veg", tier: "budget", components: [], items: [], kcalMin: 1, kcalMax: 2, proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none", discountValue: 0, trial: false, custom: false, priceable: true }],
   frequencies: [
     { publicId: "frq_5", key: "5_day", name: "5", daysPerWeek: 5, weekdays: ["mon", "tue", "wed", "thu", "fri"] },
     { publicId: "frq_3", key: "3_day", name: "3", daysPerWeek: 3, weekdays: ["mon", "wed", "fri"] },

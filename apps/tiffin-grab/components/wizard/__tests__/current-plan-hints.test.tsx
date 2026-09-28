@@ -50,6 +50,8 @@ const catalog: ClientCatalogSnapshot = {
       discountType: "none",
       discountValue: 0,
       trial: false,
+      custom: false,
+      priceable: true,
     },
   ],
   frequencies: [],
