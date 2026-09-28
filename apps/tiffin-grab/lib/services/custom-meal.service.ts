@@ -51,8 +51,12 @@ export async function findOrCreateCustomMealSize(
     if (!items.length) throw new ValidationError("A custom meal needs at least one item");
     const key = compositionKey(items);
 
-    const [existing] = await tx.select({ id: mealSizes.id, publicId: mealSizes.publicId, name: mealSizes.name })
-      .from(mealSizes).where(and(eq(mealSizes.custom, true), eq(mealSizes.compositionKey, key))).limit(1);
+    const findExisting = async () => {
+      const [row] = await tx.select({ id: mealSizes.id, publicId: mealSizes.publicId, name: mealSizes.name })
+        .from(mealSizes).where(and(eq(mealSizes.custom, true), eq(mealSizes.compositionKey, key))).limit(1);
+      return row;
+    };
+    const existing = await findExisting();
     if (existing) return { ...existing, created: false };
 
     const planRows = await tx.select({ id: plans.id, key: plans.key }).from(plans);
@@ -74,7 +78,14 @@ export async function findOrCreateCustomMealSize(
       compositionKey: key,
       createdBy: opts.actorId,
       updatedBy: opts.actorId,
-    }).returning({ id: mealSizes.id, publicId: mealSizes.publicId, name: mealSizes.name });
+    }).onConflictDoNothing().returning({ id: mealSizes.id, publicId: mealSizes.publicId, name: mealSizes.name });
+    if (!size) {
+      // A concurrent creator won the insert; under READ COMMITTED our conflicting
+      // insert waited for its commit, so the re-select sees its row.
+      const winner = await findExisting();
+      if (!winner) throw new Error(`Custom meal size insert conflicted but no custom row has composition ${key}`);
+      return { ...winner, created: false };
+    }
     await tx.insert(mealSizeItems).values(items.map((i, idx) => ({
       mealSizeId: size.id,
       name: units.get(i.category)!.label,

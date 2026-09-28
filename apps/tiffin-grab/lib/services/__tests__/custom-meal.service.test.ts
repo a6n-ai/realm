@@ -52,6 +52,23 @@ describe("findOrCreateCustomMealSize", () => {
     expect((await loadCatalogSnapshot()).mealSizes.some((m) => m.id === r.id)).toBe(true);
   });
 
+  it("survives concurrent creators of the same composition", async () => {
+    const items = [
+      { category: "roti", planKey: "veg", tuAmount: 2 },
+      { category: "rice", planKey: "veg", tuAmount: 1 },
+    ];
+    const [a, b] = await Promise.all([
+      svc.findOrCreateCustomMealSize(items, { actorId: null }),
+      svc.findOrCreateCustomMealSize(items, { actorId: null }),
+    ]);
+    expect(b.id).toBe(a.id);
+    expect([a.created, b.created].filter(Boolean)).toHaveLength(1);
+    const [row] = await db.select({ key: mealSizes.compositionKey }).from(mealSizes).where(eq(mealSizes.id, a.id));
+    const sizes = await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.compositionKey, row.key!));
+    expect(sizes).toHaveLength(1);
+    expect(await db.select().from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, a.id))).toHaveLength(2);
+  });
+
   it("rejects an unknown category", async () => {
     await expect(svc.findOrCreateCustomMealSize([{ category: "nope", planKey: "veg", tuAmount: 1 }], { actorId: null })).rejects.toThrow(/nope/);
   });
