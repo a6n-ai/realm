@@ -23,3 +23,46 @@
 		header_up X-Real-IP {remote_host}
 	}
 }
+
+# --- tiffingrab.ca: public pages from the app, WordPress admin from Hostinger ---
+# Everything else (login, /me, /dashboard, /subscribe, old WordPress storefront URLs)
+# redirects to app. The allowlist means a new app route lands on app. by default and
+# can never shadow a WordPress path. No app route may start with /wp-.
+# Literal hosts, not env vars: an unset var here would break the whole proxy config.
+tiffingrab.ca, www.tiffingrab.ca {
+	encode zstd gzip
+
+	# handle blocks are exclusive and tried in order; a bare redir would run before any
+	# reverse_proxy (Caddy's directive order) and swallow every request.
+	@www host www.tiffingrab.ca
+	handle @www {
+		redir https://tiffingrab.ca{uri} permanent
+	}
+
+	# WordPress on Hostinger (server1818). Caddy talks HTTPS to it with the site's own
+	# name; its Let's Encrypt cert can no longer renew once DNS points here, hence no
+	# verification (the hop is still encrypted).
+	@wp path /admin /admin/* /wp-admin /wp-admin/* /wp-login.php /wp-content/* /wp-includes/* /wp-json/* /wp-cron.php /xmlrpc.php /wc-api/*
+	handle @wp {
+		reverse_proxy https://82.180.129.236 {
+			header_up Host tiffingrab.ca
+			transport http {
+				tls_server_name tiffingrab.ca
+				tls_insecure_skip_verify
+			}
+		}
+	}
+
+	# Public pages and what they load: Next assets, dish photos (/api/files), lottie,
+	# uploads, the weekly menu PDF.
+	@public path / /pricing /plans /menu /menu/* /locations /faq /contact /_next/* /api/files/* /lottie/* /uploads/* /favicon.ico /*.svg
+	handle @public {
+		reverse_proxy tiffin-grab-web:3000 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	handle {
+		redir https://app.tiffingrab.ca{uri} 302
+	}
+}

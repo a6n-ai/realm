@@ -2,16 +2,17 @@
 # Compare every tiffingrab.ca record on two nameservers before and after moving DNS
 # from Hostinger to Route 53 (deployment/dns/route53-tiffingrab.yaml).
 #
-#   ./verify-tiffingrab.sh <route53-ns> <wordpress-ip> [old-ns]   # old-ns: ns1.dns-parking.com
+#   ./verify-tiffingrab.sh <route53-ns> <apex-ip> [old-ns]   # old-ns: ns1.dns-parking.com
 #
 # Exits non-zero on any difference. The website records are checked against what the
 # Route 53 zone must serve, not against Hostinger: its apex was a CDN ALIAS whose IPs
-# rotate per query. Apex A must be <wordpress-ip>; www must be a CNAME to the apex.
+# rotate per query. Apex A must be <apex-ip> (the app box since the public-pages move);
+# www must be a CNAME to the apex.
 # Brevo records are dropped on purpose, so those are checked against their new values.
 set -euo pipefail
 
-new="${1:?usage: $0 <route53-ns> <wordpress-ip> [old-ns]}"
-wp_ip="${2:?usage: $0 <route53-ns> <wordpress-ip> [old-ns]}"
+new="${1:?usage: $0 <route53-ns> <apex-ip> [old-ns]}"
+wp_ip="${2:?usage: $0 <route53-ns> <apex-ip> [old-ns]}"
 old="${3:-ns1.dns-parking.com}"
 
 RECORDS=(

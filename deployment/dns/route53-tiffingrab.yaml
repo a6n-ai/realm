@@ -6,23 +6,15 @@ Description: >-
   the WordPress apex/www, so moving the registrar nameservers to this zone is
   non-disruptive.
 
-  APEX: Hostinger served the apex through its CDN as an ALIAS whose IPs rotate on
-  every query (60s TTL). Route 53 cannot alias the apex to an external hostname, so
-  Hostinger CDN is turned off and the apex points at the Hostinger server IP
-  (WordPressIp). www follows the apex.
+  APEX: tiffingrab.ca and www point at the app box. Caddy there serves the app's public
+  pages and proxies the WordPress admin paths to the Hostinger server (82.180.129.236,
+  see deployment/prod/proxy/conf/Caddyfile); everything else redirects to app.
 
 Parameters:
-  WordPressIp:
-    Type: String
-    AllowedPattern: "^\\d{1,3}(\\.\\d{1,3}){3}$"
-    Description: >-
-      Hostinger hosting server IPv4 for the WordPress site, read from hPanel AFTER
-      Hostinger CDN is turned off. No default on purpose: pinning rotating CDN IPs
-      breaks the site.
   AppIp:
     Type: String
     Default: "52.73.226.216"
-    Description: Elastic IP of the shared EC2 box (app.tiffingrab.ca).
+    Description: Elastic IP of the shared EC2 box (app.tiffingrab.ca and the apex).
 
 Resources:
   HostedZone:
@@ -34,7 +26,7 @@ Resources:
     Properties:
       Name: tiffingrab.ca
 
-  # --- WordPress on Hostinger (apex + www) ---
+  # --- Website (apex + www): the app box; Caddy splits app pages / WordPress admin ---
   ApexA:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -43,7 +35,7 @@ Resources:
       Type: A
       TTL: 300
       ResourceRecords:
-        - !Ref WordPressIp
+        - !Ref AppIp
 
   WwwCname:
     Type: AWS::Route53::RecordSet
