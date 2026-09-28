@@ -16,7 +16,7 @@
  * `wc-<wordpress order id>`: a `pending` one is refreshed with WordPress's current
  * balance and address; one staff already started is never touched again.
  */
-import { eq, isNull, or } from "drizzle-orm";
+import { eq, isNull, like, or } from "drizzle-orm";
 import mysql from "mysql2/promise";
 import { emailSchema, zonedDateIso } from "@foundry/commons";
 import { db } from "./client";
@@ -549,6 +549,48 @@ async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapsh
   for (const [k, v] of Object.entries(counts)) console.log(`${k}: ${v}`);
 }
 
+// ---------- balance check ----------
+
+/** Tiffins left in our DB vs WordPress's live counter, per imported plan. A pending plan must
+ * equal WordPress after a refresh; a started plan must not have gone down on WordPress since
+ * (that means WordPress kept delivering after the switch: two deliveries a day). */
+export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned" }>[]): Promise<{ mismatches: number }> {
+  const inDb = await db.select({ deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount })
+    .from(orders).where(like(orders.deploymentId, "wc-%"));
+  const byId = new Map(inDb.map((o) => [o.deploymentId, o]));
+  const wanted = new Set(planned.map((r) => `wc-${r.record.wpOrderId}`));
+  let match = 0;
+  const willRefresh: string[] = [];
+  const doubleDelivery: string[] = [];
+  const notImported: string[] = [];
+  for (const { record: x } of planned) {
+    const id = `wc-${x.wpOrderId}`;
+    const o = byId.get(id);
+    if (!o) { notImported.push(`${id} (WordPress ${x.tiffinCount} left)`); continue; }
+    if (o.status === "pending") {
+      if (o.tiffinCount === x.tiffinCount) match++;
+      else willRefresh.push(`${id}: ours ${o.tiffinCount}, WordPress ${x.tiffinCount}`);
+    } else if (o.status !== "cancelled" && x.tiffinCount < o.tiffinCount) {
+      doubleDelivery.push(`${id} (${o.status}): started with ${o.tiffinCount}, WordPress now ${x.tiffinCount}`);
+    } else {
+      match++;
+    }
+  }
+  const goneFromWordPress = inDb.filter((o) => o.status === "pending" && !wanted.has(o.deploymentId)).map((o) => o.deploymentId);
+
+  console.log(`\n=== Tiffins left vs WordPress ===`);
+  console.log(`Match: ${match}`);
+  console.log(`Pending, differs (a refresh / --apply updates these): ${willRefresh.length}`);
+  for (const l of willRefresh) console.log(`  ${l}`);
+  console.log(`Not imported yet: ${notImported.length}`);
+  for (const l of notImported) console.log(`  ${l}`);
+  console.log(`Started but WordPress kept delivering (stop them on WordPress!): ${doubleDelivery.length}`);
+  for (const l of doubleDelivery) console.log(`  ${l}`);
+  console.log(`Pending here, no longer an active WordPress plan (ended, cancelled or now skipped): ${goneFromWordPress.length}`);
+  for (const l of goneFromWordPress) console.log(`  ${l}`);
+  return { mismatches: willRefresh.length + doubleDelivery.length + notImported.length + goneFromWordPress.length };
+}
+
 const isDirectRun = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
 if (isDirectRun) {
   (async () => {
@@ -556,11 +598,15 @@ if (isDirectRun) {
     const snapshot = await loadCatalogSnapshot();
     const { results, duplicates } = planSeed(rows, snapshot);
     printReport(rows.length, results, duplicates);
+    const planned = results.filter((r): r is Extract<PlanResult, { kind: "planned" }> => r.kind === "planned");
+    await balanceCheck(planned);
     if (!process.argv.includes("--apply")) {
       console.log(`\nDry run only — pass --apply to write.`);
       return;
     }
-    await apply(results.filter((r): r is Extract<PlanResult, { kind: "planned" }> => r.kind === "planned"), snapshot);
+    await apply(planned, snapshot);
+    console.log(`\nAfter apply:`);
+    await balanceCheck(planned);
   })()
     .then(() => process.exit(0))
     .catch((err) => {
