@@ -22,15 +22,26 @@ const STATUS_LABEL = { active: "Active", inactive: "Inactive", scheduled: "Sched
 
 export function WaiversTable({ waivers, strategies, now }: { waivers: DiscountDto[]; strategies: { publicId: string; name: string }[]; now: number }) {
   const [dialog, setDialog] = useState<{ waiver?: DiscountDto } | null>(null);
+  const [filter, setFilter] = useState<WaiverKind | "all">("all");
   const strategyName = new Map(strategies.map((s) => [s.publicId, s.name]));
+  const shown = filter === "all" ? waivers : waivers.filter((w) => w.kind === filter);
 
   return (
     <div className="space-y-3">
       <DataTable
         columns={COLUMNS}
-        rows={waivers}
+        rows={shown}
         rowKey={(w) => w.publicId}
         serial={false}
+        filters={
+          <div className="flex flex-wrap gap-1.5">
+            {(["all", ...(Object.keys(WAIVER_LABELS) as WaiverKind[])] as const).map((k) => (
+              <Button key={k} size="sm" variant={filter === k ? "default" : "outline"} onClick={() => setFilter(k)}>
+                {k === "all" ? "All" : WAIVER_LABELS[k]}
+              </Button>
+            ))}
+          </div>
+        }
         actions={<Button onClick={() => setDialog({})}><PlusIcon className="size-4" /> Add waiver</Button>}
         emptyIcon={InboxIcon}
         emptyMessage="No waivers yet. Waive delivery fees or cover the tax for a promo."
