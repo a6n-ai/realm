@@ -293,7 +293,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async convert(
     publicId: string,
     orderInput: CreateOrderInput,
-    opts?: { allowAdditionalOrder?: boolean },
+    opts?: { allowAdditionalOrder?: boolean; allowCustomMeal?: boolean; basePriceOverride?: number },
   ) {
     const inq = await this.read(publicId);
     if (inq.stage === "converted") throw new ValidationError("Inquiry is already converted");
@@ -309,7 +309,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const actorPublicId = (await getSession())?.user?.id ?? null;
     const result = await createOrder(
       { ...orderInput, currentOwner: inq.currentOwner },
-      { actorId: actorPublicId },
+      { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, basePriceOverride: opts?.basePriceOverride },
     );
     const [order] = await db
       .select({ id: orders.id })

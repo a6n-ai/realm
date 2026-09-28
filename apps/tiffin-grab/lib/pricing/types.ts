@@ -90,6 +90,8 @@ export type OrderPricingSnapshot = PricingResult & {
    *  null when the delivery address yielded no province (then taxLines is []). */
   taxProvince?: string | null;
   planType?: string;
+  // Staff replaced a custom meal's computed per-TU base price (actor = staff public id).
+  basePriceOverride?: { amount: number; computed: number; byPublicId: string | null };
   // Present only when payment is awaiting verification — cleared after redeem-on-verify.
   pendingRedemptions?: PendingRedemption[];
   // Coin spend quoted at checkout but not yet committed — deferred settlement

@@ -175,6 +175,12 @@ export interface CreateOrderOptions {
   // catalog snapshot matches the one the customer's wizard/checkout priced
   // against. NOT the org the order is stamped to — see resolveBrandOrgId.
   orgId?: string | null;
+  // Staff-only (set by dashboard server actions, never from client input): may
+  // order a hidden custom meal size for any customer.
+  allowCustomMeal?: boolean;
+  // Staff-only: replaces a custom meal's computed per-tiffin base price before
+  // the pricing engine runs (tier uplift and discounts still apply).
+  basePriceOverride?: number;
 }
 
 // Resolve a user public_id (usr_…) to the internal bigint id. Returns null when
@@ -212,13 +218,25 @@ export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string }> {
-  const { actorId = null, ownerUserId = null, orgId = null } = opts;
+  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, basePriceOverride } = opts;
   const snapshot = await loadCatalogSnapshot(orgId);
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
+  if (mealSize.custom && !allowCustomMeal) {
+    // Customers may only renew a custom meal already on their account.
+    const ownerId = ownerUserId ? await resolveUserId(db, ownerUserId) : null;
+    const [prior] = ownerId
+      ? await db.select({ id: orders.id }).from(orders).where(and(eq(orders.userId, ownerId), eq(orders.mealSizeId, mealSize.id))).limit(1)
+      : [];
+    if (!prior) throw new ValidationError("This meal isn't available. Please choose a plan.");
+  }
+  if (basePriceOverride != null) {
+    if (!mealSize.custom) throw new ValidationError("A price override is for custom meals only");
+    if (!Number.isFinite(basePriceOverride) || basePriceOverride <= 0 || basePriceOverride > 1000) throw new ValidationError("Override must be between 0 and 1000");
+  }
   // Dish selection happens per-delivery after subscribing, not at checkout —
   // order.categoryCounts/mealSlots are derived from the chosen meal size's own
   // server-loaded items, never trusted from the client-submitted selections.
@@ -238,6 +256,8 @@ export async function createOrder(
     if (err) throw new ValidationError(err);
   }
   const pricingCatalog = buildPricingCatalog(snapshot, input.selections);
+  const computedBase = pricingCatalog.mealSize.basePrice;
+  if (basePriceOverride != null) pricingCatalog.mealSize = { ...pricingCatalog.mealSize, basePrice: Math.round(basePriceOverride * 100) / 100 };
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.
   const basePricing = priceSubscription(input.selections, pricingCatalog);
@@ -522,6 +542,7 @@ export async function createOrder(
       paymentMethodId,
       taxProvince,
       planType: plan.planType,
+      ...(basePriceOverride != null ? { basePriceOverride: { amount: pricingCatalog.mealSize.basePrice, computed: computedBase, byPublicId: actorId } } : {}),
       ...(deferSettlement && redemptions.length
         ? {
             pendingRedemptions: redemptions.map((r) => ({
