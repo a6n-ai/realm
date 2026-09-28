@@ -56,3 +56,15 @@ describe("StepBundle trial hiding", () => {
     expect(screen.queryByText("trial_thali")).toBeNull();
   });
 });
+
+describe("StepBundle kcal pill", () => {
+  it("hides the kcal pill for a size with no kcal (custom meals are 0–0)", () => {
+    const zero = { ...meal("custom_zero"), kcalMin: 0, kcalMax: 0 };
+    render(<StepBundle catalog={{ ...catalog, mealSizes: [zero] }} selections={{ ...selections, mealSizeId: zero.publicId }} set={vi.fn()} />);
+    expect(screen.queryByText(/kcal/)).toBeNull();
+  });
+  it("shows it when kcal is set", () => {
+    render(<StepBundle catalog={catalog} selections={{ ...selections, mealSizeId: "msz_small_thali" }} set={vi.fn()} />);
+    expect(screen.getByText("400–600 kcal")).toBeDefined();
+  });
+});

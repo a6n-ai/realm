@@ -1,5 +1,5 @@
 import type { PricingSelections } from "@/lib/pricing";
-import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
+import { listableMealSizes, type ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 export interface WizardSelections extends PricingSelections {
@@ -103,7 +103,7 @@ export function selectionsFromPriorOrder(
   const plan = catalog.plans.find((p) => p.key === planKey);
   const mealSizeId =
     prior.mealSizePublicId &&
-    catalog.mealSizes.some((m) => m.publicId === prior.mealSizePublicId && m.planKey === planKey)
+    listableMealSizes(catalog.mealSizes, prior.mealSizePublicId).some((m) => m.publicId === prior.mealSizePublicId && m.planKey === planKey)
       ? prior.mealSizePublicId
       : "";
   return {

@@ -99,4 +99,19 @@ describe("selectionsFromPriorOrder", () => {
     expect(next.planKey).toBe("veg");
     expect(next.mealSizeId).toBe("");
   });
+
+  it("keeps a priceable custom size but drops an unpriceable one (renew falls back to a normal pick)", () => {
+    const custom = { ...catalog.mealSizes[0], publicId: "msz_custom", custom: true, kcalMin: 0, kcalMax: 0 };
+    const prior = {
+      planKey: "veg", mealSizePublicId: "msz_custom", persons: 1,
+      includeSaturday: false, includeSunday: false, durationWeeks: 2, frequencyKey: "5_day",
+    };
+    const priceable = selectionsFromPriorOrder({ ...catalog, mealSizes: [...catalog.mealSizes, custom] }, prior);
+    expect(priceable.mealSizeId).toBe("msz_custom");
+    const unpriceable = selectionsFromPriorOrder(
+      { ...catalog, mealSizes: [...catalog.mealSizes, { ...custom, priceable: false }] },
+      prior,
+    );
+    expect(unpriceable.mealSizeId).toBe("");
+  });
 });

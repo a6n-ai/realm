@@ -75,7 +75,7 @@ export function StepBundle({
                     <MealSizeItems items={m.items} categoryLabels={catalog.categoryLabels} />
                     {active && (
                       <div className="flex flex-wrap gap-1">
-                        <Pill tone="soft" size="sm">{m.kcalMin}–{m.kcalMax} kcal</Pill>
+                        {m.kcalMax > 0 && <Pill tone="soft" size="sm">{m.kcalMin}–{m.kcalMax} kcal</Pill>}
                         {m.proteinG != null && <Pill tone="soft" size="sm">P {m.proteinG}g</Pill>}
                         {m.carbsG != null && <Pill tone="soft" size="sm">C {m.carbsG}g</Pill>}
                         {m.fatG != null && <Pill tone="soft" size="sm">F {m.fatG}g</Pill>}
