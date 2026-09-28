@@ -3,15 +3,14 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { db } from "./db/client";
 import { organization } from "./db/schema";
+import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
 // runtime` here throws — the option isn't available for proxy files), so a
 // real DB query below is fine. We still do an OPTIMISTIC cookie-presence gate
 // for the session check; the authoritative `getSession` role checks live in
 // the dashboard layout and pages.
-// Better Auth session cookie: `${prefix}.session_token` (default prefix
-// "better-auth"; `__Secure-` prefixed when cookies are secure / in production).
-const SESSION_COOKIES = ["better-auth.session_token", "__Secure-better-auth.session_token"];
+// Better Auth session cookie names: see lib/auth/cookie-prefix.ts.
 
 // /api is private by default. Only these prefixes are reachable without a
 // session cookie: Better Auth's own handler, cron (self-auths via CRON_SECRET

@@ -41,7 +41,7 @@ describe("proxy URL-based org resolution", () => {
 
   it("strips a client-supplied x-realm-org-id on /dashboard instead of forwarding it", async () => {
     const req = new NextRequest("http://localhost/dashboard/orders", {
-      headers: { cookie: "better-auth.session_token=fake", "x-realm-org-id": matchedOrgId },
+      headers: { cookie: "tiffingrab.session_token=fake", "x-realm-org-id": matchedOrgId },
     });
     const res = await proxy(req);
     expect(res?.headers.get("x-middleware-request-x-realm-org-id")).toBeNull();

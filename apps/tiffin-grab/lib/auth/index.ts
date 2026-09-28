@@ -20,6 +20,8 @@ import {
 } from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
 
+import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
+
 const log = createLogger("auth");
 
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
@@ -49,6 +51,7 @@ export const auth = betterAuth({
   }),
   advanced: {
     database: { generateId: false },
+    cookiePrefix: AUTH_COOKIE_PREFIX,
     // Trust ONLY x-real-ip, which Caddy overwrites with the real socket peer
     // (`header_up X-Real-IP {remote_host}`). The default is x-forwarded-for,
     // whose leftmost token better-auth takes verbatim — and Caddy *appends* to
