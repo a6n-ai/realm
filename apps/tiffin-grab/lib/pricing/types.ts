@@ -40,6 +40,7 @@ export interface PricingCatalog {
   // Already filtered to those applicable to the selections; engine sums, caps, prints.
   discounts?: { key: string; label: string; percent: number }[];
   maxDiscountPct?: number;
+  deliveryCount?: number;
   // Outside the discount cap: they waive fees/tax, not the food price.
   waivers?: PricingWaiver[];
   deliveryChargeConfig?: {
@@ -63,6 +64,8 @@ export interface PricingResult {
   taxLines: ComputedTaxLine[]; // per-method tax lines applied to the post-discount base
   taxTotal: number; // sum of taxLines (rounded per line), added on top of the taxable base
   tiffinCount: number;
+  /** Delivery trips over the whole plan (weekend days can ride a Friday trip). */
+  deliveryCount?: number;
   perTiffinPrice: number;
   tier: PricingTier;
   subtotal: number;

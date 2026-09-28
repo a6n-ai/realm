@@ -58,6 +58,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     percent: d.percent,
   }));
 
+  const deliveryCount = planDeliveryCount(frequency, selections);
   let deliveryChargeConfig: PricingCatalog["deliveryChargeConfig"] = undefined;
   if (snapshot.deliveryCharges) {
     const dc = snapshot.deliveryCharges;
@@ -98,7 +99,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     deliveryChargeConfig = {
       baseCharge: snapshot.deliveryCharges.baseCharge,
       deliveryStrategies: strategies,
-      deliveryCount: planDeliveryCount(frequency, selections),
+      deliveryCount,
       addressTag: at ? { id: at.publicId, name: at.name, chargeType: at.chargeType, chargeValue: at.chargeValue } : null,
     };
   }
@@ -110,6 +111,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     addons,
     discounts,
     maxDiscountPct: snapshot.maxDiscountPct ?? 25,
+    deliveryCount,
     waivers: (snapshot.waivers ?? []).map((w) => ({ key: w.key, name: w.name, kind: w.kind, strategyId: w.targetPublicId, percent: w.percent })),
     deliveryChargeConfig,
   };

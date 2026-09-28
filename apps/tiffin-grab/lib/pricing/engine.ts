@@ -94,6 +94,7 @@ export function priceSubscription(
     taxLines,
     taxTotal,
     tiffinCount,
+    deliveryCount: catalog.deliveryCount,
     perTiffinPrice,
     tier,
     subtotal,

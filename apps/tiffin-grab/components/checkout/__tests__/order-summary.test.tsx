@@ -33,4 +33,10 @@ describe("OrderSummary", () => {
     expect(screen.getByText("−$10.00")).toBeTruthy();
     expect(screen.getByText("You save $10.00")).toBeTruthy();
   });
+  it("shows the delivery count, and the subtotal above the discounts", () => {
+    render(<OrderSummary selections={sel} result={{ ...result, tiffinCount: 24, deliveryCount: 16 }} editHref="/subscribe" />);
+    expect(screen.getByText(/16 deliveries · some tiffins share a trip/)).toBeTruthy();
+    const text = screen.getByLabelText("Price breakdown").textContent ?? "";
+    expect(text.indexOf("Subtotal")).toBeLessThan(text.indexOf("4-week discount"));
+  });
 });
