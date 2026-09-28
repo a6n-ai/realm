@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { catalogKeyFor, dedupeByPhone, hasVegConflict, mapRow, remainingTiffins, type WpRow } from "./seed-customers";
+import type { CategoryUnit } from "../lib/custom-meal/composition";
+import { catalogKeyFor, dedupeByPhone, hasVegConflict, mapRow, planSeed, remainingTiffins, type WpRow } from "./seed-customers";
 
 function row(over: Partial<WpRow> = {}): WpRow {
   return {
@@ -134,5 +135,40 @@ describe("catalogKeyFor", () => {
     ["Custom Meal - 2 Veg(12oz) + 4 Rotis", "veg", null],
   ] as const)("%s -> %s", (product, plan, key) => {
     expect(catalogKeyFor(product, plan)).toBe(key);
+  });
+});
+
+describe("planSeed custom meals", () => {
+  const units = new Map<string, CategoryUnit>([
+    ["sabzi", { key: "sabzi", label: "Sabzi", tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }],
+    ["roti", { key: "roti", label: "Roti", tuUnitType: "count", tuUnitSize: 4, tuUnitLabel: "roti" }],
+    ["rice", { key: "rice", label: "Rice", tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "unit" }],
+    ["raita", { key: "raita", label: "Raita", tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }],
+    ["salad", { key: "salad", label: "Salad", tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }],
+  ]);
+  const size = (id: number, key: string, planKey: string) => ({ id: BigInt(id), key, name: key, planKey, tier: "budget", items: [], custom: false });
+  const snapshot = {
+    mealSizes: [size(1, "item4_regular_veg", "veg"), size(2, "item4_regular_nonveg", "non-veg")],
+  } as unknown as Parameters<typeof planSeed>[1];
+
+  it("plans a parseable custom meal with its items instead of skipping it", () => {
+    const { results } = planSeed([row({ products: "Custom Meal - 2 Veg(8oz) + 4 Rotis + 1 Rice" })], snapshot, units);
+    const planned = results.find((r) => r.kind === "planned");
+    expect(planned && planned.kind === "planned" && planned.customItems).toEqual([
+      { category: "rice", planKey: "veg", tuAmount: 1 },
+      { category: "roti", planKey: "veg", tuAmount: 1 },
+      { category: "sabzi", planKey: "veg", tuAmount: 1 },
+      { category: "sabzi", planKey: "veg", tuAmount: 1 },
+    ]);
+  });
+
+  it("skips an unparseable custom meal with a manual-mapping reason", () => {
+    const { results } = planSeed([row({ products: "Custom Meal - 1 GOOD TIFFIN - - - -" })], snapshot, units);
+    expect(results[0]).toMatchObject({ kind: "skipped", reason: expect.stringMatching(/map by hand/) });
+  });
+
+  it("uses the parsed diet for the plan when WordPress meta says veg but the meal has non-veg", () => {
+    const { results } = planSeed([row({ products: "Custom Meal - 1 Non-Veg(8oz) + 4 Rotis", veg: "veg" })], snapshot, units);
+    expect(results[0]).toMatchObject({ kind: "planned", record: { planKey: "non-veg" } });
   });
 });

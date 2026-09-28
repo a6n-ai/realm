@@ -21,7 +21,7 @@ import mysql from "mysql2/promise";
 import { emailSchema } from "@foundry/commons";
 import { db } from "./client";
 import { orderActivities, orders, organization, users } from "./schema";
-import { loadCatalogSnapshot } from "../lib/catalog/load";
+import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "../lib/catalog/load";
 import { findZone } from "../lib/catalog/zone-match";
 import { categoryCountsFromItems } from "../lib/menu/pick-size";
 import type { DayOfWeek } from "../lib/menu/delivery-days";
@@ -29,6 +29,9 @@ import { tripsFor } from "../lib/orders/bounded-deliveries";
 import { provisionCustomerByPhone } from "../lib/services/customers.service";
 import { addressService } from "../lib/services/addresses.service";
 import type { OrderPricingSnapshot } from "../lib/pricing/types";
+import { parseCustomMealName } from "../lib/custom-meal/parse-wp";
+import { compositionName, mealPlanKey, type CategoryUnit, type CustomMealItem } from "../lib/custom-meal/composition";
+import { findOrCreateCustomMealSize, loadCategoryUnits } from "../lib/services/custom-meal.service";
 
 export const MIGRATION_TAG = "Migrated from WordPress";
 const WP_STATUSES = ["wc-processing", "wc-paused", "wc-on-hold"];
@@ -330,33 +333,50 @@ export function matchMealSize(productText: string, planKey: "veg" | "non-veg", m
 // ---------- plan ----------
 
 export type PlanResult =
-  | { kind: "planned"; record: MigrationRecord; mealSize: CatalogMealSize; isCustomFallback: boolean }
+  // customItems: a WordPress custom meal; mealSize is then only a report placeholder and
+  // applyOne swaps in the find-or-created custom meal size.
+  | { kind: "planned"; record: MigrationRecord; mealSize: CatalogMealSize; isCustomFallback: boolean; customItems?: CustomMealItem[] }
   | { kind: "skipped"; wpOrderId: number; reason: string };
 
 function redactPhone(phone: string): string {
   return phone.length > 4 ? `***${phone.slice(-4)}` : phone;
 }
 
-export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot): { results: PlanResult[]; duplicates: MigrationRecord[] } {
+const MANUAL_MAPPING = "custom meal, map by hand";
+
+export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot, units: Map<string, CategoryUnit>): { results: PlanResult[]; duplicates: MigrationRecord[] } {
   const results: PlanResult[] = [];
   const candidates: MigrationRecord[] = [];
+  const customByWpId = new Map<number, CustomMealItem[]>();
   for (const row of rows) {
     const record = mapRow(row);
     const skip = (reason: string) => results.push({ kind: "skipped", wpOrderId: row.id, reason });
     if (!/^\d{10}$/.test(record.phone)) { skip(`phone not 10 digits: "${row.phone ?? ""}"`); continue; }
     if (!emailSchema.safeParse(record.email).success) { skip("no usable email (invite needs one)"); continue; }
-    if (hasVegConflict(row)) { skip(`veg conflict: product "${record.productText}" vs meta "${row.veg}"`); continue; }
+    // Diet comes from the parsed items, so the WordPress veg meta can't conflict with it.
+    let customItems: CustomMealItem[] | undefined;
+    if (isCustomMeal(record.productText)) {
+      customItems = parseCustomMealName(record.productText, units) ?? undefined;
+      if (!customItems) { skip(`${MANUAL_MAPPING}: "${record.productText}"`); continue; }
+      record.planKey = mealPlanKey(customItems);
+    }
+    if (!customItems && hasVegConflict(row)) { skip(`veg conflict: product "${record.productText}" vs meta "${row.veg}"`); continue; }
     if (record.tiffinCount <= 0) { skip("zero remaining tiffins"); continue; }
     if (!record.addressLine || !record.postalCode) { skip("missing address or postal code"); continue; }
-    // Free-text custom meals have no catalog equivalent. They stay on WordPress until the
-    // custom-meal feature ships; a later run imports them (drop this line then).
-    if (isCustomMeal(record.productText)) { skip(`custom meal, deferred: "${record.productText}"`); continue; }
+    if (customItems) customByWpId.set(record.wpOrderId, customItems);
     candidates.push(record);
   }
   const { kept, dropped } = dedupeByPhone(candidates);
   for (const record of kept) {
     try {
       tripsFor(record.frequencyKey, record.eatingDays);
+      const customItems = customByWpId.get(record.wpOrderId);
+      if (customItems) {
+        const placeholder = snapshot.mealSizes.find((m) => m.planKey === record.planKey && !m.custom);
+        if (!placeholder) throw new Error(`No meal size available for plan ${record.planKey}`);
+        results.push({ kind: "planned", record, mealSize: placeholder, isCustomFallback: false, customItems });
+        continue;
+      }
       const { mealSize, isCustomFallback } = matchMealSize(record.productText, record.planKey, snapshot.mealSizes);
       results.push({ kind: "planned", record, mealSize, isCustomFallback });
     } catch (err) {
@@ -366,24 +386,26 @@ export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot): { results: P
   return { results, duplicates: dropped };
 }
 
-function printReport(totalRows: number, results: PlanResult[], duplicates: MigrationRecord[]): void {
+function printReport(totalRows: number, results: PlanResult[], duplicates: MigrationRecord[], units: Map<string, CategoryUnit>): void {
   const planned = results.filter((r): r is Extract<PlanResult, { kind: "planned" }> => r.kind === "planned");
   const skipped = results.filter((r): r is Extract<PlanResult, { kind: "skipped" }> => r.kind === "skipped");
   const fallback = planned.filter((r) => r.isCustomFallback);
 
   console.log(`\n=== Customer seed report ===`);
   console.log(`WordPress active orders (${WP_STATUSES.join(", ")}): ${totalRows}`);
-  console.log(`Planned customers: ${planned.length}  (meal size by heuristic: ${fallback.length})`);
+  console.log(`Planned customers: ${planned.length}  (meal size by heuristic: ${fallback.length}, custom meals: ${planned.filter((r) => r.customItems).length})`);
   console.log(`Skipped: ${skipped.length}`);
   console.log(`Renewals merged into the running plan: ${planned.reduce((n, r) => n + r.record.mergedWpOrderIds.length, 0)}`);
   console.log(`Different second plan for the same phone (NOT imported, staff to handle): ${duplicates.length}`);
   for (const s of skipped) console.log(`  SKIP wc-${s.wpOrderId}: ${s.reason}`);
   for (const d of duplicates) console.log(`  DUP  wc-${d.wpOrderId} ${redactPhone(d.phone)} (${d.tiffinCount} left)`);
+  console.log(`\n--- Custom meals needing manual mapping ---`);
+  for (const s of skipped) if (s.reason.startsWith(MANUAL_MAPPING)) console.log(`  wc-${s.wpOrderId}: ${s.reason}`);
   console.log(`\n--- Planned ---`);
   for (const r of planned) {
     const x = r.record;
     console.log(
-      `  wc-${x.wpOrderId} ${x.wpStatus.replace("wc-", "")} ${redactPhone(x.phone)} | ${x.planKey} "${r.mealSize.name}"${r.isCustomFallback ? ` (heuristic from "${x.productText}")` : ""} | ${x.frequencyKey} eats=${x.eatingDays.join("/")} | persons=${x.persons} left=${x.tiffinCount}${x.mergedWpOrderIds.length ? ` (incl. wc-${x.mergedWpOrderIds.join(", wc-")})` : ""}`,
+      `  wc-${x.wpOrderId} ${x.wpStatus.replace("wc-", "")} ${redactPhone(x.phone)} | ${x.planKey} "${r.customItems ? `custom: ${compositionName(r.customItems, units)}` : r.mealSize.name}"${r.isCustomFallback ? ` (heuristic from "${x.productText}")` : ""} | ${x.frequencyKey} eats=${x.eatingDays.join("/")} | persons=${x.persons} left=${x.tiffinCount}${x.mergedWpOrderIds.length ? ` (incl. wc-${x.mergedWpOrderIds.join(", wc-")})` : ""}`,
     );
   }
 }
@@ -407,7 +429,6 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
   const frequency = snapshot.frequencies.find((f) => f.key === x.frequencyKey);
   if (!plan || !frequency) throw new Error(`catalog has no plan ${x.planKey} / frequency ${x.frequencyKey}`);
 
-  const categoryCounts = categoryCountsFromItems(r.mealSize.items);
   const perWeek = tripsFor(x.frequencyKey, x.eatingDays).reduce((n, t) => n + t.units * x.persons, 0);
   const contact = {
     fullName: x.fullName || "Customer",
@@ -434,13 +455,10 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
     paymentMethodId: "simulated",
     planType: plan.planType,
   };
-  const planFields = {
+  const baseFields = {
     planId: plan.id,
-    mealSizeId: r.mealSize.id,
     frequencyId: frequency.id,
     persons: x.persons,
-    mealSlots: Object.keys(categoryCounts),
-    categoryCounts,
     eatingDays: x.eatingDays,
     includeSaturday: x.eatingDays.includes("sat"),
     includeSunday: x.eatingDays.includes("sun"),
@@ -452,6 +470,15 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
   };
 
   return db.transaction(async (tx) => {
+    let mealSizeId = r.mealSize.id;
+    let categoryCounts = categoryCountsFromItems(r.mealSize.items);
+    if (r.customItems) {
+      const size = await findOrCreateCustomMealSize(r.customItems, { actorId: null, tx });
+      mealSizeId = size.id;
+      categoryCounts = categoryCountsFromItems(r.customItems);
+    }
+    const planFields = { ...baseFields, mealSizeId, mealSlots: Object.keys(categoryCounts), categoryCounts };
+
     const [existingOrder] = await tx.select({ id: orders.id, status: orders.status }).from(orders)
       .where(eq(orders.deploymentId, deploymentId)).limit(1);
     if (existingOrder) {
@@ -502,6 +529,8 @@ async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapsh
     }
     counts[outcome]++;
   }
+  // Custom meal sizes were created inside per-order transactions, which skip the cache flush.
+  await invalidateCatalogSnapshot();
   console.log(`\n=== Apply summary ===`);
   for (const [k, v] of Object.entries(counts)) console.log(`${k}: ${v}`);
 }
@@ -511,8 +540,9 @@ if (isDirectRun) {
   (async () => {
     const rows = await readWordPress();
     const snapshot = await loadCatalogSnapshot();
-    const { results, duplicates } = planSeed(rows, snapshot);
-    printReport(rows.length, results, duplicates);
+    const units = await loadCategoryUnits();
+    const { results, duplicates } = planSeed(rows, snapshot, units);
+    printReport(rows.length, results, duplicates, units);
     if (!process.argv.includes("--apply")) {
       console.log(`\nDry run only — pass --apply to write.`);
       return;
