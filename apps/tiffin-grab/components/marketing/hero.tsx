@@ -1,13 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@foundry/ui/button";
+// Vendored from Commons: fetching it through /_next/image at request time got 429s from Wikimedia.
+import heroThali from "./hero-thali.jpg";
 
 export function Hero() {
   return (
     <section className="relative flex min-h-[86vh] flex-col justify-center overflow-hidden px-4 pt-28 pb-16 sm:px-8 md:px-12">
       <div className="absolute inset-0" aria-hidden>
         <Image
-          src="https://commons.wikimedia.org/wiki/Special:FilePath/Traditional%20North%20Indian%20Thali.jpg?width=1600"
+          src={heroThali}
+          placeholder="blur"
           alt=""
           fill
           priority

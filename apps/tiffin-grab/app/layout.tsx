@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { AreaTransition } from "@/components/motion/page-transition";
 import { Poppins } from "next/font/google";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
-import { GeistPixelCircle } from "geist/font/pixel";
+import { geistSans, geistMono, geistPixelCircle } from "./fonts";
 import { ThemeProvider, themeInitScript } from "@foundry/themes";
 import { InlineScript } from "@/components/inline-script";
 import { Toaster } from "@foundry/ui/sonner";
@@ -23,10 +21,10 @@ const poppins = Poppins({
   weight: ["400", "500", "600", "700"],
 });
 
-// Self-hosted via the `geist` npm package (Vercel's own font, full glyph set +
-// font-feature-settings) rather than next/font/google. GeistMono is the app-wide
-// mono; GeistSans's --font-geist-sans is scoped to the dashboard shell only
-// (.crm-app in globals.css) — public/customer pages keep Poppins.
+// Geist faces come from the `geist` npm package's files but are declared in
+// ./fonts with preload: false — see there. GeistMono is the app-wide mono;
+// --font-geist-sans is scoped to the dashboard shell only (.crm-app in
+// globals.css) — public/customer pages keep Poppins.
 
 export const metadata: Metadata = {
   title: "Tiffin Grab",
@@ -42,7 +40,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${poppins.variable} ${GeistSans.variable} ${GeistMono.variable} ${GeistPixelCircle.variable} h-full antialiased`}
+      className={`${poppins.variable} ${geistSans.variable} ${geistMono.variable} ${geistPixelCircle.variable} h-full antialiased`}
     >
       <head>
         <InlineScript html={themeInitScript} />
