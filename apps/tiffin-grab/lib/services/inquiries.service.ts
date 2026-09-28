@@ -7,7 +7,8 @@ import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { findZone } from "@/lib/catalog/zone-match";
+import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
+import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { createOrder, type CreateOrderInput } from "./orders.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
@@ -305,6 +306,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (!opts?.allowAdditionalOrder) {
       await assertNoLiveOrderForPhone(inq.phone);
     }
+
+    // Staff can only convert a lead into an order we can deliver; an out-of-zone lead stays
+    // an inquiry (the same line public checkout draws).
+    await assertServiceable({
+      postalCode: parseCanadianPostalCode(orderInput.contact.postalCode),
+      address: [orderInput.contact.addressLine, orderInput.contact.city, orderInput.contact.postalCode].filter(Boolean).join(", "),
+    });
 
     const actorPublicId = (await getSession())?.user?.id ?? null;
     const result = await createOrder(

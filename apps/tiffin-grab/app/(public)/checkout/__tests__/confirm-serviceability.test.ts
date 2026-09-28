@@ -72,7 +72,7 @@ describe("confirmSubscription serviceability gate", () => {
     } as Parameters<typeof confirmSubscription>[0];
     await confirmSubscription(spoofed);
     expect(resolveAndPersist).toHaveBeenCalledTimes(1);
-    expect(resolveAndPersist).toHaveBeenCalledWith({ address: "1 St, Toronto, X0X0X0" });
+    expect(resolveAndPersist).toHaveBeenCalledWith({ address: "1 St, Toronto, X0X 0X0" });
     const sentInput = createOrder.mock.calls.at(-1)![0] as { contact: { lat: number; lng: number } };
     expect(sentInput.contact).toMatchObject({ lat: 11.111111, lng: 22.222222 });
   });

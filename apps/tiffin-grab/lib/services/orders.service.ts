@@ -32,6 +32,7 @@ import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { findZone } from "@/lib/catalog/zone-match";
+import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { addressService } from "./addresses.service";
 import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
@@ -241,6 +242,8 @@ export async function createOrder(
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.
   const basePricing = priceSubscription(input.selections, pricingCatalog);
+  // Before the zone lookup: a bare prefix ("M8") would otherwise match a zone.
+  input.contact = { ...input.contact, postalCode: parseCanadianPostalCode(input.contact.postalCode) };
   let zoneRow = await findZone(snapshot.zones, input.contact, orgId);
 
   const parsedPhone = phoneSchema().safeParse(input.contact.phone);

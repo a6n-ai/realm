@@ -11,6 +11,7 @@ import { usersService } from "@/lib/services/users.service";
 import { sendAccountSetupEmail } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { findZone } from "@/lib/catalog/zone-match";
+import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
@@ -79,7 +80,9 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
   // Resolve the contact FIRST: serviceability, geocoding and tax below must all
   // run against the identity and address the order will actually be placed with.
   const { renewal: _renewal, ...rest } = rawInput;
-  const input: CreateOrderInput = { ...rest, contact: await resolveContact(rawInput) };
+  const contact = await resolveContact(rawInput);
+  // A malformed postal code is a typo to fix, not a lead for the waitlist.
+  const input: CreateOrderInput = { ...rest, contact: { ...contact, postalCode: parseCanadianPostalCode(contact.postalCode) } };
 
   // Serviceability is the source of truth here, not on the client: the checkout
   // UI disables "Continue to payment" for a known out-of-zone postal, but that
