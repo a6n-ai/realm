@@ -7,10 +7,9 @@ verification, notification outbox) actually leaves. App code sends via
 `realm-admin` has no SES/SNS/IAM permissions — run these with an elevated principal
 or the AWS console.
 
-> **DNS lives at Hostinger, not Route 53.** `tiffingrab.ca` is managed in the
-> Hostinger DNS panel, so the stack does NOT write DNS records — it outputs them
-> and you paste them into Hostinger by hand. (puchkaman.ca is on Route 53 and
-> could auto-add; tiffingrab can't.)
+> **DNS is on Route 53 since 2026-09-28** (stack `tiffin-grab-dns`, template
+> `deployment/dns/route53-tiffingrab.yaml`). The SES stack still does not write DNS
+> records: add its outputs to that template and redeploy it, not to Hostinger.
 
 ## 1. Deploy the identity stack
 
