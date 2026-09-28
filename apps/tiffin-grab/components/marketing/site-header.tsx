@@ -28,7 +28,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between gap-4 px-4 py-3 backdrop-blur">
-      <Link href="/" className="flex items-center gap-2 font-semibold">
+      <Link href="/" aria-label="Tiffin Grab home" className="flex items-center gap-2 font-semibold">
         <span className="bg-primary text-primary-foreground border-foreground flex size-9 items-center justify-center rounded-full border-[1.5px]">
           <UtensilsCrossedIcon className="size-5" />
         </span>
