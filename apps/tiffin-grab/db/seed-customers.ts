@@ -293,6 +293,10 @@ function normalize(s: string): string {
 // item{4,5}_{regular,large}_{veg,nonveg}, sabzi_only_{regular,large}_*, new_thali_*,
 // maharaja_*, small_thali (veg only). Word order and "Meal"/"(Regular)" noise vary,
 // so it keys off the signal words. A trial is one 5-item regular tiffin.
+export function isCustomMeal(productText: string): boolean {
+  return /\bcustom meal\b/.test(normalize(productText));
+}
+
 export function catalogKeyFor(productText: string, planKey: "veg" | "non-veg"): string | null {
   const t = normalize(productText);
   const diet = planKey === "veg" ? "veg" : "nonveg";
@@ -344,6 +348,9 @@ export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot): { results: P
     if (hasVegConflict(row)) { skip(`veg conflict: product "${record.productText}" vs meta "${row.veg}"`); continue; }
     if (record.tiffinCount <= 0) { skip("zero remaining tiffins"); continue; }
     if (!record.addressLine || !record.postalCode) { skip("missing address or postal code"); continue; }
+    // Free-text custom meals have no catalog equivalent. They stay on WordPress until the
+    // custom-meal feature ships; a later run imports them (drop this line then).
+    if (isCustomMeal(record.productText)) { skip(`custom meal, deferred: "${record.productText}"`); continue; }
     candidates.push(record);
   }
   const { kept, dropped } = dedupeByPhone(candidates);
