@@ -95,4 +95,12 @@ export type OrderPricingSnapshot = PricingResult & {
   // Coin spend quoted at checkout but not yet committed — deferred settlement
   // methods park it here; verifyPayment commits it, same as pendingRedemptions.
   pendingCoinRedemption?: { coins: number; amount: number };
+  // Set on orders imported from WordPress (db/seed-customers.ts): where WordPress left off.
+  wordpress?: {
+    orderId: number;
+    mergedOrderIds: number[];
+    lastDeliveredDate: string | null;
+    deliveredCount: number;
+    refreshedOn: string;
+  };
 };

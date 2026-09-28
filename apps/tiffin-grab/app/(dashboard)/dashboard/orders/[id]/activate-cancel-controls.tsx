@@ -6,15 +6,48 @@ import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { ResponsiveDialog } from "@/components/ds";
+import { humanDate } from "@/lib/deliveries-view";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { activate, cancel, startMigrated } from "./actions";
 
+export type MigrationProjection = {
+  frequencyKey: string;
+  eatingDays: DayOfWeek[];
+  persons: number;
+  tiffinCount: number;
+  /** Next due date from WordPress's last delivery; prefills the start date. */
+  startDate: string;
+};
+
+/** Same scheduling the server runs on start, so the preview matches what gets created. */
+function endFor(m: MigrationProjection, startDate: string): string | null {
+  if (!startDate) return null;
+  try {
+    return projectedEndDate({ startDate, trips: tripsFor(m.frequencyKey, m.eatingDays), persons: m.persons, targetTiffinCount: m.tiffinCount });
+  } catch {
+    return null;
+  }
+}
+
 /** Compact staff-only activate / cancel. Per-day changes (move, swap, address) live in the Deliveries tab. */
-export function ActivateCancelControls({ orderId, status, migrated = false }: { orderId: string; status: string; migrated?: boolean }) {
+export function ActivateCancelControls({
+  orderId,
+  status,
+  migrated = false,
+  migration = null,
+}: {
+  orderId: string;
+  status: string;
+  migrated?: boolean;
+  migration?: MigrationProjection | null;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
-  const [startDate, setStartDate] = useState("");
+  const [startDate, setStartDate] = useState(migration?.startDate ?? "");
+  const end = migration ? endFor(migration, startDate) : null;
   const run = (fn: () => Promise<void>) =>
     start(async () => {
       await fn();
@@ -62,7 +95,14 @@ export function ActivateCancelControls({ orderId, status, migrated = false }: { 
             </div>
           }
         >
-          <Input type="date" aria-label="First delivery date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <div className="space-y-2">
+            <Input type="date" aria-label="First delivery date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            {migration && (
+              <p className="text-muted-foreground text-sm">
+                {migration.tiffinCount} tiffins{end ? `, last delivery ${humanDate(end)}` : ""}
+              </p>
+            )}
+          </div>
         </ResponsiveDialog>
       )}
       <ResponsiveDialog

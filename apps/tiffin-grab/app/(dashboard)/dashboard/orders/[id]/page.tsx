@@ -20,6 +20,9 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import Link from "next/link";
 import { humanDate } from "@/lib/deliveries-view";
+import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PaymentsPanel } from "./payments-panel";
 import { OrderOverview } from "./order-summary-panel";
@@ -143,6 +146,24 @@ async function OrderDetail({
   const pendingPay = order.payments.find((p) => p.status === "pending_verification");
   const displayStatus = orderDisplayStatus(order.status, order.payments.map((p) => p.status));
 
+  // A WordPress-imported plan waiting to be started: where WordPress left off, and when the
+  // balance runs out if it starts on its next due date.
+  const migratedPending = order.status === "pending" && order.deploymentId.startsWith("wc-");
+  const frequencyKey = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId)?.key ?? null;
+  const migration = migratedPending && frequencyKey
+    ? {
+        frequencyKey,
+        eatingDays: (order.eatingDays ?? []) as DayOfWeek[],
+        persons: order.persons,
+        tiffinCount: order.tiffinCount,
+        startDate: order.startDate,
+        wordpress: (order.pricingSnapshot as OrderPricingSnapshot | null)?.wordpress ?? null,
+      }
+    : null;
+  const projectedEnd = migration
+    ? projectedEndDate({ startDate: migration.startDate, trips: tripsFor(migration.frequencyKey, migration.eatingDays), persons: migration.persons, targetTiffinCount: migration.tiffinCount })
+    : null;
+
   const stats: StatItem[] = [
     { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" ? "Paused" : order.frequencyName, pixelValue: false },
     {
@@ -158,7 +179,7 @@ async function OrderDetail({
 
   const headerActions = (
     <>
-      <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} />
+      <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
       <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />
     </>
   );
@@ -175,6 +196,22 @@ async function OrderDetail({
       <div className="-mt-2 flex flex-wrap gap-2 sm:hidden">{headerActions}</div>
 
       <StatGrid items={stats} cols={5} />
+
+      {migration && (
+        <div role="status" className="border-primary/40 bg-primary/5 rounded-xl border px-4 py-3 text-sm">
+          <p className="font-medium">
+            Imported from WordPress{migration.wordpress ? ` order #${migration.wordpress.orderId}` : ""}. Waiting to be started.
+          </p>
+          <p className="text-muted-foreground">
+            {migration.wordpress?.lastDeliveredDate
+              ? `WordPress last delivered ${humanDate(migration.wordpress.lastDeliveredDate)} (${migration.wordpress.deliveredCount} boxes). `
+              : "WordPress has not delivered yet. "}
+            {migration.tiffinCount} tiffins left · next due {humanDate(migration.startDate)}
+            {projectedEnd ? ` · ends ${humanDate(projectedEnd)}` : ""}
+            {migration.wordpress ? ` · balance as of ${humanDate(migration.wordpress.refreshedOn)}` : ""}
+          </p>
+        </div>
+      )}
 
       {pendingPay && (
         <div role="status" className="border-warn/40 bg-warn/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3">

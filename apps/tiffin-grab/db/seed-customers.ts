@@ -18,14 +18,16 @@
  */
 import { eq, isNull, or } from "drizzle-orm";
 import mysql from "mysql2/promise";
-import { emailSchema } from "@foundry/commons";
+import { emailSchema, zonedDateIso } from "@foundry/commons";
 import { db } from "./client";
 import { orderActivities, orders, organization, users } from "./schema";
 import { loadCatalogSnapshot } from "../lib/catalog/load";
 import { findZone } from "../lib/catalog/zone-match";
 import { categoryCountsFromItems } from "../lib/menu/pick-size";
 import type { DayOfWeek } from "../lib/menu/delivery-days";
-import { tripsFor } from "../lib/orders/bounded-deliveries";
+import { nextTripDate, tripsFor } from "../lib/orders/bounded-deliveries";
+import { matchZone, parseCanadianPostalCode } from "../lib/catalog/postal";
+import { getAppSettings } from "../lib/services/app-settings.service";
 import { provisionCustomerByPhone } from "../lib/services/customers.service";
 import { addressService } from "../lib/services/addresses.service";
 import type { OrderPricingSnapshot } from "../lib/pricing/types";
@@ -101,6 +103,21 @@ async function readWordPress(): Promise<WpRow[]> {
 
 /** Remaining balance = the latest `remaining_tiffins` in the plugin's serialized
  * per-date history; no history means delivery hasn't started, so the full count. */
+/** Where WordPress left off: the last day it delivered a box, and how many boxes in all.
+ * The history is one serialized entry per calendar day, oldest first. */
+export function wordpressPosition(history: string | null): { lastDeliveredDate: string | null; deliveredCount: number } {
+  let lastDeliveredDate: string | null = null;
+  let deliveredCount = 0;
+  for (const m of (history ?? "").matchAll(/s:10:"(\d{4}-\d{2}-\d{2})";a:\d+:\{(.*?)\}(?=s:10:"\d{4}-|\}$)/gs)) {
+    const boxes = Number(/"boxes_delivered";i:(\d+)/.exec(m[2]!)?.[1] ?? 0);
+    if (boxes > 0) {
+      deliveredCount += boxes;
+      lastDeliveredDate = m[1]!;
+    }
+  }
+  return { lastDeliveredDate, deliveredCount };
+}
+
 export function remainingTiffins(history: string | null, totalTiffins: string | null): number {
   const all = [...(history ?? "").matchAll(/"remaining_tiffins";i:(-?\d+);/g)];
   const last = all.at(-1)?.[1];
@@ -135,6 +152,9 @@ export type MigrationRecord = {
   sourceStartDate: string;
   // Renewal orders for the same plan whose balance was added to this one.
   mergedWpOrderIds: number[];
+  // WordPress position, for the next-due start date and the admin banner.
+  lastDeliveredDate: string | null;
+  deliveredCount: number;
 };
 
 const WEEKDAY_NAMES: { name: string; day: DayOfWeek }[] = [
@@ -246,6 +266,7 @@ export function mapRow(row: WpRow): MigrationRecord {
     includeSunday,
     persons: Math.max(1, Math.round(Number(row.qty) || 1)),
     tiffinCount: remainingTiffins(row.history, row.totalTiffins),
+    ...wordpressPosition(row.history),
     sourceStartDate: (row.startDate ?? "").trim(),
     mergedWpOrderIds: [],
   };
@@ -350,6 +371,16 @@ export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot): { results: P
     if (!record.addressLine || !record.postalCode) { skip("missing address or postal code"); continue; }
     // Free-text custom meals have no catalog equivalent. They stay on WordPress until the
     // custom-meal feature ships; a later run imports them (drop this line then).
+    try {
+      record.postalCode = parseCanadianPostalCode(record.postalCode);
+    } catch {
+      skip(`postal code not a full Canadian one: "${record.postalCode}"`);
+      continue;
+    }
+    if (!matchZone(record.postalCode, snapshot.zones.filter((z) => z.active))) {
+      skip(`outside every delivery zone: ${record.postalCode}`);
+      continue;
+    }
     if (isCustomMeal(record.productText)) { skip(`custom meal, deferred: "${record.productText}"`); continue; }
     candidates.push(record);
   }
@@ -397,7 +428,7 @@ async function brandOrgId(): Promise<string | null> {
   return row?.id ?? null;
 }
 
-async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: CatalogSnapshot, orgId: string | null): Promise<Outcome> {
+async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: CatalogSnapshot, orgId: string | null, today: string): Promise<Outcome> {
   const x = r.record;
   const deploymentId = `wc-${x.wpOrderId}`;
   // phoneSchema() crashes under tsx (libphonenumber CJS/ESM interop); planSeed already
@@ -408,7 +439,12 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
   if (!plan || !frequency) throw new Error(`catalog has no plan ${x.planKey} / frequency ${x.frequencyKey}`);
 
   const categoryCounts = categoryCountsFromItems(r.mealSize.items);
-  const perWeek = tripsFor(x.frequencyKey, x.eatingDays).reduce((n, t) => n + t.units * x.persons, 0);
+  const trips = tripsFor(x.frequencyKey, x.eatingDays);
+  const perWeek = trips.reduce((n, t) => n + t.units * x.persons, 0);
+  // Pick up where WordPress left off: the first trip after its last delivered box, or its
+  // own start date if it never delivered. Never in the past; staff can still change it.
+  const due = x.lastDeliveredDate ? nextTripDate(x.lastDeliveredDate, trips) : x.sourceStartDate || today;
+  const startDate = due > today ? due : today;
   const contact = {
     fullName: x.fullName || "Customer",
     addressLine: x.addressLine,
@@ -433,6 +469,13 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
     total: 0,
     paymentMethodId: "simulated",
     planType: plan.planType,
+    wordpress: {
+      orderId: x.wpOrderId,
+      mergedOrderIds: x.mergedWpOrderIds,
+      lastDeliveredDate: x.lastDeliveredDate,
+      deliveredCount: x.deliveredCount,
+      refreshedOn: today,
+    },
   };
   const planFields = {
     planId: plan.id,
@@ -446,6 +489,7 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
     includeSunday: x.eatingDays.includes("sun"),
     durationWeeks: Math.max(1, Math.ceil(x.tiffinCount / Math.max(1, perWeek))),
     tiffinCount: x.tiffinCount,
+    startDate,
     pricingSnapshot,
     zoneId: zone?.id ?? null,
     ...contact,
@@ -473,8 +517,6 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
       userId,
       status: "pending",
       deploymentId,
-      // Placeholder until staff start the plan; "Start migrated plan" sets the real date.
-      startDate: x.sourceStartDate && x.sourceStartDate > new Date().toISOString().slice(0, 10) ? x.sourceStartDate : new Date().toISOString().slice(0, 10),
       perTiffinPrice: "0.00",
       total: "0.00",
       addressId: address.id,
@@ -491,11 +533,12 @@ async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: C
 
 async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapshot: CatalogSnapshot): Promise<void> {
   const orgId = await brandOrgId();
+  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
   const counts: Record<Outcome, number> = { created: 0, refreshed: 0, "unchanged (already started)": 0, failed: 0 };
   for (const r of planned) {
     let outcome: Outcome;
     try {
-      outcome = await applyOne(r, snapshot, orgId);
+      outcome = await applyOne(r, snapshot, orgId, today);
     } catch (err) {
       outcome = "failed";
       console.log(`  FAILED wc-${r.record.wpOrderId}: ${err instanceof Error ? err.message : String(err)}`);

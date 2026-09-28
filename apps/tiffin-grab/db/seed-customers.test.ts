@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { catalogKeyFor, dedupeByPhone, hasVegConflict, mapRow, remainingTiffins, type WpRow } from "./seed-customers";
+import { catalogKeyFor, dedupeByPhone, hasVegConflict, mapRow, remainingTiffins, wordpressPosition, type WpRow } from "./seed-customers";
 
 function row(over: Partial<WpRow> = {}): WpRow {
   return {
@@ -134,5 +134,23 @@ describe("catalogKeyFor", () => {
     ["Custom Meal - 2 Veg(12oz) + 4 Rotis", "veg", null],
   ] as const)("%s -> %s", (product, plan, key) => {
     expect(catalogKeyFor(product, plan)).toBe(key);
+  });
+});
+
+describe("wordpressPosition", () => {
+  const day = (date: string, rem: number, boxes: number) =>
+    `s:10:"${date}";a:3:{s:17:"remaining_tiffins";i:${rem};s:13:"delivery_days";a:2:{i:0;i:1;i:1;i:2;}s:15:"boxes_delivered";i:${boxes};}`;
+  const history = `a:4:{${day("2026-09-24", 12, 1)}${day("2026-09-25", 11, 2)}${day("2026-09-26", 11, 0)}${day("2026-09-27", 11, 0)}}`;
+
+  it("finds the last day a box went out and the total delivered", () => {
+    expect(wordpressPosition(history)).toEqual({ lastDeliveredDate: "2026-09-25", deliveredCount: 3 });
+  });
+
+  it("has no position before delivery starts", () => {
+    expect(wordpressPosition(null)).toEqual({ lastDeliveredDate: null, deliveredCount: 0 });
+  });
+
+  it("agrees with remainingTiffins on the same history", () => {
+    expect(remainingTiffins(history, "20")).toBe(11);
   });
 });
