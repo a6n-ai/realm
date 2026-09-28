@@ -153,11 +153,11 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <Link href="/dashboard" className="group flex items-center gap-2 px-2 py-1.5">
-          <BrandMark className="size-8" />
-          <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <BrandWordmark className="text-sm" />
-            <span className="text-muted-foreground text-xs">Operations</span>
+        <Link href="/dashboard" aria-label="TiffinGrab home" className="group flex items-center gap-2.5 px-2 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <BrandMark className="size-10 group-data-[collapsible=icon]:size-8" />
+          <div className="flex flex-col gap-1 group-data-[collapsible=icon]:hidden">
+            <BrandWordmark className="text-xl" />
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">Operations</span>
           </div>
         </Link>
       </SidebarHeader>
