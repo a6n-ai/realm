@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@foundry/ui/button";
-import { UtensilsCrossedIcon } from "lucide-react";
+import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 
 const ZONES = "Etobicoke · Mississauga · Brampton · Toronto · Scarborough · Markham · Richmond Hill · North York · Vaughan · Oakville & East York";
 
@@ -9,9 +9,10 @@ export function SiteFooter() {
     <footer className="bg-foreground text-background mx-2 rounded-t-3xl sm:mx-4">
       <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-full">
-            <UtensilsCrossedIcon className="size-5" />
-          </span>
+          <Link href="/" aria-label="TiffinGrab home" className="flex items-center gap-2">
+            <BrandMark className="size-10" />
+            <BrandWordmark className="text-xl" grabClassName="text-background" />
+          </Link>
           <div className="flex flex-wrap items-center gap-6 text-sm">
             <Button asChild size="sm" className="rounded-full"><Link href="/subscribe">Start a plan →</Link></Button>
             <Link href="/faq" className="text-background/70 hover:text-background">FAQ</Link>

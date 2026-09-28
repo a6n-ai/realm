@@ -31,6 +31,7 @@ import { lockSession } from "@/lib/auth/lock-actions";
 import { markAllReadAction } from "@/lib/services/section-seen.actions";
 import type { Section } from "@/lib/services/section-seen.service";
 import Link from "next/link";
+import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@foundry/ui/cn";
 import {
@@ -153,11 +154,9 @@ export function AppSidebar({
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <Link href="/dashboard" className="group flex items-center gap-2 px-2 py-1.5">
-          <div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
-            <UtensilsCrossedIcon className="icon-pop size-4" />
-          </div>
+          <BrandMark className="size-8" />
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold">TiffinGrab</span>
+            <BrandWordmark className="text-sm" />
             <span className="text-muted-foreground text-xs">Operations</span>
           </div>
         </Link>

@@ -14,6 +14,7 @@ import {
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { setInitialPassword } from "./actions";
+import { AuthBrandPanel } from "../auth-brand-panel";
 
 const schema = z
   .object({
@@ -129,12 +130,7 @@ export function SetPasswordForm() {
               </div>
             </form>
           </Form>
-          <div className="bg-muted text-muted-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
-            <span className="text-foreground text-2xl font-bold">Tiffin Grab</span>
-            <p className="text-balance text-center text-sm">
-              Fresh tiffin meals, delivered on your schedule.
-            </p>
-          </div>
+          <AuthBrandPanel />
         </CardContent>
       </Card>
     </div>

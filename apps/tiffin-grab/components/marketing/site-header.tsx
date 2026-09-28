@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UtensilsCrossedIcon } from "lucide-react";
+import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { Button } from "@foundry/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useSession } from "@/lib/auth/client";
@@ -28,10 +28,9 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between gap-4 px-4 py-3 backdrop-blur">
-      <Link href="/" className="flex items-center gap-2 font-semibold">
-        <span className="bg-primary text-primary-foreground border-foreground flex size-9 items-center justify-center rounded-full border-[1.5px]">
-          <UtensilsCrossedIcon className="size-5" />
-        </span>
+      <Link href="/" aria-label="TiffinGrab home" className="flex items-center gap-2">
+        <BrandMark className="size-10" />
+        <BrandWordmark className="text-xl" />
       </Link>
       <nav className="border-foreground bg-background hidden items-center gap-1 rounded-full border-[1.5px] p-1 md:flex">
         {LINKS.map((l) => (

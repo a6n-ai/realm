@@ -16,6 +16,7 @@ import {
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { signUpCustomer } from "./actions";
+import { AuthBrandPanel } from "../auth-brand-panel";
 
 const PhoneInput = dynamic(
   () => import("@foundry/ui/phone-input").then((m) => m.PhoneInput),
@@ -178,12 +179,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
               </div>
             </form>
           </Form>
-          <div className="bg-muted text-muted-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
-            <span className="text-foreground text-2xl font-bold">Tiffin Grab</span>
-            <p className="text-balance text-center text-sm">
-              Fresh tiffin meals, delivered on your schedule.
-            </p>
-          </div>
+          <AuthBrandPanel />
         </CardContent>
       </Card>
       <div className="text-muted-foreground hover:[&_a]:text-primary text-balance text-center text-xs [&_a]:underline [&_a]:underline-offset-4">
