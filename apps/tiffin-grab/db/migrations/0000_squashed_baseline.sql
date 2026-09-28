@@ -1,4 +1,4 @@
--- Squashed baseline. Replaces the entire pre-launch migration chain (0000..0059) as of
+-- Squashed baseline. Replaces the entire pre-launch migration chain (0000..0063) as of
 -- 2026-09-27; verified schema-equivalent to that chain (plus schema.ts FKs it never created).
 --
 -- The sequence, next_id()/current_app_id() and the app_id foreign-key loop are hand-written:
@@ -20,7 +20,6 @@ CREATE OR REPLACE FUNCTION current_app_id() RETURNS bigint LANGUAGE sql STABLE A
 CREATE TYPE "public"."locale" AS ENUM('en', 'fr');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('admin', 'member', 'user');--> statement-breakpoint
 CREATE TYPE "public"."user_status" AS ENUM('active', 'inactive', 'suspended', 'deleted');--> statement-breakpoint
-CREATE TYPE "public"."meal_size_discount_type" AS ENUM('none', 'percent', 'flat');--> statement-breakpoint
 CREATE TYPE "public"."meal_tier" AS ENUM('budget', 'medium', 'premium');--> statement-breakpoint
 CREATE TYPE "public"."plan_type" AS ENUM('tiffin', 'healthy');--> statement-breakpoint
 CREATE TYPE "public"."order_activity_type" AS ENUM('created', 'status_change', 'paused', 'resumed', 'cancelled', 'activated', 'meal_pick', 'note', 'skipped', 'unskipped', 'delivery_address_changed', 'pool_scheduled', 'payment_claimed', 'payment_verified', 'payment_rejected', 'route_pushed', 'route_completed', 'category_swap_applied', 'category_swap_removed');--> statement-breakpoint
@@ -58,7 +57,7 @@ CREATE TYPE "public"."suppression_scope" AS ENUM('all', 'marketing');--> stateme
 CREATE TYPE "public"."file_resource_type" AS ENUM('static', 'secured');--> statement-breakpoint
 CREATE TYPE "public"."file_system_node_type" AS ENUM('file', 'directory');--> statement-breakpoint
 CREATE TYPE "public"."invitation_status" AS ENUM('pending', 'accepted', 'rejected', 'canceled');--> statement-breakpoint
-CREATE TYPE "public"."discount_kind" AS ENUM('delivery', 'duration');--> statement-breakpoint
+CREATE TYPE "public"."discount_kind" AS ENUM('delivery', 'duration', 'meal_size', 'waiver_delivery', 'waiver_base', 'waiver_strategy', 'waiver_tax');--> statement-breakpoint
 CREATE TYPE "public"."delivery_charge_type" AS ENUM('none', 'fixed', 'percent');--> statement-breakpoint
 CREATE TABLE "review_nudges" (
 	"email" text PRIMARY KEY NOT NULL,
@@ -239,7 +238,6 @@ CREATE TABLE "delivery_frequencies" (
 	"key" text NOT NULL,
 	"name" text NOT NULL,
 	"days_per_week" integer NOT NULL,
-	"courier_discount_pct" integer DEFAULT 0 NOT NULL,
 	"weekdays" text[],
 	"active" boolean DEFAULT true NOT NULL,
 	"organization_id" text,
@@ -274,7 +272,6 @@ CREATE TABLE "duration_packages" (
 	"updated_at" bigint NOT NULL,
 	"updated_by" bigint,
 	"weeks" integer NOT NULL,
-	"discount_pct" integer DEFAULT 0 NOT NULL,
 	"max_pauses" integer,
 	"max_pause_days_total" integer,
 	"max_pause_stretch_days" integer,
@@ -323,8 +320,6 @@ CREATE TABLE "meal_sizes" (
 	"carbs_g" integer,
 	"fat_g" integer,
 	"base_price" numeric(10, 2) NOT NULL,
-	"discount_type" "meal_size_discount_type" DEFAULT 'none' NOT NULL,
-	"discount_value" numeric(10, 2) DEFAULT '0' NOT NULL,
 	"trial" boolean DEFAULT false NOT NULL,
 	"active" boolean DEFAULT true NOT NULL,
 	"organization_id" text,
@@ -1339,6 +1334,7 @@ CREATE TABLE "discounts" (
 	"starts_at" bigint,
 	"ends_at" bigint,
 	"min_weeks" integer,
+	"amount" numeric(10, 2),
 	"organization_id" text,
 	CONSTRAINT "discounts_public_id_unique" UNIQUE("public_id"),
 	CONSTRAINT "discounts_key_unique" UNIQUE("key"),
@@ -1395,6 +1391,7 @@ CREATE TABLE "delivery_strategies" (
 	"organization_id" text,
 	"group_id" bigint,
 	"connection_id" bigint,
+	"charge_basis" text DEFAULT 'once' NOT NULL,
 	CONSTRAINT "delivery_strategies_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint

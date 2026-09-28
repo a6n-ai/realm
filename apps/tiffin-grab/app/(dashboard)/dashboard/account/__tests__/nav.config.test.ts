@@ -22,7 +22,6 @@ describe("ACCOUNT_NAV role gating", () => {
       "contact",
       "address",
       "dietary",
-      "deliveryNotes",
       "notifications",
       "security",
     ]);
@@ -44,7 +43,7 @@ describe("ACCOUNT_NAV role gating", () => {
 
   it("never exposes customer delivery sections to staff", () => {
     for (const role of [Role.ADMIN, Role.MEMBER] as const) {
-      for (const leak of ["address", "dietary", "deliveryNotes", "notifications"] as const) {
+      for (const leak of ["address", "dietary", "notifications"] as const) {
         expect(isSectionAllowed(role, leak)).toBe(false);
       }
     }

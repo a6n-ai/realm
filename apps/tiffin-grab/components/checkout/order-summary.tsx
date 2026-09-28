@@ -69,6 +69,12 @@ export function OrderSummary({
           </div>
         )}
         {qty && <p className="nums font-medium">{qty}</p>}
+        {result?.deliveryCount ? (
+          <p className="nums text-muted-foreground">
+            {result.deliveryCount} {result.deliveryCount === 1 ? "delivery" : "deliveries"}
+            {result.deliveryCount < result.tiffinCount ? " · some tiffins share a trip" : ""}
+          </p>
+        ) : null}
         {start && <p className="text-muted-foreground">Starts {start}</p>}
       </div>
 
@@ -82,13 +88,18 @@ export function OrderSummary({
                 <span className="text-muted-foreground">{li.label}</span><span className="nums">{money(li.amount)}</span>
               </li>
             ))}
-            {result.adjustments.map((d) => (
-              <li key={d.label} className="flex justify-between gap-2 text-emerald-700 dark:text-emerald-400">
-                <span>{d.label}</span><span className="nums">−{money(d.amount)}</span>
-              </li>
-            ))}
           </ul>
+          {/* Subtotal is before discounts, so it sits above them. */}
           <div className="text-muted-foreground mt-3 flex justify-between gap-2"><span>Subtotal</span><span className="nums">{money(result.subtotal)}</span></div>
+          {result.adjustments.length > 0 && (
+            <ul className="mt-1.5 space-y-1.5">
+              {result.adjustments.map((d) => (
+                <li key={d.label} className="flex justify-between gap-2 text-emerald-700 dark:text-emerald-400">
+                  <span>{d.label}</span><span className="nums">−{money(d.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           {(result.taxLines ?? []).map((t) => (
             <div key={t.name} className="text-muted-foreground mt-1 flex justify-between gap-2">
               <span>{t.name} ({t.ratePct}%)</span><span className="nums">{money(t.amount)}</span>

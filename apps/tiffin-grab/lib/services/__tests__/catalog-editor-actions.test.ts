@@ -26,7 +26,7 @@ describe("catalog editor action round-trip (public_id resolves)", () => {
     await reset();
     const [z] = await db
       .insert(durationPackages)
-      .values({ weeks: WEEKS, discountPct: 0 })
+      .values({ weeks: WEEKS })
       .returning();
     publicId = z.publicId;
   });
@@ -43,8 +43,8 @@ describe("catalog editor action round-trip (public_id resolves)", () => {
   });
 
   it("saveItem with a public_id edits the existing row (not a no-op)", async () => {
-    await saveItem("duration-packages", publicId, { weeks: WEEKS, discountPct: 5 });
+    await saveItem("duration-packages", publicId, { weeks: WEEKS, maxPauses: 5 });
     const [row] = await db.select().from(durationPackages).where(eq(durationPackages.publicId, publicId));
-    expect(row.discountPct).toBe(5);
+    expect(row.maxPauses).toBe(5);
   });
 });

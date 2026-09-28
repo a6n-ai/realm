@@ -1,14 +1,14 @@
 /* eslint-disable react-hooks/purity */
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { AddressValues } from "@foundry/commons";
 import type { SavedAddress } from "@foundry/address";
 import { formatAddress } from "@foundry/address/ui";
 import { setMyDeliveryAddress } from "@/app/(customer)/me/deliveries/actions";
 import { Button, Field, Notice, OptionCard, Sheet } from "@/components/customer/kit";
-import { DropOffPicker } from "@/components/customer/address/drop-off";
-import { validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
+import { AddressDropOffLines, AddressDropOffPanel, DropOffPicker } from "@/components/customer/address/drop-off";
+import { NO_DROP_OFF, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import { nameTaken } from "@/components/customer/address/address-name";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
@@ -23,9 +23,9 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   const [picked, setPicked] = useState<string | null>(() =>
     currentSavedAddressId(trip.addressOverride ?? null, plan.sub, addresses),
   );
-  // This delivery's own drop-off, else the plan's.
+  // Re-addressed: this delivery's own drop-off (possibly none); else the plan's address's.
   const [dropOff, setDropOff] = useState<DropOffValue>(() =>
-    validDropOff(plan.dropOff, trip.dropOff?.tagId ? trip.dropOff : plan.sub.dropOff),
+    validDropOff(plan.dropOff, trip.addressOverride ? trip.dropOff : plan.sub.dropOff),
   );
 
   const [draft, setDraft] = useState<AddressValues>({});
@@ -66,50 +66,66 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
           <Notice>{av.why}</Notice>
         ) : (
           <>
-            <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} />
-
             <div role="radiogroup" aria-label="Delivery address" className="grid gap-2">
               <span className="text-sm font-semibold text-[var(--foreground)]">Address</span>
               {addresses.map((a: SavedAddress) => (
-                <OptionCard key={a.publicId} role="radio" selected={picked === a.publicId} onClick={() => {
-                  setPicked(a.publicId);
-                  // A saved address brings its own drop-off.
-                  const own = plan.addressDropOffs?.[a.publicId];
-                  if (own) setDropOff(validDropOff(plan.dropOff, own));
-                }} className="p-4">
-                  <span className="block font-medium">
-                    {a.label}
-                    {a.isDefault ? " · Default" : ""}
-                  </span>
-                  <span className="block text-sm text-[var(--muted-foreground)]">{formatAddress(a)}</span>
-                </OptionCard>
+                <Fragment key={a.publicId}>
+                  <OptionCard role="radio" selected={picked === a.publicId} onClick={() => {
+                    setPicked(a.publicId);
+                    // Drop-off belongs to the address: picking one brings its own (or none).
+                    setDropOff(validDropOff(plan.dropOff, plan.addressDropOffs?.[a.publicId]));
+                  }} className="p-4">
+                    <span className="block font-medium">
+                      {a.label}
+                      {a.isDefault ? " · Default" : ""}
+                    </span>
+                    <span className="block text-sm text-[var(--muted-foreground)]">{formatAddress(a)}</span>
+                    {picked !== a.publicId && (
+                      <AddressDropOffLines catalog={plan.dropOff} value={plan.addressDropOffs?.[a.publicId]} note={a.deliveryInstructions} />
+                    )}
+                  </OptionCard>
+                  {picked === a.publicId && (
+                    <AddressDropOffPanel>
+                      <div className="grid gap-2">
+                        {a.deliveryInstructions && <p className="text-[13px] text-[var(--muted-foreground)]">Note: {a.deliveryInstructions}</p>}
+                        <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} />
+                      </div>
+                    </AddressDropOffPanel>
+                  )}
+                </Fragment>
               ))}
-              <OptionCard role="radio" selected={picked === null} onClick={() => setPicked(null)} className="p-4">
+              <OptionCard role="radio" selected={picked === null} onClick={() => {
+                if (picked !== null) setDropOff(NO_DROP_OFF);
+                setPicked(null);
+              }} className="p-4">
                 <span className="font-medium">+ New address</span>
               </OptionCard>
+              {picked === null && (
+                <AddressDropOffPanel>
+                  <div className="grid gap-4">
+                    <Field
+                      label="Name"
+                      placeholder="Home, Office, Mom's place…"
+                      maxLength={40}
+                      value={name}
+                      error={nameTaken(name, addresses)}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                    <AddressFields
+                      preset="delivery"
+                      idPrefix="delivery-address"
+                      fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
+                      values={draft}
+                      resolveUrl="/api/address/resolve"
+                      onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
+                    />
+                    <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} />
+                  </div>
+                </AddressDropOffPanel>
+              )}
             </div>
-            
-            {picked === null && (
-              <Field
-                label="Name"
-                placeholder="Home, Office, Mom's place…"
-                maxLength={40}
-                value={name}
-                error={nameTaken(name, addresses)}
-                onChange={(e) => setName(e.target.value)}
-              />
-            )}
-            {picked === null && (
-              <AddressFields
-                preset="delivery"
-                idPrefix="delivery-address"
-                fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
-                values={draft}
-                resolveUrl="/api/address/resolve"
-                onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
-              />
-            )}
-            <p className="text-sm text-[var(--muted-foreground)]">Only this delivery changes. No extra charge.</p>
+
+            <p className="text-sm text-[var(--muted-foreground)]">Only this delivery moves; drop-off changes are saved to the address. No extra charge.</p>
           </>
         )}
         {error && <Notice tone="error">{error}</Notice>}

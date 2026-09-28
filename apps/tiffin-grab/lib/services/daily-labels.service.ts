@@ -20,6 +20,7 @@ import {
 } from "@/db/schema";
 import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
+import { dropOffTexts } from "@/lib/services/address-drop-off.service";
 import { menuService } from "@/lib/services/menu.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
@@ -43,6 +44,7 @@ export type DeliveryLabel = {
   deploymentId: string;
   customerName: string;
   phone: string | null;
+  addressUnit: string | null;
   addressLine: string;
   city: string;
   postalCode: string;
@@ -105,8 +107,16 @@ export type DayDeliveryRow = {
   mealSizeName: string;
   customerEmail: string | null;
   customerPhone: string | null;
-  customerNotes: string | null;
+  /** The trip address's drop-off ("Apartment: Lobby"), for OptimoRoute's delivery-type field. */
+  dropOff: string | null;
+  /** What the driver reads: drop-off, then the address's own instructions. Same on label and route. */
+  driverNote: string | null;
 };
+
+/** Drop-off first, then the note; null when neither is set. */
+export function driverNote(dropOff: string | null, instructions: string | null | undefined): string | null {
+  return [dropOff, instructions?.trim()].filter(Boolean).join(" · ") || null;
+}
 
 /**
  * Every scheduled delivery for one date, with who and where — the transpose of the
@@ -117,7 +127,7 @@ export type DayDeliveryRow = {
  * not published the week yet.
  */
 export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow[]> {
-  return db
+  const rows = await db
     .select({
       delivery: deliveries,
       order: orders,
@@ -125,7 +135,6 @@ export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow
       mealSizeName: mealSizes.name,
       customerEmail: users.email,
       customerPhone: users.phone,
-      customerNotes: users.deliveryNotes,
     })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
@@ -140,6 +149,10 @@ export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow
       ),
     )
     .orderBy(asc(deliveries.id));
+
+  const addresses = rows.map((r) => effectiveAddress(r.delivery, r.order));
+  const dropOffs = await dropOffTexts(addresses.map((a) => ({ tagId: a.deliveryTagId, strategyIds: a.deliveryStrategyIds })));
+  return rows.map((r, i) => ({ ...r, dropOff: dropOffs[i]!, driverNote: driverNote(dropOffs[i]!, addresses[i]!.deliveryInstructions) }));
 }
 
 export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet> {
@@ -243,6 +256,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
         deploymentId: order.deploymentId,
         customerName: address.fullName,
         phone: row.customerPhone ?? null,
+        addressUnit: address.addressUnit,
         addressLine: address.addressLine,
         city: address.city,
         postalCode: address.postalCode,
@@ -255,7 +269,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
         persons: order.persons,
         forDate,
         forLabel: covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null,
-        deliveryNotes: row.customerNotes?.trim() || null,
+        deliveryNotes: row.driverNote,
         lines,
       });
     }

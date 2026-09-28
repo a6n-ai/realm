@@ -2,6 +2,7 @@ import type { ComputedTaxLine } from "@foundry/payments";
 import type { DayOfWeek } from "../menu/delivery-days";
 import type { PricingTier } from "./tiers";
 import type { DeliveryChargeCalculationResult, DeliveryChargeItemLike } from "@foundry/delivery";
+import type { PricingWaiver } from "./waivers";
 
 export interface PricingSelections {
   mealSizeId: string;
@@ -29,7 +30,7 @@ export interface PricingSelections {
 
 export interface PricingCatalog {
   mealSize: { id: string; basePrice: number };
-  frequency: { key: string; daysPerWeek: number; /** @deprecated unused; discounts come from `discounts` */ courierDiscountPct?: number };
+  frequency: { key: string; daysPerWeek: number };
   tiers: PricingTier[];
   // Resolved rate+qty for each of selections.addonSelections, priced per delivery
   // week — buildPricingCatalog rejects any key not attached to the chosen meal
@@ -39,9 +40,14 @@ export interface PricingCatalog {
   // Already filtered to those applicable to the selections; engine sums, caps, prints.
   discounts?: { key: string; label: string; percent: number }[];
   maxDiscountPct?: number;
+  deliveryCount?: number;
+  // Outside the discount cap: they waive fees/tax, not the food price.
+  waivers?: PricingWaiver[];
   deliveryChargeConfig?: {
     baseCharge: number;
     deliveryStrategies?: DeliveryChargeItemLike[];
+    /** Delivery trips in the whole plan, for per-delivery strategy charges. */
+    deliveryCount?: number;
     addressTag?: DeliveryChargeItemLike | null;
   };
 }
@@ -58,6 +64,8 @@ export interface PricingResult {
   taxLines: ComputedTaxLine[]; // per-method tax lines applied to the post-discount base
   taxTotal: number; // sum of taxLines (rounded per line), added on top of the taxable base
   tiffinCount: number;
+  /** Delivery trips over the whole plan (weekend days can ride a Friday trip). */
+  deliveryCount?: number;
   perTiffinPrice: number;
   tier: PricingTier;
   subtotal: number;

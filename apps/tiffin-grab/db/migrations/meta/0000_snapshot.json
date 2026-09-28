@@ -1,5 +1,5 @@
 {
-  "id": "683fcee9-206d-44e9-a49c-df398541f0a9",
+  "id": "6b1e858b-deac-47d9-895c-506c1a73631a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1338,13 +1338,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "courier_discount_pct": {
-          "name": "courier_discount_pct",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "weekdays": {
           "name": "weekdays",
           "type": "text[]",
@@ -1621,13 +1614,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "discount_pct": {
-          "name": "discount_pct",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "max_pauses": {
           "name": "max_pauses",
@@ -1992,21 +1978,6 @@
           "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true
-        },
-        "discount_type": {
-          "name": "discount_type",
-          "type": "meal_size_discount_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'none'"
-        },
-        "discount_value": {
-          "name": "discount_value",
-          "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'0'"
         },
         "trial": {
           "name": "trial",
@@ -11935,6 +11906,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "organization_id": {
           "name": "organization_id",
           "type": "text",
@@ -12382,6 +12359,13 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": false
+        },
+        "charge_basis": {
+          "name": "charge_basis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'once'"
         }
       },
       "indexes": {
@@ -13544,15 +13528,6 @@
         "deleted"
       ]
     },
-    "public.meal_size_discount_type": {
-      "name": "meal_size_discount_type",
-      "schema": "public",
-      "values": [
-        "none",
-        "percent",
-        "flat"
-      ]
-    },
     "public.meal_tier": {
       "name": "meal_tier",
       "schema": "public",
@@ -13982,7 +13957,12 @@
       "schema": "public",
       "values": [
         "delivery",
-        "duration"
+        "duration",
+        "meal_size",
+        "waiver_delivery",
+        "waiver_base",
+        "waiver_strategy",
+        "waiver_tax"
       ]
     },
     "public.delivery_charge_type": {

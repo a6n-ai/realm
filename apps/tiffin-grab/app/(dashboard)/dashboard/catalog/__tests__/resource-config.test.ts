@@ -50,14 +50,13 @@ describe("plans schema", () => {
 });
 
 describe("delivery-frequencies discount field moved to Discounts", () => {
-  it("has no discount form field but still parses the legacy column", () => {
+  it("has no discount form field", () => {
     expect(RESOURCES["delivery-frequencies"].fields.some((f) => f.key === "courierDiscountPct")).toBe(false);
     expect(RESOURCES["delivery-frequencies"].note).toMatch(/Discounts/);
   });
-  it("coerces numbers and accepts courierDiscountPct", () => {
-    const out = RESOURCES["delivery-frequencies"].schema.parse({ key: "weekly", name: "Weekly", daysPerWeek: "5", courierDiscountPct: "10" });
+  it("coerces numbers", () => {
+    const out = RESOURCES["delivery-frequencies"].schema.parse({ key: "weekly", name: "Weekly", daysPerWeek: "5" });
     expect(out.daysPerWeek).toBe(5);
-    expect(out.courierDiscountPct).toBe(10);
   });
 });
 
@@ -65,11 +64,10 @@ describe("duration-packages discount field moved to Discounts", () => {
   it("has no discount form field", () => {
     expect(RESOURCES["duration-packages"].fields.some((f) => f.key === "discountPct")).toBe(false);
   });
-  it("accepts weeks + discountPct, no key", () => {
+  it("accepts weeks, no key", () => {
     expect(RESOURCES["duration-packages"].keyed).toBe(false);
-    const out = RESOURCES["duration-packages"].schema.parse({ weeks: "4", discountPct: "5" });
+    const out = RESOURCES["duration-packages"].schema.parse({ weeks: "4" });
     expect(out.weeks).toBe(4);
-    expect(out.discountPct).toBe(5);
   });
 });
 
@@ -135,8 +133,8 @@ describe("blank numeric fields (form feeds \"\")", () => {
   });
 
   it("blank field with a default falls back to the default", () => {
-    const out = RESOURCES["delivery-frequencies"].schema.parse({ key: "weekly", name: "Weekly", daysPerWeek: "5", courierDiscountPct: "" });
-    expect(out.courierDiscountPct).toBe(0);
+    const out = RESOURCES["addon-categories"].schema.parse({ key: "x", name: "X", sortOrder: "" });
+    expect(out.sortOrder).toBe(0);
   });
 });
 

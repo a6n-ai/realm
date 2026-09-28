@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateDeliveryCharge } from "@foundry/delivery";
 import { priceSubscription } from "../engine";
-import { buildPricingCatalog } from "../build-catalog";
+import { buildPricingCatalog, planDeliveryCount } from "../build-catalog";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "../types";
 import type { PricingTier } from "../tiers";
@@ -182,8 +182,8 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
         tier: "medium", components: [], items: [], kcalMin: 500, kcalMax: 700, proteinG: null, carbsG: null, fatG: null,
         basePrice: 10, discountType: "none", discountValue: 0, trial: false,
       }],
-      frequencies: [{ id: 1n, publicId: "freq_1", key: "5_day", name: "5 Day", daysPerWeek: 5, courierDiscountPct: 0, weekdays: null }],
-      durations: [{ id: 1n, publicId: "dur_2", weeks: 2, discountPct: 0 }],
+      frequencies: [{ id: 1n, publicId: "freq_1", key: "5_day", name: "5 Day", daysPerWeek: 5, weekdays: null }],
+      durations: [{ id: 1n, publicId: "dur_2", weeks: 2 }],
       zones: [{ id: 1n, publicId: "z1", name: "Downtown", radiusKm: null, postalPrefixes: ["M5V"], slotWindow: "11am-1pm", active: true }],
       tiers: TIERS,
       deliveryCharges: {
@@ -197,6 +197,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
           { id: 1n, publicId: "dt_active", name: "Lobby", description: null, chargeType: "fixed", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_apt", connectionPublicId: "set_spot" },
           { id: 2n, publicId: "dt_inactive", name: "Old Type", description: null, chargeType: "fixed", chargeValue: 5, active: false, sortOrder: 1, groupPublicId: "grp_apt", connectionPublicId: null },
           { id: 3n, publicId: "dt_door", name: "Leave at door", description: null, chargeType: "fixed", chargeValue: 2, active: true, sortOrder: 2, groupPublicId: "grp_apt", connectionPublicId: "set_spot" },
+          { id: 6n, publicId: "dt_buzz", name: "Buzz on arrival", description: null, chargeType: "fixed", chargeValue: 0.5, active: true, sortOrder: 3, groupPublicId: "grp_apt", connectionPublicId: null, chargeBasis: "per_delivery" },
           { id: 4n, publicId: "dt_call", name: "Call on arrival", description: null, chargeType: "percent", chargeValue: 1, active: true, sortOrder: 0, groupPublicId: "grp_apt", connectionPublicId: null },
           { id: 5n, publicId: "dt_porch", name: "Porch", description: null, chargeType: "none", chargeValue: 0, active: true, sortOrder: 0, groupPublicId: "grp_home", connectionPublicId: null },
         ],
@@ -230,6 +231,11 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     // Everything is optional: a place type alone, or nothing at all
     expect(buildPricingCatalog(mockSnapshot, sel({ deliveryTagId: "grp_home" })).deliveryChargeConfig?.deliveryStrategies).toEqual([]);
     expect(buildPricingCatalog(mockSnapshot, sel()).deliveryChargeConfig?.deliveryStrategies).toEqual([]);
+
+    // Per delivery: 5 deliveries a week × 2 weeks = 10 × $0.50 = $5, on top of base $2
+    const perDelivery = priceSubscription(sel(), buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_buzz"] })));
+    expect(perDelivery.deliveryCharge?.totalDeliveryCharge).toBe(7);
+    expect(perDelivery.deliveryCharge?.lines.map((l) => l.label)).toContain("Apartment: Buzz on arrival (10 × $0.50)");
 
     // Inactive or unknown strategies and place types are refused
     expect(() => buildPricingCatalog(mockSnapshot, sel({ deliveryStrategyIds: ["dt_inactive"] }))).toThrow("isn't available");
@@ -309,5 +315,18 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     expect(calcNull.totalDeliveryCharge).toBe(0);
     expect(calcNull.deliveryStrategies).toEqual([]);
     expect(calcNull.addressTag).toBeNull();
+  });
+});
+
+describe("planDeliveryCount", () => {
+  const five = { key: "5_day", weekdays: null };
+  const base = { includeSaturday: false, includeSunday: false, durationWeeks: 4 };
+  it("counts delivery trips, not eating days", () => {
+    expect(planDeliveryCount(five, base)).toBe(20);
+    // Sat + Sun ride Friday's trip: still 5 trips a week.
+    expect(planDeliveryCount(five, { ...base, eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] })).toBe(20);
+    // Mon, Wed, Fri eating on a 5-day plan: only 3 trips a week.
+    expect(planDeliveryCount(five, { ...base, eatingDays: ["mon", "wed", "fri"] })).toBe(12);
+    expect(planDeliveryCount({ key: "mwf", weekdays: null }, base)).toBe(12);
   });
 });

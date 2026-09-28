@@ -2,7 +2,7 @@ import { isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
-import { loadTripDetails } from "./trip-notes";
+import { loadTripDetails, stopNotes } from "./trip-notes";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 
 // OptimoRoute exposes no driver-roster endpoint — the only place a driver's
@@ -43,7 +43,7 @@ export type DispatchRow = {
   coveredDates: string[];
   /** "Covers Mon + Tue · 2 tiffins"; null on a plain single-day stop. */
   coverage: string | null;
-  /** Customer delivery notes plus coverage and per-day dishes: what the driver gets. */
+  /** Same text the push sends: unit, driver note, coverage, per-day dishes. */
   notes: string;
   routeDriverSerial: string | null;
   routeDriverName: string | null;
@@ -57,13 +57,14 @@ export async function buildDispatchRows(date: string): Promise<DispatchRow[]> {
   const trips = await loadTripDetails(rows);
   return rows.map((row) => {
     const trip = trips.get(row.delivery.id)!;
+    const address = effectiveAddress(row.delivery, row.order);
     return {
     orderNo: row.delivery.publicId,
-    customerName: effectiveAddress(row.delivery, row.order).fullName,
+    customerName: address.fullName,
     tiffinUnits: trip.units,
     coveredDates: trip.covered,
     coverage: trip.coverage,
-    notes: [row.customerNotes?.trim(), trip.coverage, ...trip.dishLines].filter(Boolean).join("\n"),
+    notes: stopNotes(address.addressUnit, row.driverNote, trip),
     routeDriverSerial: row.delivery.routeDriverSerial,
     routeDriverName: row.delivery.routeDriverName,
     routeStopNumber: row.delivery.routeStopNumber,

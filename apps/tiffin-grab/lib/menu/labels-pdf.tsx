@@ -62,7 +62,7 @@ function LabelCell({ label, date }: { label: DeliveryLabel; date: string }) {
       ))}
       {label.deliveryNotes ? <Text style={styles.note}>Note: {label.deliveryNotes}</Text> : null}
       <Text style={styles.footer}>
-        {date} · {label.addressLine}, {label.city} {label.postalCode}
+        {date} · {label.addressUnit ? `${label.addressUnit}-` : ""}{label.addressLine}, {label.city} {label.postalCode}
         {label.phone ? ` · ${label.phone}` : ""}
       </Text>
     </View>

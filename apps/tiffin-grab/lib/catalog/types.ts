@@ -34,6 +34,19 @@ export interface CatalogDiscount {
   minWeeks: number | null;
 }
 
+export const WAIVER_KINDS = ["waiver_delivery", "waiver_base", "waiver_strategy", "waiver_tax"] as const;
+export type WaiverKind = (typeof WAIVER_KINDS)[number];
+
+// Active, in-window fee waivers. targetPublicId is the strategy for waiver_strategy, else null.
+export interface CatalogWaiver {
+  key: string;
+  /** Admin-given name, shown to the customer as the bill line ("Launch offer"). */
+  name: string;
+  kind: WaiverKind;
+  targetPublicId: string | null;
+  percent: number;
+}
+
 // Server-side snapshot: carries BOTH the internal bigint id (for FK resolution
 // in createOrder) and the public_id. The bigint id never leaves the server.
 /** A tag: the kind of place (Home, Apartment, Office). Customers pick one, then its strategies. */
@@ -54,8 +67,8 @@ export interface StrategyConnectionView {
 export interface CatalogSnapshot {
   plans: { id: bigint; publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[]; allowedStartDays: string[] }[];
   mealSizes: MealSizeView[];
-  frequencies: { id: bigint; publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number; weekdays: string[] | null }[];
-  durations: { id: bigint; publicId: string; weeks: number; discountPct: number }[];
+  frequencies: { id: bigint; publicId: string; key: string; name: string; daysPerWeek: number; weekdays: string[] | null }[];
+  durations: { id: bigint; publicId: string; weeks: number }[];
   zones: { id: bigint; publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean }[];
   tiers: PricingTier[];
   // category key -> display label. Same source the customer day view threads into
@@ -72,6 +85,7 @@ export interface CatalogSnapshot {
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
+  waivers?: CatalogWaiver[];
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
@@ -90,6 +104,8 @@ export interface CatalogSnapshot {
       sortOrder: number;
       groupPublicId?: string | null;
       connectionPublicId?: string | null;
+      /** Fixed charges: once per order or per delivery. Absent = once. */
+      chargeBasis?: "once" | "per_delivery";
     }[];
     addressTags: {
       id: bigint;
@@ -113,8 +129,8 @@ export type ClientMealSizeView = Omit<MealSizeView, "id" | "planId">;
 export interface ClientCatalogSnapshot {
   plans: { publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[]; allowedStartDays: string[] }[];
   mealSizes: ClientMealSizeView[];
-  frequencies: { publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number; weekdays: string[] | null }[];
-  durations: { publicId: string; weeks: number; discountPct: number }[];
+  frequencies: { publicId: string; key: string; name: string; daysPerWeek: number; weekdays: string[] | null }[];
+  durations: { publicId: string; weeks: number }[];
   zones: { publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean }[];
   tiers?: PricingTier[];
   categoryLabels?: Record<string, string>;
@@ -122,6 +138,7 @@ export interface ClientCatalogSnapshot {
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
+  waivers?: CatalogWaiver[];
   maxDiscountPct?: number;
   deliveryCharges?: {
     baseCharge: number;
@@ -135,6 +152,7 @@ export interface ClientCatalogSnapshot {
       chargeValue: number;
       groupId: string | null; // tag publicId
       connectionId: string | null; // connected set publicId
+      chargeBasis: "once" | "per_delivery";
     }[];
     addressTags: {
       id: string; // publicId
@@ -167,6 +185,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     minTiffinsPerWeek: snapshot.minTiffinsPerWeek,
     maxTiffinsPerWeek: snapshot.maxTiffinsPerWeek,
     discounts: snapshot.discounts,
+    waivers: snapshot.waivers,
     maxDiscountPct: snapshot.maxDiscountPct,
     deliveryCharges: snapshot.deliveryCharges
       ? {
@@ -183,6 +202,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
               chargeValue: d.chargeValue,
               groupId: d.groupPublicId ?? null,
               connectionId: d.connectionPublicId ?? null,
+              chargeBasis: d.chargeBasis ?? "once",
             })),
           addressTags: snapshot.deliveryCharges.addressTags
             .filter((a) => a.active)

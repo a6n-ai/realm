@@ -10,7 +10,7 @@ vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => false }));
 
 import { DiscountDialog } from "./discount-dialog";
 
-const options = { frequencies: [{ publicId: "f1", name: "3 Days/Wk" }], durations: [{ publicId: "u1", weeks: 8 }] };
+const options = { frequencies: [{ publicId: "f1", name: "3 Days/Wk" }], durations: [{ publicId: "u1", weeks: 8 }], mealSizes: [{ publicId: "m1", name: "Small" }] };
 afterEach(() => { cleanup(); saveItem.mockClear(); });
 
 describe("DiscountDialog", () => {
@@ -38,5 +38,19 @@ describe("DiscountDialog", () => {
     expect(saveItem.mock.calls[0][1]).toBeNull();
     expect(saveItem.mock.calls[0][2]).toMatchObject({ kind: "delivery", targetId: "f1", percent: "10" });
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  });
+
+  it("saves a flat $ meal-size discount with percent 0 and no min weeks", async () => {
+    // Radix Select calls these; jsdom lacks them.
+    Element.prototype.scrollIntoView ??= vi.fn();
+    Element.prototype.hasPointerCapture ??= vi.fn(() => false);
+    render(<DiscountDialog open onOpenChange={() => {}} prefill={{ kind: "meal_size", targetPublicId: "m1", lockTarget: true }} options={options} />);
+    expect(screen.queryByLabelText("Min weeks (optional)")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Discount unit"));
+    fireEvent.click(await screen.findByRole("option", { name: "$" }));
+    fireEvent.change(screen.getByLabelText("Discount $ per tiffin"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(saveItem.mock.calls[0][2]).toMatchObject({ kind: "meal_size", targetId: "m1", percent: "0", amount: "2", minWeeks: "" });
   });
 });

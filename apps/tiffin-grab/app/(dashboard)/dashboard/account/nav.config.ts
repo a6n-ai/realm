@@ -44,7 +44,6 @@ const USER_NAV: NavGroup[] = [
     items: [
       { key: "address", label: "Delivery address", href: seg("address") },
       { key: "dietary", label: "Dietary & allergens", href: seg("dietary") },
-      { key: "deliveryNotes", label: "Delivery notes", href: seg("delivery-notes") },
       { key: "notifications", label: "Notifications", href: seg("notifications") },
     ],
   },

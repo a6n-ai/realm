@@ -23,9 +23,8 @@ describe("catalog service validation", () => {
   });
 
   it("coerces numeric strings and persists surfaced columns", async () => {
-    const row = await deliveryFrequencyService.create({ key: "zz-test-freq", name: "ZZ Freq", daysPerWeek: "5", courierDiscountPct: "15" });
+    const row = await deliveryFrequencyService.create({ key: "zz-test-freq", name: "ZZ Freq", daysPerWeek: "5" });
     expect(row.daysPerWeek).toBe(5);
-    expect(row.courierDiscountPct).toBe(15);
   });
 
   it("pricing-tier create works (regression: was missing from SERVICES)", async () => {

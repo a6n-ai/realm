@@ -10,8 +10,8 @@ import { formatAddress } from "@foundry/address/ui";
 import { Button, Card, Field, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { nameTaken } from "@/components/customer/address/address-name";
-import { DropOffPicker } from "@/components/customer/address/drop-off";
-import { dropOffSummary, EMPTY_DROP_OFF, NO_DROP_OFF, type DropOffCatalog, type DropOffValue } from "@/lib/catalog/drop-off";
+import { AddressDropOffLines, DropOffPicker } from "@/components/customer/address/drop-off";
+import { EMPTY_DROP_OFF, NO_DROP_OFF, type DropOffCatalog, type DropOffValue } from "@/lib/catalog/drop-off";
 
 const withDropOff = (d: Record<string, DropOffValue>, publicId: string, dropOff: DropOffValue) => {
   const next = { ...d };
@@ -178,9 +178,7 @@ export function AddressBook({
                 </AnimatePresence>
               </p>
               <p className="truncate text-sm text-[var(--muted-foreground)]">{formatAddress(a)}</p>
-              {dropOffSummary(dropOff, dropOffs[a.publicId]) && (
-                <p className="text-sm text-[var(--muted-foreground)]">{dropOffSummary(dropOff, dropOffs[a.publicId])}</p>
-              )}
+              <AddressDropOffLines catalog={dropOff} value={dropOffs[a.publicId]} note={a.deliveryInstructions} />
             </div>
             <div className="flex shrink-0 gap-1">
               <DefaultStar on={a.isDefault} label={a.label} onSelect={() => book.setDefault(a.publicId)} />

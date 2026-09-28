@@ -17,16 +17,22 @@ const catalog = {
   durations: [{ publicId: "dur_1", weeks: 1 }, { publicId: "dur_8", weeks: 8 }],
   zones: [],
   tiers: [{ minQty: 1, maxQty: 11, upliftPct: 20 }, { minQty: 12, maxQty: 19, upliftPct: 10 }, { minQty: 20, maxQty: null, upliftPct: 0 }],
-  discounts: [{ key: "dl", name: "dl", kind: "delivery", targetPublicId: "frq_3", percent: 10, minWeeks: null }],
+  discounts: [
+    { key: "dl", name: "dl", kind: "delivery", targetPublicId: "frq_3", percent: 10, minWeeks: null },
+    { key: "dd", name: "dd", kind: "duration", targetPublicId: "dur_8", percent: 5, minWeeks: null },
+  ],
   maxDiscountPct: 25,
 } as unknown as ClientCatalogSnapshot;
+
+// Frequency tips compare delivery discounts alone; the plan-length discount would shift the numbers.
+const freqCatalog = { ...catalog, discounts: catalog.discounts!.filter((d) => d.kind === "delivery") } as ClientCatalogSnapshot;
 
 const sel = (over = {}) => ({ ...initialSelections, mealSizeId: "msz_1", frequencyKey: "5_day", eatingDays: ["mon", "wed", "fri"] as never, durationWeeks: 1, mealSlots: ["lunch"], ...over });
 
 describe("BestDeal", () => {
   it("schedule step: recommends only a delivery type", () => {
     const set = vi.fn();
-    render(<BestDeal vary="frequency" catalog={catalog} selections={sel({ durationWeeks: 8 })} set={set} />);
+    render(<BestDeal vary="frequency" catalog={freqCatalog} selections={sel({ durationWeeks: 8 })} set={set} />);
     expect(screen.getByText(/3-day delivery/)).toBeTruthy();
     expect(screen.getByText("Tip for your delivery")).toBeTruthy();
     expect(screen.getByText(/save 10% on every tiffin/)).toBeTruthy();
@@ -64,10 +70,10 @@ describe("BestDeal", () => {
 
   it("frequency: green applied state with Undo restoring frequency and eating days", () => {
     const set = vi.fn();
-    const { rerender } = render(<BestDeal vary="frequency" catalog={catalog} selections={sel({ durationWeeks: 8 })} set={set} />);
+    const { rerender } = render(<BestDeal vary="frequency" catalog={freqCatalog} selections={sel({ durationWeeks: 8 })} set={set} />);
     fireEvent.click(screen.getByRole("button", { name: "Use this" }));
     expect(set).toHaveBeenLastCalledWith({ frequencyKey: "3_day" });
-    rerender(<BestDeal vary="frequency" catalog={catalog} selections={sel({ durationWeeks: 8, frequencyKey: "3_day" })} set={set} />);
+    rerender(<BestDeal vary="frequency" catalog={freqCatalog} selections={sel({ durationWeeks: 8, frequencyKey: "3_day" })} set={set} />);
     return waitFor(() => {
       expect(screen.queryByRole("button", { name: "Use this" })).toBeNull();
       expect(screen.getByText("Applied")).toBeTruthy();
