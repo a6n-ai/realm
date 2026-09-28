@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
-import { asc, desc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { addonCategories, addons, deliveryFrequencies, deliveryZones, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
@@ -17,6 +17,7 @@ import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "../resource-config";
 import { ResourceEditor, ResourceEditorSkeleton, type DiscountCtx } from "./resource-editor";
 import { loadDiscountData } from "../discounts/load";
+import { catalogListScope } from "../list-scope";
 
 const TABLES: Record<string, PgTable> = {
   dishes,
@@ -242,7 +243,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     return baseResolver(f);
   };
 
-  const where = conditionToSql(condition, resolver);
+  const where = and(conditionToSql(condition, resolver), catalogListScope(resource));
   const [[{ count: total }], raw] = await Promise.all([
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(table).where(where),
     db

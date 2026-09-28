@@ -82,10 +82,11 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
     let mealSizeInternalId: bigint | null = null;
     if (id) {
       const [existing] = await db
-        .select({ id: mealSizes.id, planId: mealSizes.planId, active: mealSizes.active })
+        .select({ id: mealSizes.id, planId: mealSizes.planId, active: mealSizes.active, custom: mealSizes.custom })
         .from(mealSizes)
         .where(eq(mealSizes.publicId, id))
         .limit(1);
+      if (existing?.custom) throw new ValidationError("Custom meal sizes are managed under Catalog → Custom Meals, not Meal Sizes.");
       mealSizeInternalId = existing?.id ?? null;
       if (resolvedPlanId == null) resolvedPlanId = existing?.planId ?? null;
       currentlyActive = existing?.active ?? true;
