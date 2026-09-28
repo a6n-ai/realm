@@ -60,7 +60,6 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
             defaultCountry={data.defaultCountry}
             sources={data.sources}
             catalog={data.catalog}
-            enabledSlots={data.enabledSlots}
             zones={data.zones}
             categories={data.categories}
           />

@@ -1,7 +1,7 @@
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { eq, sql } from "drizzle-orm";
-import { PackageIcon, PlusIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
+import { PackageIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, orders } from "@/db/schema";
@@ -15,7 +15,6 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
-import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import {
   PageShell,
@@ -178,22 +177,13 @@ async function NewOrderAction() {
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
     durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
   };
-  const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
 
   return (
     <NewOrderSheet
-      // Keep trigger first: RSC defers elements serialized after a row passes ~3.2KB,
-      // and the dialog's Radix Slot trigger can't slot onto a deferred (lazy) child.
-      trigger={
-        <Button>
-          <PlusIcon className="size-4" />
-          New order
-        </Button>
-      }
+      triggerLabel="New order"
       defaultCountry={defaultCountry}
       sources={sources}
       catalog={orderCatalog}
-      enabledSlots={enabledSlots}
       zones={zones}
       categories={slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel }))}
     />

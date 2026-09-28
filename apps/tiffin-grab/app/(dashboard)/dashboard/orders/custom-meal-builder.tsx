@@ -203,7 +203,7 @@ export function CustomMealBuilder({
           <>
             <p className="font-medium text-pretty">{preview.name}</p>
             <p className="text-muted-foreground nums">
-              ${preview.perTiffin.toFixed(2)} per tiffin (before plan discounts)
+              ${preview.perTiffin.toFixed(2)} base price per tiffin (before order-size pricing and plan discounts)
             </p>
           </>
         )}
@@ -211,7 +211,8 @@ export function CustomMealBuilder({
 
       <div className="grid gap-1.5">
         <Label htmlFor="customMealOverride">
-          Override price per tiffin <span className="text-muted-foreground font-normal">optional</span>
+          Override base price per tiffin (order-size pricing and discounts still apply){" "}
+          <span className="text-muted-foreground font-normal">optional</span>
         </Label>
         <Input
           id="customMealOverride"

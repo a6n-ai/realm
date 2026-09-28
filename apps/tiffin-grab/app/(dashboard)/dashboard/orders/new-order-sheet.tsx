@@ -2,6 +2,7 @@
 
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useEffect, useState } from "react";
+import { PlusIcon } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
 import dynamic from "next/dynamic";
 import { Button } from "@foundry/ui/button";
@@ -64,27 +65,28 @@ const PhoneInput = dynamic(() => import("@foundry/ui/phone-input").then((m) => m
  * Matched open inquiries prefill step 2 so convert doesn't re-ask.
  */
 export function NewOrderSheet({
-  trigger,
+  triggerLabel,
   open: controlledOpen,
   onOpenChange,
   defaultCountry,
   sources,
   catalog,
-  enabledSlots,
   zones,
   categories,
 }: {
-  trigger?: React.ReactNode;
+  /** Renders the sheet's own trigger button; omit when the sheet is opened by `open`. */
+  triggerLabel?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   defaultCountry: CountryCode;
   sources: Src[];
   catalog: Catalog;
-  enabledSlots: EnabledSlot[];
   zones: ZoneLike[];
   categories: CustomMealCategory[];
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
+  // Meal slots and custom-meal categories are the same enabled dish-category rows.
+  const enabledSlots: EnabledSlot[] = categories.map((c) => ({ key: c.key, label: c.label }));
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
   const [step, setStep] = useState<1 | 2>(1);
@@ -168,7 +170,14 @@ export function NewOrderSheet({
       flush
       open={open}
       onOpenChange={resetAndClose}
-      trigger={trigger}
+      trigger={
+        triggerLabel ? (
+          <Button>
+            <PlusIcon className="size-4" />
+            {triggerLabel}
+          </Button>
+        ) : undefined
+      }
       title="New order"
       description="Same contact + catalog plan path as inquiries — convert without re-selecting."
       contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
