@@ -36,6 +36,7 @@ import { addressService } from "./addresses.service";
 import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
+import { round2 } from "@/lib/custom-meal/pricing";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
@@ -257,7 +258,7 @@ export async function createOrder(
   }
   const pricingCatalog = buildPricingCatalog(snapshot, input.selections);
   const computedBase = pricingCatalog.mealSize.basePrice;
-  if (basePriceOverride != null) pricingCatalog.mealSize = { ...pricingCatalog.mealSize, basePrice: Math.round(basePriceOverride * 100) / 100 };
+  if (basePriceOverride != null) pricingCatalog.mealSize = { ...pricingCatalog.mealSize, basePrice: round2(basePriceOverride) };
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.
   const basePricing = priceSubscription(input.selections, pricingCatalog);

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
-import { zonedDateIso } from "@foundry/commons";
+import { ValidationError, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
@@ -14,6 +14,9 @@ import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
+import { round2 } from "@/lib/custom-meal/pricing";
+import { mealPlanKey } from "@/lib/custom-meal/composition";
+import { customMealSchema, priceCustomComposition, TRANSIENT_CUSTOM_SIZE_ID, withTransientCustomSize } from "@/lib/services/custom-meal.service";
 
 const IST = "Asia/Kolkata";
 
@@ -87,10 +90,23 @@ export async function previewPrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,
+  customMeal?: unknown,
 ): Promise<PricingResult> {
   await requireStaff();
-  const snap = await loadCatalogSnapshot();
+  let snap = await loadCatalogSnapshot();
+  let override: number | null = null;
+  // Custom meal (New Order): price the composition as an unsaved size, mirroring
+  // createOrderFlow's plan/size substitution and createOrder's override.
+  if (customMeal != null) {
+    const parsed = customMealSchema.safeParse(customMeal);
+    if (!parsed.success) throw new ValidationError(`Custom meal: ${parsed.error.issues[0]?.message ?? "invalid"}`);
+    const priced = await priceCustomComposition(parsed.data.items);
+    snap = withTransientCustomSize(snap, priced);
+    input = { ...input, planKey: mealPlanKey(priced.items), selections: { ...input.selections, mealSizeId: TRANSIENT_CUSTOM_SIZE_ID } };
+    override = parsed.data.basePriceOverride ?? null;
+  }
   const catalog = buildPricingCatalog(snap, input.selections);
+  if (override != null) catalog.mealSize = { ...catalog.mealSize, basePrice: round2(override) };
   const base = priceSubscription(input.selections, catalog);
 
   const code = couponCode?.trim();

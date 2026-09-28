@@ -360,6 +360,7 @@ export function NewOrderSheet({
                 zones={zones}
                 prefill={prefill}
                 hideMealSizePicker={customMeal != null}
+                customMeal={customMeal ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
                 onCreate={(order: CreateOrderInput) =>
                   createOrderFlow({
                     source: { sourceKey, subSourceKey: subSourceKey || undefined },

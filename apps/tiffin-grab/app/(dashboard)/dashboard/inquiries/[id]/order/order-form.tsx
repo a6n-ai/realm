@@ -59,6 +59,7 @@ export function OrderForm({
   onCreated,
   zones,
   hideMealSizePicker = false,
+  customMeal = null,
 }: {
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
@@ -72,6 +73,8 @@ export function OrderForm({
   zones?: ZoneLike[];
   /** A custom meal builder replaces the plan/meal-size pills (New Order). */
   hideMealSizePicker?: boolean;
+  /** The builder's composition, priced server-side for the footer preview. */
+  customMeal?: { items: { category: string; planKey: string; tuAmount: number }[]; basePriceOverride: number | null } | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
@@ -188,8 +191,10 @@ export function OrderForm({
       : undefined,
   });
 
+  // Serialized so a fresh-but-equal object from the parent doesn't refire the preview.
+  const customKey = hideMealSizePicker && customMeal?.items.length ? JSON.stringify(customMeal) : "";
   // A catalog-size preview is meaningless once the custom builder takes over.
-  const shownPreview = hideMealSizePicker ? null : preview;
+  const shownPreview = hideMealSizePicker && !customKey ? null : preview;
   const subtotal = shownPreview?.subtotal ?? 0;
   const ceiling = repInfo?.available
     ? round2(Math.min((subtotal * repInfo.capPct) / 100, repInfo.capAmount))
@@ -202,7 +207,7 @@ export function OrderForm({
   }, []);
 
   useEffect(() => {
-    if (!mealSizeId || !planKey || hideMealSizePicker) return;
+    if (hideMealSizePicker ? !customKey : !mealSizeId || !planKey) return;
     let cancelled = false;
     const repCode = repInfo?.available ? repInfo.code : undefined;
     previewPrice(
@@ -224,6 +229,7 @@ export function OrderForm({
       }),
       repCode,
       discount > 0 ? discount : undefined,
+      customKey ? customMeal : undefined,
     )
       .then((r) => { if (!cancelled) setPreview(r); })
       .catch(() => { if (!cancelled) setPreview(null); });
@@ -233,7 +239,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);

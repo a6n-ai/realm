@@ -1,10 +1,26 @@
 import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
+import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { customMealPricing, dishCategories, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
+import type { CatalogSnapshot, MealSizeView } from "@/lib/catalog/types";
 import { compositionKey, compositionName, mealPlanKey, normalizeItems, type CategoryUnit, type CustomMealItem } from "@/lib/custom-meal/composition";
+import { computeCustomPerTiffin } from "@/lib/custom-meal/pricing";
+import { loadPricingRows } from "@/lib/custom-meal/pricing-rows";
+import { formatTuHuman } from "@/lib/menu/format-tu";
+
+export const customMealItemsSchema = z.array(z.object({
+  category: z.string().trim().min(1),
+  planKey: z.enum(["veg", "non-veg"]),
+  tuAmount: z.number().finite().positive().max(50),
+})).min(1).max(20);
+
+export const customMealSchema = z.object({
+  items: customMealItemsSchema,
+  basePriceOverride: z.number().finite().positive().max(1000).nullable().optional(),
+});
 
 export type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -19,6 +35,51 @@ export async function loadCategoryUnits(q: Pick<typeof db, "select"> = db): Prom
 // Lives in lib/custom-meal/pricing-rows.ts (not here) so lib/catalog/load.ts can
 // import it without a cycle (this service imports invalidateCatalogSnapshot from load.ts).
 export { loadPricingRows, type PricingRowView } from "@/lib/custom-meal/pricing-rows";
+
+export type PricedComposition = { items: CustomMealItem[]; units: Map<string, CategoryUnit>; name: string; perTiffin: number };
+
+// Staff-facing: names the exact category/diet to fix in Catalog → Custom Meals,
+// unlike buildPricingCatalog's customer-facing "no longer available".
+export async function priceCustomComposition(rawItems: CustomMealItem[]): Promise<PricedComposition> {
+  const [units, pricing] = await Promise.all([loadCategoryUnits(), loadPricingRows()]);
+  for (const i of rawItems) if (!units.has(i.category)) throw new ValidationError(`Unknown category: ${i.category}`);
+  const items = normalizeItems(rawItems, units);
+  const active = pricing.filter((p) => p.active);
+  const unpriced = items.find((i) => !active.some((p) => p.category === i.category && p.planKey === i.planKey));
+  if (unpriced) {
+    const diet = unpriced.planKey === "non-veg" ? "Non-Veg" : "Veg";
+    throw new ValidationError(`Custom meal: ${units.get(unpriced.category)!.label} isn't priced for ${diet} — set it in Catalog → Custom Meals`);
+  }
+  try {
+    return { items, units, name: compositionName(items, units), perTiffin: computeCustomPerTiffin(items, active) };
+  } catch (err) {
+    if (err instanceof ValidationError) throw new ValidationError(`Custom meal: ${err.message}`);
+    throw err;
+  }
+}
+
+export const TRANSIENT_CUSTOM_SIZE_ID = "custom-preview";
+
+// A preview-only custom size: same shape load.ts gives a persisted one, so the
+// normal buildPricingCatalog/priceSubscription path prices it without a DB write.
+export function withTransientCustomSize(snapshot: CatalogSnapshot, priced: PricedComposition): CatalogSnapshot {
+  const planKey = mealPlanKey(priced.items);
+  const plan = snapshot.plans.find((p) => p.key === planKey);
+  if (!plan) throw new ValidationError(`Unknown plan: ${planKey}`);
+  const view: MealSizeView = {
+    id: -1n, publicId: TRANSIENT_CUSTOM_SIZE_ID, key: TRANSIENT_CUSTOM_SIZE_ID, name: priced.name, description: null,
+    planId: plan.id, planKey, tier: "budget",
+    components: priced.items.map((i) => priced.units.get(i.category)!.label),
+    items: priced.items.map((i) => {
+      const unit = priced.units.get(i.category)!;
+      return { name: unit.label, category: i.category, tuAmount: i.tuAmount, maxTuAmount: null, portion: formatTuHuman(unit, i.tuAmount) };
+    }),
+    kcalMin: 0, kcalMax: 0, proteinG: null, carbsG: null, fatG: null,
+    basePrice: priced.perTiffin, discountType: "none", discountValue: 0, trial: false,
+    custom: true, priceable: true,
+  };
+  return { ...snapshot, mealSizes: [...snapshot.mealSizes, view] };
+}
 
 export async function upsertPricing(
   input: { categoryKey: string; planKey: string; pricePerTu: number; maxTu: number | null; active: boolean },

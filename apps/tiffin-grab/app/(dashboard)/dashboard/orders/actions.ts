@@ -1,12 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
-import { compositionName, mealPlanKey, normalizeItems, type CustomMealItem } from "@/lib/custom-meal/composition";
-import { computeCustomPerTiffin } from "@/lib/custom-meal/pricing";
-import { findOrCreateCustomMealSize, loadCategoryUnits, loadPricingRows } from "@/lib/services/custom-meal.service";
+import { mealPlanKey, type CustomMealItem } from "@/lib/custom-meal/composition";
+import { customMealItemsSchema, customMealSchema, findOrCreateCustomMealSize, priceCustomComposition } from "@/lib/services/custom-meal.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { reassignOrder, type CreateOrderInput } from "@/lib/services/orders.service";
@@ -24,25 +22,13 @@ type Interest = {
   quotedPrice?: number;
 };
 
-const itemsSchema = z.array(z.object({
-  category: z.string().trim().min(1),
-  planKey: z.enum(["veg", "non-veg"]),
-  tuAmount: z.number().finite().positive().max(50),
-})).min(1).max(20);
-
-const customMealSchema = z.object({
-  items: itemsSchema,
-  basePriceOverride: z.number().finite().positive().max(1000).nullable().optional(),
-});
-
 export async function previewCustomMeal(raw: unknown): Promise<{ name: string; perTiffin: number } | { error: string }> {
   await requireStaff();
-  const parsed = itemsSchema.safeParse(raw);
+  const parsed = customMealItemsSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid custom meal" };
-  const [units, pricing] = await Promise.all([loadCategoryUnits(), loadPricingRows()]);
   try {
-    const items = normalizeItems(parsed.data, units);
-    return { name: compositionName(items, units), perTiffin: computeCustomPerTiffin(items, pricing.filter((p) => p.active)) };
+    const { name, perTiffin } = await priceCustomComposition(parsed.data);
+    return { name, perTiffin };
   } catch (err) {
     if (err instanceof ValidationError) return { error: err.message };
     throw err;
@@ -75,9 +61,11 @@ export async function createOrderFlow(input: {
   let order = input.order;
   let customOpts: { allowCustomMeal?: boolean; basePriceOverride?: number } = {};
   if (customMeal) {
+    // Priced first so an unpriced composition never leaves a custom size behind.
+    const priced = await priceCustomComposition(customMeal.items);
     // The client's size and plan are ignored: the composition decides both.
     const size = await findOrCreateCustomMealSize(customMeal.items, { actorId: await currentUserId() });
-    const planKey = mealPlanKey(normalizeItems(customMeal.items, await loadCategoryUnits()));
+    const planKey = mealPlanKey(priced.items);
     order = { ...order, planKey, selections: { ...order.selections, mealSizeId: size.publicId } };
     customOpts = {
       allowCustomMeal: true,
