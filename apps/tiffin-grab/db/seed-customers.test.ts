@@ -47,12 +47,6 @@ describe("parsePreferredDays (via mapRow)", () => {
     expect(r.eatingDays).toEqual(["mon", "wed", "fri"]);
   });
 
-  it("adds a weekend suffix to the eating days", () => {
-    const r = mapRow(row({ preferredDays: "Monday - Friday - Saturday" }));
-    expect(r.eatingDays).toEqual(["mon", "tue", "wed", "thu", "fri", "sat"]);
-    expect(r.includeSaturday).toBe(true);
-  });
-
   it("defaults to 5-day for blank text", () => {
     expect(mapRow(row({ preferredDays: null })).eatingDays).toEqual(["mon", "tue", "wed", "thu", "fri"]);
   });
@@ -61,6 +55,34 @@ describe("parsePreferredDays (via mapRow)", () => {
     const r = mapRow(row({ preferredDays: "Monday - Tuesday - Thursday" }));
     expect(r.frequencyKey).toBe("5_day");
     expect(r.eatingDays).toEqual(["mon", "tue", "thu"]);
+  });
+
+  // Verified against tiffin_count_history on 2026-09-29: WordPress reads two dash-joined
+  // days as an inclusive range, one day as that day, three or more as a list, and never
+  // delivers on a weekend.
+  it.each([
+    ["Monday - Saturday", ["mon", "tue", "wed", "thu", "fri"]],
+    ["Monday - Sunday", ["mon", "tue", "wed", "thu", "fri"]],
+    ["Monday - Wednesday", ["mon", "tue", "wed"]],
+    ["Monday - Thursday", ["mon", "tue", "wed", "thu"]],
+    ["Wednesday - Friday", ["wed", "thu", "fri"]],
+    ["Tuesday - Thursday", ["tue", "wed", "thu"]],
+    ["Tuesday - Friday", ["tue", "wed", "thu", "fri"]],
+    ["Wednesday - Thursday", ["wed", "thu"]],
+    ["Monday - Tuesday", ["mon", "tue"]],
+    ["Tuesday", ["tue"]],
+    ["Thursday", ["thu"]],
+    ["Monday - Wednesday - Thursday", ["mon", "wed", "thu"]],
+    ["Monday - Thursday - Friday", ["mon", "thu", "fri"]],
+    ["Monday - Tuesday - Thursday - Friday", ["mon", "tue", "thu", "fri"]],
+    ["Monday - Friday - Saturday", ["mon", "tue", "wed", "thu", "fri"]],
+    ["Saturday", ["mon", "tue", "wed", "thu", "fri"]],
+  ] as const)("%s -> eats %j, never a weekend", (text, days) => {
+    const r = mapRow(row({ preferredDays: text }));
+    expect(r.frequencyKey).toBe("5_day");
+    expect(r.eatingDays).toEqual(days);
+    expect(r.includeSaturday).toBe(false);
+    expect(r.includeSunday).toBe(false);
   });
 });
 

@@ -160,57 +160,36 @@ export type MigrationRecord = {
   deliveredCount: number;
 };
 
-const WEEKDAY_NAMES: { name: string; day: DayOfWeek }[] = [
-  { name: "monday", day: "mon" },
-  { name: "tuesday", day: "tue" },
-  { name: "wednesday", day: "wed" },
-  { name: "thursday", day: "thu" },
-  { name: "friday", day: "fri" },
-];
 const WEEK_ORDER: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DAY_BY_NAME: Record<string, DayOfWeek> = {
+  monday: "mon", tuesday: "tue", wednesday: "wed", thursday: "thu", friday: "fri", saturday: "sat", sunday: "sun",
+};
+const FIVE: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
+const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
 
-function sameDaySet(a: DayOfWeek[], b: DayOfWeek[]): boolean {
-  return a.length === b.length && [...a].sort().join(",") === [...b].sort().join(",");
-}
-
-// The legacy plugin encodes exactly two named PLANS as fixed literal phrases,
-// not day-by-day checkboxes: "Monday - Wednesday - Friday" (the alternate/MWF
-// plan) and "Monday - Friday" (the standard full-week plan — a range label,
-// NOT two individually-picked days despite matching the same dash-joined
-// format). Verified against real tiffin_count_history delivery logs: an order
-// with the literal text "Monday - Friday" has boxes_delivered firing
-// continuously Mon..Fri, not just on Monday and Friday. This phrase covers the
-// large majority of in-scope orders — matching it as two literal days would
-// migrate most customers onto a bogus 2x/week schedule. Everything else (a
-// genuinely different dash-joined day list) is treated as an actual custom pick.
-const PHRASE_5_DAY = "monday - friday";
-const PHRASE_MWF = "monday - wednesday - friday";
-
-function stripWeekendSuffix(text: string): string {
-  return text.replace(/\s*-\s*(saturday|sunday)\b/gi, "").trim();
-}
-
+// How the legacy plugin's "Prefered Days" text reads, verified against the
+// tiffin_count_history delivery logs (2026-09-29): two dash-joined days are an
+// inclusive RANGE ("Monday - Friday" delivers Mon..Fri, "Monday - Wednesday"
+// Mon..Wed), one day is that day, three or more are a LIST ("Monday - Wednesday
+// - Friday"). WordPress never delivers on a weekend, so "Monday - Saturday" and
+// "Monday - Sunday" are Mon..Fri. Everyone rides the 5-day route; the days are
+// when that customer eats.
 function parsePreferredDays(raw: string | null): { frequencyKey: "5_day" | "mwf"; eatingDays: DayOfWeek[]; includeSaturday: boolean; includeSunday: boolean } {
-  const text = (raw ?? "").trim();
-  const includeSaturday = /saturday/i.test(text);
-  const includeSunday = /sunday/i.test(text);
-  const corePhrase = stripWeekendSuffix(text).toLowerCase();
-  const withWeekend = (core: DayOfWeek[]): DayOfWeek[] =>
-    WEEK_ORDER.filter((d) => core.includes(d) || (d === "sat" && includeSaturday) || (d === "sun" && includeSunday));
-  const FIVE: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
-
-  if (text === "" || corePhrase === PHRASE_5_DAY) {
-    return { frequencyKey: "5_day", eatingDays: withWeekend(FIVE), includeSaturday, includeSunday };
+  let days = [...(raw ?? "").toLowerCase().matchAll(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g)]
+    .map((m) => DAY_BY_NAME[m[1]]);
+  // A trailing weekend on a list ("Monday - Friday - Saturday") is a suffix, not a list item.
+  if (days.length >= 3) days = days.filter((d) => !isWeekend(d));
+  let picked: DayOfWeek[];
+  if (days.length === 2) {
+    const [from, to] = [WEEK_ORDER.indexOf(days[0]), WEEK_ORDER.indexOf(days[1])];
+    picked = from <= to ? WEEK_ORDER.slice(from, to + 1) : [days[0], days[1]];
+  } else {
+    picked = days;
   }
-  if (corePhrase === PHRASE_MWF) {
-    return { frequencyKey: "mwf", eatingDays: withWeekend(["mon", "wed", "fri"]), includeSaturday, includeSunday };
-  }
-  const core = WEEKDAY_NAMES.filter((t) => new RegExp(`\\b${t.name}\\b`, "i").test(text)).map((t) => t.day);
-  if (core.length === 0 || sameDaySet(core, FIVE)) {
-    return { frequencyKey: "5_day", eatingDays: withWeekend(FIVE), includeSaturday, includeSunday };
-  }
-  // Any other pick is the customer's eating days on the 5-day route; no per-pattern frequency row.
-  return { frequencyKey: "5_day", eatingDays: withWeekend(core), includeSaturday, includeSunday };
+  const weekdays = WEEK_ORDER.filter((d) => picked.includes(d) && !isWeekend(d));
+  const eatingDays = weekdays.length ? weekdays : FIVE;
+  const mwf = eatingDays.join() === "mon,wed,fri";
+  return { frequencyKey: mwf ? "mwf" : "5_day", eatingDays, includeSaturday: false, includeSunday: false };
 }
 
 function planKeyFor(row: WpRow): "veg" | "non-veg" {
