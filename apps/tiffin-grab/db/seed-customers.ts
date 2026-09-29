@@ -517,8 +517,12 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
       return { ...baseFields, mealSizeId, mealSlots: Object.keys(categoryCounts), categoryCounts };
     };
 
-    const [existingOrder] = await tx.select({ id: orders.id, status: orders.status }).from(orders)
-      .where(eq(orders.deploymentId, deploymentId)).limit(1);
+    // A renewal merged into this record may already be imported under its own id (an earlier
+    // run kept it separately); that order is this plan, so refresh it rather than add another.
+    const planIds = [deploymentId, ...x.mergedWpOrderIds.map((id) => `wc-${id}`)];
+    const found = await tx.select({ id: orders.id, status: orders.status, deploymentId: orders.deploymentId }).from(orders)
+      .where(inArray(orders.deploymentId, planIds));
+    const existingOrder = found.find((o) => o.deploymentId === deploymentId) ?? found[0];
     if (existingOrder) {
       if (existingOrder.status !== "pending") return "unchanged (already started)";
       await tx.update(orders).set({ ...(await planFields()), updatedAt: Date.now() }).where(eq(orders.id, existingOrder.id));
@@ -588,14 +592,17 @@ export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned
   const inDb = await db.select({ deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount })
     .from(orders).where(like(orders.deploymentId, "wc-%"));
   const byId = new Map(inDb.map((o) => [o.deploymentId, o]));
-  const wanted = new Set(planned.map((r) => `wc-${r.record.wpOrderId}`));
+  // Same lookup as applyOne: a plan may sit under its own id or a merged renewal's.
+  const planIdsOf = (x: MigrationRecord) => [x.wpOrderId, ...x.mergedWpOrderIds].map((id) => `wc-${id}`);
+  const wanted = new Set(planned.flatMap((r) => planIdsOf(r.record)));
   let match = 0;
   const willRefresh: string[] = [];
   const doubleDelivery: string[] = [];
   const notImported: string[] = [];
   for (const { record: x } of planned) {
-    const id = `wc-${x.wpOrderId}`;
-    const o = byId.get(id);
+    const ids = planIdsOf(x);
+    const o = ids.map((i) => byId.get(i)).find(Boolean);
+    const id = o?.deploymentId ?? ids[0];
     if (!o) { notImported.push(`${id} (WordPress ${x.tiffinCount} left)`); continue; }
     if (o.status === "pending") {
       if (o.tiffinCount === x.tiffinCount) match++;

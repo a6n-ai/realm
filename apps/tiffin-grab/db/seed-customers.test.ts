@@ -223,7 +223,7 @@ describe("applyOne (tiffin_v2)", () => {
   const TODAY = new Date().toISOString().slice(0, 10);
   const PHONE = "6470009871";
   const EMAIL = "zz-seed-liveplan@example.test";
-  const ids = [990001, 990002];
+  const ids = [990001, 990002, 990003, 990004];
 
   afterAll(async () => {
     const os = await db.select({ id: orders.id }).from(orders).where(inArray(orders.deploymentId, ids.map((i) => `wc-${i}`)));
@@ -231,7 +231,29 @@ describe("applyOne (tiffin_v2)", () => {
       await db.delete(orderActivities).where(inArray(orderActivities.orderId, os.map((o) => o.id)));
       await db.delete(orders).where(inArray(orders.id, os.map((o) => o.id)));
     }
-    await db.delete(users).where(eq(users.email, EMAIL));
+    await db.delete(users).where(inArray(users.email, [EMAIL, "zz-seed-renewal@example.test"]));
+  });
+
+  it("refreshes the order already imported under a merged renewal id instead of creating a second one", async () => {
+    const [snapshot, units] = await Promise.all([loadCatalogSnapshot(), loadCategoryUnits()]);
+    const plan = (r: WpRow) => {
+      const res = planSeed([r], snapshot, units).results[0];
+      if (res.kind !== "planned") throw new Error(`not planned: ${res.reason}`);
+      return res;
+    };
+    const base = { phone: "6470009872", email: "zz-seed-renewal@example.test" };
+    // Launch imported the renewal (wc-990004) on its own.
+    expect(await applyOne(plan(row({ ...base, id: ids[3] })), snapshot, null, TODAY)).toBe("created");
+
+    // Now WordPress's older order (wc-990003) is kept and the renewal merges into it.
+    const merged = plan(row({ ...base, id: ids[2] }));
+    merged.record.mergedWpOrderIds = [ids[3]];
+    merged.record.tiffinCount = 28;
+    expect(await applyOne(merged, snapshot, null, TODAY)).toBe("refreshed");
+
+    const [kept] = await db.select({ tiffinCount: orders.tiffinCount }).from(orders).where(eq(orders.deploymentId, `wc-${ids[3]}`));
+    expect(kept.tiffinCount).toBe(28);
+    expect(await db.select().from(orders).where(eq(orders.deploymentId, `wc-${ids[2]}`))).toEqual([]);
   });
 
   it("skips a new order when the customer already has a live plan, creating nothing", async () => {
