@@ -38,10 +38,12 @@ export COMPOSE_PARALLEL_LIMIT=1
 
 git -C ../../.. pull --ff-only           # refresh compose/config only — source is in the image
 
-# `compose pull` already fetches tools via the unprofiled drainer; also pull
-# the tools profile so migrate's tag is present even if drainer is removed.
+# Default `compose pull` skips profiled services; puchkaman-tools is only
+# referenced by migrate (tools), so pull it explicitly.
 docker compose pull
 docker compose --profile tools pull
 docker compose --profile tools run --rm migrate   # drizzle-kit migrate against RDS (direct)
-docker compose up -d
+# --remove-orphans: stops containers for services dropped from the compose file
+# (the old drainer/drainer-fast) instead of leaving them running unmanaged.
+docker compose up -d --remove-orphans
 docker image prune -af

@@ -6,6 +6,7 @@ import {
 } from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
+import { signalOutbox } from "./outbox-signal";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Event = (typeof notificationTables.notificationOutbox.event.enumValues)[number];
@@ -34,20 +35,26 @@ const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
 const STAFF_CHANNELS: Channel[] = ["in_app"];
 const STAFF_ROLES = ["admin", "member"];
 
-export function enqueueNotification(tx: Tx, input: EnqueueInput & { event: Event }): Promise<void> {
-  return enqueue(tx, notificationTables, usersRef, {
+/**
+ * Wakes the outbox listener after writing. The signal lands before the caller's
+ * transaction commits; the listener's settle delay covers that.
+ */
+export async function enqueueNotification(tx: Tx, input: EnqueueInput & { event: Event }): Promise<void> {
+  await enqueue(tx, notificationTables, usersRef, {
     ...input,
     channels: input.channels ?? EVENT_CHANNELS[input.event] ?? ["email"],
   });
+  signalOutbox();
 }
 
-export function enqueueStaff(
+export async function enqueueStaff(
   tx: Tx,
   input: Omit<EnqueueToRoleInput, "roles"> & { event: Event },
 ): Promise<void> {
-  return enqueueToRole(tx, notificationTables, usersRef, {
+  await enqueueToRole(tx, notificationTables, usersRef, {
     ...input,
     roles: STAFF_ROLES,
     channels: input.channels ?? STAFF_CHANNELS,
   });
+  signalOutbox();
 }

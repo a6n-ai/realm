@@ -40,10 +40,6 @@ export const PUBLIC_API = [
   // session would make the unsubscribe link non-functional, which is the one
   // thing CASL does not forgive.
   "/api/unsubscribe",
-  // Operator/worker kick for the outbox. Guarded by the DRAIN_SECRET header.
-  // Exact-match only, so it does not open /api/notifications/templates or
-  // /api/notifications/campaigns — those stay behind the cookie gate.
-  "/api/notifications/drain",
   // Phone verification runs during guest checkout, before any session exists.
   // Both routes are rate limited per number and per IP in the handler.
   "/api/account/phone",

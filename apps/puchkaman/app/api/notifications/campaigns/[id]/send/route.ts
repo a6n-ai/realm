@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { resolveSegment } from "@/lib/campaigns/segment";
+import { signalOutbox } from "@/lib/notifications/outbox-signal";
 
 const deps = { db, tables: notificationTables, users: usersRef, resolveSegment };
 const schema = z.object({ confirmedCount: z.number().int().nonnegative() });
@@ -15,6 +16,8 @@ export const POST = handler(
     const { id } = await ctx.params;
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return problem(400, "Confirm the recipient count before sending");
-    return json(await sendCampaign(deps, id, parsed.data.confirmedCount));
+    const result = await sendCampaign(deps, id, parsed.data.confirmedCount);
+    signalOutbox();
+    return json(result);
   },
 );

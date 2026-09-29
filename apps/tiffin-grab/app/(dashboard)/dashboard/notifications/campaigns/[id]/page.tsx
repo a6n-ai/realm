@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { buildCampaignConfig, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
@@ -20,6 +20,7 @@ import {
   CampaignDeleteButton,
   CampaignDuplicateButton,
   CampaignRetriggerButton,
+  CampaignRetryFailedButton,
   CampaignSendButton,
   formatConsentDate,
   type AudienceValue,
@@ -57,6 +58,14 @@ export default async function CampaignPage({
   if (!row) notFound();
 
   const sendable = row.status === "draft" || row.status === "scheduled";
+  // Delivery sends each row once; failed rows wait here for an admin to retry.
+  const failedCount = await db.$count(
+    notificationTables.notificationOutbox,
+    and(
+      eq(notificationTables.notificationOutbox.campaignId, row.id),
+      eq(notificationTables.notificationOutbox.status, "failed"),
+    ),
+  );
   const retriggerable =
     row.status === "sent" || row.status === "completed" || row.status === "paused" || row.status === "cancelled";
   // Only resolve a count when it can still be acted on — for a sent campaign
@@ -133,6 +142,9 @@ export default async function CampaignPage({
           {sendable && <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />}
           {row.status === "sent" && <CampaignCompleteButton campaignPublicId={row.publicId} />}
           {retriggerable && <CampaignRetriggerButton campaignPublicId={row.publicId} lists={lists} />}
+          {failedCount > 0 && (
+            <CampaignRetryFailedButton campaignPublicId={row.publicId} failedCount={failedCount} />
+          )}
           {sendable && <CampaignSendButton campaignPublicId={row.publicId} count={count} />}
         </div>
       </div>

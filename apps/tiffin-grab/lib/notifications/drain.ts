@@ -4,9 +4,9 @@ import { notificationTables, usersRef } from "./tables";
 import { buildAppHandlers } from "./handlers";
 import { resolveSegment } from "@/lib/campaigns/segment";
 
-// SES MaxSendRate is 14/s on this account; stay under it so a burst cannot
-// trigger throttling, which damages sender reputation.
-const SEND_RATE = Number(process.env.NOTIFY_SEND_RATE ?? 10);
+// SES MaxSendRate is 14/s on this account, shared with puchkaman (5/s); stay
+// under it so a burst cannot trigger throttling, which damages sender reputation.
+const SEND_RATE = Number(process.env.NOTIFY_SEND_RATE ?? 8);
 
 export async function drainPending(limit = 25, maxBatches = 20): Promise<number> {
   return drain(
@@ -15,6 +15,9 @@ export async function drainPending(limit = 25, maxBatches = 20): Promise<number>
       tables: notificationTables,
       handlers: await buildAppHandlers(),
       rateLimiter: createRateLimiter(SEND_RATE),
+      // Send once. A failed campaign row is retried by staff (Retry failed); a
+      // failed OTP by the customer pressing resend.
+      maxAttempts: 1,
     },
     limit,
     maxBatches,

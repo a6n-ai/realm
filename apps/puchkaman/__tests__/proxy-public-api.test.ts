@@ -72,7 +72,6 @@ describe("PUBLIC_API — tokenless and machine-to-machine callers", () => {
     ["/api/webhooks/twilio/inbound", "Twilio signature is the auth"],
     ["/api/webhooks/twilio/status", "Twilio signature is the auth"],
     ["/api/unsubscribe", "HMAC token is the auth"],
-    ["/api/notifications/drain", "DRAIN_SECRET header is the auth"],
     ["/api/account/phone/start", "rate limited; runs during guest checkout, pre-session"],
     ["/api/account/phone/verify", "rate limited; runs during guest checkout, pre-session"],
     ["/api/account/signup", "public sign-in/create-account; the caller has no session yet"],

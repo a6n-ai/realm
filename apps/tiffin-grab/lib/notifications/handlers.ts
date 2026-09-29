@@ -1,7 +1,6 @@
 import {
   buildCampaignConfig,
   buildHandlers,
-  type BroadcastInput,
   type ChannelProvider,
 } from "@relay/engine";
 import { getEmailProvider } from "@/lib/email/provider";
@@ -9,7 +8,6 @@ import { db } from "@/db/client";
 import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
 import { notificationTables, usersRef } from "./tables";
 import { broadcast } from "./broadcast";
-import { publishPush } from "./rabbit";
 
 /** Adapt @relay/email's EmailProvider to the package's ChannelProvider shape. */
 function emailChannelProvider(): ChannelProvider {
@@ -26,15 +24,6 @@ function emailChannelProvider(): ChannelProvider {
   };
 }
 
-/**
- * Publish-after-commit: hand the realtime push to RabbitMQ; the worker calls
- * broadcast(). If the broker is unavailable, fall back to the inline push so
- * the live ping still fires.
- */
-export const appBroadcast = async (input: BroadcastInput): Promise<void> => {
-  if (!(await publishPush(input))) await broadcast(input);
-};
-
 export async function buildAppHandlers() {
   // The CASL-required postal address is admin-editable (Organization > brand
   // client's address field) rather than an env var — env vars need a redeploy
@@ -46,7 +35,7 @@ export async function buildAppHandlers() {
     tables: notificationTables,
     users: usersRef,
     providers: { email: emailChannelProvider() },
-    broadcast: appBroadcast,
+    broadcast,
     campaigns: buildCampaignConfig(notificationTables, env, { senderName: "TiffinGrab" }),
   });
 }

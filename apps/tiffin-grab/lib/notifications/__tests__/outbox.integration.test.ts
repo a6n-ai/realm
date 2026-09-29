@@ -119,4 +119,29 @@ describe("enqueue + drain", () => {
     expect(row.attempts).toBe(1);
     expect(row.lastError).toBe("skipped: no template");
   });
+
+  it("sends once with maxAttempts 1: a failed send is final, not retried", async () => {
+    const id = await makeUser(`${MARK}-e@example.test`);
+    await db.transaction((tx) =>
+      enqueue(tx, notificationTables, usersRef, {
+        event: "order_activated",
+        recipientId: id,
+        title: "t",
+        body: "b",
+        channels: ["email"],
+      }),
+    );
+    const handlers = await buildAppHandlers();
+    await drainPending({
+      db,
+      tables: notificationTables,
+      handlers: { ...handlers, email: async () => { throw new Error("SES throttled"); } },
+      maxAttempts: 1,
+    });
+    const [row] = await db
+      .select({ status: notificationOutbox.status, attempts: notificationOutbox.attempts, lastError: notificationOutbox.lastError })
+      .from(notificationOutbox)
+      .where(and(eq(notificationOutbox.recipientId, id), eq(notificationOutbox.channel, "email")));
+    expect(row).toEqual({ status: "failed", attempts: 1, lastError: "SES throttled" });
+  });
 });

@@ -4,12 +4,13 @@
 #
 # Two images from deployment/prod/Dockerfile:
 #   tiffin-grab-web   = runner target (slim Next.js standalone) → web
-#   tiffin-grab-tools = build  target (source + drizzle-kit + tsx) → worker, migrate
+#   tiffin-grab-tools = build  target (source + drizzle-kit + tsx) → migrate
 # Pin via IMAGE_TAG (CI sets it to the commit SHA); defaults to :latest.
 #
 # redis + pgbouncer service defs are reused from their per-service subfolders.
-# Redis stays colocated per-app (isolated cache); RabbitMQ is the only shared
-# box — the worker reaches it via RABBITMQ_URL in .env.production.
+# Redis stays colocated per-app (isolated cache + the outbox wake-up signal).
+# Notifications need no worker container: web's outbox listener (started from
+# instrumentation.ts when NOTIFY_LISTENER=on) waits on Redis and sends.
 # Caddy is NO LONGER here — it's a standalone shared ingress in ../proxy that
 # fronts every app. `web` joins the external `edge` network so the shared Caddy
 # can reach it as `tiffin-grab-web:3000`.
@@ -43,6 +44,8 @@ services:
     environment:
       # Redis is a compose service, not localhost — override the seam default.
       REDIS_URL: redis://redis:6379
+      # Outbox listener: BLPOP on Redis, drain on signal, never polls Postgres.
+      NOTIFY_LISTENER: "on"
       # Box A can run as small as a 1GB t2.micro — an unbounded Next.js heap
       # has no ceiling there, so cap it (see puchkaman's a6124501 for why:
       # the OOM killer otherwise picks containers essentially at random).
@@ -58,58 +61,6 @@ services:
         condition: service_healthy
       pgbouncer:
         condition: service_healthy
-
-  worker:
-    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-tools}:${IMAGE_TAG:-latest}
-    restart: unless-stopped
-    logging: *awslogs
-    env_file: .env.production
-    working_dir: /app/apps/tiffin-grab
-    command: ["node", "--import", "tsx", "workers/notify-consumer.ts"]
-    # Disabled until a rabbitmq broker exists — RABBITMQ_URL is unset/placeholder,
-    # so the consumer crash-loops. Behind a profile so `up` never starts it; run
-    # `docker compose --profile worker up -d worker` once a broker is wired.
-    profiles: ["worker"]
-
-  # Outbox drainer. Deliberately has NO `profiles:` key — unlike `worker` above
-  # this is a long-lived service that must come up with the stack, not a
-  # broker-gated one-shot tool. Polls rather than using LISTEN/NOTIFY: pgbouncer
-  # runs in transaction pooling mode, where a LISTEN binds to a backend that
-  # gets handed to the next client, silently dropping notifications.
-  # Each drainer process holds its own token-bucket rate limiter (see
-  # lib/notifications/drain.ts) — running more than one means their caps ADD,
-  # not share. NOTIFY_SEND_RATE is pinned explicitly on every drainer service
-  # below (this one and drainer-fast, both apps) so the combined ceiling
-  # across all four processes stays under SES's 14/s account MaxSendRate —
-  # never rely on the code default here.
-  drainer:
-    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-tools}:${IMAGE_TAG:-latest}
-    logging: *awslogs
-    env_file: .env.production
-    environment:
-      NOTIFY_SEND_RATE: "6"
-      NODE_OPTIONS: "--max-old-space-size=128"
-    mem_limit: 150m
-    restart: unless-stopped
-    working_dir: /app/apps/tiffin-grab
-    command: ["node", "--import", "tsx", "workers/notify-drainer.ts"]
-
-  # Same worker, short poll interval — for transactional mail (OTP, account
-  # verification) where a customer is watching their inbox, not the 15s bulk
-  # drainer's idle latency. Safe to run alongside `drainer`: claim() uses
-  # FOR UPDATE SKIP LOCKED, so the two never grab the same outbox row.
-  drainer-fast:
-    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-tools}:${IMAGE_TAG:-latest}
-    logging: *awslogs
-    env_file: .env.production
-    environment:
-      NOTIFY_DRAIN_INTERVAL_MS: "1000"
-      NOTIFY_SEND_RATE: "2"
-      NODE_OPTIONS: "--max-old-space-size=128"
-    mem_limit: 150m
-    restart: unless-stopped
-    working_dir: /app/apps/tiffin-grab
-    command: ["node", "--import", "tsx", "workers/notify-drainer.ts"]
 
   # One-shot migration runner. Reuses the tools image (has drizzle-kit + source).
   # Never starts on `up` (tools profile); invoked by deploy.sh before up.

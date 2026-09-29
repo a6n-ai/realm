@@ -1,6 +1,7 @@
 import { enqueue, enqueueToRole, type EnqueueInput, type EnqueueToRoleInput } from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
+import { signalOutbox } from "./outbox-signal";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Event = (typeof notificationTables.notificationOutbox.event.enumValues)[number];
@@ -22,19 +23,25 @@ const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
 
 export type { EnqueueInput };
 
-/** App-side enqueue: applies tiffin-grab's per-event channel defaults. */
-export function enqueueNotification(tx: Tx, input: EnqueueInput & { event: Event }): Promise<void> {
-  return enqueue(tx, notificationTables, usersRef, {
+/**
+ * App-side enqueue: applies tiffin-grab's per-event channel defaults, then wakes
+ * the outbox listener. The signal lands before the caller's transaction commits;
+ * the listener's settle delay covers that.
+ */
+export async function enqueueNotification(tx: Tx, input: EnqueueInput & { event: Event }): Promise<void> {
+  await enqueue(tx, notificationTables, usersRef, {
     ...input,
     channels: input.channels ?? EVENT_CHANNELS[input.event],
   });
+  signalOutbox();
 }
 
 /** Staff-facing fan-out: one in-app row per active admin/member. */
-export function enqueueStaffNotification(tx: Tx, input: Omit<EnqueueToRoleInput, "roles" | "event"> & { event?: Event }): Promise<void> {
-  return enqueueToRole(tx, notificationTables, usersRef, {
+export async function enqueueStaffNotification(tx: Tx, input: Omit<EnqueueToRoleInput, "roles" | "event"> & { event?: Event }): Promise<void> {
+  await enqueueToRole(tx, notificationTables, usersRef, {
     ...input,
     roles: ["admin", "member"],
     channels: input.channels ?? (input.event ? EVENT_CHANNELS[input.event] : undefined),
   });
+  signalOutbox();
 }

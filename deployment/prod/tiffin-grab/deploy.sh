@@ -51,11 +51,13 @@ git -C ../../.. pull --ff-only           # refresh compose/config only — sourc
 #   echo "$(cat ~/.ghcr_token)" | docker login ghcr.io -u a6n-ai --password-stdin
 
 # Default `compose pull` skips profiled services. tiffin-grab-tools is only
-# referenced by migrate (tools) and worker (worker), so pull it explicitly.
+# referenced by migrate (tools), so pull it explicitly.
 docker compose pull
 docker compose --profile tools pull
 docker compose --profile tools run --rm migrate   # drizzle-kit migrate against RDS (direct)
-docker compose up -d
+# --remove-orphans: stops containers for services dropped from the compose file
+# (the old drainer/drainer-fast) instead of leaving them running unmanaged.
+docker compose up -d --remove-orphans
 # -a, not just dangling: CI deploys with IMAGE_TAG=<commit sha>, so every deploy
 # pulls a NEW tag (~1.9GB across web+tools+puchkaman) and the old SHA-tagged images
 # stay tagged — invisible to a bare `prune -f`. They also have zero cache value: the

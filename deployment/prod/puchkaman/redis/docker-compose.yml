@@ -1,0 +1,22 @@
+# Prod Redis (outbox wake-up signal only). Pulled into the umbrella via `include:`.
+# Runnable alone for debugging on the box:
+#     docker compose -f deployment/prod/puchkaman/redis/docker-compose.yml up -d
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Signal only — the outbox row is the record, so nothing here needs to persist.
+    # 32mb is far more than one list entry needs.
+    command: >
+      redis-server
+      --maxmemory 32mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    ports:
+      - "127.0.0.1:6379:6379" # host-side debugging only; web reaches it via the compose network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

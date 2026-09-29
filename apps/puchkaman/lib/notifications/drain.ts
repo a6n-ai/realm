@@ -20,6 +20,9 @@ export async function drainPending(limit = 25, maxBatches = 20): Promise<number>
       tables: notificationTables,
       handlers: await buildAppHandlers(),
       rateLimiter: createRateLimiter(SEND_RATE),
+      // Send once. A failed campaign row is retried by staff (Retry failed); a
+      // failed code by the customer pressing resend.
+      maxAttempts: 1,
     },
     limit,
     maxBatches,
