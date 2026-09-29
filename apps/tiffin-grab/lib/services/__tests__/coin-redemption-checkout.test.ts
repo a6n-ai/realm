@@ -23,6 +23,7 @@ const { walletService } = await import("../wallet.service");
 const { setMaxCoinPctOfSubtotal, setPaymentConfig, setProvinceTaxes } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
+const { resolveCheckoutTaxes } = await import("@/lib/tax/checkout-taxes");
 
 type Snapshot = {
   subtotal: number;
@@ -475,24 +476,25 @@ describe("createOrder — admin coin limit and provincial tax", () => {
 
   it("falls back to the payment method's taxes when the address has no resolvable province", async () => {
     // An install that predates province tax keeps billing as before rather than
-    // silently dropping to zero.
+    // silently dropping to zero. createOrder now requires a full Canadian postal code
+    // (every one maps to a province), so the fallback is exercised on the resolver itself.
     await setPaymentConfig({
       methods: [{ id: "etransfer", kind: "manual", enabled: true, label: "Interac e-Transfer", payeeHandle: "pay@test.ca", taxes: [{ name: "GST", ratePct: 5 }] }],
     });
     await sharedCache("app-settings").evictAll();
-    const owner = await seedUserWithCoins(0);
+    const methodTaxes = [{ name: "GST", ratePct: 5 }];
 
-    const input = await baseInput({ paymentMethodId: "etransfer" });
-    // Not a Canadian postal code, so no province can be resolved.
-    const { deploymentId } = await createOrder(
-      { ...input, contact: { ...input.contact, postalCode: "90210" } },
-      { ownerUserId: owner.publicId },
-    );
-    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
-    const snap = order!.pricingSnapshot as Snapshot & { taxLines: { name: string }[]; taxProvince: string | null };
-    expect(snap.taxProvince).toBeNull();
-    expect(snap.taxLines.map((l) => l.name)).toEqual(["GST"]);
-    expect(snap.taxTotal).toBeCloseTo(snap.subtotal * 0.05, 2);
+    const { taxes, province } = await resolveCheckoutTaxes({ postalCode: "90210", methodTaxes });
+    expect(province).toBeNull();
+    expect(taxes.map((l) => l.name)).toEqual(["GST"]);
+  });
+
+  it("refuses an order whose postal code is not a full Canadian one", async () => {
+    const owner = await seedUserWithCoins(0);
+    const input = await baseInput({});
+    await expect(
+      createOrder({ ...input, contact: { ...input.contact, postalCode: "M8" } }, { ownerUserId: owner.publicId }),
+    ).rejects.toThrow("Enter a full postal code");
   });
 
   it("charges no tax when an admin zeroes the province, even if the payment method has taxes", async () => {

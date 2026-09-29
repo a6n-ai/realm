@@ -9,43 +9,58 @@ export class OrderDetailPage {
     return this.page.getByRole("heading", { level: 2, name: title });
   }
 
+  card(title: string | RegExp): Locator {
+    return this.section(title).locator("xpath=ancestor::*[contains(@class,'rounded')][1]");
+  }
+
+  /** Tabs mount their panel only while selected, so open the tab before reading it. */
+  async openTab(name: "Overview" | "Deliveries" | "Payments" | "Activity") {
+    await this.page.getByRole("tab", { name: new RegExp(`^${name}`) }).click();
+  }
+
   summaryCard(): Locator {
-    return this.section("Summary").locator("xpath=ancestor::*[contains(@class,'rounded')][1]");
+    return this.card("Customer & delivery");
   }
 
   paymentCard(): Locator {
-    return this.section("Payment").locator("xpath=ancestor::*[contains(@class,'rounded')][1]");
+    return this.card("Payments");
   }
 
   activitySection(): Locator {
-    return this.section("Activity").locator("xpath=ancestor::*[contains(@class,'rounded')][1]");
+    return this.card("Activity");
   }
 
   async expectRevampLayout() {
-    await expect(this.section("Summary")).toBeVisible();
-    await expect(this.section("Payment")).toBeVisible();
+    for (const tab of ["Overview", "Deliveries", "Payments", "Activity"]) {
+      await expect(this.page.getByRole("tab", { name: new RegExp(`^${tab}`) })).toBeVisible();
+    }
+    await expect(this.section("Plan & schedule")).toBeVisible();
+    await expect(this.section("Customer & delivery")).toBeVisible();
+    await expect(this.section("Pricing")).toBeVisible();
+    await this.openTab("Deliveries");
     await expect(this.section("Deliveries")).toBeVisible();
-    await expect(this.section(/This week's meals/i)).toBeVisible();
+    await expect(this.section("Routing")).toBeVisible();
+    await expect(this.page.getByRole("tab", { name: /^Meals/ })).toHaveCount(0);
+    await this.openTab("Payments");
+    await expect(this.section("Payments")).toBeVisible();
+    await this.openTab("Activity");
     await expect(this.section("Activity")).toBeVisible();
-
-    // Old CRM panels removed.
-    await expect(this.section("Lifecycle")).toHaveCount(0);
-    await expect(this.section("Tiffins")).toHaveCount(0);
-    await expect(this.section("Payments")).toHaveCount(0);
   }
 
   async expectSummaryAndPaymentCards() {
-    await expect(this.summaryCard().getByText(/plan|schedule|address|deployment|pricing/i).first()).toBeVisible();
-    await expect(this.summaryCard().getByText(/total/i).first()).toBeVisible();
+    await expect(this.card("Plan & schedule").getByText(/meal size/i)).toBeVisible();
+    await expect(this.card("Pricing").getByText(/total/i).first()).toBeVisible();
+    await this.openTab("Payments");
     await expect(this.paymentCard().getByText(/order total|received|payment records|no payments/i).first()).toBeVisible();
   }
 
   async expectDeliveriesCalendar() {
-    await expect(this.page.getByRole("button", { name: /vacation|resume/i }).first()).toBeVisible();
+    await this.openTab("Deliveries");
     await expect(this.page.getByTestId("week-strip")).toBeVisible();
   }
 
   async expectActivityFilters() {
+    await this.openTab("Activity");
     const activity = this.activitySection();
     await expect(activity.getByPlaceholder(/search activity/i)).toBeVisible();
     // Reui facet filter control (same as orders list).

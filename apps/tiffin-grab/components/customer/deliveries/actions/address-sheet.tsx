@@ -6,18 +6,18 @@ import type { AddressValues } from "@foundry/commons";
 import type { SavedAddress } from "@foundry/address";
 import { formatAddress } from "@foundry/address/ui";
 import { setMyDeliveryAddress } from "@/app/(customer)/me/deliveries/actions";
-import { Button, Field, Notice, OptionCard, Sheet } from "@/components/customer/kit";
 import { AddressDropOffLines, AddressDropOffPanel, DropOffPicker } from "@/components/customer/address/drop-off";
 import { NO_DROP_OFF, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import { nameTaken } from "@/components/customer/address/address-name";
-import { AddressFields } from "@/components/customer/address/address-fields";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import { currentSavedAddressId } from "@/lib/deliveries-view/current-address";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
+import { useSheetUi } from "./sheet-ui";
 
 /** Send one delivery somewhere else: a saved address or a new one (saved to the book). Never charged. */
-export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
+export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps) {
+  const { Shell, PrimaryButton, Notice, OptionCard, Field, AddressFields, PillToggle } = useSheetUi(ui);
   const av = actionAvailability(trip, Date.now(), plan.ctx).address;
   const addresses = plan.savedAddresses;
   const [picked, setPicked] = useState<string | null>(() =>
@@ -54,13 +54,13 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
   };
 
   const footer = (
-    <Button variant="primary" size="lg" pending={pending} disabledReason={!av.ok ? (av.why ?? undefined) : undefined} onClick={confirm}>
+    <PrimaryButton pending={pending} disabledReason={!av.ok ? (av.why ?? undefined) : undefined} onClick={confirm}>
       Deliver here
-    </Button>
+    </PrimaryButton>
   );
 
   return (
-    <Sheet open={open} onClose={() => onDone()} title={`Delivery & Address for ${day}`} footer={footer}>
+    <Shell open={open} onClose={() => onDone()} title={`Delivery & Address for ${day}`} footer={footer}>
       <div className="grid gap-4 pb-2">
         {!av.ok ? (
           <Notice>{av.why}</Notice>
@@ -88,7 +88,7 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
                     <AddressDropOffPanel>
                       <div className="grid gap-2">
                         {a.deliveryInstructions && <p className="text-[13px] text-[var(--muted-foreground)]">Note: {a.deliveryInstructions}</p>}
-                        <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} />
+                        <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} Pill={PillToggle} />
                       </div>
                     </AddressDropOffPanel>
                   )}
@@ -119,7 +119,7 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
                       resolveUrl="/api/address/resolve"
                       onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
                     />
-                    <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} />
+                    <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} Pill={PillToggle} />
                   </div>
                 </AddressDropOffPanel>
               )}
@@ -130,6 +130,6 @@ export function AddressSheet({ trip, plan, open, onDone }: ActionSheetProps) {
         )}
         {error && <Notice tone="error">{error}</Notice>}
       </div>
-    </Sheet>
+    </Shell>
   );
 }

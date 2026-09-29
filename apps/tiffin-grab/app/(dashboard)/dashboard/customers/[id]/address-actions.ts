@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { AddressInput, SavedAddress } from "@foundry/address";
 import { requireAdmin } from "@/lib/auth/guards";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
+import { assertAddressServiceable } from "@/lib/catalog/zone-match";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 
 // Admin-only, always scoped to the customer whose page this is. Returns { error } rather
@@ -18,7 +19,9 @@ const refresh = (customerPublicId: string) => revalidatePath(`/dashboard/custome
 
 export async function staffCreateAddress(customerPublicId: string, input: AddressInput): Promise<ActionResult<SavedAddress>> {
   return runAction(async () => {
-    const { id: _id, ...saved } = await addressService.create(await scope(customerPublicId), input);
+    const s = await scope(customerPublicId);
+    await assertAddressServiceable(input, s.orgId);
+    const { id: _id, ...saved } = await addressService.create(s, input);
     refresh(customerPublicId);
     return saved;
   });
@@ -26,7 +29,9 @@ export async function staffCreateAddress(customerPublicId: string, input: Addres
 
 export async function staffUpdateAddress(customerPublicId: string, publicId: string, input: AddressInput): Promise<ActionResult<SavedAddress>> {
   return runAction(async () => {
-    const saved = await addressService.update(await scope(customerPublicId), publicId, input);
+    const s = await scope(customerPublicId);
+    await assertAddressServiceable(input, s.orgId);
+    const saved = await addressService.update(s, publicId, input);
     refresh(customerPublicId);
     return saved;
   });

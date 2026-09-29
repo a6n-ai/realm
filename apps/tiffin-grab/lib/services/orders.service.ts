@@ -32,6 +32,7 @@ import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { findZone } from "@/lib/catalog/zone-match";
+import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { addressService } from "./addresses.service";
 import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
@@ -262,6 +263,8 @@ export async function createOrder(
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.
   const basePricing = priceSubscription(input.selections, pricingCatalog);
+  // Before the zone lookup: a bare prefix ("M8") would otherwise match a zone.
+  input.contact = { ...input.contact, postalCode: parseCanadianPostalCode(input.contact.postalCode) };
   let zoneRow = await findZone(snapshot.zones, input.contact, orgId);
 
   const parsedPhone = phoneSchema().safeParse(input.contact.phone);
@@ -1519,6 +1522,27 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     publishAnalyticsLive();
   }
 
+  // Switch-over day: start every WordPress plan still waiting, from `fromDate` or its own
+  // later next-due date (a customer WordPress hasn't started yet keeps that start). One plan
+  // failing (cutoff passed, no balance) never stops the rest; each result says what happened.
+  async startAllMigrated(fromDate: string): Promise<{ started: number; failed: { deploymentId: string; error: string }[] }> {
+    const waiting = await db.select({ publicId: orders.publicId, deploymentId: orders.deploymentId, startDate: orders.startDate })
+      .from(orders)
+      .where(and(eq(orders.status, "pending"), sql`${orders.deploymentId} like 'wc-%'`))
+      .orderBy(asc(orders.deploymentId));
+    let started = 0;
+    const failed: { deploymentId: string; error: string }[] = [];
+    for (const o of waiting) {
+      try {
+        await this.startMigrated(o.publicId, o.startDate > fromDate ? o.startDate : fromDate);
+        started++;
+      } catch (e) {
+        failed.push({ deploymentId: o.deploymentId, error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    return { started, failed };
+  }
+
   // Terminal: cancel() has no reverse. activate()'s existing `if (c !== "waitlisted") throw`
   // guard already forbids reactivating a cancelled order — no separate check needed here.
   // Bypasses transition()/update() for the same reason activate() does: cancelDeliveries must
@@ -1792,6 +1816,12 @@ export const ordersService = new OrdersService(new UpdatableRepository(db, order
 export const activateOrder = (publicId: string): Promise<void> => ordersService.activate(publicId);
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
 export const startMigratedOrder = (publicId: string, startDate: string): Promise<void> => ordersService.startMigrated(publicId, startDate);
+export const startAllMigratedOrders = (fromDate: string) => ordersService.startAllMigrated(fromDate);
+export async function countMigratedWaiting(): Promise<number> {
+  const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(orders)
+    .where(and(eq(orders.status, "pending"), sql`${orders.deploymentId} like 'wc-%'`));
+  return row?.n ?? 0;
+}
 export const changeMealSize = (publicId: string, mealSizePublicId: string): Promise<void> =>
   ordersService.changeMealSize(publicId, mealSizePublicId);
 export const pauseOrder = (publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> =>

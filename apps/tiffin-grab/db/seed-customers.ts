@@ -16,16 +16,18 @@
  * `wc-<wordpress order id>`: a `pending` one is refreshed with WordPress's current
  * balance and address; one staff already started is never touched again.
  */
-import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, ne, or } from "drizzle-orm";
 import mysql from "mysql2/promise";
-import { emailSchema } from "@foundry/commons";
+import { emailSchema, zonedDateIso } from "@foundry/commons";
 import { db } from "./client";
 import { orderActivities, orders, organization, users } from "./schema";
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "../lib/catalog/load";
 import { findZone } from "../lib/catalog/zone-match";
 import { categoryCountsFromItems } from "../lib/menu/pick-size";
 import type { DayOfWeek } from "../lib/menu/delivery-days";
-import { tripsFor } from "../lib/orders/bounded-deliveries";
+import { nextTripDate, tripsFor } from "../lib/orders/bounded-deliveries";
+import { matchZone, parseCanadianPostalCode } from "../lib/catalog/postal";
+import { getAppSettings } from "../lib/services/app-settings.service";
 import { provisionCustomerByPhone } from "../lib/services/customers.service";
 import { addressService } from "../lib/services/addresses.service";
 import type { OrderPricingSnapshot } from "../lib/pricing/types";
@@ -104,6 +106,21 @@ async function readWordPress(): Promise<WpRow[]> {
 
 /** Remaining balance = the latest `remaining_tiffins` in the plugin's serialized
  * per-date history; no history means delivery hasn't started, so the full count. */
+/** Where WordPress left off: the last day it delivered a box, and how many boxes in all.
+ * The history is one serialized entry per calendar day, oldest first. */
+export function wordpressPosition(history: string | null): { lastDeliveredDate: string | null; deliveredCount: number } {
+  let lastDeliveredDate: string | null = null;
+  let deliveredCount = 0;
+  for (const m of (history ?? "").matchAll(/s:10:"(\d{4}-\d{2}-\d{2})";a:\d+:\{(.*?)\}(?=s:10:"\d{4}-|\}$)/gs)) {
+    const boxes = Number(/"boxes_delivered";i:(\d+)/.exec(m[2]!)?.[1] ?? 0);
+    if (boxes > 0) {
+      deliveredCount += boxes;
+      lastDeliveredDate = m[1]!;
+    }
+  }
+  return { lastDeliveredDate, deliveredCount };
+}
+
 export function remainingTiffins(history: string | null, totalTiffins: string | null): number {
   const all = [...(history ?? "").matchAll(/"remaining_tiffins";i:(-?\d+);/g)];
   const last = all.at(-1)?.[1];
@@ -138,6 +155,9 @@ export type MigrationRecord = {
   sourceStartDate: string;
   // Renewal orders for the same plan whose balance was added to this one.
   mergedWpOrderIds: number[];
+  // WordPress position, for the next-due start date and the admin banner.
+  lastDeliveredDate: string | null;
+  deliveredCount: number;
 };
 
 const WEEKDAY_NAMES: { name: string; day: DayOfWeek }[] = [
@@ -249,6 +269,7 @@ export function mapRow(row: WpRow): MigrationRecord {
     includeSunday,
     persons: Math.max(1, Math.round(Number(row.qty) || 1)),
     tiffinCount: remainingTiffins(row.history, row.totalTiffins),
+    ...wordpressPosition(row.history),
     sourceStartDate: (row.startDate ?? "").trim(),
     mergedWpOrderIds: [],
   };
@@ -372,6 +393,16 @@ export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot, units: Map<st
     if (!customItems && hasVegConflict(row)) { skip(`veg conflict: product "${record.productText}" vs meta "${row.veg}"`); continue; }
     if (record.tiffinCount <= 0) { skip("zero remaining tiffins"); continue; }
     if (!record.addressLine || !record.postalCode) { skip("missing address or postal code"); continue; }
+    try {
+      record.postalCode = parseCanadianPostalCode(record.postalCode);
+    } catch {
+      skip(`postal code not a full Canadian one: "${record.postalCode}"`);
+      continue;
+    }
+    if (!matchZone(record.postalCode, snapshot.zones.filter((z) => z.active))) {
+      skip(`outside every delivery zone: ${record.postalCode}`);
+      continue;
+    }
     if (customItems) customByWpId.set(record.wpOrderId, customItems);
     candidates.push(record);
   }
@@ -431,7 +462,7 @@ async function brandOrgId(): Promise<string | null> {
   return row?.id ?? null;
 }
 
-export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: CatalogSnapshot, orgId: string | null): Promise<Outcome> {
+export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: CatalogSnapshot, orgId: string | null, today: string): Promise<Outcome> {
   const x = r.record;
   const deploymentId = `wc-${x.wpOrderId}`;
   // phoneSchema() crashes under tsx (libphonenumber CJS/ESM interop); planSeed already
@@ -441,7 +472,12 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
   const frequency = snapshot.frequencies.find((f) => f.key === x.frequencyKey);
   if (!plan || !frequency) throw new Error(`catalog has no plan ${x.planKey} / frequency ${x.frequencyKey}`);
 
-  const perWeek = tripsFor(x.frequencyKey, x.eatingDays).reduce((n, t) => n + t.units * x.persons, 0);
+  const trips = tripsFor(x.frequencyKey, x.eatingDays);
+  const perWeek = trips.reduce((n, t) => n + t.units * x.persons, 0);
+  // Pick up where WordPress left off: the first trip after its last delivered box, or its
+  // own start date if it never delivered. Never in the past; staff can still change it.
+  const due = x.lastDeliveredDate ? nextTripDate(x.lastDeliveredDate, trips) : x.sourceStartDate || today;
+  const startDate = due > today ? due : today;
   const contact = {
     fullName: x.fullName || "Customer",
     addressLine: x.addressLine,
@@ -466,6 +502,13 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
     total: 0,
     paymentMethodId: "simulated",
     planType: plan.planType,
+    wordpress: {
+      orderId: x.wpOrderId,
+      mergedOrderIds: x.mergedWpOrderIds,
+      lastDeliveredDate: x.lastDeliveredDate,
+      deliveredCount: x.deliveredCount,
+      refreshedOn: today,
+    },
   };
   const baseFields = {
     planId: plan.id,
@@ -476,6 +519,7 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
     includeSunday: x.eatingDays.includes("sun"),
     durationWeeks: Math.max(1, Math.ceil(x.tiffinCount / Math.max(1, perWeek))),
     tiffinCount: x.tiffinCount,
+    startDate,
     pricingSnapshot,
     zoneId: zone?.id ?? null,
     ...contact,
@@ -522,8 +566,6 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
       userId,
       status: "pending",
       deploymentId,
-      // Placeholder until staff start the plan; "Start migrated plan" sets the real date.
-      startDate: x.sourceStartDate && x.sourceStartDate > new Date().toISOString().slice(0, 10) ? x.sourceStartDate : new Date().toISOString().slice(0, 10),
       perTiffinPrice: "0.00",
       total: "0.00",
       addressId: address.id,
@@ -540,11 +582,12 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
 
 async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapshot: CatalogSnapshot): Promise<void> {
   const orgId = await brandOrgId();
+  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
   const counts: Record<Outcome, number> = { created: 0, refreshed: 0, "unchanged (already started)": 0, failed: 0 };
   for (const r of planned) {
     let outcome: Outcome;
     try {
-      outcome = await applyOne(r, snapshot, orgId);
+      outcome = await applyOne(r, snapshot, orgId, today);
     } catch (err) {
       outcome = "failed";
       console.log(`  FAILED wc-${r.record.wpOrderId}: ${err instanceof Error ? err.message : String(err)}`);
@@ -557,6 +600,48 @@ async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapsh
   for (const [k, v] of Object.entries(counts)) console.log(`${k}: ${v}`);
 }
 
+// ---------- balance check ----------
+
+/** Tiffins left in our DB vs WordPress's live counter, per imported plan. A pending plan must
+ * equal WordPress after a refresh; a started plan must not have gone down on WordPress since
+ * (that means WordPress kept delivering after the switch: two deliveries a day). */
+export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned" }>[]): Promise<{ mismatches: number }> {
+  const inDb = await db.select({ deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount })
+    .from(orders).where(like(orders.deploymentId, "wc-%"));
+  const byId = new Map(inDb.map((o) => [o.deploymentId, o]));
+  const wanted = new Set(planned.map((r) => `wc-${r.record.wpOrderId}`));
+  let match = 0;
+  const willRefresh: string[] = [];
+  const doubleDelivery: string[] = [];
+  const notImported: string[] = [];
+  for (const { record: x } of planned) {
+    const id = `wc-${x.wpOrderId}`;
+    const o = byId.get(id);
+    if (!o) { notImported.push(`${id} (WordPress ${x.tiffinCount} left)`); continue; }
+    if (o.status === "pending") {
+      if (o.tiffinCount === x.tiffinCount) match++;
+      else willRefresh.push(`${id}: ours ${o.tiffinCount}, WordPress ${x.tiffinCount}`);
+    } else if (o.status !== "cancelled" && x.tiffinCount < o.tiffinCount) {
+      doubleDelivery.push(`${id} (${o.status}): started with ${o.tiffinCount}, WordPress now ${x.tiffinCount}`);
+    } else {
+      match++;
+    }
+  }
+  const goneFromWordPress = inDb.filter((o) => o.status === "pending" && !wanted.has(o.deploymentId)).map((o) => o.deploymentId);
+
+  console.log(`\n=== Tiffins left vs WordPress ===`);
+  console.log(`Match: ${match}`);
+  console.log(`Pending, differs (a refresh / --apply updates these): ${willRefresh.length}`);
+  for (const l of willRefresh) console.log(`  ${l}`);
+  console.log(`Not imported yet: ${notImported.length}`);
+  for (const l of notImported) console.log(`  ${l}`);
+  console.log(`Started but WordPress kept delivering (stop them on WordPress!): ${doubleDelivery.length}`);
+  for (const l of doubleDelivery) console.log(`  ${l}`);
+  console.log(`Pending here, no longer an active WordPress plan (ended, cancelled or now skipped): ${goneFromWordPress.length}`);
+  for (const l of goneFromWordPress) console.log(`  ${l}`);
+  return { mismatches: willRefresh.length + doubleDelivery.length + notImported.length + goneFromWordPress.length };
+}
+
 const isDirectRun = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
 if (isDirectRun) {
   (async () => {
@@ -565,11 +650,15 @@ if (isDirectRun) {
     const units = await loadCategoryUnits();
     const { results, duplicates, mixedKind } = planSeed(rows, snapshot, units);
     printReport(rows.length, results, duplicates, mixedKind, units);
+    const planned = results.filter((r): r is Extract<PlanResult, { kind: "planned" }> => r.kind === "planned");
+    await balanceCheck(planned);
     if (!process.argv.includes("--apply")) {
       console.log(`\nDry run only — pass --apply to write.`);
       return;
     }
-    await apply(results.filter((r): r is Extract<PlanResult, { kind: "planned" }> => r.kind === "planned"), snapshot);
+    await apply(planned, snapshot);
+    console.log(`\nAfter apply:`);
+    await balanceCheck(planned);
   })()
     .then(() => process.exit(0))
     .catch((err) => {

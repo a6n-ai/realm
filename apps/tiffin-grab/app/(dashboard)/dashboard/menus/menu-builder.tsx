@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAYS, DAY_LABELS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig } from "@/lib/menu/meal-types";
+import { findSimilarDishes } from "@/lib/menu/similar-dishes";
 import { MenuGrid, type Slot } from "./menu-grid";
 import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek } from "./actions";
 import { cn } from "@foundry/ui/cn";
@@ -85,6 +86,7 @@ export function MenuBuilder({
 
   const allDishes = useMemo(() => [...dishes, ...createdDishes], [dishes, createdDishes]);
   const dishById = useMemo(() => new Map(allDishes.map((d) => [d.id, d])), [allDishes]);
+  const similarDishes = useMemo(() => findSimilarDishes(newName, allDishes), [newName, allDishes]);
   const dirty = signature(rows) !== savedSignature;
   const isDraft = week.status === "draft";
   const isReady = week.status === "ready";
@@ -528,6 +530,30 @@ export function MenuBuilder({
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleCreateDish(); }}
             />
+            {similarDishes.length > 0 && createTarget ? (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
+                <p className="mb-1.5 font-medium">Already in the catalog. Use one instead?</p>
+                <ul className="space-y-1">
+                  {similarDishes.map((d) => {
+                    // The grid only renders a dish in a slot of its own plan, so "Use" is
+                    // offered only where it would actually show up.
+                    const fits = d.planId === createTarget.slot.planPublicId
+                      && (d.category == null || d.category === createTarget.slot.categoryKey);
+                    return (
+                      <li key={d.id} className="flex items-center justify-between gap-2">
+                        <span>{d.name}{fits ? "" : ` · ${plans.find((p) => p.publicId === d.planId)?.name ?? "other plan"}${d.category ? `, ${d.category}` : ""}`}</span>
+                        {fits ? (
+                          <Button size="sm" variant="outline" className="h-6 px-2 text-xs"
+                            onClick={() => { addRow(createTarget.storeDay, createTarget.slot.categoryKey, d.id); setCreateTarget(null); setNewName(""); }}>
+                            Use
+                          </Button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
             {/* Defaults to the slot's own plan — a dish belongs to exactly one plan, so this
                 is what actually decides which subscribers can ever be served it. */}
             <Select value={newPlanId} onValueChange={setNewPlanId}>

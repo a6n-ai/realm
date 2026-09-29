@@ -9,6 +9,7 @@ import { useTheme } from "@foundry/themes";
 import { signOut } from "@/lib/auth/client";
 import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet, ThemeToggle } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { PageTransition } from "@/components/motion/page-transition";
 
 const ACCOUNT_PATHS = ["/me/account"];
@@ -34,12 +35,8 @@ const THEMES = [
 export function Brand({ href = "/me", compact = false }: { href?: string; compact?: boolean }) {
   return (
     <Link href={href} aria-label="TiffinGrab home" className={cn(FONT, FOCUS, "flex min-h-11 items-center gap-2 rounded-full")}>
-      <span aria-hidden className={cn("grid place-items-center rounded-full bg-[var(--primary)] text-white", compact ? "size-8" : "size-9")}>
-        <UtensilsCrossed className={compact ? "size-4" : "size-[18px]"} />
-      </span>
-      <span className={compact ? "text-[20px] leading-none font-bold tracking-[-0.03em]" : "c-title"}>
-        Tiffin<em className="text-[var(--primary)]">Grab</em>
-      </span>
+      <BrandMark className={compact ? "size-8" : "size-9"} />
+      <BrandWordmark className={compact ? "text-[20px]" : "text-[22px]"} />
     </Link>
   );
 }

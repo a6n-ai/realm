@@ -8,7 +8,7 @@ import { deliveryZones, leadSources, leadSubsources, orders } from "@/db/schema"
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -29,6 +29,7 @@ import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
 import { and } from "@foundry/commons/model/condition";
 import { NewOrderSheet } from "./new-order-sheet";
+import { StartMigratedDialog } from "./start-migrated-dialog";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -43,9 +44,14 @@ export default function OrdersPage({
         icon={PackageIcon}
         title="Orders"
         actions={
-          <Suspense fallback={<Skeleton className="h-9 w-32" />}>
-            <NewOrderAction />
-          </Suspense>
+          <div className="flex flex-wrap items-center gap-2">
+            <Suspense fallback={null}>
+              <StartMigratedAction />
+            </Suspense>
+            <Suspense fallback={<Skeleton className="h-9 w-32" />}>
+              <NewOrderAction />
+            </Suspense>
+          </div>
         }
       />
       <Suspense fallback={<SkeletonStatCards count={4} />}>
@@ -58,6 +64,13 @@ export default function OrdersPage({
       </SectionCard>
     </PageShell>
   );
+}
+
+// Only while WordPress plans are waiting to be started; gone once the switch-over is done.
+async function StartMigratedAction() {
+  await requireStaff();
+  const waiting = await countMigratedWaiting();
+  return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
 }
 
 async function OrdersStats() {

@@ -6,7 +6,7 @@ import { mealSizes, orderActivities, orders, users } from "./schema";
 import { loadCatalogSnapshot } from "../lib/catalog/load";
 import { loadCategoryUnits } from "../lib/services/custom-meal.service";
 import {
-  applyOne, catalogKeyFor, dedupeByPhone, hasVegConflict, mapRow, mixedKindDuplicates, planSeed, remainingTiffins, type WpRow,
+  applyOne, catalogKeyFor, dedupeByPhone, hasVegConflict, mapRow, mixedKindDuplicates, planSeed, remainingTiffins, wordpressPosition, type WpRow,
 } from "./seed-customers";
 
 function row(over: Partial<WpRow> = {}): WpRow {
@@ -156,6 +156,7 @@ describe("planSeed custom meals", () => {
   const size = (id: number, key: string, planKey: string) => ({ id: BigInt(id), key, name: key, planKey, tier: "budget", items: [], custom: false });
   const snapshot = {
     mealSizes: [size(1, "item4_regular_veg", "veg"), size(2, "item4_regular_nonveg", "non-veg")],
+    zones: [{ name: "Downtown", postalPrefixes: ["M5V"], slotWindow: null, active: true }],
   } as unknown as Parameters<typeof planSeed>[1];
 
   it("plans a parseable custom meal with its items instead of skipping it", () => {
@@ -197,6 +198,7 @@ describe("mixedKindDuplicates", () => {
 });
 
 describe("applyOne (tiffin_v2)", () => {
+  const TODAY = new Date().toISOString().slice(0, 10);
   const PHONE = "6470009871";
   const EMAIL = "zz-seed-liveplan@example.test";
   const ids = [990001, 990002];
@@ -218,13 +220,31 @@ describe("applyOne (tiffin_v2)", () => {
       return res;
     };
     const base = { phone: PHONE, email: EMAIL };
-    expect(await applyOne(plan(row({ ...base, id: ids[0] })), snapshot, null)).toBe("created");
+    expect(await applyOne(plan(row({ ...base, id: ids[0] })), snapshot, null, TODAY)).toBe("created");
 
     const customsBefore = await db.select({ id: mealSizes.id }).from(mealSizes).where(like(mealSizes.key, "custom_%"));
-    await expect(applyOne(plan(row({ ...base, id: ids[1], products: "Custom Meal - 3 Veg(8oz) + 8 Rotis + 2 Rice" })), snapshot, null))
+    await expect(applyOne(plan(row({ ...base, id: ids[1], products: "Custom Meal - 3 Veg(8oz) + 8 Rotis + 2 Rice" })), snapshot, null, TODAY))
       .rejects.toThrow(`customer already has a live plan: wc-${ids[0]}`);
     const customsAfter = await db.select({ id: mealSizes.id }).from(mealSizes).where(like(mealSizes.key, "custom_%"));
     expect(customsAfter.length).toBe(customsBefore.length);
     expect(await db.select().from(orders).where(eq(orders.deploymentId, `wc-${ids[1]}`))).toEqual([]);
+  });
+});
+
+describe("wordpressPosition", () => {
+  const day = (date: string, rem: number, boxes: number) =>
+    `s:10:"${date}";a:3:{s:17:"remaining_tiffins";i:${rem};s:13:"delivery_days";a:2:{i:0;i:1;i:1;i:2;}s:15:"boxes_delivered";i:${boxes};}`;
+  const history = `a:4:{${day("2026-09-24", 12, 1)}${day("2026-09-25", 11, 2)}${day("2026-09-26", 11, 0)}${day("2026-09-27", 11, 0)}}`;
+
+  it("finds the last day a box went out and the total delivered", () => {
+    expect(wordpressPosition(history)).toEqual({ lastDeliveredDate: "2026-09-25", deliveredCount: 3 });
+  });
+
+  it("has no position before delivery starts", () => {
+    expect(wordpressPosition(null)).toEqual({ lastDeliveredDate: null, deliveredCount: 0 });
+  });
+
+  it("agrees with remainingTiffins on the same history", () => {
+    expect(remainingTiffins(history, "20")).toBe(11);
   });
 });

@@ -7,7 +7,8 @@ import {
   removeMyDeliverySwap,
 } from "@/app/(customer)/me/deliveries/actions";
 import { saveMyMealSelections, type PickItem } from "@/app/(customer)/me/meals/actions";
-import { Button, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
+import { panelId } from "@/components/customer/kit";
+import { useSheetUi } from "./sheet-ui";
 import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
 import type { SwapOption } from "@/lib/menu/meal-validation";
@@ -31,10 +32,12 @@ import {
 } from "@/lib/menu/slot-dropdown";
 import { swapAmounts } from "@/lib/menu/swap-rules";
 import { sanitizeClientError } from "@/lib/format/client-error";
-import { CategorySection, ChoiceRow, type RowChoice } from "./choice-row";
+import type { RowChoice } from "./choice-row";
 import type { ActionSheetProps } from "./types";
 
 const PREFIX = "pick";
+
+
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const muted = "text-[var(--muted-foreground,#6E6558)]";
 
@@ -81,7 +84,8 @@ function MealRuleNotes({
   );
 }
 
-export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }: ActionSheetProps) {
+export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, ui }: ActionSheetProps) {
+  const U = useSheetUi(ui);
   const [now] = useState(() => Date.now());
   const av = actionAvailability(trip, now, plan.ctx);
   const pickAv = av.pick;
@@ -412,47 +416,33 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
   };
 
   const footer = (
-    <Button
-      variant="primary"
-      size="lg"
-      className="w-full"
-      pending={saving}
-      disabled={saving || busy != null}
-      onClick={() => void handleDone()}
-    >
+    <U.PrimaryButton pending={saving} disabled={saving || busy != null} onClick={() => void handleDone()}>
       {dirty ? "Save" : "Done"}
-    </Button>
+    </U.PrimaryButton>
   );
 
   return (
-    <Sheet open={open} onClose={() => onDone()} title="Edit meal" footer={footer}>
+    <U.Shell open={open} onClose={() => onDone()} title="Edit meal" footer={footer}>
       <div className="flex flex-col gap-4 pb-2">
         {reason ? (
-          <Notice>{reason}</Notice>
+          <U.Notice>{reason}</U.Notice>
         ) : (
-          <Reason>
+          <U.Reason>
             Closes {formatCutoff(trip.cutoffAt, plan.ctx.timezone)}. Pick a dish for each item.
-          </Reason>
+          </U.Reason>
         )}
-        {state === null && (
-          <div className="grid gap-3" aria-busy="true" aria-label="Loading menu">
-            <Skeleton className="h-11 w-full rounded-full" />
-            {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className="h-[72px] w-full rounded-[20px]" />
-            ))}
-          </div>
-        )}
-        {state && "error" in state && <Notice tone="error">{state.error}</Notice>}
+        {state === null && <U.Loading />}
+        {state && "error" in state && <U.Notice tone="error">{state.error}</U.Notice>}
         {state && "grid" in state && !grid && (
-          <Notice>
+          <U.Notice>
             The menu for {dates.length > 1 ? "these days" : humanDate(dates[0])} isn&apos;t out yet. We&apos;ll use the
             default menu.
-          </Notice>
+          </U.Notice>
         )}
         {grid && (
           <>
             {tabs.length > 1 && (
-              <Segmented
+              <U.Segmented
                 label="Eating day"
                 idPrefix={PREFIX}
                 value={activeDay}
@@ -464,7 +454,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
               />
             )}
             {persons > 1 && (
-              <Segmented
+              <U.Segmented
                 label="Person"
                 idPrefix="pick-person"
                 value={String(who)}
@@ -485,10 +475,13 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
               {rows.map((group) => {
                 const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                 const controlsOff = busy != null || saving;
-                // The category's own dishes, even when swaps took every row of it.
-                const ownDishes = group.dishes.length ? group.dishes : grid.menu?.[activeDay!]?.[group.key] ?? [];
+                // The category's own dishes, even when swaps took every row of it. A fixed category
+                // (no choice) only ever had the day's one dish, so undoing a swap offers just that one.
+                const menuDishes = grid.menu?.[activeDay!]?.[group.key] ?? [];
+                const fixed = grid.categories.find((c) => c.key === group.key)?.selectable === false;
+                const ownDishes = group.dishes.length ? group.dishes : fixed ? menuDishes.slice(0, 1) : menuDishes;
                 return (
-                  <CategorySection key={group.key} label={group.label}>
+                  <U.CategorySection key={group.key} label={group.label}>
                     {group.items.map((item) => {
                       if (item.kind === "swapped") {
                         const row = item.swapped;
@@ -544,7 +537,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                           })),
                         ];
                         return (
-                          <ChoiceRow
+                          <U.ChoiceRow
                             key={`${row.swap.publicId}#${row.part}`}
                             label={row.givePortion ? `${group.label} · ${row.givePortion}` : group.label}
                             choices={choices}
@@ -580,7 +573,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                               const selectedId = effectiveDishId(cell, picked);
                               const blocked = blockedDishes(row.swap.toCategory, row.toDishes, cell);
                               return (
-                                <ChoiceRow
+                                <U.ChoiceRow
                                   key={cellKey(cell)}
                                   nested
                                   label={`Pick your ${subLabel}`}
@@ -595,7 +588,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                                 />
                               );
                             })}
-                          </ChoiceRow>
+                          </U.ChoiceRow>
                         );
                       }
                       const { cell, index: i, row: baseRow } = item;
@@ -621,7 +614,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                       const cellOff = locked || cell.locked || controlsOff;
                       const isDefault = !!selectedId && cell.isDefaulted && picked[key] == null;
                       return (
-                        <ChoiceRow
+                        <U.ChoiceRow
                           key={key}
                           label={slotLabel(group, i)}
                           hint={!cell.selectable ? "Included" : isDefault ? "Default pick" : undefined}
@@ -641,7 +634,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                         />
                       );
                     })}
-                  </CategorySection>
+                  </U.CategorySection>
                 );
               })}
 
@@ -667,11 +660,11 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged }
                 </section>
               )}
             </div>
-            {error && <Notice tone="error">{error}</Notice>}
+            {error && <U.Notice tone="error">{error}</U.Notice>}
             <MealRuleNotes rules={grid?.rules ?? []} violatedRuleId={violatedRuleId} />
           </>
         )}
       </div>
-    </Sheet>
+    </U.Shell>
   );
 }

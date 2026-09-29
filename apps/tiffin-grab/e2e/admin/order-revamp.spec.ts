@@ -107,8 +107,8 @@ test.describe("admin order revamp (desktop)", () => {
     await page.goto(createdOrderUrl!);
 
     const detail = new OrderDetailPage(page);
-    await detail.expectSummaryAndPaymentCards();
     await expect(detail.summaryCard().getByText(/SUB-/)).toBeVisible();
+    await detail.expectSummaryAndPaymentCards();
     await expect(detail.paymentCard().getByText(/\$\d|CAD|₹|order total/i).first()).toBeVisible();
   });
 
@@ -117,7 +117,8 @@ test.describe("admin order revamp (desktop)", () => {
     await page.goto(createdOrderUrl!);
 
     const detail = new OrderDetailPage(page);
-    await expect(detail.section("Payment")).toBeVisible();
+    await detail.openTab("Payments");
+    await expect(detail.section("Payments")).toBeVisible();
     const copyLink = detail.copyPayLink();
     if ((await copyLink.count()) > 0) {
       await expect(copyLink.first()).toBeVisible();
@@ -144,6 +145,7 @@ test.describe("admin order revamp (desktop)", () => {
     test.skip(!createdOrderUrl, "Requires create-order test to run first");
     const url = new URL(createdOrderUrl!);
     url.searchParams.set("category", "lifecycle");
+    url.searchParams.set("tab", "activity");
     await page.goto(url.toString());
 
     const detail = new OrderDetailPage(page);
@@ -161,13 +163,18 @@ test.describe("admin order revamp (desktop)", () => {
 
   test("admin deliveries day detail shows skip, reschedule, or menu state", async ({ page }) => {
     test.skip(!createdOrderUrl, "Requires create-order test to run first");
-    await page.goto(createdOrderUrl!);
+    await page.goto(`${createdOrderUrl!}?tab=deliveries`);
 
     const row = page.getByTestId("trip-row").first();
     if (await row.count()) await row.click();
 
     await expect(
-      page.getByTestId("delivery-block").or(page.getByText(/no eating days this week|nothing planned/i)).first(),
+      page
+        .getByTestId("delivery-block")
+        .or(page.getByText(/no eating days this week|nothing planned/i))
+        .or(page.getByTestId("payment-review-deliveries"))
+        .or(page.getByTestId("menu-not-released"))
+        .first(),
     ).toBeVisible({ timeout: 15_000 });
   });
 });

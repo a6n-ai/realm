@@ -28,8 +28,7 @@ const nextConfig: NextConfig = {
     // CDN domain, file-storage thumbnail URLs become https://<cdn-domain>/... — outside both
     // lists above. Any next/image usage on file-storage-served images must add that host to
     // remotePatterns (or stay on plain <img>) before that env var is set in prod.
-    // Marketing hero background: a single static CC BY-SA Commons photo, not user content.
-    remotePatterns: [{ protocol: "https", hostname: "commons.wikimedia.org", pathname: "/wiki/Special:FilePath/**" }],
+    // Static imports (/_next/static/media/**) are auto-allowed by Next.
   },
   async redirects() {
     const slugs = ["profile", "security", "address", "dietary", "notifications", "contact"];

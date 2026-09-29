@@ -87,7 +87,9 @@
      only uses green sparingly, for its discount banner. Everything else in the
      palette is cream or neutral grey; no other saturated hue appears as a
      decorative fill anywhere in the app. */
-  --brand: #F06B1A;
+  /* Logo orange (docs/Tiffin Grab Logos). --primary stays deeper: white text on
+     #FB801C is 2.6:1, too low for button labels. */
+  --brand: #FB801C;
   --brand-foreground: #FFFFFF;
   --background: #FBF4E7;
   --foreground: #241F1B;
@@ -107,7 +109,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: #E3DFD1;
   --input: #E3DFD1;
-  --ring: #F06B1A;
+  --ring: #FB801C;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -123,7 +125,7 @@
   --sidebar-accent: #FBE3D2;
   --sidebar-accent-foreground: #B5430B;
   --sidebar-border: #E3DFD1;
-  --sidebar-ring: #F06B1A;
+  --sidebar-ring: #FB801C;
   /* Pre-existing app-wide status semantics (OrderStatusBadge etc.) — deliberately
      LEFT UNCHANGED by the brand swap above: ok/success stays green, warn/warning
      stays orange, bad stays red. These back badges already shipped elsewhere in
@@ -147,8 +149,8 @@
      as distinct from the new orange primary — deliberately its own token
      rather than reusing --ok/--warn above, so it never collides with the
      unrelated status-badge system. */
-  --accent-badge: #1D5C32;
-  --accent-badge-hover: #256D3C;
+  --accent-badge: #185936;
+  --accent-badge-hover: #1F6B42;
   --accent-badge-foreground: #F7FBF5;
   /* Customer status palette: always paired with a label + shape, never color alone. */
   --primary-wash: #FBE3D2;

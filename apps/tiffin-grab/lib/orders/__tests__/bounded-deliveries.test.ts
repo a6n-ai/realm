@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBoundedDeliveryRows, tripsFor } from "../bounded-deliveries";
+import { buildBoundedDeliveryRows, nextTripDate, projectedEndDate, tripsFor } from "../bounded-deliveries";
 
 describe("buildBoundedDeliveryRows", () => {
   it("carries a Saturday eating day on Friday (no Saturday row) and stops at the target", () => {
@@ -24,5 +24,21 @@ describe("buildBoundedDeliveryRows", () => {
   it("multiplies units by persons", () => {
     const rows = buildBoundedDeliveryRows({ startDate: "2026-09-21", trips: tripsFor("5_day", ["mon", "tue", "wed", "thu", "fri"]), persons: 2, targetTiffinCount: 5 });
     expect(rows.map((r) => r.tiffinUnits)).toEqual([2, 2, 1]);
+  });
+});
+
+describe("nextTripDate / projectedEndDate", () => {
+  it("picks the first delivery trip after the last WordPress delivery", () => {
+    // Fri 2026-09-25 delivered; Mon-Fri route -> Mon 2026-09-28.
+    expect(nextTripDate("2026-09-25", tripsFor("5_day", ["mon", "tue", "wed", "thu", "fri"]))).toBe("2026-09-28");
+    // MWF: Mon delivered -> Wed.
+    expect(nextTripDate("2026-09-28", tripsFor("mwf", ["mon", "wed", "fri"]))).toBe("2026-09-30");
+  });
+
+  it("ends on the day the balance runs out", () => {
+    const trips = tripsFor("5_day", ["mon", "tue", "wed", "thu", "fri"]);
+    expect(projectedEndDate({ startDate: "2026-10-05", trips, persons: 1, targetTiffinCount: 18 })).toBe("2026-10-28");
+    expect(projectedEndDate({ startDate: "2026-10-05", trips, persons: 2, targetTiffinCount: 4 })).toBe("2026-10-06");
+    expect(projectedEndDate({ startDate: "2026-10-05", trips, persons: 1, targetTiffinCount: 0 })).toBeNull();
   });
 });

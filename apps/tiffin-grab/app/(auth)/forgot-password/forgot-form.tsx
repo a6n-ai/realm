@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ForgotPasswordForm } from "@foundry/auth-ui";
 import { authClient } from "@/lib/auth/client";
 import { Card, CardContent } from "@foundry/ui/card";
+import { AuthBrandPanel } from "../auth-brand-panel";
 
 export function ForgotForm() {
   const router = useRouter();
@@ -27,10 +28,7 @@ export function ForgotForm() {
               </Link>
             </div>
           </div>
-          <div className="bg-muted text-muted-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
-            <span className="text-foreground text-2xl font-bold">Tiffin Grab</span>
-            <p className="text-balance text-center text-sm">Fresh tiffin meals, delivered on your schedule.</p>
-          </div>
+          <AuthBrandPanel />
         </CardContent>
       </Card>
       <div className="text-muted-foreground hover:[&_a]:text-primary text-balance text-center text-xs [&_a]:underline [&_a]:underline-offset-4">

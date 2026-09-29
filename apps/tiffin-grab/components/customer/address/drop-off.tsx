@@ -1,5 +1,5 @@
 "use client";
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ComponentType, ReactNode } from "react";
 import { SparklesIcon } from "lucide-react";
 import { PillToggle } from "@/components/customer/kit";
 import { cheaperDropOff, dropOffFee, dropOffSummary, pickInConnection, pickTag, toggleStrategy, type DropOffCatalog, type DropOffOption, type DropOffValue } from "@/lib/catalog/drop-off";
@@ -56,11 +56,14 @@ export function DropOffPicker({
   value,
   onChange,
   disabled = false,
+  Pill = PillToggle,
 }: {
   catalog: DropOffCatalog;
   value: DropOffValue;
   onChange: (value: DropOffValue) => void;
   disabled?: boolean;
+  /** The toggle it renders; the admin passes a shadcn one. */
+  Pill?: ComponentType<ButtonHTMLAttributes<HTMLButtonElement> & { on: boolean }>;
 }) {
   const tags = catalog.groups.filter((g) => catalog.options.some((o) => o.groupId === g.publicId));
   if (tags.length === 0) return null;
@@ -75,7 +78,7 @@ export function DropOffPicker({
         <p className="text-[15px] font-semibold">Place</p>
         <div role="radiogroup" aria-label="Place" className="flex flex-wrap gap-2">
           {tags.map((g) => (
-            <PillToggle
+            <Pill
               key={g.publicId}
               role="radio"
               aria-checked={g.publicId === value.tagId}
@@ -86,7 +89,7 @@ export function DropOffPicker({
               className="h-10 flex-none px-4 text-[14px] sm:text-[14px]"
             >
               {g.name}
-            </PillToggle>
+            </Pill>
           ))}
         </div>
         {tag?.description && <p className="text-[13px] text-[var(--muted-foreground)]">{tag.description}</p>}
@@ -100,7 +103,7 @@ export function DropOffPicker({
             <p className="text-[15px] font-semibold">{c.name || "Choose one"}</p>
             <div role="radiogroup" aria-label={c.name || "Choose one"} className="flex flex-wrap gap-1.5">
               {options.filter((o) => o.connectionId === c.publicId).map((o) => (
-                <PillToggle
+                <Pill
                   key={o.publicId}
                   role="radio"
                   aria-checked={o.publicId === picked}
@@ -111,7 +114,7 @@ export function DropOffPicker({
                   className={PILL}
                 >
                   <StrategyLabel o={o} on={o.publicId === picked} />
-                </PillToggle>
+                </Pill>
               ))}
             </div>
           </div>
@@ -123,7 +126,7 @@ export function DropOffPicker({
           {sets.length > 0 && <p className="text-[15px] font-semibold">Also</p>}
           <div className="flex flex-wrap gap-1.5">
             {loose.map((o) => (
-              <PillToggle
+              <Pill
                 key={o.publicId}
                 on={value.strategyIds.includes(o.publicId)}
                 disabled={disabled}
@@ -131,7 +134,7 @@ export function DropOffPicker({
                 className={PILL}
               >
                 <StrategyLabel o={o} on={value.strategyIds.includes(o.publicId)} />
-              </PillToggle>
+              </Pill>
             ))}
           </div>
         </div>

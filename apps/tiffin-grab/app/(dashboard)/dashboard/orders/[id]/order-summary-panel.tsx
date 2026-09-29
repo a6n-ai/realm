@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatMoney as fmt } from "@foundry/commons";
-import { OrderStatusBadge } from "@/components/ds";
-import { orderDisplayStatus } from "@/lib/orders/display-status";
+import { SectionCard } from "@/components/ds";
 import { OrderPricingBreakdown } from "./order-pricing-breakdown";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
@@ -14,31 +13,43 @@ function isPricingSnapshot(value: unknown): value is OrderPricingSnapshot {
   return "subtotal" in value && "total" in value && Array.isArray((value as OrderPricingSnapshot).lineItems);
 }
 
+// Both overview cards use this one row shape so their label columns line up side by side.
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-0.5 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-3">
-      <dt className="text-muted-foreground text-xs sm:text-sm">{label}</dt>
-      <dd className="text-sm">{children}</dd>
+    <div className="grid gap-0.5 border-b py-2.5 first:pt-0 last:border-0 last:pb-0 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
+      <dt className="text-muted-foreground text-sm">{label}</dt>
+      <dd className="min-w-0 text-sm break-words">{children}</dd>
     </div>
   );
 }
 
-export function OrderSummaryPanel({
+const cap = (d: string) => d[0].toUpperCase() + d.slice(1);
+const dash = <span className="text-muted-foreground">—</span>;
+
+export type OverviewCustomer = {
+  publicId: string;
+  name: string | null;
+  email: string;
+  phone: string | null;
+} | null;
+
+export function OrderOverview({
   order,
   customer,
+  zoneName,
   timezone,
   currency,
   categoryLabels,
 }: {
   order: OrderDetail;
-  customer: { publicId: string } | null;
+  customer: OverviewCustomer;
+  zoneName: string | null;
   timezone: string;
   currency: string;
   categoryLabels: Record<string, string>;
 }) {
   const snap = order.pricingSnapshot;
   const categoryEntries = Object.entries(order.categoryCounts).filter(([, qty]) => qty > 0);
-  const cap = (d: string) => d[0].toUpperCase() + d.slice(1);
   const eatingDays = order.eatingDays as DayOfWeek[] | null;
   const deliveryDays = orderDeliveryDays({
     frequencyKey: order.frequencyKey,
@@ -47,72 +58,86 @@ export function OrderSummaryPanel({
     includeSunday: eatingDays ? false : order.includeSunday,
   });
   const trips = eatingDays ? planWeek(deliveryDays, eatingDays) : null;
+  const details = isPricingSnapshot(snap) ? deliveryDetails(snap.deliveryCharge) : "";
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <OrderStatusBadge status={orderDisplayStatus(order.status, order.payments.map((p) => p.status))} />
-        {customer && (
-          <Link
-            href={`/dashboard/customers/${customer.publicId}`}
-            className="text-primary text-sm underline-offset-2 hover:underline"
-          >
-            Customer profile
-          </Link>
-        )}
+    <>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SectionCard title="Plan & schedule">
+          <dl>
+            <DetailRow label="Plan">{order.planName}</DetailRow>
+            <DetailRow label="Meal size">{order.mealSizeName}</DetailRow>
+            <DetailRow label="Items">
+              {categoryEntries.length > 0
+                ? categoryEntries.map(([key, qty]) => `${qty}× ${categoryLabels[key] ?? key}`).join(", ")
+                : dash}
+            </DetailRow>
+            <DetailRow label="Persons">{order.persons}</DetailRow>
+            <DetailRow label="Meal slots">{order.mealSlots.map((m) => cap(m.replaceAll("_", " "))).join(", ")}</DetailRow>
+            <DetailRow label="Frequency">{order.frequencyName}</DetailRow>
+            <DetailRow label="Delivery days">{deliveryDays.map(cap).join(", ")}</DetailRow>
+            <DetailRow label="Eating days">{(eatingDays ?? deliveryDays).map(cap).join(", ")}</DetailRow>
+            {/* A trip is one truck run. Only worth a row when a run carries more than one eating day. */}
+            {trips?.some((t) => t.units > 1) && (
+              <DetailRow label="Combined trips">
+                {trips.filter((t) => t.units > 1).map((t) => `${cap(t.day)} brings ${t.days.map(cap).join(" + ")}`).join(" · ")}
+              </DetailRow>
+            )}
+            <DetailRow label="Start">
+              {order.startDate} · {order.durationWeeks} week{order.durationWeeks === 1 ? "" : "s"}
+            </DetailRow>
+            <DetailRow label="Tiffins">
+              <span className="tabular-nums">
+                {order.tiffinCount} total
+                {order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}
+              </span>
+            </DetailRow>
+          </dl>
+        </SectionCard>
+
+        <SectionCard
+          title="Customer & delivery"
+          action={
+            customer ? (
+              <Link
+                href={`/dashboard/customers/${customer.publicId}`}
+                className="text-primary text-sm underline-offset-2 hover:underline"
+              >
+                Customer profile
+              </Link>
+            ) : undefined
+          }
+        >
+          <dl>
+            <DetailRow label="Name">{order.fullName}</DetailRow>
+            <DetailRow label="Email">
+              {customer?.email ? <a className="hover:underline" href={`mailto:${customer.email}`}>{customer.email}</a> : dash}
+            </DetailRow>
+            <DetailRow label="Phone">
+              {customer?.phone ? <a className="tabular-nums hover:underline" href={`tel:${customer.phone}`}>{customer.phone}</a> : dash}
+            </DetailRow>
+            <DetailRow label="Address">
+              {order.addressLine}
+              {order.addressUnit ? `, Unit ${order.addressUnit}` : ""}
+              <br />
+              {order.city} {order.postalCode}
+            </DetailRow>
+            <DetailRow label="Zone">{zoneName ?? dash}</DetailRow>
+            <DetailRow label="Drop-off">{details || dash}</DetailRow>
+            <DetailRow label="Instructions">{order.deliveryInstructions || dash}</DetailRow>
+            <DetailRow label="Order ref">
+              <span className="font-mono text-xs">{order.deploymentId}</span>
+            </DetailRow>
+            <DetailRow label="Internal ID">
+              <span className="text-muted-foreground font-mono text-xs">{order.publicId}</span>
+            </DetailRow>
+            <DetailRow label="Created">{formatEpoch(order.createdAt, { mode: "datetime", timeZone: timezone })}</DetailRow>
+            <DetailRow label="Updated">{formatEpoch(order.updatedAt, { mode: "datetime", timeZone: timezone })}</DetailRow>
+          </dl>
+        </SectionCard>
       </div>
 
-      <dl className="space-y-2.5">
-        <DetailRow label="Plan">
-          {order.planName}
-          {order.mealSizeName ? ` · ${order.mealSizeName}` : ""}
-        </DetailRow>
-        <DetailRow label="Schedule">
-          Starts {order.startDate} · {order.durationWeeks} weeks · {order.persons} person{order.persons === 1 ? "" : "s"}
-        </DetailRow>
-        <DetailRow label="Meals">{order.mealSlots.join(", ")}</DetailRow>
-        <DetailRow label="Delivery days">{deliveryDays.map(cap).join(", ")}</DetailRow>
-        <DetailRow label="Eating days">{(eatingDays ?? deliveryDays).map(cap).join(", ")}</DetailRow>
-        {trips && (
-          <DetailRow label="Trips">
-            {trips.map((t) => `${cap(t.day)}${t.units > 1 ? ` (${t.days.map(cap).join(" + ")})` : ""}`).join(" · ")}
-          </DetailRow>
-        )}
-        {categoryEntries.length > 0 && (
-          <DetailRow label="Items">
-            {categoryEntries
-              .map(([key, qty]) => `${qty}× ${categoryLabels[key] ?? key}`)
-              .join(", ")}
-          </DetailRow>
-        )}
-        <DetailRow label="Tiffins">
-          {order.tiffinCount} total
-        </DetailRow>
-        <DetailRow label="Address">
-          {order.fullName}
-          <br />
-          {order.addressLine}
-          {order.addressUnit ? `, Unit ${order.addressUnit}` : ""}, {order.city} {order.postalCode}
-        </DetailRow>
-        {snap && isPricingSnapshot(snap) && deliveryDetails(snap.deliveryCharge) ? (
-          <DetailRow label="Delivery details">{deliveryDetails(snap.deliveryCharge)}</DetailRow>
-        ) : null}
-        {order.deliveryInstructions ? (
-          <DetailRow label="Delivery instructions">{order.deliveryInstructions}</DetailRow>
-        ) : null}
-        <DetailRow label="Order ID">
-          <span className="font-mono text-xs">{order.publicId}</span>
-        </DetailRow>
-        <DetailRow label="Deployment">
-          <span className="font-mono text-xs">{order.deploymentId}</span>
-        </DetailRow>
-        <DetailRow label="Created">
-          {formatEpoch(order.createdAt, { mode: "datetime", timeZone: timezone })}
-        </DetailRow>
-      </dl>
-
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Pricing</p>
+      <SectionCard title="Pricing" subtitle="Snapshot taken at checkout. Totals are computed server-side.">
         {isPricingSnapshot(snap) ? (
           <OrderPricingBreakdown result={snap} currency={currency} />
         ) : (
@@ -126,8 +151,8 @@ export function OrderSummaryPanel({
             </p>
           </div>
         )}
-      </div>
-    </div>
+      </SectionCard>
+    </>
   );
 }
 

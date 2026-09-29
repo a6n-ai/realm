@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
 import { resolveDropOff, setAddressDropOff } from "@/lib/services/address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
+import { assertAddressServiceable } from "@/lib/catalog/zone-match";
 import { runAction, type ActionResult } from "../action-result";
 
 // Every action returns { error } instead of throwing: production builds redact thrown
@@ -32,6 +33,7 @@ export async function createMyAddress(input: AddressInput, dropOff?: DropOffValu
   return runAction(async () => {
     const s = await scope();
     await resolveDropOff(dropOff);
+    await assertAddressServiceable(input, s.orgId);
     const { id, ...saved } = await addressService.create(s, input);
     if (dropOff !== undefined) await setAddressDropOff(s, { id }, dropOff);
     refresh();
@@ -43,6 +45,7 @@ export async function updateSavedAddress(publicId: string, input: AddressInput, 
   return runAction(async () => {
     const s = await scope();
     await resolveDropOff(dropOff);
+    await assertAddressServiceable(input, s.orgId);
     const saved = await addressService.update(s, publicId, input);
     if (dropOff !== undefined) await setAddressDropOff(s, { publicId }, dropOff);
     refresh();
