@@ -69,6 +69,12 @@ class MealRulesService extends SessionUpdatableService<typeof mealRules> {
    * silently matching nothing.
    */
   async listEnabledForOrder(scope: { planId: bigint; mealSizeId?: bigint | null }): Promise<MealRule[]> {
+    // A custom meal's composition (diet per row) is what the customer bought, so plan-wide
+    // limits like "one non-veg curry" must not cap it. Product decision pending (2026-09-30).
+    if (scope.mealSizeId != null) {
+      const [size] = await db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, scope.mealSizeId)).limit(1);
+      if (size?.custom) return [];
+    }
     const rows = await db
       .select({
         id: mealRules.id,

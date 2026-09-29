@@ -22,7 +22,7 @@ async function reset() {
 async function ids() {
   const [veg] = await db.select({ id: plans.id }).from(plans).where(eq(plans.key, "veg")).limit(1);
   const [nonveg] = await db.select({ id: plans.id }).from(plans).where(eq(plans.key, "non-veg")).limit(1);
-  const sizes = await db.select({ id: mealSizes.id, planId: mealSizes.planId }).from(mealSizes).limit(2);
+  const sizes = await db.select({ id: mealSizes.id, planId: mealSizes.planId }).from(mealSizes).where(eq(mealSizes.custom, false)).limit(2);
   return { veg: veg!.id, nonveg: nonveg!.id, sizeA: sizes[0]!.id, sizeB: sizes[1]!.id };
 }
 
@@ -57,6 +57,26 @@ async function makeRule(over: {
 describe("rule scope", () => {
   beforeEach(reset);
   afterAll(reset);
+
+  it("no rule applies to a custom meal: its composition is what the customer bought", async () => {
+    const { findOrCreateCustomMealSize } = await import("../custom-meal.service");
+    const { nonveg } = await ids();
+    await makeRule({});
+    await makeRule({ scopePlanId: nonveg });
+    const size = await findOrCreateCustomMealSize([
+      { category: "sabzi", planKey: "non-veg", tuAmount: 1.5 },
+      { category: "sabzi", planKey: "non-veg", tuAmount: 1.25 },
+    ], { actorId: null });
+    try {
+      expect(await mealRulesService.listEnabledForOrder({ planId: nonveg, mealSizeId: size.id })).toEqual([]);
+    } finally {
+      if (size.created) {
+        const { mealSizeItems } = await import("@/db/schema");
+        await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+        await db.delete(mealSizes).where(eq(mealSizes.id, size.id));
+      }
+    }
+  });
 
   it("an unscoped rule applies to every plan and meal size", async () => {
     await makeRule({});
