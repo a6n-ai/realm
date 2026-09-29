@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray, ne } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders, users } from "@/db/schema";
+import { deliveries, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, orderActivities, orders, users } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
@@ -206,8 +206,15 @@ describe("selectionsService.setSelection on a custom meal", () => {
     const pick = (pickIndex: number, dishPublicId: string) =>
       selectionsService.setSelection({ order: o, menuWeek: w, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex, dishPublicId });
 
-    await expect(pick(1, chicken.publicId)).resolves.not.toThrow();
-    await expect(pick(3, chicken.publicId)).rejects.toThrow("doesn't match this item's diet");
-    await expect(pick(3, veg.publicId)).resolves.not.toThrow();
+    try {
+      await expect(pick(1, chicken.publicId)).resolves.not.toThrow();
+      await expect(pick(3, chicken.publicId)).rejects.toThrow("doesn't match this item's diet");
+      await expect(pick(3, veg.publicId)).resolves.not.toThrow();
+    } finally {
+      // Other suites pick fixture sizes from the catalog snapshot; a leftover custom size breaks them.
+      await reset();
+      await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+      await db.delete(mealSizes).where(eq(mealSizes.id, size.id));
+    }
   });
 });
