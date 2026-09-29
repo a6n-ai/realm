@@ -617,3 +617,63 @@ describe("PickSheet", () => {
   });
 });
 
+
+describe("PickSheet on a custom meal (add-on rows, no swaps)", () => {
+  const chicken = { id: "nv1", name: "Kadai Chicken", image: null };
+  const veg = [
+    { id: "v1", name: "Patta Gobhi Matar", image: null },
+    { id: "v2", name: "Aloo Methi", image: null },
+  ];
+  // 1 Non-Veg Sabzi 8oz + 1 Veg Sabzi 12oz + 1 Veg Sabzi 8oz (WordPress add-on) + 8 roti + rice + raita.
+  const customGrid = () =>
+    grid(
+      [
+        cell({ slot: "sabzi", pickIndex: 1, dishes: [chicken], selectedDishId: "nv1", diet: "Non-Veg" }),
+        cell({ slot: "sabzi", pickIndex: 2, dishes: veg, selectedDishId: "v1", diet: "Veg" }),
+        cell({ slot: "sabzi", pickIndex: 3, dishes: veg, selectedDishId: "v1", diet: "Veg" }),
+        cell({ slot: "roti", selectable: false, quantity: 1, dishes: [{ id: "r1", name: "Roti", image: null }], selectedDishId: "r1" }),
+        cell({ slot: "rice", selectable: false, quantity: 1, dishes: [{ id: "ri1", name: "Jeera Rice", image: null }], selectedDishId: "ri1" }),
+        cell({ slot: "raita", selectable: false, dishes: [{ id: "ra1", name: "Boondi Raita", image: null }], selectedDishId: "ra1" }),
+      ],
+      1,
+      {
+        categories: [
+          { key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 1 },
+          { key: "roti", label: "Roti", selectable: false, sortOrder: 2 },
+          { key: "rice", label: "Rice", selectable: false, sortOrder: 3 },
+          { key: "raita", label: "Raita", selectable: false, sortOrder: 4 },
+        ],
+        portionsBySlot: { sabzi: ["8oz", "12oz", "8oz"], roti: ["8 roti"], rice: ["1 rice"], raita: ["8oz"] },
+      },
+    );
+
+  it("gives every sabzi row, the add-on row included, a pick of its own diet's dishes", async () => {
+    load.mockResolvedValue(customGrid());
+    show(trip({ coversDates: [mon] }));
+    const nonVeg = await screen.findByRole("radiogroup", { name: "Non-Veg Sabzi · 8oz" });
+    expect(within(nonVeg).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Kadai Chicken"]);
+    const veg12 = screen.getByRole("radiogroup", { name: "Veg Sabzi · 12oz" });
+    expect(within(veg12).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Patta Gobhi Matar", "Aloo Methi"]);
+    const addOn = screen.getByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
+    expect(within(addOn).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Patta Gobhi Matar", "Aloo Methi"]);
+  });
+
+  it("shows fixed portions in human units and no swap anywhere", async () => {
+    load.mockResolvedValue(customGrid());
+    show(trip({ coversDates: [mon] }));
+    expect(await screen.findByRole("radiogroup", { name: "Roti · 8 roti" })).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "Raita · 8oz" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Edit meal" }).textContent).not.toMatch(/swap|exchange/i);
+  });
+
+  it("saves a veg pick on the add-on row", async () => {
+    load.mockResolvedValue(customGrid());
+    show(trip({ coversDates: [mon] }));
+    await screen.findByRole("radiogroup", { name: "Veg Sabzi · 12oz" });
+    const addOn = screen.getByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
+    fireEvent.click(within(addOn).getByRole("radio", { name: "Aloo Methi" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(savePicks).toHaveBeenCalled());
+    expect(savePicks.mock.calls[0]![0].picks).toEqual([expect.objectContaining({ slot: "sabzi", pickIndex: 3, dishId: "v2" })]);
+  });
+});

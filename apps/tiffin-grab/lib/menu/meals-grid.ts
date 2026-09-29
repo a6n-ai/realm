@@ -4,7 +4,8 @@ import type { FileDetail } from "@foundry/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
 import { mondayOfIso, thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
-import { allowedDishIdsForMealSize } from "./selections.service";
+import { allowedDishIdsForMealSize, rowPlansForMealSize } from "./selections.service";
+import { itemsForRow, rowDietLabel } from "./row-plans";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -25,6 +26,8 @@ export type GridCell = {
   dishes: GridDish[];
   locked: boolean;
   lockNote?: string | null;
+  /** A custom meal row whose category mixes diets ("Non-Veg"): its dishes are that diet's only. */
+  diet?: string;
 };
 
 /** `ruleId`/`planId` are dishes.id / dishes.planId as strings — what meal rules test; absent means untestable. */
@@ -91,7 +94,8 @@ export async function buildMealsGrid(
   if (!planRow) throw new Error(`buildMealsGrid: order ${order.publicId} references a plan that no longer exists (planId=${order.planId})`);
   // Union of every plan this order's meal size's own composition rows target —
   // must agree with resolveDeliveryMeal/setSelection, see selections.service.ts.
-  const planDishIds = await allowedDishIdsForMealSize(order.mealSizeId);
+  const [planDishIds, rowPlans] = await Promise.all([allowedDishIdsForMealSize(order.mealSizeId), rowPlansForMealSize(order.mealSizeId)]);
+  const planKeys = rowPlans ? new Map((await db.select({ id: plans.id, key: plans.key }).from(plans)).map((p) => [p.id, p.key])) : null;
 
   // A brand-new subscriber's first delivery is often next week, not this one — falling back to
   // thisWeekStartIso alone would show "no-week" forever even though their actual upcoming week
@@ -208,7 +212,8 @@ export async function buildMealsGrid(
           grid.push({
             day, dateIso, slot, personIndex: p, pickIndex, selectable: true, quantity: 1,
             selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
-            dishes: slotDishes, locked, lockNote,
+            dishes: itemsForRow(slotDishes, rowPlans, slot, pickIndex), locked, lockNote,
+            ...(planKeys && { diet: rowDietLabel(rowPlans, planKeys, slot, pickIndex) }),
           });
         }
       }

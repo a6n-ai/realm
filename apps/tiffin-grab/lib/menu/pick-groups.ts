@@ -21,7 +21,7 @@ export type PickCategoryGroup = {
   cells: GridCell[];
   /** Human portions aligned to pickIndex order (1st cell → portions[0]). */
   portions: (string | null)[];
-  /** Eligible dishes for this category (from the first selectable cell). */
+  /** Eligible dishes for this category: every selectable cell's, in order (custom meal rows each carry their own diet's). */
   dishes: GridCell["dishes"];
 };
 
@@ -62,7 +62,9 @@ export function groupPickCells(
       chooseCount: mine[0]!.selectable || mine.length > 1 ? mine.length : mine[0]!.quantity,
       cells: mine,
       portions: mine.map((c, i) => portions[c.pickIndex - 1] ?? portions[i] ?? null),
-      dishes: mine.find((c) => c.selectable)?.dishes ?? mine[0]!.dishes,
+      dishes: mine.some((c) => c.selectable)
+        ? [...new Map(mine.filter((c) => c.selectable).flatMap((c) => c.dishes).map((d) => [d.id, d])).values()]
+        : mine[0]!.dishes,
     });
   }
   return groups;
@@ -119,7 +121,7 @@ export function buildMealSummary(
       for (let i = 0; i < g.cells.length; i++) {
         const cell = g.cells[i]!;
         const id = effectiveDishId(cell, picked);
-        const name = g.dishes.find((d) => d.id === id)?.name;
+        const name = (cell.dishes.find((d) => d.id === id) ?? g.dishes.find((d) => d.id === id))?.name;
         const portion = g.portions[i];
         if (name || portion) add(name, portion);
       }

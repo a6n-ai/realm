@@ -176,3 +176,38 @@ describe("selectionsService.setSelection", () => {
       .rejects.toBeInstanceOf(ValidationError);
   });
 });
+
+describe("selectionsService.setSelection on a custom meal", () => {
+  it("holds each sabzi pick to its own row's diet (non-veg row, then veg rows incl. an add-on)", async () => {
+    await reset();
+    const { findOrCreateCustomMealSize } = await import("@/lib/services/custom-meal.service");
+    const snap = await loadCatalogSnapshot();
+    const nonVegPlanId = await testPlanId("non-veg");
+    const size = await findOrCreateCustomMealSize([
+      { category: "sabzi", planKey: "non-veg", tuAmount: 1 },
+      { category: "sabzi", planKey: "veg", tuAmount: 1.5 },
+      { category: "sabzi", planKey: "veg", tuAmount: 1 },
+    ], { actorId: null });
+    const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`, phone: "+16475557001", role: "user" }).returning();
+    const [o] = await db.insert(orders).values({
+      userId: u.id, planId: nonVegPlanId, mealSizeId: size.id,
+      frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["sabzi"],
+      categoryCounts: { sabzi: 3 },
+      durationWeeks: 1, startDate: FUTURE_MONDAY, tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
+      deploymentId: "SUB-TESTCM", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
+    }).returning();
+    await seedDelivery(o.id);
+    const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
+    const [veg] = await db.insert(dishes).values({ planId: await testPlanId("veg"), name: "Paneer", category: "sabzi" }).returning();
+    const [chicken] = await db.insert(dishes).values({ planId: nonVegPlanId, name: "Chicken", category: "sabzi" }).returning();
+    for (const d of [veg, chicken]) {
+      await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: d.id, isDefault: d === veg });
+    }
+    const pick = (pickIndex: number, dishPublicId: string) =>
+      selectionsService.setSelection({ order: o, menuWeek: w, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex, dishPublicId });
+
+    await expect(pick(1, chicken.publicId)).resolves.not.toThrow();
+    await expect(pick(3, chicken.publicId)).rejects.toThrow("doesn't match this item's diet");
+    await expect(pick(3, veg.publicId)).resolves.not.toThrow();
+  });
+});

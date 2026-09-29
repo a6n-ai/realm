@@ -3,7 +3,7 @@
 // reuses this instead of re-deriving the pick → isDefault fallback.
 import { and, asc, eq, gte, inArray, lte, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { allowedDishIdsForMealSize, exclusiveDishIdsForPlan } from "@/lib/menu/selections.service";
 import { defaultMenuItem, keepDefaultsWithinRules, maxTuPickIndex } from "@/lib/menu/default-pick";
@@ -14,6 +14,7 @@ import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { isContainerCategory } from "@/lib/menu/format-tu";
+import { itemsForRow, rowPlanIds, type RowPlans } from "@/lib/menu/row-plans";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -70,7 +71,7 @@ export type ResolvedCategory = {
 // plan-membership filtering. Shared by the single-day and week-batched entry points below so there is
 // exactly one implementation of this logic — buildMealsGrid must call one of these two, never
 // re-derive it.
-function resolveCategoriesForDay(
+export function resolveCategoriesForDay(
   dayItems: Item[],
   dayPersonPicks: Pick_[],
   cats: Category[],
@@ -81,6 +82,8 @@ function resolveCategoriesForDay(
   exclusiveDishIds: Set<bigint>,
   maxTuByCategory: Map<string, number>,
   rules: MealRule[] = [],
+  // Custom meals: pick N serves only row N's plan (see row-plans.ts). null = catalog union.
+  rowPlans: RowPlans | null = null,
 ): ResolvedCategory[] {
   const out: ResolvedCategory[] = [];
   for (const c of cats) {
@@ -91,12 +94,19 @@ function resolveCategoriesForDay(
     if (count === 0) continue;
     // Missing composition rows: treat pick 1 as the largest container.
     const maxTuPi = maxTuByCategory.get(c.key) ?? 1;
+    // A custom row's own diet already decides the dish, so the exclusive-dish override is off.
+    const rowDefault = (pi: number) => {
+      const row = itemsForRow(slotItems, rowPlans, c.key, pi);
+      return rowPlans
+        ? (row.find((i) => i.isDefault) ?? row[0]!)
+        : (defaultMenuItem(slotItems, pi, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!);
+    };
 
     if (!c.selectable) {
       if (isContainerCategory(c)) {
         const picks: ResolvedCategory["picks"] = [];
         for (let pi = 1; pi <= count; pi++) {
-          const def = defaultMenuItem(slotItems, pi, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!;
+          const def = rowDefault(pi);
           picks.push({
             dishId: def.dishId,
             dishPublicId: def.publicId,
@@ -112,7 +122,7 @@ function resolveCategoriesForDay(
           picks,
         });
       } else {
-        const def = defaultMenuItem(slotItems, 1, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!;
+        const def = rowDefault(1);
         out.push({
           category: c.key,
           selectable: false,
@@ -130,8 +140,8 @@ function resolveCategoriesForDay(
       // If the chosen dish was removed from this day's menu (or no longer matches the plan's
       // plan membership) since the pick was made, fall back to the default dish entirely — never a
       // half-stale mix of ids/name.
-      const chosenItem = chosen ? slotItems.find((i) => i.dishId === chosen.dishId) : undefined;
-      const def = defaultMenuItem(slotItems, pi, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!;
+      const chosenItem = chosen ? itemsForRow(slotItems, rowPlans, c.key, pi).find((i) => i.dishId === chosen.dishId) : undefined;
+      const def = rowDefault(pi);
       const resolvedItem = chosenItem ?? def;
       picks.push({
         dishId: resolvedItem.dishId, dishPublicId: resolvedItem.publicId, name: resolvedItem.name,
@@ -142,13 +152,16 @@ function resolveCategoriesForDay(
   }
   return keepDefaultsWithinRules(
     out,
-    (category) => dayItems.filter((i) => i.slot === category && planDishIds.has(i.dishId)),
+    (category, pickIndex) => {
+      const slot = dayItems.filter((i) => i.slot === category && planDishIds.has(i.dishId));
+      return pickIndex == null ? slot : itemsForRow(slot, rowPlans, category, pickIndex);
+    },
     rules,
   );
 }
 
 async function defaultPickContext(order: Order) {
-  const [planDishIds, exclusiveDishIds, itemRows, rules] = await Promise.all([
+  const [planDishIds, exclusiveDishIds, itemRows, rules, [size]] = await Promise.all([
     // The union of every plan this meal size's OWN composition rows target — not
     // just the order's own plan. A meal size can carry two sabzi rows (one veg,
     // one non-veg), and both must be servable to the subscriber.
@@ -159,10 +172,12 @@ async function defaultPickContext(order: Order) {
         category: mealSizeItems.category,
         tuAmount: mealSizeItems.tuAmount,
         sortOrder: mealSizeItems.sortOrder,
+        planId: mealSizeItems.planId,
       })
       .from(mealSizeItems)
       .where(eq(mealSizeItems.mealSizeId, order.mealSizeId)),
     mealRulesService.listEnabledForOrder({ planId: order.planId, mealSizeId: order.mealSizeId }),
+    db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, order.mealSizeId)).limit(1),
   ]);
   const byCat = new Map<string, typeof itemRows>();
   const liveCounts: Record<string, number> = {};
@@ -183,6 +198,7 @@ async function defaultPickContext(order: Order) {
     maxTuByCat,
     liveCounts: itemRows.length > 0 ? liveCounts : null,
     rules,
+    rowPlans: rowPlanIds(itemRows, size?.custom ?? false),
   };
 }
 
@@ -231,7 +247,7 @@ export async function resolveDeliveryMeal(
     swaps = tripDate && eatingDate ? rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatingDate)) : rows;
   }
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules } = await defaultPickContext(order);
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans } = await defaultPickContext(order);
   const baseCounts = liveCounts ?? order.categoryCounts ?? {};
   return resolveCategoriesForDay(
     items,
@@ -242,6 +258,7 @@ export async function resolveDeliveryMeal(
     exclusiveDishIds,
     maxTuByCat,
     rules,
+    rowPlans,
   );
 }
 
@@ -274,7 +291,7 @@ export async function resolveDeliveryMealsForWeek(
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id)));
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules } = await defaultPickContext(order);
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans } = await defaultPickContext(order);
   const baseCounts = liveCounts ?? order.categoryCounts ?? {};
 
   // Batch-fetch this week's delivery rows (to map date -> delivery id) and every
@@ -310,7 +327,7 @@ export async function resolveDeliveryMealsForWeek(
       const dayPersonPicks = picks.filter((p) => p.dayOfWeek === day && p.personIndex === person);
       result.set(
         resolvedMealsWeekKey(day, person),
-        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules),
+        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules, rowPlans),
       );
     }
   }

@@ -325,3 +325,24 @@ describe("provisional swap — cells + portions aligned", () => {
   });
 });
 
+
+describe("custom meal rows with their own diet's dishes", () => {
+  const chicken = dishes[1]!;
+  const veg = [dishes[0]!, dishes[2]!];
+  const cells = [
+    cell({ slot: "sabzi", pickIndex: 1, dishes: [chicken], selectedDishId: "d-chicken" }),
+    cell({ slot: "sabzi", pickIndex: 2, dishes: veg, selectedDishId: "d-bhindi" }),
+    cell({ slot: "sabzi", pickIndex: 3, dishes: veg, selectedDishId: "d-aloo" }),
+  ];
+  const groups = groupPickCells(cells, [{ key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 0 }], {
+    sabzi: ["8oz", "12oz", "8oz"],
+  });
+
+  it("offers the category every row's dishes", () => {
+    expect(groups[0]!.dishes.map((d) => d.id)).toEqual(["d-chicken", "d-aloo", "d-bhindi"]);
+  });
+
+  it("names each row's own pick in the summary, add-on row included", () => {
+    expect(buildMealSummary(groups, {})[0]!.lines).toEqual(["Chicken Curry · 8oz", "Bhindi · 12oz", "Aloo Gobi · 8oz"]);
+  });
+});

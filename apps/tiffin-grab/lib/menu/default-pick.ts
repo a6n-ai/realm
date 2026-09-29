@@ -52,7 +52,7 @@ type ResolvedLike = {
  */
 export function keepDefaultsWithinRules<C extends ResolvedLike>(
   resolved: C[],
-  slotItemsFor: (category: string) => RuleItem[],
+  slotItemsFor: (category: string, pickIndex?: number) => RuleItem[],
   rules: MealRule[],
 ): C[] {
   if (rules.length === 0) return resolved;
@@ -79,7 +79,7 @@ export function keepDefaultsWithinRules<C extends ResolvedLike>(
         return validateMealRules({ rules, picks: [...others, focus], focus }).ok;
       };
       const current = byId.get(p.dishId);
-      const alt = !current || passes(current) ? undefined : slotItemsFor(c.category).find(passes);
+      const alt = !current || passes(current) ? undefined : slotItemsFor(c.category, idx + 1).find(passes);
       const final = alt ? { dishId: alt.dishId, dishPublicId: alt.publicId, name: alt.name, isDefaulted: true } : p;
       c.picks[idx] = final;
       settled.add(final);

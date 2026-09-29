@@ -42,10 +42,12 @@ const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const muted = "text-[var(--muted-foreground,#6E6558)]";
 
 function slotLabel(group: PickCategoryGroup, index: number): string {
+  const diet = group.cells[index]?.diet;
+  const label = diet ? `${diet} ${group.label}` : group.label;
   const portion = group.portions[index];
-  if (portion) return `${group.label} · ${portion}`;
-  if (group.chooseCount > 1) return `${group.label} ${index + 1}`;
-  return group.label;
+  if (portion) return `${label} · ${portion}`;
+  if (group.chooseCount > 1) return `${label} ${index + 1}`;
+  return label;
 }
 
 /**
@@ -594,11 +596,13 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                       const { cell, index: i, row: baseRow } = item;
                       const selectedId = effectiveDishId(cell, picked);
                       const key = cellKey(cell);
+                      // A custom meal row offers only its own diet's dishes (the cell's own list).
+                      const rowDishes = cell.dishes.length ? cell.dishes : group.dishes;
                       const built = buildSlotDropdownOptions({
                         cellIndexInCategory: i,
                         categoryKey: group.key,
-                        dishes: group.dishes,
-                        disabledDishIds: blockedDishes(group.key, group.dishes, cell),
+                        dishes: rowDishes,
+                        disabledDishIds: blockedDishes(group.key, rowDishes, cell),
                         swapOptions,
                         allowedSwaps,
                         onePerRow: group.cells.every((c) => c.quantity === 1),

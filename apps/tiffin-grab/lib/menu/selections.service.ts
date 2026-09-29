@@ -5,7 +5,7 @@
 import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
 import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { validateMealRules } from "@/lib/menu/meal-validation";
@@ -19,6 +19,7 @@ import { mealPickNote } from "@/lib/menu/meal-pick-note";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { type DayOfWeek } from "@/lib/menu/delivery-dates";
+import { rowPlanIds, type RowPlans } from "@/lib/menu/row-plans";
 
 type Order = typeof orders.$inferSelect;
 type Week = typeof menuWeeks.$inferSelect;
@@ -120,6 +121,17 @@ export async function allowedDishIdsForMealSize(mealSizeId: bigint): Promise<Set
   return out;
 }
 
+/** Per-pick plan of a custom meal size (row-plans.ts); null for catalog sizes. */
+export async function rowPlansForMealSize(mealSizeId: bigint): Promise<RowPlans | null> {
+  const [size] = await db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
+  if (!size?.custom) return null;
+  const items = await db
+    .select({ category: mealSizeItems.category, planId: mealSizeItems.planId, sortOrder: mealSizeItems.sortOrder })
+    .from(mealSizeItems)
+    .where(eq(mealSizeItems.mealSizeId, mealSizeId));
+  return rowPlanIds(items, true);
+}
+
 // The ISO date of `dayOfWeek` within the menu week starting on weekStart.
 function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
   const d = new Date(`${weekStartIso}T00:00:00.000Z`);
@@ -185,6 +197,8 @@ export const selectionsService = {
     const baseCounts = mealItems.length > 0 ? categoryCountsFromItems(mealItems) : (order.categoryCounts ?? {});
     const max = applySwapsToCounts(baseCounts, daySwaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
+    const rowPlan = (await rowPlansForMealSize(order.mealSizeId))?.get(slot)?.[pickIndex - 1];
+    if (rowPlan != null && rowPlan !== dishRow.planId) throw new ValidationError("That dish doesn't match this item's diet");
 
     // Meal rules against the proposed final meal for this person/day.
     //
