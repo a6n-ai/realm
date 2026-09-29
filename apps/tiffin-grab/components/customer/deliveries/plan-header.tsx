@@ -33,7 +33,11 @@ export function PlanHeader({ name, sub, counts, renew, color }: {
           {first ? <>Hi, <em className="text-[var(--primary)]">{first}.</em></> : <>Your <em className="text-[var(--primary)]">trips.</em></>}
         </h1>
       </div>
-      <p className="mt-3 text-[22px] font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeName}</p>
+      {/* A custom meal's name is its whole composition — too long for the title on a phone. */}
+      <p className="mt-3 text-[22px] font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeCustom ? "Custom meal" : sub.mealSizeName}</p>
+      {sub.mealSizeCustom && (
+        <p className="mt-1 text-[15px] leading-snug text-pretty text-[var(--muted-foreground,#6E6558)]" data-testid="plan-composition">{sub.mealSizeName}</p>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <OrderStatusBadge status={sub.displayStatus} />
         <Pill>

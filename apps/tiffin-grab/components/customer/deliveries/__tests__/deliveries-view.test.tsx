@@ -68,6 +68,13 @@ describe("DeliveriesView (one plan)", () => {
     expect(screen.queryByText(/hold day|Vacation/)).toBeNull();
     expect(screen.getByText("renews in 11 days")).toBeInTheDocument();
   });
+  it("header: a custom meal reads 'Custom meal' with its composition underneath", () => {
+    const name = "1 Rice + 8 Roti + 1× Veg Raita 8oz + 1× Non-Veg Sabzi 8oz + 1× Veg Sabzi 12oz + 1× Veg Sabzi 8oz";
+    const custom = { ...plan, sub: { ...plan.sub, mealSizeName: name, mealSizeCustom: true } } as PlanView;
+    view(undefined, trips, custom);
+    expect(screen.getByTestId("plan-title")).toHaveTextContent(/^Custom meal$/);
+    expect(screen.getByTestId("plan-composition")).toHaveTextContent(name);
+  });
   it("dishes live in the list; the card below shows the delivery, not the eating info", () => {
     view();
     expect(within(screen.getAllByTestId("trip-row")[1]!).getByText("Paneer, Jeera Rice")).toBeInTheDocument();
