@@ -349,10 +349,12 @@ export function matchMealSize(productText: string, planKey: "veg" | "non-veg", m
 
 // ---------- plan ----------
 
-/** Base meal + add-on portions. An extra sabzi keeps its own diet; roti, rice, raita and
- * salad ride on the meal's diet, as they do in every catalog and custom meal size. */
+/** Base meal + add-on portions. An extra sabzi keeps its own diet; an extra roti, rice,
+ * raita or salad joins the base meal's row for that category (whatever diet that row is
+ * tagged with), else rides on the meal's diet. */
 function withAddons(base: CustomMealItem[], addons: CustomMealItem[], mealPlan: string, units: Map<string, CategoryUnit>): CustomMealItem[] {
-  const extra = addons.map((a) => (a.category === "sabzi" ? a : { ...a, planKey: mealPlan }));
+  const extra = addons.map((a) =>
+    a.category === "sabzi" ? a : { ...a, planKey: base.find((b) => b.category === a.category)?.planKey ?? mealPlan });
   return normalizeItems([...base, ...extra], units);
 }
 

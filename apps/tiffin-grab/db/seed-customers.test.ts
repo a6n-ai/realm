@@ -235,6 +235,22 @@ describe("planSeed custom meals", () => {
     ]);
   });
 
+  it("adds an extra roti onto the base meal's own roti row even when that row sits on the other diet", () => {
+    const vegRotiNonVeg = [
+      { name: "Curry", category: "sabzi", tuAmount: 1, planKey: "non-veg" },
+      { name: "Roti", category: "roti", tuAmount: 2, planKey: "veg" },
+      { name: "Rice", category: "rice", tuAmount: 1, planKey: "veg" },
+    ];
+    const snap = { ...snapshot, mealSizes: [size(3, "item4_regular_nonveg", "non-veg", vegRotiNonVeg)] } as unknown as Parameters<typeof planSeed>[1];
+    const { results } = planSeed([row({ products: "4 Item Non-Veg Thali Meal (Regular)", veg: "Non-Veg", addons: "2 Rotis + 1 Rice" })], snap, units);
+    const planned = results[0];
+    expect(planned.kind === "planned" && planned.customItems).toEqual([
+      { category: "rice", planKey: "veg", tuAmount: 2 },
+      { category: "roti", planKey: "veg", tuAmount: 2.5 },
+      { category: "sabzi", planKey: "non-veg", tuAmount: 1 },
+    ]);
+  });
+
   it("keeps the base meal and flags add-ons it cannot map", () => {
     const { results } = planSeed([row({ addons: "1 spicy chutney" })], snapshot, units);
     const planned = results[0];
