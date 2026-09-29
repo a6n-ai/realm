@@ -175,9 +175,20 @@ describe("planSeed custom meals", () => {
     ["raita", { key: "raita", label: "Raita", tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }],
     ["salad", { key: "salad", label: "Salad", tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }],
   ]);
-  const size = (id: number, key: string, planKey: string) => ({ id: BigInt(id), key, name: key, planKey, tier: "budget", items: [], custom: false });
+  const size = (id: number, key: string, planKey: string, items: unknown[] = []) => ({ id: BigInt(id), key, name: key, planKey, tier: "budget", items, custom: false });
+  // A non-veg 4 item: one non-veg sabzi, one veg sabzi, 6 roti, rice.
+  const nonVegItems = [
+    { name: "Curry", category: "sabzi", tuAmount: 1, planKey: "non-veg" },
+    { name: "Sabzi", category: "sabzi", tuAmount: 1, planKey: "veg" },
+    { name: "Roti", category: "roti", tuAmount: 1.5, planKey: "non-veg" },
+    { name: "Rice", category: "rice", tuAmount: 1, planKey: "non-veg" },
+  ];
+  const vegItems = [
+    { name: "Sabzi", category: "sabzi", tuAmount: 1, planKey: "veg" },
+    { name: "Roti", category: "roti", tuAmount: 1, planKey: "veg" },
+  ];
   const snapshot = {
-    mealSizes: [size(1, "item4_regular_veg", "veg"), size(2, "item4_regular_nonveg", "non-veg")],
+    mealSizes: [size(1, "item4_regular_veg", "veg", vegItems), size(2, "item4_regular_nonveg", "non-veg", nonVegItems)],
     zones: [{ name: "Downtown", postalPrefixes: ["M5V"], slotWindow: null, active: true }],
   } as unknown as Parameters<typeof planSeed>[1];
 
@@ -200,6 +211,41 @@ describe("planSeed custom meals", () => {
   it("uses the parsed diet for the plan when WordPress meta says veg but the meal has non-veg", () => {
     const { results } = planSeed([row({ products: "Custom Meal - 1 Non-Veg(8oz) + 4 Rotis", veg: "veg" })], snapshot, units);
     expect(results[0]).toMatchObject({ kind: "planned", record: { planKey: "non-veg" } });
+  });
+
+  it("folds add-ons into the base meal as a custom meal", () => {
+    const { results } = planSeed([row({ addons: "2 Rotis" })], snapshot, units);
+    const planned = results[0];
+    expect(planned.kind === "planned" && planned.customItems).toEqual([
+      { category: "roti", planKey: "veg", tuAmount: 1.5 },
+      { category: "sabzi", planKey: "veg", tuAmount: 1 },
+    ]);
+  });
+
+  it("keeps each extra sabzi on its own diet and puts roti/rice/raita on the meal's diet", () => {
+    const { results } = planSeed([row({ products: "4 Item Non-Veg Thali Meal (Regular)", veg: "Non-Veg", addons: "4 Rotis + 1 Veg (12oz) + 1 Raita" })], snapshot, units);
+    const planned = results[0];
+    expect(planned.kind === "planned" && planned.customItems).toEqual([
+      { category: "raita", planKey: "non-veg", tuAmount: 1 },
+      { category: "rice", planKey: "non-veg", tuAmount: 1 },
+      { category: "roti", planKey: "non-veg", tuAmount: 2.5 },
+      { category: "sabzi", planKey: "non-veg", tuAmount: 1 },
+      { category: "sabzi", planKey: "veg", tuAmount: 1.5 },
+      { category: "sabzi", planKey: "veg", tuAmount: 1 },
+    ]);
+  });
+
+  it("keeps the base meal and flags add-ons it cannot map", () => {
+    const { results } = planSeed([row({ addons: "1 spicy chutney" })], snapshot, units);
+    const planned = results[0];
+    expect(planned).toMatchObject({ kind: "planned", unmappedAddons: "1 spicy chutney" });
+    expect(planned.kind === "planned" && planned.customItems).toBeFalsy();
+  });
+
+  it("does not merge a renewal whose add-ons differ", () => {
+    const { kept, dropped } = dedupeByPhone([mapRow(row({ id: 1 })), mapRow(row({ id: 2, addons: "2 Rotis" }))]);
+    expect(kept[0].mergedWpOrderIds).toEqual([]);
+    expect(dropped).toHaveLength(1);
   });
 });
 

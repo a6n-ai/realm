@@ -12,7 +12,8 @@ export interface MealSizeView {
   planKey: string;
   tier: "budget" | "medium" | "premium";
   components: string[];
-  items: { name: string; category: string; tuAmount: number; maxTuAmount: number | null; portion: string | null }[];
+  // planKey: the row's own diet (a non-veg size can carry a veg sabzi row); undefined if its plan is inactive.
+  items: { name: string; category: string; tuAmount: number; planKey?: string; maxTuAmount: number | null; portion: string | null }[];
   kcalMin: number;
   kcalMax: number;
   proteinG: number | null;

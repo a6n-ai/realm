@@ -148,7 +148,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
           const tuAmount = Number(i.tuAmount);
           const cat = tuByCategory.get(i.category) ?? null;
           return {
-            name: i.name, category: i.category, tuAmount,
+            name: i.name, category: i.category, tuAmount, planKey: planKeyById.get(i.planId),
             maxTuAmount: i.maxTuAmount == null ? null : Number(i.maxTuAmount),
             portion: cat == null ? null : formatTuHuman(cat, tuAmount),
           };

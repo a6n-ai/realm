@@ -32,7 +32,7 @@ import { provisionCustomerByPhone } from "../lib/services/customers.service";
 import { addressService } from "../lib/services/addresses.service";
 import type { OrderPricingSnapshot } from "../lib/pricing/types";
 import { parseCustomMealName } from "../lib/custom-meal/parse-wp";
-import { compositionName, mealPlanKey, type CategoryUnit, type CustomMealItem } from "../lib/custom-meal/composition";
+import { compositionName, mealPlanKey, normalizeItems, type CategoryUnit, type CustomMealItem } from "../lib/custom-meal/composition";
 import { findOrCreateCustomMealSize, loadCategoryUnits } from "../lib/services/custom-meal.service";
 
 export const MIGRATION_TAG = "Migrated from WordPress";
@@ -57,6 +57,8 @@ export type WpRow = {
   startDate: string | null;
   deliveryType: string | null;
   products: string | null;
+  // Line-item "add-ons" text ("2 Rotis", "1 Veg (12oz)"): extra portions in every tiffin.
+  addons?: string | null;
   qty: string | null;
   customerNote: string | null;
   history: string | null;
@@ -79,6 +81,9 @@ SELECT o.id, o.status, o.billing_email AS email,
   MAX(CASE WHEN m.meta_key='tiffin_count_history' THEN m.meta_value END) AS history,
   (SELECT GROUP_CONCAT(i.order_item_name SEPARATOR ' | ') FROM wp_woocommerce_order_items i
      WHERE i.order_id=o.id AND i.order_item_type='line_item') AS products,
+  (SELECT GROUP_CONCAT(im.meta_value SEPARATOR ' + ') FROM wp_woocommerce_order_items i
+     JOIN wp_woocommerce_order_itemmeta im ON im.order_item_id=i.order_item_id AND im.meta_key='add-ons' AND im.meta_value<>''
+     WHERE i.order_id=o.id AND i.order_item_type='line_item') AS addons,
   (SELECT SUM(im.meta_value) FROM wp_woocommerce_order_items i
      JOIN wp_woocommerce_order_itemmeta im ON im.order_item_id=i.order_item_id AND im.meta_key='_qty'
      WHERE i.order_id=o.id AND i.order_item_type='line_item') AS qty,
@@ -143,6 +148,8 @@ export type MigrationRecord = {
   deliveryInstructions: string | null;
   planKey: "veg" | "non-veg";
   productText: string;
+  // WordPress line-item add-ons (extra portions per tiffin), "" when none.
+  addonsText: string;
   // "mwf" for the exact Mon/Wed/Fri phrase, "5_day" for everything else (legacy
   // customers on a custom weekday pick were always delivered on the 5-day route).
   frequencyKey: "5_day" | "mwf";
@@ -242,6 +249,7 @@ export function mapRow(row: WpRow): MigrationRecord {
     deliveryInstructions: instructionsFor(row),
     planKey: planKeyFor(row),
     productText: (row.products ?? "").trim(),
+    addonsText: (row.addons ?? "").trim(),
     frequencyKey,
     eatingDays,
     includeSaturday,
@@ -264,7 +272,7 @@ export function dedupeByPhone(records: MigrationRecord[]): { kept: MigrationReco
   const byPhone = new Map<string, MigrationRecord>();
   const dropped: MigrationRecord[] = [];
   const samePlan = (a: MigrationRecord, b: MigrationRecord) =>
-    a.productText === b.productText && a.persons === b.persons && a.eatingDays.join() === b.eatingDays.join();
+    a.productText === b.productText && a.addonsText === b.addonsText && a.persons === b.persons && a.eatingDays.join() === b.eatingDays.join();
   for (const r of [...records].sort((a, b) => a.wpOrderId - b.wpOrderId)) {
     const existing = byPhone.get(r.phone);
     if (!existing) {
@@ -341,10 +349,18 @@ export function matchMealSize(productText: string, planKey: "veg" | "non-veg", m
 
 // ---------- plan ----------
 
+/** Base meal + add-on portions. An extra sabzi keeps its own diet; roti, rice, raita and
+ * salad ride on the meal's diet, as they do in every catalog and custom meal size. */
+function withAddons(base: CustomMealItem[], addons: CustomMealItem[], mealPlan: string, units: Map<string, CategoryUnit>): CustomMealItem[] {
+  const extra = addons.map((a) => (a.category === "sabzi" ? a : { ...a, planKey: mealPlan }));
+  return normalizeItems([...base, ...extra], units);
+}
+
 export type PlanResult =
   // customItems: a WordPress custom meal; mealSize is then only a report placeholder and
   // applyOne swaps in the find-or-created custom meal size.
-  | { kind: "planned"; record: MigrationRecord; mealSize: CatalogMealSize; isCustomFallback: boolean; customItems?: CustomMealItem[] }
+  // unmappedAddons: WordPress add-on text the parser could not turn into portions; staff handle it.
+  | { kind: "planned"; record: MigrationRecord; mealSize: CatalogMealSize; isCustomFallback: boolean; customItems?: CustomMealItem[]; unmappedAddons?: string }
   | { kind: "skipped"; wpOrderId: number; reason: string };
 
 function redactPhone(phone: string): string {
@@ -389,15 +405,21 @@ export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot, units: Map<st
   for (const record of kept) {
     try {
       tripsFor(record.frequencyKey, record.eatingDays);
-      const customItems = customByWpId.get(record.wpOrderId);
+      const parsedCustom = customByWpId.get(record.wpOrderId);
+      const matched = parsedCustom ? null : matchMealSize(record.productText, record.planKey, snapshot.mealSizes);
+      const addons = record.addonsText ? parseCustomMealName(record.addonsText, units) : null;
+      const unmappedAddons = record.addonsText && !addons ? record.addonsText : undefined;
+      // Add-ons are extra portions in every tiffin: the meal becomes base + add-ons, a custom meal.
+      const baseItems: CustomMealItem[] | undefined = parsedCustom
+        ?? (addons ? matched!.mealSize.items.map((i) => ({ category: i.category, planKey: i.planKey ?? record.planKey, tuAmount: i.tuAmount })) : undefined);
+      const customItems = baseItems && addons ? withAddons(baseItems, addons, record.planKey, units) : baseItems;
       if (customItems) {
-        const placeholder = snapshot.mealSizes.find((m) => m.planKey === record.planKey && !m.custom);
+        const placeholder = matched?.mealSize ?? snapshot.mealSizes.find((m) => m.planKey === record.planKey && !m.custom);
         if (!placeholder) throw new Error(`No meal size available for plan ${record.planKey}`);
-        results.push({ kind: "planned", record, mealSize: placeholder, isCustomFallback: false, customItems });
+        results.push({ kind: "planned", record, mealSize: placeholder, isCustomFallback: false, customItems, unmappedAddons });
         continue;
       }
-      const { mealSize, isCustomFallback } = matchMealSize(record.productText, record.planKey, snapshot.mealSizes);
-      results.push({ kind: "planned", record, mealSize, isCustomFallback });
+      results.push({ kind: "planned", record, mealSize: matched!.mealSize, isCustomFallback: matched!.isCustomFallback, unmappedAddons });
     } catch (err) {
       results.push({ kind: "skipped", wpOrderId: record.wpOrderId, reason: err instanceof Error ? err.message : String(err) });
     }
@@ -422,6 +444,11 @@ function printReport(totalRows: number, results: PlanResult[], duplicates: Migra
   for (const s of skipped) if (s.reason.startsWith(MANUAL_MAPPING)) console.log(`  wc-${s.wpOrderId}: ${s.reason}`);
   for (const { kept, dropped } of mixedKind) {
     console.log(`  MIXED ${redactPhone(kept.phone)}: kept wc-${kept.wpOrderId} "${kept.productText}" (${kept.tiffinCount} left), NOT imported wc-${dropped.wpOrderId} "${dropped.productText}" (${dropped.tiffinCount} left)`);
+  }
+  console.log(`\n--- WordPress add-ons ---`);
+  for (const r of planned) if (r.record.addonsText) {
+    const x = r.record;
+    console.log(`  wc-${x.wpOrderId} ${redactPhone(x.phone)} "${x.addonsText}" -> ${r.unmappedAddons ? "NOT MAPPED, staff to handle" : `folded into custom: ${compositionName(r.customItems!, units)}`}`);
   }
   console.log(`\n--- Planned ---`);
   for (const r of planned) {
@@ -557,7 +584,7 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
 
     await tx.insert(orderActivities).values([
       { orderId: order.id, type: "created" as const, toStatus: "pending" as const },
-      { orderId: order.id, type: "note" as const, note: `${MIGRATION_TAG} order #${x.wpOrderId} (${x.wpStatus})${x.mergedWpOrderIds.length ? ` + renewal #${x.mergedWpOrderIds.join(", #")}` : ""}, ${x.tiffinCount} tiffins left` },
+      { orderId: order.id, type: "note" as const, note: `${MIGRATION_TAG} order #${x.wpOrderId} (${x.wpStatus})${x.mergedWpOrderIds.length ? ` + renewal #${x.mergedWpOrderIds.join(", #")}` : ""}, ${x.tiffinCount} tiffins left${x.addonsText ? `, WordPress add-ons: ${x.addonsText}${r.unmappedAddons ? " (not mapped)" : ""}` : ""}` },
     ]);
     return "created";
   });
