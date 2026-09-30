@@ -124,6 +124,12 @@ describe("priceSubscription (per-tiffin)", () => {
     expect(r.subtotal).toBe(r.total);
   });
 
+  it("prices flat when every tier is switched off", () => {
+    const r = priceSubscription(sel(), { ...catalog(10), tiers: [] });
+    expect(r.tier.upliftPct).toBe(0);
+    expect(r.perTiffinPrice).toBe(10);
+  });
+
   it("throws when tiers are misconfigured (no match)", () => {
     expect(() => priceSubscription(sel(), { ...catalog(10), tiers: [{ minQty: 100, maxQty: null, upliftPct: 0 }] })).toThrow();
   });

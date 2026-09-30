@@ -1,6 +1,6 @@
 import type { TaxLine } from "@foundry/payments";
 import { resolveCatalogDiscounts } from "@foundry/discounts";
-import { assertValidTiers, findTier } from "./tiers";
+import { assertValidTiers, findTier, FLAT_TIERS } from "./tiers";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
 import { calculateDeliveryCharge, type DeliveryChargeCalculationResult } from "@foundry/delivery";
 import { deliveryWaiverLines, taxWaiverLine } from "./waivers";
@@ -13,7 +13,9 @@ export function priceSubscription(
   adjustments: PricingLine[] = [],
   taxes: TaxLine[] = [],
 ): PricingResult {
-  assertValidTiers(catalog.tiers);
+  // Staff switch every tier off to drop the order-size surcharge, so none active means flat pricing.
+  const tiers = catalog.tiers.length > 0 ? catalog.tiers : FLAT_TIERS;
+  assertValidTiers(tiers);
 
   const deliveryDays = selections.eatingDays
     ? selections.eatingDays.length
@@ -24,7 +26,7 @@ export function priceSubscription(
   // Slot-agnostic: one tiffin per delivery day per person, regardless of slot count.
   const tiffinCount = deliveryDays * selections.durationWeeks * selections.persons;
 
-  const tier = findTier(catalog.tiers, tiffinCount);
+  const tier = findTier(tiers, tiffinCount);
   const perTiffinPrice = round2(catalog.mealSize.basePrice * (1 + tier.upliftPct / 100));
   const tiffinSubtotal = round2(perTiffinPrice * tiffinCount);
 
