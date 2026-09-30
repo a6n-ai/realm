@@ -25,12 +25,12 @@ export type PricingGridRow = {
 type Cols = "category" | "diet" | "price" | "maxTu" | "offered" | "actions";
 
 const COLUMNS: readonly Column<Cols>[] = [
-  { key: "category", label: "Category" },
-  { key: "diet", label: "Diet" },
-  { key: "price", label: "Price per TU" },
-  { key: "maxTu", label: "Max TU" },
-  { key: "offered", label: "Offered" },
-  { key: "actions", label: "", align: "right" },
+  { key: "category", label: "Category", width: "w-[26%]" },
+  { key: "diet", label: "Diet", width: "w-[22%]" },
+  { key: "price", label: "Price per TU", width: "w-[16%]" },
+  { key: "maxTu", label: "Max TU", width: "w-[16%]" },
+  { key: "offered", label: "Offered", align: "center", width: "w-[10%]" },
+  { key: "actions", label: "", align: "right", width: "w-[10%]" },
 ];
 
 export function PricingGrid({ rows, spec, page, size, total }: {
@@ -99,18 +99,18 @@ function PricingCells({ row }: { row: PricingGridRow }) {
       <TableCell>
         <Input
           id={`${id}-price`} aria-label={`${row.categoryLabel} ${row.planName} price per TU`}
-          type="number" inputMode="decimal" min={0} step="0.01" placeholder="$" className="w-28"
+          type="number" inputMode="decimal" min={0} step="0.01" placeholder="$" className="w-full"
           value={price} onChange={(e) => setPrice(e.target.value)}
         />
       </TableCell>
       <TableCell>
         <Input
           id={`${id}-max`} aria-label={`${row.categoryLabel} ${row.planName} max TU`}
-          type="number" inputMode="decimal" min={0} step="0.5" placeholder="No cap" className="w-24"
+          type="number" inputMode="decimal" min={0} step="0.5" placeholder="No cap" className="w-full"
           value={maxTu} onChange={(e) => setMaxTu(e.target.value)}
         />
       </TableCell>
-      <TableCell>
+      <TableCell className="text-center">
         <Switch
           id={`${id}-active`} aria-label={`${row.categoryLabel} ${row.planName} offered`}
           checked={active} onCheckedChange={setActive}
