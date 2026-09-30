@@ -6,6 +6,8 @@ import { cn, FONT, FOCUS, SPRING } from "./cn";
 
 interface OptionCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   selected: boolean;
+  /** Saffron trial treatment, so a trial size reads apart from a weekly bundle. */
+  tone?: "trial";
 }
 
 /**
@@ -13,7 +15,7 @@ interface OptionCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * Callers own the inner layout (SelectableCard is the titled row; bundle and delivery cards are stacks).
  * role="radio" swaps aria-pressed for aria-checked so it can sit in a ChoiceGroup.
  */
-export function OptionCard({ selected, className, children, type = "button", role, ...rest }: OptionCardProps) {
+export function OptionCard({ selected, tone, className, children, type = "button", role, ...rest }: OptionCardProps) {
   return (
     <button
       {...rest}
@@ -25,9 +27,13 @@ export function OptionCard({ selected, className, children, type = "button", rol
         FOCUS,
         "cursor-pointer rounded-[20px] border-2 text-left [touch-action:manipulation] transition-[transform,background-color,border-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100",
         SPRING,
-        selected
-          ? "border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]"
-          : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--muted-foreground,#6E6558)] hover:bg-[var(--muted)]",
+        tone === "trial"
+          ? selected
+            ? "border-[var(--s-vac,#d98a00)] bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_16%,transparent)]"
+            : "border-[color-mix(in_oklch,var(--s-vac,#d98a00)_70%,var(--border))] bg-[color-mix(in_oklch,var(--s-vac,#d98a00)_8%,var(--card))]"
+          : selected
+            ? "border-[var(--primary)] bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]"
+            : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--muted-foreground,#6E6558)] hover:bg-[var(--muted)]",
         className,
       )}
     >

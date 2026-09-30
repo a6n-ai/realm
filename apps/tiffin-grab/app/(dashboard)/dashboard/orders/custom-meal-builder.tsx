@@ -73,12 +73,13 @@ export function CustomMealBuilder({
     setItems(value.items.map((i, n) => (n === idx ? { ...i, ...patch } : i)));
 
   const itemsKey = JSON.stringify(filledItems(value.items));
+  const override = value.basePriceOverride;
   useEffect(() => {
     const items = JSON.parse(itemsKey) as CustomMealItem[];
     if (items.length === 0) return;
     let cancelled = false;
     const t = setTimeout(() => {
-      previewCustomMeal(items)
+      previewCustomMeal(items, override)
         .then((r) => { if (!cancelled) setPreview(r); })
         .catch(() => { if (!cancelled) setPreview({ error: "Couldn't price this meal" }); });
     }, 300);
@@ -86,7 +87,7 @@ export function CustomMealBuilder({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [itemsKey]);
+  }, [itemsKey, override]);
 
   const hasItems = itemsKey !== "[]";
 

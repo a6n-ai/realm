@@ -1,5 +1,5 @@
 {
-  "id": "08ec4488-b77f-4143-812f-6f8f57d86ba5",
+  "id": "643f2e39-5435-46ee-aa52-378822ec7fb6",
   "prevId": "df7be3c8-55ff-4458-b221-6d9d0dae8375",
   "version": "7",
   "dialect": "postgresql",
@@ -2789,6 +2789,18 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "trial_length": {
+          "name": "trial_length",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trial_weekdays": {
+          "name": "trial_weekdays",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
         },
         "start_date": {
           "name": "start_date",
@@ -8782,6 +8794,19 @@
           "notNull": true,
           "default": 7
         },
+        "trial_max_days": {
+          "name": "trial_max_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trial_weekdays": {
+          "name": "trial_weekdays",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
         "max_discount_pct": {
           "name": "max_discount_pct",
           "type": "integer",
@@ -14104,9 +14129,7 @@
         "new_login_alert",
         "review_nudge",
         "staff_invitation",
-        "customer_invitation",
-        "payment_reminder",
-        "payment_approved"
+        "customer_invitation"
       ]
     },
     "public.campaign_status": {

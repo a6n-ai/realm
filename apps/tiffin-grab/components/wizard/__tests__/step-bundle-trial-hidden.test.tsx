@@ -49,11 +49,24 @@ const selections: WizardSelections = {
   startDate: "",
 };
 
-describe("StepBundle trial hiding", () => {
-  it("offers only the non-trial size and hides the trial size", () => {
+describe("StepBundle trial sizes", () => {
+  it("hides trial sizes when trials are off", () => {
     render(<StepBundle catalog={catalog} selections={selections} set={vi.fn()} />);
     expect(screen.getByText("small_thali")).toBeDefined();
     expect(screen.queryByText("trial_thali")).toBeNull();
+  });
+
+  it("shows a trial size in its own color when trials are open", () => {
+    render(
+      <StepBundle
+        catalog={catalog}
+        selections={selections}
+        set={vi.fn()}
+        trial={{ maxDays: 3, weekdays: ["mon", "wed", "fri"] }}
+      />,
+    );
+    expect(screen.getByText("trial_thali")).toBeDefined();
+    expect(screen.getAllByText("Trial").length).toBeGreaterThan(0);
   });
 });
 

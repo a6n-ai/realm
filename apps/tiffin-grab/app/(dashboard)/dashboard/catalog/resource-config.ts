@@ -108,6 +108,7 @@ const mealSizesSchema = z.object({
   carbsG: optNum(z.coerce.number().int().nonnegative()),
   fatG: optNum(z.coerce.number().int().nonnegative()),
   basePrice: reqNum(z.coerce.number().nonnegative()),
+  trial: z.boolean().optional(),
   active,
 });
 
@@ -268,6 +269,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
       { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true, tableHidden: true, section: "Nutrition" },
       { key: "basePrice", label: "Base price", type: "number", unit: "$", section: "Pricing" },
+      { key: "trial", label: "Trial", type: "boolean", section: "Basics", help: "Customers order this from the trial page. Length and send days are on the Trial tab." },
     ],
     note: "Discounts are managed in Discounts",
   },

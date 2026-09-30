@@ -1,0 +1,150 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
+import { BottomBar, Button, OptionCard, Stepper } from "@/components/customer/kit";
+import { DateField } from "@/components/customer/date-field";
+import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
+import { Progress } from "@/components/wizard/progress";
+import { WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { trialDeliveryDates } from "@/lib/trial/schedule";
+
+const STEPS = ["Meal", "Start"] as const;
+
+export type TrialSizeOption = {
+  publicId: string;
+  name: string;
+  planKey: string;
+  planName: string;
+  basePrice: number;
+  description: string | null;
+};
+
+function firstAllowed(from: string, weekdays: readonly string[]): string {
+  const cursor = parseIsoDateUtc(from);
+  for (let i = 0; i < 21; i++) {
+    if (weekdays.includes(weekdayKey(cursor))) return cursor.toISOString().slice(0, 10);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return from;
+}
+
+export function TrialWizard({
+  sizes,
+  maxDays,
+  weekdays,
+  earliest,
+  today,
+}: {
+  sizes: TrialSizeOption[];
+  maxDays: number;
+  weekdays: string[];
+  earliest: string;
+  today: string;
+}) {
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+  const [mealId, setMealId] = useState(sizes[0]?.publicId ?? "");
+  const [days, setDays] = useState(maxDays);
+  const [startDate, setStartDate] = useState(() => firstAllowed(earliest, weekdays));
+  const meal = sizes.find((s) => s.publicId === mealId) ?? null;
+
+  const dates = useMemo(() => {
+    if (!startDate || !weekdays.includes(weekdayKey(parseIsoDateUtc(startDate)))) return [];
+    try {
+      return trialDeliveryDates(startDate, days, weekdays);
+    } catch {
+      return [];
+    }
+  }, [startDate, days, weekdays]);
+
+  const blocked = step === 0
+    ? (meal ? null : "Pick a trial meal to continue.")
+    : dates.length === days
+      ? null
+      : "Choose a start date on a day a trial can be sent.";
+
+  const go = () => {
+    if (!meal || dates.length !== days) return;
+    const selections: WizardSelections = {
+      planKey: meal.planKey,
+      mealSizeId: meal.publicId,
+      frequencyKey: "",
+      eatingDays: [],
+      persons: 1,
+      mealSlots: ["lunch"],
+      includeSaturday: false,
+      includeSunday: false,
+      durationWeeks: 1,
+      startDate,
+      trialDays: days,
+      addonSelections: [],
+    };
+    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(WIZARD_ORIGIN_KEY, "trial");
+    sessionStorage.setItem(WIZARD_STEP_KEY, "1");
+    router.push("/checkout", { transitionTypes: ["nav-forward"] });
+  };
+
+  return (
+    <div className="pb-44 sm:pb-6">
+      <SubscribeChrome
+        closeHref="/me"
+        onBack={() => (step > 0 ? setStep(0) : router.push("/me", { transitionTypes: ["nav-back"] }))}
+        stepTag={STEPS[step]}
+      />
+      <Progress steps={STEPS} current={step} />
+      <h2 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">
+        {step === 0 ? "Pick a trial meal." : "How many days, and when?"}
+      </h2>
+
+      {step === 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {sizes.map((size) => (
+            <OptionCard
+              key={size.publicId}
+              selected={mealId === size.publicId}
+              onClick={() => setMealId(size.publicId)}
+              className="flex min-w-0 flex-col gap-2 p-4"
+            >
+              <span className="text-muted-foreground text-xs font-medium">{size.planName}</span>
+              <span className="text-[17px] leading-snug font-semibold tracking-[-0.02em]">{size.name}</span>
+              {size.description ? <p className="text-muted-foreground text-sm text-pretty">{size.description}</p> : null}
+              <span className="text-primary text-[17px] font-bold">${size.basePrice.toFixed(2)} / meal</span>
+            </OptionCard>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <Stepper label="Days" value={days} min={1} max={maxDays} onChange={setDays} />
+          <DateField
+            id="trial-start"
+            label="Start date"
+            value={startDate}
+            onChange={setStartDate}
+            today={today}
+            minDate={earliest}
+            allowedDays={weekdays}
+          />
+          {dates.length > 0 && (
+            <p className="text-muted-foreground text-sm">
+              We'll send {dates.length === 1 ? "this day" : "these days"}: {dates.join(", ")}.
+            </p>
+          )}
+        </div>
+      )}
+
+      <BottomBar alignEnd note={blocked ?? undefined} className="sm:sticky sm:mt-6 sm:px-0">
+        <Button variant="quiet" size="lg" className="w-24 shrink-0 sm:hidden" onClick={() => (step > 0 ? setStep(0) : router.push("/me"))}>Back</Button>
+        {step === 0 ? (
+          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={blocked != null} onClick={() => setStep(1)}>Next</Button>
+        ) : (
+          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={blocked != null} onClick={go}>
+            Continue to checkout
+          </Button>
+        )}
+      </BottomBar>
+    </div>
+  );
+}

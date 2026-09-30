@@ -9,7 +9,7 @@ import { PostalCombobox } from "./postal-combobox";
 export type InterestCatalog = {
   plans: { key: string; name: string }[];
   /** `diet` is the plan key (same shape as OrderForm catalog). */
-  mealSizes: { id: string; name: string; diet: string }[];
+  mealSizes: { id: string; name: string; diet: string; trial?: boolean }[];
   /** Delivery frequencies (only those with weekdays are pickable). */
   frequencies?: { key: string; name: string; weekdays?: string[] | null }[];
 };
@@ -137,7 +137,7 @@ export function PlanMealPicker({
     value: p.key,
     label: planPillLabel(p.name),
   }));
-  const mealOptions = meals.map((m) => ({ value: m.id, label: m.name }));
+  const mealOptions = meals.map((m) => ({ value: m.id, label: m.trial ? `${m.name} · Trial` : m.name }));
 
   const pickPlan = (key: string) => {
     onPlanChange(key);

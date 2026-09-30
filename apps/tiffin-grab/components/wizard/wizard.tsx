@@ -10,7 +10,7 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Sheet } from "@/components/customer/kit";
-import { initialSelections, nextBlockedReason, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { adjacentWizardStep, initialSelections, nextBlockedReason, selectionIsTrial, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -34,6 +34,7 @@ export function Wizard({
   initial = initialSelections,
   minStartDate = null,
   exitHref,
+  trial = null,
 }: {
   catalog: ClientCatalogSnapshot;
   closeHref: string;
@@ -44,6 +45,8 @@ export function Wizard({
   /** First date a new/renewed plan may start (overlap with a live plan). */
   minStartDate?: string | null;
   exitHref?: string;
+  /** Open trial offer. Trial sizes then sit on Bundle and skip Schedule. */
+  trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
   const router = useRouter();
   const [step, setStepState] = useState(0);
@@ -70,7 +73,9 @@ export function Wizard({
       if (!raw) return;
       const saved = JSON.parse(raw) as WizardSelections;
       if (saved.planKey != null && !catalog.plans.some((p) => p.key === saved.planKey)) return;
-      const savedStep = Number(sessionStorage.getItem(WIZARD_STEP_KEY));
+      let savedStep = Number(sessionStorage.getItem(WIZARD_STEP_KEY));
+      const savedTrial = trial != null && catalog.mealSizes.some((m) => m.publicId === saved.mealSizeId && m.trial);
+      if (savedTrial && savedStep === 2) savedStep = 3;
       /* eslint-disable react-hooks/set-state-in-effect */
       setSelections({ ...initial, ...saved });
       if (Number.isInteger(savedStep) && savedStep >= 0 && savedStep < STEPS.length) {
@@ -89,13 +94,14 @@ export function Wizard({
     // Clearing the stale invoice when no meal is chosen; intentional effect-driven reset.
      
     // No frequency until the Schedule step: pricing would throw "Invalid frequency" (a 500) on every Bundle pick.
-    if (!selections.mealSizeId || !selections.frequencyKey) { setTimeout(() => setResult(null), 0); return; }
+    const trialPick = trial != null && selectionIsTrial(catalog, selections);
+    if (!selections.mealSizeId || (trialPick ? selections.trialDays == null || !selections.startDate : !selections.frequencyKey)) { setTimeout(() => setResult(null), 0); return; }
     let active = true;
     reprice(selections, undefined, selections.planKey ?? undefined)
       .then((r) => { if (active) setResult(r.pricing); })
       .catch(() => { if (active) setResult(null); });
     return () => { active = false; };
-  }, [selections]);
+  }, [selections, trial, catalog]);
 
   const blocked = nextBlockedReason(step, catalog, selections);
   const canNext = blocked === null;
@@ -109,9 +115,17 @@ export function Wizard({
   const sameWeekConflict =
     selections.startDate !== "" && anySameIsoWeek(selections.startDate, existingStartDates);
 
+  const trialSelected = trial != null && selectionIsTrial(catalog, selections);
+  const stepLabels = trialSelected ? (["Baseline", "Bundle", "Start"] as const) : STEPS;
+  const questions = trialSelected
+    ? (["What's your baseline?", "Pick your bundle.", "When should the trial start?"] as const)
+    : QUESTIONS;
+  const progressIndex = trialSelected ? (step <= 1 ? step : 2) : step;
+
   const goBack = () => {
-    if (step > 0) {
-      setStep((s) => s - 1);
+    const prev = adjacentWizardStep(step, -1, trialSelected);
+    if (prev >= 0 && prev < step) {
+      setStep(prev);
       return;
     }
     if (exitHref) router.push(exitHref, { transitionTypes: ["nav-back"] });
@@ -126,13 +140,13 @@ export function Wizard({
 
   return (
     <div className="pb-44 sm:pb-6">
-      <SubscribeChrome closeHref={closeHref} onBack={goBack} stepTag={STEPS[step]}
+      <SubscribeChrome closeHref={closeHref} onBack={goBack} stepTag={stepLabels[progressIndex]}
         trailing={result ? <TotalChip tiffinCount={result.tiffinCount} total={result.total} open={invoiceOpen} onOpen={() => setInvoiceOpen(true)} /> : null}
       />
 
-      <Progress steps={STEPS} current={step} />
+      <Progress steps={stepLabels} current={progressIndex} />
 
-      {step >= 1 && step <= 3 && <BestDeal key={step} vary={step === 1 ? "bundle" : step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}
+      {step >= 1 && step <= 3 && !trialSelected && <BestDeal key={step} vary={step === 1 ? "bundle" : step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}
 
       <AnimatePresence mode="popLayout" initial={false} custom={sign}>
         <motion.div
@@ -143,11 +157,11 @@ export function Wizard({
           exit={{ opacity: 0, x: -slide * sign }}
           transition={spring}
         >
-          <h2 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{QUESTIONS[step]}</h2>
+          <h2 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{questions[progressIndex]}</h2>
 
           {step === 0 && <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
-          {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
-          {step === 2 && <StepSchedule catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
+          {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} trial={trial} />}
+          {step === 2 && !trialSelected && <StepSchedule catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />}
           {step === 3 && (
             <StepDuration
               catalog={catalog}
@@ -157,6 +171,7 @@ export function Wizard({
               sameWeekConflict={sameWeekConflict}
               currentPlan={currentPlan}
               minStartDate={minStartDate}
+              trial={trialSelected ? trial : null}
             />
           )}
         </motion.div>
@@ -182,7 +197,7 @@ export function Wizard({
       <BottomBar alignEnd note={blocked ?? undefined} className="sm:sticky sm:mt-6 sm:px-0">
         <Button variant="quiet" size="lg" className="w-24 shrink-0 sm:hidden" onClick={goBack}>Back</Button>
         {step < 3 ? (
-          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Next</Button>
+          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={() => setStep(adjacentWizardStep(step, 1, trialSelected))}>Next</Button>
         ) : (
           <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={deploy}>
             Continue to checkout

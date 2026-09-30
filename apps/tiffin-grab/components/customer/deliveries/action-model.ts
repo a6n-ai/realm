@@ -17,7 +17,7 @@ const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet
  * it is no longer a separate customer action — `canSwap` is ignored for listing.
  * `locked`: payment unconfirmed, so the plan is read-only: no actions at all.
  */
-export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean; isDeliveryDay?: boolean; movedTo?: string } = {}) {
+export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean; isDeliveryDay?: boolean; movedTo?: string; trial?: boolean } = {}) {
   const av = actionAvailability(trip, now, ctx);
   // Not delivered (a failed drop, or a legacy paused day): the only thing to do is move it.
   const moveOnly = trip.status === "failed" || trip.status === "vacation";
@@ -29,10 +29,11 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
   const showAddress = opts.isDeliveryDay !== false;
   const keys: TripAction[] = closed || opts.locked ? []
     : movedAway ? (showAddress ? ["address"] : [])
-    : moveOnly ? ["move"]
+    : moveOnly ? (opts.trial ? [] : ["move"])
+    : opts.trial ? ["pick", ...(showAddress ? (["address"] as const) : [])]
     : ["pick", "move", ...(showAddress ? (["address"] as const) : [])];
   const primary: TripAction | null = opts.locked || closed || movedAway ? null
-    : moveOnly ? "move" : trip.status === "upcoming" ? "pick" : null;
+    : moveOnly ? (opts.trial ? null : "move") : trip.status === "upcoming" ? "pick" : null;
   return {
     av,
     primary,
@@ -41,7 +42,7 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
       label: ACTION_LABEL[key],
       av: key === "pick" ? pickAv : (av[key] as Availability),
     })),
-    bar: (closed || opts.locked ? [] : movedAway ? (showAddress ? ["address"] : []) : moveOnly ? ["move"] : ["pick", "move"]) as TripAction[],
+    bar: (closed || opts.locked ? [] : movedAway ? (showAddress ? ["address"] : []) : moveOnly ? (opts.trial ? [] : ["move"]) : opts.trial ? ["pick"] : ["pick", "move"]) as TripAction[],
     closedReason: movedAway ? null : closed ? av.pick.why : null,
     goTo: opts.movedTo ?? (trip.status === "combined-into" ? trip.mergedInto : trip.status === "rescheduled" ? (trip.movedTo ?? null) : null),
   };

@@ -4,16 +4,18 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { ValidationError, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
+import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { coupons, users } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { couponsService } from "@/lib/services/coupons.service";
-import { getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getDiscountPolicy, getTrialSettings } from "@/lib/services/app-settings.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
+import { quoteTrial } from "@/lib/trial/quote";
 import { round2 } from "@/lib/custom-meal/pricing";
 import { mealPlanKey } from "@/lib/custom-meal/composition";
 import { customMealSchema, priceCustomComposition, TRANSIENT_CUSTOM_SIZE_ID, withTransientCustomSize } from "@/lib/services/custom-meal.service";
@@ -86,6 +88,11 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
 // clamp to the dual ceiling before folding it into adjustments. A coupon that no
 // longer validates falls back to the un-discounted preview — the authoritative
 // gate is createOrder.
+export async function trialFormSettings() {
+  await requireStaff();
+  return getTrialSettings();
+}
+
 export async function previewPrice(
   input: CreateOrderInput,
   couponCode?: string,
@@ -100,14 +107,16 @@ export async function previewPrice(
   if (customMeal != null) {
     const parsed = customMealSchema.safeParse(customMeal);
     if (!parsed.success) throw new ValidationError(`Custom meal: ${parsed.error.issues[0]?.message ?? "invalid"}`);
-    const priced = await priceCustomComposition(parsed.data.items);
+    const priced = await priceCustomComposition(parsed.data.items, parsed.data.basePriceOverride);
     snap = withTransientCustomSize(snap, priced);
     input = { ...input, planKey: mealPlanKey(priced.items), selections: { ...input.selections, mealSizeId: TRANSIENT_CUSTOM_SIZE_ID } };
     override = parsed.data.basePriceOverride ?? null;
   }
-  const catalog = buildPricingCatalog(snap, input.selections);
+  const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
+  const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
+  const catalog = trial ? trial.catalog : buildPricingCatalog(snap, input.selections);
   if (override != null) catalog.mealSize = { ...catalog.mealSize, basePrice: round2(override) };
-  const base = priceSubscription(input.selections, catalog);
+  const base = priceSubscription(trial ? trial.pricingSelections : input.selections, catalog);
 
   const code = couponCode?.trim();
   if (!code || requestedAmount == null || requestedAmount <= 0) return base;
@@ -132,11 +141,13 @@ export async function previewPrice(
 export async function convertInquiry(
   inquiryId: string,
   input: CreateOrderInput,
-): Promise<{ publicId: string; deploymentId: string }> {
-  await requireStaff();
-  const result = await inquiriesService.convert(inquiryId, input);
-  revalidatePath("/dashboard/orders");
-  revalidatePath("/dashboard/inquiries");
-  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
-  return result;
+): Promise<ActionResult<{ publicId: string; deploymentId: string }>> {
+  return runAction(async () => {
+    await requireStaff();
+    const result = await inquiriesService.convert(inquiryId, input);
+    revalidatePath("/dashboard/orders");
+    revalidatePath("/dashboard/inquiries");
+    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+    return result;
+  });
 }

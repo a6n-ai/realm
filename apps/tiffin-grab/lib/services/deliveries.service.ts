@@ -7,6 +7,7 @@ import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFreque
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
+import { trialDeliveryDates } from "@/lib/trial/schedule";
 import { MAX_TIFFINS_PER_TRIP, countsToCoverage, coveredDates, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
@@ -19,6 +20,11 @@ import { deleteOrder } from "@/lib/services/optimoroute/client";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
 const log = createLogger("deliveries.service");
+
+async function assertOrderNotTrial(tx: Tx, orderId: bigint): Promise<void> {
+  const [row] = await tx.select({ trialLength: orders.trialLength }).from(orders).where(eq(orders.id, orderId)).limit(1);
+  if (row?.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
+}
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Order = typeof orders.$inferSelect;
@@ -89,7 +95,14 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
   type Row = { deliveryDate: string; tiffinUnits: number; coversDates?: string[] };
   const rows: Row[] = [];
 
-  if (order.eatingDays?.length) {
+  if (order.trialLength != null) {
+    const dates = trialDeliveryDates(order.startDate, order.trialLength, order.trialWeekdays ?? []);
+    for (const date of dates) rows.push({ deliveryDate: date, tiffinUnits: order.persons });
+    const total = rows.reduce((n, r) => n + r.tiffinUnits, 0);
+    if (total !== order.tiffinCount) {
+      throw new ValidationError(`Delivery plan carries ${total} tiffins but the order is priced for ${order.tiffinCount}`);
+    }
+  } else if (order.eatingDays?.length) {
     // Delivery days come from the frequency row alone; eating days (weekends included)
     // ride the nearest earlier delivery, so a trip's tiffinUnits is its carried days.
     const week = planWeek(
@@ -688,6 +701,7 @@ export async function rescheduleDelivery(
   const result = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await assertOrderNotTrial(tx, orderId);
 
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertOriginal(row);
@@ -824,6 +838,7 @@ export async function redeliverTrip(
   const result = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await assertOrderNotTrial(tx, orderId);
     const row = await loadByPublicId(tx, deliveryPublicId);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot re-deliver a ${row.status} delivery`);
 

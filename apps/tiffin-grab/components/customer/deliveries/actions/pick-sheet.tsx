@@ -97,7 +97,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     : closed
       ? `Changes closed ${formatCutoff(trip.cutoffAt, plan.ctx.timezone)}. This trip is being prepared.`
       : null;
-  const swapLocked = !av.swap.ok || closed;
+  const trial = plan.sub.trial === true;
+  const swapLocked = trial || !av.swap.ok || closed;
   // One eating day per sheet: the day the customer opened it from (a trip can carry several).
   const dates = useMemo(
     () => [startDay && trip.coversDates.includes(startDay) ? startDay : trip.date],
@@ -193,7 +194,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     return menu.map((d) => ({ id: d.id, name: d.name, disabled: blocked.has(d.id), reason: blocked.has(d.id) ? "Not allowed with your other picks" : undefined }));
   };
   const swapOptions: SwapOption[] =
-    !open || swapLocked || !trip.deliveryId || !serverGrid || !activeDay ? [] : previewSwapOptions(serverGrid.preview, activeDay, provisional);
+    trial || !open || swapLocked || !trip.deliveryId || !serverGrid || !activeDay ? [] : previewSwapOptions(serverGrid.preview, activeDay, provisional);
 
   const visibleSwaps = [
     ...appliedSwaps

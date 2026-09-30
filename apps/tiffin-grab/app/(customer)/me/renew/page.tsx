@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryFrequencies, orders, plans } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { getTrialSettings } from "@/lib/services/app-settings.service";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
 import {
@@ -20,8 +21,9 @@ export default async function RenewPlanPage() {
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
-  const [catalog, [lastOrder], earliestStartDate, subs] = await Promise.all([
+  const [catalog, trialSettings, [lastOrder], earliestStartDate, subs] = await Promise.all([
     loadCatalogSnapshot(),
+    getTrialSettings(),
     db
       .select({
         mealSizeId: orders.mealSizeId,
@@ -85,8 +87,8 @@ export default async function RenewPlanPage() {
           </h1>
           <p className="text-muted-foreground text-sm text-pretty">
             {current
-              ? "Same four steps as subscribe. We'll start this plan after your current one ends."
-              : "Four quick steps to your weekly plan — fresh meals, delivered on your schedule."}
+              ? "We'll start this plan after your current one ends. A trial skips the schedule step."
+              : "Pick a baseline and a meal. A weekly plan sets its schedule; a trial goes straight to a start date."}
           </p>
         </header>
         <Wizard
@@ -98,6 +100,11 @@ export default async function RenewPlanPage() {
           currentPlan={current}
           minStartDate={earliestStartDate}
           existingStartDates={live.map((s) => s.startDate).filter(Boolean)}
+          trial={
+            trialSettings.maxDays != null && trialSettings.maxDays >= 1 && trialSettings.weekdays.length > 0
+              ? { maxDays: trialSettings.maxDays, weekdays: trialSettings.weekdays }
+              : null
+          }
         />
       </div>
     </PageShell>

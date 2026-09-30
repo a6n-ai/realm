@@ -6,13 +6,21 @@ import { Button } from "@foundry/ui/button";
 import { SectionCard } from "@/components/ds";
 
 /** Slim subscribe strip — replaces oversized Browse plans + Meal sizes cards on Menu. */
-export function PlansCtaSection() {
+export function PlansCtaSection({ trial }: { trial?: { href: string; maxDays: number } | null }) {
   return (
     <SectionCard
       title="Want a subscription?"
       subtitle="Pick a plan and meal size on Subscribe. This page is for browsing what's cooking."
     >
       <div className="flex flex-wrap items-center justify-end gap-3">
+        {trial && (
+          <Button asChild size="sm" variant="outline" className="gap-1.5 active:scale-[0.96]">
+            <Link href={trial.href}>
+              Try a meal · up to {trial.maxDays} {trial.maxDays === 1 ? "day" : "days"}
+              <ArrowRightIcon className="size-3.5" aria-hidden />
+            </Link>
+          </Button>
+        )}
         <Button asChild size="sm" className="gap-1.5 active:scale-[0.96]">
           <Link href="/subscribe">
             Browse plans

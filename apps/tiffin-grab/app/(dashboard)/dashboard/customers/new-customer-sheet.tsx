@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ResponsiveDialog } from "@foundry/design-system";
 import { isValidPhone } from "@foundry/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
-import type { ZoneLike } from "@/lib/catalog/postal";
 import { InquiryMatch } from "../_leads/inquiry-match";
 import { CustomerSearch } from "../_leads/customer-search";
 import { StepHeader } from "../_leads/step-header";
@@ -22,6 +21,7 @@ import type { CustomerHit } from "../_leads/match-actions";
 import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { OrderForm } from "../inquiries/[id]/order/order-form";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { createOrderFlow } from "../orders/actions";
 import { createCustomerFlow } from "./actions";
 
@@ -64,7 +64,6 @@ export function NewCustomerSheet({
   sources,
   catalog,
   enabledSlots,
-  zones,
 }: {
   trigger?: React.ReactNode;
   open?: boolean;
@@ -73,7 +72,6 @@ export function NewCustomerSheet({
   sources: Src[];
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
-  zones: ZoneLike[];
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -334,10 +332,9 @@ export function NewCustomerSheet({
                 contact={{ fullName, phone, email }}
                 catalog={catalog}
                 enabledSlots={enabledSlots}
-                zones={zones}
                 prefill={prefill}
                 onCreate={(order: CreateOrderInput) =>
-                  createOrderFlow({
+                  unwrapAction(createOrderFlow({
                     source,
                     contact,
                     interest: {
@@ -351,7 +348,7 @@ export function NewCustomerSheet({
                     },
                     pickedInquiryId: inquiryId ?? undefined,
                     order,
-                  })
+                  }))
                 }
                 onCreated={() => {
                   onOpenChange(false);

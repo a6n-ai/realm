@@ -17,6 +17,7 @@ import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/li
 import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
 import type { LeadAssignmentConfig } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
+import { orderedTrialWeekdays } from "@/lib/trial/schedule";
 
 const DEFAULTS = { timezone: "America/Toronto", cutoffHour: 18, currency: "INR", minTiffinsPerWeek: 3, maxTiffinsPerWeek: 7, maxDiscountPct: 25 } as const;
 const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "creator", perSource: {}, cursor: {} };
@@ -158,6 +159,25 @@ export async function getPauseDefaultsSetting(): Promise<{
     defaultMaxPauseDaysTotal: row?.defaultMaxPauseDaysTotal ?? null,
     defaultMaxPauseStretchDays: row?.defaultMaxPauseStretchDays ?? null,
   };
+}
+
+export async function getTrialSettings(): Promise<{ maxDays: number | null; weekdays: string[] }> {
+  const [row] = await db.select({ maxDays: app.trialMaxDays, weekdays: app.trialWeekdays }).from(app).limit(1);
+  return { maxDays: row?.maxDays ?? null, weekdays: row?.weekdays ?? [] };
+}
+
+export async function setTrialSettings(input: { maxDays: number | null; weekdays: string[] }): Promise<void> {
+  const weekdays = orderedTrialWeekdays(input.weekdays);
+  const maxDays = input.maxDays;
+  if (maxDays != null && (!Number.isInteger(maxDays) || maxDays < 1 || maxDays > 31)) {
+    throw new ValidationError("Maximum trial days must be a whole number from 1 to 31");
+  }
+  if ((maxDays != null && maxDays >= 1) && weekdays.length === 0) {
+    throw new ValidationError("Pick at least one day a trial can be sent");
+  }
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (!row) throw new ValidationError("App settings are not set up");
+  await appSettingsEntity.update(row.publicId, { trialMaxDays: maxDays, trialWeekdays: weekdays });
 }
 
 export async function getLeadAssignment(): Promise<LeadAssignmentConfig> {

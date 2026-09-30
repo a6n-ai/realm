@@ -7,7 +7,7 @@ import { customMealPricing, dishCategories, mealSizeItems, mealSizes, plans } fr
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import type { CatalogSnapshot, MealSizeView } from "@/lib/catalog/types";
 import { compositionKey, compositionName, mealPlanKey, normalizeItems, type CategoryUnit, type CustomMealItem } from "@/lib/custom-meal/composition";
-import { computeCustomPerTiffin } from "@/lib/custom-meal/pricing";
+import { computeCustomPerTiffin, round2 } from "@/lib/custom-meal/pricing";
 import { loadPricingRows } from "@/lib/custom-meal/pricing-rows";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 
@@ -40,12 +40,19 @@ export type PricedComposition = { items: CustomMealItem[]; units: Map<string, Ca
 
 // Staff-facing: names the exact category/diet to fix in Catalog → Custom Meals,
 // unlike buildPricingCatalog's customer-facing "no longer available".
-export async function priceCustomComposition(rawItems: CustomMealItem[]): Promise<PricedComposition> {
+// A staff override stands in for missing pricing rows, so it is the per-tiffin price then.
+export async function priceCustomComposition(
+  rawItems: CustomMealItem[],
+  basePriceOverride?: number | null,
+): Promise<PricedComposition> {
   const [units, pricing] = await Promise.all([loadCategoryUnits(), loadPricingRows()]);
   for (const i of rawItems) if (!units.has(i.category)) throw new ValidationError(`Unknown category: ${i.category}`);
   const items = normalizeItems(rawItems, units);
   const active = pricing.filter((p) => p.active);
   const unpriced = items.find((i) => !active.some((p) => p.category === i.category && p.planKey === i.planKey));
+  if (unpriced && basePriceOverride != null) {
+    return { items, units, name: compositionName(items, units), perTiffin: round2(basePriceOverride) };
+  }
   if (unpriced) {
     const diet = unpriced.planKey === "non-veg" ? "Non-Veg" : "Veg";
     throw new ValidationError(`Custom meal: ${units.get(unpriced.category)!.label} isn't priced for ${diet} — set it in Catalog → Custom Meals`);

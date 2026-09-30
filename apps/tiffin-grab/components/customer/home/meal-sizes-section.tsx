@@ -98,7 +98,7 @@ export function MealSizesSection({
   dishPool: CustomerDish[];
   planNames?: Record<string, string>;
 }) {
-  const groups = groupByPlanKey(mealSizes.filter((m) => !m.custom));
+  const groups = groupByPlanKey(mealSizes.filter((m) => !m.custom && !m.trial));
 
   return (
     <SectionCard title="Meal sizes">

@@ -2,7 +2,7 @@
 
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useEffect, useState } from "react";
-import { PlusIcon } from "lucide-react";
+import { Loader2Icon, PlusIcon } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
 import dynamic from "next/dynamic";
 import { Button } from "@foundry/ui/button";
@@ -11,8 +11,8 @@ import { Label } from "@foundry/ui/label";
 import { Switch } from "@foundry/ui/switch";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { isValidPhone } from "@foundry/ui/phone-input";
+import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
-import type { ZoneLike } from "@/lib/catalog/postal";
 import { InquiryMatch } from "../_leads/inquiry-match";
 import { CustomerSearch } from "../_leads/customer-search";
 import { StepHeader } from "../_leads/step-header";
@@ -23,6 +23,12 @@ import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { OrderForm } from "../inquiries/[id]/order/order-form";
 import { interestToPrefill } from "../inquiries/_leads/interest-prefill";
+import { unwrapAction } from "@/lib/actions/unwrap";
+import { OrderPricingBreakdown } from "./[id]/order-pricing-breakdown";
+import {
+  AdminOrderCreatedDialog,
+  type AdminOrderCreated,
+} from "./admin-order-created-dialog";
 import { createOrderFlow } from "./actions";
 import {
   CustomMealBuilder, filledItems, type CustomMealCategory, type CustomMealValue,
@@ -32,7 +38,7 @@ type Src = { key: string; label: string; subs: { key: string; label: string }[] 
 
 type Catalog = {
   plans: { key: string; name: string }[];
-  mealSizes: { id: string; name: string; diet: string }[];
+  mealSizes: { id: string; name: string; diet: string; trial?: boolean }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
@@ -40,6 +46,12 @@ type Catalog = {
 };
 
 type EnabledSlot = { key: string; label: string };
+
+type OrderDraft = { order: CreateOrderInput; preview: PricingResult };
+
+const DAY_LABEL: Record<string, string> = {
+  mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
+};
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -59,9 +71,11 @@ const PhoneInput = dynamic(() => import("@foundry/ui/phone-input").then((m) => m
 });
 
 /**
- * Two-step New order — mirrors New inquiry:
+ * Three-step New order — mirrors New inquiry contact, then catalog plan, then
+ * a verify step with plan summary + price breakup before create:
  *   1. Contact + Source (optional sub-source)
- *   2. Catalog order form (same plan/meal selects as inquiry interest)
+ *   2. Catalog / custom meal + schedule + delivery + payment
+ *   3. Review plan & pricing → Create order
  * Matched open inquiries prefill step 2 so convert doesn't re-ask.
  */
 export function NewOrderSheet({
@@ -71,8 +85,8 @@ export function NewOrderSheet({
   defaultCountry,
   sources,
   catalog,
-  zones,
   categories,
+  currency = "CAD",
 }: {
   /** Renders the sheet's own trigger button; omit when the sheet is opened by `open`. */
   triggerLabel?: string;
@@ -81,15 +95,15 @@ export function NewOrderSheet({
   defaultCountry: CountryCode;
   sources: Src[];
   catalog: Catalog;
-  zones: ZoneLike[];
   categories: CustomMealCategory[];
+  currency?: string;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   // Meal slots and custom-meal categories are the same enabled dish-category rows.
   const enabledSlots: EnabledSlot[] = categories.map((c) => ({ key: c.key, label: c.label }));
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
   const [fullName, setFullName] = useState("");
@@ -98,6 +112,11 @@ export function NewOrderSheet({
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
   const [customMeal, setCustomMeal] = useState<CustomMealValue | null>(null);
+  const [draft, setDraft] = useState<OrderDraft | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [created, setCreated] = useState<AdminOrderCreated | null>(null);
+  const [successOpen, setSuccessOpen] = useState(false);
   // Keyed by the inquiry it was fetched for, so clearing the pick derives an empty
   // prefill instead of writing one synchronously in the effect below.
   const [fetchedPrefill, setFetchedPrefill] = useState<{
@@ -161,102 +180,145 @@ export function NewOrderSheet({
       setStep(1);
       setFetchedPrefill(null);
       setCustomMeal(null);
+      setDraft(null);
+      setCreateError(null);
+      setCreated(null);
+      setSuccessOpen(false);
     }
   }
 
+  async function createFromDraft() {
+    if (!draft) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const result = await unwrapAction(createOrderFlow({
+        source: { sourceKey, subSourceKey: subSourceKey || undefined },
+        contact: { fullName, phone, email: email.trim() },
+        interest: {
+          planInterest: draft.order.planKey || undefined,
+          mealSizeInterest: customMeal ? undefined : draft.order.selections.mealSizeId,
+          personsInterest: draft.order.selections.persons,
+          frequencyKeyInterest: draft.order.selections.frequencyKey,
+          eatingDaysInterest: draft.order.selections.eatingDays,
+          postalCode: draft.order.contact.postalCode,
+          preferredStart: draft.order.selections.startDate,
+        },
+        pickedInquiryId: pickedId ?? undefined,
+        order: draft.order,
+        customMeal: customMeal
+          ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
+          : undefined,
+      }));
+      setCreated(result);
+      setSuccessOpen(true);
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : "Failed to create order");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const mealLabel = customMeal
+    ? "Custom meal"
+    : (catalog.mealSizes.find((m) => m.id === draft?.order.selections.mealSizeId)?.name ?? "Meal");
+  const planLabel = customMeal
+    ? (catalog.plans.find((p) => p.key === draft?.order.planKey)?.name ?? draft?.order.planKey ?? "")
+    : (catalog.plans.find((p) => p.key === draft?.order.planKey)?.name
+      ?? catalog.mealSizes.find((m) => m.id === draft?.order.selections.mealSizeId)?.diet
+      ?? "");
+  const frequencyLabel = catalog.frequencies.find((f) => f.key === draft?.order.selections.frequencyKey)?.name;
+  const eating = draft?.order.selections.eatingDays ?? [];
+  const trialDays = draft?.order.selections.trialDays;
+
   return (
-    <ResponsiveDialog
-      // Step bar and panels run edge to edge; each panel pads itself.
-      flush
-      open={open}
-      onOpenChange={resetAndClose}
-      trigger={
-        triggerLabel ? (
-          <Button>
-            <PlusIcon className="size-4" />
-            {triggerLabel}
-          </Button>
-        ) : undefined
-      }
-      title="New order"
-      description="Same contact + catalog plan path as inquiries — convert without re-selecting."
-      contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
-      footer={
-        sources.length > 0 && step === 1 ? (
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              disabled={!contactReady}
-              onClick={() => setStep(2)}
-              className="min-h-11 active:scale-[0.96] sm:min-h-9"
-            >
-              Continue
+    <>
+      <ResponsiveDialog
+        // Step bar and panels run edge to edge; each panel pads itself.
+        flush
+        open={open}
+        onOpenChange={resetAndClose}
+        trigger={
+          triggerLabel ? (
+            <Button>
+              <PlusIcon className="size-4" />
+              {triggerLabel}
             </Button>
-          </div>
-        ) : undefined
-      }
-    >
-      {sources.length === 0 ? (
-        <NoSources noun="order" />
-      ) : (
-        <>
-          <StepHeader step={step} steps={["Contact", "Order"]} />
+          ) : undefined
+        }
+        title="New order"
+        description="Contact, plan, then verify pricing before create."
+        contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        footer={
+          sources.length > 0 && step === 1 ? (
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                disabled={!contactReady}
+                onClick={() => setStep(2)}
+                className="min-h-11 active:scale-[0.96] sm:min-h-9"
+              >
+                Continue
+              </Button>
+            </div>
+          ) : sources.length > 0 && step === 3 ? (
+            <div className="flex w-full items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="text-muted-foreground">Total </span>
+                <span className="nums font-medium">
+                  {draft ? `$${draft.preview.total.toFixed(2)}` : "—"}
+                </span>
+                {draft ? (
+                  <span className="text-muted-foreground nums"> · {draft.preview.tiffinCount} tiffins</span>
+                ) : null}
+              </div>
+              <Button
+                disabled={!draft || creating}
+                onClick={() => void createFromDraft()}
+                className="min-h-11 active:scale-[0.96] sm:min-h-9"
+              >
+                {creating ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin" />
+                    Creating…
+                  </>
+                ) : (
+                  "Create order"
+                )}
+              </Button>
+            </div>
+          ) : undefined
+        }
+      >
+        {sources.length === 0 ? (
+          <NoSources noun="order" />
+        ) : (
+          <>
+            <StepHeader step={step} steps={["Contact", "Order", "Review"]} />
 
-          {step === 1 ? (
-            <div className="space-y-6 px-5 py-5 sm:px-6">
-              <CustomerSearch onPick={pickCustomer} />
+            {step === 1 ? (
+              <div className="space-y-6 px-5 py-5 sm:px-6">
+                <CustomerSearch onPick={pickCustomer} />
 
-              <section className="grid gap-4">
-                <SectionLabel>Source</SectionLabel>
-                <div className="grid gap-1.5">
-                  <Label>
-                    Where did they come from? <Req />
-                  </Label>
-                  <div role="radiogroup" aria-label="Source" className="flex flex-wrap gap-2">
-                    {sources.map((s) => {
-                      const active = sourceKey === s.key;
-                      return (
-                        <button
-                          key={s.key}
-                          type="button"
-                          role="radio"
-                          aria-checked={active}
-                          onClick={() => {
-                            setSourceKey(s.key);
-                            setSubSourceKey("");
-                            setPickedId(null);
-                          }}
-                          className={cn(
-                            "min-h-11 rounded-full border px-3.5 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]",
-                            active
-                              ? "border-primary/30 bg-primary/12 text-primary"
-                              : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-                          )}
-                        >
-                          {s.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                {subs.length > 0 && (
+                <section className="grid gap-4">
+                  <SectionLabel>Source</SectionLabel>
                   <div className="grid gap-1.5">
                     <Label>
-                      Sub-source <span className="text-muted-foreground font-normal">optional</span>
+                      Where did they come from? <Req />
                     </Label>
-                    <div
-                      role="radiogroup"
-                      aria-label="Sub-source (optional)"
-                      className="flex flex-wrap gap-2"
-                    >
-                      {subs.map((sub) => {
-                        const active = subSourceKey === sub.key;
+                    <div role="radiogroup" aria-label="Source" className="flex flex-wrap gap-2">
+                      {sources.map((s) => {
+                        const active = sourceKey === s.key;
                         return (
                           <button
-                            key={sub.key}
+                            key={s.key}
                             type="button"
                             role="radio"
                             aria-checked={active}
-                            onClick={() => setSubSourceKey(active ? "" : sub.key)}
+                            onClick={() => {
+                              setSourceKey(s.key);
+                              setSubSourceKey("");
+                              setPickedId(null);
+                            }}
                             className={cn(
                               "min-h-11 rounded-full border px-3.5 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]",
                               active
@@ -264,71 +326,104 @@ export function NewOrderSheet({
                                 : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
                             )}
                           >
-                            {sub.label}
+                            {s.label}
                           </button>
                         );
                       })}
                     </div>
                   </div>
-                )}
-              </section>
+                  {subs.length > 0 && (
+                    <div className="grid gap-1.5">
+                      <Label>
+                        Sub-source <span className="text-muted-foreground font-normal">optional</span>
+                      </Label>
+                      <div
+                        role="radiogroup"
+                        aria-label="Sub-source (optional)"
+                        className="flex flex-wrap gap-2"
+                      >
+                        {subs.map((sub) => {
+                          const active = subSourceKey === sub.key;
+                          return (
+                            <button
+                              key={sub.key}
+                              type="button"
+                              role="radio"
+                              aria-checked={active}
+                              onClick={() => setSubSourceKey(active ? "" : sub.key)}
+                              className={cn(
+                                "min-h-11 rounded-full border px-3.5 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]",
+                                active
+                                  ? "border-primary/30 bg-primary/12 text-primary"
+                                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                              )}
+                            >
+                              {sub.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </section>
 
-              <section className="grid gap-4">
-                <SectionLabel>Contact</SectionLabel>
-                <div className="grid gap-1.5">
-                  <Label>
-                    Full name <Req />
-                  </Label>
-                  <Input
-                    className="min-h-11"
-                    placeholder="e.g. Priya Sharma"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                <section className="grid gap-4">
+                  <SectionLabel>Contact</SectionLabel>
+                  <div className="grid gap-1.5">
+                    <Label>
+                      Full name <Req />
+                    </Label>
+                    <Input
+                      className="min-h-11"
+                      placeholder="e.g. Priya Sharma"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>
+                      Phone <Req />
+                    </Label>
+                    <PhoneInput
+                      value={phone}
+                      onChange={(v) => setPhone(v ?? "")}
+                      defaultCountry={defaultCountry}
+                    />
+                    {phone.length > 0 && !phoneValid && (
+                      <p className="text-muted-foreground text-sm">
+                        This number looks incomplete — we&apos;ll still save it.
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>
+                      Email <Req />
+                    </Label>
+                    <Input
+                      className="min-h-11"
+                      type="email"
+                      placeholder="name@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <InquiryMatch
+                    phone={phone}
+                    sourceKey={sourceKey}
+                    pickedId={pickedId}
+                    onPick={onPick}
                   />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>
-                    Phone <Req />
-                  </Label>
-                  <PhoneInput
-                    value={phone}
-                    onChange={(v) => setPhone(v ?? "")}
-                    defaultCountry={defaultCountry}
-                  />
-                  {phone.length > 0 && !phoneValid && (
-                    <p className="text-muted-foreground text-sm">
-                      This number looks incomplete — we&apos;ll still save it.
+                  {existingCustomer && (
+                    <p className="text-destructive text-sm" role="alert">
+                      {existingCustomer.fullName} is already a customer with this contact. Use the
+                      search above to select them.
                     </p>
                   )}
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>
-                    Email <Req />
-                  </Label>
-                  <Input
-                    className="min-h-11"
-                    type="email"
-                    placeholder="name@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <InquiryMatch
-                  phone={phone}
-                  sourceKey={sourceKey}
-                  pickedId={pickedId}
-                  onPick={onPick}
-                />
-                {existingCustomer && (
-                  <p className="text-destructive text-sm" role="alert">
-                    {existingCustomer.fullName} is already a customer with this contact. Use the
-                    search above to select them.
-                  </p>
-                )}
-              </section>
-            </div>
-          ) : (
-            <div className="space-y-4 px-5 py-5 sm:px-6">
+                </section>
+              </div>
+            ) : null}
+
+            <div className={step === 2 ? "space-y-4 px-5 py-5 sm:px-6" : "hidden"}>
               <button
                 type="button"
                 onClick={() => setStep(1)}
@@ -352,41 +447,102 @@ export function NewOrderSheet({
               {customMeal && (
                 <CustomMealBuilder categories={categories} value={customMeal} onChange={setCustomMeal} />
               )}
-              <OrderForm
-                inquiryId=""
-                contact={{ fullName, phone, email }}
-                catalog={catalog}
-                enabledSlots={enabledSlots}
-                zones={zones}
-                prefill={prefill}
-                hideMealSizePicker={customMeal != null}
-                customMeal={customMeal ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
-                onCreate={(order: CreateOrderInput) =>
-                  createOrderFlow({
-                    source: { sourceKey, subSourceKey: subSourceKey || undefined },
-                    contact: { fullName, phone, email: email.trim() },
-                    interest: {
-                      planInterest: order.planKey || undefined,
-                      mealSizeInterest: customMeal ? undefined : order.selections.mealSizeId,
-                      personsInterest: order.selections.persons,
-                      frequencyKeyInterest: order.selections.frequencyKey,
-                      eatingDaysInterest: order.selections.eatingDays,
-                      postalCode: order.contact.postalCode,
-                      preferredStart: order.selections.startDate,
-                    },
-                    pickedInquiryId: pickedId ?? undefined,
-                    order,
-                    customMeal: customMeal
-                      ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
-                      : undefined,
-                  })
-                }
-                onCreated={() => resetAndClose(false)}
-              />
+              {/* Keep mounted across step 2↔3 so schedule/address aren't wiped on Edit. */}
+              {(step === 2 || step === 3) && (
+                <OrderForm
+                  inquiryId=""
+                  contact={{ fullName, phone, email }}
+                  catalog={catalog}
+                  enabledSlots={enabledSlots}
+                  prefill={prefill}
+                  hideMealSizePicker={customMeal != null}
+                  customMeal={customMeal ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
+                  onReview={(next) => {
+                    setDraft(next);
+                    setCreateError(null);
+                    setStep(3);
+                  }}
+                />
+              )}
             </div>
-          )}
-        </>
-      )}
-    </ResponsiveDialog>
+
+            {step === 3 ? (
+              <div className="space-y-5 px-5 py-5 sm:px-6">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="text-muted-foreground hover:text-foreground -ml-1 flex min-h-11 items-center gap-1 text-sm transition-colors"
+                >
+                  ← <span className="font-medium">Edit order</span>
+                </button>
+
+                <section className="grid gap-3">
+                  <SectionLabel>Customer</SectionLabel>
+                  <div className="rounded-lg border p-4 text-sm">
+                    <p className="font-medium">{fullName}</p>
+                    <p className="text-muted-foreground">{email.trim()}</p>
+                    <p className="text-muted-foreground">{phone}</p>
+                  </div>
+                </section>
+
+                <section className="grid gap-3">
+                  <SectionLabel>Plan</SectionLabel>
+                  <div className="space-y-2 rounded-lg border p-4 text-sm">
+                    <p className="text-base font-semibold tracking-tight">{mealLabel}</p>
+                    {planLabel ? <p className="text-muted-foreground">{planLabel}</p> : null}
+                    {customMeal && customMeal.basePriceOverride != null ? (
+                      <p className="text-muted-foreground nums">
+                        Staff override ${customMeal.basePriceOverride.toFixed(2)} / tiffin
+                      </p>
+                    ) : null}
+                    <p className="text-muted-foreground">
+                      {draft?.order.selections.persons ?? 1}{" "}
+                      {(draft?.order.selections.persons ?? 1) === 1 ? "person" : "persons"}
+                      {trialDays != null
+                        ? ` · ${trialDays} trial ${trialDays === 1 ? "day" : "days"}`
+                        : ` · ${draft?.order.selections.durationWeeks ?? "—"} wk`}
+                      {frequencyLabel ? ` · ${frequencyLabel}` : ""}
+                    </p>
+                    {eating.length > 0 && (
+                      <p className="text-muted-foreground">
+                        Eating {eating.map((d) => DAY_LABEL[d] ?? d).join(", ")}
+                      </p>
+                    )}
+                    <p className="text-muted-foreground">
+                      Starts {draft?.order.selections.startDate ?? "—"}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {[
+                        draft?.order.contact.addressLine,
+                        draft?.order.contact.city,
+                        draft?.order.contact.postalCode,
+                      ].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+                </section>
+
+                <section className="grid gap-3">
+                  <SectionLabel>Price breakup</SectionLabel>
+                  <OrderPricingBreakdown result={draft?.preview ?? null} currency={currency} />
+                </section>
+
+                {createError ? (
+                  <p className="text-destructive text-sm" role="alert">{createError}</p>
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        )}
+      </ResponsiveDialog>
+
+      <AdminOrderCreatedDialog
+        open={successOpen}
+        onOpenChange={(openSuccess) => {
+          setSuccessOpen(openSuccess);
+          if (!openSuccess && created) resetAndClose(false);
+        }}
+        result={created}
+      />
+    </>
   );
 }

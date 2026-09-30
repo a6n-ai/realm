@@ -23,7 +23,7 @@ describe("saveCustomMealPricing", () => {
   });
 
   it("rejects a negative price", async () => {
-    await expect(saveCustomMealPricing({ ...valid, pricePerTu: -1 })).rejects.toThrow();
+    expect(await saveCustomMealPricing({ ...valid, pricePerTu: -1 })).toHaveProperty("error");
     expect(upsertPricing).not.toHaveBeenCalled();
   });
 
@@ -34,7 +34,7 @@ describe("saveCustomMealPricing", () => {
 
   it("rejects a non-admin without writing", async () => {
     requireAdmin.mockRejectedValueOnce(new Error("forbidden"));
-    await expect(saveCustomMealPricing(valid)).rejects.toThrow("forbidden");
+    expect(await saveCustomMealPricing(valid)).toHaveProperty("error");
     expect(upsertPricing).not.toHaveBeenCalled();
   });
 });

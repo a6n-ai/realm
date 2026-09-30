@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialSelections, nextBlockedReason, type WizardSelections } from "../selections";
+import { adjacentWizardStep, initialSelections, nextBlockedReason, type WizardSelections } from "../selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 
 const catalog = {
@@ -24,6 +24,18 @@ describe("nextBlockedReason", () => {
     expect(nextBlockedReason(2, catalog, sel({ frequencyKey: "" }))).toMatch(/delivery/i);
     expect(nextBlockedReason(2, catalog, sel({ frequencyKey: "mwf", eatingDays: ["mon"] }))).toMatch(/between 3 and 7/i);
     expect(nextBlockedReason(2, catalog, sel({ frequencyKey: "mwf", eatingDays: ["mon", "wed", "fri"] }))).toBeNull();
+  });
+
+  it("trial skips schedule and asks for a day count", () => {
+    const trialCatalog = {
+      ...catalog,
+      mealSizes: [{ publicId: "msz_trial", trial: true }],
+    } as unknown as ClientCatalogSnapshot;
+    expect(adjacentWizardStep(1, 1, true)).toBe(3);
+    expect(adjacentWizardStep(3, -1, true)).toBe(1);
+    expect(adjacentWizardStep(1, 1, false)).toBe(2);
+    expect(nextBlockedReason(3, trialCatalog, sel({ mealSizeId: "msz_trial", startDate: "2026-10-05" }))).toMatch(/trial days/i);
+    expect(nextBlockedReason(3, trialCatalog, sel({ mealSizeId: "msz_trial", trialDays: 2, startDate: "2026-10-05" }))).toBeNull();
   });
 
   it("start & commitment: asks for a start date", () => {

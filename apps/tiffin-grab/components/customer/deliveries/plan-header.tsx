@@ -44,6 +44,7 @@ export function PlanHeader({ name, sub, counts, renew, color }: {
           {dot && <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: dot }} />}
           {sub.tagLabel || sub.planName}
         </Pill>
+        {sub.trial && <Pill tone="warn">Trial</Pill>}
         <Pill>{counts.remaining} of {counts.total} tiffins left</Pill>
         {renew != null && <Pill>renews in {renew} {renew === 1 ? "day" : "days"}</Pill>}
       </div>

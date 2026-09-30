@@ -60,8 +60,8 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
             defaultCountry={data.defaultCountry}
             sources={data.sources}
             catalog={data.catalog}
-            zones={data.zones}
             categories={data.categories}
+            currency={data.currency}
           />
           <AddInquirySheet
             open={which === "inquiry"}
@@ -78,7 +78,6 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
             sources={data.sources}
             catalog={data.catalog}
             enabledSlots={data.enabledSlots}
-            zones={data.zones}
           />
         </>
       )}

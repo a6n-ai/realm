@@ -4,7 +4,7 @@ import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon } from "
 import { eq, sql } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { deliveryZones, leadSources, leadSubsources, orders, users } from "@/db/schema";
+import { leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listCustomersPage, type CustomerSortColumn } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -143,7 +143,7 @@ export async function CustomersData({ searchParams }: { searchParams: SearchPara
 async function NewCustomerAction() {
   await requireStaff();
 
-  const [{ defaultCountry }, sourceRows, subRows, catalog, slots, zones] = await Promise.all([
+  const [{ defaultCountry }, sourceRows, subRows, catalog, slots] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -158,15 +158,6 @@ async function NewCustomerAction() {
       .from(leadSubsources),
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
-    db
-      .select({
-        name: deliveryZones.name,
-        postalPrefixes: deliveryZones.postalPrefixes,
-        slotWindow: deliveryZones.slotWindow,
-        active: deliveryZones.active,
-      })
-      .from(deliveryZones)
-      .where(eq(deliveryZones.active, true)),
   ]);
 
   const sources = sourceRows
@@ -181,7 +172,7 @@ async function NewCustomerAction() {
 
   const orderCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey })),
+    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial })),
     frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
@@ -195,7 +186,6 @@ async function NewCustomerAction() {
       sources={sources}
       catalog={orderCatalog}
       enabledSlots={enabledSlots}
-      zones={zones}
       trigger={
         <Button>
           <PlusIcon className="size-4" />
