@@ -7,19 +7,24 @@ import { plans } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { loadPricingRows } from "@/lib/services/custom-meal.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
+import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { PageHeader, PageShell } from "@/components/ds";
 import { PricingGrid, type PricingGridRow } from "./pricing-grid";
+import { filterPricingRows, PRICING_STATUSES } from "./filter-rows";
 
-export default function CustomMealsPage() {
+type SearchParams = Record<string, string | undefined>;
+
+export default function CustomMealsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
     <Suspense fallback={<PageShell><PageHeader icon={UtensilsIcon} title="Custom Meals" /></PageShell>}>
-      <CustomMealsData />
+      <CustomMealsData searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function CustomMealsData() {
+async function CustomMealsData({ searchParams }: { searchParams: Promise<SearchParams> }) {
   await requireAdmin();
+  const sp = await searchParams;
 
   const [categories, planRows, pricing] = await Promise.all([
     dishCategoriesService.enabledCategories(),
@@ -45,6 +50,14 @@ async function CustomMealsData() {
     });
   });
 
+  const spec: FacetDef[] = [
+    { kind: "search", fields: ["category"] },
+    { kind: "multi", field: "diet", label: "Diet", options: planRows.map((p) => ({ value: p.key, label: p.name })) },
+    { kind: "multi", field: "status", label: "Status", options: PRICING_STATUSES.map((st) => ({ ...st })) },
+  ];
+  const { page } = parseFilterState(spec, sp);
+  const filtered = filterPricingRows(rows, sp);
+
   return (
     <PageShell>
       <PageHeader
@@ -52,7 +65,13 @@ async function CustomMealsData() {
         title="Custom Meals"
         subtitle="What customers pay per TU when they build their own meal, by category and diet."
       />
-      <PricingGrid rows={rows} />
+      <PricingGrid
+        rows={filtered.slice(page.page * page.size, (page.page + 1) * page.size)}
+        spec={spec}
+        page={page.page}
+        size={page.size}
+        total={filtered.length}
+      />
     </PageShell>
   );
 }
