@@ -57,7 +57,7 @@ import {
   reverseCoinAward,
 } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
-import { eatingDaysError, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, orderDeliveryDays, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { publishAnalyticsLive, publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
@@ -275,6 +275,12 @@ export async function createOrder(
     );
     if (err) throw new ValidationError(err);
   }
+  const weekendErr = weekendDaysError([
+    ...(input.selections.eatingDays ?? []),
+    ...(input.selections.includeSaturday ? ["sat" as const] : []),
+    ...(input.selections.includeSunday ? ["sun" as const] : []),
+  ], mealSize.servesWeekends);
+  if (weekendErr) throw new ValidationError(weekendErr);
   // An override prices a custom size whose categories have no custom-meal pricing yet.
   const computedBase = mealSize.priceable ? mealSize.basePrice : null;
   const pricingSnapshotSource = basePriceOverride != null && !mealSize.priceable

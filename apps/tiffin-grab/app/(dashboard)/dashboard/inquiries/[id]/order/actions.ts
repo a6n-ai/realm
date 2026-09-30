@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { ValidationError, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
+import { weekendDaysError } from "@/lib/menu/delivery-days";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
@@ -124,6 +125,8 @@ async function quotePrice(
     override = parsed.data.basePriceOverride ?? null;
   }
   const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
+  const weekendErr = trialMeal && !trialMeal.trial ? weekendDaysError(input.selections.eatingDays ?? [], trialMeal.servesWeekends) : null;
+  if (weekendErr) throw new ValidationError(weekendErr);
   const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
   const catalog = trial ? trial.catalog : buildPricingCatalog(snap, input.selections);
   if (override != null) catalog.mealSize = { ...catalog.mealSize, basePrice: round2(override) };

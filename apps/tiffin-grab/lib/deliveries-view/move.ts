@@ -1,7 +1,7 @@
 import { cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { countsToCoverage, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, tiffinTotal } from "@/lib/menu/coverage";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { NO_WEEKEND_DISH, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from "./index";
 
 const weekdayName = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
@@ -65,6 +65,7 @@ export function moveOptions(trip: Trip, days: Pick<CalendarDayInput, "date" | "s
     let disabledReason: string | undefined;
     let merge: MoveOption["merge"] = null;
     if (date === sourceDate) disabledReason = "This is the day you're moving from.";
+    else if (ctx.servesWeekends === false && (weekdayKey(cursor) === "sat" || weekdayKey(cursor) === "sun")) disabledReason = `${NO_WEEKEND_DISH}.`;
     else if (carriedOn < today || now > cutoffMsFor(carriedOn, ctx.cutoffHour, ctx.timezone)) disabledReason = `${humanDate(carriedOn)} is already closed for changes.`;
     else if (carriedOn === trip.date) {
       if (trip.status !== "upcoming") disabledReason = "This delivery isn't going out. Pick another day.";

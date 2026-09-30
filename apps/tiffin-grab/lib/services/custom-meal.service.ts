@@ -30,7 +30,7 @@ export type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export async function loadCategoryUnits(q: Pick<typeof db, "select"> = db): Promise<Map<string, CategoryUnit>> {
   const rows = await q.select({
     key: dishCategories.key, label: dishCategories.label, tuUnitType: dishCategories.tuUnitType,
-    tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel,
+    tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel, weekend: dishCategories.weekend,
   }).from(dishCategories);
   return new Map(rows.map((r) => [r.key, { ...r, tuUnitSize: Number(r.tuUnitSize) }]));
 }
@@ -87,6 +87,7 @@ export function withTransientCustomSize(snapshot: CatalogSnapshot, priced: Price
     kcalMin: 0, kcalMax: 0, proteinG: null, carbsG: null, fatG: null,
     basePrice: priced.perTiffin, discountType: "none", discountValue: 0, trial: false,
     custom: true, priceable: true,
+    servesWeekends: priced.items.some((i) => priced.units.get(i.category)?.weekend),
   };
   return { ...snapshot, mealSizes: [...snapshot.mealSizes, view] };
 }

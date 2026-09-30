@@ -30,6 +30,8 @@ export const dishCategories = pgTable(
     label: text("label").notNull(),
     enabled: boolean("enabled").notNull().default(false),
     selectable: boolean("selectable").notNull().default(false),
+    // A weekend dish: a meal size without one of these categories can't be eaten on Sat/Sun.
+    weekend: boolean("weekend").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
     tuUnitType: tuUnitType("tu_unit_type").notNull().default("weight"),
     tuUnitSize: numeric("tu_unit_size", { precision: 6, scale: 2 }).notNull().default("8"),

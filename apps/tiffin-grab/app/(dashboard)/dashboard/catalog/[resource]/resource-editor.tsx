@@ -519,6 +519,7 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             trial: Boolean(values.trial),
             custom: false,
             priceable: true,
+            servesWeekends: true,
           }}
         />
       </div>

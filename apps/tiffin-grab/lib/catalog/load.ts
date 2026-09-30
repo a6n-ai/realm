@@ -78,7 +78,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     db.select().from(deliveryZones).where(and(eq(deliveryZones.active, true), scopedTo(deliveryZones.organizationId, orgId))),
     dishCategoriesService.forPlanType("tiffin"),
     dishCategoriesService.forPlanType("healthy"),
-    db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories),
+    db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel, weekend: dishCategories.weekend }).from(dishCategories),
     dishCategoriesService.addonsByDishCategory(),
     getAppSettings(),
     db.select().from(discounts).where(and(eq(discounts.active, true), scopedTo(discounts.organizationId, orgId), or(isNull(discounts.startsAt), lte(discounts.startsAt, nowMs)), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)))),
@@ -107,6 +107,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     return targetPublicId === undefined ? [] : [{ key: d.key, name: d.name, kind: d.kind, targetPublicId, percent: Number(d.percent) }];
   });
   const slotKeys = { tiffin: tiffinSlots.map((s) => s.key), healthy: healthySlots.map((s) => s.key) };
+  const weekendCategories = new Set(categoryRows.filter((c) => c.weekend).map((c) => c.key));
   const tuByCategory = new Map(categoryRows.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]));
   // Same {key -> label} the customer day view threads into day-detail.tsx —
   // built from slot rows already fetched above, not a new lookup.
@@ -156,6 +157,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
         trial: m.trial,
         custom: m.custom,
         priceable: priced.priceable,
+        servesWeekends: (itemsByMealSize.get(m.id) ?? []).some((i) => weekendCategories.has(i.category)),
       };
     }),
     frequencies: freqRows.map((f) => ({ id: f.id, publicId: f.publicId, key: f.key, name: f.name, daysPerWeek: f.daysPerWeek, weekdays: f.weekdays })),

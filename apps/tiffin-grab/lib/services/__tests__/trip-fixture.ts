@@ -1,9 +1,19 @@
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, orderActivities, orders, payments, users } from "@/db/schema";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { deliveries, deliveryCategorySwaps, dishCategories, orderActivities, orders, payments, users } from "@/db/schema";
+import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "@/lib/catalog/load";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { materializeDeliveries } from "../deliveries.service";
+
+/**
+ * Weekend eating needs a weekend-dish category in the meal (Catalog → Dish categories). The test
+ * DB's sizes have none, so suites that eat Sat/Sun flag every category. Never undone: suites run
+ * in parallel, and an undo would pull the flag out from under another weekend suite.
+ */
+export async function allowWeekendMeals(): Promise<void> {
+  await db.update(dishCategories).set({ weekend: true }).where(eq(dishCategories.weekend, false));
+  await invalidateCatalogSnapshot();
+}
 
 // Monday, far enough out that no cutoff has passed. Mon trip [21,22]-style: Mon+Tue, Wed+Thu, Fri+Sat+Sun.
 export const MON = "2030-01-07";
