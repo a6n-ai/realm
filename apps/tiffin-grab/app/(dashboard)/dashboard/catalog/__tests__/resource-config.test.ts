@@ -80,20 +80,15 @@ describe("addons resource exists", () => {
 });
 
 describe("blank numeric fields (form feeds \"\")", () => {
-  it("pricing-tiers: blank maxQty becomes null, not 0 or a throw (unbounded top band)", () => {
-    const out = RESOURCES["pricing-tiers"].schema.parse({ minQty: "0", maxQty: "", upliftPct: "2.5" });
-    expect(out.maxQty).toBeNull();
-    expect(out.minQty).toBe(0);
-    expect(out.upliftPct).toBe(2.5);
+  it("duration-packages: blank optional limit becomes null, not 0 or a throw", () => {
+    const out = RESOURCES["duration-packages"].schema.parse({ weeks: "4", maxPauses: "" });
+    expect(out.maxPauses).toBeNull();
+    expect(out.weeks).toBe(4);
   });
 
-  it("pricing-tiers: re-saving an unbounded tier via partial keeps maxQty null", () => {
-    const out = RESOURCES["pricing-tiers"].schema.partial().parse({ maxQty: "" });
-    expect(out.maxQty).toBeNull();
-  });
-
-  it("pricing-tiers: maxQty of 0 is still rejected", () => {
-    expect(() => RESOURCES["pricing-tiers"].schema.parse({ minQty: "0", maxQty: "0", upliftPct: "1" })).toThrow();
+  it("duration-packages: re-saving via partial keeps a blank limit null", () => {
+    const out = RESOURCES["duration-packages"].schema.partial().parse({ maxPauses: "" });
+    expect(out.maxPauses).toBeNull();
   });
 
   it("meal-sizes: blank macros round-trip to null instead of 0", () => {
@@ -129,7 +124,7 @@ describe("blank numeric fields (form feeds \"\")", () => {
   });
 
   it("required numeric blank is rejected rather than silently coerced to 0", () => {
-    expect(() => RESOURCES["pricing-tiers"].schema.parse({ minQty: "", maxQty: "", upliftPct: "1" })).toThrow();
+    expect(() => RESOURCES["duration-packages"].schema.parse({ weeks: "" })).toThrow();
   });
 
   it("blank field with a default falls back to the default", () => {

@@ -16,7 +16,6 @@ const catalog = {
   ],
   durations: [{ publicId: "dur_1", weeks: 1 }, { publicId: "dur_8", weeks: 8 }],
   zones: [],
-  tiers: [{ minQty: 1, maxQty: 11, upliftPct: 20 }, { minQty: 12, maxQty: 19, upliftPct: 10 }, { minQty: 20, maxQty: null, upliftPct: 0 }],
   discounts: [
     { key: "dl", name: "dl", kind: "delivery", targetPublicId: "frq_3", percent: 10, minWeeks: null },
     { key: "dd", name: "dd", kind: "duration", targetPublicId: "dur_8", percent: 5, minWeeks: null },
@@ -98,7 +97,7 @@ describe("BestDeal", () => {
   });
 
   it("no card when no option differs in price", () => {
-    const flat = { ...catalog, discounts: [], tiers: [{ minQty: 1, maxQty: null, upliftPct: 0 }] } as unknown as ClientCatalogSnapshot;
+    const flat = { ...catalog, discounts: [] } as unknown as ClientCatalogSnapshot;
     render(<BestDeal vary="frequency" catalog={flat} selections={sel()} set={vi.fn()} />);
     expect(screen.queryByRole("region")).toBeNull();
   });

@@ -14,7 +14,7 @@ const confirmSubscription = vi.fn().mockResolvedValue({ waitlisted: false, deplo
 vi.mock("@/app/(public)/checkout/actions", () => ({ confirmSubscription: (...a: unknown[]) => confirmSubscription(...a) }));
 vi.mock("@/app/(public)/subscribe/actions", () => ({
   reprice: vi.fn().mockResolvedValue({
-    pricing: { lineItems: [], adjustments: [], tiffinCount: 5, perTiffinPrice: 10, tier: { minQty: 1, maxQty: null, upliftPct: 0 }, subtotal: 50, total: 50 },
+    pricing: { lineItems: [], adjustments: [], tiffinCount: 5, perTiffinPrice: 10, subtotal: 50, total: 50 },
     appliedCoupons: [],
     paymentMethods: [],
     coinBalance: null,

@@ -11,8 +11,6 @@ export interface DealPayload {
   tiffinCount: number;
   total: number;
   includes: { name: string; percent: number }[];
-  tierMinQty: number;
-  tierChanged: boolean;
 }
 
 const price = (snapshot: ClientCatalogSnapshot, s: PricingSelections) => {
@@ -21,11 +19,11 @@ const price = (snapshot: ClientCatalogSnapshot, s: PricingSelections) => {
     const tiffinSubtotal = r.lineItems[0]?.amount ?? 0;
     const ruleKeys = new Set((snapshot.discounts ?? []).map((d) => d.key));
     const discounted = r.adjustments.filter((a) => a.discountKey && ruleKeys.has(a.discountKey)).reduce((sum, a) => sum + a.amount, 0);
-    // Share of the food price taken off by configured discounts. Deals compare on this alone: the
-    // small-order uplift dropping away or a flat delivery fee spread over more tiffins is cheaper
-    // per tiffin, but it isn't a discount and must not be advertised as "Save N%".
+    // Share of the food price taken off by configured discounts. Deals compare on this alone: a flat
+    // delivery fee spread over more tiffins is cheaper per tiffin, but it isn't a discount and must
+    // not be advertised as "Save N%".
     const discountPct = tiffinSubtotal > 0 ? (discounted / tiffinSubtotal) * 100 : 0;
-    return { total: r.total, units: r.tiffinCount, adjustments: r.adjustments, tierMinQty: r.tier.minQty, discountPct };
+    return { total: r.total, units: r.tiffinCount, adjustments: r.adjustments, discountPct };
   } catch {
     return null;
   }
@@ -35,7 +33,7 @@ const price = (snapshot: ClientCatalogSnapshot, s: PricingSelections) => {
 const dealBasis = (p: { units: number; discountPct: number }) => ({ total: p.units * (100 - p.discountPct), units: p.units });
 
 /** Per-tiffin discount of each plan length vs the shortest one (same delivery type, eating days and meal),
- * as whole percents — configured discounts only, never the tier uplift. */
+ * as whole percents — configured discounts only. */
 export function durationSavings(snapshot: ClientCatalogSnapshot, selections: PricingSelections): Record<number, number> {
   const weeks = snapshot.durations.map((d) => d.weeks).sort((a, b) => a - b);
   const pctFor = (w: number) => price(snapshot, { ...selections, durationWeeks: w })?.discountPct ?? null;
@@ -75,7 +73,7 @@ function options(snapshot: ClientCatalogSnapshot, selections: PricingSelections,
         id: `${f.key}:${d.weeks}`,
         label: vary === "frequency" ? `${f.weekdays.length}-day delivery` : vary === "duration" ? `${d.weeks} weeks` : `${d.weeks} weeks on ${f.weekdays.length}-day delivery`,
         ...dealBasis(p),
-        payload: { frequencyKey: f.key, durationWeeks: d.weeks, tiffinCount: p.units, total: p.total, includes, tierMinQty: p.tierMinQty, tierChanged: p.tierMinQty !== current.tierMinQty },
+        payload: { frequencyKey: f.key, durationWeeks: d.weeks, tiffinCount: p.units, total: p.total, includes },
       };
       if (isCurrent) currentAlt = alt;
       else alternatives.push(alt);

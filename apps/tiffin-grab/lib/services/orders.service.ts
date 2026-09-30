@@ -182,7 +182,7 @@ export interface CreateOrderOptions {
   // order a hidden custom meal size for any customer.
   allowCustomMeal?: boolean;
   // Staff-only: replaces a custom meal's computed per-tiffin base price before
-  // the pricing engine runs (tier uplift and discounts still apply).
+  // the pricing engine runs (discounts still apply).
   basePriceOverride?: number;
 }
 

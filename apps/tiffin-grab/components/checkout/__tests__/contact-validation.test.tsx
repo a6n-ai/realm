@@ -20,7 +20,7 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
       adjustments: [],
       tiffinCount: 5,
       perTiffinPrice: 10,
-      tier: { minQty: 1, maxQty: null, upliftPct: 0 },
+     
       subtotal: 50,
       total: 50,
     },

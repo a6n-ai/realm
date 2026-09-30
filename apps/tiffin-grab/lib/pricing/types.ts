@@ -1,6 +1,5 @@
 import type { ComputedTaxLine } from "@foundry/payments";
 import type { DayOfWeek } from "../menu/delivery-days";
-import type { PricingTier } from "./tiers";
 import type { DeliveryChargeCalculationResult, DeliveryChargeItemLike } from "@foundry/delivery";
 import type { PricingWaiver } from "./waivers";
 
@@ -33,7 +32,6 @@ export interface PricingSelections {
 export interface PricingCatalog {
   mealSize: { id: string; basePrice: number };
   frequency: { key: string; daysPerWeek: number };
-  tiers: PricingTier[];
   // Resolved rate+qty for each of selections.addonSelections, priced per delivery
   // week — buildPricingCatalog rejects any key not attached to the chosen meal
   // size's categories and clamps qty to the addon's maxQty, so by the time this
@@ -69,7 +67,6 @@ export interface PricingResult {
   /** Delivery trips over the whole plan (weekend days can ride a Friday trip). */
   deliveryCount?: number;
   perTiffinPrice: number;
-  tier: PricingTier;
   subtotal: number;
   total: number; // taxable base (subtotal − discounts, floored at 0) + taxTotal
   deliveryCharge?: DeliveryChargeCalculationResult;

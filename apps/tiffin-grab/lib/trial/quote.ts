@@ -110,7 +110,6 @@ function trialCatalog(
   return {
     mealSize: { id: meal.publicId, basePrice: effectivePrice(meal.basePrice, meal) },
     frequency: { key: "trial", daysPerWeek: length },
-    tiers: snapshot.tiers,
     addons: [],
     discounts: [],
     maxDiscountPct: snapshot.maxDiscountPct ?? 25,

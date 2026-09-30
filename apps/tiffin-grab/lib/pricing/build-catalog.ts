@@ -108,7 +108,6 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   return {
     mealSize: { id: mealSize.publicId, basePrice: effectivePrice(mealSize.basePrice, mealSize) },
     frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek },
-    tiers: snapshot.tiers,
     addons,
     discounts,
     maxDiscountPct: snapshot.maxDiscountPct ?? 25,

@@ -151,13 +151,6 @@ const discountsSchema = z.object({
   active,
 });
 
-const pricingTiersSchema = z.object({
-  minQty: reqNum(z.coerce.number().int().nonnegative()),
-  maxQty: optNum(z.coerce.number().int().positive()),
-  upliftPct: reqNum(z.coerce.number()),
-  active,
-});
-
 const addonCategoriesSchema = z.object({
   key, name,
   sortOrder: reqNum(z.coerce.number().int().nonnegative().default(0)),
@@ -304,14 +297,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "minWeeks", label: "Min weeks", type: "number", optional: true, help: "Only applies to orders of at least this many weeks" },
       { key: "startsAt", label: "Starts", type: "date", optional: true },
       { key: "endsAt", label: "Ends", type: "date", optional: true },
-    ],
-  },
-  "pricing-tiers": {
-    key: "pricing-tiers", label: "Pricing tiers", singular: "pricing tier", keyed: false, schema: pricingTiersSchema,
-    fields: [
-      { key: "minQty", label: "Min qty", type: "number" },
-      { key: "maxQty", label: "Max qty (blank = unbounded)", type: "number", optional: true },
-      { key: "upliftPct", label: "Uplift %", type: "number", unit: "%" },
     ],
   },
   "addon-categories": {

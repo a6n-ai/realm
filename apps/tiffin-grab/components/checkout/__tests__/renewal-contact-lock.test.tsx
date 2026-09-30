@@ -22,7 +22,7 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
   reprice: vi.fn().mockResolvedValue({
     pricing: {
       lineItems: [], adjustments: [], taxLines: [], taxTotal: 0,
-      tiffinCount: 1, perTiffinPrice: 10, tier: { minQty: 1, maxQty: null, upliftPct: 0 },
+      tiffinCount: 1, perTiffinPrice: 10,
       subtotal: 10, total: 10,
     },
     appliedCoupons: [],

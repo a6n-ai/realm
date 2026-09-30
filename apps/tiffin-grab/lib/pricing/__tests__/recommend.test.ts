@@ -12,7 +12,6 @@ const snapshot = (over: Partial<ClientCatalogSnapshot> = {}): ClientCatalogSnaps
   ],
   durations: [{ publicId: "dur_1", weeks: 1 }, { publicId: "dur_8", weeks: 8 }],
   zones: [],
-  tiers: [{ minQty: 1, maxQty: 11, upliftPct: 20 }, { minQty: 12, maxQty: 19, upliftPct: 10 }, { minQty: 20, maxQty: null, upliftPct: 0 }],
   discounts: [],
   maxDiscountPct: 25,
   ...over,
@@ -100,7 +99,7 @@ describe("compareOptions", () => {
     expect(compareOptions({ snapshot: s, selections: sel({ durationWeeks: 8 }), vary: "duration" }).state).toBe("applied");
   });
   it("none when nothing differs", () => {
-    const flat = snapshot({ tiers: [{ minQty: 1, maxQty: null, upliftPct: 0 }] } as never);
+    const flat = snapshot();
     expect(compareOptions({ snapshot: flat, selections: sel(), vary: "frequency" }).state).toBe("none");
   });
 });

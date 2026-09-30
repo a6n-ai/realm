@@ -4,7 +4,7 @@ import { and, eq, inArray, or } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { db } from "@/db/client";
-import { addonCategories, addons, deliveryFrequencies, deliveryStrategies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans, pricingTiers } from "@/db/schema";
+import { addonCategories, addons, deliveryFrequencies, deliveryStrategies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans } from "@/db/schema";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { RESOURCES, slug } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import {
@@ -255,5 +255,4 @@ export const addonCategoryService = new CatalogService(new UpdatableRepository(d
 export const addonService = new CatalogService(new UpdatableRepository(db, addons, addons.publicId, addons.id), RESOURCES.addons.schema);
 export const deliveryFrequencyService = new CatalogService(new UpdatableRepository(db, deliveryFrequencies, deliveryFrequencies.publicId, deliveryFrequencies.id), RESOURCES["delivery-frequencies"].schema);
 export const durationPackageService = new CatalogService(new UpdatableRepository(db, durationPackages, durationPackages.publicId, durationPackages.id), RESOURCES["duration-packages"].schema);
-export const pricingTierService = new CatalogService(new UpdatableRepository(db, pricingTiers, pricingTiers.publicId, pricingTiers.id), RESOURCES["pricing-tiers"].schema);
 export const discountService = new DiscountService(new UpdatableRepository(db, discounts, discounts.publicId, discounts.id));

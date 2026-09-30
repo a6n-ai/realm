@@ -37,11 +37,6 @@ export function Invoice({ result }: { result: PricingResult | null }) {
           ))}
         </div>
       ) : null}
-      {result.tier.upliftPct > 0 && (
-        <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">
-          Order 20+ tiffins for the best per-tiffin rate (currently +{result.tier.upliftPct}%).
-        </p>
-      )}
       <div className="mt-2 flex items-baseline justify-between gap-2">
         <span className="text-base font-bold tracking-wide uppercase">Total</span>
         <span className="nums text-primary text-2xl font-bold">${result.total.toFixed(2)}</span>

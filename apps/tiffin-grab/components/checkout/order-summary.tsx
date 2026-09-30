@@ -110,9 +110,6 @@ export function OrderSummary({
             <span className="nums text-primary text-[28px] leading-none font-bold tracking-[-0.03em]">{money(result.total)}</span>
           </div>
           {saved > 0 && <p className="nums mt-1.5 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">You save {money(saved)}</p>}
-          {result.tier.upliftPct > 0 && (
-            <p className="text-muted-foreground mt-3 text-xs text-pretty">Order 20+ tiffins for the best per-tiffin rate (currently +{result.tier.upliftPct}%).</p>
-          )}
         </div>
       ) : (
         <p className="text-muted-foreground text-sm">Working out your price…</p>

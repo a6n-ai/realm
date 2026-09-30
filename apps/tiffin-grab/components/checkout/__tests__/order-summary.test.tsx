@@ -15,7 +15,7 @@ const result = {
   adjustments: [{ label: "4-week discount", amount: 10 }],
   taxLines: [{ name: "HST", ratePct: 13, amount: 14.3 }],
   taxTotal: 14.3, tiffinCount: 12, perTiffinPrice: 10,
-  tier: { upliftPct: 0 }, subtotal: 120, total: 124.3,
+  subtotal: 120, total: 124.3,
 } as unknown as PricingResult;
 
 describe("OrderSummary", () => {

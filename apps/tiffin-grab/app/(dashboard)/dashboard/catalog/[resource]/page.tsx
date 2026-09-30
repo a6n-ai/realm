@@ -4,7 +4,7 @@ import { UtensilsCrossedIcon } from "lucide-react";
 import { and, asc, desc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addonCategories, addons, deliveryFrequencies, deliveryZones, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { addonCategories, addons, deliveryFrequencies, deliveryZones, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { dishesService } from "@/lib/services/dishes.service";
@@ -27,7 +27,6 @@ const TABLES: Record<string, PgTable> = {
   "delivery-frequencies": deliveryFrequencies,
   "duration-packages": durationPackages,
   discounts,
-  "pricing-tiers": pricingTiers,
   "addon-categories": addonCategories,
   addons,
 };

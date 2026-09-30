@@ -11,7 +11,6 @@ import {
   durationPackageService,
   mealSizeService,
   planService,
-  pricingTierService,
 } from "@/lib/services/catalog.service";
 import { dishesService } from "@/lib/services/dishes.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -26,7 +25,6 @@ const SERVICES = {
   "delivery-frequencies": deliveryFrequencyService,
   "duration-packages": durationPackageService,
   discounts: discountService,
-  "pricing-tiers": pricingTierService,
   "addon-categories": addonCategoryService,
   addons: addonService,
 } as const;

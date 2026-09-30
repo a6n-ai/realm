@@ -1,18 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { priceSubscription } from "./engine";
 import type { PricingCatalog, PricingSelections } from "./types";
-import type { PricingTier } from "./tiers";
-
-const TIERS: PricingTier[] = [
-  { minQty: 1, maxQty: 11, upliftPct: 20 },
-  { minQty: 12, maxQty: 19, upliftPct: 10 },
-  { minQty: 20, maxQty: null, upliftPct: 0 },
-];
 
 const catalog = (basePrice = 10, freqKey: "5_day" | "mwf" = "5_day", courierDiscountPct = 0, extra: Partial<PricingCatalog> = {}): PricingCatalog => ({
   mealSize: { id: "m1", basePrice },
   frequency: freqKey === "5_day" ? { key: "5_day", daysPerWeek: 5 } : { key: "mwf", daysPerWeek: 3 },
-  tiers: TIERS,
   addons: [],
   discounts: courierDiscountPct > 0 ? [{ key: "delivery_x", label: `Delivery schedule discount (${courierDiscountPct}%)`, percent: courierDiscountPct }] : [],
   maxDiscountPct: 25,
@@ -33,29 +25,22 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
 
 describe("priceSubscription (per-tiffin)", () => {
   it("counts tiffins as deliveryDays × weeks × persons (slot-agnostic)", () => {
-    // 5 days × 4 weeks × 1 person = 20 tiffins → 0% uplift → $10 each
+    // 5 days × 4 weeks × 1 person = 20 tiffins at $10 each
     const r = priceSubscription(sel({ durationWeeks: 4 }), catalog(10));
     expect(r.tiffinCount).toBe(20);
     expect(r.perTiffinPrice).toBe(10);
     expect(r.total).toBe(200);
-    expect(r.tier.upliftPct).toBe(0);
     expect(r.adjustments).toEqual([]);
   });
 
-  it("applies the small-volume uplift below 12", () => {
-    // 5 days × 1 week = 5 tiffins → 20% uplift → $12 each
-    const r = priceSubscription(sel(), catalog(10));
-    expect(r.tiffinCount).toBe(5);
-    expect(r.perTiffinPrice).toBe(12);
-    expect(r.total).toBe(60);
-  });
-
-  it("applies the mid-band uplift at 12–19", () => {
-    // 3 days × 4 weeks = 12 tiffins → 10% uplift → $11 each
-    const r = priceSubscription(sel({ frequencyKey: "mwf", durationWeeks: 4 }), catalog(10, "mwf"));
-    expect(r.tiffinCount).toBe(12);
-    expect(r.perTiffinPrice).toBe(11);
-    expect(r.total).toBe(132);
+  it("charges the base price per tiffin whatever the order size", () => {
+    const small = priceSubscription(sel(), catalog(10));
+    expect(small.tiffinCount).toBe(5);
+    expect(small.perTiffinPrice).toBe(10);
+    expect(small.total).toBe(50);
+    const mid = priceSubscription(sel({ frequencyKey: "mwf", durationWeeks: 4 }), catalog(10, "mwf"));
+    expect(mid.tiffinCount).toBe(12);
+    expect(mid.perTiffinPrice).toBe(10);
   });
 
   it("Saturday and Sunday each add a delivery day", () => {
@@ -67,32 +52,32 @@ describe("priceSubscription (per-tiffin)", () => {
   });
 
   it("applies a single catalog discount as an adjustment line", () => {
-    // 5 tiffins × $12 (20% uplift) = $60 subtotal, 10% cadence discount = $6 off.
-    const r = priceSubscription(sel(), catalog(10, "5_day", 10));
+    // 5 tiffins × $12 = $60 subtotal, 10% cadence discount = $6 off.
+    const r = priceSubscription(sel(), catalog(12, "5_day", 10));
     expect(r.subtotal).toBe(60);
     expect(r.adjustments).toEqual([{ label: "Delivery schedule discount (10%)", amount: 6, discountKey: "delivery_x" }]);
     expect(r.total).toBe(54);
   });
 
   it("adds two discounts up, printing one line each", () => {
-    const r = priceSubscription(sel(), catalog(10, "5_day", 0, { discounts: [{ key: "d", label: "Delivery schedule discount (10%)", percent: 10 }, { key: "p", label: "Plan length discount (5%)", percent: 5 }] }));
+    const r = priceSubscription(sel(), catalog(12, "5_day", 0, { discounts: [{ key: "d", label: "Delivery schedule discount (10%)", percent: 10 }, { key: "p", label: "Plan length discount (5%)", percent: 5 }] }));
     expect(r.adjustments.map((a) => [a.discountKey, a.amount])).toEqual([["d", 6], ["p", 3]]);
     expect(r.total).toBe(51);
   });
 
   it("caps the summed percent and scales lines to sum to the cap", () => {
-    const r = priceSubscription(sel(), catalog(10, "5_day", 0, { discounts: [{ key: "d", label: "D", percent: 10 }, { key: "p", label: "P", percent: 20 }] }));
+    const r = priceSubscription(sel(), catalog(12, "5_day", 0, { discounts: [{ key: "d", label: "D", percent: 10 }, { key: "p", label: "P", percent: 20 }] }));
     expect(r.adjustments.reduce((s, a) => s + a.amount, 0)).toBeCloseTo(15, 2);
     expect(r.total).toBe(45);
   });
 
   it("no discounts leaves totals unchanged", () => {
-    expect(priceSubscription(sel(), catalog(10)).total).toBe(60);
+    expect(priceSubscription(sel(), catalog(12)).total).toBe(60);
   });
 
   it("prices by eating days, ignoring frequency days, still applying the cadence discount", () => {
-    // MWF delivery, eating Mon-Sun: 7/wk × 2 wk = 14 tiffins at the 10% tier ($11).
-    const r = priceSubscription(sel({ frequencyKey: "mwf", durationWeeks: 2, eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }), catalog(10, "mwf", 10));
+    // MWF delivery, eating Mon-Sun: 7/wk × 2 wk = 14 tiffins at $11.
+    const r = priceSubscription(sel({ frequencyKey: "mwf", durationWeeks: 2, eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }), catalog(11, "mwf", 10));
     expect(r.tiffinCount).toBe(14);
     expect(r.adjustments).toEqual([{ label: "Delivery schedule discount (10%)", amount: 15.4, discountKey: "delivery_x" }]);
     expect(r.subtotal).toBe(154);
@@ -111,7 +96,7 @@ describe("priceSubscription (per-tiffin)", () => {
   });
 
   it("multiplies tiffins by persons", () => {
-    // 5 days × 1 week × 4 persons = 20 → 0% uplift
+    // 5 days × 1 week × 4 persons = 20
     const r = priceSubscription(sel({ persons: 4 }), catalog(10));
     expect(r.tiffinCount).toBe(20);
     expect(r.total).toBe(200);
@@ -122,16 +107,6 @@ describe("priceSubscription (per-tiffin)", () => {
     expect(r.lineItems).toHaveLength(1);
     expect(r.lineItems[0].amount).toBe(r.subtotal);
     expect(r.subtotal).toBe(r.total);
-  });
-
-  it("prices flat when every tier is switched off", () => {
-    const r = priceSubscription(sel(), { ...catalog(10), tiers: [] });
-    expect(r.tier.upliftPct).toBe(0);
-    expect(r.perTiffinPrice).toBe(10);
-  });
-
-  it("throws when tiers are misconfigured (no match)", () => {
-    expect(() => priceSubscription(sel(), { ...catalog(10), tiers: [{ minQty: 100, maxQty: null, upliftPct: 0 }] })).toThrow();
   });
 });
 

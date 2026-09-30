@@ -485,7 +485,6 @@ function optMacro(v: unknown): number | null {
 }
 
 const INTERNAL_PREVIEW: Record<string, string> = {
-  "pricing-tiers": "Not shown directly. Shapes the per-tiffin rate as order volume increases.",
   addons: "Not shown on the public site yet. Offered as an order add-on.",
 };
 

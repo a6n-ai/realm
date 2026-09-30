@@ -1,4 +1,3 @@
-import type { PricingTier } from "@/lib/pricing/tiers";
 
 export interface MealSizeView {
   id: bigint;
@@ -80,7 +79,6 @@ export interface CatalogSnapshot {
   frequencies: { id: bigint; publicId: string; key: string; name: string; daysPerWeek: number; weekdays: string[] | null }[];
   durations: { id: bigint; publicId: string; weeks: number }[];
   zones: { id: bigint; publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean }[];
-  tiers: PricingTier[];
   // category key -> display label. Same source the customer day view threads into
   // day-detail.tsx (dishCategoriesService), so a swap's category reads the same
   // whether it's on the calendar or in the subscribe wizard. Optional so existing
@@ -142,7 +140,6 @@ export interface ClientCatalogSnapshot {
   frequencies: { publicId: string; key: string; name: string; daysPerWeek: number; weekdays: string[] | null }[];
   durations: { publicId: string; weeks: number }[];
   zones: { publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean }[];
-  tiers?: PricingTier[];
   categoryLabels?: Record<string, string>;
   addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;
   minTiffinsPerWeek?: number;
@@ -189,7 +186,6 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     frequencies: snapshot.frequencies.map(dropId),
     durations: snapshot.durations.map(dropId),
     zones: snapshot.zones.map(dropId),
-    tiers: snapshot.tiers,
     categoryLabels: snapshot.categoryLabels,
     addonsByCategory: snapshot.addonsByCategory,
     minTiffinsPerWeek: snapshot.minTiffinsPerWeek,

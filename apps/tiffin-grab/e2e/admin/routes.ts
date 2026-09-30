@@ -131,11 +131,6 @@ export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
     path: "/dashboard/catalog/duration-packages",
     heading: /Duration/i,
   },
-  {
-    id: "catalog-pricing-tiers",
-    path: "/dashboard/catalog/pricing-tiers",
-    heading: /Pricing|Tier/i,
-  },
   { id: "catalog-addons", path: "/dashboard/catalog/addons", heading: /Add-?on/i },
   // Shared layout.tsx PageHeader across all /account/* sub-pages, same as wallet/discounts/notifications above.
   { id: "account-profile", path: "/dashboard/account/profile", heading: /Account/i },

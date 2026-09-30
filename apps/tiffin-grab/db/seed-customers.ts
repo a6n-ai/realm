@@ -506,7 +506,6 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
     taxTotal: 0,
     tiffinCount: x.tiffinCount,
     perTiffinPrice: 0,
-    tier: snapshot.tiers[0] ?? { minQty: 1, maxQty: null, upliftPct: 0 },
     subtotal: 0,
     total: 0,
     paymentMethodId: "simulated",

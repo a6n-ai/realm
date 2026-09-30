@@ -4,17 +4,10 @@ import { priceSubscription } from "../engine";
 import { buildPricingCatalog, planDeliveryCount } from "../build-catalog";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "../types";
-import type { PricingTier } from "../tiers";
-
-const TIERS: PricingTier[] = [
-  { minQty: 1, maxQty: 11, upliftPct: 0 },
-  { minQty: 12, maxQty: null, upliftPct: 0 },
-];
 
 const catalog = (basePrice = 10, extra: Partial<PricingCatalog> = {}): PricingCatalog => ({
   mealSize: { id: "m1", basePrice },
   frequency: { key: "5_day", daysPerWeek: 5 },
-  tiers: TIERS,
   addons: [],
   discounts: [],
   maxDiscountPct: 25,
@@ -185,7 +178,6 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
       frequencies: [{ id: 1n, publicId: "freq_1", key: "5_day", name: "5 Day", daysPerWeek: 5, weekdays: null }],
       durations: [{ id: 1n, publicId: "dur_2", weeks: 2 }],
       zones: [{ id: 1n, publicId: "z1", name: "Downtown", radiusKm: null, postalPrefixes: ["M5V"], slotWindow: "11am-1pm", active: true }],
-      tiers: TIERS,
       deliveryCharges: {
         baseCharge: 2,
         strategyGroups: [

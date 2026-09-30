@@ -20,7 +20,6 @@ import {
   mealSizeItems,
   mealSizes,
   plans,
-  pricingTiers,
 } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
@@ -58,7 +57,6 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     freqRows,
     durRows,
     zoneRows,
-    tierRows,
     tiffinSlots,
     healthySlots,
     categoryRows,
@@ -78,7 +76,6 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     db.select().from(deliveryFrequencies).where(and(eq(deliveryFrequencies.active, true), scopedTo(deliveryFrequencies.organizationId, orgId))),
     db.select().from(durationPackages).where(and(eq(durationPackages.active, true), scopedTo(durationPackages.organizationId, orgId))),
     db.select().from(deliveryZones).where(and(eq(deliveryZones.active, true), scopedTo(deliveryZones.organizationId, orgId))),
-    db.select().from(pricingTiers).where(and(eq(pricingTiers.active, true), scopedTo(pricingTiers.organizationId, orgId))),
     dishCategoriesService.forPlanType("tiffin"),
     dishCategoriesService.forPlanType("healthy"),
     db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories),
@@ -164,7 +161,6 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     frequencies: freqRows.map((f) => ({ id: f.id, publicId: f.publicId, key: f.key, name: f.name, daysPerWeek: f.daysPerWeek, weekdays: f.weekdays })),
     durations: durRows.map((d) => ({ id: d.id, publicId: d.publicId, weeks: d.weeks })),
     zones: zoneRows.map((z) => ({ id: z.id, publicId: z.publicId, name: z.name, radiusKm: z.radiusKm == null ? null : Number(z.radiusKm), postalPrefixes: z.postalPrefixes, slotWindow: z.slotWindow, active: z.active })),
-    tiers: tierRows.map((t) => ({ minQty: t.minQty, maxQty: t.maxQty, upliftPct: Number(t.upliftPct) })),
     categoryLabels,
     addonsByCategory: Object.fromEntries(addonsByCategory),
     minTiffinsPerWeek: settings.minTiffinsPerWeek,
