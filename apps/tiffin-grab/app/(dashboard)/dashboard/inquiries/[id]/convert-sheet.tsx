@@ -6,7 +6,6 @@ import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { formatPhone } from "@foundry/commons";
 import { formatMoney } from "@/lib/format/money";
-import type { ZoneLike } from "@/lib/catalog/postal";
 import type { OrderFormInput } from "./order-schema";
 import { OrderForm } from "./order/order-form";
 
@@ -41,7 +40,6 @@ export function ConvertSheet({
   contact,
   catalog,
   enabledSlots,
-  zones,
   prefill,
   unmatched,
   currency,
@@ -54,7 +52,6 @@ export function ConvertSheet({
   contact: { fullName: string; phone: string; email: string };
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
-  zones: ZoneLike[];
   prefill?: Partial<OrderFormInput>;
   // Lead interest OrderForm couldn't auto-match — shown as read-only context so the
   // rep sees what was asked for while the matched fields sit prefilled in the form.
@@ -121,7 +118,6 @@ export function ConvertSheet({
           contact={contact}
           catalog={catalog}
           enabledSlots={enabledSlots}
-          zones={zones}
           prefill={prefill}
           onCreated={() => onOpenChange?.(false)}
         />

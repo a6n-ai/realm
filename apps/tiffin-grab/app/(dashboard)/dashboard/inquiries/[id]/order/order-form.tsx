@@ -14,9 +14,11 @@ import {
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { AddressFields } from "@foundry/ui/address-fields";
+import { DeliveryAreaNote, useDeliveryArea } from "@/components/customer/address/delivery-area";
 import type { PricingResult } from "@/lib/pricing";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
-import type { ZoneLike } from "@/lib/catalog/postal";
 import {
   listCheckoutPaymentMethods,
   type CheckoutPaymentMethod,
@@ -31,7 +33,6 @@ import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../o
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { convertInquiry, previewPrice, repCouponInfo, trialFormSettings, type RepCouponInfo } from "./actions";
 import { ScheduleSection } from "./schedule-section";
-import { PostalCombobox } from "../../../_leads/postal-combobox";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -58,7 +59,6 @@ export function OrderForm({
   prefill,
   onCreate,
   onCreated,
-  zones,
   hideMealSizePicker = false,
   customMeal = null,
 }: {
@@ -71,7 +71,6 @@ export function OrderForm({
   onCreate?: (order: CreateOrderInput) => Promise<AdminOrderCreated>;
   /** Called after success dialog is shown (e.g. close parent sheet). */
   onCreated?: (result: AdminOrderCreated) => void;
-  zones?: ZoneLike[];
   /** A custom meal builder replaces the plan/meal-size pills (New Order). */
   hideMealSizePicker?: boolean;
   /** The builder's composition, priced server-side for the footer preview. */
@@ -128,6 +127,7 @@ export function OrderForm({
   const city = form.watch("city");
   const postalCode = form.watch("postalCode");
   const email = form.watch("email");
+  const deliveryArea = useDeliveryArea(postalCode);
 
   const deliveryFrequencies = catalog.frequencies.filter((f) => f.weekdays?.length);
   const bounds = { min: catalog.minTiffinsPerWeek ?? 3, max: catalog.maxTiffinsPerWeek ?? 7 };
@@ -290,7 +290,7 @@ export function OrderForm({
       const orderInput = buildInput(v);
       const result = onCreate
         ? await onCreate(orderInput)
-        : await convertInquiry(inquiryId, orderInput);
+        : await unwrapAction(convertInquiry(inquiryId, orderInput));
       setCreated(result);
       setSuccessOpen(true);
       // Do not call onCreated here — closing a parent sheet would unmount this dialog.
@@ -433,43 +433,25 @@ export function OrderForm({
           <fieldset className="space-y-3" disabled={submitting}>
             <legend className="text-sm font-medium text-foreground mb-1">Delivery</legend>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="addressLine"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Address <span className="text-destructive">*</span></FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City <span className="text-destructive">*</span></FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="postalCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Postal code <span className="text-destructive">*</span></FormLabel>
-                    {zones && zones.length > 0 ? (
-                      <PostalCombobox value={field.value} onChange={field.onChange} zones={zones} />
-                    ) : (
-                      <FormControl><Input {...field} /></FormControl>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="sm:col-span-2 grid gap-2">
+                <AddressFields
+                  idPrefix="order"
+                  fields={["addressLine", "city", "postalCode"]}
+                  values={{ addressLine, city, postalCode }}
+                  onChange={(patch) => {
+                    for (const key of ["addressLine", "city", "postalCode"] as const) {
+                      if (patch[key] !== undefined) form.setValue(key, patch[key], { shouldDirty: true, shouldValidate: true });
+                    }
+                  }}
+                  errors={{
+                    addressLine: form.formState.errors.addressLine?.message,
+                    city: form.formState.errors.city?.message,
+                    postalCode: form.formState.errors.postalCode?.message,
+                  }}
+                  resolveUrl="/api/address/resolve"
+                />
+                <DeliveryAreaNote area={deliveryArea} />
+              </div>
             </div>
           </fieldset>
 

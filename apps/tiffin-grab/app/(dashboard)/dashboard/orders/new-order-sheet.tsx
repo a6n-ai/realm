@@ -12,7 +12,6 @@ import { Switch } from "@foundry/ui/switch";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { isValidPhone } from "@foundry/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
-import type { ZoneLike } from "@/lib/catalog/postal";
 import { InquiryMatch } from "../_leads/inquiry-match";
 import { CustomerSearch } from "../_leads/customer-search";
 import { StepHeader } from "../_leads/step-header";
@@ -23,6 +22,7 @@ import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { OrderForm } from "../inquiries/[id]/order/order-form";
 import { interestToPrefill } from "../inquiries/_leads/interest-prefill";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { createOrderFlow } from "./actions";
 import {
   CustomMealBuilder, filledItems, type CustomMealCategory, type CustomMealValue,
@@ -71,7 +71,6 @@ export function NewOrderSheet({
   defaultCountry,
   sources,
   catalog,
-  zones,
   categories,
 }: {
   /** Renders the sheet's own trigger button; omit when the sheet is opened by `open`. */
@@ -81,7 +80,6 @@ export function NewOrderSheet({
   defaultCountry: CountryCode;
   sources: Src[];
   catalog: Catalog;
-  zones: ZoneLike[];
   categories: CustomMealCategory[];
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
@@ -357,12 +355,11 @@ export function NewOrderSheet({
                 contact={{ fullName, phone, email }}
                 catalog={catalog}
                 enabledSlots={enabledSlots}
-                zones={zones}
                 prefill={prefill}
                 hideMealSizePicker={customMeal != null}
                 customMeal={customMeal ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
                 onCreate={(order: CreateOrderInput) =>
-                  createOrderFlow({
+                  unwrapAction(createOrderFlow({
                     source: { sourceKey, subSourceKey: subSourceKey || undefined },
                     contact: { fullName, phone, email: email.trim() },
                     interest: {
@@ -379,7 +376,7 @@ export function NewOrderSheet({
                     customMeal: customMeal
                       ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
                       : undefined,
-                  })
+                  }))
                 }
                 onCreated={() => resetAndClose(false)}
               />

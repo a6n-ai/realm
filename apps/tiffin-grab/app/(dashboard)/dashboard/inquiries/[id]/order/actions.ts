@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { ValidationError, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
+import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { coupons, users } from "@/db/schema";
@@ -106,7 +107,7 @@ export async function previewPrice(
   if (customMeal != null) {
     const parsed = customMealSchema.safeParse(customMeal);
     if (!parsed.success) throw new ValidationError(`Custom meal: ${parsed.error.issues[0]?.message ?? "invalid"}`);
-    const priced = await priceCustomComposition(parsed.data.items);
+    const priced = await priceCustomComposition(parsed.data.items, parsed.data.basePriceOverride);
     snap = withTransientCustomSize(snap, priced);
     input = { ...input, planKey: mealPlanKey(priced.items), selections: { ...input.selections, mealSizeId: TRANSIENT_CUSTOM_SIZE_ID } };
     override = parsed.data.basePriceOverride ?? null;
@@ -140,11 +141,13 @@ export async function previewPrice(
 export async function convertInquiry(
   inquiryId: string,
   input: CreateOrderInput,
-): Promise<{ publicId: string; deploymentId: string }> {
-  await requireStaff();
-  const result = await inquiriesService.convert(inquiryId, input);
-  revalidatePath("/dashboard/orders");
-  revalidatePath("/dashboard/inquiries");
-  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
-  return result;
+): Promise<ActionResult<{ publicId: string; deploymentId: string }>> {
+  return runAction(async () => {
+    await requireStaff();
+    const result = await inquiriesService.convert(inquiryId, input);
+    revalidatePath("/dashboard/orders");
+    revalidatePath("/dashboard/inquiries");
+    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+    return result;
+  });
 }

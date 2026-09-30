@@ -275,8 +275,12 @@ export async function createOrder(
     );
     if (err) throw new ValidationError(err);
   }
-  const pricingCatalog = trial ? trial.catalog : buildPricingCatalog(snapshot, input.selections);
-  const computedBase = pricingCatalog.mealSize.basePrice;
+  // An override prices a custom size whose categories have no custom-meal pricing yet.
+  const computedBase = mealSize.priceable ? mealSize.basePrice : null;
+  const pricingSnapshotSource = basePriceOverride != null && !mealSize.priceable
+    ? { ...snapshot, mealSizes: snapshot.mealSizes.map((m) => (m === mealSize ? { ...m, priceable: true } : m)) }
+    : snapshot;
+  const pricingCatalog = trial ? trial.catalog : buildPricingCatalog(pricingSnapshotSource, input.selections);
   if (basePriceOverride != null) pricingCatalog.mealSize = { ...pricingCatalog.mealSize, basePrice: round2(basePriceOverride) };
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.

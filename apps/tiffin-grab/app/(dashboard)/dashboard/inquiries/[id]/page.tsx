@@ -5,7 +5,7 @@ import { ClipboardListIcon } from "lucide-react";
 import { eq } from "drizzle-orm";
 import { NotFoundError, formatPhone } from "@foundry/commons";
 import { db } from "@/db/client";
-import { deliveryZones, leadSources, orders } from "@/db/schema";
+import { leadSources, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -41,20 +41,11 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [catalog, slots, existing, [source], zones, activities, { currency }] = await Promise.all([
+  const [catalog, slots, existing, [source], activities, { currency }] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
     findExistingByContact(inq.phone, inq.email),
     db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
-    db
-      .select({
-        name: deliveryZones.name,
-        postalPrefixes: deliveryZones.postalPrefixes,
-        slotWindow: deliveryZones.slotWindow,
-        active: deliveryZones.active,
-      })
-      .from(deliveryZones)
-      .where(eq(deliveryZones.active, true)),
     inquiriesService.listActivities(id),
     getAppSettings(),
   ]);
@@ -136,7 +127,6 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         activities={timeline}
         catalog={convertCatalog}
         enabledSlots={enabledSlots}
-        zones={zones}
         prefill={prefill}
         unmatched={unmatched}
         existing={existing}

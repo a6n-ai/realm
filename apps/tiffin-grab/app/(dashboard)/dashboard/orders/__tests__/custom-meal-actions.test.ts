@@ -17,6 +17,7 @@ const svc = await import("@/lib/services/custom-meal.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { previewCustomMeal, createOrderFlow } = await import("../actions");
 const { previewPrice } = await import("../../inquiries/[id]/order/actions");
+const { unwrapAction } = await import("@/lib/actions/unwrap");
 
 type Item = { category: string; planKey: "veg" | "non-veg"; tuAmount: number };
 
@@ -132,12 +133,12 @@ describe("createOrderFlow with a custom meal", () => {
 
   async function flow(suffix: string, basePriceOverride: number | null, items: Item[] = ITEMS) {
     const { phone, email, order } = await orderInput(suffix);
-    const r = await createOrderFlow({
+    const r = await unwrapAction(createOrderFlow({
       source: { sourceKey: "manual" },
       contact: { fullName: "Custom Flow", phone, email },
       order,
       customMeal: { items, basePriceOverride },
-    });
+    }));
     const [o] = await db.select().from(orders).where(eq(orders.publicId, r.publicId));
     createdOrderIds.push(o.id);
     if (o.userId) createdUserIds.push(o.userId);
@@ -157,13 +158,14 @@ describe("createOrderFlow with a custom meal", () => {
     expect((o.pricingSnapshot as { basePriceOverride?: { amount: number } }).basePriceOverride?.amount).toBe(5);
   });
 
-  it("rejects an out-of-range override before touching the DB", async () => {
-    await expect(createOrderFlow({
+  it("returns an out-of-range override as an error before touching the DB", async () => {
+    const r = await createOrderFlow({
       source: { sourceKey: "manual" },
       contact: { fullName: "X", phone: "+14165550173", email: "x@test.invalid" },
       order: {} as never,
       customMeal: { items: ITEMS, basePriceOverride: 5000 },
-    })).rejects.toThrow();
+    });
+    expect(r).toHaveProperty("error", expect.stringMatching(/Custom meal/));
   });
 
   it("previewPrice for a custom meal quotes the same pre-tax price createOrder then charges", async () => {
@@ -195,5 +197,17 @@ describe("createOrderFlow with a custom meal", () => {
     await expect(flow("0177", null, unpriced)).rejects.toThrow(/Custom meal: Daal isn't priced for Veg.*Catalog → Custom Meals/);
     const after = await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.custom, true));
     expect(after.length).toBe(before.length);
+  });
+
+  it("an override prices a composition whose category has no custom-meal pricing", async () => {
+    const unpriced: Item[] = [{ category: "daal", planKey: "veg", tuAmount: 1.25 }];
+    expect(await previewCustomMeal(unpriced, 12)).toMatchObject({ perTiffin: 12 });
+    const { order } = await orderInput("0178");
+    const preview = await previewPrice(order, undefined, undefined, { items: unpriced, basePriceOverride: 12 });
+    expect(preview.perTiffinPrice).toBeGreaterThan(0);
+    const { o } = await flow("0178", 12, unpriced);
+    const snap = o.pricingSnapshot as { subtotal: number; basePriceOverride?: { amount: number; computed: number | null } };
+    expect(snap.basePriceOverride).toMatchObject({ amount: 12, computed: null });
+    expect(snap.subtotal).toBe(preview.subtotal);
   });
 });

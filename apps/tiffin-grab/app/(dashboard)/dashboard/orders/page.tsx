@@ -1,10 +1,10 @@
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { PackageIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { db } from "@/db/client";
-import { deliveryZones, leadSources, leadSubsources, orders } from "@/db/schema";
+import { leadSources, leadSubsources, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -146,7 +146,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
 async function NewOrderAction() {
   await requireStaff();
 
-  const [{ defaultCountry }, sourceRows, subRows, catalog, slots, zones] = await Promise.all([
+  const [{ defaultCountry }, sourceRows, subRows, catalog, slots] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -161,15 +161,6 @@ async function NewOrderAction() {
       .from(leadSubsources),
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
-    db
-      .select({
-        name: deliveryZones.name,
-        postalPrefixes: deliveryZones.postalPrefixes,
-        slotWindow: deliveryZones.slotWindow,
-        active: deliveryZones.active,
-      })
-      .from(deliveryZones)
-      .where(eq(deliveryZones.active, true)),
   ]);
 
   const sources = sourceRows
@@ -197,7 +188,6 @@ async function NewOrderAction() {
       defaultCountry={defaultCountry}
       sources={sources}
       catalog={orderCatalog}
-      zones={zones}
       categories={slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel }))}
     />
   );

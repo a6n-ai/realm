@@ -7,7 +7,6 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
 import { formatPhone } from "@foundry/commons";
-import type { ZoneLike } from "@/lib/catalog/postal";
 import { formatMoney } from "@/lib/format/money";
 import type { InquiryStage, ActivityType } from "@/lib/services/inquiries.service";
 import type { NextActionKind } from "../_leads/next-action";
@@ -62,7 +61,6 @@ export function InquiryDetailClient({
   activities,
   catalog,
   enabledSlots,
-  zones,
   prefill,
   unmatched,
   existing,
@@ -78,7 +76,6 @@ export function InquiryDetailClient({
   activities: TimelineActivity[];
   catalog: Catalog;
   enabledSlots: { key: string; label: string }[];
-  zones: ZoneLike[];
   prefill: Partial<OrderFormInput>;
   unmatched: string[];
   existing: { publicId: string; fullName: string } | null;
@@ -229,7 +226,6 @@ export function InquiryDetailClient({
         contact={contact}
         catalog={catalog}
         enabledSlots={enabledSlots}
-        zones={zones}
         prefill={prefill}
         unmatched={unmatched}
         currency={currency}
