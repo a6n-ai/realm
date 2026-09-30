@@ -12,7 +12,7 @@ vi.mock("next/headers", () => ({
 const { db } = await import("@/db/client");
 const { account, notificationOutbox, session, users } = await import("@/db/schema");
 const { auth } = await import("@/lib/auth");
-const { createCustomer, sendCustomerInvite } = await import("../customers.service");
+const { createCustomer, customerInviteUrl, sendCustomerInvite } = await import("../customers.service");
 
 const EMAIL = "customer-invite-it@example.test";
 const PHONES = ["+16475554090"];
@@ -51,6 +51,19 @@ describe("sendCustomerInvite", () => {
 
     const replay = await auth.handler(new Request(url));
     expect(replay.headers.get("location")).toContain("error=INVALID_TOKEN");
+  });
+
+  it("returns a copyable link that signs the customer in, and mails nothing", async () => {
+    await createCustomer({ email: EMAIL, fullName: "Invite Cust", phone: PHONES[0] }, {});
+    const url = await customerInviteUrl(EMAIL);
+
+    const queued = await db.select().from(notificationOutbox).where(eq(notificationOutbox.recipientEmail, EMAIL));
+    expect(queued).toHaveLength(0);
+
+    const res = await auth.handler(new Request(url));
+    expect(res.status).toBe(302);
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/me");
+    expect(res.headers.getSetCookie().some((c) => c.includes("session_token"))).toBe(true);
   });
 
   it("refuses an address that isn't a customer account", async () => {

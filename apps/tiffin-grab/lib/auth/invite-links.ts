@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { linkCapture } from "./link-capture";
 import type { InviteLinkMetadata, PaymentReminderVars } from "./security-events";
 
 // The only issuers of magic links (the public /sign-in/magic-link route is
@@ -31,6 +32,14 @@ export function sendStaffSetupLink(input: { email: string; role: string }) {
 /** Customer welcome: sign in straight to /me. Email code is their sign-in; no password needed. */
 export function sendCustomerInviteLink(email: string) {
   return issue(email, "/me", "/login", { kind: "customer_invite" });
+}
+
+/** Same link as the welcome email, returned for staff to share (e.g. WhatsApp) instead of mailed. */
+export async function createCustomerInviteUrl(email: string): Promise<string> {
+  const box: { url?: string } = {};
+  await linkCapture.run(box, () => issue(email, "/me", "/login", { kind: "customer_invite" }));
+  if (!box.url) throw new Error("magic link was not issued");
+  return box.url;
 }
 
 /** Unpaid manual payment: sign in straight to Finances → Bills to upload the screenshot. */

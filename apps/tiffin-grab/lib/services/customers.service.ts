@@ -7,7 +7,7 @@ import { db } from "@/db/client";
 import { account, deliveries, inquiries, leadSources, mealSizes, orders, payments, plans, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
 import { auth } from "@/lib/auth";
-import { sendCustomerInviteLink } from "@/lib/auth/invite-links";
+import { createCustomerInviteUrl, sendCustomerInviteLink } from "@/lib/auth/invite-links";
 import { ledgerService } from "./ledger.service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -140,7 +140,7 @@ export async function sendAccountSetupEmail(email: string): Promise<void> {
 // (better-auth's sendVerificationEmail silently skips those) and needs no
 // password — email code is how customers sign in. Customer accounts only: the
 // customers page must never mint a sign-in link for a staff account.
-export async function sendCustomerInvite(email: string): Promise<void> {
+async function assertCustomerEmail(email: string): Promise<void> {
   const [u] = await db
     .select({ role: users.role })
     .from(users)
@@ -148,7 +148,16 @@ export async function sendCustomerInvite(email: string): Promise<void> {
     .limit(1);
   if (!u) throw new NotFoundError("Customer not found");
   if (u.role !== "user") throw new ValidationError("This email belongs to a staff account");
+}
+
+export async function sendCustomerInvite(email: string): Promise<void> {
+  await assertCustomerEmail(email);
   await sendCustomerInviteLink(email);
+}
+
+export async function customerInviteUrl(email: string): Promise<string> {
+  await assertCustomerEmail(email);
+  return createCustomerInviteUrl(email);
 }
 
 export async function findExistingByContact(phone: string, email?: string | null) {

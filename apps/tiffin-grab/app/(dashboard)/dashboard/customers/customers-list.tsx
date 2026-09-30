@@ -20,7 +20,7 @@ const COLUMNS: readonly Column<CustomerSortColumn | "latestStatus" | "planComple
   { key: "orders", label: "Orders", sortable: true, align: "right" },
   { key: "latestStatus", label: "Latest status" },
   { key: "planCompletion", label: "Plan Completion" },
-  { key: "invite", label: "Invite" },
+  { key: "invite", label: "Invite", align: "right" },
 ];
 
 export function CustomersList({

@@ -1,32 +1,23 @@
 "use client";
 
-import { useTransition } from "react";
-import { toast } from "sonner";
+import { LinkIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { resendCustomerInvite } from "../actions";
+import { useCustomerInvite } from "../customer-invite-cell";
 
-// Staff-only: mail the customer the welcome sign-in link again. Nothing is
-// shown to the admin — the link goes to the customer's inbox.
+// Staff-only: mail the customer the welcome sign-in link again, or copy that
+// same link to share over WhatsApp.
 export function ResendInviteButton({ email }: { email: string | null }) {
-  const [pending, start] = useTransition();
+  const { send, copy, pending } = useCustomerInvite(email);
   if (!email) return null;
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={pending}
-      onClick={() =>
-        start(async () => {
-          try {
-            await resendCustomerInvite(email);
-            toast.success("Invite sent", { description: `They'll get a welcome email at ${email} with a sign-in link.` });
-          } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Could not send the invite.");
-          }
-        })
-      }
-    >
-      Resend invite
-    </Button>
+    <div className="flex gap-2">
+      <Button variant="outline" size="sm" disabled={pending} onClick={copy}>
+        <LinkIcon data-icon="inline-start" />
+        Copy invite link
+      </Button>
+      <Button variant="outline" size="sm" disabled={pending} onClick={send}>
+        Resend invite
+      </Button>
+    </div>
   );
 }

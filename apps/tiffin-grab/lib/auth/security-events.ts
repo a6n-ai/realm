@@ -3,6 +3,7 @@ import { type OtpType } from "@foundry/auth";
 import { db } from "@/db/client";
 import { session as sessionTable } from "@/db/schema";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { linkCapture } from "./link-capture";
 
 const APP_NAME = "Tiffin Grab";
 
@@ -103,6 +104,11 @@ export type InviteLinkMetadata =
  */
 export async function sendInviteLinkEmail(email: string, url: string, metadata: unknown): Promise<void> {
   const meta = metadata as InviteLinkMetadata | undefined;
+  const capture = linkCapture.getStore();
+  if (capture) {
+    capture.url = url;
+    return;
+  }
   if (meta?.kind === "staff_invite") {
     return sendStaffInvitation({ email, role: meta.role, inviteUrl: url, sendKey: url });
   }

@@ -5,7 +5,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { inquiriesService } from "@/lib/services/inquiries.service";
-import { createCustomer, sendCustomerInvite } from "@/lib/services/customers.service";
+import { createCustomer, customerInviteUrl, sendCustomerInvite } from "@/lib/services/customers.service";
 
 const log = createLogger("customers-actions");
 
@@ -56,4 +56,11 @@ export async function createCustomerFlow(input: {
 export async function resendCustomerInvite(email: string): Promise<void> {
   await requireStaff();
   await sendCustomerInvite(email);
+}
+
+// Same single-use sign-in link as the welcome email, handed to staff to share
+// over WhatsApp/SMS. Nothing is mailed.
+export async function copyCustomerInviteLink(email: string): Promise<string> {
+  await requireStaff();
+  return customerInviteUrl(email);
 }
