@@ -120,8 +120,9 @@ async function quotePrice(
     const parsed = customMealSchema.safeParse(customMeal);
     if (!parsed.success) throw new ValidationError(`Custom meal: ${parsed.error.issues[0]?.message ?? "invalid"}`);
     const priced = await priceCustomComposition(parsed.data.items, parsed.data.basePriceOverride);
-    snap = withTransientCustomSize(snap, priced);
-    input = { ...input, planKey: mealPlanKey(priced.items), selections: { ...input.selections, mealSizeId: TRANSIENT_CUSTOM_SIZE_ID } };
+    const planKey = parsed.data.planKey ?? mealPlanKey(priced.items);
+    snap = withTransientCustomSize(snap, priced, planKey);
+    input = { ...input, planKey, selections: { ...input.selections, mealSizeId: TRANSIENT_CUSTOM_SIZE_ID } };
     override = parsed.data.basePriceOverride ?? null;
   }
   const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);

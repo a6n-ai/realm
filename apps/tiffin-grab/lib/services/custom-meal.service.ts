@@ -4,28 +4,40 @@ import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { customMealPricing, dishCategories, mealSizeItems, mealSizes, plans } from "@/db/schema";
+import { resolveCompositionRows } from "./catalog.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import type { CatalogSnapshot, MealSizeView } from "@/lib/catalog/types";
-import { compositionKey, compositionName, mealPlanKey, normalizeItems, type CategoryUnit, type CustomMealItem } from "@/lib/custom-meal/composition";
+import { compositionName, mealPlanKey, normalizeItems, planLabel, sizeCompositionKey, type CategoryUnit, type CustomMealItem } from "@/lib/custom-meal/composition";
 import { computeCustomPerTiffin, round2 } from "@/lib/custom-meal/pricing";
 import { loadPricingRows } from "@/lib/custom-meal/pricing-rows";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 
-// Item diets a custom meal can use; the healthy plan has no custom meals.
-export const CUSTOM_MEAL_DIETS = ["veg", "non-veg"] as const;
-
+// An item's planKey is one of its category's plans (Catalog → Dish categories); the meal's own
+// planKey is picked separately, like a meal size's plan, and never limits the categories.
 export const customMealItemsSchema = z.array(z.object({
   category: z.string().trim().min(1),
-  planKey: z.enum(CUSTOM_MEAL_DIETS),
+  planKey: z.string().trim().min(1),
   tuAmount: z.number().finite().positive().max(50),
 })).min(1).max(20);
 
 export const customMealSchema = z.object({
+  // Omitted by older callers: then the plan is inferred from the items (mealPlanKey).
+  planKey: z.string().trim().min(1).optional(),
   items: customMealItemsSchema,
   basePriceOverride: z.number().finite().positive().max(1000).nullable().optional(),
 });
 
 export type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Same item rows and category-on-plan rule as Catalog meal sizes (each item keeps its own plan). */
+async function compositionRows(items: CustomMealItem[]) {
+  try {
+    return (await resolveCompositionRows(items.map((i) => ({ category: i.category, planId: i.planKey, tuAmount: i.tuAmount.toFixed(2) })))).rows;
+  } catch (err) {
+    if (err instanceof ValidationError) throw new ValidationError(`Custom meal: ${err.message}`);
+    throw err;
+  }
+}
 
 export async function loadCategoryUnits(q: Pick<typeof db, "select"> = db): Promise<Map<string, CategoryUnit>> {
   const rows = await q.select({
@@ -51,14 +63,14 @@ export async function priceCustomComposition(
   const [units, pricing] = await Promise.all([loadCategoryUnits(), loadPricingRows()]);
   for (const i of rawItems) if (!units.has(i.category)) throw new ValidationError(`Unknown category: ${i.category}`);
   const items = normalizeItems(rawItems, units);
+  await compositionRows(items);
   const active = pricing.filter((p) => p.active);
   const unpriced = items.find((i) => !active.some((p) => p.category === i.category && p.planKey === i.planKey));
   if (unpriced && basePriceOverride != null) {
     return { items, units, name: compositionName(items, units), perTiffin: round2(basePriceOverride) };
   }
   if (unpriced) {
-    const diet = unpriced.planKey === "non-veg" ? "Non-Veg" : "Veg";
-    throw new ValidationError(`Custom meal: ${units.get(unpriced.category)!.label} isn't priced for ${diet} — set it in Catalog → Custom Meals`);
+    throw new ValidationError(`Custom meal: ${units.get(unpriced.category)!.label} isn't priced for ${planLabel(unpriced.planKey)} — set it in Catalog → Custom Meals`);
   }
   try {
     return { items, units, name: compositionName(items, units), perTiffin: computeCustomPerTiffin(items, active) };
@@ -72,8 +84,7 @@ export const TRANSIENT_CUSTOM_SIZE_ID = "custom-preview";
 
 // A preview-only custom size: same shape load.ts gives a persisted one, so the
 // normal buildPricingCatalog/priceSubscription path prices it without a DB write.
-export function withTransientCustomSize(snapshot: CatalogSnapshot, priced: PricedComposition): CatalogSnapshot {
-  const planKey = mealPlanKey(priced.items);
+export function withTransientCustomSize(snapshot: CatalogSnapshot, priced: PricedComposition, planKey: string = mealPlanKey(priced.items)): CatalogSnapshot {
   const plan = snapshot.plans.find((p) => p.key === planKey);
   if (!plan) throw new ValidationError(`Unknown plan: ${planKey}`);
   const view: MealSizeView = {
@@ -114,14 +125,16 @@ export async function upsertPricing(
 
 export async function findOrCreateCustomMealSize(
   rawItems: CustomMealItem[],
-  opts: { actorId: bigint | null; tx?: DbTx; basePrice?: number },
+  opts: { actorId: bigint | null; tx?: DbTx; basePrice?: number; planKey?: string },
 ): Promise<{ id: bigint; publicId: string; name: string; created: boolean }> {
   const run = async (tx: DbTx) => {
     const units = await loadCategoryUnits(tx);
     for (const i of rawItems) if (!units.has(i.category)) throw new ValidationError(`Unknown category: ${i.category}`);
     const items = normalizeItems(rawItems, units);
     if (!items.length) throw new ValidationError("A custom meal needs at least one item");
-    const key = compositionKey(items);
+    const rows = await compositionRows(items);
+    const mealPlan = opts.planKey ?? mealPlanKey(items);
+    const key = sizeCompositionKey(items, mealPlan);
 
     const findExisting = async () => {
       const [row] = await tx.select({ id: mealSizes.id, publicId: mealSizes.publicId, name: mealSizes.name })
@@ -141,7 +154,7 @@ export async function findOrCreateCustomMealSize(
     const [size] = await tx.insert(mealSizes).values({
       key: `custom_${createHash("sha1").update(key).digest("hex").slice(0, 12)}`,
       name,
-      planId: planId(mealPlanKey(items)),
+      planId: planId(mealPlan),
       tier: "budget",
       kcalMin: 0,
       kcalMax: 0,
@@ -158,16 +171,7 @@ export async function findOrCreateCustomMealSize(
       if (!winner) throw new Error(`Custom meal size insert conflicted but no custom row has composition ${key}`);
       return { ...winner, created: false };
     }
-    await tx.insert(mealSizeItems).values(items.map((i, idx) => ({
-      mealSizeId: size.id,
-      name: units.get(i.category)!.label,
-      category: i.category,
-      planId: planId(i.planKey),
-      tuAmount: i.tuAmount.toFixed(2),
-      sortOrder: idx,
-      createdBy: opts.actorId,
-      updatedBy: opts.actorId,
-    })));
+    await tx.insert(mealSizeItems).values(rows.map((r) => ({ ...r, mealSizeId: size.id, createdBy: opts.actorId, updatedBy: opts.actorId })));
     return { ...size, created: true };
   };
   if (opts.tx) return run(opts.tx);

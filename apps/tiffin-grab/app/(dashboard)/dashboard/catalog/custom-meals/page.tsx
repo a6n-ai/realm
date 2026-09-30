@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { plans } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { CUSTOM_MEAL_DIETS, loadPricingRows } from "@/lib/services/custom-meal.service";
+import { loadPricingRows } from "@/lib/services/custom-meal.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { PageHeader, PageShell } from "@/components/ds";
@@ -26,13 +26,12 @@ async function CustomMealsData({ searchParams }: { searchParams: Promise<SearchP
   await requireAdmin();
   const sp = await searchParams;
 
-  const [categories, allPlans, pricing, plansByCategory] = await Promise.all([
+  const [categories, planRows, pricing, plansByCategory] = await Promise.all([
     dishCategoriesService.enabledCategories(),
     db.select({ publicId: plans.publicId, key: plans.key, name: plans.name }).from(plans).where(eq(plans.active, true)),
     loadPricingRows(),
     dishCategoriesService.plansByCategoryKey(),
   ]);
-  const planRows = allPlans.filter((p) => (CUSTOM_MEAL_DIETS as readonly string[]).includes(p.key));
 
   const priced = new Map(pricing.map((p) => [`${p.category}:${p.planKey}`, p]));
   const rows: PricingGridRow[] = categories.flatMap((cat) => {

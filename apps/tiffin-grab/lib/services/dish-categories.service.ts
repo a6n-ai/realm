@@ -104,6 +104,18 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return out;
   }
 
+  /** Plan keys per category key: the plans each category can be added to (custom meal item rows). */
+  async planKeysByCategoryKey(): Promise<Map<string, string[]>> {
+    const rows = await db
+      .select({ categoryKey: dishCategories.key, planKey: plans.key })
+      .from(categoryPlans)
+      .innerJoin(dishCategories, eq(dishCategories.id, categoryPlans.categoryId))
+      .innerJoin(plans, eq(plans.id, categoryPlans.planId));
+    const out = new Map<string, string[]>();
+    for (const r of rows) out.set(r.categoryKey, [...(out.get(r.categoryKey) ?? []), r.planKey]);
+    return out;
+  }
+
   /** Replace a category's add-on-category membership wholesale. Mirrors setPlans. */
   async setAddonCategories(categoryPublicId: string, addonCategoryPublicIds: string[]) {
     const [cat] = await db

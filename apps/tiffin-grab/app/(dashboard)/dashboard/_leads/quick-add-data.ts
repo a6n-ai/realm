@@ -39,7 +39,7 @@ export type QuickAddData = {
 export async function loadQuickAddData(): Promise<QuickAddData> {
   await requireStaff();
 
-  const [{ defaultCountry, currency }, sourceRows, subRows, zones, catalog, slots] = await Promise.all([
+  const [{ defaultCountry, currency }, sourceRows, subRows, zones, catalog, slots, planKeys] = await Promise.all([
     getAppSettings(),
     db.select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active }).from(leadSources),
     db
@@ -51,6 +51,7 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
       .where(eq(deliveryZones.active, true)),
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
+    dishCategoriesService.planKeysByCategoryKey(),
   ]);
 
   const sources = sourceRows
@@ -75,6 +76,6 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
       durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
     },
     enabledSlots: slots.map((s) => ({ key: s.key, label: s.label })),
-    categories: slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel })),
+    categories: slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel, planKeys: planKeys.get(s.key) ?? [] })),
   };
 }
