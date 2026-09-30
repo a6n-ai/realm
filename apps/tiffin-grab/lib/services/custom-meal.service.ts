@@ -11,9 +11,12 @@ import { computeCustomPerTiffin, round2 } from "@/lib/custom-meal/pricing";
 import { loadPricingRows } from "@/lib/custom-meal/pricing-rows";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 
+// Item diets a custom meal can use; the healthy plan has no custom meals.
+export const CUSTOM_MEAL_DIETS = ["veg", "non-veg"] as const;
+
 export const customMealItemsSchema = z.array(z.object({
   category: z.string().trim().min(1),
-  planKey: z.enum(["veg", "non-veg"]),
+  planKey: z.enum(CUSTOM_MEAL_DIETS),
   tuAmount: z.number().finite().positive().max(50),
 })).min(1).max(20);
 

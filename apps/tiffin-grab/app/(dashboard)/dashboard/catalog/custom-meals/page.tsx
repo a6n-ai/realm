@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { plans } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { loadPricingRows } from "@/lib/services/custom-meal.service";
+import { CUSTOM_MEAL_DIETS, loadPricingRows } from "@/lib/services/custom-meal.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { PageHeader, PageShell } from "@/components/ds";
@@ -26,16 +26,20 @@ async function CustomMealsData({ searchParams }: { searchParams: Promise<SearchP
   await requireAdmin();
   const sp = await searchParams;
 
-  const [categories, planRows, pricing] = await Promise.all([
+  const [categories, allPlans, pricing, plansByCategory] = await Promise.all([
     dishCategoriesService.enabledCategories(),
-    db.select({ key: plans.key, name: plans.name }).from(plans).where(eq(plans.active, true)),
+    db.select({ publicId: plans.publicId, key: plans.key, name: plans.name }).from(plans).where(eq(plans.active, true)),
     loadPricingRows(),
+    dishCategoriesService.plansByCategoryKey(),
   ]);
+  const planRows = allPlans.filter((p) => (CUSTOM_MEAL_DIETS as readonly string[]).includes(p.key));
 
   const priced = new Map(pricing.map((p) => [`${p.category}:${p.planKey}`, p]));
   const rows: PricingGridRow[] = categories.flatMap((cat) => {
     const unitHint = `1 TU = ${formatTuHuman({ ...cat, tuUnitSize: Number(cat.tuUnitSize) }, 1)}`;
-    return planRows.map((plan) => {
+    // Only the plans this category belongs to (Catalog → Dish categories).
+    const linked = plansByCategory.get(cat.key) ?? [];
+    return planRows.filter((plan) => linked.includes(plan.publicId)).map((plan) => {
       const p = priced.get(`${cat.key}:${plan.key}`);
       return {
         categoryKey: cat.key,
