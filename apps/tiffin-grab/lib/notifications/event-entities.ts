@@ -69,6 +69,7 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
       { name: "amount", label: "Amount" },
       { name: "orderCode", label: "Order code" },
       { name: "customerName", label: "Customer name" },
+      { name: "method", label: "Method" },
       { name: "url", label: "Sign-in link" },
     ],
   },
