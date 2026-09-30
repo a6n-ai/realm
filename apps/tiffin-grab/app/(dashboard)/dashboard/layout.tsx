@@ -22,6 +22,7 @@ import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { AppBrand } from "@/components/app-brand";
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 import { InboxRealtime } from "@/components/dashboard/inbox-realtime";
+import { AppClock } from "@/components/dashboard/app-clock";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
 // ever actually be static — this just stops Next from wastefully rendering all
@@ -105,6 +106,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       center={<GlobalSearch role={role} />}
       actions={
         <>
+          <AppClock />
           <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
           <NotificationBellMount userPublicId={session.user.id} />
           <LockButton hasPin={hasPin} />
