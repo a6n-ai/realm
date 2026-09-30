@@ -88,7 +88,7 @@ export async function sendStaffInvitation(input: {
   );
 }
 
-export type PaymentReminderVars = { amount: string; orderCode: string; customerName: string };
+export type PaymentReminderVars = { amount: string; orderCode: string; customerName: string; method: string; instructions: string; action: string };
 
 export type InviteLinkMetadata =
   | { kind: "staff_invite"; role: string }

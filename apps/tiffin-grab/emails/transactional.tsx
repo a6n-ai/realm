@@ -368,7 +368,7 @@ export const TEMPLATES: EmailTemplate[] = [
     event: "payment_reminder",
     subject: "Your Tiffin Grab payment is still pending",
     element: (
-      <Layout preview="Upload your payment screenshot so we can confirm it.">
+      <Layout preview="{{payment.instructions}}">
         <Eyebrow>Payment pending</Eyebrow>
         <Title lead="Your payment is still" accent="pending." />
         <P>Hi {"{{payment.customerName}}"}, we haven't received this payment yet.</P>
@@ -379,8 +379,8 @@ export const TEMPLATES: EmailTemplate[] = [
             ["Method", "{{payment.method}}"],
           ]}
         />
-        <P>Already sent it? Upload a screenshot so we can confirm it quickly.</P>
-        <Cta href="{{payment.url}}">Upload payment screenshot</Cta>
+        <P>{"{{payment.instructions}}"}</P>
+        <Cta href="{{payment.url}}">{"{{payment.action}}"}</Cta>
         <Note>
           This link signs you in once and works for 7 days. After that, sign in with a code sent to this email and open
           Finances → Bills.

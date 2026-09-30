@@ -14,7 +14,7 @@ const { account, deliveries, ledgerEntries, notificationOutbox, orderActivities,
   await import("@/db/schema");
 const { auth } = await import("@/lib/auth");
 const { createOrder, verifyPayment } = await import("../orders.service");
-const { sendPaymentReminder } = await import("../payment-reminder");
+const { reminderInstructions, sendPaymentReminder } = await import("../payment-reminder");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
@@ -79,9 +79,12 @@ describe("sendPaymentReminder", () => {
       .select({ payload: notificationOutbox.payload })
       .from(notificationOutbox)
       .where(and(eq(notificationOutbox.event, "payment_reminder"), eq(notificationOutbox.recipientEmail, email)));
-    const vars = (row!.payload as { vars: { payment: { url: string; orderCode: string; customerName: string } } }).vars.payment;
+    const vars = (row!.payload as { vars: { payment: { url: string; orderCode: string; customerName: string; instructions: string; action: string } } }).vars.payment;
     expect(vars.orderCode).toBe(order.deploymentId);
     expect(vars.customerName).toBe("Remind Me");
+    expect(vars.instructions).toContain("pay@test.ca");
+    expect(vars.instructions).toContain(order.deploymentId);
+    expect(vars.action).toBe("Upload payment screenshot");
 
     const res = await auth.handler(new Request(vars.url));
     expect(res.status).toBe(302);
@@ -102,5 +105,11 @@ describe("sendPaymentReminder", () => {
     await expect(sendPaymentReminder(order.publicId, pay.publicId, null)).rejects.toThrow(
       "Only an unpaid or rejected payment can be reminded",
     );
+  });
+
+  it("words cash reminders from the method's own instructions, without a screenshot ask", () => {
+    const out = reminderInstructions({ method: "cash", amount: "40.00" }, "SUB-1", { instructions: "Pay the driver on your first delivery." });
+    expect(out).toEqual({ instructions: "Pay the driver on your first delivery.", action: "View my bill" });
+    expect(reminderInstructions({ method: "cash", amount: "40.00" }, "SUB-1", null).instructions).toContain("SUB-1");
   });
 });

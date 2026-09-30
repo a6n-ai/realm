@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { EyeIcon, ReceiptTextIcon } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { EyeIcon, MailIcon, ReceiptTextIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, ListPagination, RowActions, RowActionTooltipButton, type Column } from "@/components/ds";
@@ -14,6 +16,7 @@ import { PaymentStatusPill } from "./payment-status-pill";
 import { PaymentDetailDialog } from "./payment-detail-dialog";
 import { PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "./payment-facets";
 import type { SortState } from "@/lib/list/sort";
+import { sendPaymentReminderAction } from "../orders/[id]/actions";
 
 const COLUMNS: readonly Column<PaymentSortKey | "actions">[] = [
   { key: "time", label: "Time", sortable: true },
@@ -47,6 +50,23 @@ export function PaymentsTable({
 }) {
   const tz = useTimezone();
   const [viewing, setViewing] = useState<PaymentRow | null>(null);
+  const router = useRouter();
+  const [reminding, startRemind] = useTransition();
+
+  // Same staff-triggered reminder as order detail: a sign-in link to Bills,
+  // with e-Transfer instructions + screenshot upload when that's the method.
+  function remind(r: PaymentRow) {
+    if (reminding) return;
+    startRemind(async () => {
+      const res = await sendPaymentReminderAction(r.orderPublicId, r.publicId);
+      if ("error" in res) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Payment reminder emailed", { description: r.email ?? undefined });
+      router.refresh();
+    });
+  }
   return (
     <div className="space-y-4">
     <DataTable
@@ -80,6 +100,9 @@ export function PaymentsTable({
           <TableCell className="text-right">
             <RowActions>
               <RowActionTooltipButton icon={EyeIcon} label="View payment" onClick={() => setViewing(r)} />
+              {(r.status === "awaiting_payment" || r.status === "rejected") && (
+                <RowActionTooltipButton icon={MailIcon} label="Email payment reminder" onClick={() => remind(r)} />
+              )}
             </RowActions>
           </TableCell>
         </>
