@@ -249,7 +249,8 @@ export function mapRow(row: WpRow): MigrationRecord {
     deliveryInstructions: instructionsFor(row),
     planKey: planKeyFor(row),
     productText: (row.products ?? "").trim(),
-    addonsText: (row.addons ?? "").trim(),
+    // WordPress sometimes stores a leading "+" ("+ 1 Roti"); normalized so a renewal still matches.
+    addonsText: (row.addons ?? "").split("+").map((s) => s.trim()).filter(Boolean).join(" + "),
     frequencyKey,
     eatingDays,
     includeSaturday,

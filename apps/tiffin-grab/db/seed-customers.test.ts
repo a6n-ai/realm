@@ -258,6 +258,12 @@ describe("planSeed custom meals", () => {
     expect(planned.kind === "planned" && planned.customItems).toBeFalsy();
   });
 
+  it("merges a renewal whose add-on text only differs by a stray + or spaces", () => {
+    const { kept, dropped } = dedupeByPhone([mapRow(row({ id: 1, addons: "1 Roti" })), mapRow(row({ id: 2, addons: " + 1 Roti " }))]);
+    expect(dropped).toEqual([]);
+    expect(kept[0]).toMatchObject({ wpOrderId: 1, addonsText: "1 Roti", mergedWpOrderIds: [2] });
+  });
+
   it("does not merge a renewal whose add-ons differ", () => {
     const { kept, dropped } = dedupeByPhone([mapRow(row({ id: 1 })), mapRow(row({ id: 2, addons: "2 Rotis" }))]);
     expect(kept[0].mergedWpOrderIds).toEqual([]);
