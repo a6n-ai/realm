@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCanadianPostalCode } from "../postal";
+import { isFullPostalCode, parseCanadianPostalCode } from "../postal";
 
 describe("parseCanadianPostalCode", () => {
   it.each([
@@ -26,5 +26,10 @@ describe("parseCanadianPostalCode", () => {
 
   it("rejects missing input", () => {
     expect(() => parseCanadianPostalCode(null)).toThrow();
+  });
+
+  it("isFullPostalCode agrees with the parser", () => {
+    expect(isFullPostalCode("m5v 2t6")).toBe(true);
+    expect(isFullPostalCode("M4N")).toBe(false);
   });
 });

@@ -32,6 +32,14 @@ export function useDeliveryArea(postalCode: string | null | undefined): Delivery
 /** "We deliver here" / "Not in our area yet" under an address form. */
 export function DeliveryAreaNote({ area }: { area: DeliveryArea | null }) {
   if (!area) return null;
+  // Zones match on the area, but an order needs the whole code: say so before the server does.
+  if (area.served && area.code.length === 3) {
+    return (
+      <p role="status" className="text-destructive text-[13px] font-medium">
+        We deliver to {area.code}. Now enter your full postal code, like M5V 2T6.
+      </p>
+    );
+  }
   return area.served ? (
     <p role="status" className="text-[13px] font-medium text-[var(--success,#1F7A4D)]">
       We deliver here{area.zone ? ` — ${area.zone}` : ""}.
