@@ -10,6 +10,7 @@ import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
+import { quoteTrial } from "@/lib/trial/quote";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
@@ -92,8 +93,11 @@ export async function reprice(
   // franchise-scoped meal size/coupon the client priced against could resolve
   // to a different (or missing) row here and disagree on the total.
   const snapshot = await loadCatalogSnapshot(await resolveRequestOrg());
-  const catalog = buildPricingCatalog(snapshot, selections);
-  const base = priceSubscription(selections, catalog);
+  const trialMeal = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);
+  const trial = trialMeal?.trial ? await quoteTrial(snapshot, selections) : null;
+  const catalog = trial ? trial.catalog : buildPricingCatalog(snapshot, selections);
+  const pricedSelections = trial ? trial.pricingSelections : selections;
+  const base = priceSubscription(pricedSelections, catalog);
   const postCatalog = postCatalogSubtotal(base.subtotal, base.adjustments);
 
   const paymentCfg = await getPaymentConfig();
@@ -172,7 +176,7 @@ export async function reprice(
     }
   }
 
-  const pricing = priceSubscription(selections, catalog, lines, taxes);
+  const pricing = priceSubscription(pricedSelections, catalog, lines, taxes);
   const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r) => ({
     code: r.coupon.code,
     name: r.coupon.name,

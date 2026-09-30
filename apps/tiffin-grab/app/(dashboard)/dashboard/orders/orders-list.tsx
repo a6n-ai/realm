@@ -73,6 +73,11 @@ export function OrdersList({
             <Link href={`/dashboard/orders/${o.publicId}`} className="group-hover:underline">
               {o.fullName}
             </Link>
+            {o.trial && (
+              <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-950 uppercase dark:bg-amber-900/40 dark:text-amber-100">
+                Trial
+              </span>
+            )}
           </TableCell>
           <TableCell>{o.deploymentId}</TableCell>
           <TableCell>{o.city}</TableCell>

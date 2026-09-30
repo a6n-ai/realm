@@ -18,6 +18,8 @@ export interface PricingSelections {
   includeSunday: boolean;
   durationWeeks: number;
   startDate: string; // ISO YYYY-MM-DD; not used by pricing, carried for order creation
+  /** Days the customer chose for a trial meal (1 through the admin max). Absent on a weekly plan. */
+  trialDays?: number;
   // Add-ons picked in the wizard, with quantity. Optional — omitted/empty means
   // no add-ons, so existing callers built before add-ons existed keep working.
   addonSelections?: { key: string; qty: number }[];

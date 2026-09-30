@@ -158,7 +158,7 @@ export function Checkout({
   );
   // Where "Edit plan" sends the customer back to — the flow that actually wrote
   // WIZARD_STORAGE_KEY, not always the full wizard.
-  const [origin, setOrigin] = useState<WizardOrigin>(storedOrigin === "renew" ? "renew" : "subscribe");
+  const [origin, setOrigin] = useState<WizardOrigin>(storedOrigin === "renew" || storedOrigin === "trial" ? storedOrigin : "subscribe");
   const reduce = useReducedMotion();
   const prevStep = useRef(step);
 
@@ -210,6 +210,7 @@ export function Checkout({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!selections) setSelections(s);
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
+    if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
     refreshPrice(s, undefined, null).catch(() => setResult(null));
     // The default saved address is checked against our zones straight away, like a picked one.
     // The first price above already used its postal code, so no second re-price.
@@ -386,8 +387,10 @@ export function Checkout({
   const baseline = catalog?.plans.find((p) => p.key === selections.planKey)?.name;
   const freq = catalog?.frequencies.find((f) => f.key === selections.frequencyKey);
   // The frequency name already spells out its days; the eating-day pills show the chosen ones.
-  const deliveryType = freq?.name ?? null;
-  const editHref = origin === "renew" ? "/me/renew" : "/subscribe";
+  const deliveryType = selections.trialDays != null
+    ? `Trial · ${selections.trialDays} ${selections.trialDays === 1 ? "day" : "days"}`
+    : (freq?.name ?? null);
+  const editHref = origin === "renew" ? "/me/renew" : origin === "trial" ? "/me/trial" : "/subscribe";
 
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;

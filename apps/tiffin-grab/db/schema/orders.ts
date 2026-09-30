@@ -44,6 +44,12 @@ export const orders = pgTable("orders", {
   includeSaturday: boolean("include_saturday").notNull().default(false),
   includeSunday: boolean("include_sunday").notNull().default(false),
   durationWeeks: integer("duration_weeks").notNull(),
+  // Set together when the order is a trial. trialLength is the count the customer
+  // chose (1 through the max at checkout). trialWeekdays is the send-day list
+  // copied then, so a later settings edit does not move an order already placed.
+  // Null trialLength means a normal weekly subscription.
+  trialLength: integer("trial_length"),
+  trialWeekdays: text("trial_weekdays").array(),
   startDate: date("start_date").notNull(),
   tiffinCount: integer("tiffin_count").notNull(),
   // Tiffins owed but not yet placed on a calendar date (post-cutoff skip/vacation misses).

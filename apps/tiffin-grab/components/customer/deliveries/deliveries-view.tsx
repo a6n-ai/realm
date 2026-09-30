@@ -95,7 +95,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // The menu of this week isn't out: pick/swap are disabled, everything else (dates, move, info) still shows.
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
-  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo }) : null;
+  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo, trial: plan.sub.trial === true }) : null;
 
   const dots = useMemo(() => {
     const out: Record<string, { orderId: string; status: DeliveryStatus; truck: boolean }[]> = {};

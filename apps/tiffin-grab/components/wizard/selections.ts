@@ -11,7 +11,7 @@ export const WIZARD_STORAGE_KEY = "tiffin.wizard";
 // Which flow wrote WIZARD_STORAGE_KEY — checkout's "Edit plan" back-link returns
 // the customer to /subscribe or /me/renew, both of which use the same stepper.
 export const WIZARD_ORIGIN_KEY = "tiffin.wizard.origin";
-export type WizardOrigin = "subscribe" | "renew";
+export type WizardOrigin = "subscribe" | "renew" | "trial";
 
 // Wizard step to reopen on when "Edit plan" comes back from checkout.
 export const WIZARD_STEP_KEY = "tiffin.wizard.step";
@@ -39,17 +39,31 @@ export const tiffinBounds = (catalog: ClientCatalogSnapshot) => ({
   max: catalog.maxTiffinsPerWeek ?? 7,
 });
 
-/** Null when the schedule step is complete and valid; shared by the step and the wizard's Continue gate. */
+/** True when the picked size is a trial, so the wizard skips Schedule. */
+export function selectionIsTrial(catalog: ClientCatalogSnapshot, s: WizardSelections): boolean {
+  if (s.mealSizeId === "") return false;
+  return catalog.mealSizes?.find((m) => m.publicId === s.mealSizeId)?.trial === true;
+}
+
+/** Next or previous step. A trial jumps Bundle (1) straight to Start (3). */
+export function adjacentWizardStep(step: number, dir: 1 | -1, trial: boolean): number {
+  if (trial && dir === 1 && step === 1) return 3;
+  if (trial && dir === -1 && step === 3) return 1;
+  return step + dir;
+}
+
 /** What the customer still needs to do before the current step's button works; null = good to go. */
 export function nextBlockedReason(step: number, catalog: ClientCatalogSnapshot, s: WizardSelections): string | null {
   if (step === 0) return s.planKey == null ? "Choose a baseline plan to continue." : null;
   if (step === 1) return s.mealSizeId === "" ? "Pick a meal size to continue." : null;
+  if (step === 2 && selectionIsTrial(catalog, s)) return null;
   if (step === 2) {
     const err = scheduleError(catalog, s);
     if (err) return err.endsWith(".") ? err : `${err}.`;
     return null;
   }
   if (s.mealSizeId === "") return "Pick a meal size on the Bundle step to continue.";
+  if (selectionIsTrial(catalog, s) && (s.trialDays == null || s.trialDays < 1)) return "Choose how many trial days to continue.";
   if (!s.startDate) return "Choose a start date to continue.";
   return null;
 }

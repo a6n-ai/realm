@@ -32,7 +32,7 @@ type Src = { key: string; label: string; subs: { key: string; label: string }[] 
 
 type Catalog = {
   plans: { key: string; name: string }[];
-  mealSizes: { id: string; name: string; diet: string }[];
+  mealSizes: { id: string; name: string; diet: string; trial?: boolean }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;

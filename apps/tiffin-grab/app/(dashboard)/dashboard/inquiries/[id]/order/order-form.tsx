@@ -28,7 +28,8 @@ import {
 import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
-import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
+import { earliestTrialIso } from "@/lib/trial/schedule";
+import { convertInquiry, previewPrice, repCouponInfo, trialFormSettings, type RepCouponInfo } from "./actions";
 import { ScheduleSection } from "./schedule-section";
 import { PostalCombobox } from "../../../_leads/postal-combobox";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
@@ -40,7 +41,7 @@ const customMealFormSchema = orderFormSchema.extend({ planKey: z.string(), mealS
 
 type Catalog = {
   plans: { key: string; name: string }[];
-  mealSizes: { id: string; name: string; diet: string }[];
+  mealSizes: { id: string; name: string; diet: string; trial?: boolean }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
@@ -84,6 +85,8 @@ export function OrderForm({
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
+  const [trialSettings, setTrialSettings] = useState<{ maxDays: number | null; weekdays: string[] } | null>(null);
+  const [trialDays, setTrialDays] = useState(1);
 
   const defaultSlots = enabledSlots.some((s) => s.key === "lunch")
     ? ["lunch"]
@@ -112,7 +115,6 @@ export function OrderForm({
   });
 
   const submitting = form.formState.isSubmitting;
-  const minStart = nextWeekday(new Date()).toISOString().slice(0, 10);
 
   const planKey = form.watch("planKey");
   const mealSizeId = form.watch("mealSizeId");
@@ -138,6 +140,11 @@ export function OrderForm({
   };
 
   const mealsForPlan = catalog.mealSizes.filter((m) => !planKey || m.diet === planKey);
+  const isTrial = catalog.mealSizes.find((m) => m.id === mealSizeId)?.trial === true;
+  const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialSettings.weekdays.length > 0;
+  const minStart = isTrial && trialSettings
+    ? earliestTrialIso(new Date(), trialSettings.weekdays)
+    : nextWeekday(new Date()).toISOString().slice(0, 10);
   const realPayments = paymentMethods.length > 0;
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
 
@@ -147,6 +154,18 @@ export function OrderForm({
     form.setValue("mealSizeId", mealsForPlan[0]?.id ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    trialFormSettings()
+      .then((s) => {
+        if (cancelled) return;
+        setTrialSettings(s);
+        if (s.maxDays != null && s.maxDays >= 1) setTrialDays(s.maxDays);
+      })
+      .catch(() => { if (!cancelled) setTrialSettings(null); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,18 +183,21 @@ export function OrderForm({
     };
   }, []);
 
-  const buildInput = (v: OrderFormValues): CreateOrderInput => ({
+  const buildInput = (v: OrderFormValues): CreateOrderInput => {
+    const trial = catalog.mealSizes.find((m) => m.id === v.mealSizeId)?.trial === true;
+    return {
     planKey: v.planKey,
     selections: {
       mealSizeId: v.mealSizeId,
       frequencyKey: v.frequencyKey,
-      eatingDays: v.eatingDays,
+      eatingDays: trial ? undefined : v.eatingDays,
       persons: v.persons,
       mealSlots: v.mealSlots,
-      includeSaturday: v.eatingDays.includes("sat"),
-      includeSunday: v.eatingDays.includes("sun"),
+      includeSaturday: trial ? false : v.eatingDays.includes("sat"),
+      includeSunday: trial ? false : v.eatingDays.includes("sun"),
       durationWeeks: v.durationWeeks,
       startDate: v.startDate,
+      ...(trial ? { trialDays } : {}),
     },
     contact: {
       fullName: contact.fullName,
@@ -189,7 +211,8 @@ export function OrderForm({
     repCoupon: repInfo?.available && discount > 0
       ? { code: repInfo.code, requestedAmount: discount }
       : undefined,
-  });
+  };
+  };
 
   // Serialized so a fresh-but-equal object from the parent doesn't refire the preview.
   const customKey = hideMealSizePicker && customMeal?.items.length ? JSON.stringify(customMeal) : "";
@@ -239,7 +262,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialDays, isTrial]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -248,10 +271,16 @@ export function OrderForm({
 
   const onSubmit = form.handleSubmit(async (v) => {
     setError(null);
-    const err = eatingDaysError(deliveryDays, v.eatingDays, bounds);
-    if (err) {
-      setError(err);
+    if (isTrial && !trialOpen) {
+      setError("Trials aren't available right now");
       return;
+    }
+    if (!isTrial) {
+      const err = eatingDaysError(deliveryDays, v.eatingDays, bounds);
+      if (err) {
+        setError(err);
+        return;
+      }
     }
     if (realPayments && !paymentMethodId) {
       setError("Choose a payment method");
@@ -342,6 +371,24 @@ export function OrderForm({
                   </FormItem>
                 )}
               />
+              {isTrial ? (
+                <div className="space-y-2">
+                  <Label htmlFor="trial-days">Trial days <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="trial-days"
+                    type="number"
+                    min={1}
+                    max={trialSettings?.maxDays ?? 1}
+                    value={trialDays}
+                    onChange={(e) => setTrialDays(Math.min(trialSettings?.maxDays ?? 1, Math.max(1, Number(e.target.value) || 1)))}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    {trialOpen
+                      ? `Up to ${trialSettings?.maxDays} days, sent on ${trialSettings?.weekdays.join(", ")}.`
+                      : "Set a max and send days on Meal sizes → Trial before creating a trial order."}
+                  </p>
+                </div>
+              ) : (
               <FormField
                 control={form.control}
                 name="durationWeeks"
@@ -356,6 +403,7 @@ export function OrderForm({
                   </FormItem>
                 )}
               />
+              )}
               <FormField
                 control={form.control}
                 name="startDate"
@@ -370,7 +418,7 @@ export function OrderForm({
             </div>
           </fieldset>
 
-          <fieldset disabled={submitting}>
+          {!isTrial && <fieldset disabled={submitting}>
             <ScheduleSection
               frequencies={deliveryFrequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays as DayOfWeek[], savePct: f.savePct }))}
               frequencyKey={frequencyKey}
@@ -380,7 +428,7 @@ export function OrderForm({
               onToggleDay={toggleEating}
               bounds={bounds}
             />
-          </fieldset>
+          </fieldset>}
 
           <fieldset className="space-y-3" disabled={submitting}>
             <legend className="text-sm font-medium text-foreground mb-1">Delivery</legend>

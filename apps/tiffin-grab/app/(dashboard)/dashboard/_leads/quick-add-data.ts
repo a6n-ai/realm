@@ -16,7 +16,7 @@ import type { CustomMealCategory } from "../orders/custom-meal-builder";
 export type QuickAddSource = { key: string; label: string; subs: { key: string; label: string }[] };
 export type QuickAddCatalog = {
   plans: { key: string; name: string }[];
-  mealSizes: { id: string; name: string; diet: string }[];
+  mealSizes: { id: string; name: string; diet: string; trial?: boolean }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
@@ -66,7 +66,7 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
     zones,
     catalog: {
       plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-      mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey })),
+      mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial })),
       frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,

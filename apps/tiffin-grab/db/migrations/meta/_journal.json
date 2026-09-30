@@ -15,6 +15,13 @@
       "when": 1790618127561,
       "tag": "0001_custom_meal",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790770438802,
+      "tag": "0002_trial_settings",
+      "breakpoints": true
     }
   ]
 }

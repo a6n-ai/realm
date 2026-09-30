@@ -95,6 +95,8 @@ export type Subscription = {
   mealSizeName: string;
   /** A per-customer custom meal: its name is the composition ("1 Rice + 8 Roti + …"). */
   mealSizeCustom?: boolean;
+  /** A trial order: dishes can be edited, and the plan cannot be paused or moved. */
+  trial?: boolean;
   persons: number;
   /** Per-category item counts from the meal size at checkout (e.g. sabzi: 2). */
   categoryCounts: Record<string, number>;
@@ -147,6 +149,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       mealSizeId: orders.mealSizeId,
       mealSizeName: mealSizes.name,
       mealSizeCustom: mealSizes.custom,
+      trialLength: orders.trialLength,
       persons: orders.persons,
       categoryCounts: orders.categoryCounts,
       tagLabel: plans.tagLabel,
@@ -182,6 +185,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
         mealSizeId: r.mealSizeId,
         mealSizeName: r.mealSizeName,
         mealSizeCustom: r.mealSizeCustom,
+        trial: r.trialLength != null,
         persons: r.persons,
         categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
         tagLabel: r.tagLabel,

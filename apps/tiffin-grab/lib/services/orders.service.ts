@@ -37,6 +37,7 @@ import { addressService } from "./addresses.service";
 import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
+import { quoteTrial } from "@/lib/trial/quote";
 import { round2 } from "@/lib/custom-meal/pricing";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
@@ -245,10 +246,27 @@ export async function createOrder(
   const categoryCounts = categoryCountsFromItems(mealSize.items);
   const mealSlots = Object.keys(categoryCounts);
   if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
-  validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
+  const trial = mealSize.trial ? await quoteTrial(snapshot, input.selections) : null;
+  if (!mealSize.trial && input.selections.trialDays != null) {
+    throw new ValidationError("Only a trial meal has a day count");
+  }
+  if (trial) {
+    input.selections = {
+      ...input.selections,
+      frequencyKey: trial.frequencyKey,
+      eatingDays: undefined,
+      durationWeeks: trial.durationWeeks,
+      includeSaturday: false,
+      includeSunday: false,
+      addonSelections: [],
+      trialDays: trial.length,
+    };
+  } else {
+    validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
+  }
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
   if (!frequency) throw new ValidationError("Invalid delivery frequency");
-  if (input.selections.eatingDays) {
+  if (!trial && input.selections.eatingDays) {
     const { minTiffinsPerWeek, maxTiffinsPerWeek } = await getAppSettings();
     const err = eatingDaysError(
       orderDeliveryDays({ frequencyKey: frequency.key, weekdays: frequency.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false }),
@@ -257,12 +275,12 @@ export async function createOrder(
     );
     if (err) throw new ValidationError(err);
   }
-  const pricingCatalog = buildPricingCatalog(snapshot, input.selections);
+  const pricingCatalog = trial ? trial.catalog : buildPricingCatalog(snapshot, input.selections);
   const computedBase = pricingCatalog.mealSize.basePrice;
   if (basePriceOverride != null) pricingCatalog.mealSize = { ...pricingCatalog.mealSize, basePrice: round2(basePriceOverride) };
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.
-  const basePricing = priceSubscription(input.selections, pricingCatalog);
+  const basePricing = priceSubscription(trial ? trial.pricingSelections : input.selections, pricingCatalog);
   // Before the zone lookup: a bare prefix ("M8") would otherwise match a zone.
   input.contact = { ...input.contact, postalCode: parseCanadianPostalCode(input.contact.postalCode) };
   let zoneRow = await findZone(snapshot.zones, input.contact, orgId);
@@ -595,6 +613,8 @@ export async function createOrder(
         includeSaturday: input.selections.eatingDays ? input.selections.eatingDays.includes("sat") : input.selections.includeSaturday,
         includeSunday: input.selections.eatingDays ? input.selections.eatingDays.includes("sun") : input.selections.includeSunday,
         durationWeeks: input.selections.durationWeeks,
+        trialLength: trial?.length ?? null,
+        trialWeekdays: trial?.weekdays ?? null,
         startDate: input.selections.startDate,
         tiffinCount: pricing.tiffinCount,
         perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
@@ -1152,6 +1172,7 @@ export type OrderListRow = {
   createdAt: number;
   ownerId: string | null;
   ownerName: string | null;
+  trial: boolean;
 };
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
@@ -1223,6 +1244,7 @@ export async function listOrdersPage(
       createdAt: orders.createdAt,
       ownerId: users.publicId,
       ownerName: users.name,
+      trialLength: orders.trialLength,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
@@ -1265,6 +1287,7 @@ export async function listOrdersPage(
     createdAt: r.createdAt,
     ownerId: r.ownerId ?? null,
     ownerName: r.ownerName ?? null,
+    trial: r.trialLength != null,
   }));
   return { items, page: page.page, size: page.size, total: count };
 }
@@ -1591,6 +1614,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // NOT NULL in subscription_pauses) — getPauseUsage counts those days toward cumulative usage by design.
   async pause(publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> {
     const order = await this.read(publicId);
+    if (order.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
     if (order.status !== "active") throw new ValidationError(`Cannot pause an order that is ${order.status}`);
     const actorId = await this.currentUserId();
 
@@ -1718,6 +1742,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const snapshot = await loadCatalogSnapshot(order.organizationId);
     const mealSize = snapshot.mealSizes.find((m) => m.publicId === mealSizePublicId);
     if (!mealSize) throw new ValidationError("Invalid meal size");
+    if (order.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
+    if (mealSize.trial) throw new ValidationError("Trial meals are ordered from the trial page.");
     const plan = snapshot.plans.find((p) => p.id === mealSize.planId);
     if (!plan) throw new ValidationError("Invalid meal size: owning plan not found or inactive");
 

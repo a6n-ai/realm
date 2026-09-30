@@ -3,11 +3,12 @@ import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "../selections";
-import { Choice, ChoiceGroup, Pill } from "@/components/customer/kit";
+import { Choice, ChoiceGroup, Pill, Stepper } from "@/components/customer/kit";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
+import { earliestTrialIso, trialDeliveryDates } from "@/lib/trial/schedule";
 
 function dayBefore(iso: string): string {
   const d = parseIsoDateUtc(iso);
@@ -23,6 +24,7 @@ export function StepDuration({
   sameWeekConflict = false,
   currentPlan = null,
   minStartDate = null,
+  trial = null,
 }: {
   catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
@@ -31,11 +33,13 @@ export function StepDuration({
   sameWeekConflict?: boolean;
   currentPlan?: CurrentPlanSummary | null;
   minStartDate?: string | null;
+  /** Set when the chosen size is a trial: day count replaces the week commitment. */
+  trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
   const [startDateError, setStartDateError] = useState<string | null>(null);
   const plan = catalog.plans.find((p) => p.key === selections.planKey);
-  const allowed = plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"];
-  const tomorrow = nextWeekday(new Date()).toISOString().slice(0, 10);
+  const allowed = trial ? trial.weekdays : (plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"]);
+  const tomorrow = trial ? earliestTrialIso(new Date(), trial.weekdays) : nextWeekday(new Date()).toISOString().slice(0, 10);
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const overlapBound = minStartDate != null && minDate === minStartDate;
   // First day on/after minDate that the plan actually delivers on.
@@ -51,9 +55,12 @@ export function StepDuration({
   useEffect(() => {
     const cur = selections.startDate;
     const valid = cur && cur >= minDate && allowed.includes(weekdayKey(parseIsoDateUtc(cur)));
-    if (!valid) set({ startDate: earliest });
+    const days = selections.trialDays;
+    const daysOk = !trial || (days != null && days >= 1 && days <= trial.maxDays);
+    if (!valid) set({ startDate: earliest, ...(daysOk ? {} : { trialDays: trial?.maxDays }) });
+    else if (!daysOk && trial) set({ trialDays: trial.maxDays });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [earliest, selections.startDate, plan?.key]);
+  }, [earliest, selections.startDate, plan?.key, trial?.maxDays]);
   const dayLabel: Record<string, string> = {
     mon: "Mon",
     tue: "Tue",
@@ -119,7 +126,7 @@ export function StepDuration({
           allowedDays={allowed}
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          Deliveries start on a weekday ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {formatDateOnly(earliest, { mode: "short" })}.
+          {trial ? "Sent on" : "Deliveries start on a weekday"} ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {formatDateOnly(earliest, { mode: "short" })}.
         </p>
         {startDateError && <p className="mt-1 text-xs text-destructive">{startDateError}</p>}
         {sameWeekConflict && !startDateError ? (
@@ -129,6 +136,7 @@ export function StepDuration({
           </p>
         ) : null}
       </div>
+      {trial ? <TrialLength trial={trial} selections={selections} set={set} dayLabel={dayLabel} /> : (
       <div>
         <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Commitment duration</p>
         <ChoiceGroup
@@ -150,6 +158,45 @@ export function StepDuration({
           })}
         </ChoiceGroup>
       </div>
+      )}
+    </div>
+  );
+}
+
+function TrialLength({
+  trial,
+  selections,
+  set,
+  dayLabel,
+}: {
+  trial: { maxDays: number; weekdays: string[] };
+  selections: WizardSelections;
+  set: (patch: Partial<WizardSelections>) => void;
+  dayLabel: Record<string, string>;
+}) {
+  const length = selections.trialDays ?? trial.maxDays;
+  let dates: string[] = [];
+  if (selections.startDate) {
+    try {
+      dates = trialDeliveryDates(selections.startDate, length, trial.weekdays);
+    } catch {
+      dates = [];
+    }
+  }
+  return (
+    <div>
+      <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Trial days</p>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-sm text-pretty">Up to {trial.maxDays} {trial.maxDays === 1 ? "day" : "days"}, on {trial.weekdays.map((d) => dayLabel[d] ?? d).join(", ")}.</p>
+        <Stepper label="Trial days" value={length} min={1} max={trial.maxDays} onChange={(n) => set({ trialDays: n })} />
+      </div>
+      {dates.length > 0 && (
+        <ul className="mt-3 space-y-1 text-sm">
+          {dates.map((iso) => (
+            <li key={iso}>{formatDateOnly(iso, { mode: "short" })}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

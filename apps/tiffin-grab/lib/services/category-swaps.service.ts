@@ -43,6 +43,8 @@ export async function applyDeliverySwap(
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    const [trialOrder] = await tx.select({ trialLength: orders.trialLength }).from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (trialOrder?.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertMutable(row);
@@ -107,6 +109,8 @@ export async function removeDeliverySwap(
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    const [trialOrder] = await tx.select({ trialLength: orders.trialLength }).from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (trialOrder?.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot remove a swap on a ${row.status} delivery`);
