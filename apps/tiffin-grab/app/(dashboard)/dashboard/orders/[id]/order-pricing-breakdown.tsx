@@ -36,7 +36,7 @@ export function OrderPricingBreakdown({ result, currency }: { result: PricingRes
         <span>{result.tiffinCount} tiffins × {fmt(result.perTiffinPrice, currency)}</span>
         <span className="tabular-nums">{fmt(result.subtotal, currency)}</span>
       </div>
-      {result.tier.upliftPct > 0 && (
+      {result.tier.upliftPct > 0 && result.perTiffinPrice > 0 && (
         <p className="text-amber-600 dark:text-amber-500 mt-2 text-xs">
           Order 20+ tiffins for the best per-tiffin rate (currently +{result.tier.upliftPct}%).
         </p>
