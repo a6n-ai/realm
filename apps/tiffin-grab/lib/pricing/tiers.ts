@@ -6,6 +6,8 @@ export interface PricingTier {
   upliftPct: number;
 }
 
+export const FLAT_TIERS: PricingTier[] = [{ minQty: 1, maxQty: null, upliftPct: 0 }];
+
 // Active tiers must form a contiguous cover of 1..∞: sorted by minQty, the first
 // starts at 1, each next minQty is exactly prev.maxQty + 1, and exactly one band
 // (the last) is unbounded. Uplift must be non-negative.

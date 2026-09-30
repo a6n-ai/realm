@@ -93,7 +93,18 @@ export async function trialFormSettings() {
   return getTrialSettings();
 }
 
+// Returned, not thrown: production strips a thrown action's message, and staff
+// need the real reason the order can't be priced.
 export async function previewPrice(
+  input: CreateOrderInput,
+  couponCode?: string,
+  requestedAmount?: number,
+  customMeal?: unknown,
+): Promise<ActionResult<{ preview: PricingResult }>> {
+  return runAction(async () => ({ preview: await quotePrice(input, couponCode, requestedAmount, customMeal) }));
+}
+
+async function quotePrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,

@@ -171,7 +171,7 @@ describe("createOrderFlow with a custom meal", () => {
   it("previewPrice for a custom meal quotes the same pre-tax price createOrder then charges", async () => {
     for (const [suffix, override] of [["0174", null], ["0175", 1.005]] as const) {
       const { order } = await orderInput(suffix);
-      const preview = await previewPrice(order, undefined, undefined, { items: ITEMS, basePriceOverride: override });
+      const preview = (await unwrapAction(previewPrice(order, undefined, undefined, { items: ITEMS, basePriceOverride: override }))).preview;
       expect(preview.total).toBeGreaterThan(0);
       const { o } = await flow(suffix, override);
       // previewPrice is pre-tax for every order (tax depends on the province resolved at create).
@@ -203,7 +203,7 @@ describe("createOrderFlow with a custom meal", () => {
     const unpriced: Item[] = [{ category: "daal", planKey: "veg", tuAmount: 1.25 }];
     expect(await previewCustomMeal(unpriced, 12)).toMatchObject({ perTiffin: 12 });
     const { order } = await orderInput("0178");
-    const preview = await previewPrice(order, undefined, undefined, { items: unpriced, basePriceOverride: 12 });
+    const preview = (await unwrapAction(previewPrice(order, undefined, undefined, { items: unpriced, basePriceOverride: 12 }))).preview;
     expect(preview.perTiffinPrice).toBeGreaterThan(0);
     const { o } = await flow("0178", 12, unpriced);
     const snap = o.pricingSnapshot as { subtotal: number; basePriceOverride?: { amount: number; computed: number | null } };

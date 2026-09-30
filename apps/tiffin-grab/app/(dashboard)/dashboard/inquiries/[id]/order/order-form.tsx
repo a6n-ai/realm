@@ -84,6 +84,7 @@ export function OrderForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [repInfo, setRepInfo] = useState<RepCouponInfo | null>(null);
   const [discount, setDiscount] = useState(0);
   const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
@@ -260,8 +261,16 @@ export function OrderForm({
       discount > 0 ? discount : undefined,
       customKey ? customMeal : undefined,
     )
-      .then((r) => { if (!cancelled) setPreview(r); })
-      .catch(() => { if (!cancelled) setPreview(null); });
+      .then((r) => {
+        if (cancelled) return;
+        setPreview("error" in r ? null : r.preview);
+        setPreviewError("error" in r ? r.error : null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPreview(null);
+        setPreviewError("Couldn't price this order. Check your connection and try again.");
+      });
     return () => { cancelled = true; };
     // email/addressLine/city/postalCode intentionally excluded — they don't affect
     // pricing and are per-keystroke, so including them would refire preview on every
@@ -314,6 +323,7 @@ export function OrderForm({
   });
 
   const missing = [
+    hideMealSizePicker ? !customKey && "custom meal items" : !mealSizeId && "meal size",
     !startDate && "start date",
     !addressLine && "address",
     !city && "city",
@@ -577,6 +587,9 @@ export function OrderForm({
             </div>
             <div className="flex flex-col items-end gap-1">
               {missing.length > 0 && <p className="text-muted-foreground text-xs">Missing: {missing.join(", ")}</p>}
+              {!shownPreview && previewError && missing.length === 0 && (
+                <p role="alert" className="text-destructive max-w-80 text-right text-xs">{previewError}</p>
+              )}
               <Button type="submit" disabled={submitting || missing.length > 0 || (onReview != null && !shownPreview)}>
                 {submitting ? (
                   <>
