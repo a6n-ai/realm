@@ -59,6 +59,7 @@ export function OrderForm({
   prefill,
   onCreate,
   onCreated,
+  onReview,
   hideMealSizePicker = false,
   customMeal = null,
 }: {
@@ -71,6 +72,11 @@ export function OrderForm({
   onCreate?: (order: CreateOrderInput) => Promise<AdminOrderCreated>;
   /** Called after success dialog is shown (e.g. close parent sheet). */
   onCreated?: (result: AdminOrderCreated) => void;
+  /**
+   * When set, the sticky CTA advances to a parent Review step instead of creating.
+   * Requires a live price preview — create stays on the review step.
+   */
+  onReview?: (draft: { order: CreateOrderInput; preview: PricingResult }) => void;
   /** A custom meal builder replaces the plan/meal-size pills (New Order). */
   hideMealSizePicker?: boolean;
   /** The builder's composition, priced server-side for the footer preview. */
@@ -286,8 +292,16 @@ export function OrderForm({
       setError("Choose a payment method");
       return;
     }
+    const orderInput = buildInput(v);
+    if (onReview) {
+      if (!shownPreview) {
+        setError("Wait for the price preview, or fix the plan so it can be priced");
+        return;
+      }
+      onReview({ order: orderInput, preview: shownPreview });
+      return;
+    }
     try {
-      const orderInput = buildInput(v);
       const result = onCreate
         ? await onCreate(orderInput)
         : await unwrapAction(convertInquiry(inquiryId, orderInput));
@@ -563,12 +577,14 @@ export function OrderForm({
             </div>
             <div className="flex flex-col items-end gap-1">
               {missing.length > 0 && <p className="text-muted-foreground text-xs">Missing: {missing.join(", ")}</p>}
-              <Button type="submit" disabled={submitting || missing.length > 0}>
+              <Button type="submit" disabled={submitting || missing.length > 0 || (onReview != null && !shownPreview)}>
                 {submitting ? (
                   <>
                     <Loader2Icon className="size-4 animate-spin" />
                     Creating…
                   </>
+                ) : onReview ? (
+                  "Review order"
                 ) : (
                   "Create order"
                 )}

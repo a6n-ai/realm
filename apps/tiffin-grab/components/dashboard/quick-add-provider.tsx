@@ -61,6 +61,7 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
             sources={data.sources}
             catalog={data.catalog}
             categories={data.categories}
+            currency={data.currency}
           />
           <AddInquirySheet
             open={which === "inquiry"}

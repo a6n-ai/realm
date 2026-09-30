@@ -93,6 +93,11 @@ export class LeadSheet {
     }
   }
 
+  /** Step 2 CTA — advances to Review when the New order sheet has three steps. */
+  reviewOrder() {
+    return this.root.getByRole("button", { name: /^review order$/i });
+  }
+
   submitOrder() {
     return this.root.getByRole("button", { name: /^create order$/i });
   }

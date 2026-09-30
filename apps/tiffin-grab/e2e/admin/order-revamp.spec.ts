@@ -75,10 +75,13 @@ test.describe("admin order revamp (desktop)", () => {
       timeout: 15_000,
     });
     await sheet.fillMinimalOrder();
+    await expect(sheet.reviewOrder()).toBeEnabled({ timeout: 10_000 });
+    await sheet.reviewOrder().click();
+    await expect(sheet.root.getByText(/price breakup/i)).toBeVisible({ timeout: 10_000 });
     await expect(sheet.submitOrder()).toBeEnabled({ timeout: 10_000 });
     await sheet.submitOrder().click();
 
-    await expect(page.getByText(/creating order/i)).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/creating/i)).toBeVisible({ timeout: 5_000 });
 
     const success = page.getByRole("dialog", { name: /order created/i });
     await expect(success).toBeVisible({ timeout: 90_000 });

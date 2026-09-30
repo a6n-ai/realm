@@ -146,7 +146,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
 async function NewOrderAction() {
   await requireStaff();
 
-  const [{ defaultCountry }, sourceRows, subRows, catalog, slots] = await Promise.all([
+  const [{ defaultCountry, currency }, sourceRows, subRows, catalog, slots] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -188,6 +188,7 @@ async function NewOrderAction() {
       defaultCountry={defaultCountry}
       sources={sources}
       catalog={orderCatalog}
+      currency={currency}
       categories={slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel }))}
     />
   );
