@@ -16,6 +16,7 @@ import {
   verifyPayment,
 } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
+import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
@@ -99,6 +100,15 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
 }
 
 /** Manual "redo the push" for one delivery — the fix when a scheduled push went wrong. */
+export async function sendPaymentReminderAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await sendPaymentReminder(orderId, paymentPublicId, await currentUserId());
+  });
+  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
+  return res;
+}
+
 export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublicId: string, date: string) {
   await requireStaff();
   await pushOneDelivery(deliveryPublicId, date, await currentUserId());

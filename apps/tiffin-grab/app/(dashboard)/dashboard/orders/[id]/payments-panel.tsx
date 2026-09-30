@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, ExternalLinkIcon, MailIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
@@ -15,7 +15,7 @@ import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 import type { ClaimPaymentContext, OrderPaymentDetail } from "@/lib/services/orders.service";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { formatEpoch } from "@/lib/format/datetime";
-import { rejectPaymentAction, verifyPaymentAction } from "./actions";
+import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "./actions";
 
 function statusLabel(status: OrderPaymentDetail["status"]): string {
   switch (status) {
@@ -170,6 +170,7 @@ function PaymentRow({
     payment.status === "awaiting_payment" ||
     payment.status === "pending_verification" ||
     payment.status === "rejected";
+  const canRemind = payment.status === "awaiting_payment" || payment.status === "rejected";
   const canClaim =
     claimCtx != null &&
     (payment.status === "awaiting_payment" || payment.status === "rejected");
@@ -211,6 +212,18 @@ function PaymentRow({
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not reject payment");
       }
+    });
+  }
+
+  function remind() {
+    start(async () => {
+      const res = await sendPaymentReminderAction(orderId, payment.publicId);
+      if ("error" in res) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Payment reminder emailed");
+      router.refresh();
     });
   }
 
@@ -264,6 +277,12 @@ function PaymentRow({
                 </a>
               </Button>
             </>
+          )}
+          {canRemind && (
+            <Button size="sm" variant="outline" disabled={pending} onClick={remind}>
+              <MailIcon data-icon="inline-start" />
+              Email reminder
+            </Button>
           )}
           {canVerify && (
             <Button size="sm" disabled={pending} onClick={verify}>

@@ -102,6 +102,30 @@ const ITEMS: { event: string; subject: string; body: string }[] = [
     subject: `Welcome to ${APP_NAME}`,
     body: `Welcome to ${APP_NAME}! Your account is ready — track your deliveries, manage your meals, and pause or reschedule anytime.\n\n[Open my account]({{url}})\n\nThis link signs you in and works once, for 7 days. After that, sign in anytime with a code sent to this email — no password needed.`,
   },
+  {
+    event: "payment_reminder",
+    subject: `Your ${APP_NAME} payment is still pending`,
+    body: `Hi {{payment.customerName}},\n\nWe haven't received your payment of **{{payment.amount}}** for order **{{payment.orderCode}}** ({{payment.method}}) yet.\n\nOnce you've sent it, sign in and upload a screenshot of the payment so we can confirm it quickly.\n\n[Upload payment screenshot]({{payment.url}})\n\nThis link signs you in and works once, for 7 days. After that, sign in anytime with a code sent to this email and open Finances → Bills.`,
+  },
+  {
+    event: "payment_received",
+    subject: `We received your ${APP_NAME} payment details`,
+    body: `Hi {{payment.customerName}},\n\nThanks! We received your payment details for **{{payment.amount}}** ({{payment.method}}) on order **{{payment.orderCode}}**.\n\nOur team will verify it shortly and email you once it's confirmed.`,
+  },
+  {
+    event: "payment_approved",
+    subject: `Payment confirmed — your ${APP_NAME} plan is set`,
+    body: [
+      `Hi {{payment.customerName}},`,
+      "",
+      `Your payment of **{{payment.amount}}** for order **{{payment.orderCode}}** is confirmed.`,
+      "",
+      `- Starts: {{payment.startDate}}`,
+      `- Duration: {{payment.durationWeeks}} weeks`,
+      `- Delivery days: {{payment.deliveryDays}}`,
+      `- Eating days: {{payment.eatingDays}}`,
+    ].join("\n"),
+  },
 ];
 
 async function main() {
@@ -121,9 +145,9 @@ async function main() {
         text,
         enabled: true,
       })
-      .onConflictDoUpdate({
+      // Never overwrite: staff edit these in Notifications → Templates.
+      .onConflictDoNothing({
         target: [notificationTemplate.event, notificationTemplate.channel, notificationTemplate.locale],
-        set: { subject: item.subject, body: html, html, text },
       });
     console.log(`seeded: ${item.event}`);
   }

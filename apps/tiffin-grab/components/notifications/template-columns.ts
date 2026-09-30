@@ -9,8 +9,9 @@ import type { Column } from "@/components/ds";
 // iterates these columns, which would throw on a reference.
 export type TemplateSortColumn = "event" | "channels" | "updated";
 
-export const TEMPLATE_COLUMNS: readonly Column<TemplateSortColumn | "actions">[] = [
+export const TEMPLATE_COLUMNS: readonly Column<TemplateSortColumn | "type" | "actions">[] = [
   { key: "event", label: "Event", sortable: true },
+  { key: "type", label: "Type" },
   { key: "channels", label: "Channels", sortable: true },
   { key: "updated", label: "Updated", sortable: true, align: "right" },
   { key: "actions", label: "Actions", align: "right", width: "w-16" },

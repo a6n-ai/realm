@@ -33,6 +33,11 @@ export const appEvent = pgEnum("app_event", [
   "staff_invitation",
   // Admin-sent customer invite: a welcome email carrying a magic sign-in link.
   "customer_invitation",
+  // Staff-sent nudge for an unpaid manual payment: a magic sign-in link that
+  // lands on Finances → Bills so the customer can upload their screenshot.
+  "payment_reminder",
+  // Staff verified a manual payment (payment_received is the customer's claim).
+  "payment_approved",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({

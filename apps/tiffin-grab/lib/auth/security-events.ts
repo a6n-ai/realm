@@ -87,7 +87,12 @@ export async function sendStaffInvitation(input: {
   );
 }
 
-export type InviteLinkMetadata = { kind: "staff_invite"; role: string } | { kind: "customer_invite" };
+export type PaymentReminderVars = { amount: string; orderCode: string; customerName: string };
+
+export type InviteLinkMetadata =
+  | { kind: "staff_invite"; role: string }
+  | { kind: "customer_invite" }
+  | { kind: "payment_reminder"; payment: PaymentReminderVars };
 
 /**
  * magicLink plugin callback. Links are only ever issued by lib/auth/invite-links
@@ -114,6 +119,21 @@ export async function sendInviteLinkEmail(email: string, url: string, metadata: 
         channels: ["email"],
         kind: "transactional",
         dedupeKey: `customer_invitation:${email.toLowerCase()}:${url}`,
+      }),
+    );
+    return;
+  }
+  if (meta?.kind === "payment_reminder") {
+    await db.transaction((tx) =>
+      enqueueNotification(tx, {
+        event: "payment_reminder",
+        recipientEmail: email,
+        title: `Payment pending for your ${APP_NAME} order`,
+        body: `Your payment of ${meta.payment.amount} is still pending. Sign in and upload your payment screenshot: ${url}`,
+        data: { payment: { ...meta.payment, url } },
+        channels: ["email"],
+        kind: "transactional",
+        dedupeKey: `payment_reminder:${email.toLowerCase()}:${url}`,
       }),
     );
     return;

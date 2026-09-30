@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -12,6 +12,7 @@ const {
   deliveries,
   eventPayout,
   ledgerEntries,
+  notificationOutbox,
   orderActivities,
   orders,
   payments,
@@ -49,6 +50,9 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orderActivities);
   await db.delete(orders);
+  await db
+    .delete(notificationOutbox)
+    .where(inArray(notificationOutbox.recipientId, db.select({ id: users.id }).from(users).where(ne(users.isSystem, true))));
   await db.delete(users).where(ne(users.isSystem, true));
   await setPaymentConfig({ methods: [] });
   await setMaxCoinPctOfSubtotal(null);

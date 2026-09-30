@@ -4,7 +4,7 @@
  * Run: pnpm exec vitest run lib/services/__tests__/payment-e2e-lifecycle.test.ts --no-file-parallelism
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -15,6 +15,7 @@ const {
   coupons,
   deliveries,
   ledgerEntries,
+  notificationOutbox,
   orderActivities,
   orders,
   payments,
@@ -43,6 +44,9 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orderActivities);
   await db.delete(orders);
+  await db
+    .delete(notificationOutbox)
+    .where(inArray(notificationOutbox.recipientId, db.select({ id: users.id }).from(users).where(ne(users.isSystem, true))));
   await db.delete(users).where(ne(users.isSystem, true));
   await sharedCache("app-settings").evictAll();
 }
@@ -244,6 +248,14 @@ describe("payment methods E2E lifecycle", () => {
     const [paid] = await db.select().from(payments).where(eq(payments.id, pay!.id));
     expect(paid!.status).toBe("paid");
     expect(paid!.capturedAt).toBeTypeOf("number");
+
+    // Customer emails go through the outbox (templated), one per claim + one on approval.
+    const sent = await db
+      .select({ event: notificationOutbox.event })
+      .from(notificationOutbox)
+      .where(and(eq(notificationOutbox.recipientId, order!.userId!), eq(notificationOutbox.channel, "email")));
+    const events = sent.map((r) => r.event).sort();
+    expect(events).toEqual(["payment_approved", "payment_received", "payment_received"]);
 
     const paymentLed = await db
       .select()

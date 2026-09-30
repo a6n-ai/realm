@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import type { InviteLinkMetadata } from "./security-events";
+import type { InviteLinkMetadata, PaymentReminderVars } from "./security-events";
 
 // The only issuers of magic links (the public /sign-in/magic-link route is
 // disabled in lib/auth). Each link signs the invitee in on click; where it
@@ -31,4 +31,9 @@ export function sendStaffSetupLink(input: { email: string; role: string }) {
 /** Customer welcome: sign in straight to /me. Email code is their sign-in; no password needed. */
 export function sendCustomerInviteLink(email: string) {
   return issue(email, "/me", "/login", { kind: "customer_invite" });
+}
+
+/** Unpaid manual payment: sign in straight to Finances → Bills to upload the screenshot. */
+export function sendPaymentReminderLink(email: string, payment: PaymentReminderVars) {
+  return issue(email, "/me/wallet?tab=bills", "/login", { kind: "payment_reminder", payment });
 }

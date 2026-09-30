@@ -16,6 +16,7 @@ import type { SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { eventLabel } from "@relay/engine/ui";
+import { CATEGORY_LABEL, EVENT_CATEGORIES, eventCategory, type EventCategory } from "@/lib/notifications/event-categories";
 import { TEMPLATE_COLUMNS, type TemplateSortColumn } from "./template-columns";
 
 export interface TemplateChannel {
@@ -48,6 +49,7 @@ const STATUS_PILLS: { key: StatusFilter; label: string }[] = [
 type Row = {
   event: string;
   label: string;
+  category: EventCategory;
   channels: TemplateChannel[];
   updatedAt: number | null;
 };
@@ -82,9 +84,10 @@ export function TemplateList({
   const tz = useTimezone();
   const fmt = (ms: number | null) => (ms ? formatEpoch(ms, { mode: "date", timeZone: tz }) : "—");
   const [status, setStatus] = useUrlState("status", "all");
+  const [type, setType] = useUrlState("type", "all");
 
   const rows = useMemo<Row[]>(
-    () => items.map((i) => ({ ...i, label: eventLabel(i.event) })),
+    () => items.map((i) => ({ ...i, label: eventLabel(i.event), category: eventCategory(i.event) })),
     [items],
   );
 
@@ -95,16 +98,39 @@ export function TemplateList({
     return { all: rows.length, configured, missing: rows.length - configured };
   }, [rows]);
 
+  const typeCounts = useMemo(() => {
+    const c: Partial<Record<EventCategory, number>> = {};
+    for (const r of rows) c[r.category] = (c[r.category] ?? 0) + 1;
+    return c;
+  }, [rows]);
+
   const statusRows = useMemo(
     () =>
-      rows.filter((r) =>
-        status === "configured"
-          ? r.channels.length > 0
-          : status === "missing"
-            ? r.channels.length === 0
-            : true,
+      rows.filter(
+        (r) =>
+          (type === "all" || r.category === type) &&
+          (status === "configured"
+            ? r.channels.length > 0
+            : status === "missing"
+              ? r.channels.length === 0
+              : true),
       ),
-    [rows, status],
+    [rows, status, type],
+  );
+
+  const typePills = (
+    <>
+      <FilterPill label="All types" active={type === "all"} count={rows.length} onClick={() => setType("all")} />
+      {EVENT_CATEGORIES.map((c) => (
+        <FilterPill
+          key={c}
+          label={CATEGORY_LABEL[c]}
+          active={type === c}
+          count={typeCounts[c] ?? 0}
+          onClick={() => setType(c)}
+        />
+      ))}
+    </>
   );
 
   return (
@@ -127,9 +153,11 @@ export function TemplateList({
                 onClick={() => setStatus(p.key)}
               />
             ))}
+            <span className="bg-border mx-1 h-5 w-px" aria-hidden />
+            {typePills}
           </div>
           <div className="md:hidden">
-            <FilterSheet iconOnly activeCount={status === "all" ? 0 : 1}>
+            <FilterSheet iconOnly activeCount={(status === "all" ? 0 : 1) + (type === "all" ? 0 : 1)}>
               <div className="flex flex-wrap gap-2">
                 {STATUS_PILLS.map((p) => (
                   <FilterPill
@@ -141,6 +169,7 @@ export function TemplateList({
                   />
                 ))}
               </div>
+              <div className="mt-3 flex flex-wrap gap-2">{typePills}</div>
             </FilterSheet>
           </div>
         </>
@@ -153,6 +182,9 @@ export function TemplateList({
         return (
           <>
             <TableCell className="font-medium">{r.label}</TableCell>
+            <TableCell>
+              <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">{CATEGORY_LABEL[r.category]}</span>
+            </TableCell>
             <TableCell>
               <ChannelsCell channels={r.channels} />
             </TableCell>

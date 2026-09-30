@@ -39,6 +39,8 @@ const EVENT_OPTIONS = [
   "order_cancelled",
   "order_paused",
   "payment_received",
+  "payment_reminder",
+  "payment_approved",
   "refund_issued",
   "menu_released",
   "wallet_credited",

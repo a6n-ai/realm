@@ -46,6 +46,30 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
     fields: [
       { name: "amount", label: "Amount" },
       { name: "orderCode", label: "Order code" },
+      { name: "customerName", label: "Customer name" },
+      { name: "method", label: "Method" },
+    ],
+  },
+  payment_approved: {
+    entity: "payment",
+    fields: [
+      { name: "amount", label: "Amount" },
+      { name: "orderCode", label: "Order code" },
+      { name: "customerName", label: "Customer name" },
+      { name: "method", label: "Method" },
+      { name: "startDate", label: "Plan start date" },
+      { name: "durationWeeks", label: "Duration (weeks)" },
+      { name: "deliveryDays", label: "Delivery days" },
+      { name: "eatingDays", label: "Eating days" },
+    ],
+  },
+  payment_reminder: {
+    entity: "payment",
+    fields: [
+      { name: "amount", label: "Amount" },
+      { name: "orderCode", label: "Order code" },
+      { name: "customerName", label: "Customer name" },
+      { name: "url", label: "Sign-in link" },
     ],
   },
   refund_issued: {

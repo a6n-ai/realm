@@ -1,4 +1,4 @@
-import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
+import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -40,7 +40,7 @@ import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { round2 } from "@/lib/custom-meal/pricing";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
-import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
+import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { reservedEndDatesExclusive } from "./order-window";
@@ -720,6 +720,27 @@ export async function createOrder(
   return { deploymentId: txResult.deploymentId, publicId: txResult.publicId };
 }
 
+const METHOD_LABEL: Record<(typeof payments.$inferSelect)["method"], string> = {
+  etransfer: "Interac e-Transfer",
+  cash: "Cash",
+  manual: "Manual",
+  simulated: "Simulated",
+};
+
+/** Shared `{{payment.*}}` template variables for the payment_* customer emails. */
+export function paymentTemplateVars(
+  pay: Pick<typeof payments.$inferSelect, "amount" | "method">,
+  orderCode: string,
+  customerName: string | null | undefined,
+) {
+  return {
+    amount: formatMoney(Number(pay.amount)),
+    orderCode,
+    customerName: customerName || "there",
+    method: METHOD_LABEL[pay.method],
+  };
+}
+
 // Staff settles a real-method payment: credits the ledger, redeems any deferred
 // coupons from the pricing snapshot, awards activation coins, and marks paid.
 // Accepts awaiting_payment (e.g. cash confirmed without a customer claim) and
@@ -820,8 +841,26 @@ export async function verifyPayment(
 
     if (order.status === "active") missedStops = await shiftMissedDeliveries(tx, order.id, actorInternalId);
 
-    const [user] = await tx.select({ publicId: users.publicId, email: users.email }).from(users).where(eq(users.id, order.userId)).limit(1);
+    const [user] = await tx.select({ publicId: users.publicId, name: users.name }).from(users).where(eq(users.id, order.userId)).limit(1);
     const [freq] = await tx.select({ weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+
+    await enqueueNotification(tx, {
+      event: "payment_approved",
+      recipientId: order.userId,
+      title: "Payment confirmed",
+      body: `Your payment of ${formatMoney(Number(pay.amount))} for order ${order.deploymentId} is confirmed.`,
+      href: "/me/wallet?tab=bills",
+      data: {
+        payment: {
+          ...paymentTemplateVars(pay, order.deploymentId, user?.name),
+          startDate: order.startDate,
+          durationWeeks: order.durationWeeks,
+          deliveryDays: (freq?.weekdays ?? []).join(", "),
+          eatingDays: (order.eatingDays ?? []).join(", "),
+        },
+      },
+      dedupeKey: `payment_approved:${pay.publicId}`,
+    });
 
     // Award coins only when the order is (still) active — waitlisted stays deferred
     // until activateOrder, which has its own award path.
@@ -829,12 +868,6 @@ export async function verifyPayment(
       userId: order.userId, 
       orderPublicId: order.publicId,
       userPublicId: user.publicId,
-      userEmail: user.email,
-      startDate: order.startDate,
-      categoryCounts: order.categoryCounts,
-      eatingDays: order.eatingDays,
-      frequencyWeekdays: freq?.weekdays,
-      durationWeeks: order.durationWeeks,
     } : null;
   });
 
@@ -850,40 +883,6 @@ export async function verifyPayment(
 
     // Trigger page refresh for the user
     publishUserRefresh(award.userPublicId);
-
-    // Send confirmation email
-    if (award.userEmail) {
-      const { getEmailProvider } = await import("@/lib/email/provider");
-      const mealsHtml = award.categoryCounts ? Object.keys(award.categoryCounts).join(", ") : "";
-      const deliveryDaysHtml = (award.frequencyWeekdays || []).join(", ");
-      const eatingDaysHtml = (award.eatingDays || []).join(", ");
-      
-      const html = `
-        <div style="font-family: sans-serif; color: #333;">
-          <h2>Your payment has been confirmed!</h2>
-          <p>Your plan is active from the <strong>${award.startDate}</strong>.</p>
-          <hr />
-          <h3>Plan Details</h3>
-          <ul>
-            <li><strong>Meals:</strong> ${mealsHtml}</li>
-            <li><strong>Delivery days:</strong> ${deliveryDaysHtml}</li>
-            <li><strong>Eating days:</strong> ${eatingDaysHtml}</li>
-            <li><strong>Duration:</strong> ${award.durationWeeks} weeks</li>
-          </ul>
-        </div>
-      `;
-
-      try {
-        await getEmailProvider().send({
-          to: { email: award.userEmail },
-          subject: "Payment Confirmed - Plan Active",
-          html,
-          text: `Your payment has been confirmed! Your plan is active from ${award.startDate}.`,
-        });
-      } catch (e) {
-        log.error({ err: e }, "failed to send payment confirmation email");
-      }
-    }
   }
 }
 
@@ -1024,8 +1023,26 @@ export async function claimPayment(
       createdBy: actorId,
     });
 
+    const [order] = await tx
+      .select({ publicId: orders.publicId, deploymentId: orders.deploymentId, userId: orders.userId, customerName: users.name })
+      .from(orders)
+      .leftJoin(users, eq(users.id, orders.userId))
+      .where(eq(orders.id, pay.orderId))
+      .limit(1);
+
+    if (order?.userId) {
+      await enqueueNotification(tx, {
+        event: "payment_received",
+        recipientId: order.userId,
+        title: "Payment received",
+        body: `We received your payment details for ${formatMoney(Number(pay.amount))}. We'll confirm once it's verified.`,
+        href: "/me/wallet?tab=bills",
+        data: { payment: paymentTemplateVars(pay, order.deploymentId, order.customerName) },
+        dedupeKey: `payment_received:${pay.publicId}:${claimedAt}`,
+      });
+    }
+
     if (pay.method === "etransfer") {
-      const [order] = await tx.select({ publicId: orders.publicId }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
       await enqueueStaffNotification(tx, {
         // No event on purpose: in-app rows for an event render from an admin-authored DB
         // template and are skipped when none exists. Without one the payload copy is used.
