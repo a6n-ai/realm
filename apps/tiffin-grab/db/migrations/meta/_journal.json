@@ -22,6 +22,13 @@
       "when": 1790770438802,
       "tag": "0002_trial_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790793456886,
+      "tag": "0003_flowery_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }
