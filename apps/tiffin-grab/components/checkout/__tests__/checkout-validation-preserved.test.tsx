@@ -82,7 +82,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     expect(continueBtn().getAttribute("aria-disabled") === "true").toBe(true);
 
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
-    await enterAddress("12345");
+    await enterAddress("M5H 1A1");
 
     await waitFor(() => expect(continueBtn().getAttribute("aria-disabled") === "true").toBe(false));
   });

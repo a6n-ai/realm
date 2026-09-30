@@ -58,7 +58,7 @@ describe("Checkout confirm() error handling", () => {
 
     await screen.findByLabelText(/phone/i);
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
-    await enterAddress("12345");
+    await enterAddress("M5H 1A1");
 
     fireEvent.click(screen.getByRole("button", { name: /continue to payment/i }));
 
@@ -74,7 +74,7 @@ describe("Checkout confirm() error handling", () => {
 
     await screen.findByLabelText(/phone/i);
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
-    await enterAddress("12345");
+    await enterAddress("M5H 1A1");
     fireEvent.click(screen.getByRole("button", { name: /continue to payment/i }));
     fireEvent.click(screen.getByRole("button", { name: /confirm subscription/i }));
 
