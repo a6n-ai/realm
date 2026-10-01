@@ -26,6 +26,7 @@ import { Progress } from "@/components/wizard/progress";
 import { TotalChip } from "@/components/wizard/total-chip";
 import { BottomBar, Button, Input, Label, OptionCard, Pill, PillToggle, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
+import { isFullPostalCode } from "@/lib/catalog/postal";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { dropOffCatalog, dropOffSummary, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
@@ -231,7 +232,7 @@ export function Checkout({
   const set = (patch: Partial<Contact>) => {
     setContact((c) => ({ ...c, ...patch }));
     // A complete postal code — typed or filled from a picked address suggestion — is checked against our zones right away.
-    if (patch.postalCode != null && /^[A-Z]\d[A-Z](\d[A-Z]\d)?$/i.test(patch.postalCode.replace(/\s+/g, ""))) void checkPostal(patch.postalCode);
+    if (patch.postalCode != null && isFullPostalCode(patch.postalCode)) void checkPostal(patch.postalCode);
   };
 
   const pickAddress = (a: SavedAddress | null) => {
@@ -399,6 +400,7 @@ export function Checkout({
   const step1Reason = !contact.fullName.trim() ? "Add your name in Account to continue."
     : !emailValid ? "Add an email in Account to continue."
     : !contact.postalCode ? "Add your delivery address to continue."
+    : !isFullPostalCode(contact.postalCode) ? "Enter your full postal code, like M5V 2T6."
     : zone != null && !zone.served ? "We don't deliver to this postal code yet. Join the waitlist above."
     : !phoneValid ? "Add your phone number to continue."
     : null;

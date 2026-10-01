@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { XplButton } from "@/components/marketing/xpl-ui";
+import { Button } from "@/components/marketing/ui";
 import { createBookingAction, type BookState } from "@/app/(marketing)/whats-on/actions";
 
 export function BookControl({
@@ -22,42 +22,47 @@ export function BookControl({
   const [state, formAction, pending] = useActionState<BookState, FormData>(createBookingAction, {});
 
   if (booked) {
-    return <span className="xpl-mono text-[11px] tracking-[0.1em]">Booked</span>;
+    return <span className="xl-status">Booked ✓</span>;
   }
 
   if (remaining <= 0) {
-    return <span className="xpl-mono text-[11px] tracking-[0.1em] text-[var(--graphite)]">Full</span>;
+    return <span className="xl-status">Full</span>;
   }
 
   if (!signedIn) {
     const callback = `/whats-on?book=${publicId}`;
-    return <XplButton href={`/login?callbackUrl=${encodeURIComponent(callback)}`}>Book</XplButton>;
+    return (
+      <Button size="sm" icon="arrow-up-right" href={`/login?callbackUrl=${encodeURIComponent(callback)}`}>
+        Book
+      </Button>
+    );
   }
 
   if (!isFamily) {
-    return <span className="xpl-mono text-[11px] tracking-[0.08em]">Family sign-in to book</span>;
+    return <span className="xl-status">Family sign-in to book</span>;
   }
 
   return (
-    <form action={formAction} className="flex flex-col items-stretch gap-2 lg:items-end">
+    <form action={formAction} className="xl-book">
       <input type="hidden" name="occurrencePublicId" value={publicId} />
-      <label className="xpl-mono flex items-center gap-2 text-[11px] tracking-[0.08em]">
+      <label>
         Seats
         <input
           name="seats"
           type="number"
+          inputMode="numeric"
           min={1}
           max={remaining}
           defaultValue={1}
           autoFocus={autofocus}
-          className="w-16 border border-[var(--rule)] bg-transparent px-2 py-1 text-[var(--ink)]"
+          className="xl-input"
         />
       </label>
-      <XplButton type="submit" disabled={pending}>
+      <Button size="sm" type="submit" disabled={pending}>
         {pending ? "Booking…" : "Book"}
-      </XplButton>
+      </Button>
       {state.error ? (
-        <p role="alert" className="m-0 max-w-[16ch] text-right text-sm text-[var(--blueprint)]">
+        <p role="alert" className="xl-error">
           {state.error}
         </p>
       ) : null}

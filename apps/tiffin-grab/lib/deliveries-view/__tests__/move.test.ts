@@ -109,3 +109,13 @@ describe("moveOptions", () => {
     expect(mon.merge).toEqual({ units: 2, covers: ["2026-09-28"] });
   });
 });
+
+describe("moveOptions weekend dish", () => {
+  it("disables Sat/Sun only when the meal has no weekend dish", () => {
+    const at = (c: PlanContext, d: string) => moveOptions(trip, [], NOW, c, "2026-09-21").find((x) => x.date === d)!;
+    expect(at({ ...ctx, servesWeekends: false }, "2026-09-26").disabledReason).toMatch(/no weekend dish/);
+    expect(at({ ...ctx, servesWeekends: false }, "2026-09-27").disabledReason).toMatch(/no weekend dish/);
+    expect(at({ ...ctx, servesWeekends: false }, "2026-09-25").disabledReason).toBeUndefined();
+    expect(at(ctx, "2026-09-26").disabledReason).toBeUndefined();
+  });
+});

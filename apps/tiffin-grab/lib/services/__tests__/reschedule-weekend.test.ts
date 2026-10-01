@@ -1,6 +1,6 @@
 // Eat-day reschedule: picker is the day the customer wants to EAT. Weekends and
 // off-pattern weekdays snap to the carrying trip (never a weekend delivery row).
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 
@@ -13,6 +13,7 @@ const { createOrder } = await import("../orders.service");
 const { rescheduleDelivery } = await import("../deliveries.service");
 const { coveredDates } = await import("@/lib/menu/coverage");
 const { carryTripDateIso } = await import("@/lib/menu/carry-trip");
+const { allowWeekendMeals } = await import("./trip-fixture");
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 
 const createdOrderIds: bigint[] = [];
@@ -74,6 +75,8 @@ function farFutureIso(dow: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+
+beforeAll(allowWeekendMeals);
 describe("rescheduleDelivery eat-day snap", () => {
   it("snaps Saturday onto that week's Friday trip (no weekend delivery row)", async () => {
     const order = await makeOrder(false);

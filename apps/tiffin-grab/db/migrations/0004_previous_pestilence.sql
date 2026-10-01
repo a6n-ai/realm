@@ -1,0 +1,1 @@
+ALTER TABLE "dish_categories" ADD COLUMN "weekend" boolean DEFAULT false NOT NULL;

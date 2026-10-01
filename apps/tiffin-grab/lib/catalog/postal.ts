@@ -8,8 +8,13 @@ const CANADIAN_POSTAL = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\d[ABCEGHJ-NPRST
  * a zone and let an undeliverable order through, so every address and order goes here. */
 export function parseCanadianPostalCode(raw: string | null | undefined): string {
   const compact = (raw ?? "").replace(/\s+/g, "").toUpperCase();
-  if (!CANADIAN_POSTAL.test(compact)) throw new ValidationError("Enter a full postal code, like M5V 2T6");
+  if (!isFullPostalCode(compact)) throw new ValidationError("Enter a full postal code, like M5V 2T6");
   return `${compact.slice(0, 3)} ${compact.slice(3)}`;
+}
+
+/** Client-safe twin of {@link parseCanadianPostalCode}: gate a form before the server refuses it. */
+export function isFullPostalCode(raw: string | null | undefined): boolean {
+  return CANADIAN_POSTAL.test((raw ?? "").replace(/\s+/g, "").toUpperCase());
 }
 
 export interface ZoneLike {

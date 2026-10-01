@@ -1,6 +1,6 @@
 import type { PricingSelections } from "@/lib/pricing";
 import { listableMealSizes, type ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 export interface WizardSelections extends PricingSelections {
   planKey: string | null;
@@ -71,7 +71,13 @@ export function nextBlockedReason(step: number, catalog: ClientCatalogSnapshot, 
 export function scheduleError(catalog: ClientCatalogSnapshot, s: WizardSelections): string | null {
   const row = selectableFrequencies(catalog).find((f) => f.key === s.frequencyKey);
   if (!row) return "Choose a delivery frequency";
-  return eatingDaysError(row.weekdays as DayOfWeek[], s.eatingDays ?? [], tiffinBounds(catalog));
+  return eatingDaysError(row.weekdays as DayOfWeek[], s.eatingDays ?? [], tiffinBounds(catalog))
+    ?? weekendDaysError(s.eatingDays ?? [], servesWeekends(catalog, s));
+}
+
+/** Unknown size (not picked yet) doesn't block weekends; createOrder re-checks the real one. */
+export function servesWeekends(catalog: ClientCatalogSnapshot, s: WizardSelections): boolean {
+  return catalog.mealSizes?.find((m) => m.publicId === s.mealSizeId)?.servesWeekends ?? true;
 }
 
 // Validates against the live catalog rather than a hardcoded plan list — a

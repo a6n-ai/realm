@@ -146,7 +146,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
 async function NewOrderAction() {
   await requireStaff();
 
-  const [{ defaultCountry, currency }, sourceRows, subRows, catalog, slots] = await Promise.all([
+  const [{ defaultCountry, currency }, sourceRows, subRows, catalog, slots, planKeys] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -161,6 +161,7 @@ async function NewOrderAction() {
       .from(leadSubsources),
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
+    dishCategoriesService.planKeysByCategoryKey(),
   ]);
 
   const sources = sourceRows
@@ -175,7 +176,7 @@ async function NewOrderAction() {
 
   const orderCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial })),
+    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends })),
     frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
@@ -189,7 +190,7 @@ async function NewOrderAction() {
       sources={sources}
       catalog={orderCatalog}
       currency={currency}
-      categories={slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel }))}
+      categories={slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel, planKeys: planKeys.get(s.key) ?? [] }))}
     />
   );
 }

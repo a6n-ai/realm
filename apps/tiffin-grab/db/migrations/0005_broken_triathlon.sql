@@ -1,0 +1,1 @@
+DROP TABLE "pricing_tiers" CASCADE;

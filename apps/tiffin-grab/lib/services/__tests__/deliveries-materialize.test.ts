@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { cutoffMsFor, nextWeekday, ValidationError } from "@foundry/commons";
 
@@ -10,6 +10,7 @@ const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { getAppSettings } = await import("../app-settings.service");
 const { materializeDeliveries } = await import("../deliveries.service");
 const { activateOrder, createOrder } = await import("../orders.service");
+const { allowWeekendMeals } = await import("./trip-fixture");
 
 async function reset() {
   await db.delete(deliveries);
@@ -73,6 +74,8 @@ async function makeWaitlistedOrder(opts: { durationWeeks: number; persons: numbe
   return o;
 }
 
+
+beforeAll(allowWeekendMeals);
 describe("materializeDeliveries (integration)", () => {
   beforeEach(reset);
   afterAll(reset);

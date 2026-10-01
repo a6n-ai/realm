@@ -56,6 +56,13 @@ export function eatingDaysError(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek
   return planWeek(deliveryDays, eatingDays) ? null : "An eating day falls before this plan's first delivery day";
 }
 
+export const NO_WEEKEND_DISH = "This meal has no weekend dish, so it can't be eaten on Saturday or Sunday";
+
+/** Sat/Sun are only for meal sizes holding a weekend-dish category (Catalog → Dish categories). */
+export function weekendDaysError(days: readonly DayOfWeek[], servesWeekends: boolean): string | null {
+  return !servesWeekends && days.some((d) => d === "sat" || d === "sun") ? NO_WEEKEND_DISH : null;
+}
+
 export function orderDeliveryDays(o: {
   frequencyKey: string;
   weekdays?: DayOfWeek[] | null;

@@ -131,13 +131,13 @@ describe("createOrderFlow with a custom meal", () => {
     };
   }
 
-  async function flow(suffix: string, basePriceOverride: number | null, items: Item[] = ITEMS) {
+  async function flow(suffix: string, basePriceOverride: number | null, items: Item[] = ITEMS, planKey?: string) {
     const { phone, email, order } = await orderInput(suffix);
     const r = await unwrapAction(createOrderFlow({
       source: { sourceKey: "manual" },
       contact: { fullName: "Custom Flow", phone, email },
       order,
-      customMeal: { items, basePriceOverride },
+      customMeal: { planKey, items, basePriceOverride },
     }));
     const [o] = await db.select().from(orders).where(eq(orders.publicId, r.publicId));
     createdOrderIds.push(o.id);
@@ -151,6 +151,23 @@ describe("createOrderFlow with a custom meal", () => {
     expect(size.custom).toBe(true);
     const [plan] = await db.select({ key: plans.key }).from(plans).where(eq(plans.id, o.planId));
     expect(plan.key).toBe("non-veg");
+  });
+
+  it("orders under the plan staff picked, not one inferred from the items", async () => {
+    const { o, size } = await flow("0179", null, ITEMS, "veg");
+    const [plan] = await db.select({ key: plans.key }).from(plans).where(eq(plans.id, o.planId));
+    expect(plan.key).toBe("veg");
+    expect(size.compositionKey).toMatch(/^veg#/);
+  });
+
+  it("rejects an item on a plan its category isn't on", async () => {
+    const r = await createOrderFlow({
+      source: { sourceKey: "manual" },
+      contact: { fullName: "X", phone: "+14165550180", email: "x180@test.invalid" },
+      order: {} as never,
+      customMeal: { planKey: "veg", items: [{ category: "sabzi", planKey: "no-such-plan", tuAmount: 1 }], basePriceOverride: null },
+    });
+    expect(r).toHaveProperty("error", expect.stringMatching(/Custom meal/));
   });
 
   it("records a staff base price override", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compositionKey, compositionName, mealPlanKey, normalizeItems, type CategoryUnit } from "../composition";
+import { compositionKey, compositionName, mealPlanKey, normalizeItems, sizeCompositionKey, type CategoryUnit } from "../composition";
 
 const units = new Map<string, CategoryUnit>([
   ["sabzi", { key: "sabzi", label: "Sabzi", tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }],
@@ -59,5 +59,15 @@ describe("compositionName", () => {
       { category: "rice", planKey: "non-veg", tuAmount: 1 },
     ], units);
     expect(compositionName(items, units)).toBe("1 Rice + 6 Roti + 1× Non-Veg Sabzi 12oz + 2× Veg Sabzi 8oz");
+  });
+});
+
+describe("sizeCompositionKey", () => {
+  const items = [{ category: "sabzi", planKey: "non-veg", tuAmount: 1 }];
+  it("keeps the old key when the picked plan is the one the items infer", () => {
+    expect(sizeCompositionKey(items, "non-veg")).toBe(compositionKey(items));
+  });
+  it("gives the same items under another plan their own key", () => {
+    expect(sizeCompositionKey(items, "veg")).toBe(`veg#${compositionKey(items)}`);
   });
 });

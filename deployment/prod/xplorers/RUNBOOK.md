@@ -104,6 +104,56 @@ Push to main → CI builds xplorers-{web,tools} → deploy job SSHes Box C when
 `cd ~/realm/deployment/prod/xplorers && ./deploy.sh`. Rollback:
 `IMAGE_TAG=<sha> ./deploy.sh`.
 
+## 6. Move to Neon (in progress, started 2026-10-01)
+
+Why: cost. Singapore RDS is ~$21/mo; Neon Free is $0 for this load because
+compute suspends after 5 min idle. xplorers goes first because it has no
+outbox listener or worker that could keep the database awake.
+
+Target: Neon org `a6n`, project `xplorers` (`aged-dust-56644803`),
+`aws-ap-southeast-1` (same region as Box C), Postgres 18 (matches RDS 18.6),
+branch `production`, database `xplorers`, role `xplorers`. Free plan: 512 MB
+per branch, 0.25 CU. One Neon project per app, never shared across apps.
+
+Neon has two endpoints:
+
+- **Direct** (host without `-pooler`) → `DIRECT_DATABASE_URL`. Migrations and
+  `pg_restore` use it: DDL and drizzle's bookkeeping need a real session.
+- **Pooled** (host with `-pooler`) → `DATABASE_URL`. Neon runs PgBouncer in
+  transaction mode there, the same mode as our pgbouncer container, so the
+  container is dropped at cutover: two poolers stacked add a hop and nothing
+  else, and our pooler holding server connections open could keep Neon awake.
+
+Steps:
+
+1. Open the tunnel: `./deployment/prod/db-tunnel.sh xplorers` (port 5435).
+2. Put both strings from Neon console → Connect (pooling off / on) into
+   `deployment/prod/xplorers/.env.neon` (gitignored):
+
+       NEON_URL='<direct>'
+       NEON_POOLED_URL='<pooled>'
+
+3. `./deployment/prod/xplorers/neon-copy.sh`: prints RDS checks, refuses a
+   non-empty target, dumps, restores, prints the same checks for Neon. The
+   `migrations` count + newest `created_at`, `users`, `session` and `tables`
+   must match. Any `!!` line or mismatch: stop, reset the Neon branch, rerun.
+4. Save the current `/xplorers/prod/DATABASE_URL` and `DIRECT_DATABASE_URL`
+   values (password manager) — they are the rollback.
+5. Overwrite them in SSM (SecureString, tagged as in step 1): `DIRECT_DATABASE_URL`
+   = direct string, `DATABASE_URL` = pooled string. Prod keeps using RDS until
+   the next deploy regenerates `.env.production`.
+6. Remove the pgbouncer service from `docker-compose.yml` (and the `PGBOUNCER_*`
+   keys from SSM and `env.production.example`), push, let the deploy run.
+7. Verify (below), then check `drizzle.__drizzle_migrations` on Neon still
+   matches the repo journal.
+8. Keep RDS ~1 week. Rollback = restore the saved SSM values, revert the
+   compose change, redeploy. Writes made on Neon in between would be lost, so
+   copy them back first if any matter. After the week, delete RDS
+   (`DeletionPolicy: Snapshot` keeps a final snapshot).
+
+Rule 7 in `AGENTS.md` still applies: the restore copies `__drizzle_migrations`
+as-is; never hand-apply a migration on Neon to "catch it up".
+
 ## Verify
 
     curl -I https://xplorers.a6n.ai          # HTTP/2 200 + valid TLS

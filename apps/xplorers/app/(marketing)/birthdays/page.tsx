@@ -4,7 +4,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
   title: `Birthdays · ${SITE_NAME}`,
-  description: "From $48/child · min 15 or $58/child · min 12.",
+  description: "From S$48/child · min 15 or $58/child · min 12.",
   path: "/birthdays",
 });
 
@@ -13,7 +13,7 @@ export default function BirthdaysPage() {
     <InteriorPage
       kicker="Birthdays"
       title="Make it a day to remember."
-      body="From $48 a child, minimum 15. Or $58 a child, minimum 12. The benches are yours."
+      body="From S$48 a child, minimum 15. Or S$58 a child, minimum 12. The benches are yours."
       cta="Enquire"
     />
   );

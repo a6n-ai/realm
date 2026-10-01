@@ -9,7 +9,7 @@
 -- hash in a public repo.
 -- id -> next_id() (DB). public_id/created_at/updated_at have NO db default -> supplied here.
 -- Idempotent: ON CONFLICT (<unique>) DO NOTHING; tables without a unique key use NOT EXISTS
--- guards. pricing_tiers has no unique key -> wipe+insert.
+-- guards.
 -- Epoch-ms helper repeated inline: (extract(epoch from now())*1000)::bigint
 
 BEGIN;
@@ -121,8 +121,8 @@ FROM (VALUES
 ) AS v(public_id, key, name, plan_key, tier, kcal_min, kcal_max, base_price)
 ON CONFLICT (key) DO NOTHING;
 
--- ============ MEAL SIZE ITEMS ============ (FK by meal_sizes.key subquery; no unique key -> wipe+reinsert
--- like pricing_tiers. TU (tiffin unit) is the shared currency swaps move between categories —
+-- ============ MEAL SIZE ITEMS ============ (FK by meal_sizes.key subquery; no unique key -> wipe+reinsert).
+-- TU (tiffin unit) is the shared currency swaps move between categories —
 -- see db/schema/menu.ts. Weighed categories default 8oz/TU (12oz -> 1.5 TU); roti is 4 pieces/TU,
 -- and a meal's roti is ONE row (8 roti = 2 TU) — a row is one dish pick, not one piece;
 -- rice has no weight, 1 unit/TU, 1 row per pick.
@@ -310,14 +310,6 @@ VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EP
        ('zon_east_york', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'East York', ARRAY ['M4B','M4C','M4G','M4H','M4J','M4K'], '10:00 AM – 1:00 PM')
 ON CONFLICT (public_id) DO NOTHING;
-
--- ============ PRICING TIERS ============ (no unique key -> wipe + reinsert, matches seed)
-DELETE FROM pricing_tiers WHERE id > 0;
-INSERT INTO pricing_tiers (public_id, created_at, updated_at, min_qty, max_qty, uplift_pct)
-VALUES ('ptr_1', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 1, 11, 20.00),
-       ('ptr_2', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 12, 19, 10.00),
-       ('ptr_3', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 20, NULL,
-        0.00);
 
 -- ============ FEATURE FLAGS ============
 INSERT INTO feature_flags (public_id, created_at, updated_at, key, label, description, default_enabled)
@@ -710,7 +702,6 @@ COMMIT;
 -- select 'delivery_frequencies', count(*) from delivery_frequencies union all
 -- select 'duration_packages', count(*) from duration_packages union all
 -- select 'delivery_zones', count(*) from delivery_zones union all
--- select 'pricing_tiers', count(*) from pricing_tiers union all
 -- select 'feature_flags', count(*) from feature_flags union all
 -- select 'app', count(*) from app union all
 -- select 'event_payout', count(*) from event_payout union all

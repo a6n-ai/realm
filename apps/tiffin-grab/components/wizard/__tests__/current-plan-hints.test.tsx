@@ -51,7 +51,7 @@ const catalog: ClientCatalogSnapshot = {
       discountValue: 0,
       trial: false,
       custom: false,
-      priceable: true,
+      priceable: true, servesWeekends: true,
     },
   ],
   frequencies: [],

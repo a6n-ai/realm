@@ -207,7 +207,7 @@ export function NewOrderSheet({
         pickedInquiryId: pickedId ?? undefined,
         order: draft.order,
         customMeal: customMeal
-          ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
+          ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
           : undefined,
       }));
       setCreated(result);
@@ -223,7 +223,7 @@ export function NewOrderSheet({
     ? "Custom meal"
     : (catalog.mealSizes.find((m) => m.id === draft?.order.selections.mealSizeId)?.name ?? "Meal");
   const planLabel = customMeal
-    ? (catalog.plans.find((p) => p.key === draft?.order.planKey)?.name ?? draft?.order.planKey ?? "")
+    ? (catalog.plans.find((p) => p.key === customMeal.planKey)?.name ?? customMeal.planKey)
     : (catalog.plans.find((p) => p.key === draft?.order.planKey)?.name
       ?? catalog.mealSizes.find((m) => m.id === draft?.order.selections.mealSizeId)?.diet
       ?? "");
@@ -441,11 +441,11 @@ export function NewOrderSheet({
                 <Switch
                   id="customMealToggle"
                   checked={customMeal != null}
-                  onCheckedChange={(on) => setCustomMeal(on ? { items: [], basePriceOverride: null } : null)}
+                  onCheckedChange={(on) => setCustomMeal(on ? { planKey: catalog.plans[0]?.key ?? "", items: [], basePriceOverride: null } : null)}
                 />
               </div>
               {customMeal && (
-                <CustomMealBuilder categories={categories} value={customMeal} onChange={setCustomMeal} />
+                <CustomMealBuilder plans={catalog.plans} categories={categories} value={customMeal} onChange={setCustomMeal} />
               )}
               {/* Keep mounted across step 2↔3 so schedule/address aren't wiped on Edit. */}
               {(step === 2 || step === 3) && (
@@ -456,7 +456,7 @@ export function NewOrderSheet({
                   enabledSlots={enabledSlots}
                   prefill={prefill}
                   hideMealSizePicker={customMeal != null}
-                  customMeal={customMeal ? { items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
+                  customMeal={customMeal ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
                   onReview={(next) => {
                     setDraft(next);
                     setCreateError(null);
