@@ -443,7 +443,7 @@ export function NewOrderSheet({
               </div>
             ) : null}
 
-            <div className={step === 2 ? "space-y-4 px-5 py-5 sm:px-6" : "hidden"}>
+            <div className={step === 2 ? "space-y-5 px-5 py-5 sm:px-6" : "hidden"}>
               <button
                 type="button"
                 onClick={() => setStep(1)}
@@ -451,22 +451,6 @@ export function NewOrderSheet({
               >
                 ← <span className="font-medium">{fullName}</span>
               </button>
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="customMealToggle" className="grid gap-0.5">
-                  <span>Custom meal</span>
-                  <span className="text-muted-foreground text-xs font-normal">
-                    Build the tiffin item by item instead of picking a meal size.
-                  </span>
-                </Label>
-                <Switch
-                  id="customMealToggle"
-                  checked={customMeal != null}
-                  onCheckedChange={(on) => setCustomMeal(on ? { planKey: catalog.plans[0]?.key ?? "", items: [], basePriceOverride: null } : null)}
-                />
-              </div>
-              {customMeal && (
-                <CustomMealBuilder plans={catalog.plans} categories={categories} value={customMeal} onChange={setCustomMeal} />
-              )}
               {/* Keep mounted across steps 2–3 so schedule/address aren't wiped on Edit. */}
               {step >= 2 && (
                 <OrderForm
@@ -476,6 +460,19 @@ export function NewOrderSheet({
                   enabledSlots={enabledSlots}
                   prefill={prefill}
                   hideMealSizePicker={customMeal != null}
+                  mealAction={
+                    <Label htmlFor="customMealToggle" className="flex shrink-0 items-center gap-2 text-sm font-normal">
+                      Custom meal
+                      <Switch
+                        id="customMealToggle"
+                        checked={customMeal != null}
+                        onCheckedChange={(on) => setCustomMeal(on ? { planKey: catalog.plans[0]?.key ?? "", items: [], basePriceOverride: null } : null)}
+                      />
+                    </Label>
+                  }
+                  mealBuilder={customMeal ? (
+                    <CustomMealBuilder plans={catalog.plans} categories={categories} value={customMeal} onChange={setCustomMeal} />
+                  ) : null}
                   customMeal={customMeal ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
                   paymentExtra={(methodId) => methodId === "etransfer" ? (
                     <div className="grid gap-3 rounded-lg border p-3">

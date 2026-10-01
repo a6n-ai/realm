@@ -37,6 +37,22 @@ import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
+/** One group of the order form: a heading, one line of help, an optional header control. */
+function FormSection({ title, hint, action, children }: { title: string; hint?: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="grid gap-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="grid gap-0.5">
+          <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-balance">{title}</h3>
+          {hint && <p className="text-muted-foreground text-[13px] text-pretty">{hint}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 // Custom meals: the server derives plan and meal size from the composition.
 const customMealFormSchema = orderFormSchema.extend({ planKey: z.string(), mealSizeId: z.string() });
 
@@ -61,6 +77,8 @@ export function OrderForm({
   onCreated,
   onReview,
   paymentExtra,
+  mealAction,
+  mealBuilder,
   hideMealSizePicker = false,
   customMeal = null,
 }: {
@@ -80,6 +98,10 @@ export function OrderForm({
   onReview?: (draft: { order: CreateOrderInput; preview: PricingResult }) => void;
   /** Extra content under the payment methods, given the selected method (e.g. an e-Transfer screenshot). */
   paymentExtra?: (paymentMethodId: string | null) => React.ReactNode;
+  /** Control in the Meal section header (New order's Custom meal switch). */
+  mealAction?: React.ReactNode;
+  /** Replaces the plan/meal picker when set (the custom meal builder). */
+  mealBuilder?: React.ReactNode;
   /** A custom meal builder replaces the plan/meal-size pills (New Order). */
   hideMealSizePicker?: boolean;
   /** The builder's composition, priced server-side for the footer preview. */
@@ -90,6 +112,7 @@ export function OrderForm({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [repInfo, setRepInfo] = useState<RepCouponInfo | null>(null);
   const [discount, setDiscount] = useState(0);
+  const [discountOpen, setDiscountOpen] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
@@ -159,7 +182,6 @@ export function OrderForm({
     ? earliestTrialIso(new Date(), trialWeekdays)
     : nextWeekday(new Date()).toISOString().slice(0, 10);
   const realPayments = paymentMethods.length > 0;
-  const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
 
   useEffect(() => {
     if (!mealSizeId) return;
@@ -340,7 +362,7 @@ export function OrderForm({
   return (
     <>
       <Form {...form}>
-        <form onSubmit={onSubmit} className="relative space-y-6">
+        <form onSubmit={onSubmit} className="relative [&>section]:py-6 [&>section:first-of-type]:pt-0 [&>section+section]:border-t">
           {submitting && (
             <div
               className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-lg bg-background/80 backdrop-blur-sm"
@@ -357,9 +379,8 @@ export function OrderForm({
             </div>
           )}
 
-          <fieldset className="space-y-3" disabled={submitting}>
-            <legend className="text-sm font-medium text-foreground mb-1">Plan & Schedule</legend>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <FormSection title="Meal" hint={mealBuilder ? "Built item by item for this order." : "Diet, then the meal size."} action={mealAction}>
+            <fieldset className="grid gap-4" disabled={submitting}>
               <FormField
                 control={form.control}
                 name="planKey"
@@ -378,8 +399,9 @@ export function OrderForm({
                   </FormItem>
                 )}
               />
+              {mealBuilder}
               {!hideMealSizePicker && (
-                <div className="sm:col-span-2 grid gap-4">
+                <div className="grid gap-4">
                   <PlanMealPicker
                     catalog={catalog}
                     planKey={planKey}
@@ -390,6 +412,11 @@ export function OrderForm({
                   />
                 </div>
               )}
+            </fieldset>
+          </FormSection>
+
+          <FormSection title="Schedule" hint={isTrial ? "A trial is sent on the trial send days." : "When it starts, how long it runs, and which days they eat."}>
+            <fieldset className="grid gap-4 sm:grid-cols-3" disabled={submitting}>
               <FormField
                 control={form.control}
                 name="persons"
@@ -404,17 +431,22 @@ export function OrderForm({
               {isTrial ? (
                 <div className="space-y-2">
                   <Label htmlFor="trial-days">Trial days <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="trial-days"
-                    type="number"
-                    min={1}
-                    max={trialSettings?.maxDays ?? 1}
-                    value={trialDays}
-                    onChange={(e) => setTrialDays(Math.min(trialSettings?.maxDays ?? 1, Math.max(1, Number(e.target.value) || 1)))}
-                  />
-                  <p className="text-muted-foreground text-xs">
+                  {/* The limit is Catalog → Meal sizes → Trial; with a limit of 1 there is nothing to choose. */}
+                  {(trialSettings?.maxDays ?? 1) > 1 ? (
+                    <Input
+                      id="trial-days"
+                      type="number"
+                      min={1}
+                      max={trialSettings?.maxDays ?? 1}
+                      value={trialDays}
+                      onChange={(e) => setTrialDays(Math.min(trialSettings?.maxDays ?? 1, Math.max(1, Number(e.target.value) || 1)))}
+                    />
+                  ) : (
+                    <p id="trial-days" className="flex h-9 items-center text-sm font-medium">1 day</p>
+                  )}
+                  <p className="text-muted-foreground text-xs text-pretty">
                     {trialOpen
-                      ? `Up to ${trialSettings?.maxDays} days, sent on ${trialWeekdays.join(", ")}.`
+                      ? `Up to ${trialSettings?.maxDays} ${trialSettings?.maxDays === 1 ? "day" : "days"}, sent ${trialWeekdays.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ")}.`
                       : "Set a max and send days on Meal sizes → Trial before creating a trial order."}
                   </p>
                 </div>
@@ -445,8 +477,7 @@ export function OrderForm({
                   </FormItem>
                 )}
               />
-            </div>
-          </fieldset>
+            </fieldset>
 
           {!isTrial && <fieldset disabled={submitting}>
             <ScheduleSection
@@ -459,9 +490,10 @@ export function OrderForm({
               bounds={bounds}
             />
           </fieldset>}
+          </FormSection>
 
+          <FormSection title="Delivery address" hint="Pick a suggestion to fill the city and postal code.">
           <fieldset className="space-y-3" disabled={submitting}>
-            <legend className="text-sm font-medium text-foreground mb-1">Delivery</legend>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2 grid gap-2">
                 <AddressFields
@@ -485,13 +517,12 @@ export function OrderForm({
             </div>
           </fieldset>
 
+          </FormSection>
+
+          <FormSection title="Payment" hint={realPayments ? "How the customer pays. They get a payment link after you create the order." : undefined}>
           <fieldset className="space-y-3" disabled={submitting}>
-            <legend className="mb-1 text-sm font-medium text-foreground">Payment</legend>
             {realPayments ? (
               <>
-                <p className="text-muted-foreground text-xs">
-                  Choose how the customer will pay. Share the payment link after create so they can complete it.
-                </p>
                 <div className="grid gap-2">
                   {paymentMethods.map((m) => {
                     const selected = m.id === paymentMethodId;
@@ -534,8 +565,15 @@ export function OrderForm({
 
           {repInfo && !(repInfo.available === false && repInfo.reason === "disabled") && (
             <fieldset className="space-y-3" disabled={submitting}>
-              <legend className="text-sm font-medium text-foreground mb-1">Rep discount</legend>
-              {repInfo.available ? (
+              {!discountOpen && discount === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setDiscountOpen(true)}
+                  className="text-primary hover:text-primary/80 min-h-11 text-sm font-medium underline-offset-4 hover:underline sm:min-h-0"
+                >
+                  {repInfo.available ? "Apply rep discount" : "Rep discount"}
+                </button>
+              ) : repInfo.available ? (
                 <div className="space-y-2 rounded-lg border p-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">{repInfo.name} <span className="nums">({repInfo.code})</span></span>
@@ -577,14 +615,9 @@ export function OrderForm({
             </fieldset>
           )}
 
-          {error ? <p className="text-destructive text-sm">{error}</p> : null}
+          </FormSection>
 
-          {selectedMethod && (
-            <p className="bg-muted/50 text-muted-foreground rounded-lg p-3 text-xs">
-              After create, copy the customer payment link and ask them to complete{" "}
-              {selectedMethod.label}. Deliveries start once payment is confirmed.
-            </p>
-          )}
+          {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
 
           <div className="sticky bottom-0 -mx-4 mt-2 flex items-center justify-between gap-3 border-t bg-card/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/80">
             <div className="text-sm">
@@ -593,7 +626,7 @@ export function OrderForm({
               {shownPreview ? <span className="text-muted-foreground nums"> · {shownPreview.tiffinCount} tiffins</span> : null}
             </div>
             <div className="flex flex-col items-end gap-1">
-              {missing.length > 0 && <p className="text-muted-foreground text-xs">Missing: {missing.join(", ")}</p>}
+              {missing.length > 0 && <p className="text-muted-foreground text-xs">Still needed: {missing.join(", ")}</p>}
               {!shownPreview && previewError && missing.length === 0 && (
                 <p role="alert" className="text-destructive max-w-80 text-right text-xs">{previewError}</p>
               )}
