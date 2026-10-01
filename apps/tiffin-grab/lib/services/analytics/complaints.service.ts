@@ -1,3 +1,5 @@
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { zonedDateIso } from "@foundry/commons";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lte, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryZones, orders, plans, tickets, users } from "@/db/schema";
@@ -54,9 +56,10 @@ async function deliveredTiffins(filters: ComplaintFilters, now = Date.now()): Pr
     eq(deliveries.status, "scheduled"),
     sql`(${deliveries.cutoffAt} <= ${now} or ${deliveries.optimoCompletionStatus} = 'success')`,
   ];
-  // deliveryDate is a DATE; the filters are epoch ms, so compare on calendar days.
-  if (filters.from != null) parts.push(gte(deliveries.deliveryDate, new Date(filters.from).toISOString().slice(0, 10)));
-  if (filters.to != null) parts.push(lte(deliveries.deliveryDate, new Date(filters.to).toISOString().slice(0, 10)));
+  // deliveryDate is a DATE; the filters are epoch ms, so compare on app-timezone calendar days.
+  const { timezone } = await getAppSettings();
+  if (filters.from != null) parts.push(gte(deliveries.deliveryDate, zonedDateIso(filters.from, timezone)));
+  if (filters.to != null) parts.push(lte(deliveries.deliveryDate, zonedDateIso(filters.to, timezone)));
 
   const [row] = await db
     .select({ units: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int` })

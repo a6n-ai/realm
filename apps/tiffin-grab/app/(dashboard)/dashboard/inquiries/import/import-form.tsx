@@ -2,6 +2,8 @@
 /* eslint-disable */
 
 
+import { zonedDateIso } from "@foundry/commons";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import { useState } from "react";
 import { DownloadIcon, Loader2Icon, UploadIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -42,6 +44,7 @@ export function ImportForm({ sources }: { sources: { key: string; label: string 
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<ImportMapping>({ notes: [] });
   const [sourceKey, setSourceKey] = useState("manual");
+  const tz = useTimezone();
   const [busy, setBusy] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -121,7 +124,7 @@ export function ImportForm({ sources }: { sources: { key: string; label: string 
     );
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, kind);
-    XLSX.writeFile(wb, `inquiries-import-${kind.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `inquiries-import-${kind.toLowerCase()}-${zonedDateIso(Date.now(), tz)}.xlsx`);
   }
 
   return (

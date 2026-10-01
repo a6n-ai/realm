@@ -11,6 +11,7 @@ import {
   activateOrder,
   cancelOrder,
   startMigratedOrder,
+  changeOrderStartDate,
   changeMealSize,
   rejectPayment,
   verifyPayment,
@@ -31,6 +32,15 @@ export async function startMigrated(orderId: string, startDate: string): Promise
   const res = await runAction(async () => {
     await requireStaff();
     await startMigratedOrder(orderId, startDate);
+  });
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  return res;
+}
+
+export async function changeStartDateAction(orderId: string, startDate: string): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await changeOrderStartDate(orderId, startDate);
   });
   revalidatePath(`/dashboard/orders/${orderId}`);
   return res;

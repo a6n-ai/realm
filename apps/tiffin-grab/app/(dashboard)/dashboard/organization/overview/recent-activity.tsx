@@ -5,6 +5,7 @@
 // timestamp. This is a smaller feature than a true audit feed by design (YAGNI) — if a
 // richer feed is wanted later, that's a follow-up plan that adds the audit_log join
 // properly, not something to smuggle into this one.
+import { AppDate } from "@/components/dashboard/app-date";
 import { CalendarIcon, MailIcon, UserPlusIcon } from "lucide-react";
 
 export type ActivityItem =
@@ -32,7 +33,7 @@ export function RecentActivity({ items }: { items: ActivityItem[] }) {
           )}
           <span className="text-muted-foreground ml-auto flex items-center gap-1 text-xs">
             <CalendarIcon className="size-3" />
-            {new Date(item.at).toLocaleDateString()}
+            <AppDate value={item.at} />
           </span>
         </li>
       ))}

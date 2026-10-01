@@ -1,4 +1,12 @@
-import { isWeekend, parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError } from "@foundry/commons";
+import { isWeekend, parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError, zonedDateIso } from "@foundry/commons";
+
+/**
+ * Today's calendar date in the app timezone, as UTC midnight. Start-date rules use
+ * this, not the UTC date, which is already tomorrow on a Toronto evening.
+ */
+export function appToday(timezone = "America/Toronto", now = Date.now()): Date {
+  return parseIsoDateUtc(zonedDateIso(now, timezone));
+}
 
 // Validate a customer-chosen subscription start date.
 // - must be on/after the next weekday after `today` (no past, no same-day, skip weekends)

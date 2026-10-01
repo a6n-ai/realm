@@ -19,6 +19,7 @@ export type QuickAddCatalog = {
   mealSizes: { id: string; name: string; diet: string; trial?: boolean }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
+  timezone?: string;
   maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];
 };
@@ -72,6 +73,7 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
       mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends, addons: m.trial ? [] : mealSizeAddons(catalog.addonsByCategory, m.items) })),
       frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
+    timezone: catalog.timezone,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
       durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
     },

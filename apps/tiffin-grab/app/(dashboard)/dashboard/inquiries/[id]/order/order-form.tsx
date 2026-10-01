@@ -32,6 +32,7 @@ import {
 import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
+import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialDeliveryDates, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
 import { convertInquiry, previewPrice, repCouponInfo, trialFormSettings, type RepCouponInfo } from "./actions";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
@@ -63,6 +64,7 @@ type Catalog = {
   mealSizes: { id: string; name: string; diet: string; trial?: boolean; servesWeekends?: boolean; addons?: CatalogAddon[] }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
+  timezone?: string;
   maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];
 };
@@ -190,8 +192,8 @@ export function OrderForm({
   const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true) : [];
   const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
   const minStart = isTrial && trialSettings
-    ? earliestTrialIso(new Date(), trialWeekdays)
-    : nextWeekday(new Date()).toISOString().slice(0, 10);
+    ? earliestTrialIso(appToday(catalog.timezone), trialWeekdays)
+    : nextWeekday(appToday(catalog.timezone)).toISOString().slice(0, 10);
   const realPayments = paymentMethods.length > 0;
   const trialMax = trialSettings?.maxDays ?? 0;
   const multiDayTrial = trialMax > 1;
