@@ -39,6 +39,10 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-brand-pink: var(--brand-pink);
+  --color-brand-sunshine: var(--brand-sunshine);
+  --color-brand-blush: var(--brand-blush);
+  --color-brand-ink: var(--brand-ink);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
@@ -54,6 +58,10 @@
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
+  --brand-pink: oklch(0.608 0.237 1);
+  --brand-sunshine: oklch(0.889 0.147 90.7);
+  --brand-blush: oklch(0.942 0.031 347.1);
+  --brand-ink: oklch(0.296 0.092 265.3);
   --foreground: oklch(0.296 0.092 265.3);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.296 0.092 265.3);

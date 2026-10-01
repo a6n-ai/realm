@@ -135,10 +135,22 @@ export function Pill({ children, variant }: { children: ReactNode; variant?: "su
   );
 }
 
-export function ProgrammeCard({ programme, ctaHref = "/whats-on" }: { programme: Programme; ctaHref?: string }) {
+export function ProgrammeCard({
+  programme,
+  ctaHref = "/whats-on",
+  transitionName,
+}: {
+  programme: Programme;
+  ctaHref?: string;
+  transitionName?: string;
+}) {
   const Glyph = PROGRAMME_ICON[programme.key];
   return (
-    <article className="xl-card" data-programme={programme.key}>
+    <article
+      className="xl-card"
+      data-programme={programme.key}
+      style={transitionName ? { viewTransitionName: transitionName } : undefined}
+    >
       <div className="xl-card-head">
         <Glyph size={34} strokeWidth={1.6} aria-hidden />
         <Pill>{programme.tag}</Pill>

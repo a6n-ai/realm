@@ -140,6 +140,8 @@
   line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
   color-scheme: light;
+  caret-color: var(--xl-pink-600);
+  accent-color: var(--xl-navy-800);
 }
 
 @media (max-width: 640px) {
@@ -365,7 +367,8 @@ body:has(.xl):not(:has(.crm-app)) {
   /* Sunshine underline band behind the key hero word. */
   .xl-highlight {
     color: var(--text-emphasis);
-    background: linear-gradient(transparent 82%, var(--xl-sunshine) 82%, var(--xl-sunshine) 94%, transparent 94%);
+    background: linear-gradient(transparent 82%, var(--xl-sunshine) 82%, var(--xl-sunshine) 94%, transparent 94%) no-repeat
+      0 0 / 100% 100%;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
   }
@@ -616,15 +619,38 @@ body:has(.xl):not(:has(.crm-app)) {
     inset: 100% 0 auto;
     border-bottom: 1px solid var(--border-header);
     background: var(--xl-white);
+    box-shadow: 0 18px 32px -18px rgba(22, 41, 90, 0.3);
     padding: 12px var(--gutter) 24px;
-    transform-origin: top;
+    /* Opens and closes along the same path (down from the header, back up).
+       allow-discrete keeps it painted while display flips to none on close. */
+    display: none;
+    opacity: 0;
+    translate: 0 -8px;
+    transition:
+      opacity 140ms ease-in,
+      translate 140ms ease-in,
+      display 140ms allow-discrete;
+  }
+
+  .xl-sheet[data-open] {
+    display: block;
+    opacity: 1;
+    translate: 0 0;
     transition:
       opacity 200ms var(--ease-out),
-      translate 200ms var(--ease-out);
+      translate 200ms var(--ease-out),
+      display 200ms allow-discrete;
 
     @starting-style {
       opacity: 0;
       translate: 0 -8px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .xl-sheet,
+    .xl-sheet[data-open] {
+      translate: 0 0;
     }
   }
 
@@ -669,7 +695,8 @@ body:has(.xl):not(:has(.crm-app)) {
     }
 
     .xl-burger,
-    .xl-sheet {
+    .xl-sheet,
+    .xl-sheet[data-open] {
       display: none;
     }
   }
@@ -893,20 +920,40 @@ body:has(.xl):not(:has(.crm-app)) {
     }
   }
 
-  /* The page's one orchestrated moment: the collage assembles on load. */
+  /* The page's one authored moment. The pinboard settles, then each piece is
+     pressed onto it like a sticker: it lands slightly large and lifted, presses
+     down, and its offset shadow appears as it sticks. Last, the sunshine marker
+     sweeps under "curiosity". Everything is visible by default, so a failed
+     animation never hides content. */
   @media (prefers-reduced-motion: no-preference) {
     .xl-collage-card {
-      animation: xl-rise 600ms var(--ease-out) both;
+      animation: xl-board 640ms var(--ease-out) both;
     }
 
     .xl-collage-card > * {
-      animation: xl-pop 520ms var(--ease-out) both;
-      animation-delay: calc(240ms + var(--i, 0) * 70ms);
+      animation: xl-stick 560ms var(--ease-out) both;
+      animation-delay: calc(320ms + var(--i, 0) * 90ms);
     }
 
     .xl-hero-copy > * {
       animation: xl-rise 560ms var(--ease-out) both;
       animation-delay: calc(var(--i, 0) * 60ms);
+    }
+
+    .xl-hero .xl-highlight {
+      animation: xl-mark 520ms var(--ease-out) 620ms both;
+    }
+
+    .xl-hero-sparkle {
+      animation: xl-twinkle 700ms var(--ease-out) 1000ms both;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .xl-collage-card > *,
+    .xl-hero-copy > * {
+      animation: xl-fade-only 300ms ease both;
+      animation-delay: calc(var(--i, 0) * 40ms);
     }
   }
 
@@ -947,9 +994,11 @@ body:has(.xl):not(:has(.crm-app)) {
   }
 
   .xl-tab {
-    min-height: 40px;
+    position: relative;
+    isolation: isolate;
+    min-height: 44px;
     padding: 8px 16px;
-    border: 1px solid transparent;
+    border: 0;
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--action-fg);
@@ -958,12 +1007,24 @@ body:has(.xl):not(:has(.crm-app)) {
     cursor: pointer;
     transition:
       background-color var(--duration-fast) ease,
-      border-color var(--duration-fast) ease;
+      transform 120ms var(--ease-out);
   }
 
-  .xl-tab[aria-pressed="true"] {
-    border-color: var(--action-border);
+  /* The selected fill is its own element so a view transition can slide it
+     from the old tab to the new one. */
+  .xl-tab-pill {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border: 1px solid var(--action-border);
+    border-radius: inherit;
     background: var(--action-bg);
+    view-transition-name: xl-tab-pill;
+  }
+
+  .xl-tab:active,
+  .xl-chip:active {
+    transform: scale(0.97);
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -979,17 +1040,19 @@ body:has(.xl):not(:has(.crm-app)) {
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--border-card);
-    border-top: 5px solid var(--p);
     border-radius: var(--radius-card);
     background: var(--surface-card);
   }
 
+  /* Programme colour as a straight band inside the clipped head, so it meets
+     the rounded corners cleanly instead of tapering like a thick border. */
   .xl-card-head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    padding: 20px 22px;
+    padding: 25px 22px 20px;
     background: var(--pt);
+    box-shadow: inset 0 5px 0 var(--p);
     color: var(--xl-navy-800);
   }
 
@@ -1043,11 +1106,19 @@ body:has(.xl):not(:has(.crm-app)) {
     font-variant-numeric: tabular-nums;
   }
 
-  /* Filter swaps cards in place: a short fade so the grid change reads as one. */
-  @media (prefers-reduced-motion: no-preference) {
-    .xl-grid[data-animate] > .xl-card {
-      animation: xl-fade 220ms var(--ease-out) both;
-    }
+  /* Filtering runs inside a view transition (programme-grid.tsx): cards that
+     stay slide to their new cell, the rest fade, and the tab pill travels. */
+  ::view-transition-group(*) {
+    animation-duration: 380ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  ::view-transition-old(*) {
+    animation-duration: 160ms;
+  }
+
+  ::view-transition-new(*) {
+    animation-duration: 260ms;
   }
 
   /* ---------- Notice ---------- */
@@ -1084,7 +1155,7 @@ body:has(.xl):not(:has(.crm-app)) {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    min-height: 34px;
+    min-height: 36px;
     padding: 6px 12px;
     border: 1px solid var(--border-card);
     border-radius: var(--radius-pill);
@@ -1095,7 +1166,14 @@ body:has(.xl):not(:has(.crm-app)) {
     cursor: pointer;
     transition:
       background-color var(--duration-fast) ease,
-      border-color var(--duration-fast) ease;
+      border-color var(--duration-fast) ease,
+      transform 120ms var(--ease-out);
+  }
+
+  @media (pointer: coarse) {
+    .xl-chip {
+      min-height: 44px;
+    }
   }
 
   .xl-chip::before {
@@ -1116,6 +1194,14 @@ body:has(.xl):not(:has(.crm-app)) {
     border: 1px solid var(--border-panel);
     border-radius: 16px;
     overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scroll-padding-left: 110px;
+    scrollbar-color: var(--xl-sky-400) transparent;
+    scrollbar-width: thin;
+  }
+
+  .xl-cal thead th {
+    scroll-snap-align: start;
   }
 
   .xl-cal table {
@@ -1163,6 +1249,7 @@ body:has(.xl):not(:has(.crm-app)) {
   }
 
   .xl-slot {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -1172,6 +1259,37 @@ body:has(.xl):not(:has(.crm-app)) {
     background: var(--pt);
     font-size: var(--size-micro);
     line-height: 1.45;
+    transition:
+      background-color var(--duration-fast) ease,
+      transform 120ms var(--ease-out);
+  }
+
+  /* The link stretches over the whole slot: the tap target is the slot, not
+     the 10px label. Focus is drawn on the slot. */
+  .xl-slot a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+
+  .xl-slot a:focus-visible {
+    outline: none;
+  }
+
+  .xl-slot:has(a:focus-visible) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .xl-slot:active {
+    transform: scale(0.98);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .xl-slot:hover {
+      background: color-mix(in srgb, var(--p) 16%, var(--pt));
+    }
   }
 
   .xl-slot b {
@@ -1221,7 +1339,7 @@ body:has(.xl):not(:has(.crm-app)) {
   .xl-session {
     display: grid;
     grid-template-columns: 1fr auto;
-    align-items: center;
+    align-items: start;
     gap: 6px 20px;
     padding-block: 16px;
     border-bottom: 1px solid var(--border-rule);
@@ -1229,6 +1347,10 @@ body:has(.xl):not(:has(.crm-app)) {
 
   .xl-session:last-child {
     border-bottom: 0;
+  }
+
+  .xl-session > :last-child {
+    align-self: center;
   }
 
   .xl-session-time {
@@ -1320,6 +1442,9 @@ body:has(.xl):not(:has(.crm-app)) {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    /* A missing upload shows the pink tile, not overflowing alt text. */
+    color: transparent;
+    font-size: 0;
   }
 
   .xl-book {
@@ -1418,9 +1543,9 @@ body:has(.xl):not(:has(.crm-app)) {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
     overflow: hidden;
-    border-top: 4px solid var(--xl-pink-500);
     border-radius: var(--radius-feature);
     background: var(--surface-pink);
+    box-shadow: inset 0 4px 0 var(--xl-pink-500);
   }
 
   .xl-feature-copy {
@@ -1454,9 +1579,9 @@ body:has(.xl):not(:has(.crm-app)) {
     gap: 14px;
     padding: 22px;
     border: 1px solid var(--border-card);
-    border-top: 4px solid var(--p, var(--xl-sunshine));
     border-radius: var(--radius-card);
     background: var(--surface-card);
+    box-shadow: inset 0 4px 0 var(--p, var(--xl-sunshine));
   }
 
   .xl-quote blockquote {
@@ -1597,16 +1722,66 @@ body:has(.xl):not(:has(.crm-app)) {
   }
 }
 
-@keyframes xl-pop {
+@keyframes xl-board {
   from {
     opacity: 0;
-    scale: 0.88;
+    scale: 0.96;
+    translate: 0 18px;
   }
 }
 
-@keyframes xl-fade {
+@keyframes xl-stick {
+  0% {
+    opacity: 0;
+    scale: 1.14;
+    translate: 0 -14px;
+    box-shadow: 0 0 0 transparent;
+  }
+  70% {
+    opacity: 1;
+    scale: 0.98;
+    translate: 0 0;
+  }
+}
+
+@keyframes xl-mark {
+  from {
+    background-size: 0% 100%;
+  }
+}
+
+@keyframes xl-twinkle {
+  0% {
+    opacity: 0;
+    scale: 0.4;
+    rotate: -90deg;
+  }
+  60% {
+    opacity: 1;
+    scale: 1.15;
+  }
+}
+
+@keyframes xl-fade-only {
   from {
     opacity: 0;
-    translate: 0 6px;
+  }
+}
+
+@keyframes xl-header-edge {
+  to {
+    border-bottom-color: var(--border-header);
+    box-shadow: 0 8px 24px -16px rgba(22, 41, 90, 0.35);
+  }
+}
+
+/* Apple-style scroll edge: the header only shows an edge once content is
+   actually sliding under it. Browsers without scroll timelines keep the line. */
+@supports (animation-timeline: scroll()) {
+  .xl-header {
+    border-bottom-color: transparent;
+    animation: xl-header-edge linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 96px;
   }
 }

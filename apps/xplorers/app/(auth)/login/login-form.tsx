@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,11 +32,19 @@ const otpEmailSchema = z.object({
 
 type Mode = "password" | "email-otp";
 
+/** Same pinboard as the public hero. Fixed light in both themes: the logo is
+ *  drawn for light grounds only. */
 function BrandPanel({ copy }: { copy: string }) {
   return (
-    <div className="bg-primary text-primary-foreground relative hidden flex-col items-center justify-center gap-2 border-l p-8 md:flex">
-      <span className="text-2xl font-bold">{SITE_NAME}</span>
-      <p className="text-balance text-center text-sm opacity-90">{copy}</p>
+    <div
+      className="bg-brand-blush text-brand-ink relative hidden flex-col items-center justify-center gap-4 border-l p-8 md:flex"
+      style={{
+        backgroundImage: "radial-gradient(color-mix(in oklch, var(--brand-pink) 30%, transparent) 1px, transparent 1.2px)",
+        backgroundSize: "22px 22px",
+      }}
+    >
+      <Image src="/brand/logo-xplorers.png" alt={SITE_NAME} width={555} height={245} className="h-auto w-56 mix-blend-multiply" />
+      <p className="max-w-[28ch] text-balance text-center text-sm">{copy}</p>
     </div>
   );
 }
@@ -48,11 +57,15 @@ export function LoginForm() {
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
           <div className="p-6 md:p-8">
-            {mode === "password" ? (
-              <PasswordPanel onUseEmailOtp={() => setMode("email-otp")} />
-            ) : (
-              <EmailOtpPanel onUsePassword={() => setMode("password")} />
-            )}
+            {/* Keyed by mode so switching sign-in method fades the new panel in
+                instead of swapping instantly. */}
+            <div key={mode} className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
+              {mode === "password" ? (
+                <PasswordPanel onUseEmailOtp={() => setMode("email-otp")} />
+              ) : (
+                <EmailOtpPanel onUsePassword={() => setMode("password")} />
+              )}
+            </div>
           </div>
           <BrandPanel copy="Families sign in with an emailed code. Staff use a password to reach the console." />
         </CardContent>

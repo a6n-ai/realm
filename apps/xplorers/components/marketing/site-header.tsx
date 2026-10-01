@@ -61,9 +61,9 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="xl-header-actions">
-          <Link href={accountHref} className="xl-account xl-nav-link">
+          <Button size="sm" variant="secondary" href={accountHref} className="xl-account">
             {accountLabel}
-          </Link>
+          </Button>
           <Button size="sm" icon="arrow-up-right" href="/contact" className="xl-header-cta">
             Let&rsquo;s chat
           </Button>
@@ -80,26 +80,24 @@ export function SiteHeader() {
           </button>
         </div>
       </div>
-      {open ? (
-        <nav id="xl-mobile-nav" className="xl-sheet" aria-label="Main">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(pathname, item.href) ? "page" : undefined}
-              onClick={() => setOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <Link href={accountHref} onClick={() => setOpen(false)}>
-            {accountLabel}
+      <nav id="xl-mobile-nav" className="xl-sheet" data-open={open ? "" : undefined} aria-label="Main" inert={!open}>
+        {NAV.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={isActive(pathname, item.href) ? "page" : undefined}
+            onClick={() => setOpen(false)}
+          >
+            {item.label}
           </Link>
-          <Button href="/contact" icon="arrow-up-right" block>
-            Let&rsquo;s chat
-          </Button>
-        </nav>
-      ) : null}
+        ))}
+        <Link href={accountHref} onClick={() => setOpen(false)}>
+          {accountLabel}
+        </Link>
+        <Button href="/contact" icon="arrow-up-right" block>
+          Let&rsquo;s chat
+        </Button>
+      </nav>
     </header>
   );
 }
