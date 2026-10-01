@@ -3,7 +3,7 @@ import { drainPending, materializeDue } from "@/lib/notifications/drain";
 
 // Hourly backstop for the Redis-signalled outbox listener: expands scheduled
 // campaigns whose time has come and sends anything a lost signal or a restart
-// left pending. Same fail-closed CRON_SECRET contract as abandoned-recovery.
+// left pending. Fail-closed CRON_SECRET contract.
 export const dynamic = "force-dynamic";
 
 const log = createLogger("cron-notifications");
