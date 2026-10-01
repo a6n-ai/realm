@@ -173,7 +173,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                 </p>
                 )}
                 {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
-                <Actions model={actionModel(trip, now, plan.ctx, { menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, isDeliveryDay: isAddressRow(rows, row), movedTo: row.movedTo })} onOpen={setDlg} />
+                <Actions model={actionModel(trip, now, plan.ctx, { menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, isDeliveryDay: isAddressRow(rows, row), movedTo: row.movedTo, trial: plan.sub.trial })} onOpen={setDlg} />
               </CardContent>
             </Card>
           )}

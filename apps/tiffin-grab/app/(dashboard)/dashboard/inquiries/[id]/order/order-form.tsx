@@ -60,6 +60,7 @@ export function OrderForm({
   onCreate,
   onCreated,
   onReview,
+  paymentExtra,
   hideMealSizePicker = false,
   customMeal = null,
 }: {
@@ -77,6 +78,8 @@ export function OrderForm({
    * Requires a live price preview — create stays on the review step.
    */
   onReview?: (draft: { order: CreateOrderInput; preview: PricingResult }) => void;
+  /** Extra content under the payment methods, given the selected method (e.g. an e-Transfer screenshot). */
+  paymentExtra?: (paymentMethodId: string | null) => React.ReactNode;
   /** A custom meal builder replaces the plan/meal-size pills (New Order). */
   hideMealSizePicker?: boolean;
   /** The builder's composition, priced server-side for the footer preview. */
@@ -520,6 +523,7 @@ export function OrderForm({
                     );
                   })}
                 </div>
+                {paymentExtra?.(paymentMethodId)}
               </>
             ) : (
               <p className="text-muted-foreground flex items-center gap-1.5 text-sm">

@@ -13,6 +13,7 @@ import { orderDisplayStatus } from "@/lib/orders/display-status";
 import type { SortState } from "@/lib/list/sort";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import { reassignOrderAction } from "./actions";
+import { TrialPill } from "./trial-pill";
 
 // ORDER_STATUS_PILLS lives in ./status-pills (a non-client module) because the
 // server page maps over it; re-exporting it here would hand the RSC graph a
@@ -73,11 +74,7 @@ export function OrdersList({
             <Link href={`/dashboard/orders/${o.publicId}`} className="group-hover:underline">
               {o.fullName}
             </Link>
-            {o.trial && (
-              <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-950 uppercase dark:bg-amber-900/40 dark:text-amber-100">
-                Trial
-              </span>
-            )}
+            {o.trial && <TrialPill className="ml-2" />}
           </TableCell>
           <TableCell>{o.deploymentId}</TableCell>
           <TableCell>{o.city}</TableCell>

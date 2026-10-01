@@ -30,6 +30,7 @@ import { OrderOverview } from "./order-summary-panel";
 import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { ChangePlanControl } from "./change-plan-control";
+import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
 import { DeliveriesSection, loadSubscription } from "@/components/dashboard/subscription-panel";
@@ -181,8 +182,10 @@ async function OrderDetail({
 
   const headerActions = (
     <>
+      {order.trialLength != null && <TrialPill className="self-center" />}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
-      <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />
+      {/* A trial can only have its dishes edited (orders.service rejects a plan change). */}
+      {order.trialLength == null && <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />}
     </>
   );
 

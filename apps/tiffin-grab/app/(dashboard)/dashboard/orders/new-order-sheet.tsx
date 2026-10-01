@@ -35,6 +35,7 @@ import { makeImageThumbnail } from "@/components/ds";
 import {
   CustomMealBuilder, filledItems, type CustomMealCategory, type CustomMealValue,
 } from "./custom-meal-builder";
+import { TrialPill } from "./trial-pill";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 
@@ -73,9 +74,9 @@ const PhoneInput = dynamic(() => import("@foundry/ui/phone-input").then((m) => m
 });
 
 /**
- * Four-step New order — mirrors New inquiry contact, then catalog plan, then an
- * optional e-Transfer screenshot (approves the payment on create), then a
- * verify step with plan summary + price breakup before create:
+ * Three-step New order — mirrors New inquiry contact, then catalog plan (with an
+ * optional e-Transfer screenshot under payment that approves the payment on create),
+ * then a verify step with plan summary + price breakup before create:
  *   1. Contact + Source (optional sub-source)
  *   2. Catalog / custom meal + schedule + delivery + payment
  *   3. Review plan & pricing → Create order
@@ -106,7 +107,8 @@ export function NewOrderSheet({
   const enabledSlots: EnabledSlot[] = categories.map((c) => ({ key: c.key, label: c.label }));
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [paidNow, setPaidNow] = useState(false);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
   const [fullName, setFullName] = useState("");
@@ -189,6 +191,7 @@ export function NewOrderSheet({
       setCreated(null);
       setSuccessOpen(false);
       setProof({ file: null, reference: "" });
+      setPaidNow(false);
     }
   }
 
@@ -216,7 +219,7 @@ export function NewOrderSheet({
           : undefined,
       }));
       let paid: AdminOrderCreated["paid"];
-      if (proof.file && isEtransfer) {
+      if (paidNow && proof.file && isEtransfer) {
         // Order already exists; a failed upload must not hide that, so it is
         // reported on the success dialog rather than thrown.
         const form = new FormData();
@@ -265,7 +268,7 @@ export function NewOrderSheet({
           ) : undefined
         }
         title="New order"
-        description="Contact, plan, payment, then verify pricing before create."
+        description="Contact, plan, then verify pricing before create."
         contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         footer={
           sources.length > 0 && step === 1 ? (
@@ -279,15 +282,6 @@ export function NewOrderSheet({
               </Button>
             </div>
           ) : sources.length > 0 && step === 3 ? (
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                onClick={() => setStep(4)}
-                className="min-h-11 active:scale-[0.96] sm:min-h-9"
-              >
-                {proof.file ? "Continue" : isEtransfer ? "Skip, collect later" : "Continue"}
-              </Button>
-            </div>
-          ) : sources.length > 0 && step === 4 ? (
             <div className="flex w-full items-center justify-between gap-3">
               <div className="text-sm">
                 <span className="text-muted-foreground">Total </span>
@@ -320,7 +314,7 @@ export function NewOrderSheet({
           <NoSources noun="order" />
         ) : (
           <>
-            <StepHeader step={step} steps={["Contact", "Order", "Payment", "Review"]} />
+            <StepHeader step={step} steps={["Contact", "Order", "Review"]} />
 
             {step === 1 ? (
               <div className="space-y-6 px-5 py-5 sm:px-6">
@@ -474,7 +468,7 @@ export function NewOrderSheet({
               {customMeal && (
                 <CustomMealBuilder plans={catalog.plans} categories={categories} value={customMeal} onChange={setCustomMeal} />
               )}
-              {/* Keep mounted across steps 2–4 so schedule/address aren't wiped on Edit. */}
+              {/* Keep mounted across steps 2–3 so schedule/address aren't wiped on Edit. */}
               {step >= 2 && (
                 <OrderForm
                   inquiryId=""
@@ -484,6 +478,20 @@ export function NewOrderSheet({
                   prefill={prefill}
                   hideMealSizePicker={customMeal != null}
                   customMeal={customMeal ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
+                  paymentExtra={(methodId) => methodId === "etransfer" ? (
+                    <div className="grid gap-3 rounded-lg border p-3">
+                      <Label htmlFor="paidNowToggle" className="flex items-center justify-between gap-3">
+                        <span className="grid gap-0.5">
+                          <span>Already paid by e-Transfer</span>
+                          <span className="text-muted-foreground text-xs font-normal">
+                            Attach their screenshot to approve the payment and start the plan on create.
+                          </span>
+                        </span>
+                        <Switch id="paidNowToggle" checked={paidNow} onCheckedChange={setPaidNow} />
+                      </Label>
+                      {paidNow && <PaymentProofField value={proof} onChange={setProof} />}
+                    </div>
+                  ) : null}
                   onReview={(next) => {
                     setDraft(next);
                     setCreateError(null);
@@ -494,27 +502,6 @@ export function NewOrderSheet({
             </div>
 
             {step === 3 ? (
-              <div className="space-y-5 px-5 py-5 sm:px-6">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="text-muted-foreground hover:text-foreground -ml-1 flex min-h-11 items-center gap-1 text-sm transition-colors"
-                >
-                  ← <span className="font-medium">Edit order</span>
-                </button>
-                {isEtransfer ? (
-                  <PaymentProofField value={proof} onChange={setProof} />
-                ) : (
-                  <div className="text-muted-foreground rounded-lg border p-4 text-sm">
-                    {draft?.order.paymentMethodId
-                      ? "The customer pays with the payment link after you create the order."
-                      : "No payment method is set up, so the order is recorded as paid."}
-                  </div>
-                )}
-              </div>
-            ) : null}
-
-            {step === 4 ? (
               <div className="space-y-5 px-5 py-5 sm:px-6">
                 <button
                   type="button"
@@ -536,7 +523,10 @@ export function NewOrderSheet({
                 <section className="grid gap-3">
                   <SectionLabel>Plan</SectionLabel>
                   <div className="space-y-2 rounded-lg border p-4 text-sm">
-                    <p className="text-base font-semibold tracking-tight">{mealLabel}</p>
+                    <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                      {mealLabel}
+                      {trialDays != null && <TrialPill />}
+                    </p>
                     {planLabel ? <p className="text-muted-foreground">{planLabel}</p> : null}
                     {customMeal && customMeal.basePriceOverride != null ? (
                       <p className="text-muted-foreground nums">
@@ -549,7 +539,8 @@ export function NewOrderSheet({
                       {trialDays != null
                         ? ` · ${trialDays} trial ${trialDays === 1 ? "day" : "days"}`
                         : ` · ${draft?.order.selections.durationWeeks ?? "—"} wk`}
-                      {frequencyLabel ? ` · ${frequencyLabel}` : ""}
+                      {/* A trial is sent on the trial send days, not the plan's delivery frequency. */}
+                      {frequencyLabel && trialDays == null ? ` · ${frequencyLabel}` : ""}
                     </p>
                     {eating.length > 0 && (
                       <p className="text-muted-foreground">
@@ -580,14 +571,14 @@ export function NewOrderSheet({
                       <SectionLabel>Payment</SectionLabel>
                       <button
                         type="button"
-                        onClick={() => setStep(3)}
+                        onClick={() => setStep(2)}
                         className="text-muted-foreground hover:text-foreground min-h-11 text-sm font-medium sm:min-h-0"
                       >
                         Edit
                       </button>
                     </div>
                     <div className="rounded-lg border p-4 text-sm">
-                      {proof.file && isEtransfer ? (
+                      {paidNow && proof.file && isEtransfer ? (
                         <p>
                           e-Transfer screenshot attached
                           {proof.reference.trim() ? ` · ref ${proof.reference.trim()}` : ""} — approved on create, plan
