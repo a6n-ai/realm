@@ -163,6 +163,7 @@ export const menuItems = pgTable(
   (t) => [
     uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.categoryId, t.dishId),
     index("menu_items_dish_idx").on(t.dishId),
+    index("menu_items_category_idx").on(t.categoryId),
   ],
 );
 
@@ -213,5 +214,8 @@ export const customMealPricing = pgTable(
     active: boolean("active").notNull().default(true),
     organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [uniqueIndex("custom_meal_pricing_category_plan_unique").on(t.categoryId, t.planId)],
+  (t) => [
+    uniqueIndex("custom_meal_pricing_category_plan_unique").on(t.categoryId, t.planId),
+    index("custom_meal_pricing_plan_idx").on(t.planId),
+  ],
 );

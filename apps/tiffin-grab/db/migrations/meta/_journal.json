@@ -64,6 +64,13 @@
       "when": 1790887754145,
       "tag": "0008_hesitant_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790893199197,
+      "tag": "0009_fat_the_hand",
+      "breakpoints": true
     }
   ]
 }

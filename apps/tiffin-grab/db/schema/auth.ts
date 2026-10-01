@@ -81,6 +81,8 @@ export const users = pgTable(
     uniqueIndex("users_email_unique").on(t.email),
     uniqueIndex("users_phone_unique").on(t.phone).where(sql`${t.phone} is not null`),
     index("users_created_idx").on(t.createdAt),
+    index("users_address_tag_idx").on(t.addressTagId),
+    index("users_delivery_strategy_idx").on(t.deliveryStrategyId),
   ],
 );
 

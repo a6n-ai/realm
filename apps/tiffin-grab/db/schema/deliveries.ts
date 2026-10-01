@@ -84,6 +84,7 @@ export const deliveries = pgTable("deliveries", {
   index("deliveries_address_idx").on(t.addressId),
   index("deliveries_delivery_strategy_idx").on(t.deliveryStrategyId),
   index("deliveries_address_tag_idx").on(t.addressTagId),
+  index("deliveries_delivery_tag_idx").on(t.deliveryTagId),
   index("deliveries_merged_into_idx").on(t.mergedIntoDeliveryId).where(sql`${t.mergedIntoDeliveryId} is not null`),
   index("deliveries_organization_idx").on(t.organizationId),
 ]);
