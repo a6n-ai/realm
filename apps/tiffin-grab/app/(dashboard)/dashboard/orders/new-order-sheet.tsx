@@ -9,7 +9,6 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Switch } from "@foundry/ui/switch";
-import { ResponsiveDialog } from "@foundry/design-system";
 import { isValidPhone } from "@foundry/ui/phone-input";
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
@@ -36,6 +35,7 @@ import {
   CustomMealBuilder, filledItems, type CustomMealCategory, type CustomMealValue,
 } from "./custom-meal-builder";
 import { TrialPill } from "./trial-pill";
+import { FormDrawer } from "./form-drawer";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 
@@ -254,7 +254,7 @@ export function NewOrderSheet({
 
   return (
     <>
-      <ResponsiveDialog
+      <FormDrawer
         // Step bar and panels run edge to edge; each panel pads itself.
         flush
         open={open}
@@ -269,7 +269,6 @@ export function NewOrderSheet({
         }
         title="New order"
         description="Contact, plan, then verify pricing before create."
-        contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         footer={
           sources.length > 0 && step === 1 ? (
             <div className="flex items-center justify-end gap-2">
@@ -598,7 +597,7 @@ export function NewOrderSheet({
             ) : null}
           </>
         )}
-      </ResponsiveDialog>
+      </FormDrawer>
 
       <AdminOrderCreatedDialog
         open={successOpen}
