@@ -83,6 +83,7 @@ export function durationWeeksCovering(startDate: string, lastDate: string): numb
  * start is allowed when that day is a send day, as long as it is after today.
  */
 export function assertTrialStart(startDate: string, weekdays: readonly string[], today: Date): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate ?? "")) throw new ValidationError("Pick a start date");
   const start = parseIsoDateUtc(startDate);
   const wk = weekdayKey(start);
   if (!weekdays.includes(wk)) throw new ValidationError("A trial can't be sent on that day");

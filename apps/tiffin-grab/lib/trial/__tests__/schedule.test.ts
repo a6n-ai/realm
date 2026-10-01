@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@foundry/commons";
-import { durationWeeksCovering, nextTrialStart, resolveTrialDays, toggleTrialPick, trialDeliveryDates, trialSendDays } from "../schedule";
+import { assertTrialStart, durationWeeksCovering, nextTrialStart, resolveTrialDays, toggleTrialPick, trialDeliveryDates, trialSendDays } from "../schedule";
 
 describe("trialDeliveryDates", () => {
   it("takes the next matching weekdays until the chosen length is filled", () => {
@@ -72,5 +72,11 @@ describe("nextTrialStart", () => {
     expect(nextTrialStart("2026-09-30", ["wed"])).toBe("2026-09-30");
     expect(nextTrialStart("2026-09-30", ["mon"])).toBe("2026-10-05");
     expect(nextTrialStart("2026-09-30", [])).toBeNull();
+  });
+});
+
+describe("assertTrialStart", () => {
+  it("asks for a start date instead of crashing on an empty one", () => {
+    expect(() => assertTrialStart("", ["mon"], new Date())).toThrow(ValidationError);
   });
 });
