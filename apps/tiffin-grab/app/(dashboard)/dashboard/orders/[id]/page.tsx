@@ -173,17 +173,21 @@ async function OrderDetail({
 
   // A WordPress plan waiting to start has its own Start plan flow.
   const migratedWaiting = order.deploymentId.startsWith("wc-") && order.status === "pending";
-  const notStarted = !migratedWaiting && (await ordersService.startChangeBlocker(order.id, order.status)) == null;
+  const startBlocker = migratedWaiting
+    ? "Use Start plan to set when this WordPress plan begins"
+    : await ordersService.startChangeBlocker(order.id, order.status);
+  const notStarted = startBlocker == null;
   const startDays = order.trialLength != null ? (order.trialWeekdays ?? []) : (planRow?.allowedStartDays ?? []);
   const startToday = appToday(settings.timezone);
-  const startAction = notStarted ? (
+  const startAction = (
     <StartDateControl
+      blockedReason={startBlocker}
       orderId={order.publicId}
       startDate={order.startDate}
       minDate={order.trialLength != null ? earliestTrialIso(startToday, startDays) : nextWeekday(startToday).toISOString().slice(0, 10)}
       allowedDays={startDays}
     />
-  ) : undefined;
+  );
 
   const stats: StatItem[] = [
     { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" ? "Paused" : order.frequencyName, pixelValue: false },

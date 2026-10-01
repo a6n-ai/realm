@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { ResponsiveDialog } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { changeStartDateAction } from "./actions";
@@ -17,7 +18,10 @@ export function StartDateControl({
   startDate,
   minDate,
   allowedDays,
+  blockedReason = null,
 }: {
+  /** Why the start can't move; shown as a tooltip on a disabled Edit. */
+  blockedReason?: string | null;
   orderId: string;
   startDate: string;
   minDate: string;
@@ -28,6 +32,20 @@ export function StartDateControl({
   const [value, setValue] = useState(startDate);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  if (blockedReason) {
+    return (
+      <Tooltip>
+        {/* aria-disabled, not disabled: a disabled button gets no hover, so the reason would never show. */}
+        <TooltipTrigger asChild>
+          <Button size="sm" variant="ghost" aria-disabled className="text-muted-foreground -my-1 h-7 cursor-not-allowed px-2 opacity-50" onClick={(e) => e.preventDefault()}>
+            Edit
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-60 text-pretty">{blockedReason}.</TooltipContent>
+      </Tooltip>
+    );
+  }
 
   const save = () =>
     start(async () => {
