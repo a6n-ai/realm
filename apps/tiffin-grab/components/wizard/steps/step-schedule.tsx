@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
+import { WEEK_DAYS, scheduleError, selectableFrequencies, servesWeekends, tiffinBounds, type WizardSelections } from "../selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { savePct } from "@/lib/pricing/discounts";
 import { OptionCard, Pill, PillToggle } from "@/components/customer/kit";
@@ -57,6 +57,8 @@ export function StepSchedule({
   const error = row && eating.length >= bounds.min ? scheduleError(catalog, selections) : null;
   const atMax = eating.length >= bounds.max;
   const atMin = eating.length <= bounds.min;
+  const weekendsOff = !servesWeekends(catalog, selections);
+  const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
   const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
 
   return (
@@ -74,7 +76,7 @@ export function StepSchedule({
           {WEEK_DAYS.map((day) => {
             const on = eating.includes(day);
             return (
-              <PillToggle key={day} on={on} disabled={on ? atMin : atMax} onClick={() => toggle(day)}>
+              <PillToggle key={day} on={on} disabled={on ? atMin : atMax || (weekendsOff && isWeekend(day))} onClick={() => toggle(day)}>
                 {LABEL[day]}
               </PillToggle>
             );
@@ -87,6 +89,7 @@ export function StepSchedule({
           </span>
           <span className={`text-[13px] ${eating.length < bounds.min ? "text-destructive font-medium" : "text-muted-foreground"}`}>Pick {bounds.min} to {bounds.max} days</span>
         </p>
+        {weekendsOff ? <p className="text-muted-foreground mt-2 text-[13px] text-pretty">This meal has no weekend dish, so Saturday and Sunday aren&apos;t available.</p> : null}
         {error ? <p role="alert" className="text-destructive mt-2 text-sm text-pretty">{error}</p> : null}
       </section>
 

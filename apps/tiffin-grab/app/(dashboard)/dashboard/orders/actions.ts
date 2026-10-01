@@ -45,7 +45,7 @@ export async function createOrderFlow(input: {
   interest?: Interest;
   pickedInquiryId?: string;
   order: CreateOrderInput;
-  customMeal?: { items: CustomMealItem[]; basePriceOverride?: number | null };
+  customMeal?: { planKey?: string; items: CustomMealItem[]; basePriceOverride?: number | null };
 }): Promise<ActionResult<{ publicId: string; deploymentId: string }>> {
   return runAction(async () => {
     await requireStaff();
@@ -69,8 +69,8 @@ export async function createOrderFlow(input: {
       // Priced first so an unpriced composition never leaves a custom size behind.
       const priced = await priceCustomComposition(customMeal.items, customMeal.basePriceOverride);
       // The client's size and plan are ignored: the composition decides both.
-      const size = await findOrCreateCustomMealSize(customMeal.items, { actorId: await currentUserId() });
-      const planKey = mealPlanKey(priced.items);
+      const planKey = customMeal.planKey ?? mealPlanKey(priced.items);
+      const size = await findOrCreateCustomMealSize(customMeal.items, { actorId: await currentUserId(), planKey });
       order = { ...order, planKey, selections: { ...order.selections, mealSizeId: size.publicId } };
       customOpts = {
         allowCustomMeal: true,

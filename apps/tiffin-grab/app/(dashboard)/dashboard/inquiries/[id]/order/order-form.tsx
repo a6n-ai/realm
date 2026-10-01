@@ -80,7 +80,7 @@ export function OrderForm({
   /** A custom meal builder replaces the plan/meal-size pills (New Order). */
   hideMealSizePicker?: boolean;
   /** The builder's composition, priced server-side for the footer preview. */
-  customMeal?: { items: { category: string; planKey: string; tuAmount: number }[]; basePriceOverride: number | null } | null;
+  customMeal?: { planKey: string; items: { category: string; planKey: string; tuAmount: number }[]; basePriceOverride: number | null } | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);

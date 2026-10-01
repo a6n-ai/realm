@@ -1,7 +1,7 @@
 import { formatTuHuman, tuToNatural } from "@/lib/menu/format-tu";
 
 export type CustomMealItem = { category: string; planKey: string; tuAmount: number };
-export type CategoryUnit = { key: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string };
+export type CategoryUnit = { key: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string; weekend?: boolean };
 
 // EPSILON: 14.625 * 100 is 1462.4999… in float, so plain Math.round rounds cents down.
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -31,9 +31,22 @@ export function compositionKey(items: CustomMealItem[]): string {
   return [...items].sort(cmp).map((i) => `${i.category}:${i.planKey}:${i.tuAmount}`).join("|");
 }
 
+// Only WordPress imports still infer the meal's plan from its items; staff pick it in the builder.
 export function mealPlanKey(items: CustomMealItem[]): "veg" | "non-veg" {
   return items.some((i) => i.planKey === "non-veg") ? "non-veg" : "veg";
 }
+
+/**
+ * Identity of a custom meal size: its items plus its own plan. Same items under the plan the
+ * items would infer keep the original key, so sizes created before plans were picked still match.
+ */
+export function sizeCompositionKey(items: CustomMealItem[], planKey: string): string {
+  const key = compositionKey(items);
+  return planKey === mealPlanKey(items) ? key : `${planKey}#${key}`;
+}
+
+export const planLabel = (key: string) =>
+  key === "non-veg" ? "Non-Veg" : key.replace(/(^|-)\w/g, (m) => m.toUpperCase());
 
 export function compositionName(items: CustomMealItem[], units: Map<string, CategoryUnit>): string {
   const parts: string[] = [];
@@ -48,8 +61,7 @@ export function compositionName(items: CustomMealItem[], units: Map<string, Cate
   }
   for (const { n, item } of weightGroups.values()) {
     const unit = units.get(item.category)!;
-    const diet = item.planKey === "non-veg" ? "Non-Veg" : "Veg";
-    parts.push(`${n}× ${diet} ${unit.label} ${formatTuHuman(unit, item.tuAmount)}`);
+    parts.push(`${n}× ${planLabel(item.planKey)} ${unit.label} ${formatTuHuman(unit, item.tuAmount)}`);
   }
   return parts.join(" + ");
 }

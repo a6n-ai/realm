@@ -198,6 +198,7 @@ const dishCategoriesSchema = z.object({
   // add-ons show for it. Opt-in, unlike planIds.
   addonCategoryIds: z.array(z.string()).default([]),
   selectable: z.boolean().default(false),
+  weekend: z.boolean().default(false),
   sortOrder: reqNum(z.coerce.number().int().nonnegative().default(0)),
   // How this category converts into the shared tiffin unit (TU) — see db/schema/menu.ts.
   tuUnitType: z.enum(["weight", "count"]).default("weight"),
@@ -225,6 +226,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
       { key: "addonCategoryIds", label: "Add-on categories", type: "multiselect", optionsSource: "addon-categories", tableHidden: true },
       { key: "selectable", label: "Customer-selectable", type: "boolean" },
+      { key: "weekend", label: "Weekend dish", type: "boolean" },
       { key: "sortOrder", label: "Sort order", type: "number", tableHidden: true },
       // Editable in the dialog, kept off the table: with Plans/Customer-selectable/Sort
       // order already there, these three pushed the table wider than the page and

@@ -2,7 +2,7 @@
 // off only that tiffin — the rest of the trip keeps delivering on its own date, untouched.
 // This is the exact bug reported in prod: moving "Friday" (really: one of its riders) dragged
 // the whole Fri+Sat+Sun bundle along.
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 
@@ -11,13 +11,15 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orders } = await import("@/db/schema");
 const { rescheduleDelivery } = await import("../deliveries.service");
-const { makeTripOrder, resetTrips } = await import("./trip-fixture");
+const { allowWeekendMeals, makeTripOrder, resetTrips } = await import("./trip-fixture");
 
 const DEP = "SUB-SPLIT01";
 const PFX = "tsplit";
 const reset = () => resetTrips(DEP, PFX);
 const extrasOf = async (id: bigint) => (await db.select({ d: deliveryExtraTiffins.eatDate }).from(deliveryExtraTiffins).where(eq(deliveryExtraTiffins.deliveryId, id))).map((r) => r.d).sort();
 
+
+beforeAll(allowWeekendMeals);
 describe("rescheduleDelivery: splitting one eating day off a multi-day trip", () => {
   beforeEach(reset);
   afterAll(reset);

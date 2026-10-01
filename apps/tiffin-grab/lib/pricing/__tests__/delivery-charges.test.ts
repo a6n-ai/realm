@@ -173,7 +173,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
       mealSizes: [{
         id: 1n, publicId: "m1", key: "standard", name: "Standard", description: null, planId: 1n, planKey: "regular",
         tier: "medium", components: [], items: [], kcalMin: 500, kcalMax: 700, proteinG: null, carbsG: null, fatG: null,
-        basePrice: 10, discountType: "none", discountValue: 0, trial: false, custom: false, priceable: true,
+        basePrice: 10, discountType: "none", discountValue: 0, trial: false, custom: false, priceable: true, servesWeekends: true,
       }],
       frequencies: [{ id: 1n, publicId: "freq_1", key: "5_day", name: "5 Day", daysPerWeek: 5, weekdays: null }],
       durations: [{ id: 1n, publicId: "dur_2", weeks: 2 }],

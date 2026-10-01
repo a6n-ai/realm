@@ -146,7 +146,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
 async function NewOrderAction() {
   await requireStaff();
 
-  const [{ defaultCountry, currency }, sourceRows, subRows, catalog, slots] = await Promise.all([
+  const [{ defaultCountry, currency }, sourceRows, subRows, catalog, slots, planKeys] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -161,6 +161,7 @@ async function NewOrderAction() {
       .from(leadSubsources),
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
+    dishCategoriesService.planKeysByCategoryKey(),
   ]);
 
   const sources = sourceRows
@@ -189,7 +190,7 @@ async function NewOrderAction() {
       sources={sources}
       catalog={orderCatalog}
       currency={currency}
-      categories={slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel }))}
+      categories={slots.map((s) => ({ key: s.key, label: s.label, tuUnitType: s.tuUnitType, tuUnitSize: Number(s.tuUnitSize), tuUnitLabel: s.tuUnitLabel, planKeys: planKeys.get(s.key) ?? [] }))}
     />
   );
 }

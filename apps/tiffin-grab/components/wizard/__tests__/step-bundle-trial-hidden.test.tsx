@@ -25,7 +25,7 @@ function meal(key: string, opts: { trial?: boolean } = {}) {
     discountValue: 0,
     trial: opts.trial ?? false,
     custom: false,
-    priceable: true,
+    priceable: true, servesWeekends: true,
   };
 }
 
