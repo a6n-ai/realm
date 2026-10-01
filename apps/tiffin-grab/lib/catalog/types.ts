@@ -173,6 +173,24 @@ export interface ClientCatalogSnapshot {
   };
 }
 
+export type CatalogAddon = { key: string; name: string; pricePerWeek: number; maxQty: number };
+
+/**
+ * Add-ons a meal size may carry: the union of add-ons attached to its item
+ * categories (dishCategoryAddonCategories), deduped by key. The one eligibility
+ * rule for the wizard, the admin order form and server-side pricing.
+ */
+export function mealSizeAddons(
+  addonsByCategory: Record<string, CatalogAddon[]> | undefined,
+  items: { category: string }[],
+): CatalogAddon[] {
+  const byKey = new Map<string, CatalogAddon>();
+  for (const item of items) {
+    for (const addon of addonsByCategory?.[item.category] ?? []) byKey.set(addon.key, addon);
+  }
+  return [...byKey.values()];
+}
+
 export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapshot {
   const dropId = <T extends { id: bigint }>(row: T): Omit<T, "id"> => {
     const { id: _id, ...rest } = row;

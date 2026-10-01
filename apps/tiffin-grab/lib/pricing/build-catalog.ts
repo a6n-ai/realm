@@ -1,5 +1,5 @@
 import { ValidationError } from "@foundry/commons";
-import type { CatalogSnapshot } from "@/lib/catalog/types";
+import { mealSizeAddons, type CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
 import { applicableRules } from "@/lib/pricing/discounts";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
@@ -31,10 +31,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   // component categories — never trust the client's addonSelections as-is,
   // re-derive eligibility (and the maxQty ceiling) from the snapshot and reject
   // anything outside it.
-  const eligibleAddons = new Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }>();
-  for (const item of mealSize.items) {
-    for (const addon of snapshot.addonsByCategory?.[item.category] ?? []) eligibleAddons.set(addon.key, addon);
-  }
+  const eligibleAddons = new Map(mealSizeAddons(snapshot.addonsByCategory, mealSize.items).map((a) => [a.key, a]));
   const addonSelections = selections.addonSelections ?? [];
   const addons = addonSelections.map(({ key, qty }) => {
     const addon = eligibleAddons.get(key);
