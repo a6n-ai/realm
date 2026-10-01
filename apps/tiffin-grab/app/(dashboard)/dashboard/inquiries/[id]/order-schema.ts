@@ -12,6 +12,8 @@ export const orderFormSchema = z.object({
   includeSunday: z.boolean(),
   durationWeeks: z.coerce.number().int().min(1),
   startDate: z.string().min(1, "Start date is required"),
+  // Eligibility and maxQty are re-checked server-side in buildPricingCatalog.
+  addonSelections: z.array(z.object({ key: z.string(), qty: z.number().int().min(1) })).default([]),
   // Required: email is the login path for the customer this order creates.
   email: emailSchema,
   addressLine: z.string().min(1, "Address is required"),

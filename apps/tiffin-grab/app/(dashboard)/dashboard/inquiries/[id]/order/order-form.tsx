@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { CheckIcon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
+import { CheckIcon, Loader2Icon, MinusIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
+import type { CatalogAddon } from "@/lib/catalog/types";
 import { nextWeekday } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
@@ -42,7 +43,7 @@ const customMealFormSchema = orderFormSchema.extend({ planKey: z.string(), mealS
 
 type Catalog = {
   plans: { key: string; name: string }[];
-  mealSizes: { id: string; name: string; diet: string; trial?: boolean; servesWeekends?: boolean }[];
+  mealSizes: { id: string; name: string; diet: string; trial?: boolean; servesWeekends?: boolean; addons?: CatalogAddon[] }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
@@ -112,6 +113,7 @@ export function OrderForm({
       includeSunday: false,
       durationWeeks: catalog.durations[0]?.weeks ?? 1,
       startDate: "",
+      addonSelections: [],
       email: contact.email,
       addressLine: "",
       city: "",
@@ -130,6 +132,7 @@ export function OrderForm({
   const mealSlots = form.watch("mealSlots");
   const durationWeeks = form.watch("durationWeeks");
   const startDate = form.watch("startDate");
+  const addonSelections = form.watch("addonSelections") ?? [];
   const addressLine = form.watch("addressLine");
   const city = form.watch("city");
   const postalCode = form.watch("postalCode");
@@ -149,6 +152,13 @@ export function OrderForm({
   const mealsForPlan = catalog.mealSizes.filter((m) => !planKey || m.diet === planKey);
   const selectedSize = catalog.mealSizes.find((m) => m.id === mealSizeId);
   const isTrial = selectedSize?.trial === true;
+  // Custom meals have no catalog size to attach add-ons to; trials never carry them.
+  const eligibleAddons = hideMealSizePicker || isTrial ? [] : (selectedSize?.addons ?? []);
+  const qtyFor = (key: string) => addonSelections.find((s) => s.key === key)?.qty ?? 0;
+  const setAddonQty = (key: string, qty: number) => {
+    const rest = addonSelections.filter((s) => s.key !== key);
+    form.setValue("addonSelections", qty > 0 ? [...rest, { key, qty }] : rest, { shouldDirty: true });
+  };
   // Trial send days for this meal: no Sat/Sun when it has no weekend dish.
   const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true) : [];
   const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
@@ -164,6 +174,12 @@ export function OrderForm({
     form.setValue("mealSizeId", mealsForPlan[0]?.id ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey]);
+
+  // Add-on eligibility follows the meal size; a stale pick would fail pricing.
+  useEffect(() => {
+    if (form.getValues("addonSelections")?.length) form.setValue("addonSelections", []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mealSizeId, hideMealSizePicker]);
 
   useEffect(() => {
     let cancelled = false;
@@ -207,6 +223,7 @@ export function OrderForm({
       includeSunday: trial ? false : v.eatingDays.includes("sun"),
       durationWeeks: v.durationWeeks,
       startDate: v.startDate,
+      addonSelections: trial || hideMealSizePicker ? [] : (v.addonSelections ?? []),
       ...(trial ? { trialDays } : {}),
     },
     contact: {
@@ -255,6 +272,7 @@ export function OrderForm({
         includeSunday: eatingDays.includes("sun"),
         durationWeeks: Number(durationWeeks),
         startDate,
+        addonSelections,
         email: email ?? "",
         addressLine: addressLine ?? "",
         city: city ?? "",
@@ -280,7 +298,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialDays, isTrial]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialDays, isTrial]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -444,6 +462,48 @@ export function OrderForm({
               />
             </div>
           </fieldset>
+
+          {eligibleAddons.length > 0 && (
+            <fieldset className="space-y-3" disabled={submitting}>
+              <legend className="mb-1 text-sm font-medium text-foreground">Add-ons</legend>
+              <p className="text-muted-foreground text-xs">Billed per week of the plan. Optional.</p>
+              <ul className="divide-y rounded-lg border">
+                {eligibleAddons.map((addon) => {
+                  const qty = qtyFor(addon.key);
+                  const weeks = Number(durationWeeks) || 1;
+                  return (
+                    <li
+                      key={addon.key}
+                      className={cn("flex min-h-14 items-center justify-between gap-3 px-3 py-2 transition-colors", qty > 0 && "bg-primary/5")}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{addon.name}</p>
+                        <p className="text-muted-foreground nums text-xs">
+                          ${addon.pricePerWeek.toFixed(2)}/wk each
+                          {qty > 0 && <> · <span className="text-foreground">${round2(addon.pricePerWeek * qty * weeks).toFixed(2)}</span> for {weeks} wk</>}
+                        </p>
+                      </div>
+                      {qty > 0 ? (
+                        <div className="flex shrink-0 items-center gap-1" role="group" aria-label={`${addon.name} quantity`}>
+                          <Button type="button" variant="outline" size="icon" className="size-9" aria-label={`Remove one ${addon.name}`} onClick={() => setAddonQty(addon.key, qty - 1)}>
+                            <MinusIcon className="size-4" />
+                          </Button>
+                          <span className="nums w-7 text-center text-sm font-medium" aria-live="polite">{qty}</span>
+                          <Button type="button" variant="outline" size="icon" className="size-9" aria-label={`Add one ${addon.name}`} disabled={qty >= addon.maxQty} onClick={() => setAddonQty(addon.key, qty + 1)}>
+                            <PlusIcon className="size-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setAddonQty(addon.key, 1)}>
+                          <PlusIcon className="size-4" /> Add
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </fieldset>
+          )}
 
           {!isTrial && <fieldset disabled={submitting}>
             <ScheduleSection

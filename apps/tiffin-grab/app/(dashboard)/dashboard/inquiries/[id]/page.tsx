@@ -11,7 +11,7 @@ import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.se
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { listableMealSizes } from "@/lib/catalog/types";
+import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, StageBadge } from "@/components/ds";
@@ -53,7 +53,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
   const convertCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends })),
+    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends, addons: m.trial ? [] : mealSizeAddons(catalog.addonsByCategory, m.items) })),
     frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
