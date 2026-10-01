@@ -9,7 +9,6 @@ import {
   Hammer,
   Hand,
   Heart,
-  MapPin,
   Sparkle,
   Tent,
   type LucideIcon,
@@ -32,7 +31,7 @@ export const stagger = (i: number) => ({ "--i": i }) as CSSProperties;
 type ButtonProps = {
   children: ReactNode;
   href?: string;
-  variant?: "primary" | "secondary" | "success";
+  variant?: "primary" | "secondary" | "success" | "ghost-inverse";
   size?: "md" | "sm" | "xs";
   icon?: "arrow-right" | "arrow-up-right";
   block?: boolean;
@@ -230,31 +229,6 @@ export function TrustBar({ items }: { items: { icon: LucideIcon; label: string }
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-export function LocationBand({
-  title = "Your next discovery is around the corner.",
-  address,
-  children,
-}: {
-  title?: string;
-  address?: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="xl-location">
-      <div className="xl-location-copy">
-        <MapPin size={26} aria-hidden />
-        <div>
-          <h3 className="xl-h3">{title}</h3>
-          {address ? <p>{address}</p> : null}
-        </div>
-      </div>
-      <div className="xl-row" style={{ "--gap": "10px" } as CSSProperties}>
-        {children}
-      </div>
     </div>
   );
 }
