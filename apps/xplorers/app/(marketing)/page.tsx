@@ -9,7 +9,6 @@ import {
   Button,
   Eyebrow,
   HeroCollage,
-  LocationBand,
   Notice,
   Pill,
   PriceTable,
@@ -138,16 +137,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="visit" className="xl-wrap xl-section" style={pad(40, 48)}>
-        <LocationBand address={CONTACT.address}>
-          <Button size="sm" variant="secondary" href={`mailto:${CONTACT.email}`}>
-            Email us
-          </Button>
-          <Button size="sm" icon="arrow-up-right" href={CONTACT.maps}>
-            Find our studio
-          </Button>
-        </LocationBand>
-      </section>
     </>
   );
 }
