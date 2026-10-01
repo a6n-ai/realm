@@ -60,7 +60,6 @@ export async function saveOrderLeadAction(input: {
       contact: { fullName: input.contact.fullName, email },
       interest: { subSourceKey: input.source.subSourceKey },
       pickedId: input.pickedInquiryId,
-      reuseAnyOpen: true,
     });
     return { inquiryId };
   });
@@ -91,7 +90,6 @@ export async function createOrderFlow(input: {
       contact: { fullName: input.contact.fullName, email },
       interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
       pickedId: input.pickedInquiryId,
-      reuseAnyOpen: true,
     });
     let order = input.order;
     let customOpts: { allowCustomMeal?: boolean; basePriceOverride?: number } = {};

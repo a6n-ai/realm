@@ -11,6 +11,7 @@ import {
   PackageIcon,
   PhoneForwardedIcon,
   PhoneIcon,
+  RepeatIcon,
   SparklesIcon,
   StickyNoteIcon,
 } from "lucide-react";
@@ -48,6 +49,7 @@ const NODE: Record<string, { icon: typeof PhoneIcon; className: string }> = {
   payment_link_sent: { icon: LinkIcon, className: "bg-warn/15 text-warn" },
   visit: { icon: MapPinIcon, className: "bg-primary/12 text-primary" },
   callback: { icon: PhoneForwardedIcon, className: "bg-primary/12 text-primary" },
+  reinquiry: { icon: RepeatIcon, className: "bg-warn/15 text-warn" },
 };
 
 // Title line for an activity. `outcome` is rendered as its own chip below, so
@@ -76,6 +78,9 @@ export function describe(a: TimelineActivity, currency: string): string {
       return `Site visit${a.note ? ` — ${a.note}` : ""}`;
     case "callback":
       return "Callback scheduled";
+    case "reinquiry":
+      // First line: "Re-inquiry via <source> · <different contact>"; the rest is their message.
+      return a.note?.split("\n")[0] ?? "Re-inquiry";
     default:
       return a.note ?? "";
   }
@@ -144,7 +149,14 @@ export function InquiryTimeline({
 
             <div className="min-w-0 flex-1 pt-1">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-medium">{describe(a, currency)}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{describe(a, currency)}</p>
+                  {a.type === "reinquiry" && a.note?.includes("\n") ? (
+                    <p className="text-muted-foreground mt-0.5 whitespace-pre-wrap text-sm">
+                      {a.note.slice(a.note.indexOf("\n") + 1)}
+                    </p>
+                  ) : null}
+                </div>
                 {overdue ? (
                   <Badge variant="destructive" className="shrink-0">
                     Overdue

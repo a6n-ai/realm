@@ -43,6 +43,13 @@
       "when": 1790876730919,
       "tag": "0005_broken_triathlon",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790881294479,
+      "tag": "0006_chilly_snowbird",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,8 @@ export const inquiryStage = pgEnum("inquiry_stage", ["new", "contacted", "quoted
 export const inquiryActivityType = pgEnum("inquiry_activity_type", [
   "created", "note", "stage_change", "converted", "call", "whatsapp", "email",
   "quote_sent", "sample_sent", "payment_link_sent", "visit", "callback",
+  // Same person reached out again (phone/email match on an open lead).
+  "reinquiry",
 ]);
 export const inquiryLostReason = pgEnum("inquiry_lost_reason", [
   "price", "out_of_zone", "no_response", "chose_competitor", "not_ready", "other",
@@ -43,10 +45,14 @@ export const inquiries = pgTable("inquiries", {
   index("inquiries_phone_lower_idx").on(sql`lower(${t.phone})`),
   index("inquiries_email_lower_idx").on(sql`lower(${t.email})`),
   index("inquiries_owner_idx").on(t.currentOwner),
-  // One open lead per (phone, source): the DB-level half of the dedup rule
-  // resolveForSource enforces in app code, closing the read-then-write race.
-  uniqueIndex("inquiries_open_phone_source_unique")
-    .on(sql`lower(${t.phone})`, t.sourceId)
+  // One open lead per person (phone or email): the DB-level half of the dedup
+  // rule createOrFold enforces in app code, closing the read-then-write race.
+  // Repeat contacts become `reinquiry` activities on that lead.
+  uniqueIndex("inquiries_open_phone_unique")
+    .on(sql`lower(${t.phone})`)
+    .where(sql`${t.stage} not in ('converted', 'lost')`),
+  uniqueIndex("inquiries_open_email_unique")
+    .on(sql`lower(${t.email})`)
     .where(sql`${t.stage} not in ('converted', 'lost')`),
   index("inquiries_created_idx").on(t.createdAt),
   index("inquiries_organization_idx").on(t.organizationId),
