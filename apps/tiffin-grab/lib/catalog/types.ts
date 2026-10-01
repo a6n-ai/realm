@@ -26,6 +26,8 @@ export interface MealSizeView {
   custom: boolean;
   // False only for a custom size its pricing can no longer price; buildPricingCatalog refuses it.
   priceable: boolean;
+  // Holds a category flagged as a weekend dish; without one, Sat/Sun can't be eating days.
+  servesWeekends: boolean;
 }
 
 /** Sizes a picker may offer: every catalog size, plus the one custom size `keepId` names (a renewal). */

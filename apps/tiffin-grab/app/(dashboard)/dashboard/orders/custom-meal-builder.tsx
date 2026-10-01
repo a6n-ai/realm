@@ -7,7 +7,7 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { mealPlanKey, type CustomMealItem } from "@/lib/custom-meal/composition";
+import type { CustomMealItem } from "@/lib/custom-meal/composition";
 import { previewCustomMeal } from "./actions";
 
 export type CustomMealCategory = {
@@ -16,17 +16,16 @@ export type CustomMealCategory = {
   tuUnitType: "weight" | "count";
   tuUnitSize: number;
   tuUnitLabel: string;
+  /** Plans this category can be added to (Catalog → Dish categories). */
+  planKeys: string[];
 };
 
-export type CustomMealValue = { items: CustomMealItem[]; basePriceOverride: number | null };
+/** Like a meal size: the meal's own plan, plus item rows that each carry their own plan. */
+export type CustomMealValue = { planKey: string; items: CustomMealItem[]; basePriceOverride: number | null };
 
-type Diet = "veg" | "non-veg";
+type Plan = { key: string; name: string };
 
 const WEIGHT_SIZES = [8, 12, 16];
-const DIETS: { value: Diet; label: string }[] = [
-  { value: "veg", label: "Veg" },
-  { value: "non-veg", label: "Non-Veg" },
-];
 
 const pillClass = (active: boolean) =>
   cn(
@@ -42,32 +41,28 @@ export function filledItems(items: CustomMealItem[]): CustomMealItem[] {
 }
 
 export function CustomMealBuilder({
+  plans,
   categories,
   value,
   onChange,
 }: {
+  plans: Plan[];
   categories: CustomMealCategory[];
   value: CustomMealValue;
   onChange: (v: CustomMealValue) => void;
 }) {
-  const [diet, setDiet] = useState<Diet>(() => mealPlanKey(value.items));
   const [preview, setPreview] = useState<{ name: string; perTiffin: number } | { error: string } | null>(null);
   const byKey = new Map(categories.map((c) => [c.key, c]));
+  const planName = (key: string) => plans.find((p) => p.key === key)?.name ?? key;
 
   const setItems = (items: CustomMealItem[]) => onChange({ ...value, items });
-  const newItem = (c: CustomMealCategory, planKey: Diet): CustomMealItem => ({
+  // The item's plan defaults to the meal's plan when the category is on it, else its first plan.
+  const newItem = (c: CustomMealCategory): CustomMealItem => ({
     category: c.key,
-    planKey,
+    planKey: c.planKeys.includes(value.planKey) ? value.planKey : (c.planKeys[0] ?? value.planKey),
     // Default portion is one TU: 8oz for weight, a unit pack (e.g. 4 roti) for count.
     tuAmount: c.tuUnitType === "weight" ? WEIGHT_SIZES[0]! / c.tuUnitSize : 1,
   });
-
-  const changeDiet = (next: Diet) => {
-    setDiet(next);
-    // Veg forces every row veg; Non-Veg moves count rows to the meal diet and leaves weight picks as chosen.
-    setItems(value.items.map((i) =>
-      next === "veg" || byKey.get(i.category)?.tuUnitType === "count" ? { ...i, planKey: next } : i));
-  };
 
   const updateAt = (idx: number, patch: Partial<CustomMealItem>) =>
     setItems(value.items.map((i, n) => (n === idx ? { ...i, ...patch } : i)));
@@ -94,18 +89,18 @@ export function CustomMealBuilder({
   return (
     <div className="grid gap-4 rounded-lg border p-4">
       <div className="grid gap-2">
-        <Label>Meal diet</Label>
-        <div role="radiogroup" aria-label="Meal diet" className="flex flex-wrap gap-2">
-          {DIETS.map((d) => (
+        <Label>Meal plan</Label>
+        <div role="radiogroup" aria-label="Meal plan" className="flex flex-wrap gap-2">
+          {plans.map((p) => (
             <button
-              key={d.value}
+              key={p.key}
               type="button"
               role="radio"
-              aria-checked={diet === d.value}
-              onClick={() => changeDiet(d.value)}
-              className={pillClass(diet === d.value)}
+              aria-checked={value.planKey === p.key}
+              onClick={() => onChange({ ...value, planKey: p.key })}
+              className={pillClass(value.planKey === p.key)}
             >
-              {d.label}
+              {p.name}
             </button>
           ))}
         </div>
@@ -122,7 +117,7 @@ export function CustomMealBuilder({
                 value={item.category}
                 onValueChange={(key) => {
                   const next = byKey.get(key);
-                  if (next) updateAt(idx, newItem(next, next.tuUnitType === "count" ? diet : (item.planKey as Diet)));
+                  if (next) updateAt(idx, newItem(next));
                 }}
               >
                 <SelectTrigger aria-label="Category" className="min-h-11 min-w-32 flex-1"><SelectValue /></SelectTrigger>
@@ -131,14 +126,12 @@ export function CustomMealBuilder({
                 </SelectContent>
               </Select>
 
-              {diet === "non-veg" && cat?.tuUnitType === "weight" && (
-                <Select value={item.planKey} onValueChange={(v) => updateAt(idx, { planKey: v })}>
-                  <SelectTrigger aria-label="Item diet" className="min-h-11 w-28"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {DIETS.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
+              <Select value={item.planKey} onValueChange={(v) => updateAt(idx, { planKey: v })}>
+                <SelectTrigger aria-label="Item plan" className="min-h-11 w-40"><SelectValue>{planName(item.planKey)}</SelectValue></SelectTrigger>
+                <SelectContent>
+                  {(cat?.planKeys ?? []).map((k) => <SelectItem key={k} value={k}>{planName(k)}</SelectItem>)}
+                </SelectContent>
+              </Select>
 
               {cat?.tuUnitType === "count" ? (
                 <div className="flex items-center gap-1.5">
@@ -189,7 +182,7 @@ export function CustomMealBuilder({
           variant="outline"
           className="min-h-11 justify-self-start sm:min-h-9"
           disabled={categories.length === 0}
-          onClick={() => setItems([...value.items, newItem(categories[0]!, diet)])}
+          onClick={() => setItems([...value.items, newItem(categories[0]!)])}
         >
           <PlusIcon className="size-4" /> Add item
         </Button>

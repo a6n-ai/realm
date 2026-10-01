@@ -26,16 +26,19 @@ async function CustomMealsData({ searchParams }: { searchParams: Promise<SearchP
   await requireAdmin();
   const sp = await searchParams;
 
-  const [categories, planRows, pricing] = await Promise.all([
+  const [categories, planRows, pricing, plansByCategory] = await Promise.all([
     dishCategoriesService.enabledCategories(),
-    db.select({ key: plans.key, name: plans.name }).from(plans).where(eq(plans.active, true)),
+    db.select({ publicId: plans.publicId, key: plans.key, name: plans.name }).from(plans).where(eq(plans.active, true)),
     loadPricingRows(),
+    dishCategoriesService.plansByCategoryKey(),
   ]);
 
   const priced = new Map(pricing.map((p) => [`${p.category}:${p.planKey}`, p]));
   const rows: PricingGridRow[] = categories.flatMap((cat) => {
     const unitHint = `1 TU = ${formatTuHuman({ ...cat, tuUnitSize: Number(cat.tuUnitSize) }, 1)}`;
-    return planRows.map((plan) => {
+    // Only the plans this category belongs to (Catalog → Dish categories).
+    const linked = plansByCategory.get(cat.key) ?? [];
+    return planRows.filter((plan) => linked.includes(plan.publicId)).map((plan) => {
       const p = priced.get(`${cat.key}:${plan.key}`);
       return {
         categoryKey: cat.key,

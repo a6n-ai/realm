@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clubbedQuantities, planWeek, orderDeliveryDays, type DayOfWeek } from "../delivery-days";
+import { clubbedQuantities, planWeek, orderDeliveryDays, weekendDaysError, type DayOfWeek } from "../delivery-days";
 
 describe("orderDeliveryDays", () => {
   it("5_day → mon..fri", () => {
@@ -80,5 +80,14 @@ describe("planWeek", () => {
   it("conserves tiffins", () => {
     const t = planWeek(MWF, ALL)!;
     expect(t.reduce((n, x) => n + x.units, 0)).toBe(7);
+  });
+});
+
+describe("weekendDaysError", () => {
+  it("blocks Sat/Sun only for a meal without a weekend dish", () => {
+    expect(weekendDaysError(["mon", "sat"], false)).toMatch(/no weekend dish/);
+    expect(weekendDaysError(["sun"], false)).toMatch(/no weekend dish/);
+    expect(weekendDaysError(["mon", "fri"], false)).toBeNull();
+    expect(weekendDaysError(["sat", "sun"], true)).toBeNull();
   });
 });

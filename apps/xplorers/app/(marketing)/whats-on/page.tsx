@@ -1,24 +1,20 @@
+import type { CSSProperties } from "react";
 import { SITE_NAME } from "@/lib/brand";
 import { Role } from "@foundry/commons";
 import { buildMetadata } from "@/lib/seo";
 import { BookControl } from "@/components/marketing/book-control";
-import { ClassPhotoStrip } from "@/components/marketing/class-photo-strip";
+import { SessionList } from "@/components/marketing/session-list";
+import { Eyebrow, Notice, stagger } from "@/components/marketing/ui";
 import { getSession } from "@/lib/auth/session";
 import { bookingsService } from "@/lib/services/bookings.service";
 import { loadPublicSessionCards } from "@/lib/sessions/public";
-import type { BoardTone } from "@/lib/sessions/format";
+import { Users } from "lucide-react";
 
 export const metadata = buildMetadata({
   title: `What's On · ${SITE_NAME}`,
-  description: "Ages 5 to 75 on one board. Pick a bench.",
+  description: "Every published session at Xplorers.Life. Book a seat for each child.",
   path: "/whats-on",
 });
-
-const TONE: Record<BoardTone, string> = {
-  muted: "text-[var(--graphite)]",
-  action: "text-[var(--blueprint)]",
-  ink: "text-[var(--ink)]",
-};
 
 export default async function WhatsOnPage({
   searchParams,
@@ -35,62 +31,50 @@ export default async function WhatsOnPage({
 
   return (
     <article>
-      <header className="xpl-blush-band border-b border-[var(--rule)] px-5 py-14 lg:px-20 lg:py-24">
-        <p className="xpl-mono text-[11px] lg:text-xs">Calendar</p>
-        <h1 className="xpl-disp mt-5 max-w-[16ch] text-[52px] leading-[0.9] tracking-[-0.04em] lg:text-[112px]">
-          What&apos;s on the benches.
-        </h1>
-        <p className="mt-6 max-w-[36ch] text-[17px] leading-[1.5] lg:text-xl lg:leading-[1.55]">
-          Ages 5 to 75 on one board. Pick a bench. Each class is one day — book the day you want. Prices are on the
-          session. Drop-off, stay, or come after work.
-        </p>
-      </header>
-      <section className="flex flex-col gap-12 px-5 py-14 lg:px-20 lg:py-24">
-        {groups.length === 0 ? (
-          <p className="m-0 max-w-[40ch] text-[17px] leading-[1.5] lg:text-xl">
-            No published sessions yet. When a class is on the board, you can book a seat from here.
+      <header className="xl-page-hero">
+        <div className="xl-wrap">
+          <Eyebrow dot style={stagger(0)}>
+            What&rsquo;s on
+          </Eyebrow>
+          <h1 className="xl-display" style={stagger(1)}>
+            Find your next session.
+          </h1>
+          <p className="xl-lede" style={stagger(2)}>
+            Every published session, day by day. Book a seat for each child; prices are on the session. Spots update as
+            families book.
           </p>
+        </div>
+      </header>
+      <section className="xl-wrap xl-section xl-stack" style={{ "--gap": "28px" } as CSSProperties}>
+        {groups.length === 0 ? (
+          <div className="xl-panel">
+            <p className="xl-body">
+              No sessions are published yet. Private sessions run Monday to Saturday by arrangement, so drop us a line.
+            </p>
+          </div>
         ) : (
           groups.map((group) => (
-            <div key={group.key} className="flex flex-col gap-1">
-              <h2 className="xpl-mono m-0 text-[11px] tracking-[0.12em] uppercase">{group.tape}</h2>
-              <div className="xpl-board-paper mt-3 px-4 py-2 lg:px-9 lg:py-4">
-                {group.rows.map((row) => {
-                  const focused = focusId === row.publicId;
-                  return (
-                    <div
-                      key={row.occurrenceKey}
-                      id={`session-${row.publicId}`}
-                      className={`flex flex-col gap-3 border-b border-[var(--rule)] py-5 last:border-b-0 lg:grid lg:grid-cols-[110px_1fr_auto] lg:items-center lg:gap-6 lg:py-[18px] ${focused ? "ring-2 ring-[var(--tape)] ring-offset-4" : ""}`}
-                    >
-                      <div className="flex justify-between font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] uppercase lg:contents">
-                        <span className="lg:text-[13px] lg:tracking-[0.1em]">{row.time}</span>
-                        <span className={`lg:hidden ${TONE[row.tone]}`}>{row.spots}</span>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <h3 className="xpl-disp m-0 text-[22px] leading-none tracking-[-0.02em] lg:text-2xl">{row.title}</h3>
-                        {row.description ? (
-                          <p className="m-0 max-w-[48ch] text-[15px] leading-[1.45] text-[var(--graphite)]">{row.description}</p>
-                        ) : null}
-                        <p className="xpl-mono m-0 text-[10px] tracking-[0.08em] lg:text-[11px] lg:tracking-[0.1em]">{row.spec}</p>
-                        <ClassPhotoStrip urls={row.photos} title={row.title} />
-                        <p className={`xpl-mono m-0 hidden text-[11px] lg:block ${TONE[row.tone]}`}>{row.spots}</p>
-                      </div>
-                      <BookControl
-                        publicId={row.publicId}
-                        remaining={row.remaining}
-                        signedIn={signedIn}
-                        isFamily={isFamily}
-                        booked={bookedIds.has(row.publicId)}
-                        autofocus={focused}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+            <div key={group.key} className="xl-panel">
+              <h2 className="xl-day-label">{group.tape}</h2>
+              <SessionList
+                rows={group.rows}
+                focusId={focusId}
+                showDescription
+                action={(row) => (
+                  <BookControl
+                    publicId={row.publicId}
+                    remaining={row.remaining}
+                    signedIn={signedIn}
+                    isFamily={isFamily}
+                    booked={bookedIds.has(row.publicId)}
+                    autofocus={focusId === row.publicId}
+                  />
+                )}
+              />
             </div>
           ))
         )}
+        <Notice icon={Users}>Older siblings are welcome to join too. Please share their ages when booking.</Notice>
       </section>
     </article>
   );

@@ -173,12 +173,3 @@ export const durationPackages = pgTable("duration_packages", {
   organizationId: text("organization_id").references(() => organization.id),
 });
 
-export const pricingTiers = pgTable("pricing_tiers", {
-  ...updatableColumns("ptr"),
-  minQty: integer("min_qty").notNull(),
-  maxQty: integer("max_qty"), // null = unbounded top band
-  upliftPct: numeric("uplift_pct", { precision: 5, scale: 2 }).notNull(),
-  active: boolean("active").notNull().default(true),
-  // Client-scoping — see dishes.organizationId for the pattern.
-  organizationId: text("organization_id").references(() => organization.id),
-});

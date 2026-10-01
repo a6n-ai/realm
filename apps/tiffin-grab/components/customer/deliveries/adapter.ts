@@ -73,6 +73,7 @@ export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; c
     lastDeliveryDate: a.counts.lastDeliveryDate,
     deliveryWeekdays: a.counts.deliveryWeekdays,
     eatingWeekdays: a.counts.eatingWeekdays,
+    servesWeekends: a.counts.servesWeekends,
     startDate: a.startDate,
     active: true,
     onVacation: a.sub.status === "paused",

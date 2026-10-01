@@ -3,7 +3,7 @@ import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing/types";
 import { getTrialSettings } from "@/lib/services/app-settings.service";
-import { assertTrialStart, durationWeeksCovering, orderedTrialWeekdays, trialDeliveryDates } from "./schedule";
+import { assertTrialStart, durationWeeksCovering, trialDeliveryDates, trialSendDays } from "./schedule";
 
 export type TrialQuote = {
   dates: string[];
@@ -23,7 +23,7 @@ export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingS
   if (meal.custom) throw new ValidationError("A custom meal can't be a trial");
 
   const settings = await getTrialSettings();
-  const weekdays = orderedTrialWeekdays(settings.weekdays);
+  const weekdays = trialSendDays(settings.weekdays, meal.servesWeekends);
   if (settings.maxDays == null || settings.maxDays < 1 || weekdays.length === 0) {
     throw new ValidationError("Trials aren't available right now");
   }

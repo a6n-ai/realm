@@ -72,7 +72,7 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
     } & Record<string, unknown>;
 
     const parentPatch: Record<string, unknown> = { ...rest };
-    if (planId !== undefined) parentPatch.planId = await this.resolvePlanId(planId);
+    if (planId !== undefined) parentPatch.planId = await resolvePlanId(planId);
     // `components` is derived from the category labels, never hand-edited.
     // Resolved below, once the label map is loaded.
 
@@ -106,29 +106,9 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
       const maxTuErr = maxTuBelowBaseMessage(items);
       if (maxTuErr) throw new ValidationError(maxTuErr);
 
-      const itemPlanIds = await Promise.all(items.map((i) => this.resolvePlanId(i.planId)));
-      const uniquePlanIds = [...new Set(itemPlanIds)];
-      const catsByPlan = new Map(
-        await Promise.all(uniquePlanIds.map(async (pid) => [pid, await dishCategoriesService.forPlan(pid)] as const)),
-      );
-      parentPatch.components = items.map((item, i) => {
-        const label = catsByPlan.get(itemPlanIds[i])?.find((c) => c.key === item.category)?.label;
-        return label ?? item.category;
-      });
-      rows = items.map((item, index) => {
-        const label = catsByPlan.get(itemPlanIds[index])?.find((c) => c.key === item.category)?.label;
-        if (!label) throw new ValidationError(unknownPlanCategoryMessage(item.category));
-        return {
-          mealSizeId: 0n, // placeholder; set once the parent id is known
-          name: label,
-          category: item.category,
-          planId: itemPlanIds[index],
-          label,
-          tuAmount: item.tuAmount,
-          maxTuAmount: item.maxTuAmount,
-          sortOrder: index,
-        };
-      });
+      const resolved = await resolveCompositionRows(items);
+      parentPatch.components = resolved.components;
+      rows = resolved.rows;
     } else if (willBeActive && mealSizeInternalId != null && !currentlyActive) {
       // Restore / re-activate without re-sending items: still refuse an empty composition.
       const existingItems = await db
@@ -173,15 +153,45 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
     return parent;
   }
 
-  private async resolvePlanId(value: string): Promise<bigint> {
-    const [row] = await db
-      .select({ id: plans.id })
-      .from(plans)
-      .where(or(eq(plans.publicId, value), eq(plans.key, value)))
-      .limit(1);
-    if (!row) throw new ValidationError(`Unknown plan: ${value}`);
-    return row.id;
-  }
+}
+
+async function resolvePlanId(value: string): Promise<bigint> {
+  const [row] = await db
+    .select({ id: plans.id })
+    .from(plans)
+    .where(or(eq(plans.publicId, value), eq(plans.key, value)))
+    .limit(1);
+  if (!row) throw new ValidationError(`Unknown plan: ${value}`);
+  return row.id;
+}
+
+/**
+ * Meal-size item rows, shared by Catalog meal sizes and admin custom meals. Each row names its own
+ * plan (publicId or key), independent of the meal size's plan, and its category must be on that
+ * plan (Catalog → Dish categories). Returns the insert rows (mealSizeId still 0n) and components.
+ */
+export async function resolveCompositionRows(
+  items: { category: string; planId: string; tuAmount: string; maxTuAmount?: string | null }[],
+): Promise<{ components: string[]; rows: (typeof mealSizeItems.$inferInsert)[] }> {
+  const itemPlanIds = await Promise.all(items.map((i) => resolvePlanId(i.planId)));
+  const catsByPlan = new Map(
+    await Promise.all([...new Set(itemPlanIds)].map(async (pid) => [pid, await dishCategoriesService.forPlan(pid)] as const)),
+  );
+  const rows = items.map((item, index) => {
+    const label = catsByPlan.get(itemPlanIds[index])?.find((c) => c.key === item.category)?.label;
+    if (!label) throw new ValidationError(unknownPlanCategoryMessage(item.category));
+    return {
+      mealSizeId: 0n, // placeholder; set once the parent id is known
+      name: label,
+      category: item.category,
+      planId: itemPlanIds[index],
+      label,
+      tuAmount: item.tuAmount,
+      maxTuAmount: item.maxTuAmount ?? null,
+      sortOrder: index,
+    };
+  });
+  return { components: rows.map((r) => r.label), rows };
 }
 
 const DISCOUNT_TARGETS = {

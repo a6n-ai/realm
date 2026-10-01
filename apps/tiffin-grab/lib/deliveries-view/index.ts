@@ -56,6 +56,8 @@ export type PlanContext = {
   onVacation?: boolean;
   vacationsLeft?: number | null;
   frequencyKey?: string | null;
+  /** False: the meal has no weekend dish, so Move can't target Sat/Sun. */
+  servesWeekends?: boolean;
 };
 
 export type EatingDay = { date: string; dishSummary: string | null; swaps: string[]; locksWith: string | null };

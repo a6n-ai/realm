@@ -4,8 +4,9 @@ import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "dri
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders } from "@/db/schema";
+import { mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings } from "./app-settings.service";
-import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
 import { MAX_TIFFINS_PER_TRIP, countsToCoverage, coveredDates, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
@@ -732,6 +733,8 @@ export async function rescheduleDelivery(
     const deliveryWeekdays = [...deliveryDays].filter((d) => d !== "sat" && d !== "sun") as DayOfWeek[];
     const carriedOn = carryTripDateIso(eatingDateIso, deliveryWeekdays);
     if (!carriedOn) throw new ValidationError("That day isn't on your plan");
+    const weekendErr = weekendDaysError([weekdayKey(parseIsoDateUtc(eatingDateIso)) as DayOfWeek], await mealSizeServesWeekends(order.mealSizeId, tx));
+    if (weekendErr) throw new ValidationError(weekendErr);
 
     const { timezone, cutoffHour } = await getAppSettings();
     const today = zonedDateIso(Date.now(), timezone);

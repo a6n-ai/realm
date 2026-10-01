@@ -34,7 +34,7 @@ const catalog: ClientCatalogSnapshot = {
       discountValue: 0,
       trial: false,
       custom: false,
-      priceable: true,
+      priceable: true, servesWeekends: true,
     },
   ],
   frequencies: [],
@@ -109,7 +109,7 @@ describe("selectionsFromPriorOrder", () => {
     const priceable = selectionsFromPriorOrder({ ...catalog, mealSizes: [...catalog.mealSizes, custom] }, prior);
     expect(priceable.mealSizeId).toBe("msz_custom");
     const unpriceable = selectionsFromPriorOrder(
-      { ...catalog, mealSizes: [...catalog.mealSizes, { ...custom, priceable: false }] },
+      { ...catalog, mealSizes: [...catalog.mealSizes, { ...custom, priceable: false, servesWeekends: true }] },
       prior,
     );
     expect(unpriceable.mealSizeId).toBe("");
