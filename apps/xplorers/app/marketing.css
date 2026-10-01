@@ -1,514 +1,1612 @@
-.xpl {
+/* Xplorers.Life public site. Tokens mirror the Claude Design project
+   "Xplorers.Life Design System" (tokens/*.css); keep names in sync with it.
+   Base rules use :where() so every component class below wins with a single class. */
+
+.xl {
+  /* Navy: brand blue + ink */
+  --xl-navy-900: #16295a;
+  --xl-navy-800: #1e4aa6;
+  --xl-navy-600: #2a3b66;
+  --xl-navy-500: #4a5a82;
+  --xl-navy-400: #7c89a8;
+  /* Pink: logo + emphasis */
+  --xl-pink-500: #ff2b8c;
+  --xl-pink-600: #e8177a;
+  --xl-pink-700: #d6156f;
+  --xl-pink-300: #f3c5dc;
+  --xl-pink-250: #f6b7d3;
+  --xl-pink-200: #f6c9de;
+  --xl-pink-100: #fde4f0;
+  /* Sky: actions + calm surfaces */
+  --xl-sky-400: #8fcdf3;
+  --xl-sky-300: #a6d8f8;
+  --xl-sky-200: #bfe4fb;
+  --xl-sky-150: #d3e6f8;
+  --xl-sky-100: #e3f2fd;
+  --xl-sky-050: #dceefd;
+  /* Playful accents */
+  --xl-sunshine: #ffd65a;
+  --xl-mint: #86e3d9;
+  /* Neutrals */
+  --xl-white: #ffffff;
+  --xl-paper: #f7f9fc;
+  --xl-line-100: #eef1f7;
+  --xl-line-200: #e7ecf5;
+  --xl-line-300: #e1e7f2;
+  --xl-line-350: #dfe6f2;
+  --xl-line-400: #d9e1f0;
+  --xl-line-500: #c9d6ea;
+
+  /* Programme colours: base + tint */
+  --prog-explore: #3fb6ea;
+  --prog-explore-tint: #e3f4fc;
+  --prog-scientist: #3b5bd6;
+  --prog-scientist-tint: #e6eafc;
+  --prog-sensory: #a25ddc;
+  --prog-sensory-tint: #f1e6fb;
+  --prog-private: #ef3f8c;
+  --prog-private-tint: #fde3ef;
+  --prog-bake: #f28a2e;
+  --prog-bake-tint: #fdeedd;
+  --prog-wood: #2f9e5e;
+  --prog-wood-tint: #e1f3e8;
+  --prog-camps: #e0b31c;
+  --prog-camps-tint: #fdf4cf;
+
+  /* Semantic */
+  --text-heading: var(--xl-navy-800);
+  --text-strong: var(--xl-navy-900);
+  --text-body: var(--xl-navy-600);
+  --text-muted: var(--xl-navy-500);
+  --text-disabled: var(--xl-navy-400);
+  --text-eyebrow: var(--xl-pink-600);
+  --text-emphasis: var(--xl-pink-500);
+  --text-emphasis-deep: var(--xl-pink-700);
+  --surface-page: var(--xl-white);
+  --surface-card: var(--xl-white);
+  --surface-muted: var(--xl-paper);
+  --surface-pink: var(--xl-pink-100);
+  --surface-sky: var(--xl-sky-100);
+  --surface-brand: var(--xl-navy-800);
+  --surface-header: rgba(255, 255, 255, 0.94);
+  --border-card: var(--xl-line-300);
+  --border-rule: var(--xl-line-200);
+  --border-panel: var(--xl-line-350);
+  --border-input: var(--xl-line-500);
+  --border-header: var(--xl-line-100);
+  --border-strong: var(--xl-navy-900);
+  --action-bg: var(--xl-sky-200);
+  --action-bg-hover: var(--xl-sky-300);
+  --action-border: var(--xl-sky-400);
+  --action-fg: var(--xl-navy-800);
+  --action-success-bg: var(--xl-sunshine);
+  --focus-ring: var(--xl-pink-600);
+
+  /* Type */
+  --font-display: var(--font-xl-display), "Bricolage Grotesque", var(--font-xl-body), system-ui, sans-serif;
+  --font-body: var(--font-xl-body), "DM Sans", system-ui, sans-serif;
+  --size-hero: clamp(44px, 7vw, 84px);
+  --size-h2: clamp(32px, 4.4vw, 48px);
+  --size-h2-sm: clamp(28px, 3.6vw, 38px);
+  --size-panel-title: clamp(24px, 3vw, 30px);
+  --size-h3: 23px;
+  --size-h3-sm: 22px;
+  --size-lead: 17px;
+  --size-body: 15px;
+  --size-sm: 14px;
+  --size-xs: 13px;
+  --size-2xs: 12px;
+  --size-micro: 11px;
+  --leading-display: 0.98;
+  --leading-heading: 1.08;
+  --leading-title: 1.15;
+  --leading-body: 1.6;
+  --leading-lead: 1.65;
+  --leading-tight: 1.45;
+  --tracking-display: -0.035em;
+  --tracking-heading: -0.03em;
+  --tracking-eyebrow: 0.14em;
+  --tracking-caps-wide: 0.22em;
+
+  /* Shape */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-card: 18px;
+  --radius-panel: 22px;
+  --radius-band: 28px;
+  --radius-feature: 32px;
+  --radius-hero: 40px 40px 72px 40px;
+  --radius-pill: 999px;
+  --shadow-sticker: 4px 4px 0 var(--xl-pink-300);
+  --shadow-offset-mint: 10px 8px 0 var(--xl-mint);
+
+  /* Layout + motion */
+  --container-max: 1160px;
+  --gutter: 24px;
+  --grid-gap: 24px;
+  --header-offset: 96px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+
   min-height: 100svh;
-  --bone: #ffffff;
-  --paper: #ffffff;
-  --ink: #101828;
-  --blueprint: #1b3a6b;
-  --spark: #1b3a6b;
-  --clay: #1b3a6b;
-  --clay-hover: #142c52;
-  --blush: #f4a07c;
-  --tape: #ffb496;
-  --graphite: #4e5663;
-  --rule: #d9dee7;
-  --grid-line: rgba(27, 58, 107, 0.12);
-  --grid-line-blush: rgba(168, 48, 28, 0.14);
-  --grid-line-dark: rgba(255, 255, 255, 0.08);
-  --grid-line-spark: rgba(46, 91, 255, 0.12);
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --dur: 240ms;
-  --dur-fast: 180ms;
-  --shadow-card: 2px 2px 0 rgba(18, 26, 36, 0.08);
-  --shadow-card-hover: 4px 6px 0 rgba(18, 26, 36, 0.12);
-  --shadow-board: 4px 6px 0 rgba(18, 26, 36, 0.12);
-  --shadow-object: 3px 4px 0 rgba(18, 26, 36, 0.12);
-  --shadow-tape: 1px 1px 0 rgba(18, 26, 36, 0.15);
-  --font-display: var(--font-xpl-display), "Familjen Grotesk", sans-serif;
-  --font-body: var(--font-xpl-body), "Figtree", sans-serif;
-  --font-mono: var(--font-xpl-mono), "Space Mono", monospace;
-  --font-hand: var(--font-xpl-hand), "Caveat", cursive;
-  background: var(--bone);
-  color: var(--ink);
+  background: var(--surface-page);
+  color: var(--text-strong);
   font-family: var(--font-body);
-  font-size: 17px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
   color-scheme: light;
 }
 
-body:has(.xpl):not(:has(.crm-app)) {
-  background: var(--bone, #ffffff);
-  color: var(--ink, #101828);
-}
-
-@keyframes xpl-oops {
-  0%,
-  100% {
-    transform: rotate(3deg);
-  }
-  50% {
-    transform: rotate(0deg);
+@media (max-width: 640px) {
+  .xl {
+    --gutter: 16px;
+    --header-offset: 76px;
   }
 }
 
-@keyframes xpl-drift {
-  from {
-    translate: 0 0;
-  }
-  to {
-    translate: 0 -5px;
+html:has(.xl) {
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--header-offset, 96px);
+}
+
+body:has(.xl):not(:has(.crm-app)) {
+  background: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.xl) {
+    scroll-behavior: auto;
   }
 }
 
-@keyframes xpl-pulse {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--tape) 55%, transparent);
-  }
-  70% {
-    box-shadow: 0 0 0 8px transparent;
-  }
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-  }
-}
+/* Programme colour hook: any element with data-programme gets --p / --pt. */
+[data-programme="explore"] { --p: var(--prog-explore); --pt: var(--prog-explore-tint); }
+[data-programme="scientist"] { --p: var(--prog-scientist); --pt: var(--prog-scientist-tint); }
+[data-programme="sensory"] { --p: var(--prog-sensory); --pt: var(--prog-sensory-tint); }
+[data-programme="private"] { --p: var(--prog-private); --pt: var(--prog-private-tint); }
+[data-programme="bake"] { --p: var(--prog-bake); --pt: var(--prog-bake-tint); }
+[data-programme="wood"] { --p: var(--prog-wood); --pt: var(--prog-wood-tint); }
+[data-programme="camps"] { --p: var(--prog-camps); --pt: var(--prog-camps-tint); }
 
 @layer components {
-  .xpl a {
-    text-decoration: none;
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-
-  .xpl a:not(.xpl-btn) {
-    color: inherit;
-  }
-
-  .xpl button {
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-
-  .xpl a:hover:not(.xpl-btn):not(.xpl-txt):not(.xpl-card) {
-    color: var(--blush);
-  }
-
-  .xpl footer a:hover {
-    color: var(--blush);
-  }
-
-  .xpl :focus-visible {
-    outline: 2px solid var(--blueprint);
-    outline-offset: 3px;
-  }
-
-  .xpl-disp {
-    font-family: var(--font-display);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: -0.03em;
-    line-height: 0.95;
+  :where(.xl) :where(h1, h2, h3, h4, p, figure, blockquote, ul) {
     margin: 0;
+  }
+
+  :where(.xl) :where(a) {
+    color: inherit;
+    text-decoration: none;
+    touch-action: manipulation;
+  }
+
+  :where(.xl) :where(button, select, input) {
+    font: inherit;
+    touch-action: manipulation;
+  }
+
+  :where(.xl) :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  :where(.xl) ::selection {
+    background: var(--xl-pink-100);
+    color: var(--xl-navy-900);
+  }
+
+  .xl-skip {
+    position: absolute;
+    left: 12px;
+    top: -60px;
+    z-index: 60;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    background: var(--surface-brand);
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .xl-skip:focus {
+    top: 12px;
+  }
+
+  /* ---------- Layout ---------- */
+
+  .xl-wrap {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: var(--container-max);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  .xl-section {
+    padding-block: var(--pt, 64px) var(--pb, 24px);
+  }
+
+  .xl-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    gap: var(--grid-gap);
+  }
+
+  .xl-grid-quotes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 20px;
+  }
+
+  .xl-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap, 18px);
+  }
+
+  .xl-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap, 12px);
+  }
+
+  /* ---------- Type ---------- */
+
+  .xl-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--size-micro);
+    font-weight: 700;
+    letter-spacing: var(--tracking-eyebrow);
+    line-height: 1.3;
+    text-transform: uppercase;
+    color: var(--text-eyebrow);
+  }
+
+  .xl-eyebrow[data-tone="ink"] {
+    color: var(--text-strong);
+  }
+
+  .xl-eyebrow[data-tone="deep"] {
+    color: var(--text-emphasis-deep);
+  }
+
+  .xl-eyebrow[data-dot]::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .xl-display {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: var(--size-hero);
+    line-height: var(--leading-display);
+    letter-spacing: var(--tracking-display);
+    color: var(--text-heading);
     text-wrap: balance;
   }
 
-  .xpl-mono {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--graphite);
-    font-variant-numeric: tabular-nums;
+  .xl-h2 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: var(--size-h2);
+    line-height: 1.1;
+    letter-spacing: var(--tracking-heading);
+    color: var(--text-heading);
+    text-wrap: balance;
   }
 
-  .xpl-hand {
-    font-family: var(--font-hand);
-    font-size: 26px;
-    letter-spacing: 0;
-    text-transform: none;
-    color: var(--ink);
+  .xl-h2[data-size="md"] {
+    font-size: var(--size-h2-sm);
   }
 
-  .xpl-grid {
-    background-image:
-      linear-gradient(var(--grid-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 24px 24px;
+  .xl-h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--size-h3-sm);
+    line-height: var(--leading-title);
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
   }
 
-  .xpl-grid-dark {
-    background-image:
-      linear-gradient(var(--grid-line-dark) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line-dark) 1px, transparent 1px);
-    background-size: 24px 24px;
+  .xl-panel-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--size-panel-title);
+    line-height: var(--leading-title);
+    letter-spacing: -0.02em;
+    color: var(--text-strong);
   }
 
-  .xpl-grid-spark {
-    background-image:
-      linear-gradient(var(--grid-line-spark) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line-spark) 1px, transparent 1px);
-    background-size: 24px 24px;
+  .xl-lede {
+    max-width: 52ch;
+    font-size: var(--size-lead);
+    line-height: var(--leading-lead);
+    color: var(--text-body);
+    text-wrap: pretty;
   }
 
-  .xpl-grid-blush {
-    background-image:
-      linear-gradient(var(--grid-line-blush) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line-blush) 1px, transparent 1px);
-    background-size: 24px 24px;
+  .xl-body {
+    max-width: 62ch;
+    font-size: var(--size-body);
+    line-height: var(--leading-lead);
+    color: var(--text-body);
+    text-wrap: pretty;
   }
 
-  .xpl-btn {
+  .xl-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--size-xs);
+    color: var(--text-muted);
+  }
+
+  .xl-meta svg {
+    color: var(--xl-pink-600);
+  }
+
+  .xl-emph {
+    color: var(--text-emphasis);
+  }
+
+  .xl-emph-deep {
+    color: var(--text-emphasis-deep);
+  }
+
+  /* Sunshine underline band behind the key hero word. */
+  .xl-highlight {
+    color: var(--text-emphasis);
+    background: linear-gradient(transparent 82%, var(--xl-sunshine) 82%, var(--xl-sunshine) 94%, transparent 94%);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  .xl-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .xl-heading .xl-lede {
+    margin-top: -4px;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .xl-heading[data-align="center"] {
+    align-items: center;
+    text-align: center;
+  }
+
+  /* ---------- Buttons ---------- */
+
+  .xl-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    min-height: 44px;
-    background: var(--blueprint);
-    color: #fff;
+    box-sizing: border-box;
+    min-height: 46px;
+    padding: 12px 20px;
+    border: 1px solid var(--action-border);
+    border-radius: var(--radius-lg);
+    background: var(--action-bg);
+    color: var(--action-fg);
+    font-family: var(--font-body);
+    font-size: 15px;
     font-weight: 700;
-    padding: 16px 24px;
-    border-radius: 4px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    border: 0;
+    line-height: 1.2;
+    white-space: nowrap;
     cursor: pointer;
     transition:
-      background var(--dur) var(--ease),
-      color var(--dur) var(--ease),
-      border-color var(--dur) var(--ease),
-      transform 100ms ease-out;
+      background-color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease,
+      color var(--duration-fast) ease,
+      transform 120ms var(--ease-out);
   }
 
-  .xpl-btn:hover {
-    background: var(--blush);
-    color: var(--ink);
-  }
-
-  .xpl-hero .xpl-btn:not(.xpl-btn-inverse):not(.xpl-btn-outline):hover,
-  .xpl-blush-band .xpl-btn:not(.xpl-btn-inverse):not(.xpl-btn-outline):hover {
-    background: #fff;
-    color: var(--ink);
-  }
-
-  .xpl-btn:focus-visible {
-    outline: 2px solid var(--tape);
-    outline-offset: 3px;
-  }
-
-  .xpl-btn:active {
+  .xl-btn:active {
     transform: scale(0.97);
   }
 
-  .xpl-btn .arr,
-  .xpl-card .arr,
-  .xpl-txt .arr {
-    transition: transform var(--dur) var(--ease);
+  .xl-btn[data-variant="secondary"] {
+    border-color: var(--xl-line-400);
+    background: var(--surface-card);
+    color: var(--text-strong);
+    font-weight: 600;
   }
 
-  .xpl-btn:hover .arr,
-  .xpl-card:hover .arr,
-  .xpl-txt:hover .arr {
-    transform: translateX(6px);
+  .xl-btn[data-variant="success"] {
+    background: var(--action-success-bg);
   }
 
-  .xpl-btn-inverse {
-    background: var(--blush);
-    color: var(--ink);
+  .xl-btn[data-size="sm"] {
+    min-height: 44px;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+  }
+
+  .xl-btn[data-size="xs"] {
+    min-height: 36px;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 9px;
+    font-size: 13px;
+  }
+
+  .xl-btn[data-block] {
+    display: flex;
+    width: 100%;
+    border-radius: var(--radius-md);
+  }
+
+  .xl-btn:disabled,
+  .xl-btn[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .xl-btn:hover:not(:disabled) {
+      background: var(--action-bg-hover);
+    }
+
+    .xl-btn[data-variant="secondary"]:hover:not(:disabled) {
+      border-color: var(--action-border);
+      background: var(--surface-card);
+      color: var(--action-fg);
+    }
+
+    .xl-link:hover,
+    .xl-nav-link:hover {
+      color: var(--text-eyebrow);
+    }
+  }
+
+  .xl-link {
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: var(--xl-sky-400);
+    text-underline-offset: 3px;
+    transition: color var(--duration-fast) ease;
+  }
+
+  /* ---------- Pills ---------- */
+
+  .xl-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--xl-white);
+    color: var(--text-strong);
+    font-size: var(--size-micro);
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .xl-pill[data-variant="sunshine"] {
+    align-self: flex-start;
+    padding: 9px 16px;
+    background: var(--xl-sunshine);
+    font-size: var(--size-xs);
     font-weight: 700;
   }
 
-  .xpl-btn-inverse:hover {
-    background: #fff;
-    color: var(--ink);
+  .xl-pill[data-variant="pink"] {
+    background: var(--surface-pink);
+    color: var(--text-emphasis-deep);
+    font-weight: 700;
   }
 
-  .xpl-btn-inverse:focus-visible {
-    outline-color: #fff;
-  }
+  /* ---------- Header ---------- */
 
-  .xpl-btn-outline {
-    background: transparent;
-    color: var(--ink);
-    border: 1.5px solid var(--ink);
-  }
-
-  .xpl-btn-outline:hover {
-    background: var(--blueprint);
-    color: #fff;
-    border-color: var(--blueprint);
-  }
-
-  .xpl-txt {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 16px 8px;
-    font-weight: 500;
-    font-size: 17px;
-    border-bottom: 1.5px solid var(--blueprint);
-  }
-
-  .xpl-txt:hover {
-    color: var(--blueprint);
-    border-bottom-color: var(--blueprint);
-  }
-
-  .xpl-hero .xpl-txt:hover,
-  .xpl-blush-band .xpl-txt:hover {
-    color: var(--ink);
-    border-bottom-color: var(--ink);
-  }
-
-  .xpl-card {
-    display: flex;
-    flex-direction: column;
-    background: var(--paper);
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-    box-shadow: var(--shadow-card);
-    overflow: hidden;
-    transition:
-      transform var(--dur) var(--ease),
-      box-shadow var(--dur) var(--ease);
-  }
-
-  .xpl-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-card-hover);
-    color: inherit;
-  }
-
-  .xpl-tape {
-    position: absolute;
-    background: var(--tape);
-    color: var(--ink);
-    padding: 6px 10px;
-    border-radius: 2px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    box-shadow: var(--shadow-tape);
-  }
-
-  .xpl-obj {
-    position: absolute;
-    background: var(--paper);
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-    box-shadow: var(--shadow-object);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--graphite);
-    line-height: 1.7;
-    padding: 8px;
-    animation: xpl-drift 4.8s var(--ease) infinite alternate;
-  }
-
-  .xpl-obj:nth-of-type(2) {
-    animation-delay: 0.4s;
-  }
-
-  .xpl-obj:nth-of-type(3) {
-    animation-delay: 0.9s;
-  }
-
-  .xpl-obj:nth-of-type(4) {
-    animation-delay: 0.2s;
-  }
-
-  .xpl-photo {
-    position: relative;
-    overflow: hidden;
-    min-height: 0;
-  }
-
-  .xpl-ph {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 24px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--graphite);
-    line-height: 1.8;
-    white-space: pre-line;
-  }
-
-  .xpl-nav {
+  .xl-header {
     position: sticky;
     top: 0;
     z-index: 40;
-    height: 56px;
-    padding: 0 20px;
+    border-bottom: 1px solid var(--border-header);
+    background: var(--surface-header);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  .xl-header-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 32px;
-    border-bottom: 1px solid var(--rule);
-    background: color-mix(in srgb, var(--bone) 92%, transparent);
-    backdrop-filter: blur(12px) saturate(140%);
+    gap: 24px;
+    padding-block: 12px;
   }
 
-  .xpl-nav a[data-active="true"] {
-    color: var(--blueprint);
-    box-shadow: inset 0 -2px 0 var(--blueprint);
+  .xl-logo {
+    display: block;
+    flex-shrink: 0;
+    line-height: 0;
   }
 
-  .xpl-input {
-    height: 52px;
-    padding: 0 16px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 4px;
-    background: transparent;
-    font-family: var(--font-body);
-    font-size: 16px;
-    color: var(--bone);
+  .xl-logo img {
+    width: auto;
+    height: 64px;
   }
 
-  .xpl-input::placeholder {
-    color: rgba(255, 255, 255, 0.55);
+  .xl-nav {
+    display: none;
+    align-items: center;
+    gap: 28px;
+    font-size: var(--size-sm);
+    font-weight: 600;
   }
 
-  .xpl-oops {
-    animation: xpl-oops 1.8s var(--ease) infinite;
-  }
-
-  .xpl-hero-title {
-    font-size: 84px;
-    line-height: 0.84;
-    letter-spacing: -0.05em;
-  }
-
-  .xpl-hero-explore {
-    padding-left: 36px;
-  }
-
-  .xpl-board-paper {
-    background: var(--paper);
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-  }
-
-  .xpl-hero,
-  .xpl-blush-band {
-    background-color: var(--blush);
-    background-image:
-      linear-gradient(var(--grid-line-blush) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line-blush) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
-  .xpl-live {
+  .xl-nav-link {
     position: relative;
-    background: var(--tape);
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--tape) 70%, transparent);
-    animation: xpl-pulse 1.8s var(--ease) infinite;
+    padding-block: 6px;
+    transition: color var(--duration-fast) ease;
   }
 
-  .xpl-bookbar {
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-    backdrop-filter: blur(12px) saturate(140%);
+  .xl-nav-link[aria-current="page"] {
+    color: var(--text-heading);
   }
 
-  .xpl-skip {
+  .xl-nav-link[aria-current="page"]::after {
+    content: "";
     position: absolute;
-    left: 12px;
-    top: 12px;
-    z-index: 80;
-    transform: translateY(-200%);
-    background: var(--blueprint);
-    color: var(--bone);
-    padding: 10px 16px;
-    border-radius: 4px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    inset: auto 0 0;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--xl-pink-500);
   }
 
-  .xpl-skip:focus {
-    transform: none;
-    color: var(--bone);
+  .xl-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
   }
 
-  .xpl-burger {
-    position: relative;
+  .xl-account {
+    display: none;
+    font-size: var(--size-sm);
+    font-weight: 600;
+  }
+
+  .xl-burger {
+    display: inline-grid;
+    place-content: center;
+    gap: 5px;
     width: 44px;
     height: 44px;
+    border: 1px solid var(--xl-line-400);
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+    cursor: pointer;
   }
 
-  .xpl-burger span {
+  .xl-burger span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--text-strong);
+    transition: transform 200ms var(--ease-out);
+  }
+
+  .xl-burger[aria-expanded="true"] span:first-child {
+    transform: translateY(3.5px) rotate(45deg);
+  }
+
+  .xl-burger[aria-expanded="true"] span:last-child {
+    transform: translateY(-3.5px) rotate(-45deg);
+  }
+
+  .xl-sheet {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 22px;
-    height: 1.5px;
-    margin-left: -11px;
-    background: var(--ink);
-    transition: transform var(--dur-fast) var(--ease);
+    inset: 100% 0 auto;
+    border-bottom: 1px solid var(--border-header);
+    background: var(--xl-white);
+    padding: 12px var(--gutter) 24px;
+    transform-origin: top;
+    transition:
+      opacity 200ms var(--ease-out),
+      translate 200ms var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 -8px;
+    }
   }
 
-  .xpl-burger span:first-child {
-    transform: translateY(-4px);
+  .xl-sheet a {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    border-bottom: 1px solid var(--border-rule);
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-strong);
   }
 
-  .xpl-burger span:last-child {
-    transform: translateY(4px);
+  .xl-sheet a[aria-current="page"] {
+    color: var(--text-eyebrow);
   }
 
-  .xpl-burger[aria-expanded="true"] span:first-child {
-    transform: rotate(45deg);
+  .xl-sheet .xl-btn {
+    justify-content: center;
+    margin-top: 16px;
+    border-bottom: 1px solid var(--action-border);
+    color: var(--action-fg);
+    font-family: var(--font-body);
+    font-size: 15px;
   }
 
-  .xpl-burger[aria-expanded="true"] span:last-child {
-    transform: rotate(-45deg);
+  @media (max-width: 640px) {
+    .xl-logo img {
+      height: 48px;
+    }
+
+    .xl-header-cta {
+      display: none;
+    }
   }
 
   @media (min-width: 1024px) {
-    .xpl-nav {
-      height: 64px;
-      padding: 0 80px;
+    .xl-nav,
+    .xl-account {
+      display: flex;
     }
 
-    .xpl-hero-title {
-      font-size: min(232px, 16.11vw);
-      line-height: 0.82;
-    }
-
-    .xpl-hero-explore {
-      padding-left: min(200px, 13.89vw);
+    .xl-burger,
+    .xl-sheet {
+      display: none;
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .xpl {
-      --dur: 0ms;
-      --dur-fast: 0ms;
+  /* ---------- Hero ---------- */
+
+  .xl-hero {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+    align-items: center;
+    gap: 56px;
+    padding-block: 72px 64px;
+  }
+
+  .xl-hero-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 26px;
+  }
+
+  .xl-hero-sparkle {
+    display: inline-block;
+    margin-left: 6px;
+    vertical-align: top;
+    color: var(--xl-pink-500);
+  }
+
+  @media (max-width: 640px) {
+    .xl-hero {
+      gap: 40px;
+      padding-block: 40px 48px;
     }
 
-    .xpl-card:hover {
-      transform: none;
+    .xl-hero-copy {
+      gap: 20px;
+    }
+  }
+
+  /* Hero collage: lopsided pink card tilted -2deg on a sky back-plate.
+     Tilts use the individual `rotate` property so the load sequence can
+     animate `scale`/`translate` without fighting them. */
+  .xl-collage {
+    position: relative;
+    padding: 12px 18px 22px 6px;
+  }
+
+  .xl-collage-plate {
+    position: absolute;
+    inset: 26px 0 0 22px;
+    border-radius: 44px 44px 70px 44px;
+    background: var(--xl-sky-050);
+    rotate: 2deg;
+  }
+
+  .xl-collage-card {
+    position: relative;
+    min-height: 320px;
+    aspect-ratio: 1.3 / 1;
+    overflow: hidden;
+    border: 3px solid var(--xl-pink-500);
+    border-radius: var(--radius-hero);
+    background-color: var(--xl-pink-100);
+    background-image: radial-gradient(var(--xl-pink-250) 1px, transparent 1.2px);
+    background-size: 22px 22px;
+    rotate: -2deg;
+  }
+
+  .xl-collage-sticker {
+    position: absolute;
+    top: 8%;
+    left: 27%;
+    padding: 10px 18px;
+    border-radius: var(--radius-xs);
+    background: var(--xl-sunshine);
+    box-shadow: var(--shadow-sticker);
+    color: var(--xl-navy-800);
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    rotate: -5deg;
+  }
+
+  .xl-collage-spark {
+    position: absolute;
+    top: 19%;
+    right: 12%;
+    color: var(--xl-pink-500);
+    fill: var(--xl-sunshine);
+  }
+
+  .xl-collage-flask {
+    position: absolute;
+    top: 26%;
+    left: 6%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 33%;
+    aspect-ratio: 1 / 1.05;
+    border: 2.5px solid var(--xl-navy-800);
+    border-radius: 22px;
+    background: var(--xl-white);
+    box-shadow: var(--shadow-offset-mint);
+    color: var(--xl-navy-800);
+    font-size: 12px;
+    rotate: -7deg;
+  }
+
+  .xl-collage-flask svg {
+    width: 46%;
+    height: auto;
+    fill: var(--xl-sky-100);
+  }
+
+  .xl-collage-blocks {
+    position: absolute;
+    top: 63%;
+    left: 37%;
+    display: grid;
+    grid-template-columns: repeat(2, 44px);
+    gap: 8px;
+  }
+
+  .xl-collage-blocks span {
+    height: 44px;
+    border: 2px solid var(--xl-navy-800);
+    border-radius: 9px;
+  }
+
+  .xl-collage-blocks span:nth-child(1) { background: var(--xl-sunshine); }
+  .xl-collage-blocks span:nth-child(2) { background: var(--xl-pink-500); border-radius: 22px 22px 4px 4px; }
+  .xl-collage-blocks span:nth-child(3) { background: var(--xl-navy-800); }
+  .xl-collage-blocks span:nth-child(4) { background: var(--xl-mint); }
+
+  .xl-collage-words {
+    position: absolute;
+    top: 36%;
+    left: 58%;
+    font-family: var(--font-display);
+    font-size: clamp(18px, 2.2vw, 28px);
+    font-weight: 700;
+    line-height: 1.18;
+    white-space: nowrap;
+    color: var(--xl-navy-800);
+  }
+
+  .xl-collage-words span {
+    display: block;
+  }
+
+  .xl-collage-badge {
+    position: absolute;
+    right: 8%;
+    bottom: 13%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 86px;
+    height: 86px;
+    border: 3px solid var(--xl-sunshine);
+    border-radius: 50%;
+    background: var(--xl-navy-800);
+    box-shadow: 0 0 0 3px var(--xl-navy-800);
+    color: var(--xl-white);
+    rotate: -10deg;
+  }
+
+  .xl-collage-badge b {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .xl-collage-badge small {
+    margin-top: 3px;
+    font-size: 8px;
+    letter-spacing: 0.14em;
+  }
+
+  .xl-collage-foot {
+    position: absolute;
+    bottom: 6%;
+    left: 7%;
+    font-size: 10px;
+    letter-spacing: var(--tracking-caps-wide);
+    color: var(--xl-navy-900);
+  }
+
+  @media (max-width: 520px) {
+    .xl-collage-card {
+      min-height: 280px;
+      aspect-ratio: 1 / 1;
     }
 
-    .xpl-btn:active {
-      transform: none;
+    .xl-collage-sticker {
+      left: 18%;
+      font-size: 12px;
     }
 
-    .xpl-oops,
-    .xpl-obj,
-    .xpl-live {
-      animation: none;
+    .xl-collage-blocks {
+      top: 66%;
+      grid-template-columns: repeat(2, 34px);
     }
+
+    .xl-collage-blocks span {
+      height: 34px;
+    }
+
+    .xl-collage-words {
+      left: 52%;
+    }
+
+    .xl-collage-badge {
+      width: 70px;
+      height: 70px;
+    }
+  }
+
+  /* The page's one orchestrated moment: the collage assembles on load. */
+  @media (prefers-reduced-motion: no-preference) {
+    .xl-collage-card {
+      animation: xl-rise 600ms var(--ease-out) both;
+    }
+
+    .xl-collage-card > * {
+      animation: xl-pop 520ms var(--ease-out) both;
+      animation-delay: calc(240ms + var(--i, 0) * 70ms);
+    }
+
+    .xl-hero-copy > * {
+      animation: xl-rise 560ms var(--ease-out) both;
+      animation-delay: calc(var(--i, 0) * 60ms);
+    }
+  }
+
+  /* ---------- Trust bar ---------- */
+
+  .xl-trust {
+    background: var(--surface-brand);
+    color: var(--xl-white);
+  }
+
+  .xl-trust ul {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px 64px;
+    padding-block: 20px;
+    list-style: none;
+    font-size: var(--size-sm);
+    font-weight: 600;
+  }
+
+  .xl-trust li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .xl-trust svg {
+    color: var(--xl-sunshine);
+  }
+
+  /* ---------- Filter tabs ---------- */
+
+  .xl-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .xl-tab {
+    min-height: 40px;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--action-fg);
+    font-size: var(--size-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease;
+  }
+
+  .xl-tab[aria-pressed="true"] {
+    border-color: var(--action-border);
+    background: var(--action-bg);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .xl-tab:hover:not([aria-pressed="true"]) {
+      background: var(--surface-sky);
+    }
+  }
+
+  /* ---------- Programme card ---------- */
+
+  .xl-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border-card);
+    border-top: 5px solid var(--p);
+    border-radius: var(--radius-card);
+    background: var(--surface-card);
+  }
+
+  .xl-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 20px 22px;
+    background: var(--pt);
+    color: var(--xl-navy-800);
+  }
+
+  .xl-card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+    padding: 22px 22px 24px;
+  }
+
+  .xl-card-title {
+    font-family: var(--font-display);
+    font-size: var(--size-h3);
+    font-weight: 700;
+    line-height: var(--leading-title);
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+  }
+
+  .xl-card-when {
+    font-size: var(--size-xs);
+    font-weight: 700;
+    line-height: var(--leading-tight);
+  }
+
+  .xl-card-when span {
+    display: block;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .xl-card-desc {
+    font-size: var(--size-sm);
+    line-height: var(--leading-body);
+    color: var(--text-body);
+    text-wrap: pretty;
+  }
+
+  .xl-card-foot {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: auto;
+    padding-top: 12px;
+  }
+
+  .xl-card-price {
+    font-size: var(--size-body);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Filter swaps cards in place: a short fade so the grid change reads as one. */
+  @media (prefers-reduced-motion: no-preference) {
+    .xl-grid[data-animate] > .xl-card {
+      animation: xl-fade 220ms var(--ease-out) both;
+    }
+  }
+
+  /* ---------- Notice ---------- */
+
+  .xl-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-radius: var(--radius-xl);
+    background: var(--surface-pink);
+    font-size: var(--size-sm);
+    line-height: 1.5;
+  }
+
+  .xl-notice[data-tone="sky"] {
+    background: var(--surface-sky);
+  }
+
+  .xl-notice svg {
+    flex-shrink: 0;
+    color: var(--xl-pink-600);
+  }
+
+  /* ---------- Weekly calendar ---------- */
+
+  .xl-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .xl-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-pill);
+    background: var(--surface-card);
+    color: var(--text-strong);
+    font-size: var(--size-2xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease;
+  }
+
+  .xl-chip::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--p);
+  }
+
+  .xl-chip[aria-pressed="true"] {
+    border-color: var(--p);
+    background: var(--pt);
+  }
+
+  .xl-cal {
+    overflow-x: auto;
+    border: 1px solid var(--border-panel);
+    border-radius: 16px;
+    overscroll-behavior-x: contain;
+  }
+
+  .xl-cal table {
+    width: 100%;
+    min-width: 940px;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .xl-cal th {
+    padding: 10px;
+    background: var(--surface-sky);
+    font-size: var(--size-2xs);
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .xl-cal thead th + th {
+    border-left: 1px solid var(--xl-sky-150);
+  }
+
+  .xl-cal thead th:first-child,
+  .xl-cal tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    width: 110px;
+    padding-inline: 12px;
+  }
+
+  .xl-cal tbody tr {
+    border-top: 1px solid var(--border-rule);
+  }
+
+  .xl-cal td {
+    min-height: 64px;
+    padding: 6px;
+    border-left: 1px solid var(--border-rule);
+    vertical-align: top;
+    transition: opacity var(--duration-base) ease;
+  }
+
+  .xl-cal td[data-dimmed] {
+    opacity: 0.25;
+  }
+
+  .xl-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 8px;
+    border-left: 3px solid var(--p);
+    border-radius: var(--radius-xs);
+    background: var(--pt);
+    font-size: var(--size-micro);
+    line-height: 1.45;
+  }
+
+  .xl-slot b {
+    font-weight: 700;
+  }
+
+  .xl-slot a {
+    margin-top: 2px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  .xl-slot-note {
+    padding: 6px 4px;
+    font-size: var(--size-micro);
+    line-height: 1.45;
+    color: var(--text-body);
+  }
+
+  .xl-hint {
+    margin-top: 10px;
+    font-size: var(--size-2xs);
+    color: var(--text-muted);
+  }
+
+  @media (min-width: 980px) {
+    .xl-hint {
+      display: none;
+    }
+  }
+
+  /* ---------- Live sessions board ---------- */
+
+  .xl-panel {
+    padding: 24px;
+    border: 1px solid var(--border-panel);
+    border-radius: var(--radius-card);
+    background: var(--surface-card);
+  }
+
+  .xl-sessions {
+    list-style: none;
+    padding: 0;
+  }
+
+  .xl-session {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 6px 20px;
+    padding-block: 16px;
+    border-bottom: 1px solid var(--border-rule);
+  }
+
+  .xl-session:last-child {
+    border-bottom: 0;
+  }
+
+  .xl-session-time {
+    grid-column: 1 / -1;
+    font-size: var(--size-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .xl-session-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: var(--leading-title);
+    letter-spacing: -0.01em;
+  }
+
+  .xl-session-spec {
+    margin-top: 4px;
+    font-size: var(--size-xs);
+    color: var(--text-body);
+  }
+
+  .xl-session-desc {
+    margin-top: 6px;
+    max-width: 60ch;
+    font-size: var(--size-sm);
+    line-height: var(--leading-body);
+    color: var(--text-body);
+  }
+
+  .xl-spots {
+    font-size: var(--size-xs);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .xl-spots[data-tone="muted"] {
+    color: var(--text-disabled);
+  }
+
+  .xl-spots[data-tone="action"] {
+    color: var(--xl-pink-700);
+  }
+
+  .xl-session[data-focused] {
+    margin-inline: -12px;
+    padding-inline: 12px;
+    border-radius: var(--radius-lg);
+    background: var(--surface-sky);
+  }
+
+  @media (min-width: 720px) {
+    .xl-session {
+      grid-template-columns: 140px 1fr auto;
+      gap: 24px;
+    }
+
+    .xl-session-time {
+      grid-column: auto;
+    }
+  }
+
+  .xl-day-label {
+    font-size: var(--size-sm);
+    font-weight: 700;
+    color: var(--text-heading);
+  }
+
+  .xl-photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    list-style: none;
+    padding: 0;
+  }
+
+  .xl-photos li {
+    width: 52px;
+    height: 52px;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: var(--xl-pink-200);
+  }
+
+  .xl-photos img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .xl-book {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .xl-book label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--size-2xs);
+    color: var(--text-muted);
+  }
+
+  .xl-input {
+    width: 64px;
+    min-height: 36px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+    color: var(--text-strong);
+    font-size: var(--size-sm);
+  }
+
+  .xl-status {
+    font-size: var(--size-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .xl-error {
+    max-width: 22ch;
+    font-size: var(--size-xs);
+    color: var(--xl-pink-700);
+  }
+
+  @media (min-width: 720px) {
+    .xl-book {
+      align-items: flex-end;
+    }
+  }
+
+  /* ---------- Pricing ---------- */
+
+  .xl-band {
+    padding: clamp(22px, 4vw, 40px);
+    border-radius: var(--radius-band);
+    background: var(--surface-pink);
+  }
+
+  .xl-price {
+    overflow-x: auto;
+    padding: clamp(16px, 3vw, 22px);
+    border-radius: 16px;
+    background: var(--surface-card);
+  }
+
+  .xl-price caption {
+    margin-bottom: 8px;
+    font-size: var(--size-xs);
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .xl-price table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--size-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .xl-price th {
+    padding: 10px 0;
+    border-bottom: 2px solid var(--border-strong);
+    font-size: var(--size-xs);
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .xl-price td {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-rule);
+  }
+
+  .xl-price td:last-child {
+    font-weight: 700;
+  }
+
+  /* ---------- Feature (our little space) ---------- */
+
+  .xl-feature {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+    overflow: hidden;
+    border-top: 4px solid var(--xl-pink-500);
+    border-radius: var(--radius-feature);
+    background: var(--surface-pink);
+  }
+
+  .xl-feature-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+    padding: clamp(24px, 4vw, 44px);
+  }
+
+  .xl-feature-copy .xl-h2 {
+    font-size: clamp(32px, 4vw, 44px);
+    line-height: var(--leading-heading);
+  }
+
+  .xl-feature-media {
+    position: relative;
+    min-height: 320px;
+    background: var(--xl-pink-200);
+  }
+
+  .xl-feature-media img {
+    object-fit: cover;
+  }
+
+  /* ---------- Quotes ---------- */
+
+  .xl-quote {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 22px;
+    border: 1px solid var(--border-card);
+    border-top: 4px solid var(--p, var(--xl-sunshine));
+    border-radius: var(--radius-card);
+    background: var(--surface-card);
+  }
+
+  .xl-quote blockquote {
+    font-size: var(--size-body);
+    line-height: var(--leading-body);
+    text-wrap: pretty;
+  }
+
+  .xl-quote figcaption {
+    margin-top: auto;
+    font-size: var(--size-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  /* ---------- Location band ---------- */
+
+  .xl-location {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 24px 28px;
+    border-radius: var(--radius-panel);
+    background: var(--surface-sky);
+  }
+
+  .xl-location-copy {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .xl-location-copy > svg {
+    flex-shrink: 0;
+    color: var(--xl-pink-600);
+  }
+
+  .xl-location-copy p {
+    margin-top: 4px;
+    font-size: var(--size-xs);
+    color: var(--text-muted);
+  }
+
+  /* ---------- Interior page hero ---------- */
+
+  .xl-page-hero {
+    border-bottom: 1px solid var(--border-header);
+    background-color: var(--surface-pink);
+    background-image: radial-gradient(var(--xl-pink-250) 1px, transparent 1.2px);
+    background-size: 22px 22px;
+  }
+
+  .xl-page-hero .xl-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    padding-block: clamp(48px, 8vw, 88px);
+  }
+
+  .xl-page-hero .xl-display {
+    max-width: 16ch;
+    font-size: clamp(40px, 6vw, 72px);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .xl-page-hero .xl-wrap > * {
+      animation: xl-rise 520ms var(--ease-out) both;
+      animation-delay: calc(var(--i, 0) * 60ms);
+    }
+  }
+
+  /* ---------- Footer ---------- */
+
+  .xl-footer {
+    margin-top: 24px;
+    border-top: 1px solid var(--border-header);
+  }
+
+  .xl-footer-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px 32px;
+    padding-block: 28px 20px;
+  }
+
+  .xl-footer-main img {
+    width: auto;
+    height: 58px;
+  }
+
+  .xl-footer-tag {
+    font-size: var(--size-2xs);
+    color: var(--text-muted);
+  }
+
+  .xl-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    font-size: var(--size-2xs);
+    font-weight: 600;
+  }
+
+  .xl-footer-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    transition: color var(--duration-fast) ease;
+  }
+
+  .xl-footer-legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    padding-block: 14px 36px;
+    border-top: 1px solid var(--border-header);
+    font-size: var(--size-2xs);
+    color: var(--text-muted);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .xl-footer-links a:hover,
+    .xl-footer-legal a:hover {
+      color: var(--text-eyebrow);
+    }
+  }
+}
+
+@keyframes xl-rise {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+  }
+}
+
+@keyframes xl-pop {
+  from {
+    opacity: 0;
+    scale: 0.88;
+  }
+}
+
+@keyframes xl-fade {
+  from {
+    opacity: 0;
+    translate: 0 6px;
   }
 }

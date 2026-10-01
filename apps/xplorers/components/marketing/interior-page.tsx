@@ -1,4 +1,6 @@
-import { XplButton } from "@/components/marketing/xpl-ui";
+import type { CSSProperties, ReactNode } from "react";
+import { CONTACT } from "@/lib/marketing/content";
+import { Button, Eyebrow, LocationBand, stagger } from "@/components/marketing/ui";
 
 export function InteriorPage({
   kicker,
@@ -6,26 +8,45 @@ export function InteriorPage({
   body,
   cta,
   href = "/contact",
+  children,
 }: {
   kicker: string;
   title: string;
   body: string;
   cta: string;
   href?: string;
+  children?: ReactNode;
 }) {
   return (
     <article>
-      <header className="xpl-blush-band border-b border-[var(--rule)] px-5 py-14 lg:px-20 lg:py-24">
-        <p className="xpl-mono text-[11px] lg:text-xs">{kicker}</p>
-        <h1 className="xpl-disp mt-5 max-w-[16ch] text-[52px] leading-[0.9] tracking-[-0.04em] lg:text-[112px]">
-          {title}
-        </h1>
+      <header className="xl-page-hero">
+        <div className="xl-wrap">
+          <Eyebrow dot style={stagger(0)}>
+            {kicker}
+          </Eyebrow>
+          <h1 className="xl-display" style={stagger(1)}>
+            {title}
+          </h1>
+          <p className="xl-lede" style={stagger(2)}>
+            {body}
+          </p>
+          <div className="xl-row" style={stagger(3)}>
+            <Button href={href} icon="arrow-right">
+              {cta}
+            </Button>
+          </div>
+        </div>
       </header>
-      <section className="flex flex-col gap-8 px-5 py-14 lg:max-w-[720px] lg:px-20 lg:py-24">
-        <p className="m-0 text-[17px] leading-[1.5] text-pretty lg:text-xl lg:leading-[1.55]">{body}</p>
-        <XplButton href={href} className="h-[52px] self-start lg:h-auto">
-          {cta}
-        </XplButton>
+      {children}
+      <section className="xl-wrap xl-section" style={{ "--pb": "48px" } as CSSProperties}>
+        <LocationBand address={CONTACT.address}>
+          <Button size="sm" variant="secondary" href={`mailto:${CONTACT.email}`}>
+            Email us
+          </Button>
+          <Button size="sm" icon="arrow-up-right" href={CONTACT.maps}>
+            Find our studio
+          </Button>
+        </LocationBand>
       </section>
     </article>
   );
