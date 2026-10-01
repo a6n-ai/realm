@@ -3,6 +3,8 @@ import { validateStartDate } from "@/lib/services/start-date";
 
 export const TRIAL_WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 export type TrialWeekday = (typeof TRIAL_WEEKDAYS)[number];
+/** A trial runs inside one week: at most 5 days. */
+export const TRIAL_MAX_DAYS = 5;
 
 export function orderedTrialWeekdays(days: readonly string[]): TrialWeekday[] {
   const picked = new Set(days);
@@ -31,8 +33,10 @@ export function resolveTrialDays(
     if (off.length) throw new ValidationError(`Trials aren't sent on ${off.join(", ")}`);
   }
   const length = picked ? picked.length : count;
-  if (length == null || !Number.isInteger(length) || length < 1 || length > maxDays) {
-    throw new ValidationError(`Choose 1 to ${maxDays} days`);
+  // One tiffin per send day inside a single week, so never more than the send days allow.
+  const cap = Math.min(maxDays, allowed.length, TRIAL_MAX_DAYS);
+  if (length == null || !Number.isInteger(length) || length < 1 || length > cap) {
+    throw new ValidationError(`Choose 1 to ${cap} days`);
   }
   return { sendDays: picked ?? [...allowed], length };
 }

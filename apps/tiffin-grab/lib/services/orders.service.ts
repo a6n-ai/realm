@@ -254,7 +254,8 @@ export async function createOrder(
     input.selections = {
       ...input.selections,
       frequencyKey: trial.frequencyKey,
-      eatingDays: undefined,
+      // Stored like a regular meal size: the days it eats, on an every-day frequency.
+      eatingDays: trial.eatingDays,
       durationWeeks: trial.durationWeeks,
       includeSaturday: false,
       includeSunday: false,

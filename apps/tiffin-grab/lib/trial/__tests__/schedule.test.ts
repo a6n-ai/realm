@@ -80,3 +80,11 @@ describe("assertTrialStart", () => {
     expect(() => assertTrialStart("", ["mon"], new Date())).toThrow(ValidationError);
   });
 });
+
+describe("resolveTrialDays one-week cap", () => {
+  it("never allows more days than send days or 5", () => {
+    expect(() => resolveTrialDays(["mon", "wed", "fri"], 5, undefined, 4)).toThrow(ValidationError);
+    expect(resolveTrialDays(["mon", "wed", "fri"], 5, undefined, 3).length).toBe(3);
+    expect(() => resolveTrialDays(["mon", "tue", "wed", "thu", "fri", "sat"], 6, undefined, 6)).toThrow(ValidationError);
+  });
+});

@@ -1,12 +1,14 @@
-import { ValidationError } from "@foundry/commons";
+import { parseIsoDateUtc, ValidationError, weekdayKey } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing/types";
 import { getTrialSettings } from "@/lib/services/app-settings.service";
-import { assertTrialStart, durationWeeksCovering, resolveTrialDays, trialDeliveryDates, trialSendDays } from "./schedule";
+import { assertTrialStart, durationWeeksCovering, orderedTrialWeekdays, resolveTrialDays, trialDeliveryDates, trialSendDays, type TrialWeekday } from "./schedule";
 
 export type TrialQuote = {
   dates: string[];
+  /** Weekdays of `dates`, in week order: the order's eating days, like a regular meal size. */
+  eatingDays: TrialWeekday[];
   length: number;
   weekdays: string[];
   frequencyKey: string;
@@ -31,7 +33,10 @@ export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingS
   assertTrialStart(selections.startDate, sendDays, new Date());
   const dates = trialDeliveryDates(selections.startDate, length, sendDays);
 
-  const frequency = snapshot.frequencies.find((f) => f.weekdays?.length) ?? snapshot.frequencies[0];
+  // A trial is delivered every day it runs, so it rides the frequency with the most delivery days.
+  const frequency = snapshot.frequencies
+    .filter((f) => f.weekdays?.length)
+    .sort((a, b) => (b.weekdays?.length ?? 0) - (a.weekdays?.length ?? 0))[0] ?? snapshot.frequencies[0];
   if (!frequency) throw new ValidationError("No delivery frequency is configured");
 
   const persons = selections.persons;
@@ -53,6 +58,7 @@ export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingS
 
   return {
     dates,
+    eatingDays: orderedTrialWeekdays(dates.map((d) => weekdayKey(parseIsoDateUtc(d)))),
     length,
     weekdays: sendDays,
     frequencyKey: frequency.key,

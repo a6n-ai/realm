@@ -18,7 +18,7 @@ const DAYS = [
   ["sun", "Sun"],
 ] as const;
 
-const HINT = "Maximum days a customer may take, and which weekdays those deliveries can land on. They choose 1 through the maximum, then a start date.";
+const HINT = "Maximum days a trial can run (up to 5, within one week) and the weekdays it can be sent on. When creating a trial, pick which of those days it arrives; one tiffin is delivered each day.";
 
 export function TrialSettingsForm({ maxDays, weekdays }: { maxDays: number | null; weekdays: string[] }) {
   const router = useRouter();
@@ -47,7 +47,7 @@ export function TrialSettingsForm({ maxDays, weekdays }: { maxDays: number | nul
       {error && <p className="text-destructive text-sm">{error}</p>}
       <div>
         <Label htmlFor="trial-max">Maximum days</Label>
-        <Input id="trial-max" type="number" min={1} max={31} step={1} value={max} onChange={(e) => setMax(e.target.value)} className="mt-1 max-w-32" />
+        <Input id="trial-max" type="number" min={1} max={5} step={1} value={max} onChange={(e) => setMax(e.target.value)} className="mt-1 max-w-32" />
       </div>
       <div>
         <Label>Send days</Label>
