@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@foundry/commons";
-import { durationWeeksCovering, trialDeliveryDates } from "../schedule";
+import { durationWeeksCovering, trialDeliveryDates, trialSendDays } from "../schedule";
 
 describe("trialDeliveryDates", () => {
   it("takes the next matching weekdays until the chosen length is filled", () => {
@@ -21,5 +21,12 @@ describe("durationWeeksCovering", () => {
     expect(durationWeeksCovering("2026-09-30", "2026-10-05")).toBe(1);
     expect(durationWeeksCovering("2026-09-28", "2026-10-02")).toBe(1);
     expect(durationWeeksCovering("2026-09-28", "2026-10-12")).toBe(3);
+  });
+});
+
+describe("trialSendDays", () => {
+  it("drops Sat/Sun for a trial meal without a weekend dish", () => {
+    expect(trialSendDays(["sat", "mon", "sun", "fri"], false)).toEqual(["mon", "fri"]);
+    expect(trialSendDays(["sat", "mon", "sun", "fri"], true)).toEqual(["mon", "fri", "sat", "sun"]);
   });
 });

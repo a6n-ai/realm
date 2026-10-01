@@ -36,6 +36,13 @@
       "when": 1790800170878,
       "tag": "0004_previous_pestilence",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790876730919,
+      "tag": "0005_broken_triathlon",
+      "breakpoints": true
     }
   ]
 }

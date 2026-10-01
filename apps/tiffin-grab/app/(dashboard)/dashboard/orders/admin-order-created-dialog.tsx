@@ -10,6 +10,8 @@ import { ResponsiveDialog } from "@foundry/design-system";
 export type AdminOrderCreated = {
   publicId: string;
   deploymentId: string;
+  /** Set when staff attached a payment screenshot at create time. */
+  paid?: { ok: true } | { ok: false; error: string };
 };
 
 /** Staff-only success after create — never the customer `/activate` page. */
@@ -53,7 +55,11 @@ export function AdminOrderCreatedDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Order created"
-      description="Share the payment link with the customer, then open the order to manage deliveries."
+      description={
+        result.paid?.ok
+          ? "Payment approved from the screenshot — the plan is active."
+          : "Share the payment link with the customer, then open the order to manage deliveries."
+      }
       contentClassName="sm:max-w-md"
       footer={
         <div className="flex flex-wrap justify-end gap-2">
@@ -69,6 +75,12 @@ export function AdminOrderCreatedDialog({
           <p className="text-muted-foreground text-xs uppercase tracking-wide">Deployment</p>
           <p className="mt-0.5 font-medium nums">{result.deploymentId}</p>
         </div>
+        {result.paid && !result.paid.ok ? (
+          <p className="text-destructive text-sm" role="alert">
+            The screenshot wasn&apos;t saved ({result.paid.error}). Add it from the order&apos;s Payments tab.
+          </p>
+        ) : null}
+        {result.paid?.ok ? null : (
         <div className="space-y-2">
           <p className="text-sm font-medium">Customer payment link</p>
           <p className="text-muted-foreground text-xs">
@@ -91,6 +103,7 @@ export function AdminOrderCreatedDialog({
             </Button>
           </div>
         </div>
+        )}
       </div>
     </ResponsiveDialog>
   );

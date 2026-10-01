@@ -63,7 +63,9 @@ export function PaymentsTable({
         toast.error(res.error);
         return;
       }
-      toast.success("Payment reminder emailed", { description: r.email ?? undefined });
+      toast.success("Payment reminder emailed", {
+        description: `Sent to ${r.email ?? "the customer"}. If it doesn't arrive, ask them to check spam.`,
+      });
       router.refresh();
     });
   }

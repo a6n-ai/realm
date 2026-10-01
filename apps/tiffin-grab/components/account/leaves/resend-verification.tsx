@@ -17,7 +17,7 @@ export function ResendVerification({ email }: { email: string }) {
         if (error) {
           toast.error("Failed to send verification email.");
         } else {
-          toast.success("Verification email sent (check the server log in dev).");
+          toast.success("Verification email sent", { description: "Check your inbox, and your spam folder if it isn't there." });
         }
       }}
     >

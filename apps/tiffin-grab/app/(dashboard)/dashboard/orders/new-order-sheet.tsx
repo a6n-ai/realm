@@ -29,7 +29,9 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "./admin-order-created-dialog";
-import { createOrderFlow } from "./actions";
+import { createOrderFlow, settleNewOrderWithProofAction } from "./actions";
+import { PaymentProofField, type PaymentProofValue } from "./payment-proof-field";
+import { makeImageThumbnail } from "@/components/ds";
 import {
   CustomMealBuilder, filledItems, type CustomMealCategory, type CustomMealValue,
 } from "./custom-meal-builder";
@@ -71,8 +73,9 @@ const PhoneInput = dynamic(() => import("@foundry/ui/phone-input").then((m) => m
 });
 
 /**
- * Three-step New order — mirrors New inquiry contact, then catalog plan, then
- * a verify step with plan summary + price breakup before create:
+ * Four-step New order — mirrors New inquiry contact, then catalog plan, then an
+ * optional e-Transfer screenshot (approves the payment on create), then a
+ * verify step with plan summary + price breakup before create:
  *   1. Contact + Source (optional sub-source)
  *   2. Catalog / custom meal + schedule + delivery + payment
  *   3. Review plan & pricing → Create order
@@ -103,7 +106,7 @@ export function NewOrderSheet({
   const enabledSlots: EnabledSlot[] = categories.map((c) => ({ key: c.key, label: c.label }));
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
   const [fullName, setFullName] = useState("");
@@ -117,6 +120,7 @@ export function NewOrderSheet({
   const [createError, setCreateError] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
+  const [proof, setProof] = useState<PaymentProofValue>({ file: null, reference: "" });
   // Keyed by the inquiry it was fetched for, so clearing the pick derives an empty
   // prefill instead of writing one synchronously in the effect below.
   const [fetchedPrefill, setFetchedPrefill] = useState<{
@@ -184,6 +188,7 @@ export function NewOrderSheet({
       setCreateError(null);
       setCreated(null);
       setSuccessOpen(false);
+      setProof({ file: null, reference: "" });
     }
   }
 
@@ -210,7 +215,19 @@ export function NewOrderSheet({
           ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
           : undefined,
       }));
-      setCreated(result);
+      let paid: AdminOrderCreated["paid"];
+      if (proof.file && isEtransfer) {
+        // Order already exists; a failed upload must not hide that, so it is
+        // reported on the success dialog rather than thrown.
+        const form = new FormData();
+        const thumb = await makeImageThumbnail(proof.file);
+        form.set("proof", proof.file);
+        form.set("proof_thumb", thumb, thumb.name);
+        if (proof.reference.trim()) form.set("reference", proof.reference.trim());
+        const settled = await settleNewOrderWithProofAction(result.publicId, form);
+        paid = "error" in settled ? { ok: false, error: settled.error } : { ok: true };
+      }
+      setCreated({ ...result, paid });
       setSuccessOpen(true);
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : "Failed to create order");
@@ -230,6 +247,7 @@ export function NewOrderSheet({
   const frequencyLabel = catalog.frequencies.find((f) => f.key === draft?.order.selections.frequencyKey)?.name;
   const eating = draft?.order.selections.eatingDays ?? [];
   const trialDays = draft?.order.selections.trialDays;
+  const isEtransfer = draft?.order.paymentMethodId === "etransfer";
 
   return (
     <>
@@ -247,7 +265,7 @@ export function NewOrderSheet({
           ) : undefined
         }
         title="New order"
-        description="Contact, plan, then verify pricing before create."
+        description="Contact, plan, payment, then verify pricing before create."
         contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         footer={
           sources.length > 0 && step === 1 ? (
@@ -261,6 +279,15 @@ export function NewOrderSheet({
               </Button>
             </div>
           ) : sources.length > 0 && step === 3 ? (
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                onClick={() => setStep(4)}
+                className="min-h-11 active:scale-[0.96] sm:min-h-9"
+              >
+                {proof.file ? "Continue" : isEtransfer ? "Skip, collect later" : "Continue"}
+              </Button>
+            </div>
+          ) : sources.length > 0 && step === 4 ? (
             <div className="flex w-full items-center justify-between gap-3">
               <div className="text-sm">
                 <span className="text-muted-foreground">Total </span>
@@ -293,7 +320,7 @@ export function NewOrderSheet({
           <NoSources noun="order" />
         ) : (
           <>
-            <StepHeader step={step} steps={["Contact", "Order", "Review"]} />
+            <StepHeader step={step} steps={["Contact", "Order", "Payment", "Review"]} />
 
             {step === 1 ? (
               <div className="space-y-6 px-5 py-5 sm:px-6">
@@ -447,8 +474,8 @@ export function NewOrderSheet({
               {customMeal && (
                 <CustomMealBuilder plans={catalog.plans} categories={categories} value={customMeal} onChange={setCustomMeal} />
               )}
-              {/* Keep mounted across step 2↔3 so schedule/address aren't wiped on Edit. */}
-              {(step === 2 || step === 3) && (
+              {/* Keep mounted across steps 2–4 so schedule/address aren't wiped on Edit. */}
+              {step >= 2 && (
                 <OrderForm
                   inquiryId=""
                   contact={{ fullName, phone, email }}
@@ -467,6 +494,27 @@ export function NewOrderSheet({
             </div>
 
             {step === 3 ? (
+              <div className="space-y-5 px-5 py-5 sm:px-6">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="text-muted-foreground hover:text-foreground -ml-1 flex min-h-11 items-center gap-1 text-sm transition-colors"
+                >
+                  ← <span className="font-medium">Edit order</span>
+                </button>
+                {isEtransfer ? (
+                  <PaymentProofField value={proof} onChange={setProof} />
+                ) : (
+                  <div className="text-muted-foreground rounded-lg border p-4 text-sm">
+                    {draft?.order.paymentMethodId
+                      ? "The customer pays with the payment link after you create the order."
+                      : "No payment method is set up, so the order is recorded as paid."}
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {step === 4 ? (
               <div className="space-y-5 px-5 py-5 sm:px-6">
                 <button
                   type="button"
@@ -525,6 +573,32 @@ export function NewOrderSheet({
                   <SectionLabel>Price breakup</SectionLabel>
                   <OrderPricingBreakdown result={draft?.preview ?? null} currency={currency} />
                 </section>
+
+                {draft?.order.paymentMethodId ? (
+                  <section className="grid gap-3">
+                    <div className="flex items-center justify-between">
+                      <SectionLabel>Payment</SectionLabel>
+                      <button
+                        type="button"
+                        onClick={() => setStep(3)}
+                        className="text-muted-foreground hover:text-foreground min-h-11 text-sm font-medium sm:min-h-0"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <div className="rounded-lg border p-4 text-sm">
+                      {proof.file && isEtransfer ? (
+                        <p>
+                          e-Transfer screenshot attached
+                          {proof.reference.trim() ? ` · ref ${proof.reference.trim()}` : ""} — approved on create, plan
+                          starts right away.
+                        </p>
+                      ) : (
+                        <p className="text-muted-foreground">Payment collected later with the customer payment link.</p>
+                      )}
+                    </div>
+                  </section>
+                ) : null}
 
                 {createError ? (
                   <p className="text-destructive text-sm" role="alert">{createError}</p>
