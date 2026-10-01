@@ -40,7 +40,10 @@ export function OrderOverview({
   timezone,
   currency,
   categoryLabels,
+  startAction,
 }: {
+  /** Edit control beside the start date while the plan hasn't started. */
+  startAction?: ReactNode;
   order: OrderDetail;
   customer: OverviewCustomer;
   zoneName: string | null;
@@ -84,7 +87,10 @@ export function OrderOverview({
               </DetailRow>
             )}
             <DetailRow label="Start">
-              {order.startDate} · {order.durationWeeks} week{order.durationWeeks === 1 ? "" : "s"}
+              <span className="flex items-center justify-between gap-2">
+                <span>{order.startDate} · {order.durationWeeks} week{order.durationWeeks === 1 ? "" : "s"}</span>
+                {startAction}
+              </span>
             </DetailRow>
             <DetailRow label="Tiffins">
               <span className="tabular-nums">
