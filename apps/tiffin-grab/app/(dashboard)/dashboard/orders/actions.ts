@@ -9,6 +9,9 @@ import { currentUserId } from "@/lib/services/session-service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { reassignOrder, startAllMigratedOrders, type CreateOrderInput } from "@/lib/services/orders.service";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { getSession } from "@/lib/auth/session";
+import { uploadPaymentProof } from "@/lib/services/payment-proof";
+import { findUnpaidPayment, settleWithStaffProof } from "@/lib/services/payment-settle";
 
 type Source = { sourceKey: string; subSourceKey?: string };
 type Contact = { fullName: string; phone: string; email: string };
@@ -92,6 +95,31 @@ export async function createOrderFlow(input: {
     revalidatePath("/dashboard/inquiries");
     return result;
   });
+}
+
+// Staff already have the customer's e-Transfer screenshot at order creation:
+// attach it and approve the payment so the plan starts right away.
+// FormData: proof (image), proof_thumb (image), reference (optional).
+export async function settleNewOrderWithProofAction(orderPublicId: string, form: FormData): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    const [internalId, session] = await Promise.all([currentUserId(), getSession()]);
+    const paymentPublicId = await findUnpaidPayment(orderPublicId);
+    const proof = await uploadPaymentProof(paymentPublicId, form.get("proof"), form.get("proof_thumb"));
+    if (!proof) throw new ValidationError("Attach the payment screenshot");
+    const ref = form.get("reference");
+    await settleWithStaffProof(
+      paymentPublicId,
+      { proof, reference: typeof ref === "string" ? ref.trim() || null : null },
+      { internalId, publicId: session?.user?.id ?? null },
+    );
+  });
+  if ("ok" in res) {
+    revalidatePath("/dashboard/orders");
+    revalidatePath(`/dashboard/orders/${orderPublicId}`);
+    revalidatePath("/dashboard/payments", "layout");
+  }
+  return res;
 }
 
 export async function reassignOrderAction(orderId: string, ownerId: string): Promise<void> {

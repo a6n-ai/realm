@@ -18,6 +18,7 @@ const { reminderInstructions, sendPaymentReminder } = await import("../payment-r
 const { setPaymentConfig } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
+const { findUnpaidPayment, settleWithStaffProof } = await import("../payment-settle");
 
 const customers = () => db.select({ id: users.id }).from(users).where(ne(users.isSystem, true));
 
@@ -111,5 +112,24 @@ describe("sendPaymentReminder", () => {
     const out = reminderInstructions({ method: "cash", amount: "40.00" }, "SUB-1", { instructions: "Pay the driver on your first delivery." });
     expect(out).toEqual({ instructions: "Pay the driver on your first delivery.", action: "View my bill" });
     expect(reminderInstructions({ method: "cash", amount: "40.00" }, "SUB-1", null).instructions).toContain("SUB-1");
+  });
+
+  it("staff screenshot at create approves the payment so the plan starts", async () => {
+    const { order, pay } = await unpaidOrder();
+    expect(await findUnpaidPayment(order.publicId)).toBe(pay.publicId);
+
+    await settleWithStaffProof(
+      pay.publicId,
+      { proof: { path: "payments/x/orig.png", thumbUrl: "https://cdn.test/t.png", name: "et.png" }, reference: "CA123" },
+      { internalId: null, publicId: null },
+    );
+
+    const [paid] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(paid!.status).toBe("paid");
+    expect(paid!.reference).toBe("CA123");
+    expect(paid!.proof?.name).toBe("et.png");
+    const types = await db.select({ t: orderActivities.type }).from(orderActivities).where(eq(orderActivities.orderId, order.id));
+    expect(types.map((r) => r.t)).toEqual(expect.arrayContaining(["payment_claimed", "payment_verified"]));
+    await expect(findUnpaidPayment(order.publicId)).rejects.toThrow("No unpaid payment");
   });
 });

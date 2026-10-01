@@ -19,7 +19,7 @@ export function StepHeader({ step, steps }: { step: number; steps: string[] }) {
             >
               {done ? <CheckIcon className="size-3" /> : n}
             </span>
-            <span className={cn("text-sm", active ? "text-foreground font-medium" : "text-muted-foreground")}>{label}</span>
+            <span className={cn("text-sm", active ? "text-foreground font-medium" : "text-muted-foreground hidden sm:inline")}>{label}</span>
             {n < steps.length && <span className="bg-border mx-1 h-px w-6" />}
           </div>
         );
