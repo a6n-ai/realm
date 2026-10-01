@@ -7,7 +7,7 @@ export interface FieldDef {
   label: string;
   type: FieldType;
   options?: string[];
-  optionsSource?: "weekdays" | "categories" | "plans" | "addon-categories" | "discount-targets";
+  optionsSource?: "weekdays" | "categories" | "plans" | "discount-targets";
   optionLabels?: Record<string, string>;
   unit?: string;
   help?: string;
@@ -151,16 +151,10 @@ const discountsSchema = z.object({
   active,
 });
 
-const addonCategoriesSchema = z.object({
-  key, name,
-  sortOrder: reqNum(z.coerce.number().int().nonnegative().default(0)),
-  active,
-});
-
 const addonsSchema = z.object({
   key, name,
-  // Soft ref to addon_categories.key — every add-on belongs to exactly one
-  // category, which is what dish categories attach to gate visibility.
+  // Soft ref to dish_categories.key (like dishes.category): the add-on is offered
+  // for any meal size carrying that category. Never part of the meal or its swaps.
   category: z.string().trim().min(1, "Pick a category"),
   pricePerWeek: reqNum(z.coerce.number().nonnegative()),
   maxQty: reqNum(z.coerce.number().int().positive().default(5)),
@@ -194,9 +188,6 @@ const dishCategoriesSchema = z.object({
   key,
   label: name,
   planIds: z.array(z.string()).min(1, "Pick at least one plan"),
-  // Which add-on categories this dish category offers — empty means no
-  // add-ons show for it. Opt-in, unlike planIds.
-  addonCategoryIds: z.array(z.string()).default([]),
   selectable: z.boolean().default(false),
   weekend: z.boolean().default(false),
   sortOrder: reqNum(z.coerce.number().int().nonnegative().default(0)),
@@ -224,7 +215,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "label", label: "Label", type: "text" },
       { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
-      { key: "addonCategoryIds", label: "Add-on categories", type: "multiselect", optionsSource: "addon-categories", tableHidden: true },
       { key: "selectable", label: "Customer-selectable", type: "boolean" },
       { key: "weekend", label: "Weekend dish", type: "boolean" },
       { key: "sortOrder", label: "Sort order", type: "number", tableHidden: true },
@@ -301,20 +291,12 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "endsAt", label: "Ends", type: "date", optional: true },
     ],
   },
-  "addon-categories": {
-    key: "addon-categories", label: "Add-on categories", singular: "add-on category", keyed: true, schema: addonCategoriesSchema,
-    fields: [
-      { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
-      { key: "name", label: "Name", type: "text" },
-      { key: "sortOrder", label: "Sort order", type: "number", tableHidden: true },
-    ],
-  },
   addons: {
     key: "addons", label: "Add-ons", singular: "add-on", keyed: true, schema: addonsSchema,
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
-      { key: "category", label: "Category", type: "select", optionsSource: "addon-categories" },
+      { key: "category", label: "Offered with", type: "select", optionsSource: "categories", help: "Meal sizes that include this category show the add-on at checkout." },
       { key: "pricePerWeek", label: "Price / week", type: "number", unit: "$" },
       { key: "maxQty", label: "Max qty per order", type: "number" },
     ],
@@ -323,13 +305,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
 
 // Index-grid cards: some resources have no standalone card — their editors
 // are folded into a tabbed sibling page. dish-categories -> "Dishes &
-// Categories" (/dashboard/catalog/dishes); addon-categories -> "Add-ons &
-// Categories" (/dashboard/catalog/addons); duration-packages ->
+// Categories" (/dashboard/catalog/dishes), addons -> its Add-ons tab; duration-packages ->
 // "Delivery settings" (/dashboard/catalog/delivery-frequencies).
-const FOLDED_INTO_TAB = new Set(["dish-categories", "addon-categories", "duration-packages"]);
+const FOLDED_INTO_TAB = new Set(["dish-categories", "addons", "duration-packages"]);
 const GROUP_LABELS: Record<string, string> = {
   dishes: "Dishes & Categories",
-  addons: "Add-ons & Categories",
   "delivery-frequencies": "Delivery settings",
 };
 export function catalogIndexEntries(): ResourceDef[] {

@@ -41,16 +41,16 @@ const categoryRows = [
 ];
 
 describe("CatalogTabs", () => {
-  it("renders a Dishes tab and a Categories tab, defaulting to Dishes", () => {
+  it("renders Dishes, Add-ons and Categories tabs in that order, defaulting to Dishes", () => {
     render(
       <CatalogTabs
         dishes={<ResourceEditor resource="dishes" rows={dishRows} dynamicOptions={{}} sort={{ column: "name", dir: "asc" }} spec={[]} total={1} page={0} size={10} />}
+        addons={<p>Add-ons editor</p>}
         categories={<ResourceEditor resource="dish-categories" rows={categoryRows} dynamicOptions={{}} sort={{ column: "label", dir: "asc" }} spec={[]} total={1} page={0} size={10} />}
       />,
     );
 
-    expect(screen.getByRole("tab", { name: "Dishes" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Categories" })).toBeInTheDocument();
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Dishes", "Add-ons", "Categories"]);
     expect(screen.getAllByText("Paneer Tikka").length).toBeGreaterThan(0);
     expect(screen.queryByText("Sabzi")).not.toBeInTheDocument();
   });
@@ -59,6 +59,7 @@ describe("CatalogTabs", () => {
     render(
       <CatalogTabs
         dishes={<ResourceEditor resource="dishes" rows={dishRows} dynamicOptions={{}} sort={{ column: "name", dir: "asc" }} spec={[]} total={1} page={0} size={10} />}
+        addons={<p>Add-ons editor</p>}
         categories={<ResourceEditor resource="dish-categories" rows={categoryRows} dynamicOptions={{}} sort={{ column: "label", dir: "asc" }} spec={[]} total={1} page={0} size={10} />}
       />,
     );

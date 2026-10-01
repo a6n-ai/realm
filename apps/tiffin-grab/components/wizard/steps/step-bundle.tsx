@@ -28,9 +28,7 @@ export function StepBundle({
   const trials = trial ? meals.filter((m) => m.trial) : [];
   const selectedMeal = meals.find((m) => m.publicId === selections.mealSizeId);
 
-  // Only categories an admin explicitly attached add-ons to show up — see
-  // dishCategoryAddonCategories. Deduped: two component categories can share
-  // the same add-on category.
+  // Add-ons offered with any of this meal size's dish categories (addons.category).
   const eligibleAddons = !selectedMeal || selectedMeal.trial ? [] : mealSizeAddons(catalog.addonsByCategory, selectedMeal.items);
 
   const addonSelections = selections.addonSelections ?? [];

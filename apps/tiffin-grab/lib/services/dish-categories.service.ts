@@ -2,7 +2,7 @@ import { UpdatableRepository } from "@foundry/database";
 import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db/client";
-import { addonCategories, addons, categoryPlans, categorySwapPairs, dishCategories, dishCategoryAddonCategories, dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
+import { addons, categoryPlans, categorySwapPairs, dishCategories, dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { disabledCategoryMessage } from "@/lib/menu/admin-config-guards";
 import { swapPairFits, type ExchangeOverride, type SwapCategory } from "@/lib/menu/swap-rules";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
@@ -33,10 +33,9 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   // planIds is membership in category_plans, not a column — split it out so the
   // generic catalog form can carry it like any other field.
   async create(values: Record<string, unknown>) {
-    const { planIds, addonCategoryIds, ...rest } = this.schema.parse(values);
+    const { planIds, ...rest } = this.schema.parse(values);
     const row = await super.create({ ...rest, enabled: true });
     await this.setPlans(row.publicId, planIds as string[]);
-    await this.setAddonCategories(row.publicId, (addonCategoryIds ?? []) as string[]);
     return row;
   }
 
@@ -44,10 +43,9 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     // The generic catalog retire/restore action toggles `active`; this table has
     // no `active` column, so map it onto `enabled` (its status column).
     if ("active" in patch) return super.update(id, { enabled: Boolean(patch.active) });
-    const { planIds, addonCategoryIds, ...rest } = this.schema.partial().parse(patch);
+    const { planIds, ...rest } = this.schema.partial().parse(patch);
     const row = Object.keys(rest).length ? await super.update(id, rest) : await this.read(id);
     if (planIds) await this.setPlans(id, planIds as string[]);
-    if (addonCategoryIds) await this.setAddonCategories(id, addonCategoryIds as string[]);
     return row;
   }
 
@@ -116,52 +114,18 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return out;
   }
 
-  /** Replace a category's add-on-category membership wholesale. Mirrors setPlans. */
-  async setAddonCategories(categoryPublicId: string, addonCategoryPublicIds: string[]) {
-    const [cat] = await db
-      .select({ id: dishCategories.id })
-      .from(dishCategories)
-      .where(eq(dishCategories.publicId, categoryPublicId))
-      .limit(1);
-    if (!cat) throw new ValidationError("Category not found");
-    const addonCatRows = addonCategoryPublicIds.length
-      ? await db.select({ id: addonCategories.id }).from(addonCategories).where(inArray(addonCategories.publicId, addonCategoryPublicIds))
-      : [];
-    if (addonCatRows.length !== addonCategoryPublicIds.length) throw new ValidationError("Unknown add-on category");
-    await db.transaction(async (tx) => {
-      await tx.delete(dishCategoryAddonCategories).where(eq(dishCategoryAddonCategories.dishCategoryId, cat.id));
-      if (addonCatRows.length) {
-        await tx.insert(dishCategoryAddonCategories).values(addonCatRows.map((a) => ({ dishCategoryId: cat.id, addonCategoryId: a.id })));
-      }
-    });
-  }
-
-  /** Add-on-category public ids per dish category, for the admin form. */
-  async addonCategoriesByCategory(): Promise<Map<string, string[]>> {
-    const rows = await db
-      .select({ categoryPublicId: dishCategories.publicId, addonCategoryPublicId: addonCategories.publicId })
-      .from(dishCategoryAddonCategories)
-      .innerJoin(dishCategories, eq(dishCategories.id, dishCategoryAddonCategories.dishCategoryId))
-      .innerJoin(addonCategories, eq(addonCategories.id, dishCategoryAddonCategories.addonCategoryId));
-    const out = new Map<string, string[]>();
-    for (const r of rows) out.set(r.categoryPublicId, [...(out.get(r.categoryPublicId) ?? []), r.addonCategoryPublicId]);
-    return out;
-  }
-
   /**
-   * Every attached (dish-category key -> add-on) row, unfiltered — the shape
-   * loadCatalogSnapshot embeds so the wizard and pricing engine both resolve
-   * add-on eligibility from the one cached snapshot instead of a per-request
-   * query. Mirrors addonsForCategories but grouped, not scoped to one meal size.
+   * Active add-ons grouped by the dish-category key they're offered with
+   * (addons.category, a soft ref like dishes.category) — the shape
+   * loadCatalogSnapshot embeds so the wizard, the admin order form and pricing
+   * resolve eligibility from one cached snapshot.
    */
   async addonsByDishCategory(): Promise<Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>> {
     const rows = await db
-      .selectDistinct({ categoryKey: dishCategories.key, addonKey: addons.key, addonName: addons.name, pricePerWeek: addons.pricePerWeek, maxQty: addons.maxQty })
-      .from(dishCategoryAddonCategories)
-      .innerJoin(dishCategories, eq(dishCategories.id, dishCategoryAddonCategories.dishCategoryId))
-      .innerJoin(addonCategories, eq(addonCategories.id, dishCategoryAddonCategories.addonCategoryId))
-      .innerJoin(addons, eq(addons.category, addonCategories.key))
-      .where(and(eq(addons.active, true), eq(addonCategories.active, true)));
+      .select({ categoryKey: addons.category, addonKey: addons.key, addonName: addons.name, pricePerWeek: addons.pricePerWeek, maxQty: addons.maxQty })
+      .from(addons)
+      .where(eq(addons.active, true))
+      .orderBy(asc(addons.name));
     const out = new Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>();
     for (const r of rows) {
       const bucket = out.get(r.categoryKey) ?? [];

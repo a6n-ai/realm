@@ -87,7 +87,7 @@ export interface CatalogSnapshot {
   // fixtures/tests that build a snapshot by hand don't all need updating; callers
   // fall back to the raw category key when it's absent.
   categoryLabels?: Record<string, string>;
-  // dish-category key -> add-ons an admin attached to it (dishCategoryAddonCategories).
+  // dish-category key -> add-ons offered with it (addons.category).
   // An add-on only shows for a meal size when its key appears here under one of
   // that meal size's item categories — see buildPricingCatalog. Optional for the
   // same back-compat reason as categoryLabels.
@@ -177,7 +177,7 @@ export type CatalogAddon = { key: string; name: string; pricePerWeek: number; ma
 
 /**
  * Add-ons a meal size may carry: the union of add-ons attached to its item
- * categories (dishCategoryAddonCategories), deduped by key. The one eligibility
+ * categories (addons.category), deduped by key. The one eligibility
  * rule for the wizard, the admin order form and server-side pricing.
  */
 export function mealSizeAddons(

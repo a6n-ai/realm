@@ -57,6 +57,13 @@
       "when": 1790886217119,
       "tag": "0007_shiny_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790887754145,
+      "tag": "0008_hesitant_puff_adder",
+      "breakpoints": true
     }
   ]
 }
