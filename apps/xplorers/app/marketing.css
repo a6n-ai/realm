@@ -1597,36 +1597,6 @@ body:has(.xl):not(:has(.crm-app)) {
     color: var(--text-muted);
   }
 
-  /* ---------- Location band ---------- */
-
-  .xl-location {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    padding: 24px 28px;
-    border-radius: var(--radius-panel);
-    background: var(--surface-sky);
-  }
-
-  .xl-location-copy {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .xl-location-copy > svg {
-    flex-shrink: 0;
-    color: var(--xl-pink-600);
-  }
-
-  .xl-location-copy p {
-    margin-top: 4px;
-    font-size: var(--size-xs);
-    color: var(--text-muted);
-  }
-
   /* ---------- Interior page hero ---------- */
 
   .xl-page-hero {
@@ -1656,61 +1626,213 @@ body:has(.xl):not(:has(.crm-app)) {
     }
   }
 
-  /* ---------- Footer ---------- */
+  /* ---------- Footer ----------
+     The closing chapter: the brand-blue trust-bar colour, with the hero
+     card's lopsided corner turned upside down so the page ends the way it
+     opened. The logo is drawn for light grounds, so it rides on a white
+     sticker tile. */
 
   .xl-footer {
-    margin-top: 24px;
-    border-top: 1px solid var(--border-header);
+    margin-top: 56px;
+    border-radius: 72px 40px 0 0;
+    background: var(--surface-brand);
+    color: var(--xl-white);
+    --footer-muted: color-mix(in srgb, var(--xl-white) 74%, var(--surface-brand));
   }
 
-  .xl-footer-main {
+  .xl-footer-cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px 40px;
+    padding-block: clamp(48px, 7vw, 80px) clamp(36px, 5vw, 56px);
+    border-bottom: 1px solid color-mix(in srgb, var(--xl-white) 16%, transparent);
+  }
+
+  .xl-footer-title {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 5.4vw, 64px);
+    font-weight: 800;
+    line-height: var(--leading-display);
+    letter-spacing: var(--tracking-display);
+    text-wrap: balance;
+  }
+
+  .xl-footer-mark {
+    color: var(--xl-sunshine);
+  }
+
+  .xl-footer-lede {
+    max-width: 46ch;
+    font-size: var(--size-lead);
+    line-height: var(--leading-lead);
+    color: var(--footer-muted);
+  }
+
+  .xl-footer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 32px 40px;
+    padding-block: 40px;
+  }
+
+  .xl-footer-head {
+    margin-bottom: 14px;
+    font-size: var(--size-micro);
+    font-weight: 700;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--xl-sky-200);
+  }
+
+  .xl-footer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .xl-footer-address {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: var(--size-sm);
+    font-style: normal;
+    line-height: 1.6;
+    white-space: pre-line;
+    color: var(--footer-muted);
+  }
+
+  .xl-footer-address svg {
+    flex-shrink: 0;
+    margin-top: 3px;
+    color: var(--xl-pink-300);
+  }
+
+  /* Links share the hero's sunshine highlighter: it sweeps in under the
+     words on hover and focus. */
+  .xl-footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    font-size: var(--size-sm);
+    font-weight: 600;
+    color: var(--xl-white);
+    background: linear-gradient(transparent 84%, var(--xl-sunshine) 84%) no-repeat 0 0 / 0% 100%;
+    transition: background-size 260ms var(--ease-out);
+  }
+
+  .xl-footer-link:focus-visible {
+    background-size: 100% 100%;
+    outline-color: var(--xl-sunshine);
+  }
+
+  .xl-footer-link[data-programme]::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--p);
+    box-shadow: 0 0 0 2px var(--xl-white);
+  }
+
+  .xl-footer-base {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 20px 32px;
-    padding-block: 28px 20px;
+    gap: 18px 28px;
+    padding-block: 28px 40px;
+    border-top: 1px solid color-mix(in srgb, var(--xl-white) 16%, transparent);
   }
 
-  .xl-footer-main img {
+  .xl-footer-logo {
+    display: block;
+    padding: 6px 12px;
+    border-radius: var(--radius-lg);
+    background: var(--xl-white);
+    box-shadow: 4px 4px 0 var(--xl-pink-500);
+    line-height: 0;
+    rotate: -2deg;
+    transition: rotate 320ms var(--ease-out);
+  }
+
+  .xl-footer-logo img {
     width: auto;
-    height: 58px;
+    height: 52px;
   }
 
   .xl-footer-tag {
     font-size: var(--size-2xs);
-    color: var(--text-muted);
-  }
-
-  .xl-footer-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 18px;
-    font-size: var(--size-2xs);
-    font-weight: 600;
-  }
-
-  .xl-footer-links a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 32px;
-    transition: color var(--duration-fast) ease;
+    color: var(--footer-muted);
   }
 
   .xl-footer-legal {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px 18px;
-    padding-block: 14px 36px;
-    border-top: 1px solid var(--border-header);
+    align-items: center;
+    gap: 4px 20px;
+    margin-left: auto;
     font-size: var(--size-2xs);
-    color: var(--text-muted);
+    color: var(--footer-muted);
+  }
+
+  .xl-footer-legal .xl-footer-link {
+    font-size: var(--size-2xs);
+    color: var(--footer-muted);
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .xl-footer-links a:hover,
-    .xl-footer-legal a:hover {
-      color: var(--text-eyebrow);
+    .xl-footer-link:hover {
+      background-size: 100% 100%;
+      color: var(--xl-white);
+    }
+
+    .xl-footer-logo:hover {
+      rotate: 0deg;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .xl-footer {
+      border-radius: 40px 28px 0 0;
+    }
+
+    .xl-footer-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .xl-footer-grid > :first-child {
+      grid-column: 1 / -1;
+    }
+
+    .xl-footer-legal {
+      margin-left: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .xl-footer-link,
+    .xl-footer-logo {
+      transition: none;
+    }
+  }
+
+  /* Outline button for the blue footer band. */
+  .xl-btn[data-variant="ghost-inverse"] {
+    border-color: color-mix(in srgb, var(--xl-white) 55%, transparent);
+    background: transparent;
+    color: var(--xl-white);
+    font-weight: 600;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .xl-btn[data-variant="ghost-inverse"]:hover:not(:disabled) {
+      border-color: var(--xl-white);
+      background: color-mix(in srgb, var(--xl-white) 12%, transparent);
     }
   }
 }
