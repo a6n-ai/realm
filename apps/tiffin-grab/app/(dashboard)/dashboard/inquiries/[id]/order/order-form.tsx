@@ -30,7 +30,7 @@ import {
 import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
-import { earliestTrialIso } from "@/lib/trial/schedule";
+import { earliestTrialIso, trialSendDays } from "@/lib/trial/schedule";
 import { convertInquiry, previewPrice, repCouponInfo, trialFormSettings, type RepCouponInfo } from "./actions";
 import { ScheduleSection } from "./schedule-section";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
@@ -42,7 +42,7 @@ const customMealFormSchema = orderFormSchema.extend({ planKey: z.string(), mealS
 
 type Catalog = {
   plans: { key: string; name: string }[];
-  mealSizes: { id: string; name: string; diet: string; trial?: boolean }[];
+  mealSizes: { id: string; name: string; diet: string; trial?: boolean; servesWeekends?: boolean }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
@@ -147,10 +147,13 @@ export function OrderForm({
   };
 
   const mealsForPlan = catalog.mealSizes.filter((m) => !planKey || m.diet === planKey);
-  const isTrial = catalog.mealSizes.find((m) => m.id === mealSizeId)?.trial === true;
-  const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialSettings.weekdays.length > 0;
+  const selectedSize = catalog.mealSizes.find((m) => m.id === mealSizeId);
+  const isTrial = selectedSize?.trial === true;
+  // Trial send days for this meal: no Sat/Sun when it has no weekend dish.
+  const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true) : [];
+  const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
   const minStart = isTrial && trialSettings
-    ? earliestTrialIso(new Date(), trialSettings.weekdays)
+    ? earliestTrialIso(new Date(), trialWeekdays)
     : nextWeekday(new Date()).toISOString().slice(0, 10);
   const realPayments = paymentMethods.length > 0;
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
@@ -408,7 +411,7 @@ export function OrderForm({
                   />
                   <p className="text-muted-foreground text-xs">
                     {trialOpen
-                      ? `Up to ${trialSettings?.maxDays} days, sent on ${trialSettings?.weekdays.join(", ")}.`
+                      ? `Up to ${trialSettings?.maxDays} days, sent on ${trialWeekdays.join(", ")}.`
                       : "Set a max and send days on Meal sizes → Trial before creating a trial order."}
                   </p>
                 </div>

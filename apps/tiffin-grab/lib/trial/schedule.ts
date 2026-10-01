@@ -9,6 +9,11 @@ export function orderedTrialWeekdays(days: readonly string[]): TrialWeekday[] {
   return TRIAL_WEEKDAYS.filter((d) => picked.has(d));
 }
 
+/** Send days for a trial of this meal: Sat/Sun drop out when the meal has no weekend dish. */
+export function trialSendDays(weekdays: readonly string[], servesWeekends: boolean): TrialWeekday[] {
+  return orderedTrialWeekdays(weekdays).filter((d) => servesWeekends || (d !== "sat" && d !== "sun"));
+}
+
 /** Next `length` dates from `startDate` whose weekday is allowed, including the start date. */
 export function trialDeliveryDates(startDate: string, length: number, weekdays: readonly string[]): string[] {
   if (!Number.isInteger(length) || length < 1) throw new ValidationError("Choose at least 1 trial day");
