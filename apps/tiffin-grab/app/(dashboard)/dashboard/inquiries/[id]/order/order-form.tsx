@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { CheckIcon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
-import { nextWeekday } from "@foundry/commons";
+import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
 import {
@@ -95,7 +95,8 @@ export function OrderForm({
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
   const [trialSettings, setTrialSettings] = useState<{ maxDays: number | null; weekdays: string[] } | null>(null);
-  const [trialDays, setTrialDays] = useState(1);
+  // Picked trial weekdays; null until staff touch them (then defaults below apply).
+  const [trialPicks, setTrialPicks] = useState<string[] | null>(null);
 
   const defaultSlots = enabledSlots.some((s) => s.key === "lunch")
     ? ["lunch"]
@@ -155,9 +156,27 @@ export function OrderForm({
   // Trial send days for this meal: no Sat/Sun when it has no weekend dish.
   const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true) : [];
   const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
+  const trialMax = trialSettings?.maxDays ?? 1;
+  // Like eating days on a regular plan: one tiffin on each picked weekday, from the start date.
+  const picks = (trialPicks ?? trialWeekdays.slice(0, trialMax)).filter((d) => (trialWeekdays as string[]).includes(d));
+  const trialDays = picks.length;
   const minStart = isTrial && trialSettings
-    ? earliestTrialIso(new Date(), trialWeekdays)
+    ? earliestTrialIso(new Date(), picks.length ? picks : trialWeekdays)
     : nextWeekday(new Date()).toISOString().slice(0, 10);
+
+  const toggleTrialDay = (d: string) => {
+    const next = picks.includes(d)
+      ? picks.filter((x) => x !== d)
+      : picks.length < trialMax ? [...picks, d] : picks;
+    const ordered = trialWeekdays.filter((x) => next.includes(x));
+    setTrialPicks(ordered);
+    // Keep the start on a picked day so the server never rejects it.
+    const start = form.getValues("startDate");
+    const ok = start && ordered.includes(weekdayKey(parseIsoDateUtc(start)) as (typeof ordered)[number]) && start >= earliestTrialIso(new Date(), ordered);
+    if (ordered.length && !ok) {
+      form.setValue("startDate", earliestTrialIso(new Date(), ordered), { shouldDirty: true, shouldValidate: true });
+    }
+  };
   const realPayments = paymentMethods.length > 0;
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
   const slot = paymentSlot?.(realPayments ? paymentMethodId : null) ?? null;
@@ -175,7 +194,6 @@ export function OrderForm({
       .then((s) => {
         if (cancelled) return;
         setTrialSettings(s);
-        if (s.maxDays != null && s.maxDays >= 1) setTrialDays(s.maxDays);
       })
       .catch(() => { if (!cancelled) setTrialSettings(null); });
     return () => { cancelled = true; };
@@ -204,14 +222,14 @@ export function OrderForm({
     selections: {
       mealSizeId: v.mealSizeId,
       frequencyKey: v.frequencyKey,
-      eatingDays: trial ? undefined : v.eatingDays,
+      eatingDays: trial ? (picks as DayOfWeek[]) : v.eatingDays,
       persons: v.persons,
       mealSlots: v.mealSlots,
       includeSaturday: trial ? false : v.eatingDays.includes("sat"),
       includeSunday: trial ? false : v.eatingDays.includes("sun"),
       durationWeeks: v.durationWeeks,
       startDate: v.startDate,
-      ...(trial ? { trialDays } : {}),
+      ...(trial ? { trialDays: picks.length } : {}),
     },
     contact: {
       fullName: contact.fullName,
@@ -284,7 +302,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialDays, isTrial]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialDays, picks.join(), isTrial]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -295,6 +313,10 @@ export function OrderForm({
     setError(null);
     if (isTrial && !trialOpen) {
       setError("Trials aren't available right now");
+      return;
+    }
+    if (isTrial && picks.length === 0) {
+      setError("Pick at least one trial day");
       return;
     }
     if (!isTrial) {
@@ -403,19 +425,40 @@ export function OrderForm({
                 )}
               />
               {isTrial ? (
-                <div className="space-y-2">
-                  <Label htmlFor="trial-days">Trial days <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="trial-days"
-                    type="number"
-                    min={1}
-                    max={trialSettings?.maxDays ?? 1}
-                    value={trialDays}
-                    onChange={(e) => setTrialDays(Math.min(trialSettings?.maxDays ?? 1, Math.max(1, Number(e.target.value) || 1)))}
-                  />
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>
+                    Trial days <span className="text-destructive">*</span>
+                    <span className="text-muted-foreground ml-1 font-normal">
+                      {picks.length}/{trialMax} picked
+                    </span>
+                  </Label>
+                  {trialOpen ? (
+                    <div className="flex flex-wrap gap-2" role="group" aria-label="Trial days">
+                      {trialWeekdays.map((d) => {
+                        const on = picks.includes(d);
+                        const full = !on && picks.length >= trialMax;
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            aria-pressed={on}
+                            disabled={full}
+                            onClick={() => toggleTrialDay(d)}
+                            className={cn(
+                              "min-h-11 min-w-12 rounded-full border px-3 text-sm font-medium capitalize transition-colors sm:min-h-9",
+                              on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                              full && "cursor-not-allowed opacity-40",
+                            )}
+                          >
+                            {d}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                   <p className="text-muted-foreground text-xs">
                     {trialOpen
-                      ? `Up to ${trialSettings?.maxDays} days, sent on ${trialWeekdays.join(", ")}.`
+                      ? `One tiffin on each picked day, from the start date. Up to ${trialMax} days (Meal sizes → Trial).`
                       : "Set a max and send days on Meal sizes → Trial before creating a trial order."}
                   </p>
                 </div>

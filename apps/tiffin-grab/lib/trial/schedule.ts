@@ -14,6 +14,29 @@ export function trialSendDays(weekdays: readonly string[], servesWeekends: boole
   return orderedTrialWeekdays(weekdays).filter((d) => servesWeekends || (d !== "sat" && d !== "sun"));
 }
 
+/**
+ * Which weekdays a trial uses and how many tiffins. Staff pick weekdays (one
+ * tiffin on each, from the start date); without picks it is a plain count over
+ * every allowed send day.
+ */
+export function resolveTrialDays(
+  allowed: readonly TrialWeekday[],
+  maxDays: number,
+  picks: readonly string[] | undefined,
+  count: number | undefined,
+): { sendDays: TrialWeekday[]; length: number } {
+  const picked = picks?.length ? orderedTrialWeekdays(picks) : null;
+  if (picked) {
+    const off = picked.filter((d) => !allowed.includes(d));
+    if (off.length) throw new ValidationError(`Trials aren't sent on ${off.join(", ")}`);
+  }
+  const length = picked ? picked.length : count;
+  if (length == null || !Number.isInteger(length) || length < 1 || length > maxDays) {
+    throw new ValidationError(`Choose 1 to ${maxDays} days`);
+  }
+  return { sendDays: picked ?? [...allowed], length };
+}
+
 /** Next `length` dates from `startDate` whose weekday is allowed, including the start date. */
 export function trialDeliveryDates(startDate: string, length: number, weekdays: readonly string[]): string[] {
   if (!Number.isInteger(length) || length < 1) throw new ValidationError("Choose at least 1 trial day");
