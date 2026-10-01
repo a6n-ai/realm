@@ -433,7 +433,8 @@ export function Checkout({
     </div>
   );
   const dropOffText = dropOffSummary(dropOff, { tagId: selections.deliveryTagId ?? null, strategyIds: selections.deliveryStrategyIds ?? [] });
-  const perWeek = selections.eatingDays?.length ?? 0;
+  // A trial stores its picked days in eatingDays too; that isn't a weekly rate.
+  const perWeek = selections.trialDays == null ? (selections.eatingDays?.length ?? 0) : 0;
   const start = startLabel(selections.startDate);
 
   const sign = step === 2 ? 1 : -1;

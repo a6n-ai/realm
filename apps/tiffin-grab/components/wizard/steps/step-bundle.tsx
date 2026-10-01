@@ -1,6 +1,6 @@
 import { PlusIcon } from "lucide-react";
 import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
-import type { WizardSelections } from "../selections";
+import { DEFAULT_EATING_DAYS, type WizardSelections } from "../selections";
 import { Button, OptionCard, Pill, Stepper } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
@@ -85,7 +85,7 @@ export function StepBundle({
                   meal={m}
                   active={selections.mealSizeId === m.publicId}
                   categoryLabels={catalog.categoryLabels}
-                  onPick={() => set({ mealSizeId: m.publicId, trialDays: undefined })}
+                  onPick={() => set({ mealSizeId: m.publicId, trialDays: undefined, ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}) })}
                 />
               ))}
             </div>
