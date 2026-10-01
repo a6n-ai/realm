@@ -222,7 +222,7 @@ function PaymentRow({
         toast.error(res.error);
         return;
       }
-      toast.success("Payment reminder emailed");
+      toast.success("Payment reminder emailed", { description: "If it doesn't arrive, ask the customer to check spam." });
       router.refresh();
     });
   }

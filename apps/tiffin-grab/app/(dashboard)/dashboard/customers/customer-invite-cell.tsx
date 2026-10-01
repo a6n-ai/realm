@@ -15,7 +15,9 @@ export function useCustomerInvite(email: string | null) {
     start(async () => {
       try {
         await resendCustomerInvite(email);
-        toast.success("Invite sent", { description: `They'll get a welcome email at ${email} with a sign-in link.` });
+        toast.success("Invite sent", {
+          description: `They'll get a welcome email at ${email} with a sign-in link. If it doesn't arrive, ask them to check spam.`,
+        });
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not send the invite.");
       }

@@ -218,7 +218,7 @@ export function IdentityGate() {
                 {error?.field === "code" ? (
                   <p role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">{error.message}</p>
                 ) : resent ? (
-                  <p role="status" className="c-caption">New code sent. It works for 10 minutes.</p>
+                  <p role="status" className="c-caption">New code sent. It works for 10 minutes. Check spam if it isn&apos;t there.</p>
                 ) : (
                   <p className="c-caption">It works for 10 minutes. Check spam if it isn&apos;t there.</p>
                 )}

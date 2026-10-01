@@ -225,7 +225,7 @@ export const auth = betterAuth({
           // session, so the user is already verified by the time this runs.
           if (u && !u.emailVerified) {
             throw new APIError("FORBIDDEN", {
-              message: "Verify your email address first — check your inbox for the link.",
+              message: "Verify your email address first — check your inbox (and spam folder) for the link.",
             });
           }
         },

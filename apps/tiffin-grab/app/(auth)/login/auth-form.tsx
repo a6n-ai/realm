@@ -242,7 +242,9 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
       <div className="flex flex-col items-center text-center">
         <h1 className="text-2xl font-bold tracking-[-0.02em]">Welcome back</h1>
         <p className="text-muted-foreground text-balance">
-          {step === "email" ? "Sign in with a code sent to your email" : `Enter the code we emailed to ${email}`}
+          {step === "email"
+            ? "Sign in with a code sent to your email"
+            : `Enter the code we emailed to ${email}. Not there? Check your spam folder.`}
         </p>
       </div>
       {step === "email" ? (
