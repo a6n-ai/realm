@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { HelpCircleIcon, Loader2Icon, PlusIcon } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Country as CountryCode } from "react-phone-number-input";
@@ -112,7 +113,7 @@ export function AddInquirySheet({
 
   async function onSubmit(values: InquiryFormValues) {
     try {
-      await createInquiry({
+      const res = await createInquiry({
         fullName: values.fullName,
         phone: values.phone,
         email: values.email,
@@ -128,6 +129,12 @@ export function AddInquirySheet({
         quotedPrice: values.quotedPrice,
         notes: values.notes || undefined,
       });
+      if (res.folded) {
+        toast.info(`Added to ${res.fullName}'s open inquiry`, {
+          description: "Same phone or email — logged as a re-inquiry instead of a new lead.",
+          action: { label: "Open", onClick: () => router.push(`/dashboard/inquiries/${res.publicId}`) },
+        });
+      }
       form.reset();
       setStep(1);
       handleOpenChange(false);

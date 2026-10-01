@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@foundry/commons";
-import { durationWeeksCovering, nextTrialStart, pickedTrialDays, toggleTrialPick, trialDeliveryDates, trialSendDays } from "../schedule";
+import { durationWeeksCovering, nextTrialStart, resolveTrialDays, toggleTrialPick, trialDeliveryDates, trialSendDays } from "../schedule";
 
 describe("trialDeliveryDates", () => {
   it("takes the next matching weekdays until the chosen length is filled", () => {
@@ -31,23 +31,27 @@ describe("trialSendDays", () => {
   });
 });
 
-describe("pickedTrialDays", () => {
-  it("keeps send days in week order, up to the max", () => {
-    expect(pickedTrialDays(["fri", "mon"], ["mon", "wed", "fri"], 2)).toEqual(["mon", "fri"]);
+describe("resolveTrialDays", () => {
+  const allowed = ["mon", "tue", "wed", "thu", "fri"] as const;
+
+  it("picked weekdays decide the days and the count, in week order", () => {
+    expect(resolveTrialDays([...allowed], 3, ["thu", "mon"], undefined)).toEqual({ sendDays: ["mon", "thu"], length: 2 });
   });
 
-  it("refuses days outside the send days, duplicates, or too many", () => {
-    expect(() => pickedTrialDays(["tue"], ["mon", "wed", "fri"], 3)).toThrow(ValidationError);
-    expect(() => pickedTrialDays(["mon", "mon"], ["mon", "wed", "fri"], 3)).toThrow(ValidationError);
-    expect(() => pickedTrialDays(["mon", "wed"], ["mon", "wed", "fri"], 1)).toThrow(ValidationError);
+  it("picked days give one tiffin each from the start date", () => {
+    const { sendDays, length } = resolveTrialDays([...allowed], 3, ["mon", "wed", "fri"], undefined);
+    // 2026-10-05 is a Monday.
+    expect(trialDeliveryDates("2026-10-05", length, sendDays)).toEqual(["2026-10-05", "2026-10-07", "2026-10-09"]);
   });
-});
 
-describe("nextTrialStart", () => {
-  it("finds the first picked weekday on or after the date", () => {
-    expect(nextTrialStart("2026-09-30", ["wed"])).toBe("2026-09-30");
-    expect(nextTrialStart("2026-09-30", ["mon"])).toBe("2026-10-05");
-    expect(nextTrialStart("2026-09-30", [])).toBeNull();
+  it("rejects a day trials are not sent on, and more picks than the max", () => {
+    expect(() => resolveTrialDays([...allowed], 3, ["sat"], undefined)).toThrow("Trials aren't sent on sat");
+    expect(() => resolveTrialDays([...allowed], 2, ["mon", "tue", "wed"], undefined)).toThrow("Choose 1 to 2 days");
+  });
+
+  it("without picks keeps the count over every allowed day", () => {
+    expect(resolveTrialDays([...allowed], 3, undefined, 2)).toEqual({ sendDays: [...allowed], length: 2 });
+    expect(() => resolveTrialDays([...allowed], 3, [], 0)).toThrow(ValidationError);
   });
 });
 
@@ -60,5 +64,13 @@ describe("toggleTrialPick", () => {
   it("never drops the last day or adds a non-send day", () => {
     expect(toggleTrialPick(["mon"], "mon", send, 2)).toEqual(["mon"]);
     expect(toggleTrialPick(["mon"], "tue", send, 2)).toEqual(["mon"]);
+  });
+});
+
+describe("nextTrialStart", () => {
+  it("finds the first picked weekday on or after the date", () => {
+    expect(nextTrialStart("2026-09-30", ["wed"])).toBe("2026-09-30");
+    expect(nextTrialStart("2026-09-30", ["mon"])).toBe("2026-10-05");
+    expect(nextTrialStart("2026-09-30", [])).toBeNull();
   });
 });

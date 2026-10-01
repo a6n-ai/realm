@@ -14,14 +14,27 @@ export function trialSendDays(weekdays: readonly string[], servesWeekends: boole
   return orderedTrialWeekdays(weekdays).filter((d) => servesWeekends || (d !== "sat" && d !== "sun"));
 }
 
-/** Weekdays staff picked for a trial: only send days, at most `maxDays`, in week order. */
-export function pickedTrialDays(picked: readonly string[], sendDays: readonly string[], maxDays: number): TrialWeekday[] {
-  const days = orderedTrialWeekdays(picked);
-  if (days.length !== picked.length || days.some((d) => !sendDays.includes(d))) {
-    throw new ValidationError("A trial can't be sent on that day");
+/**
+ * Which weekdays a trial uses and how many tiffins. Staff pick weekdays (one
+ * tiffin on each, from the start date); without picks it is a plain count over
+ * every allowed send day.
+ */
+export function resolveTrialDays(
+  allowed: readonly TrialWeekday[],
+  maxDays: number,
+  picks: readonly string[] | undefined,
+  count: number | undefined,
+): { sendDays: TrialWeekday[]; length: number } {
+  const picked = picks?.length ? orderedTrialWeekdays(picks) : null;
+  if (picked) {
+    const off = picked.filter((d) => !allowed.includes(d));
+    if (off.length) throw new ValidationError(`Trials aren't sent on ${off.join(", ")}`);
   }
-  if (days.length < 1 || days.length > maxDays) throw new ValidationError(`Choose 1 to ${maxDays} days`);
-  return days;
+  const length = picked ? picked.length : count;
+  if (length == null || !Number.isInteger(length) || length < 1 || length > maxDays) {
+    throw new ValidationError(`Choose 1 to ${maxDays} days`);
+  }
+  return { sendDays: picked ?? [...allowed], length };
 }
 
 /** Toggle one trial day: never below 1 or above `maxDays`, only send days, in week order. */

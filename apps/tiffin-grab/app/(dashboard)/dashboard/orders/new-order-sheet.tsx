@@ -28,7 +28,7 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "./admin-order-created-dialog";
-import { createOrderFlow, settleNewOrderWithProofAction } from "./actions";
+import { createOrderFlow, saveOrderLeadAction, settleNewOrderWithProofAction } from "./actions";
 import { PaymentProofField, type PaymentProofValue } from "./payment-proof-field";
 import { makeImageThumbnail } from "@/components/ds";
 import {
@@ -74,9 +74,10 @@ const PhoneInput = dynamic(() => import("@foundry/ui/phone-input").then((m) => m
 });
 
 /**
- * Three-step New order — mirrors New inquiry contact, then catalog plan (with an
- * optional e-Transfer screenshot under payment that approves the payment on create),
- * then a verify step with plan summary + price breakup before create:
+ * Three-step New order — contact, then catalog plan with payment (an optional
+ * e-Transfer screenshot approves the payment on create), then a verify step
+ * with plan summary + price breakup. Leaving step 1 saves the inquiry (so the
+ * lead is searchable); customer, order and payment are only written on Create:
  *   1. Contact + Source (optional sub-source)
  *   2. Catalog / custom meal + schedule + delivery + payment
  *   3. Review plan & pricing → Create order
@@ -115,10 +116,16 @@ export function NewOrderSheet({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [pickedId, setPickedId] = useState<string | null>(null);
+  // Inquiry saved when leaving step 1 (not a staff pick, so no prefill/source lock).
+  const [leadId, setLeadId] = useState<string | null>(null);
+  const [savingLead, setSavingLead] = useState(false);
+  const [leadError, setLeadError] = useState<string | null>(null);
   const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
   const [customMeal, setCustomMeal] = useState<CustomMealValue | null>(null);
   const [draft, setDraft] = useState<OrderDraft | null>(null);
   const [creating, setCreating] = useState(false);
+  // Loader text while Create runs: the order first, then the screenshot approval.
+  const [stage, setStage] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
@@ -184,6 +191,8 @@ export function NewOrderSheet({
     setOpen(o);
     if (!o) {
       setStep(1);
+      setLeadId(null);
+      setLeadError(null);
       setFetchedPrefill(null);
       setCustomMeal(null);
       setDraft(null);
@@ -195,9 +204,28 @@ export function NewOrderSheet({
     }
   }
 
+  async function saveLeadAndContinue() {
+    setSavingLead(true);
+    setLeadError(null);
+    try {
+      const { inquiryId } = await unwrapAction(saveOrderLeadAction({
+        source: { sourceKey, subSourceKey: subSourceKey || undefined },
+        contact: { fullName, phone, email: email.trim() },
+        pickedInquiryId: pickedId ?? undefined,
+      }));
+      setLeadId(inquiryId);
+      setStep(2);
+    } catch (e) {
+      setLeadError(e instanceof Error ? e.message : "Could not save the inquiry");
+    } finally {
+      setSavingLead(false);
+    }
+  }
+
   async function createFromDraft() {
     if (!draft) return;
     setCreating(true);
+    setStage("Creating customer and order…");
     setCreateError(null);
     try {
       const result = await unwrapAction(createOrderFlow({
@@ -212,7 +240,7 @@ export function NewOrderSheet({
           postalCode: draft.order.contact.postalCode,
           preferredStart: draft.order.selections.startDate,
         },
-        pickedInquiryId: pickedId ?? undefined,
+        pickedInquiryId: pickedId ?? leadId ?? undefined,
         order: draft.order,
         customMeal: customMeal
           ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
@@ -222,6 +250,7 @@ export function NewOrderSheet({
       if (paidNow && proof.file && isEtransfer) {
         // Order already exists; a failed upload must not hide that, so it is
         // reported on the success dialog rather than thrown.
+        setStage("Saving screenshot and approving payment…");
         const form = new FormData();
         const thumb = await makeImageThumbnail(proof.file);
         form.set("proof", proof.file);
@@ -236,6 +265,7 @@ export function NewOrderSheet({
       setCreateError(e instanceof Error ? e.message : "Failed to create order");
     } finally {
       setCreating(false);
+      setStage(null);
     }
   }
 
@@ -258,7 +288,9 @@ export function NewOrderSheet({
         // Step bar and panels run edge to edge; each panel pads itself.
         flush
         open={open}
-        onOpenChange={resetAndClose}
+        onOpenChange={(o) => {
+          if (!creating) resetAndClose(o);
+        }}
         trigger={
           triggerLabel ? (
             <Button>
@@ -271,13 +303,23 @@ export function NewOrderSheet({
         description="Contact, plan, then verify pricing before create."
         footer={
           sources.length > 0 && step === 1 ? (
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex w-full items-center justify-end gap-3">
+              {leadError ? (
+                <p className="text-destructive mr-auto text-sm" role="alert">{leadError}</p>
+              ) : null}
               <Button
-                disabled={!contactReady}
-                onClick={() => setStep(2)}
+                disabled={!contactReady || savingLead}
+                onClick={() => void saveLeadAndContinue()}
                 className="min-h-11 active:scale-[0.96] sm:min-h-9"
               >
-                Continue
+                {savingLead ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  "Continue"
+                )}
               </Button>
             </div>
           ) : sources.length > 0 && step === 3 ? (
@@ -314,6 +356,18 @@ export function NewOrderSheet({
         ) : (
           <>
             <StepHeader step={step} steps={["Contact", "Order", "Review"]} />
+
+            {creating ? (
+              <div
+                role="status"
+                aria-live="polite"
+                className="bg-background/85 absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 backdrop-blur-sm"
+              >
+                <Loader2Icon className="text-primary size-8 animate-spin" />
+                <p className="text-sm font-medium">{stage}</p>
+                <p className="text-muted-foreground text-xs">Saving everything — keep this open.</p>
+              </div>
+            ) : null}
 
             {step === 1 ? (
               <div className="space-y-6 px-5 py-5 sm:px-6">

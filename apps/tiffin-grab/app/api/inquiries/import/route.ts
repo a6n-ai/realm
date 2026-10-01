@@ -139,9 +139,8 @@ export const POST = handler(async (request: Request): Promise<Response> => {
           .filter(Boolean)
           .join("\n") || undefined;
 
-      const existingOpen = (await inquiriesService.findOpenByPhone(phone)).find(
-        (o) => o.sourceKey === sourceKey,
-      );
+      // Same person (phone or email) with an open lead: the row folds into it as a re-inquiry.
+      const existingOpen = await inquiriesService.findOpenMatch(phone, parsedEmail.data);
 
       const publicId = await inquiriesService.resolveForSource({
         phone,
