@@ -3,12 +3,13 @@ import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "../selections";
-import { Choice, ChoiceGroup, Pill, Stepper } from "@/components/customer/kit";
+import { Choice, ChoiceGroup, Pill } from "@/components/customer/kit";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
 import { earliestTrialIso, trialDeliveryDates } from "@/lib/trial/schedule";
+import { TrialDayPicker } from "../trial-day-picker";
 
 function dayBefore(iso: string): string {
   const d = parseIsoDateUtc(iso);
@@ -38,7 +39,10 @@ export function StepDuration({
 }) {
   const [startDateError, setStartDateError] = useState<string | null>(null);
   const plan = catalog.plans.find((p) => p.key === selections.planKey);
-  const allowed = trial ? trial.weekdays : (plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"]);
+  // A multi-day trial picks its days; a one-day trial just picks a start date on a send day.
+  const multiDay = !!trial && trial.maxDays > 1;
+  const picks = multiDay ? (selections.eatingDays ?? []).filter((d) => trial.weekdays.includes(d)) : [];
+  const allowed = trial ? (picks.length ? picks : trial.weekdays) : (plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"]);
   const tomorrow = trial ? earliestTrialIso(new Date(), trial.weekdays) : nextWeekday(new Date()).toISOString().slice(0, 10);
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const overlapBound = minStartDate != null && minDate === minStartDate;
@@ -56,11 +60,16 @@ export function StepDuration({
     const cur = selections.startDate;
     const valid = cur && cur >= minDate && allowed.includes(weekdayKey(parseIsoDateUtc(cur)));
     const days = selections.trialDays;
-    const daysOk = !trial || (days != null && days >= 1 && days <= trial.maxDays);
-    if (!valid) set({ startDate: earliest, ...(daysOk ? {} : { trialDays: trial?.maxDays }) });
-    else if (!daysOk && trial) set({ trialDays: trial.maxDays });
+    const picked = selections.eatingDays ?? [];
+    const daysOk = !trial || (multiDay
+      ? picks.length >= 1 && picks.length === picked.length && picks.length <= trial.maxDays && days === picks.length
+      : days === 1 && picked.length === 0);
+    const firstPicks = picks.length ? picks.slice(0, trial?.maxDays) : trial?.weekdays.slice(0, 1) ?? [];
+    const fix = daysOk || !trial ? {} : multiDay ? { eatingDays: firstPicks as WizardSelections["eatingDays"], trialDays: firstPicks.length } : { eatingDays: [], trialDays: 1 };
+    if (!valid) set({ startDate: earliest, ...fix });
+    else if (!daysOk) set(fix);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [earliest, selections.startDate, plan?.key, trial?.maxDays]);
+  }, [earliest, selections.startDate, plan?.key, trial?.maxDays, picks.join()]);
   const dayLabel: Record<string, string> = {
     mon: "Mon",
     tue: "Tue",
@@ -136,7 +145,7 @@ export function StepDuration({
           </p>
         ) : null}
       </div>
-      {trial ? <TrialLength trial={trial} selections={selections} set={set} dayLabel={dayLabel} /> : (
+      {trial ? (multiDay && <TrialLength trial={trial} picks={picks} selections={selections} set={set} />) : (
       <div>
         <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Commitment duration</p>
         <ChoiceGroup
@@ -165,20 +174,19 @@ export function StepDuration({
 
 function TrialLength({
   trial,
+  picks,
   selections,
   set,
-  dayLabel,
 }: {
   trial: { maxDays: number; weekdays: string[] };
+  picks: string[];
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
-  dayLabel: Record<string, string>;
 }) {
-  const length = selections.trialDays ?? trial.maxDays;
   let dates: string[] = [];
-  if (selections.startDate) {
+  if (selections.startDate && picks.length) {
     try {
-      dates = trialDeliveryDates(selections.startDate, length, trial.weekdays);
+      dates = trialDeliveryDates(selections.startDate, picks.length, picks);
     } catch {
       dates = [];
     }
@@ -186,9 +194,8 @@ function TrialLength({
   return (
     <div>
       <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Trial days</p>
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-sm text-pretty">Up to {trial.maxDays} {trial.maxDays === 1 ? "day" : "days"}, on {trial.weekdays.map((d) => dayLabel[d] ?? d).join(", ")}.</p>
-        <Stepper label="Trial days" value={length} min={1} max={trial.maxDays} onChange={(n) => set({ trialDays: n })} />
+      <div className="mt-3">
+        <TrialDayPicker sendDays={trial.weekdays} maxDays={trial.maxDays} picked={picks} onChange={(days) => set({ eatingDays: days, trialDays: days.length })} />
       </div>
       {dates.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm">

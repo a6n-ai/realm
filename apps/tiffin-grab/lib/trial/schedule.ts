@@ -14,6 +14,34 @@ export function trialSendDays(weekdays: readonly string[], servesWeekends: boole
   return orderedTrialWeekdays(weekdays).filter((d) => servesWeekends || (d !== "sat" && d !== "sun"));
 }
 
+/** Weekdays staff picked for a trial: only send days, at most `maxDays`, in week order. */
+export function pickedTrialDays(picked: readonly string[], sendDays: readonly string[], maxDays: number): TrialWeekday[] {
+  const days = orderedTrialWeekdays(picked);
+  if (days.length !== picked.length || days.some((d) => !sendDays.includes(d))) {
+    throw new ValidationError("A trial can't be sent on that day");
+  }
+  if (days.length < 1 || days.length > maxDays) throw new ValidationError(`Choose 1 to ${maxDays} days`);
+  return days;
+}
+
+/** Toggle one trial day: never below 1 or above `maxDays`, only send days, in week order. */
+export function toggleTrialPick(prev: readonly string[], day: string, sendDays: readonly string[], maxDays: number): TrialWeekday[] {
+  const next = prev.includes(day)
+    ? (prev.length > 1 ? prev.filter((d) => d !== day) : prev)
+    : prev.length < maxDays ? [...prev, day] : prev;
+  return orderedTrialWeekdays(next).filter((d) => sendDays.includes(d));
+}
+
+/** First date on or after `fromIso` that falls on one of `days`. */
+export function nextTrialStart(fromIso: string, days: readonly string[]): string | null {
+  const cursor = parseIsoDateUtc(fromIso);
+  for (let i = 0; i < 7; i++) {
+    if (days.includes(weekdayKey(cursor))) return cursor.toISOString().slice(0, 10);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return null;
+}
+
 /** Next `length` dates from `startDate` whose weekday is allowed, including the start date. */
 export function trialDeliveryDates(startDate: string, length: number, weekdays: readonly string[]): string[] {
   if (!Number.isInteger(length) || length < 1) throw new ValidationError("Choose at least 1 trial day");

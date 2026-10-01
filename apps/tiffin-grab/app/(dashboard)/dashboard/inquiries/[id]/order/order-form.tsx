@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { CheckIcon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
-import { nextWeekday } from "@foundry/commons";
+import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
 import {
@@ -30,9 +30,9 @@ import {
 import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
-import { earliestTrialIso, trialSendDays } from "@/lib/trial/schedule";
+import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialDeliveryDates, trialSendDays } from "@/lib/trial/schedule";
 import { convertInquiry, previewPrice, repCouponInfo, trialFormSettings, type RepCouponInfo } from "./actions";
-import { ScheduleSection } from "./schedule-section";
+import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -118,7 +118,7 @@ export function OrderForm({
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
   const [trialSettings, setTrialSettings] = useState<{ maxDays: number | null; weekdays: string[] } | null>(null);
-  const [trialDays, setTrialDays] = useState(1);
+  const [pickedDays, setPickedDays] = useState<DayOfWeek[]>([]);
 
   const defaultSlots = enabledSlots.some((s) => s.key === "lunch")
     ? ["lunch"]
@@ -182,6 +182,34 @@ export function OrderForm({
     ? earliestTrialIso(new Date(), trialWeekdays)
     : nextWeekday(new Date()).toISOString().slice(0, 10);
   const realPayments = paymentMethods.length > 0;
+  const trialMax = trialSettings?.maxDays ?? 0;
+  const multiDayTrial = trialMax > 1;
+  const trialKey = `${trialWeekdays.join()}|${trialMax}`;
+  const startDay = startDate ? (weekdayKey(parseIsoDateUtc(startDate)) as DayOfWeek) : null;
+  // A one-day trial has nothing to pick: the start date is the day.
+  const trialPicks = multiDayTrial ? pickedDays : startDay && trialWeekdays.includes(startDay) ? [startDay] : [];
+  const trialStartOk = !isTrial || (!!startDay && trialPicks.includes(startDay));
+  const trialDates = (() => {
+    if (!isTrial || !trialStartOk) return [];
+    try { return trialDeliveryDates(startDate, trialPicks.length, trialPicks); } catch { return []; }
+  })();
+
+  // Keep the picks inside the send days and the max; default to the first send day.
+  useEffect(() => {
+    setPickedDays((prev) => {
+      const kept = trialWeekdays.filter((d) => prev.includes(d)).slice(0, trialMax);
+      return kept.length ? kept : trialWeekdays.slice(0, 1);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trialKey]);
+
+  // A trial starts on a picked day; move the start date there when the picks change.
+  useEffect(() => {
+    if (!isTrial || pickedDays.length === 0 || (multiDayTrial ? trialStartOk : !!startDate) && startDate >= minStart) return;
+    const next = nextTrialStart(startDate && startDate > minStart ? startDate : minStart, multiDayTrial ? pickedDays : trialWeekdays);
+    if (next) form.setValue("startDate", next, { shouldDirty: true, shouldValidate: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTrial, multiDayTrial, pickedDays.join()]);
 
   useEffect(() => {
     if (!mealSizeId) return;
@@ -196,7 +224,6 @@ export function OrderForm({
       .then((s) => {
         if (cancelled) return;
         setTrialSettings(s);
-        if (s.maxDays != null && s.maxDays >= 1) setTrialDays(s.maxDays);
       })
       .catch(() => { if (!cancelled) setTrialSettings(null); });
     return () => { cancelled = true; };
@@ -225,14 +252,14 @@ export function OrderForm({
     selections: {
       mealSizeId: v.mealSizeId,
       frequencyKey: v.frequencyKey,
-      eatingDays: trial ? undefined : v.eatingDays,
+      eatingDays: trial ? trialPicks : v.eatingDays,
       persons: v.persons,
       mealSlots: v.mealSlots,
       includeSaturday: trial ? false : v.eatingDays.includes("sat"),
       includeSunday: trial ? false : v.eatingDays.includes("sun"),
       durationWeeks: v.durationWeeks,
       startDate: v.startDate,
-      ...(trial ? { trialDays } : {}),
+      ...(trial ? { trialDays: trialPicks.length } : {}),
     },
     contact: {
       fullName: contact.fullName,
@@ -305,7 +332,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialDays, isTrial]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialPicks.join(), isTrial]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -353,6 +380,7 @@ export function OrderForm({
   const missing = [
     hideMealSizePicker ? !customKey && "custom meal items" : !mealSizeId && "meal size",
     !startDate && "start date",
+    isTrial && !!startDate && !trialStartOk && "a start date on a trial day",
     !addressLine && "address",
     !city && "city",
     !postalCode && "postal code",
@@ -415,8 +443,8 @@ export function OrderForm({
             </fieldset>
           </FormSection>
 
-          <FormSection title="Schedule" hint={isTrial ? "A trial is sent on the trial send days." : "When it starts, how long it runs, and which days they eat."}>
-            <fieldset className="grid gap-4 sm:grid-cols-3" disabled={submitting}>
+          <FormSection title="Schedule" hint={isTrial ? (multiDayTrial ? "Pick the days the trial arrives." : "A one-day trial arrives on its start date.") : "When it starts, how long it runs, and which days they eat."}>
+            <fieldset className={cn("grid gap-4", isTrial ? "sm:grid-cols-2" : "sm:grid-cols-3")} disabled={submitting}>
               <FormField
                 control={form.control}
                 name="persons"
@@ -428,29 +456,7 @@ export function OrderForm({
                   </FormItem>
                 )}
               />
-              {isTrial ? (
-                <div className="space-y-2">
-                  <Label htmlFor="trial-days">Trial days <span className="text-destructive">*</span></Label>
-                  {/* The limit is Catalog → Meal sizes → Trial; with a limit of 1 there is nothing to choose. */}
-                  {(trialSettings?.maxDays ?? 1) > 1 ? (
-                    <Input
-                      id="trial-days"
-                      type="number"
-                      min={1}
-                      max={trialSettings?.maxDays ?? 1}
-                      value={trialDays}
-                      onChange={(e) => setTrialDays(Math.min(trialSettings?.maxDays ?? 1, Math.max(1, Number(e.target.value) || 1)))}
-                    />
-                  ) : (
-                    <p id="trial-days" className="flex h-9 items-center text-sm font-medium">1 day</p>
-                  )}
-                  <p className="text-muted-foreground text-xs text-pretty">
-                    {trialOpen
-                      ? `Up to ${trialSettings?.maxDays} ${trialSettings?.maxDays === 1 ? "day" : "days"}, sent ${trialWeekdays.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ")}.`
-                      : "Set a max and send days on Meal sizes → Trial before creating a trial order."}
-                  </p>
-                </div>
-              ) : (
+              {!isTrial && (
               <FormField
                 control={form.control}
                 name="durationWeeks"
@@ -478,6 +484,36 @@ export function OrderForm({
                 )}
               />
             </fieldset>
+
+          {isTrial && (
+            <fieldset className="grid gap-2" disabled={submitting}>
+              {trialOpen && multiDayTrial && (
+                <>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-sm font-medium">Trial days</p>
+                    <p className="text-muted-foreground text-xs tabular-nums">
+                      <span className="text-foreground font-semibold">{pickedDays.length}</span> of {trialMax} days
+                    </p>
+                  </div>
+                  <DayPicker
+                    label="Trial days"
+                    selected={pickedDays}
+                    onToggle={(d) => setPickedDays((prev) => toggleTrialPick(prev, d, trialWeekdays, trialMax) as DayOfWeek[])}
+                    isDisabled={(d, on) => !on && (!trialWeekdays.includes(d) || pickedDays.length >= trialMax)}
+                  />
+                </>
+              )}
+              <p className={cn("text-xs text-pretty", trialOpen && startDate && !trialStartOk ? "text-destructive" : "text-muted-foreground")}>
+                {!trialOpen
+                  ? "Set a max and send days on Meal sizes → Trial before creating a trial order."
+                  : !startDate
+                    ? `Trials go out ${trialWeekdays.map(dayName).join(", ")}. Pick a start date.`
+                    : !trialStartOk
+                      ? `Start on ${(multiDayTrial ? pickedDays : trialWeekdays).map(dayName).join(" or ")}.`
+                      : `Arrives ${trialDates.map((iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })).join(" · ")}.`}
+              </p>
+            </fieldset>
+          )}
 
           {!isTrial && <fieldset disabled={submitting}>
             <ScheduleSection
@@ -623,7 +659,7 @@ export function OrderForm({
             <div className="text-sm">
               <span className="text-muted-foreground">Total </span>
               <span className="nums font-medium">{shownPreview ? `$${shownPreview.total.toFixed(2)}` : "—"}</span>
-              {shownPreview ? <span className="text-muted-foreground nums"> · {shownPreview.tiffinCount} tiffins</span> : null}
+              {shownPreview ? <span className="text-muted-foreground nums"> · {shownPreview.tiffinCount} {shownPreview.tiffinCount === 1 ? "tiffin" : "tiffins"}</span> : null}
             </div>
             <div className="flex flex-col items-end gap-1">
               {missing.length > 0 && <p className="text-muted-foreground text-xs">Still needed: {missing.join(", ")}</p>}

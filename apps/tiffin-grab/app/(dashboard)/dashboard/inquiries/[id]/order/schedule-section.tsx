@@ -4,9 +4,9 @@ import { cn } from "@foundry/ui/cn";
 import { eatingDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const label = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
+export const dayName = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
 const list = (days: string[]) =>
-  days.length <= 1 ? days.map(label).join("") : `${days.slice(0, -1).map(label).join(", ")} and ${label(days[days.length - 1]!)}`;
+  days.length <= 1 ? days.map(dayName).join("") : `${days.slice(0, -1).map(dayName).join(", ")} and ${dayName(days[days.length - 1]!)}`;
 
 export interface ScheduleFrequency {
   key: string;
@@ -60,7 +60,7 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
                     <span className="rounded-full bg-primary/12 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">Save {f.savePct}%</span>
                   )}
                 </span>
-                <span className="text-muted-foreground text-xs">{f.weekdays.map(label).join(" · ")}</span>
+                <span className="text-muted-foreground text-xs">{f.weekdays.map(dayName).join(" · ")}</span>
               </button>
             );
           })}
@@ -74,37 +74,58 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
             <span className="text-foreground font-semibold">{eatingDays.length}</span> {eatingDays.length === 1 ? "tiffin" : "tiffins"} a week · {bounds.min} to {bounds.max}
           </p>
         </div>
-        <div className="grid grid-cols-7 gap-1.5">
-          {DAYS.map((d) => {
-            const on = eatingDays.includes(d);
-            return (
-              <button
-                key={d}
-                type="button"
-                aria-pressed={on}
-                disabled={on ? eatingDays.length <= bounds.min : eatingDays.length >= bounds.max}
-                onClick={() => onToggleDay(d)}
-                className={cn(
-                  "min-h-11 min-w-0 rounded-lg border text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-40",
-                  press,
-                  on ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/50",
-                )}
-              >
-                {label(d)}
-              </button>
-            );
-          })}
-        </div>
+        <DayPicker
+          selected={eatingDays}
+          onToggle={onToggleDay}
+          isDisabled={(_, on) => !on && eatingDays.length >= bounds.max}
+        />
         {error || !enough ? (
           <p role="alert" className="text-destructive text-xs">{error ?? `Pick ${bounds.min} to ${bounds.max} eating days a week.`}</p>
         ) : trips.length ? (
           <p className="text-muted-foreground text-xs text-pretty">
             {combined.length === 0
               ? "One tiffin arrives on each eating day."
-              : combined.map((t) => `${label(t.day)} brings ${list(t.days)}`).join(". ") + "."}
+              : combined.map((t) => `${dayName(t.day)} brings ${list(t.days)}`).join(". ") + "."}
           </p>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** The 7 weekday toggles, shared by eating days and trial days so both read the same. */
+export function DayPicker({
+  selected,
+  onToggle,
+  isDisabled,
+  label,
+}: {
+  selected: DayOfWeek[];
+  onToggle: (day: DayOfWeek) => void;
+  isDisabled: (day: DayOfWeek, on: boolean) => boolean;
+  label?: string;
+}) {
+  return (
+    <div role="group" aria-label={label} className="grid grid-cols-7 gap-1.5">
+      {DAYS.map((d) => {
+        const on = selected.includes(d);
+        return (
+          <button
+            key={d}
+            type="button"
+            aria-pressed={on}
+            disabled={isDisabled(d, on)}
+            onClick={() => onToggle(d)}
+            className={cn(
+              "min-h-11 min-w-0 rounded-lg border text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-40",
+              press,
+              on ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/50",
+            )}
+          >
+            {dayName(d)}
+          </button>
+        );
+      })}
     </div>
   );
 }
