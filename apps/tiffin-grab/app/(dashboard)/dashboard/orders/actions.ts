@@ -42,6 +42,32 @@ export async function previewCustomMeal(
   }
 }
 
+// Step 1 of New order: save (or reuse) the lead so it is searchable in
+// Inquiries even if the order is never finished. Create converts this inquiry;
+// the customer, order and payment are only written there.
+export async function saveOrderLeadAction(input: {
+  source: Source;
+  contact: Contact;
+  pickedInquiryId?: string;
+}): Promise<ActionResult<{ inquiryId: string }>> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    const email = input.contact.email?.trim();
+    if (!email) throw new ValidationError("Email is required");
+    const inquiryId = await inquiriesService.resolveForSource({
+      phone: input.contact.phone,
+      sourceKey: input.source.sourceKey,
+      contact: { fullName: input.contact.fullName, email },
+      interest: { subSourceKey: input.source.subSourceKey },
+      pickedId: input.pickedInquiryId,
+      reuseAnyOpen: true,
+    });
+    return { inquiryId };
+  });
+  if ("ok" in res) revalidatePath("/dashboard/inquiries");
+  return res;
+}
+
 export async function createOrderFlow(input: {
   source: Source;
   contact: Contact;
@@ -65,6 +91,7 @@ export async function createOrderFlow(input: {
       contact: { fullName: input.contact.fullName, email },
       interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
       pickedId: input.pickedInquiryId,
+      reuseAnyOpen: true,
     });
     let order = input.order;
     let customOpts: { allowCustomMeal?: boolean; basePriceOverride?: number } = {};

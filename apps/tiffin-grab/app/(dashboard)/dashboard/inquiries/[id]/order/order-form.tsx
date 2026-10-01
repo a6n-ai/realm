@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -62,6 +62,7 @@ export function OrderForm({
   onReview,
   hideMealSizePicker = false,
   customMeal = null,
+  paymentSlot,
 }: {
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
@@ -81,6 +82,8 @@ export function OrderForm({
   hideMealSizePicker?: boolean;
   /** The builder's composition, priced server-side for the footer preview. */
   customMeal?: { planKey: string; items: { category: string; planKey: string; tuAmount: number }[]; basePriceOverride: number | null } | null;
+  /** Extra payment UI under the chosen method (New Order: e-Transfer screenshot). Replaces the "pay after create" note when it renders. */
+  paymentSlot?: (methodId: string | null) => ReactNode;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
@@ -157,6 +160,7 @@ export function OrderForm({
     : nextWeekday(new Date()).toISOString().slice(0, 10);
   const realPayments = paymentMethods.length > 0;
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
+  const slot = paymentSlot?.(realPayments ? paymentMethodId : null) ?? null;
 
   useEffect(() => {
     if (!mealSizeId) return;
@@ -526,6 +530,7 @@ export function OrderForm({
                 <ShieldCheckIcon className="size-4" /> Simulated — no real payment methods enabled.
               </p>
             )}
+            {slot}
           </fieldset>
 
           {repInfo && !(repInfo.available === false && repInfo.reason === "disabled") && (
@@ -575,7 +580,7 @@ export function OrderForm({
 
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-          {selectedMethod && (
+          {selectedMethod && !slot && (
             <p className="bg-muted/50 text-muted-foreground rounded-lg p-3 text-xs">
               After create, copy the customer payment link and ask them to complete{" "}
               {selectedMethod.label}. Deliveries start once payment is confirmed.

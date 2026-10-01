@@ -526,6 +526,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       notes?: string;
     };
     pickedId?: string;
+    /** New order: any open inquiry for this phone counts, whatever its source (newest first). */
+    reuseAnyOpen?: boolean;
   }): Promise<string> {
     if (input.pickedId) {
       const picked = await this.read(input.pickedId);
@@ -540,6 +542,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const open = await this.findOpenByPhone(phone);
     const sameSource = open.find((o) => o.sourceKey === input.sourceKey);
     if (sameSource) return sameSource.publicId;
+    if (input.reuseAnyOpen && open[0]) return open[0].publicId;
 
     const inq = await this.create({
       fullName: input.contact.fullName,

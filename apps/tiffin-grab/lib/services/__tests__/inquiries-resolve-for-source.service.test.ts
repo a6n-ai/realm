@@ -40,6 +40,14 @@ describe("inquiriesService.resolveForSource", () => {
     expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(2);
   });
 
+  it("reuseAnyOpen (New order) reuses an open inquiry even under another source", async () => {
+    const phone = "+16475554009";
+    const fb = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
+    const id = await inquiriesService.resolveForSource({ phone, sourceKey: "manual", contact: base, reuseAnyOpen: true });
+    expect(id).toBe(fb.publicId);
+    expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(1);
+  });
+
   it("creates a new inquiry when none exists for the phone", async () => {
     const id = await inquiriesService.resolveForSource({ phone: "+16475554002", sourceKey: "manual", contact: base });
     expect(id).toMatch(/^inq_/);
