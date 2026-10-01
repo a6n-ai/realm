@@ -9,6 +9,7 @@ import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
 import { earliestTrialIso, trialDeliveryDates } from "@/lib/trial/schedule";
+import { appToday } from "@/lib/services/start-date";
 import { TrialDayPicker } from "../trial-day-picker";
 
 function dayBefore(iso: string): string {
@@ -43,7 +44,8 @@ export function StepDuration({
   const multiDay = !!trial && trial.maxDays > 1;
   const picks = multiDay ? (selections.eatingDays ?? []).filter((d) => trial.weekdays.includes(d)) : [];
   const allowed = trial ? (picks.length ? picks : trial.weekdays) : (plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"]);
-  const tomorrow = trial ? earliestTrialIso(new Date(), trial.weekdays) : nextWeekday(new Date()).toISOString().slice(0, 10);
+  const today = appToday(catalog.timezone);
+  const tomorrow = trial ? earliestTrialIso(today, trial.weekdays) : nextWeekday(today).toISOString().slice(0, 10);
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const overlapBound = minStartDate != null && minDate === minStartDate;
   // First day on/after minDate that the plan actually delivers on.

@@ -3,6 +3,7 @@ import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing/types";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { appToday } from "@/lib/services/start-date";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { assertTrialStart, durationWeeksCovering, orderedTrialWeekdays, resolveTrialDays, trialDeliveryDates, trialSendDays, type TrialWeekday } from "./schedule";
 
@@ -31,7 +32,7 @@ export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingS
     throw new ValidationError("Trials aren't available right now");
   }
   const { sendDays, length } = resolveTrialDays(weekdays, settings.maxDays, selections.eatingDays, selections.trialDays);
-  assertTrialStart(selections.startDate, sendDays, new Date());
+  assertTrialStart(selections.startDate, sendDays, appToday(snapshot.timezone));
   const dates = trialDeliveryDates(selections.startDate, length, sendDays);
 
   // The trial's delivery frequency from Trial settings, stored on the order like a meal size's.

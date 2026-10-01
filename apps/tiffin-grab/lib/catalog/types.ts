@@ -93,6 +93,8 @@ export interface CatalogSnapshot {
   // same back-compat reason as categoryLabels.
   addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;
   minTiffinsPerWeek?: number;
+  // App-settings timezone: "today" for start dates is this zone's calendar date.
+  timezone?: string;
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
   waivers?: CatalogWaiver[];
@@ -145,6 +147,8 @@ export interface ClientCatalogSnapshot {
   categoryLabels?: Record<string, string>;
   addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;
   minTiffinsPerWeek?: number;
+  // App-settings timezone: "today" for start dates is this zone's calendar date.
+  timezone?: string;
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
   waivers?: CatalogWaiver[];
@@ -209,6 +213,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     categoryLabels: snapshot.categoryLabels,
     addonsByCategory: snapshot.addonsByCategory,
     minTiffinsPerWeek: snapshot.minTiffinsPerWeek,
+    timezone: snapshot.timezone,
     maxTiffinsPerWeek: snapshot.maxTiffinsPerWeek,
     discounts: snapshot.discounts,
     waivers: snapshot.waivers,

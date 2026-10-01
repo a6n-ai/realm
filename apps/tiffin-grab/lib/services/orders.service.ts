@@ -47,7 +47,7 @@ import { ledgerService } from "./ledger.service";
 import { reservedEndDatesExclusive } from "./order-window";
 import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
-import { validateStartDate } from "./start-date";
+import { appToday, validateStartDate } from "./start-date";
 import {
   walletService,
   lockAndQuoteCoinRedemption,
@@ -263,7 +263,7 @@ export async function createOrder(
       trialDays: trial.length,
     };
   } else {
-    validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
+    validateStartDate(input.selections.startDate, plan.allowedStartDays, appToday(snapshot.timezone));
   }
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
   if (!frequency) throw new ValidationError("Invalid delivery frequency");
