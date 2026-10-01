@@ -22,6 +22,8 @@ export function AppClock() {
   const label = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
     weekday: "short",
+    month: "short",
+    day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     timeZoneName: "short",
