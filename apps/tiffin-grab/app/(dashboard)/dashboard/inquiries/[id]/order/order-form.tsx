@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { PaymentInstructions } from "@/components/payment-instructions";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -540,30 +541,26 @@ export function OrderForm({
                   {paymentMethods.map((m) => {
                     const selected = m.id === paymentMethodId;
                     return (
-                      <button
+                      <div
                         key={m.id}
-                        type="button"
-                        onClick={() => setPaymentMethodId(m.id)}
                         className={cn(
-                          "rounded-lg border p-3 text-left transition-colors",
+                          "rounded-lg border transition-colors",
                           selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
                         )}
                       >
-                        <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethodId(m.id)}
+                          className="flex w-full items-center justify-between gap-2 p-3 text-left"
+                        >
                           <span className="font-medium">{m.label}</span>
                           {selected && <CheckIcon className="text-primary size-4" />}
-                        </div>
-                        {selected && (m.payeeHandle || m.instructions) && (
-                          <div className="text-muted-foreground mt-2 space-y-1 text-sm">
-                            {m.payeeHandle && (
-                              <p>
-                                Send to: <span className="text-foreground font-medium">{m.payeeHandle}</span>
-                              </p>
-                            )}
-                            {m.instructions && <p className="whitespace-pre-wrap">{m.instructions}</p>}
-                          </div>
-                        )}
-                      </button>
+                        </button>
+                        {/* Outside the select button: the copy button can't nest inside it. */}
+                        {selected ? (
+                          <PaymentInstructions payeeHandle={m.payeeHandle} instructions={m.instructions} className="px-3 pb-3" />
+                        ) : null}
+                      </div>
                     );
                   })}
                 </div>
