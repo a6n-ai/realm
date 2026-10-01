@@ -1,5 +1,6 @@
 "use client";
 
+import { AppDate } from "@/components/dashboard/app-date";
 import { ListIcon } from "lucide-react";
 import { DataTable, ListPagination, RowActions, type Column, type FacetDef } from "@foundry/design-system";
 import { TableCell } from "@foundry/ui/table";
@@ -74,7 +75,7 @@ export function ContactListsTable({
             </TableCell>
             <TableCell className="text-right tabular-nums text-muted-foreground">{r.memberCount}</TableCell>
             <TableCell className="text-right tabular-nums text-muted-foreground">
-              {new Date(r.createdAt).toLocaleDateString()}
+              <AppDate value={r.createdAt} />
             </TableCell>
             <TableCell>
               <RowActions>

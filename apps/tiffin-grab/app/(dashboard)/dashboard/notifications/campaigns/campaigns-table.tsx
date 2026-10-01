@@ -1,5 +1,6 @@
 "use client";
 
+import { AppDate } from "@/components/dashboard/app-date";
 import { MegaphoneIcon } from "lucide-react";
 import { DataTable, ListPagination, RowActions, type Column, type FacetDef } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
@@ -99,7 +100,7 @@ export function CampaignsTable({
               <DeliveryProgress counts={r.counts} />
             </TableCell>
             <TableCell className="text-right tabular-nums text-muted-foreground">
-              {new Date(r.createdAt).toLocaleDateString()}
+              <AppDate value={r.createdAt} />
             </TableCell>
             <TableCell>
               <RowActions>

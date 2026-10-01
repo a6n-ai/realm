@@ -1,5 +1,8 @@
 "use client";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { zonedDateIso } from "@foundry/commons";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import { AlertTriangleIcon, TruckIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
@@ -18,8 +21,10 @@ export default function DriversError({
   reset: () => void;
 }) {
   const params = useSearchParams();
+  const tz = useTimezone();
+  const [today] = useState(() => zonedDateIso(Date.now(), tz));
   const dateParam = params.get("date");
-  const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : new Date().toISOString().slice(0, 10);
+  const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
 
   return (
     <PageShell>

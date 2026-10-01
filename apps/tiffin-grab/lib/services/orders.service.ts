@@ -1929,7 +1929,7 @@ export const reassignOrder = (publicId: string, ownerId: string): Promise<void> 
 // elapsed. No-op if there's no open pause, the pause is indefinite, or untilDate hasn't passed yet.
 // Called from myActiveSubscriptions before it reports order status to the customer.
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
   const [open] = await db.select({ untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
     .from(subscriptionPauses)
     .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)))

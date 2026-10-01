@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/purity */
 "use client";
+import { AppDate } from "@/components/dashboard/app-date";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { MailIcon } from "lucide-react";
@@ -74,7 +75,7 @@ function InviteRowCells({ row, canAct }: { row: InviteRow; canAct: boolean }) {
       <TableCell className="font-medium">{row.email}</TableCell>
       <TableCell>{row.role}</TableCell>
       <TableCell><Badge variant={displayStatus === "pending" ? "default" : "secondary"}>{displayStatus}</Badge></TableCell>
-      <TableCell className="text-muted-foreground">{new Date(row.expiresAt).toLocaleDateString()}</TableCell>
+      <TableCell className="text-muted-foreground"><AppDate value={row.expiresAt} /></TableCell>
       <TableCell>
         {canAct && (row.status === "pending" || expired) &&
           (expired ? (
@@ -126,7 +127,7 @@ function InviteRowCard({ row, canAct }: { row: InviteRow; canAct: boolean }) {
       </div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-sm">Expires</span>
-        <span className="text-muted-foreground text-sm">{new Date(row.expiresAt).toLocaleDateString()}</span>
+        <span className="text-muted-foreground text-sm"><AppDate value={row.expiresAt} /></span>
       </div>
       {canAct && (row.status === "pending" || expired) && (
         <div className="flex items-center justify-between gap-3 pt-2">
