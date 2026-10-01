@@ -3,38 +3,43 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
+import { Switch } from "@foundry/ui/switch";
 import { Skeleton } from "@foundry/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { unwrapAction } from "@/lib/actions/unwrap";
+import { trialDaysCap, type TrialSettings } from "@/lib/trial/schedule";
 import { saveTrialSettings } from "./actions";
 
-const DAYS = [
-  ["mon", "Mon"],
-  ["tue", "Tue"],
-  ["wed", "Wed"],
-  ["thu", "Thu"],
-  ["fri", "Fri"],
-  ["sat", "Sat"],
-  ["sun", "Sun"],
-] as const;
+const HINT =
+  "A trial rides one delivery frequency: its days are the days a trial can be sent. When creating a trial, staff or the customer pick 1 to max days of them as eating days; one tiffin arrives on each, within one week.";
 
-const HINT = "Maximum days a trial can run (up to 5, within one week) and the weekdays it can be sent on. When creating a trial, pick which of those days it arrives; one tiffin is delivered each day.";
+type Frequency = { key: string; name: string; weekdays: string[] };
 
-export function TrialSettingsForm({ maxDays, weekdays }: { maxDays: number | null; weekdays: string[] }) {
+const dayName = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
+
+export function TrialSettingsForm({ value, frequencies }: { value: TrialSettings; frequencies: Frequency[] }) {
   const router = useRouter();
-  const [max, setMax] = useState(maxDays == null ? "" : String(maxDays));
-  const [days, setDays] = useState<string[]>(weekdays);
+  const [on, setOn] = useState(value.maxDays != null);
+  const [frequencyKey, setFrequencyKey] = useState(value.frequencyKey ?? frequencies[0]?.key ?? "");
+  const [maxDays, setMaxDays] = useState(value.maxDays ?? 1);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
 
-  const toggle = (day: string) => setDays((cur) => (cur.includes(day) ? cur.filter((d) => d !== day) : [...cur, day]));
+  const frequency = frequencies.find((f) => f.key === frequencyKey);
+  const cap = Math.max(trialDaysCap(frequency?.weekdays ?? []), 1);
+  // A frequency with fewer days pulls max down with it.
+  const max = Math.min(maxDays, cap);
+  const counts = Array.from({ length: cap }, (_, i) => i + 1);
+  const edit = (fn: () => void) => { setSaved(false); fn(); };
 
   const save = () =>
     start(async () => {
       setError(null);
       try {
-        const trimmed = max.trim();
-        await saveTrialSettings({ maxDays: trimmed === "" ? null : Number(trimmed), weekdays: days });
+        await unwrapAction(saveTrialSettings(on ? { frequencyKey, maxDays: max } : { frequencyKey: null, maxDays: null }));
+        setSaved(true);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");
@@ -42,42 +47,47 @@ export function TrialSettingsForm({ maxDays, weekdays }: { maxDays: number | nul
     });
 
   return (
-    <div className="grid max-w-lg gap-4">
-      <p className="text-muted-foreground text-xs">{HINT}</p>
-      {error && <p className="text-destructive text-sm">{error}</p>}
-      <div>
-        <Label htmlFor="trial-max">Maximum days</Label>
-        <Input id="trial-max" type="number" min={1} max={5} step={1} value={max} onChange={(e) => setMax(e.target.value)} className="mt-1 max-w-32" />
-      </div>
-      <div>
-        <Label>Send days</Label>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {DAYS.map(([key, label]) => {
-            const on = days.includes(key);
-            return (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggle(key)}
-                className={`rounded-md border px-3 py-1.5 text-sm font-medium ${on ? "border-primary bg-primary/10 text-foreground" : "text-muted-foreground"}`}
-              >
-                {label}
-              </button>
-            );
-          })}
+    <div className="grid max-w-lg gap-5">
+      <p className="text-muted-foreground text-sm text-pretty">{HINT}</p>
+      <Label htmlFor="trial-on" className="flex items-center gap-3 font-normal">
+        <Switch id="trial-on" checked={on} onCheckedChange={(v) => edit(() => setOn(v))} />
+        Offer trials
+      </Label>
+      <fieldset disabled={!on} className="grid gap-5 disabled:opacity-50 sm:grid-cols-[1fr_auto]">
+        <div className="grid gap-2">
+          <Label htmlFor="trial-frequency">Delivery frequency</Label>
+          <Select value={frequencyKey} onValueChange={(v) => edit(() => setFrequencyKey(v))}>
+            <SelectTrigger id="trial-frequency"><SelectValue placeholder="Pick a frequency" /></SelectTrigger>
+            <SelectContent>
+              {frequencies.map((f) => <SelectItem key={f.key} value={f.key}>{f.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {frequency && <p className="text-muted-foreground text-xs">Sent {frequency.weekdays.map(dayName).join(" · ")}</p>}
         </div>
+        <div className="grid content-start gap-2">
+          <Label htmlFor="trial-max">Max days</Label>
+          <Select value={String(max)} onValueChange={(v) => edit(() => setMaxDays(Number(v)))}>
+            <SelectTrigger id="trial-max" className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {counts.map((n) => <SelectItem key={n} value={String(n)}>{n} {n === 1 ? "day" : "days"}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </fieldset>
+      {error && <p role="alert" className="text-destructive text-sm">{error}</p>}
+      <div className="flex items-center gap-3">
+        <Button onClick={save} disabled={pending || (on && !frequency)} className="w-fit">Save</Button>
+        {saved && <span className="text-muted-foreground text-sm" aria-live="polite">Saved</span>}
       </div>
-      <Button onClick={save} disabled={pending} className="w-fit">Save</Button>
     </div>
   );
 }
 
 export function TrialSettingsSkeleton() {
   return (
-    <div className="grid max-w-lg gap-4">
-      <p className="text-muted-foreground text-xs">{HINT}</p>
-      <Skeleton className="h-9 w-32" />
+    <div className="grid max-w-lg gap-5">
+      <p className="text-muted-foreground text-sm text-pretty">{HINT}</p>
+      <Skeleton className="h-9 w-full" />
       <Skeleton className="h-9 w-full" />
     </div>
   );

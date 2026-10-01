@@ -589,8 +589,7 @@ export function NewOrderSheet({
                       {trialDays != null
                         ? ` · ${trialDays} trial ${trialDays === 1 ? "day" : "days"}`
                         : ` · ${draft?.order.selections.durationWeeks ?? "—"} wk`}
-                      {/* A trial is sent on the trial send days, not the plan's delivery frequency. */}
-                      {frequencyLabel && trialDays == null ? ` · ${frequencyLabel}` : ""}
+                      {frequencyLabel ? ` · ${frequencyLabel}` : ""}
                     </p>
                     {eating.length > 0 && (
                       <p className="text-muted-foreground">

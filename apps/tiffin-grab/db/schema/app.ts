@@ -18,11 +18,6 @@ export const app = pgTable("app", {
   // independent of the delivery frequency.
   minTiffinsPerWeek: integer("min_tiffins_per_week").notNull().default(3),
   maxTiffinsPerWeek: integer("max_tiffins_per_week").notNull().default(7),
-  // Cap on how many deliveries a customer may take in one trial. Null = trials off.
-  // trialWeekdays is which weekdays those deliveries may land on. Both apply to
-  // every meal size flagged trial; the chosen length is snapshotted on the order.
-  trialMaxDays: integer("trial_max_days"),
-  trialWeekdays: text("trial_weekdays").array().notNull().default([]),
   // Cap on the SUM of catalog discount percents (delivery + duration) applied to the tiffin subtotal.
   maxDiscountPct: integer("max_discount_pct").notNull().default(25),
   currency: text("currency").notNull().default("INR"),

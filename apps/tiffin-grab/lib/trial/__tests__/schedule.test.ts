@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@foundry/commons";
-import { assertTrialStart, durationWeeksCovering, nextTrialStart, resolveTrialDays, toggleTrialPick, trialDeliveryDates, trialSendDays } from "../schedule";
+import { assertTrialStart, durationWeeksCovering, assertTrialMax, nextTrialStart, resolveTrialDays, toggleTrialPick, trialDeliveryDates, trialSendDays } from "../schedule";
 
 describe("trialDeliveryDates", () => {
   it("takes the next matching weekdays until the chosen length is filled", () => {
@@ -86,5 +86,14 @@ describe("resolveTrialDays one-week cap", () => {
     expect(() => resolveTrialDays(["mon", "wed", "fri"], 5, undefined, 4)).toThrow(ValidationError);
     expect(resolveTrialDays(["mon", "wed", "fri"], 5, undefined, 3).length).toBe(3);
     expect(() => resolveTrialDays(["mon", "tue", "wed", "thu", "fri", "sat"], 6, undefined, 6)).toThrow(ValidationError);
+  });
+});
+
+describe("assertTrialMax", () => {
+  it("allows max up to the frequency's day count, never above 5", () => {
+    expect(() => assertTrialMax(3, ["mon", "wed", "fri"])).not.toThrow();
+    expect(() => assertTrialMax(4, ["mon", "wed", "fri"])).toThrow(ValidationError);
+    expect(() => assertTrialMax(6, ["mon", "tue", "wed", "thu", "fri", "sat"])).toThrow(ValidationError);
+    expect(() => assertTrialMax(0, ["mon"])).toThrow(ValidationError);
   });
 });

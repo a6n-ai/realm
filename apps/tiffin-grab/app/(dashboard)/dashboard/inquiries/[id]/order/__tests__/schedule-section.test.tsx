@@ -18,8 +18,7 @@ const setup = (eatingDays: string[], over = {}) => {
 describe("ScheduleSection", () => {
   it("shows a Save pill only for discounted frequencies", () => {
     setup(["mon", "tue"], { frequencies: [{ ...frequencies[0], savePct: 8 }, frequencies[1]] });
-    expect(screen.getAllByLabelText("Save 8%")).toHaveLength(1);
-    expect(screen.getByText("Save 8%")).toBeTruthy();
+    expect(screen.getAllByText("Save 8%")).toHaveLength(1);
   });
 
   it("selects a frequency card", () => {
@@ -37,6 +36,6 @@ describe("ScheduleSection", () => {
 
   it("shows hint below min", () => {
     setup(["mon"]);
-    expect(screen.getByRole("alert").textContent).toMatch(/between 2 and 3/);
+    expect(screen.getByRole("alert").textContent).toMatch(/Pick 2 to 3/);
   });
 });

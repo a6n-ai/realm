@@ -17,6 +17,25 @@ export function trialSendDays(weekdays: readonly string[], servesWeekends: boole
 }
 
 /**
+ * A franchise's trial rules: the delivery frequency a trial rides (its days are the
+ * send days) and up to how many of those days a trial takes. maxDays null = trials off.
+ */
+export type TrialSettings = { frequencyKey: string | null; weekdays: string[]; maxDays: number | null };
+
+/** Most days a trial may take with these send days: one per send day, within one week. */
+export function trialDaysCap(weekdays: readonly string[]): number {
+  return Math.min(orderedTrialWeekdays(weekdays).length, TRIAL_MAX_DAYS);
+}
+
+/** Throws unless maxDays fits the frequency's days (and 5). */
+export function assertTrialMax(maxDays: number, weekdays: readonly string[]): void {
+  const cap = trialDaysCap(weekdays);
+  if (!Number.isInteger(maxDays) || maxDays < 1 || maxDays > cap) {
+    throw new ValidationError(`Max days must be 1 to ${cap} for this delivery frequency`);
+  }
+}
+
+/**
  * Which weekdays a trial uses and how many tiffins. Staff pick weekdays (one
  * tiffin on each, from the start date); without picks it is a plain count over
  * every allowed send day.

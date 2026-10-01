@@ -2,7 +2,8 @@ import { parseIsoDateUtc, ValidationError, weekdayKey } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing/types";
-import { getTrialSettings } from "@/lib/services/app-settings.service";
+import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { assertTrialStart, durationWeeksCovering, orderedTrialWeekdays, resolveTrialDays, trialDeliveryDates, trialSendDays, type TrialWeekday } from "./schedule";
 
 export type TrialQuote = {
@@ -24,7 +25,7 @@ export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingS
   if (!meal?.trial) throw new ValidationError("This meal isn't a trial");
   if (meal.custom) throw new ValidationError("A custom meal can't be a trial");
 
-  const settings = await getTrialSettings();
+  const settings = await getTrialSettings(await resolveRequestOrg());
   const weekdays = trialSendDays(settings.weekdays, meal.servesWeekends);
   if (settings.maxDays == null || settings.maxDays < 1 || weekdays.length === 0) {
     throw new ValidationError("Trials aren't available right now");
@@ -33,11 +34,9 @@ export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingS
   assertTrialStart(selections.startDate, sendDays, new Date());
   const dates = trialDeliveryDates(selections.startDate, length, sendDays);
 
-  // A trial is delivered every day it runs, so it rides the frequency with the most delivery days.
-  const frequency = snapshot.frequencies
-    .filter((f) => f.weekdays?.length)
-    .sort((a, b) => (b.weekdays?.length ?? 0) - (a.weekdays?.length ?? 0))[0] ?? snapshot.frequencies[0];
-  if (!frequency) throw new ValidationError("No delivery frequency is configured");
+  // The trial's delivery frequency from Trial settings, stored on the order like a meal size's.
+  const frequency = snapshot.frequencies.find((f) => f.key === settings.frequencyKey);
+  if (!frequency) throw new ValidationError("Trials aren't available right now");
 
   const persons = selections.persons;
   if (!Number.isInteger(persons) || persons < 1 || persons > 5) {

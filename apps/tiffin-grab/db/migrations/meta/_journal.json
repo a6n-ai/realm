@@ -50,6 +50,13 @@
       "when": 1790881294479,
       "tag": "0006_chilly_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790886217119,
+      "tag": "0007_shiny_kabuki",
+      "breakpoints": true
     }
   ]
 }

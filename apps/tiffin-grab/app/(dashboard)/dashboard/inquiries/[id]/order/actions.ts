@@ -12,7 +12,9 @@ import { coupons, users } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { couponsService } from "@/lib/services/coupons.service";
-import { getDiscountPolicy, getTrialSettings } from "@/lib/services/app-settings.service";
+import { getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
@@ -91,7 +93,7 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
 // gate is createOrder.
 export async function trialFormSettings() {
   await requireStaff();
-  return getTrialSettings();
+  return getTrialSettings(await resolveRequestOrg());
 }
 
 // Returned, not thrown: production strips a thrown action's message, and staff

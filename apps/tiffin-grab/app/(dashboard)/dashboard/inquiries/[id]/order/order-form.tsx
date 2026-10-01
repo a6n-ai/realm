@@ -31,7 +31,7 @@ import {
 import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
-import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialDeliveryDates, trialSendDays } from "@/lib/trial/schedule";
+import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialDeliveryDates, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
 import { convertInquiry, previewPrice, repCouponInfo, trialFormSettings, type RepCouponInfo } from "./actions";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
@@ -118,7 +118,7 @@ export function OrderForm({
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
-  const [trialSettings, setTrialSettings] = useState<{ maxDays: number | null; weekdays: string[] } | null>(null);
+  const [trialSettings, setTrialSettings] = useState<TrialSettings | null>(null);
   const [pickedDays, setPickedDays] = useState<DayOfWeek[]>([]);
 
   const defaultSlots = enabledSlots.some((s) => s.key === "lunch")
@@ -185,6 +185,7 @@ export function OrderForm({
   const realPayments = paymentMethods.length > 0;
   const trialMax = trialSettings?.maxDays ?? 0;
   const multiDayTrial = trialMax > 1;
+  const trialFrequencyName = catalog.frequencies.find((f) => f.key === trialSettings?.frequencyKey)?.name;
   const trialKey = `${trialWeekdays.join()}|${trialMax}`;
   const startDay = startDate ? (weekdayKey(parseIsoDateUtc(startDate)) as DayOfWeek) : null;
   // A one-day trial has nothing to pick: the start date is the day.
@@ -252,7 +253,8 @@ export function OrderForm({
     planKey: v.planKey,
     selections: {
       mealSizeId: v.mealSizeId,
-      frequencyKey: v.frequencyKey,
+      // A trial rides the frequency from Trial settings.
+      frequencyKey: trial ? (trialSettings?.frequencyKey ?? v.frequencyKey) : v.frequencyKey,
       eatingDays: trial ? trialPicks : v.eatingDays,
       persons: v.persons,
       mealSlots: v.mealSlots,
@@ -448,7 +450,7 @@ export function OrderForm({
             </fieldset>
           </FormSection>
 
-          <FormSection title="Schedule" hint={isTrial ? (multiDayTrial ? "Pick the days the trial arrives." : "A one-day trial arrives on its start date.") : "When it starts, how long it runs, and which days they eat."}>
+          <FormSection title="Schedule" hint={isTrial ? `${multiDayTrial ? "Pick the days the trial arrives" : "A one-day trial arrives on its start date"}${trialFrequencyName ? ` · ${trialFrequencyName}` : ""}.` : "When it starts, how long it runs, and which days they eat."}>
             <fieldset className={cn("grid gap-4", isTrial ? "sm:grid-cols-2" : "sm:grid-cols-3")} disabled={submitting}>
               <FormField
                 control={form.control}
