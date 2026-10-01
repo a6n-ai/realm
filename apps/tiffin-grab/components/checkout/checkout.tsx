@@ -1,5 +1,6 @@
 "use client";
 
+import { PaymentInstructions } from "@/components/payment-instructions";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -562,20 +563,22 @@ export function Checkout({
                         {paymentMethods.map((m) => {
                           const on = m.id === paymentMethodId;
                           return (
-                            <OptionCard key={m.id} role="radio" selected={on} onClick={() => selectMethod(m.id)} className="w-full px-4 py-4">
-                              <span className="flex items-center justify-between gap-3">
-                                <span className="text-[16px] font-semibold tracking-[-0.01em]">{m.label}</span>
-                                <Radio on={on} />
-                              </span>
+                            <div key={m.id} className="grid gap-2">
+                              <OptionCard role="radio" selected={on} onClick={() => selectMethod(m.id)} className="w-full px-4 py-4">
+                                <span className="flex items-center justify-between gap-3">
+                                  <span className="text-[16px] font-semibold tracking-[-0.01em]">{m.label}</span>
+                                  <Radio on={on} />
+                                </span>
+                              </OptionCard>
+                              {/* Outside the card: the copy button can't nest inside the card's button. */}
                               <AnimatePresence initial={false}>
                                 {on && (m.payeeHandle || m.instructions) && (
-                                  <motion.span key="details" {...reveal} className="text-muted-foreground mt-2 block space-y-1 text-sm">
-                                    {m.payeeHandle && <span className="block">Send to <span className="text-foreground font-semibold">{m.payeeHandle}</span></span>}
-                                    {m.instructions && <span className="block whitespace-pre-wrap">{m.instructions}</span>}
-                                  </motion.span>
+                                  <motion.div key="details" {...reveal} className="px-4">
+                                    <PaymentInstructions payeeHandle={m.payeeHandle} instructions={m.instructions} />
+                                  </motion.div>
                                 )}
                               </AnimatePresence>
-                            </OptionCard>
+                            </div>
                           );
                         })}
                       </div>

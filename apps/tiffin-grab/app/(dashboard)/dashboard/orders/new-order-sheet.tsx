@@ -9,7 +9,6 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Switch } from "@foundry/ui/switch";
-import { ResponsiveDialog } from "@foundry/design-system";
 import { isValidPhone } from "@foundry/ui/phone-input";
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
@@ -29,12 +28,14 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "./admin-order-created-dialog";
-import { createOrderFlow, settleNewOrderWithProofAction } from "./actions";
+import { createOrderFlow, saveOrderLeadAction, settleNewOrderWithProofAction } from "./actions";
 import { PaymentProofField, type PaymentProofValue } from "./payment-proof-field";
 import { makeImageThumbnail } from "@/components/ds";
 import {
   CustomMealBuilder, filledItems, type CustomMealCategory, type CustomMealValue,
 } from "./custom-meal-builder";
+import { TrialPill } from "./trial-pill";
+import { FormDrawer } from "./form-drawer";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 
@@ -73,9 +74,10 @@ const PhoneInput = dynamic(() => import("@foundry/ui/phone-input").then((m) => m
 });
 
 /**
- * Four-step New order — mirrors New inquiry contact, then catalog plan, then an
- * optional e-Transfer screenshot (approves the payment on create), then a
- * verify step with plan summary + price breakup before create:
+ * Three-step New order — contact, then catalog plan with payment (an optional
+ * e-Transfer screenshot approves the payment on create), then a verify step
+ * with plan summary + price breakup. Leaving step 1 saves the inquiry (so the
+ * lead is searchable); customer, order and payment are only written on Create:
  *   1. Contact + Source (optional sub-source)
  *   2. Catalog / custom meal + schedule + delivery + payment
  *   3. Review plan & pricing → Create order
@@ -106,17 +108,24 @@ export function NewOrderSheet({
   const enabledSlots: EnabledSlot[] = categories.map((c) => ({ key: c.key, label: c.label }));
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [paidNow, setPaidNow] = useState(false);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [pickedId, setPickedId] = useState<string | null>(null);
+  // Inquiry saved when leaving step 1 (not a staff pick, so no prefill/source lock).
+  const [leadId, setLeadId] = useState<string | null>(null);
+  const [savingLead, setSavingLead] = useState(false);
+  const [leadError, setLeadError] = useState<string | null>(null);
   const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
   const [customMeal, setCustomMeal] = useState<CustomMealValue | null>(null);
   const [draft, setDraft] = useState<OrderDraft | null>(null);
   const [creating, setCreating] = useState(false);
+  // Loader text while Create runs: the order first, then the screenshot approval.
+  const [stage, setStage] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
@@ -182,6 +191,8 @@ export function NewOrderSheet({
     setOpen(o);
     if (!o) {
       setStep(1);
+      setLeadId(null);
+      setLeadError(null);
       setFetchedPrefill(null);
       setCustomMeal(null);
       setDraft(null);
@@ -189,12 +200,32 @@ export function NewOrderSheet({
       setCreated(null);
       setSuccessOpen(false);
       setProof({ file: null, reference: "" });
+      setPaidNow(false);
+    }
+  }
+
+  async function saveLeadAndContinue() {
+    setSavingLead(true);
+    setLeadError(null);
+    try {
+      const { inquiryId } = await unwrapAction(saveOrderLeadAction({
+        source: { sourceKey, subSourceKey: subSourceKey || undefined },
+        contact: { fullName, phone, email: email.trim() },
+        pickedInquiryId: pickedId ?? undefined,
+      }));
+      setLeadId(inquiryId);
+      setStep(2);
+    } catch (e) {
+      setLeadError(e instanceof Error ? e.message : "Could not save the inquiry");
+    } finally {
+      setSavingLead(false);
     }
   }
 
   async function createFromDraft() {
     if (!draft) return;
     setCreating(true);
+    setStage("Creating customer and order…");
     setCreateError(null);
     try {
       const result = await unwrapAction(createOrderFlow({
@@ -209,16 +240,17 @@ export function NewOrderSheet({
           postalCode: draft.order.contact.postalCode,
           preferredStart: draft.order.selections.startDate,
         },
-        pickedInquiryId: pickedId ?? undefined,
+        pickedInquiryId: pickedId ?? leadId ?? undefined,
         order: draft.order,
         customMeal: customMeal
           ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
           : undefined,
       }));
       let paid: AdminOrderCreated["paid"];
-      if (proof.file && isEtransfer) {
+      if (paidNow && proof.file && isEtransfer) {
         // Order already exists; a failed upload must not hide that, so it is
         // reported on the success dialog rather than thrown.
+        setStage("Saving screenshot and approving payment…");
         const form = new FormData();
         const thumb = await makeImageThumbnail(proof.file);
         form.set("proof", proof.file);
@@ -233,6 +265,7 @@ export function NewOrderSheet({
       setCreateError(e instanceof Error ? e.message : "Failed to create order");
     } finally {
       setCreating(false);
+      setStage(null);
     }
   }
 
@@ -251,11 +284,13 @@ export function NewOrderSheet({
 
   return (
     <>
-      <ResponsiveDialog
+      <FormDrawer
         // Step bar and panels run edge to edge; each panel pads itself.
         flush
         open={open}
-        onOpenChange={resetAndClose}
+        onOpenChange={(o) => {
+          if (!creating) resetAndClose(o);
+        }}
         trigger={
           triggerLabel ? (
             <Button>
@@ -265,29 +300,29 @@ export function NewOrderSheet({
           ) : undefined
         }
         title="New order"
-        description="Contact, plan, payment, then verify pricing before create."
-        contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        description="Contact, plan, then verify pricing before create."
         footer={
           sources.length > 0 && step === 1 ? (
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex w-full items-center justify-end gap-3">
+              {leadError ? (
+                <p className="text-destructive mr-auto text-sm" role="alert">{leadError}</p>
+              ) : null}
               <Button
-                disabled={!contactReady}
-                onClick={() => setStep(2)}
+                disabled={!contactReady || savingLead}
+                onClick={() => void saveLeadAndContinue()}
                 className="min-h-11 active:scale-[0.96] sm:min-h-9"
               >
-                Continue
+                {savingLead ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  "Continue"
+                )}
               </Button>
             </div>
           ) : sources.length > 0 && step === 3 ? (
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                onClick={() => setStep(4)}
-                className="min-h-11 active:scale-[0.96] sm:min-h-9"
-              >
-                {proof.file ? "Continue" : isEtransfer ? "Skip, collect later" : "Continue"}
-              </Button>
-            </div>
-          ) : sources.length > 0 && step === 4 ? (
             <div className="flex w-full items-center justify-between gap-3">
               <div className="text-sm">
                 <span className="text-muted-foreground">Total </span>
@@ -320,7 +355,19 @@ export function NewOrderSheet({
           <NoSources noun="order" />
         ) : (
           <>
-            <StepHeader step={step} steps={["Contact", "Order", "Payment", "Review"]} />
+            <StepHeader step={step} steps={["Contact", "Order", "Review"]} />
+
+            {creating ? (
+              <div
+                role="status"
+                aria-live="polite"
+                className="bg-background/85 absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 backdrop-blur-sm"
+              >
+                <Loader2Icon className="text-primary size-8 animate-spin" />
+                <p className="text-sm font-medium">{stage}</p>
+                <p className="text-muted-foreground text-xs">Saving everything — keep this open.</p>
+              </div>
+            ) : null}
 
             {step === 1 ? (
               <div className="space-y-6 px-5 py-5 sm:px-6">
@@ -450,7 +497,7 @@ export function NewOrderSheet({
               </div>
             ) : null}
 
-            <div className={step === 2 ? "space-y-4 px-5 py-5 sm:px-6" : "hidden"}>
+            <div className={step === 2 ? "space-y-5 px-5 py-5 sm:px-6" : "hidden"}>
               <button
                 type="button"
                 onClick={() => setStep(1)}
@@ -458,23 +505,7 @@ export function NewOrderSheet({
               >
                 ← <span className="font-medium">{fullName}</span>
               </button>
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="customMealToggle" className="grid gap-0.5">
-                  <span>Custom meal</span>
-                  <span className="text-muted-foreground text-xs font-normal">
-                    Build the tiffin item by item instead of picking a meal size.
-                  </span>
-                </Label>
-                <Switch
-                  id="customMealToggle"
-                  checked={customMeal != null}
-                  onCheckedChange={(on) => setCustomMeal(on ? { planKey: catalog.plans[0]?.key ?? "", items: [], basePriceOverride: null } : null)}
-                />
-              </div>
-              {customMeal && (
-                <CustomMealBuilder plans={catalog.plans} categories={categories} value={customMeal} onChange={setCustomMeal} />
-              )}
-              {/* Keep mounted across steps 2–4 so schedule/address aren't wiped on Edit. */}
+              {/* Keep mounted across steps 2–3 so schedule/address aren't wiped on Edit. */}
               {step >= 2 && (
                 <OrderForm
                   inquiryId=""
@@ -483,7 +514,34 @@ export function NewOrderSheet({
                   enabledSlots={enabledSlots}
                   prefill={prefill}
                   hideMealSizePicker={customMeal != null}
+                  mealAction={
+                    <Label htmlFor="customMealToggle" className="flex shrink-0 items-center gap-2 text-sm font-normal">
+                      Custom meal
+                      <Switch
+                        id="customMealToggle"
+                        checked={customMeal != null}
+                        onCheckedChange={(on) => setCustomMeal(on ? { planKey: catalog.plans[0]?.key ?? "", items: [], basePriceOverride: null } : null)}
+                      />
+                    </Label>
+                  }
+                  mealBuilder={customMeal ? (
+                    <CustomMealBuilder plans={catalog.plans} categories={categories} value={customMeal} onChange={setCustomMeal} />
+                  ) : null}
                   customMeal={customMeal ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
+                  paymentExtra={(methodId) => methodId === "etransfer" ? (
+                    <div className="grid gap-3 rounded-lg border p-3">
+                      <Label htmlFor="paidNowToggle" className="flex items-center justify-between gap-3">
+                        <span className="grid gap-0.5">
+                          <span>Already paid by e-Transfer</span>
+                          <span className="text-muted-foreground text-xs font-normal">
+                            Attach their screenshot to approve the payment and start the plan on create.
+                          </span>
+                        </span>
+                        <Switch id="paidNowToggle" checked={paidNow} onCheckedChange={setPaidNow} />
+                      </Label>
+                      {paidNow && <PaymentProofField value={proof} onChange={setProof} />}
+                    </div>
+                  ) : null}
                   onReview={(next) => {
                     setDraft(next);
                     setCreateError(null);
@@ -494,27 +552,6 @@ export function NewOrderSheet({
             </div>
 
             {step === 3 ? (
-              <div className="space-y-5 px-5 py-5 sm:px-6">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="text-muted-foreground hover:text-foreground -ml-1 flex min-h-11 items-center gap-1 text-sm transition-colors"
-                >
-                  ← <span className="font-medium">Edit order</span>
-                </button>
-                {isEtransfer ? (
-                  <PaymentProofField value={proof} onChange={setProof} />
-                ) : (
-                  <div className="text-muted-foreground rounded-lg border p-4 text-sm">
-                    {draft?.order.paymentMethodId
-                      ? "The customer pays with the payment link after you create the order."
-                      : "No payment method is set up, so the order is recorded as paid."}
-                  </div>
-                )}
-              </div>
-            ) : null}
-
-            {step === 4 ? (
               <div className="space-y-5 px-5 py-5 sm:px-6">
                 <button
                   type="button"
@@ -536,7 +573,10 @@ export function NewOrderSheet({
                 <section className="grid gap-3">
                   <SectionLabel>Plan</SectionLabel>
                   <div className="space-y-2 rounded-lg border p-4 text-sm">
-                    <p className="text-base font-semibold tracking-tight">{mealLabel}</p>
+                    <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                      {mealLabel}
+                      {trialDays != null && <TrialPill />}
+                    </p>
                     {planLabel ? <p className="text-muted-foreground">{planLabel}</p> : null}
                     {customMeal && customMeal.basePriceOverride != null ? (
                       <p className="text-muted-foreground nums">
@@ -549,7 +589,8 @@ export function NewOrderSheet({
                       {trialDays != null
                         ? ` · ${trialDays} trial ${trialDays === 1 ? "day" : "days"}`
                         : ` · ${draft?.order.selections.durationWeeks ?? "—"} wk`}
-                      {frequencyLabel ? ` · ${frequencyLabel}` : ""}
+                      {/* A trial is sent on the trial send days, not the plan's delivery frequency. */}
+                      {frequencyLabel && trialDays == null ? ` · ${frequencyLabel}` : ""}
                     </p>
                     {eating.length > 0 && (
                       <p className="text-muted-foreground">
@@ -580,14 +621,14 @@ export function NewOrderSheet({
                       <SectionLabel>Payment</SectionLabel>
                       <button
                         type="button"
-                        onClick={() => setStep(3)}
+                        onClick={() => setStep(2)}
                         className="text-muted-foreground hover:text-foreground min-h-11 text-sm font-medium sm:min-h-0"
                       >
                         Edit
                       </button>
                     </div>
                     <div className="rounded-lg border p-4 text-sm">
-                      {proof.file && isEtransfer ? (
+                      {paidNow && proof.file && isEtransfer ? (
                         <p>
                           e-Transfer screenshot attached
                           {proof.reference.trim() ? ` · ref ${proof.reference.trim()}` : ""} — approved on create, plan
@@ -607,7 +648,7 @@ export function NewOrderSheet({
             ) : null}
           </>
         )}
-      </ResponsiveDialog>
+      </FormDrawer>
 
       <AdminOrderCreatedDialog
         open={successOpen}

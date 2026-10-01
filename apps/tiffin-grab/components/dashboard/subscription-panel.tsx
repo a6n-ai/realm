@@ -60,6 +60,7 @@ export async function loadSubscription(
           tagLabel: planRow?.tagLabel ?? null,
           tagColor: planRow?.tagColor ?? null,
           frequencyKey: order.frequencyKey,
+          trial: order.trialLength != null,
         }
       : null;
 

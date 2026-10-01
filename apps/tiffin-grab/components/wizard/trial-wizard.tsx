@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { BottomBar, Button, OptionCard, Stepper } from "@/components/customer/kit";
+import { BottomBar, Button, OptionCard } from "@/components/customer/kit";
 import { DateField } from "@/components/customer/date-field";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Progress } from "@/components/wizard/progress";
 import { WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { TrialDayPicker } from "@/components/wizard/trial-day-picker";
 
 const STEPS = ["Meal", "Start"] as const;
 
@@ -46,18 +48,28 @@ export function TrialWizard({
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [mealId, setMealId] = useState(sizes[0]?.publicId ?? "");
-  const [days, setDays] = useState(maxDays);
+  // A multi-day trial picks its days; a one-day trial just picks a start date on a send day.
+  const multiDay = maxDays > 1;
+  const [picks, setPicks] = useState<DayOfWeek[]>(() => weekdays.slice(0, 1) as DayOfWeek[]);
+  const sendOn = multiDay ? picks : weekdays;
+  const days = multiDay ? picks.length : 1;
   const [startDate, setStartDate] = useState(() => firstAllowed(earliest, weekdays));
+  const changePicks = (next: DayOfWeek[]) => {
+    setPicks(next);
+    if (!next.includes(weekdayKey(parseIsoDateUtc(startDate)) as DayOfWeek)) {
+      setStartDate(firstAllowed(startDate > earliest ? startDate : earliest, next));
+    }
+  };
   const meal = sizes.find((s) => s.publicId === mealId) ?? null;
 
   const dates = useMemo(() => {
-    if (!startDate || !weekdays.includes(weekdayKey(parseIsoDateUtc(startDate)))) return [];
+    if (!startDate || !sendOn.includes(weekdayKey(parseIsoDateUtc(startDate)))) return [];
     try {
-      return trialDeliveryDates(startDate, days, weekdays);
+      return trialDeliveryDates(startDate, days, sendOn);
     } catch {
       return [];
     }
-  }, [startDate, days, weekdays]);
+  }, [startDate, days, sendOn]);
 
   const blocked = step === 0
     ? (meal ? null : "Pick a trial meal to continue.")
@@ -71,7 +83,7 @@ export function TrialWizard({
       planKey: meal.planKey,
       mealSizeId: meal.publicId,
       frequencyKey: "",
-      eatingDays: [],
+      eatingDays: multiDay ? picks : [],
       persons: 1,
       mealSlots: ["lunch"],
       includeSaturday: false,
@@ -96,7 +108,7 @@ export function TrialWizard({
       />
       <Progress steps={STEPS} current={step} />
       <h2 className="mb-6 text-[34px] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">
-        {step === 0 ? "Pick a trial meal." : "How many days, and when?"}
+        {step === 0 ? "Pick a trial meal." : multiDay ? "Which days, and when?" : "When should it arrive?"}
       </h2>
 
       {step === 0 ? (
@@ -117,7 +129,7 @@ export function TrialWizard({
         </div>
       ) : (
         <div className="space-y-6">
-          <Stepper label="Days" value={days} min={1} max={maxDays} onChange={setDays} />
+          {multiDay && <TrialDayPicker sendDays={weekdays} maxDays={maxDays} picked={picks} onChange={changePicks} />}
           <DateField
             id="trial-start"
             label="Start date"
@@ -125,11 +137,11 @@ export function TrialWizard({
             onChange={setStartDate}
             today={today}
             minDate={earliest}
-            allowedDays={weekdays}
+            allowedDays={sendOn}
           />
           {dates.length > 0 && (
             <p className="text-muted-foreground text-sm">
-              We'll send {dates.length === 1 ? "this day" : "these days"}: {dates.join(", ")}.
+              We&apos;ll send {dates.length === 1 ? "this day" : "these days"}: {dates.join(", ")}.
             </p>
           )}
         </div>

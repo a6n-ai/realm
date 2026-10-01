@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@foundry/commons";
-import { durationWeeksCovering, trialDeliveryDates, trialSendDays } from "../schedule";
+import { durationWeeksCovering, nextTrialStart, resolveTrialDays, toggleTrialPick, trialDeliveryDates, trialSendDays } from "../schedule";
 
 describe("trialDeliveryDates", () => {
   it("takes the next matching weekdays until the chosen length is filled", () => {
@@ -28,5 +28,49 @@ describe("trialSendDays", () => {
   it("drops Sat/Sun for a trial meal without a weekend dish", () => {
     expect(trialSendDays(["sat", "mon", "sun", "fri"], false)).toEqual(["mon", "fri"]);
     expect(trialSendDays(["sat", "mon", "sun", "fri"], true)).toEqual(["mon", "fri", "sat", "sun"]);
+  });
+});
+
+describe("resolveTrialDays", () => {
+  const allowed = ["mon", "tue", "wed", "thu", "fri"] as const;
+
+  it("picked weekdays decide the days and the count, in week order", () => {
+    expect(resolveTrialDays([...allowed], 3, ["thu", "mon"], undefined)).toEqual({ sendDays: ["mon", "thu"], length: 2 });
+  });
+
+  it("picked days give one tiffin each from the start date", () => {
+    const { sendDays, length } = resolveTrialDays([...allowed], 3, ["mon", "wed", "fri"], undefined);
+    // 2026-10-05 is a Monday.
+    expect(trialDeliveryDates("2026-10-05", length, sendDays)).toEqual(["2026-10-05", "2026-10-07", "2026-10-09"]);
+  });
+
+  it("rejects a day trials are not sent on, and more picks than the max", () => {
+    expect(() => resolveTrialDays([...allowed], 3, ["sat"], undefined)).toThrow("Trials aren't sent on sat");
+    expect(() => resolveTrialDays([...allowed], 2, ["mon", "tue", "wed"], undefined)).toThrow("Choose 1 to 2 days");
+  });
+
+  it("without picks keeps the count over every allowed day", () => {
+    expect(resolveTrialDays([...allowed], 3, undefined, 2)).toEqual({ sendDays: [...allowed], length: 2 });
+    expect(() => resolveTrialDays([...allowed], 3, [], 0)).toThrow(ValidationError);
+  });
+});
+
+describe("toggleTrialPick", () => {
+  const send = ["mon", "wed", "fri"];
+  it("adds up to the max and keeps week order", () => {
+    expect(toggleTrialPick(["fri"], "mon", send, 2)).toEqual(["mon", "fri"]);
+    expect(toggleTrialPick(["mon", "fri"], "wed", send, 2)).toEqual(["mon", "fri"]);
+  });
+  it("never drops the last day or adds a non-send day", () => {
+    expect(toggleTrialPick(["mon"], "mon", send, 2)).toEqual(["mon"]);
+    expect(toggleTrialPick(["mon"], "tue", send, 2)).toEqual(["mon"]);
+  });
+});
+
+describe("nextTrialStart", () => {
+  it("finds the first picked weekday on or after the date", () => {
+    expect(nextTrialStart("2026-09-30", ["wed"])).toBe("2026-09-30");
+    expect(nextTrialStart("2026-09-30", ["mon"])).toBe("2026-10-05");
+    expect(nextTrialStart("2026-09-30", [])).toBeNull();
   });
 });
