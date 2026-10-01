@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { LinkIcon, SendHorizonal } from "lucide-react";
 import { toast } from "sonner";
 import { RowActionButton, RowActions } from "@/components/ds";
+import { promptReloadIfStale } from "@/components/stale-deploy-reloader";
 import { copyCustomerInviteLink, resendCustomerInvite } from "./actions";
 
 /** Email the welcome sign-in link, or copy that same link to share over WhatsApp. */
@@ -17,7 +18,7 @@ export function useCustomerInvite(email: string | null) {
         await resendCustomerInvite(email);
         toast.success("Invite sent", { description: `They'll get a welcome email at ${email} with a sign-in link.` });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not send the invite.");
+        if (!promptReloadIfStale(e)) toast.error(e instanceof Error ? e.message : "Could not send the invite.");
       }
     });
   }
@@ -29,7 +30,7 @@ export function useCustomerInvite(email: string | null) {
       try {
         url = await copyCustomerInviteLink(email);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not create the invite link.");
+        if (!promptReloadIfStale(e)) toast.error(e instanceof Error ? e.message : "Could not create the invite link.");
         return;
       }
       try {

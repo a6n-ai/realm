@@ -7,6 +7,8 @@ describe("isStaleActionError", () => {
     expect(
       isStaleActionError("Server Action was not found. This request might be from an older or newer deployment."),
     ).toBe(true);
+    // What the browser's server-action call rejects with when the action ID is gone.
+    expect(isStaleActionError("An unexpected response was received from the server.")).toBe(true);
   });
 
   it("ignores unrelated errors", () => {
