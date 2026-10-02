@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { ValidationError } from "@foundry/commons";
 import { memoryBus } from "@foundry/realtime/server";
 import { db } from "@/db/client";
-import { orders, users } from "@/db/schema";
+import { deliveries, orders, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireStaff } from "@/lib/auth/guards";
+import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {
   activateOrder,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
-import { redeliverTrip } from "@/lib/services/deliveries.service";
+import { adminSetDeliveryStatus, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 
@@ -131,6 +132,32 @@ export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPu
   await requireStaff();
   await removeOneDelivery(deliveryPublicId, date, await currentUserId());
   revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+/** Admin-only correction of one delivery's outcome. Customers and members cannot call this. */
+export async function setDeliveryStatusAction(
+  deliveryPublicId: string,
+  status: string,
+): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireAdmin();
+    if (!isAdminDeliveryStatus(status)) throw new ValidationError("Unknown delivery status");
+    await adminSetDeliveryStatus(deliveryPublicId, status, await currentUserId());
+    return "Delivery status updated";
+  });
+  if ("ok" in res) {
+    const [order] = await db
+      .select({ publicId: orders.publicId })
+      .from(orders)
+      .innerJoin(deliveries, eq(deliveries.orderId, orders.id))
+      .where(eq(deliveries.publicId, deliveryPublicId))
+      .limit(1);
+    if (order) {
+      revalidatePath(`/dashboard/orders/${order.publicId}`);
+      revalidatePath("/me", "layout");
+    }
+  }
+  return res;
 }
 
 /** Driver could not deliver: moves the whole trip to the next delivery day (merging there); the pool is untouched. */

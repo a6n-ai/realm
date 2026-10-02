@@ -119,6 +119,12 @@ export async function pullCompletions(
       }
     }
 
+    // A success already on the row — from an earlier pull, or an admin marking the day
+    // delivered — is final. A later pull that no longer sees "success" must not skip it
+    // and put the tiffin back. Admin "not delivered" is a skipped row, which this loop
+    // never loads, so that correction sticks too.
+    if (row.delivery.optimoCompletionStatus === "success") continue;
+
     const completion = completions.get(stop.id!);
     const optimoStatus = completion?.status ?? null;
     const isSuccess = optimoStatus === "success";

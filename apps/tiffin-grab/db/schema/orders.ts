@@ -110,6 +110,7 @@ export const orders = pgTable("orders", {
   index("orders_frequency_idx").on(t.frequencyId),
   index("orders_delivery_strategy_idx").on(t.deliveryStrategyId),
   index("orders_address_tag_idx").on(t.addressTagId),
+  index("orders_delivery_tag_idx").on(t.deliveryTagId),
   index("orders_address_idx").on(t.addressId),
 ]);
 
@@ -172,7 +173,7 @@ export const orderActivities = pgTable("order_activities", {
   fromStatus: orderStatus("from_status"),
   toStatus: orderStatus("to_status"),
   // Plain bigint, no .references(): a TS-level reference would cycle orders -> deliveries -> orders.
-  // FK added in raw SQL in the migration.
+  // FK (ON DELETE SET NULL) added in raw SQL in migration 0009.
   deliveryId: bigint("delivery_id", { mode: "bigint" }),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),

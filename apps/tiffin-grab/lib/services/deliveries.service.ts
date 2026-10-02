@@ -353,6 +353,97 @@ export async function skipDelivery(
   return { missedDates };
 }
 
+/** What an admin can set on one delivery. "Delivered" is not a stored status: it is scheduled
+ *  plus an OptimoRoute success, which is what the tiffin count and the calendar both read. */
+export type AdminDeliveryStatus = "upcoming" | "delivered" | "not_delivered";
+
+const ADMIN_DELIVERY_STATUSES: readonly AdminDeliveryStatus[] = ["upcoming", "delivered", "not_delivered"];
+
+export function isAdminDeliveryStatus(value: string): value is AdminDeliveryStatus {
+  return (ADMIN_DELIVERY_STATUSES as readonly string[]).includes(value);
+}
+
+/**
+ * Admin override for one delivery's delivered / not-delivered outcome. Ignores the cutoff lock:
+ * that lock stops a customer changing a day that has already gone out, which is exactly the case
+ * an admin is correcting (a completion pull skipped a day that did go out, or the reverse).
+ * Does not move tiffins and does not touch the pool. A row whose tiffins already live on another
+ * day is refused — editing it would count them twice.
+ */
+export async function adminSetDeliveryStatus(
+  deliveryPublicId: string,
+  status: AdminDeliveryStatus,
+  actorId: bigint | null,
+): Promise<void> {
+  let syncedRow: OptimoSyncedRow | null = null;
+  let changed = false;
+  await db.transaction(async (tx) => {
+    const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    const row = await loadByPublicId(tx, deliveryPublicId);
+    if (row.status === "cancelled") throw new ValidationError("A cancelled delivery cannot be changed");
+    if (row.mergedIntoDeliveryId != null || row.tiffinUnits === 0) {
+      throw new ValidationError("This delivery's tiffins were moved. Change the day they moved to.");
+    }
+    const [moved] = await tx.select({ id: deliveries.id }).from(deliveries)
+      .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
+    if (moved) throw new ValidationError("This delivery's tiffins were moved. Change the day they moved to.");
+
+    const [order] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!order || order.status === "cancelled" || order.status === "completed") {
+      throw new ValidationError("This subscription can no longer be changed");
+    }
+
+    const now = Date.now();
+    const current: AdminDeliveryStatus | "paused" =
+      row.status === "skipped" ? "not_delivered"
+      : row.status === "paused" ? "paused"
+      : row.optimoCompletionStatus === "success" || row.cutoffAt <= now ? "delivered"
+      : "upcoming";
+    if (current === status) return;
+
+    if (status === "upcoming" && row.cutoffAt <= now) {
+      throw new ValidationError("Cutoff has passed. Mark it Delivered or Not delivered.");
+    }
+
+    let patch: Partial<typeof deliveries.$inferInsert>;
+    let label: string;
+    switch (status) {
+      case "upcoming":
+        patch = { status: "scheduled", optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null };
+        label = "Upcoming";
+        break;
+      case "delivered":
+        patch = { status: "scheduled", optimoCompletionStatus: "success", optimoCompletedAt: row.optimoCompletedAt ?? now, optimoCompletionNote: null };
+        label = "Delivered";
+        break;
+      case "not_delivered":
+        patch = {
+          status: "skipped",
+          ...(row.optimoCompletionStatus === "success"
+            ? { optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null }
+            : {}),
+        };
+        label = "Not delivered";
+        syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
+        break;
+      default: {
+        const unreachable: never = status;
+        throw new ValidationError(`Unknown delivery status: ${unreachable}`);
+      }
+    }
+    await tx.update(deliveries).set(patch).where(eq(deliveries.id, row.id));
+
+    const activityType = status === "not_delivered" ? "skipped" : row.status === "scheduled" ? "note" : "unskipped";
+    await tx.insert(orderActivities).values({
+      orderId, deliveryId: row.id, type: activityType, note: `Admin set delivery status to ${label}`, createdBy: actorId,
+    });
+    changed = true;
+  });
+  if (syncedRow) await deleteFromOptimoRouteBestEffort([syncedRow]);
+  if (changed) publishAnalyticsLive();
+}
+
 // Self-join alias used only to test "does a make-up already exist for this row" — a correlated
 // NOT EXISTS written via a bare `${deliveries}` interpolation is not guaranteed to alias
 // correctly in Drizzle's raw sql tag, so this uses a real join alias instead.

@@ -1,5 +1,5 @@
 {
-  "id": "1df1e64f-5bf6-4ae3-a1f5-a0679b3ae226",
+  "id": "ef760bec-4af9-41f6-9fa0-9c9953328085",
   "prevId": "f962a457-7ca7-4da0-9213-8120887681e9",
   "version": "7",
   "dialect": "postgresql",
@@ -750,6 +750,36 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "users_address_tag_idx": {
+          "name": "users_address_tag_idx",
+          "columns": [
+            {
+              "expression": "address_tag_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "users_delivery_strategy_idx": {
+          "name": "users_delivery_strategy_idx",
+          "columns": [
+            {
+              "expression": "delivery_strategy_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1095,13 +1125,6 @@
           "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true
-        },
-        "tu_amount": {
-          "name": "tu_amount",
-          "type": "numeric(6, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'1'"
         },
         "max_qty": {
           "name": "max_qty",
@@ -2359,18 +2382,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tu_amount": {
-          "name": "tu_amount",
-          "type": "numeric(6, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
         "price_per_week": {
           "name": "price_per_week",
           "type": "numeric(10, 2)",
@@ -2896,6 +2907,21 @@
           "columns": [
             {
               "expression": "address_tag_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "orders_delivery_tag_idx": {
+          "name": "orders_delivery_tag_idx",
+          "columns": [
+            {
+              "expression": "delivery_tag_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3607,6 +3633,21 @@
           "columns": [
             {
               "expression": "address_tag_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deliveries_delivery_tag_idx": {
+          "name": "deliveries_delivery_tag_idx",
+          "columns": [
+            {
+              "expression": "delivery_tag_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6607,6 +6648,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "custom_meal_pricing_plan_idx": {
+          "name": "custom_meal_pricing_plan_idx",
+          "columns": [
+            {
+              "expression": "plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -7238,6 +7294,21 @@
           "columns": [
             {
               "expression": "dish_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "menu_items_category_idx": {
+          "name": "menu_items_category_idx",
+          "columns": [
+            {
+              "expression": "category_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
