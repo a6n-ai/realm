@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { getSession } from "@/lib/auth/session";
 import type { OrderDetail } from "@/lib/services/orders.service";
 import { loadOrderWeek, type OrderWeek } from "@/lib/services/order-week.service";
 import { OrderWeekHub } from "@/components/dashboard/order-week/order-week-hub";
@@ -18,6 +19,7 @@ export type SubscriptionData = {
   order: OrderDetail;
   paymentReview: boolean;
   week: OrderWeek | null;
+  canEditDeliveryStatus: boolean;
 };
 
 export async function loadSubscription(
@@ -69,7 +71,8 @@ export async function loadSubscription(
       ? await loadOrderWeek(order.userId, subscription, weekParam)
       : null;
 
-  return { order, paymentReview, week };
+  const session = await getSession();
+  return { order, paymentReview, week, canEditDeliveryStatus: session?.user?.role === "admin" };
 }
 
 export function DeliveriesSection({ data }: { data: SubscriptionData }) {
@@ -82,7 +85,7 @@ export function DeliveriesSection({ data }: { data: SubscriptionData }) {
           same as the customer view.
         </p>
       ) : week ? (
-        <OrderWeekHub data={week} />
+        <OrderWeekHub data={week} canEditDeliveryStatus={data.canEditDeliveryStatus} />
       ) : (
         <p className="text-muted-foreground text-sm">
           This subscription is {order.status}, so there is no delivery schedule to manage.

@@ -11,6 +11,8 @@ import { Button } from "@foundry/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";
 import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { deliveryLine, eatingRowsInWeek, isAddressRow, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
@@ -33,7 +35,7 @@ const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" }
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
-export function OrderWeekHub({ data }: { data: OrderWeek }) {
+export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: OrderWeek; canEditDeliveryStatus?: boolean }) {
   const { plan, trips, agenda, weekStart, firstWeek, lastWeek, now } = data;
   const router = useRouter();
   const params = useSearchParams();
@@ -47,6 +49,7 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
   const rows = useMemo(() => eatingRowsInWeek(trips, weekStart, weekEnd), [trips, weekStart, weekEnd]);
   const row: EatingRow | null = (sel ? rows.find((r) => r.date === sel) ?? rows.find((r) => r.trip.date === sel) : null) ?? (sel ? null : [...rows].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
   const trip = row?.trip ?? null;
+  const editChoice = trip && canEditDeliveryStatus && trip.deliveryId ? statusChoice(trip, now) : null;
   const av = trip ? actionAvailability(trip, now, plan.ctx) : null;
   const tz = plan.ctx.timezone;
 
@@ -160,7 +163,11 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                 <CardTitle className="flex flex-wrap items-center gap-2" data-testid="delivery-block">
                   <Truck className="size-5" aria-hidden />
                   {deliveryLine(row)}
-                  <Badge variant="outline">{rowMeta(row).label}</Badge>
+                  {editChoice && trip.deliveryId ? (
+                    <DeliveryStatusSelect deliveryId={trip.deliveryId} value={editChoice} cutoffPassed={trip.cutoffAt <= now} onDone={done} />
+                  ) : (
+                    <Badge variant="outline">{rowMeta(row).label}</Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -197,7 +204,18 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
                   {x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : `with ${weekdayShort(x.deliveryDate)}, ${humanDate(x.deliveryDate)}`}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{x.truck ? x.units : ""}</TableCell>
-                <TableCell><Badge variant="outline">{x.moved ? "Moved" : dotStatus(x, now) === "delivered" ? "Delivered" : dotStatus(x, now) === "hold" ? "Not delivered" : dotStatus(x, now) === "vacation" ? "Vacation" : "Upcoming"}</Badge></TableCell>
+                <TableCell>
+                  <EatingDayStatus
+                    truck={x.truck}
+                    moved={!!x.moved}
+                    deliveryDate={x.deliveryDate}
+                    dot={dotStatus(x, now)}
+                    trips={trips}
+                    now={now}
+                    canEdit={canEditDeliveryStatus}
+                    onDone={done}
+                  />
+                </TableCell>
               </>
             )}
           />
@@ -224,6 +242,101 @@ export function OrderWeekHub({ data }: { data: OrderWeek }) {
 }
 
 const OPENS: Record<TripAction, Dlg> = { pick: "pick", move: "reschedule", address: "address", swap: "pick" };
+
+type StatusValue = "upcoming" | "delivered" | "not_delivered" | "paused";
+
+function statusChoice(trip: Trip, now: number): StatusValue | null {
+  if (!trip.deliveryId || trip.mergedInto) return null;
+  switch (trip.status) {
+    case "combined-into":
+    case "rescheduled":
+    case "locked":
+      return null;
+    case "vacation":
+      return "paused";
+    case "failed":
+      return "not_delivered";
+    case "delivered":
+    case "cutoff-passed":
+      return "delivered";
+    case "upcoming":
+      return trip.cutoffAt <= now ? "delivered" : "upcoming";
+    default: {
+      const unreachable: never = trip.status;
+      return unreachable;
+    }
+  }
+}
+
+function agendaLabel(dot: string, moved: boolean): string {
+  if (moved) return "Moved";
+  switch (dot) {
+    case "delivered": return "Delivered";
+    case "hold": return "Not delivered";
+    case "vacation": return "Vacation";
+    case "upcoming": return "Upcoming";
+    default: return "Upcoming";
+  }
+}
+
+function EatingDayStatus({
+  truck, moved, deliveryDate, dot, trips, now, canEdit, onDone,
+}: {
+  truck: boolean;
+  moved: boolean;
+  deliveryDate: string;
+  dot: string;
+  trips: Trip[];
+  now: number;
+  canEdit: boolean;
+  onDone: (message: string) => void;
+}) {
+  const tripRow = truck && !moved ? trips.find((t) => t.date === deliveryDate && t.deliveryId) : undefined;
+  const choice = tripRow ? statusChoice(tripRow, now) : null;
+  if (canEdit && tripRow?.deliveryId && choice) {
+    return (
+      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <DeliveryStatusSelect deliveryId={tripRow.deliveryId} value={choice} cutoffPassed={tripRow.cutoffAt <= now} onDone={onDone} />
+      </div>
+    );
+  }
+  return <Badge variant="outline">{agendaLabel(dot, moved)}</Badge>;
+}
+
+function DeliveryStatusSelect({
+  deliveryId, value, cutoffPassed, onDone,
+}: {
+  deliveryId: string;
+  value: StatusValue;
+  cutoffPassed: boolean;
+  onDone: (message: string) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <Select
+      value={value}
+      disabled={pending}
+      onValueChange={(next) => {
+        if (next === value || next === "paused") return;
+        startTransition(async () => {
+          const res = await setDeliveryStatusAction(deliveryId, next);
+          if ("error" in res) toast.error(res.error);
+          else onDone(res.message ?? "Delivery status updated");
+        });
+      }}
+    >
+      <SelectTrigger className="h-8 w-[10.5rem]" aria-label="Delivery status">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="upcoming" disabled={cutoffPassed}>Upcoming</SelectItem>
+        <SelectItem value="delivered">Delivered</SelectItem>
+        <SelectItem value="not_delivered">Not delivered</SelectItem>
+        {value === "paused" ? <SelectItem value="paused">Paused</SelectItem> : null}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function Actions({ model, onOpen }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void }) {
   if (model.rows.length === 0) return model.closedReason ? <p className="text-muted-foreground text-sm">{model.closedReason}</p> : null;
