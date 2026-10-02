@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities } from "@/db/schema";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
@@ -9,28 +9,29 @@ import { normalisePhone } from "./push";
 import { tripDetail } from "./trip-notes";
 
 // The half of the integration that turns a driver's real-world action into a real-world
-// tiffin count. Driven from OUR side (every scheduled delivery for the date), not
+// tiffin count. Driven from OUR side (scheduled and skipped deliveries for the date), not
 // OptimoRoute's — the account is shared with another business (see push.ts), so looping
 // over OptimoRoute's stops instead would mean wading through someone else's data to find
 // ours, and would have nothing to say about a delivery OptimoRoute has no stop for at all.
 //
-// Three outcomes per delivery, deliberately not treated the same:
+// Status changes come only from what OptimoRoute says. The selection cutoff is the evening
+// before the delivery; it locks customer changes and is not proof the driver has finished.
 //
-//   "success" only records confirmation — the cutoff-passed-and-still-scheduled default
-//   (lib/services/tiffin-counts.ts) already counts the delivery, and stays the source of
-//   truth for billing. A late/missing sync must never make an already-delivered tiffin
-//   look undelivered.
+//   "success" records confirmation. A skipped row is put back to scheduled, so a pull that
+//   ran before the driver closed the stop can be repaired. A day whose tiffins were already
+//   moved stays skipped — restoring it would count those tiffins twice.
 //
-//   "failed", or still not "success" once the cutoff has passed (a driver never got to it, or
-//   never closed it out) — skipDelivery() marks the row not delivered, so billing stops counting
-//   it. Nothing is re-delivered automatically: the customer or staff moves each tiffin to a new
-//   day with Move (see rescheduleDelivery). Before
-//   cutoff, "not success yet" just means the day isn't over — left alone, not a miss.
+//   "failed" marks a scheduled row not delivered via skipDelivery(). A row already skipped
+//   stays that way. Nothing is re-delivered automatically.
 //
-//   No matching OptimoRoute stop at all is NOT treated as a miss. That means the route was
-//   never pushed (or push/match failed) — an operational gap, not evidence food didn't go
-//   out. Auto-skipping on missing data would silently drop a real, delivered day
-//   any time staff forgot to click "Send stops". Reported separately so it gets investigated.
+//   Anything else (still open, or no completion data) leaves the row alone.
+//
+//   No matching OptimoRoute stop at all is not a miss. That means the route was never
+//   pushed (or push/match failed) — an operational gap, not evidence food didn't go out.
+//   Reported separately so it gets investigated.
+//
+// Paused and cancelled rows are not loaded. A hold or a voided day is not revived from a
+// route photo.
 //
 // Matching is phone-first, not orderNo-first, because today's real OptimoRoute account has
 // stops entered by the legacy spreadsheet process, keyed by customer name — not by anything
@@ -43,7 +44,7 @@ export type CompletionOutcome = {
   customerName: string;
   /** What OptimoRoute actually said — "success" | "failed" | "scheduled" (never attempted) | null (no data at all). */
   optimoStatus: string | null;
-  /** What we did about it — "confirmed" for a success, "skipped" for anything else after cutoff. */
+  /** What we did about it — "confirmed" for a success, "skipped" for an OptimoRoute failure. */
   action: "confirmed" | "skipped" | "skip_failed";
   skipError?: string;
   /** Tiffins on the stop and the days they cover, so a failed multi-day trip reads as such. */
@@ -62,8 +63,7 @@ export type PullCompletionsResult = {
   outcomes: CompletionOutcome[];
   /** One of our deliveries' phone matched more than one OptimoRoute stop for the date — never guessed. */
   ambiguous: CompletionAmbiguous[];
-  /** Matched a stop, but its cutoff hasn't passed yet and OptimoRoute hasn't confirmed success —
-   *  too early to call it a miss. Re-pull after cutoff. */
+  /** Matched a stop the driver has not closed. Left as it is. */
   pendingCount: number;
   /** No OptimoRoute stop found for this delivery at all — a push/sync gap, not a delivery
    *  outcome. Left untouched (falls back to the time-based default), listed by name so
@@ -71,11 +71,27 @@ export type PullCompletionsResult = {
   unmatched: { deliveryPublicId: string; customerName: string }[];
 };
 
+/** What this pull should do with one of our rows, given OptimoRoute's word for the matched stop. */
+export function completionAction(
+  row: { status: "scheduled" | "paused" | "skipped" | "cancelled"; optimoCompletionStatus: string | null },
+  optimoStatus: string | null,
+  moved: boolean,
+): "confirm" | "restore" | "skip" | "pending" | "leave" {
+  if (moved || row.status === "paused" || row.status === "cancelled") return "leave";
+  // A recorded success on a row that is still scheduled is final. A later pull that no
+  // longer sees "success" must not skip it and put the tiffin back.
+  if (row.status === "scheduled" && row.optimoCompletionStatus === "success") return "leave";
+  if (optimoStatus === "success") return row.status === "skipped" ? "restore" : "confirm";
+  if (optimoStatus === "failed") return row.status === "scheduled" ? "skip" : "leave";
+  return "pending";
+}
+
 export async function pullCompletions(
   date: string,
   actorId: bigint | null = null,
 ): Promise<PullCompletionsResult> {
-  const rows = await loadDayDeliveries(date);
+  const rows = await loadDayDeliveries(date, ["scheduled", "skipped"]);
+  const movedIds = await movedSourceIds(rows.map((row) => row.delivery.id));
 
   const routes = await getRoutes(date);
   const stops = routes.flatMap((r) => r.stops ?? []).filter((s) => s.id && s.orderNo && s.orderNo !== "-");
@@ -119,38 +135,32 @@ export async function pullCompletions(
       }
     }
 
-    // A success already on the row — from an earlier pull, or an admin marking the day
-    // delivered — is final. A later pull that no longer sees "success" must not skip it
-    // and put the tiffin back. Admin "not delivered" is a skipped row, which this loop
-    // never loads, so that correction sticks too.
-    if (row.delivery.optimoCompletionStatus === "success") continue;
-
     const completion = completions.get(stop.id!);
     const optimoStatus = completion?.status ?? null;
-    const isSuccess = optimoStatus === "success";
     const trip = tripDetail(row);
-    const cutoffPassed = row.delivery.cutoffAt <= now;
+    const moved = tiffinsMoved(row, movedIds);
+    const action = completionAction(row.delivery, optimoStatus, moved);
 
-    if (!isSuccess && !cutoffPassed) {
-      // Not confirmed yet, but the day isn't over — could still happen. Not a miss.
+    if (action === "pending") {
       pendingCount += 1;
       continue;
     }
+    if (action === "leave") continue;
 
     const completedAtMs = completion?.endTime?.unixTimestamp ? completion.endTime.unixTimestamp * 1000 : now;
-    const note = isSuccess ? null : (completion?.form?.note?.trim() || null);
+    const note = optimoStatus === "success" ? null : (completion?.form?.note?.trim() || null);
 
-    await db.update(deliveries).set({
-      optimoCompletionStatus: optimoStatus,
-      optimoCompletedAt: completedAtMs,
-      optimoCompletionNote: note,
-    }).where(eq(deliveries.id, row.delivery.id));
-
-    if (isSuccess) {
+    if (action === "confirm" || action === "restore") {
+      await db.update(deliveries).set({
+        ...(action === "restore" ? { status: "scheduled" as const } : {}),
+        optimoCompletionStatus: "success",
+        optimoCompletedAt: completedAtMs,
+        optimoCompletionNote: null,
+      }).where(eq(deliveries.id, row.delivery.id));
       await db.insert(orderActivities).values({
         orderId: row.order.id,
         deliveryId: row.delivery.id,
-        type: "route_completed",
+        type: action === "restore" ? "unskipped" : "route_completed",
         note: "Confirmed delivered via OptimoRoute",
         createdBy: actorId,
       });
@@ -165,31 +175,27 @@ export async function pullCompletions(
       continue;
     }
 
-    // Cutoff has passed and OptimoRoute never confirmed success — explicit failure or a
-    // stop that just never got closed out; either way, no tiffin went out.
     let skipError: string | undefined;
     let skipped = false;
     try {
-      // skipDelivery()'s cutoff lock exists to stop a customer self-service-cancelling
-      // too late — it must not block this reconciliation, which by construction (the
-      // cutoffPassed gate above) only ever runs once that cutoff has already passed.
+      // skipDelivery's cutoff lock stops a customer changing a day too late. An explicit
+      // OptimoRoute failure is the dispatcher case, and it can arrive after that lock.
       await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
       skipped = true;
     } catch (e) {
-      // Already paused/cancelled/skipped by something else in the meantime — the
-      // completion is still recorded above, just nothing left to flip.
       skipError = e instanceof Error ? e.message : "Unknown error";
     }
 
-    const reason =
-      optimoStatus === "failed"
-        ? `OptimoRoute reported delivery failed${note ? `: ${note}` : ""}`
-        : "Cutoff passed with no delivery confirmation from OptimoRoute";
+    await db.update(deliveries).set({
+      optimoCompletionStatus: optimoStatus,
+      optimoCompletedAt: completedAtMs,
+      optimoCompletionNote: note,
+    }).where(eq(deliveries.id, row.delivery.id));
     await db.insert(orderActivities).values({
       orderId: row.order.id,
       deliveryId: row.delivery.id,
       type: "route_completed",
-      note: `${reason}${skipError ? ` (skip not applied: ${skipError})` : ""}`,
+      note: `OptimoRoute reported delivery failed${note ? `: ${note}` : ""}${skipError ? ` (skip not applied: ${skipError})` : ""}`,
       createdBy: actorId,
     });
 
@@ -206,4 +212,22 @@ export async function pullCompletions(
 
   if (outcomes.length) publishAnalyticsLive();
   return { date, outcomes, ambiguous, pendingCount, unmatched };
+}
+
+function tiffinsMoved(row: DayDeliveryRow, movedIds: Set<bigint>): boolean {
+  return row.delivery.mergedIntoDeliveryId != null || row.delivery.tiffinUnits === 0 || movedIds.has(row.delivery.id);
+}
+
+/** Source rows that already spawned a make-up. Restoring one would count its tiffins twice. */
+async function movedSourceIds(deliveryIds: bigint[]): Promise<Set<bigint>> {
+  if (deliveryIds.length === 0) return new Set();
+  const children = await db
+    .select({ sourceId: deliveries.makeupForDeliveryId })
+    .from(deliveries)
+    .where(inArray(deliveries.makeupForDeliveryId, deliveryIds));
+  const ids = new Set<bigint>();
+  for (const child of children) {
+    if (child.sourceId != null) ids.add(child.sourceId);
+  }
+  return ids;
 }
