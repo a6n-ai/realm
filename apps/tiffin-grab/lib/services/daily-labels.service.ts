@@ -38,6 +38,35 @@ export type LabelLine = {
   defaulted: boolean;
 };
 
+/** Words on the Deliveries section. Same words as the order page. */
+export type LabelDeliveryStatus = "To be delivered" | "Delivered" | "Not delivered" | "Paused" | "Cancelled";
+
+/**
+ * Scheduled and still before cutoff, with no driver confirmation, is waiting to go out.
+ * After cutoff — or once OptimoRoute says success — the row counts as delivered while it
+ * stays scheduled. Skipped, paused, and cancelled keep their own words.
+ */
+export function labelDeliveryStatus(
+  row: { status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; optimoCompletionStatus: string | null },
+  now: number,
+): LabelDeliveryStatus {
+  switch (row.status) {
+    case "paused":
+      return "Paused";
+    case "skipped":
+      return "Not delivered";
+    case "cancelled":
+      return "Cancelled";
+    case "scheduled":
+      if (row.optimoCompletionStatus === "success" || row.cutoffAt <= now) return "Delivered";
+      return "To be delivered";
+    default: {
+      const unreachable: never = row.status;
+      return unreachable;
+    }
+  }
+}
+
 export type DeliveryLabel = {
   deliveryPublicId: string;
   orderPublicId: string;
@@ -126,7 +155,24 @@ export function driverNote(dropOff: string | null, instructions: string | null |
  * released, and route planning must not silently return nothing because the kitchen has
  * not published the week yet.
  */
-export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow[]> {
+const SCHEDULED_ONLY = ["scheduled"] as const;
+/** The status section keeps a past day visible. The packing sheet stays scheduled-only. */
+const STATUS_DAY_STATUSES = ["scheduled", "paused", "skipped", "cancelled"] as const;
+
+export type DayDeliveryStatusRow = {
+  deliveryPublicId: string;
+  customerName: string;
+  orderId: string;
+  planName: string;
+  mealSizeName: string;
+  tiffinUnits: number;
+  status: LabelDeliveryStatus;
+};
+
+export async function loadDayDeliveries(
+  dateIso: string,
+  statuses: readonly ("scheduled" | "paused" | "skipped" | "cancelled")[] = SCHEDULED_ONLY,
+): Promise<DayDeliveryRow[]> {
   const rows = await db
     .select({
       delivery: deliveries,
@@ -144,7 +190,7 @@ export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow
     .where(
       and(
         eq(deliveries.deliveryDate, dateIso),
-        eq(deliveries.status, "scheduled"),
+        inArray(deliveries.status, [...statuses]),
         fulfillmentReadyOrder(),
       ),
     )
@@ -153,6 +199,23 @@ export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow
   const addresses = rows.map((r) => effectiveAddress(r.delivery, r.order));
   const dropOffs = await dropOffTexts(addresses.map((a) => ({ tagId: a.deliveryTagId, strategyIds: a.deliveryStrategyIds })));
   return rows.map((r, i) => ({ ...r, dropOff: dropOffs[i]!, driverNote: driverNote(dropOffs[i]!, addresses[i]!.deliveryInstructions) }));
+}
+
+/** Every delivery for the date, including ones the packing sheet leaves out once the day has passed. */
+export async function listDayDeliveryStatuses(dateIso: string): Promise<DayDeliveryStatusRow[]> {
+  const now = Date.now();
+  const rows = await loadDayDeliveries(dateIso, STATUS_DAY_STATUSES);
+  return rows
+    .map((row) => ({
+      deliveryPublicId: row.delivery.publicId,
+      customerName: effectiveAddress(row.delivery, row.order).fullName,
+      orderId: row.order.deploymentId,
+      planName: row.planName,
+      mealSizeName: row.mealSizeName,
+      tiffinUnits: row.delivery.tiffinUnits,
+      status: labelDeliveryStatus(row.delivery, now),
+    }))
+    .sort((a, b) => a.customerName.localeCompare(b.customerName) || a.orderId.localeCompare(b.orderId));
 }
 
 export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet> {
