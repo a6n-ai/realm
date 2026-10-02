@@ -33,7 +33,7 @@ export function OrderPricingBreakdown({ result, currency }: { result: PricingRes
       </ul>
       <Separator className="my-3" />
       <div className="text-muted-foreground flex justify-between gap-2">
-        <span>{result.tiffinCount} tiffins × {fmt(result.perTiffinPrice, currency)}</span>
+        <span>Subtotal</span>
         <span className="tabular-nums">{fmt(result.subtotal, currency)}</span>
       </div>
       <div className="mt-2 flex items-baseline justify-between gap-2 font-semibold">
