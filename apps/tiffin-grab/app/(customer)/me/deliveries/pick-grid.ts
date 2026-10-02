@@ -17,6 +17,7 @@ import { loadCompositionContext } from "@/lib/services/swap-options.service";
 import type { TuCategory } from "@/lib/menu/format-tu";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
+import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
 import { AppError } from "@foundry/commons";
 
 export type PickGrid = {
@@ -88,14 +89,17 @@ export async function loadPickGrid(
     };
 
     // Natural portions from meal_size_items × category TU (formatTuHuman) — never hardcoded.
-    const [items, planCats] = await Promise.all([
+    const [sizeItems, addonItems, planCats] = await Promise.all([
       db
         .select({ category: mealSizeItems.category, tuAmount: mealSizeItems.tuAmount, sortOrder: mealSizeItems.sortOrder })
         .from(mealSizeItems)
         .where(eq(mealSizeItems.mealSizeId, row.mealSizeId))
         .orderBy(asc(mealSizeItems.sortOrder)),
+      addonItemsForOrder(row.id),
       dishCategoriesService.forPlan(row.planId),
     ]);
+    // Add-on rows (extra sabzi, roti…) get their own picks and portions, after the meal's rows.
+    const items = [...sizeItems, ...addonItems];
     const tuByKey = new Map<string, TuCategory>();
     for (const c of planCats) {
       tuByKey.set(c.key, {

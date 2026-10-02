@@ -545,11 +545,10 @@ export function OrderForm({
           {eligibleAddons.length > 0 && (
             <fieldset className="space-y-3" disabled={submitting}>
               <legend className="mb-1 text-sm font-medium text-foreground">Add-ons</legend>
-              <p className="text-muted-foreground text-xs">Billed per week of the plan. Optional.</p>
+              <p className="text-muted-foreground text-xs">Optional. Each one is added to every tiffin and billed per tiffin.</p>
               <ul className="divide-y rounded-lg border">
                 {eligibleAddons.map((addon) => {
                   const qty = qtyFor(addon.key);
-                  const weeks = Number(durationWeeks) || 1;
                   return (
                     <li
                       key={addon.key}
@@ -558,8 +557,7 @@ export function OrderForm({
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{addon.name}</p>
                         <p className="text-muted-foreground nums text-xs">
-                          ${addon.pricePerWeek.toFixed(2)}/wk each
-                          {qty > 0 && <> · <span className="text-foreground">${round2(addon.pricePerWeek * qty * weeks).toFixed(2)}</span> for {weeks} wk</>}
+                          ${addon.pricePerTiffin.toFixed(2)} per tiffin each{qty > 0 && <> · {qty} in every tiffin</>}
                         </p>
                       </div>
                       {qty > 0 ? (

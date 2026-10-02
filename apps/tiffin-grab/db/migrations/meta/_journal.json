@@ -64,6 +64,20 @@
       "when": 1790887754145,
       "tag": "0008_hesitant_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790893801241,
+      "tag": "0009_broken_spiral",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790893810468,
+      "tag": "0010_addon_price_per_tiffin",
+      "breakpoints": true
     }
   ]
 }

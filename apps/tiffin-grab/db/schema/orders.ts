@@ -151,7 +151,11 @@ export const orderAddons = pgTable("order_addons", {
   // showing what was actually sold even if the addon is later renamed/retired.
   addonKey: text("addon_key").notNull(),
   addonName: text("addon_name").notNull(),
-  pricePerWeek: numeric("price_per_week", { precision: 10, scale: 2 }).notNull(),
+  // Dish-category key and per-row TU at order time: each qty adds one such row to every
+  // tiffin (picks, kitchen, labels), never to swaps.
+  category: text("category").notNull(),
+  tuAmount: numeric("tu_amount", { precision: 6, scale: 2 }).notNull(),
+  pricePerTiffin: numeric("price_per_tiffin", { precision: 10, scale: 2 }).notNull(),
   qty: integer("qty").notNull().default(1),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   // Client-scoping — see orders.organizationId for the pattern.

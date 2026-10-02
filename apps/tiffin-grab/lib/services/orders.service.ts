@@ -34,6 +34,7 @@ import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/lib/catalog/load";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
+import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
 import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
@@ -623,7 +624,8 @@ export async function createOrder(
         frequencyId: frequency.id,
         persons: input.selections.persons,
         mealSlots,
-        categoryCounts,
+        // Add-on rows ride in every tiffin, so picks and kitchen counts include them.
+        categoryCounts: countsWithAddons(categoryCounts, pricingCatalog.addons),
         eatingDays: input.selections.eatingDays ?? null,
         // Legacy readers (meal grids, posters) still key off these flags, so mirror the eating days.
         includeSaturday: input.selections.eatingDays ? input.selections.eatingDays.includes("sat") : input.selections.includeSaturday,
@@ -663,17 +665,7 @@ export async function createOrder(
     // already the buildPricingCatalog-validated (eligible, priced, qty-clamped)
     // resolution of input.selections.addonSelections, so no re-validation needed here.
     if (pricingCatalog.addons.length) {
-      await tx.insert(orderAddons).values(
-        pricingCatalog.addons.map((addon) => ({
-          orderId: order.id,
-          addonKey: addon.key,
-          addonName: addon.name,
-          pricePerWeek: addon.pricePerWeek.toFixed(2),
-          qty: addon.qty,
-          amount: (Math.round((addon.pricePerWeek * addon.qty * input.selections.durationWeeks + Number.EPSILON) * 100) / 100).toFixed(2),
-          organizationId,
-        })),
-      );
+      await tx.insert(orderAddons).values(orderAddonValues(order.id, pricingCatalog.addons, pricing.tiffinCount, organizationId));
     }
 
     // Start immediately: in-zone orders materialize deliveries now, even when
@@ -1797,9 +1789,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // Out of scope on purpose: coupons/coins are not re-resolved (adjustments: []
   // below) — a plan change is a catalog correction, not a new checkout, so any
   // discount the customer originally had is dropped rather than guessed at.
-  // Existing orderAddons rows are left untouched; they may no longer be
-  // eligible for the new meal size's categories, which is a known limitation
-  // an admin reviewing the change should check.
+  // Add-ons carry over, repriced; the change is refused if the new size can't offer one.
   async changeMealSize(publicId: string, mealSizePublicId: string): Promise<void> {
     const order = await this.read(publicId);
     if (order.status === "cancelled" || order.status === "completed") {
@@ -1866,6 +1856,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       // Keep the order's drop-off surcharges. One retired, or re-tagged / re-connected since
       // checkout so it no longer fits with the rest, is dropped rather than failing the change.
       deliveryStrategyIds: stillValidPicks(pricingSnapshot, order.deliveryStrategyIds),
+      // Carried over and repriced; buildPricingCatalog refuses one the new size can't offer.
+      addonSelections: await db.select({ key: orderAddons.addonKey, qty: orderAddons.qty }).from(orderAddons).where(eq(orderAddons.orderId, order.id)),
     };
     const pricingCatalog = buildPricingCatalog(pricingSnapshot, selections);
     const pricing = priceSubscription(selections, pricingCatalog, [], taxes);
@@ -1881,7 +1873,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .set({
           planId: mealSize.planId,
           mealSizeId: mealSize.id,
-          categoryCounts,
+          categoryCounts: countsWithAddons(categoryCounts, pricingCatalog.addons),
           mealSlots,
           tiffinCount: pricing.tiffinCount,
           perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
@@ -1892,6 +1884,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .where(eq(orders.publicId, publicId))
         .returning();
       if (!row) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.delete(orderAddons).where(eq(orderAddons.orderId, row.id));
+      if (pricingCatalog.addons.length) {
+        await tx.insert(orderAddons).values(orderAddonValues(row.id, pricingCatalog.addons, pricing.tiffinCount, row.organizationId));
+      }
       await tx.insert(orderActivities).values({
         orderId: row.id,
         type: "note",

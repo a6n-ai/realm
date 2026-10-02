@@ -32,11 +32,11 @@ export interface PricingSelections {
 export interface PricingCatalog {
   mealSize: { id: string; basePrice: number };
   frequency: { key: string; daysPerWeek: number };
-  // Resolved rate+qty for each of selections.addonSelections, priced per delivery
-  // week — buildPricingCatalog rejects any key not attached to the chosen meal
+  // Resolved rate+qty for each of selections.addonSelections, priced per tiffin
+  // — buildPricingCatalog rejects any key not attached to the chosen meal
   // size's categories and clamps qty to the addon's maxQty, so by the time this
   // reaches the engine every entry is billable as-is.
-  addons: { key: string; name: string; pricePerWeek: number; qty: number }[];
+  addons: { key: string; name: string; category: string; tuAmount: number; pricePerTiffin: number; qty: number }[];
   // Already filtered to those applicable to the selections; engine sums, caps, prints.
   discounts?: { key: string; label: string; percent: number }[];
   maxDiscountPct?: number;

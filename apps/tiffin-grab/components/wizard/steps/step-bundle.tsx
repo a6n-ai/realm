@@ -98,7 +98,7 @@ export function StepBundle({
                 >
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">{addon.name}</span>
-                    <span className="nums text-muted-foreground text-xs">${addon.pricePerWeek.toFixed(2)}/wk each</span>
+                    <span className="nums text-muted-foreground text-xs">${addon.pricePerTiffin.toFixed(2)} per tiffin</span>
                   </div>
                   {active ? (
                     <Stepper label={addon.name} value={qty} min={0} max={addon.maxQty} onChange={(n) => setQty(addon.key, n)} />

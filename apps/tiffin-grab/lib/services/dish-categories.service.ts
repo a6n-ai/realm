@@ -7,6 +7,7 @@ import { disabledCategoryMessage } from "@/lib/menu/admin-config-guards";
 import { swapPairFits, type ExchangeOverride, type SwapCategory } from "@/lib/menu/swap-rules";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
+import type { CatalogAddon } from "@/lib/catalog/types";
 
 // A slot shared by several plans joins once per plan; callers want it once.
 function dedupeByKey<T extends { key: string }>(rows: T[]): T[] {
@@ -120,16 +121,16 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * loadCatalogSnapshot embeds so the wizard, the admin order form and pricing
    * resolve eligibility from one cached snapshot.
    */
-  async addonsByDishCategory(): Promise<Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>> {
+  async addonsByDishCategory(): Promise<Map<string, CatalogAddon[]>> {
     const rows = await db
-      .select({ categoryKey: addons.category, addonKey: addons.key, addonName: addons.name, pricePerWeek: addons.pricePerWeek, maxQty: addons.maxQty })
+      .select({ categoryKey: addons.category, addonKey: addons.key, addonName: addons.name, tuAmount: addons.tuAmount, pricePerTiffin: addons.pricePerTiffin, maxQty: addons.maxQty })
       .from(addons)
       .where(eq(addons.active, true))
       .orderBy(asc(addons.name));
-    const out = new Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>();
+    const out = new Map<string, CatalogAddon[]>();
     for (const r of rows) {
       const bucket = out.get(r.categoryKey) ?? [];
-      bucket.push({ key: r.addonKey, name: r.addonName, pricePerWeek: Number(r.pricePerWeek), maxQty: r.maxQty });
+      bucket.push({ key: r.addonKey, name: r.addonName, category: r.categoryKey, tuAmount: Number(r.tuAmount), pricePerTiffin: Number(r.pricePerTiffin), maxQty: r.maxQty });
       out.set(r.categoryKey, bucket);
     }
     return out;
