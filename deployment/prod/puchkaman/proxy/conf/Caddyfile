@@ -15,6 +15,25 @@ www.puchkaman.ca {
 puchkaman.ca {
 	encode zstd gzip
 
+	# Request timing for sizing Neon (how many 5-min windows see traffic), shipped
+	# to CloudWatch (/puchkaman/prod, stream caddy). Query strings carry magic-link and
+	# payment-link tokens, so they are cut; headers and client IPs are dropped.
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp \?.* ""
+				request>headers delete
+				request>remote_ip delete
+				request>remote_port delete
+				request>client_ip delete
+				request>tls delete
+				resp_headers delete
+			}
+		}
+	}
+
 	# X-Real-IP is OVERWRITTEN (not appended) with the real socket peer, so a
 	# client cannot choose it. better-auth trusts only this header for rate
 	# limiting, and /api/checkout/pay forwards it to Clover for fraud scoring.
