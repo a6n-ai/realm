@@ -147,35 +147,45 @@ function Note({ children }: { children: ReactNode }) {
 /** Bulletproof pill button: a padded table cell renders in Outlook too. */
 function Cta({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <table role="presentation" cellPadding={0} cellSpacing={0} style={{ margin: "8px 0 4px" }}>
-      <tbody>
-        <tr>
-          <td
-            style={{
-              backgroundColor: C.saffron,
-              borderRadius: "9999px",
-              boxShadow: "0 12px 30px -8px rgba(240,107,26,0.7)",
-            }}
-          >
-            <Link
-              href={href}
+    <>
+      <table role="presentation" cellPadding={0} cellSpacing={0} style={{ margin: "8px 0 4px" }}>
+        <tbody>
+          <tr>
+            <td
               style={{
-                display: "inline-block",
-                padding: "15px 28px",
-                fontSize: "16px",
-                lineHeight: "22px",
-                fontWeight: 600,
-                color: "#FFFFFF",
-                textDecoration: "none",
+                backgroundColor: C.saffron,
                 borderRadius: "9999px",
+                boxShadow: "0 12px 30px -8px rgba(240,107,26,0.7)",
               }}
             >
-              {children}
-            </Link>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+              <Link
+                href={href}
+                style={{
+                  display: "inline-block",
+                  padding: "15px 28px",
+                  fontSize: "16px",
+                  lineHeight: "22px",
+                  fontWeight: 600,
+                  color: "#FFFFFF",
+                  textDecoration: "none",
+                  borderRadius: "9999px",
+                }}
+              >
+                {children}
+              </Link>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      {/* Some in-app mail browsers swallow the redirect; the raw link can be copied instead. */}
+      <Text style={{ margin: "12px 0 0", fontSize: "12px", lineHeight: "18px", color: C.muted }}>
+        Button not working? Copy this link into your browser:
+        <br />
+        <Link href={href} style={{ color: C.muted, wordBreak: "break-all" as const, userSelect: "all" as const }}>
+          {href}
+        </Link>
+      </Text>
+    </>
   );
 }
 
@@ -191,10 +201,18 @@ function Code({ value }: { value: string }) {
           letterSpacing: "0.3em",
           color: C.ink,
           fontVariantNumeric: "tabular-nums",
+          userSelect: "all",
+          WebkitUserSelect: "all",
         }}
       >
         {value}
       </Text>
+      <Link
+        href={`${BASE}/code#${value}`}
+        style={{ display: "inline-block", marginTop: "10px", fontSize: "14px", fontWeight: 600, color: C.saffron, textDecoration: "none" }}
+      >
+        Copy code
+      </Link>
     </Section>
   );
 }
