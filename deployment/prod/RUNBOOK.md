@@ -185,6 +185,8 @@ Essentials (see `.env.production.example` for the full list):
 /tiffin-grab/prod/CRON_SECRET          openssl rand -hex 32
 /tiffin-grab/prod/AWS_REGION           us-east-1
 /tiffin-grab/prod/NOTIFY_FROM_NAME     Tiffin Grab         # spaces fine, no quoting needed
+/tiffin-grab/prod/NOTIFY_FROM_EMAIL    <transactional sender>   # orders, OTP, reminders
+/tiffin-grab/prod/CAMPAIGN_FROM_EMAIL  <marketing sender>       # campaigns + kind=marketing events
 /tiffin-grab/prod/FILES_S3_BUCKET      tiffin-grab-files-<acct>-us-east-1-an
 /tiffin-grab/prod/FILES_S3_REGION      us-east-1
 ```

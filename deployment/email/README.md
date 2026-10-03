@@ -116,3 +116,19 @@ or SNS can't auto-confirm it:
    `complaint@simulator.amazonses.com` (SES mailbox simulator — works even in the
    sandbox). Each should flip `notification_prefs.suppressed=true` for a matching
    user (create test users with those addresses first).
+
+## Transactional sender on `notify.tiffingrab.ca`
+
+Transactional mail (OTP, orders, reminders) leaves from `hi@notify.tiffingrab.ca`
+so complaints about marketing (still `info@tiffingrab.ca`) don't sink it. The
+subdomain is its own SES identity, so it builds separate DKIM reputation.
+
+1. Identity: same template, stack `tiffin-grab-ses-notify`,
+   `--parameter-overrides DomainName=notify.tiffingrab.ca` (MAIL FROM
+   `mail.notify.tiffingrab.ca`).
+2. DNS: add its 3 DKIM CNAMEs plus the MAIL FROM MX/TXT to
+   `deployment/dns/route53-tiffingrab.yaml` and redeploy `tiffin-grab-dns`.
+3. IAM: the instance role's inline `ses-send` policy must list
+   `identity/notify.tiffingrab.ca` next to `identity/tiffingrab.ca`.
+4. SSM: set `CAMPAIGN_FROM_EMAIL=info@tiffingrab.ca` **first**, then
+   `NOTIFY_FROM_EMAIL=hi@notify.tiffingrab.ca`, then redeploy.

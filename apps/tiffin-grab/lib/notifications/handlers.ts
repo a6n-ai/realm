@@ -16,6 +16,7 @@ function emailChannelProvider(): ChannelProvider {
     send: (msg) =>
       provider.send({
         to: { email: msg.to.email! },
+        from: msg.from,
         subject: msg.subject!,
         html: msg.html,
         text: msg.text,
