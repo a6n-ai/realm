@@ -14,6 +14,7 @@ import { maxQtyBySlot } from "@/lib/menu/category-hint";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder, MenuBuilderSkeleton } from "../menu-builder";
+import { MenuReminderButton } from "./menu-reminder-button";
 import type { Slot } from "../menu-grid";
 
 type Params = Promise<{ week: string }>;
@@ -122,7 +123,10 @@ async function WeekData({ params }: { params: Params }) {
   );
 
   return (
-    <SectionCard title={weekRange(week.weekStart)}>
+    <SectionCard
+      title={weekRange(week.weekStart)}
+      action={week.status === "released" ? <MenuReminderButton weekId={week.id} /> : undefined}
+    >
       {activeDishes.length === 0 && (
         <p className="mb-3 text-sm text-muted-foreground">
           No active dishes yet — add dishes in the Catalog before building a menu.

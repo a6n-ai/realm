@@ -1,11 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
-import { LinkIcon, SendHorizonal } from "lucide-react";
+import { CalendarCheck, LinkIcon, SendHorizonal } from "lucide-react";
 import { toast } from "sonner";
 import { RowActionButton, RowActions } from "@/components/ds";
 import { promptReloadIfStale } from "@/components/stale-deploy-reloader";
-import { copyCustomerInviteLink, resendCustomerInvite } from "./actions";
+import { copyCustomerInviteLink, resendCustomerInvite, sendCustomerMenuReminder } from "./actions";
 
 /** Email the welcome sign-in link, or copy that same link to share over WhatsApp. */
 export function useCustomerInvite(email: string | null) {
@@ -48,15 +48,50 @@ export function useCustomerInvite(email: string | null) {
   return { send, copy, pending };
 }
 
-// Hidden once they've used the account (verified email).
-export function CustomerInviteCell({ email, joined }: { email: string | null; joined: boolean }) {
+function MenuReminderButton({ publicId }: { publicId: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <RowActionButton
+      icon={CalendarCheck}
+      label="Send menu reminder"
+      onClick={() => {
+        if (pending) return;
+        start(async () => {
+          const r = await sendCustomerMenuReminder(publicId).catch((e: unknown) => {
+            if (!promptReloadIfStale(e)) toast.error("Could not send the reminder.");
+            return null;
+          });
+          if (!r) return;
+          if ("error" in r) toast.error(r.error);
+          else if (r.queued === 0) toast.warning("Not sent", { description: "This address is unsubscribed or bouncing." });
+          else toast.success("Menu reminder sent", { description: "They'll get a link to pick this week's meals." });
+        });
+      }}
+    />
+  );
+}
+
+// Invite actions hide once they've used the account (verified email). The menu
+// reminder shows only for a running plan — nobody else has meals to pick.
+export function CustomerInviteCell({
+  publicId,
+  email,
+  joined,
+  hasActivePlan,
+}: {
+  publicId: string;
+  email: string | null;
+  joined: boolean;
+  hasActivePlan: boolean;
+}) {
   const { send, copy } = useCustomerInvite(email);
   if (!email) return <span className="text-muted-foreground">—</span>;
-  if (joined) return <span className="text-muted-foreground text-xs">Joined</span>;
+  if (joined && !hasActivePlan) return <span className="text-muted-foreground text-xs">Joined</span>;
   return (
     <RowActions>
-      <RowActionButton icon={SendHorizonal} label="Email invite" onClick={send} />
-      <RowActionButton icon={LinkIcon} label="Copy invite link" onClick={copy} />
+      {hasActivePlan && <MenuReminderButton publicId={publicId} />}
+      {!joined && <RowActionButton icon={SendHorizonal} label="Email invite" onClick={send} />}
+      {!joined && <RowActionButton icon={LinkIcon} label="Copy invite link" onClick={copy} />}
     </RowActions>
   );
 }

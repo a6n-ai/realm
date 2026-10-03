@@ -6,6 +6,8 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { createCustomer, customerInviteUrl, sendCustomerInvite } from "@/lib/services/customers.service";
+import { sendMenuReminderToCustomer } from "@/lib/notifications/menu-reminder";
+import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 
 const log = createLogger("customers-actions");
 
@@ -63,4 +65,12 @@ export async function resendCustomerInvite(email: string): Promise<void> {
 export async function copyCustomerInviteLink(email: string): Promise<string> {
   await requireStaff();
   return customerInviteUrl(email);
+}
+
+/** Latest released week's menu reminder to one customer (Customers list row action). */
+export async function sendCustomerMenuReminder(customerPublicId: string): Promise<ActionResult<{ queued: number }>> {
+  return runAction(async () => {
+    await requireStaff();
+    return sendMenuReminderToCustomer(customerPublicId);
+  });
 }

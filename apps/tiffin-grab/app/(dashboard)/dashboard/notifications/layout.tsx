@@ -17,6 +17,7 @@ export default async function NotificationsLayout({ children }: { children: Reac
         tabs={[
           { href: "/dashboard/notifications/templates", label: "Templates" },
           { href: "/dashboard/notifications/campaigns", label: "Campaigns" },
+          { href: "/dashboard/notifications/system", label: "System" },
           { href: "/dashboard/notifications/contact-lists", label: "Contact lists" },
           { href: "/dashboard/notifications/logs", label: "Logs" },
           { href: "/dashboard/notifications/analytics", label: "Analytics" },

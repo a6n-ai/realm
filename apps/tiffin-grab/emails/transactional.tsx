@@ -145,10 +145,26 @@ function Note({ children }: { children: ReactNode }) {
 }
 
 /** Bulletproof pill button: a padded table cell renders in Outlook too. */
-function Cta({ href, children, fallback = true }: { href: string; children: ReactNode; fallback?: boolean }) {
+function Cta({
+  href,
+  children,
+  fallback = true,
+  center = false,
+}: {
+  href: string;
+  children: ReactNode;
+  fallback?: boolean;
+  center?: boolean;
+}) {
   return (
     <>
-      <table role="presentation" cellPadding={0} cellSpacing={0} style={{ margin: "8px 0 4px" }}>
+      <table
+        role="presentation"
+        cellPadding={0}
+        cellSpacing={0}
+        align={center ? "center" : undefined}
+        style={{ margin: center ? "8px auto 4px" : "8px 0 4px" }}
+      >
         <tbody>
           <tr>
             <td
@@ -213,7 +229,7 @@ function Code({ value }: { value: string }) {
       </Section>
       {/* Email can't copy to the clipboard; /magic-link shows the code with a real Copy button.
           The link carries the code sealed (lib/auth/magic-code.ts), never the code itself. */}
-      <Cta href={`${BASE}/magic-link?t={{magicToken}}`} fallback={false}>
+      <Cta href={`${BASE}/magic-link?t={{magicToken}}`} fallback={false} center>
         Copy code
       </Cta>
     </>

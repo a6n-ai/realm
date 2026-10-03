@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { menuService, type DraftMenuItem } from "@/lib/services/menu.service";
 import { dishesService } from "@/lib/services/dishes.service";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import { sendMenuReminderForWeek } from "@/lib/notifications/menu-reminder";
 
 // Draft edits are invisible to the public site — only a release changes what is served.
 // Revalidating "/" and /menu/weekly on every add/remove was busting the marketing home
@@ -130,5 +131,13 @@ export async function releaseWeek(menuWeekId: string): Promise<ActionResult> {
     await requireAdmin();
     await menuService.release(menuWeekId);
     revalidatePublic();
+  });
+}
+
+/** Email every customer with a running plan that this week's menu is out. Once per customer per week. */
+export async function sendWeekMenuReminder(menuWeekId: string): Promise<ActionResult<{ queued: number }>> {
+  return runAction(async () => {
+    await requireAdmin();
+    return sendMenuReminderForWeek(menuWeekId);
   });
 }
