@@ -32,5 +32,5 @@ git -C ../../.. pull --ff-only
 docker compose pull
 docker compose --profile tools pull
 docker compose --profile tools run --rm migrate
-docker compose up -d
+docker compose up -d --remove-orphans
 docker image prune -af

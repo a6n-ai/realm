@@ -1,28 +1,16 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >-
-  Xplorers prod in ap-southeast-1 (Singapore): VPC + dedicated RDS + EC2 + EIP
+  Xplorers prod in ap-southeast-1 (Singapore): VPC + EC2 + EIP
   + IAM instance role + security group + Route 53 A record for xplorers.a6n.ai.
   Every billable resource is tagged client/app/env/project so Cost Explorer can
   invoice this client. Activate those tag keys in Billing → Cost allocation tags.
   tiffin-grab and puchkaman stay in us-east-1 — do not reuse that VPC.
 
-# Naming mirrors the other clients (realm-<app>-prod-*): RDS realm-xplorers-prod-db,
-# SG realm-xplorers-prod-sg (box + RDS share it, 5432 self-ref), IAM instance
-# profile realm-xplorers-prod-role, box Name=realm-xplorers-prod.
+# Naming mirrors the other clients (realm-<app>-prod-*): SG realm-xplorers-prod-sg,
+# IAM instance profile realm-xplorers-prod-role, box Name=realm-xplorers-prod.
+# The database is Neon, not RDS (RDS removed 2026-10-02; final snapshot kept).
 
 Parameters:
-  DbMasterPassword:
-    Type: String
-    NoEcho: true
-    MinLength: 16
-    Description: RDS master password (also stored in SSM by the operator, not here).
-  DbInstanceClass:
-    Type: String
-    Default: db.t4g.micro
-  DbEngineVersion:
-    Type: String
-    Default: "18.6"
-    Description: Latest PostgreSQL in ap-southeast-1 (do not pin an older minor like 17.4).
   InstanceType:
     Type: String
     Default: t2.micro
@@ -179,62 +167,6 @@ Resources:
           Value: prod
         - Key: project
           Value: realm
-  DbIngressSelf:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref AppSecurityGroup
-      IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
-      SourceSecurityGroupId: !Ref AppSecurityGroup
-
-  DbSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: Xplorers prod - two AZs required even for Single-AZ RDS.
-      SubnetIds: [!Ref PublicSubnetA, !Ref PublicSubnetB]
-      Tags:
-        - Key: Name
-          Value: realm-xplorers-prod-db-subnets
-        - Key: client
-          Value: !Ref ClientTag
-        - Key: app
-          Value: xplorers
-        - Key: env
-          Value: prod
-        - Key: project
-          Value: realm
-  Database:
-    Type: AWS::RDS::DBInstance
-    DeletionPolicy: Snapshot
-    Properties:
-      DBInstanceIdentifier: realm-xplorers-prod-db
-      Engine: postgres
-      EngineVersion: !Ref DbEngineVersion
-      DBName: xplorers
-      MasterUsername: xplorers
-      MasterUserPassword: !Ref DbMasterPassword
-      DBInstanceClass: !Ref DbInstanceClass
-      AllocatedStorage: "20"
-      StorageType: gp3
-      StorageEncrypted: true
-      MultiAZ: false
-      PubliclyAccessible: false
-      BackupRetentionPeriod: 7
-      CopyTagsToSnapshot: true
-      DBSubnetGroupName: !Ref DbSubnetGroup
-      VPCSecurityGroups: [!Ref AppSecurityGroup]
-      Tags:
-        - Key: Name
-          Value: realm-xplorers-prod-db
-        - Key: client
-          Value: !Ref ClientTag
-        - Key: app
-          Value: xplorers
-        - Key: env
-          Value: prod
-        - Key: project
-          Value: realm
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -326,7 +258,10 @@ Resources:
             - Key: project
               Value: realm
       LaunchTemplateData:
-        ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+        # Pinned to the AMI the live box launched from. A resolve:ssm "latest AMI"
+        # here changes the launch template on every stack update once AWS ships a
+        # new AMI, and that replaces the box. Bump deliberately, never implicitly.
+        ImageId: ami-01a09b6de1739f50a
         InstanceType: !Ref InstanceType
         IamInstanceProfile:
           Name: !Ref BoxInstanceProfile
@@ -442,15 +377,13 @@ Resources:
         - !Ref ElasticIp
 
 Outputs:
-  DbEndpoint:
-    Value: !GetAtt Database.Endpoint.Address
   PublicIp:
     Description: Elastic IP — xplorers.a6n.ai A record target.
     Value: !Ref ElasticIp
   InstanceId:
     Value: !Ref Box
   SecurityGroupId:
-    Description: Shared box + RDS security group (realm-xplorers-prod-sg).
+    Description: Box security group (realm-xplorers-prod-sg). Its description still says RDS - changing it replaces the SG.
     Value: !Ref AppSecurityGroup
   InstanceProfileName:
     Value: !Ref BoxInstanceProfile
