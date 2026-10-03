@@ -74,7 +74,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
               finish setting up your account and sign in.
             </p>
             <p className="text-muted-foreground text-sm">
-              Nothing yet? Check spam, or try signing in — we&apos;ll send a fresh link.
+              Nothing yet? Try signing in — we&apos;ll send a fresh link.
             </p>
             <Link href="/login" className="underline underline-offset-4">
               Go to sign in
@@ -90,7 +90,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8">
+            <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8">
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col items-center text-center">
                   <h1 className="text-2xl font-bold">Create your account</h1>

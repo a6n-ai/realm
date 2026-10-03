@@ -18,14 +18,17 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("AuthForm", () => {
-  it("defaults to email-OTP mode with no PIN toggle when canUsePin is false", () => {
+  it("opens on the welcome screen, and Sign in leads to the email-code form", () => {
     render(<AuthForm canUsePin={false} />);
+    expect(screen.getByRole("button", { name: /get started/i })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     expect(screen.getByRole("button", { name: /email me a code/i })).toBeDefined();
     expect(screen.queryByRole("button", { name: /unlock with your pin/i })).toBeNull();
   });
 
   it("switches to the password panel with an email field", () => {
     render(<AuthForm canUsePin={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     fireEvent.click(screen.getByRole("button", { name: /sign in with a password instead/i }));
     expect(document.querySelector('input[autocomplete="email"]')).not.toBeNull();
     expect(document.querySelector('input[autocomplete="current-password"]')).not.toBeNull();
@@ -40,6 +43,7 @@ describe("AuthForm", () => {
 
   it("accepts a 6-digit code typed into the segmented OTP field after requesting a code", async () => {
     render(<AuthForm canUsePin={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), { target: { value: "user@x.com" } });
     fireEvent.click(screen.getByRole("button", { name: /email me a code/i }));
     await waitFor(() => expect(screen.getByLabelText(/verification code/i)).toBeDefined());

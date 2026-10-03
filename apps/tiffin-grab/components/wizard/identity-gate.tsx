@@ -7,7 +7,7 @@ import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { checkExistingAccount, createCheckoutAccount } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
-import { CodeOtp } from "@foundry/auth-ui";
+import { CodeOtp, ResendCode } from "@foundry/auth-ui";
 import { emailDomainSuggestions } from "./email-domains";
 
 // Step zero of /subscribe for signed-out visitors, drawn in the wizard's own
@@ -43,7 +43,6 @@ export function IdentityGate() {
   const [isNew, setIsNew] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<{ field: "email" | "name" | "code" | "form"; message: string } | null>(null);
-  const [resent, setResent] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
 
   const suggestions = phase === "email" ? emailDomainSuggestions(email) : [];
@@ -55,7 +54,6 @@ export function IdentityGate() {
     setPhase("email");
     setCode("");
     setError(null);
-    setResent(false);
     requestAnimationFrame(() => emailRef.current?.focus());
   }
 
@@ -123,10 +121,11 @@ export function IdentityGate() {
     }
   }
 
+  // ResendCode treats a rejection as "send failed" and re-enables at once.
   async function resend() {
     setError(null);
     setCode("");
-    if (await sendCode(email)) setResent(true);
+    if (!(await sendCode(email))) throw new Error("send failed");
   }
 
   // Bottom-bar Back: on the email phase it leaves the flow; later phases step back to the email.
@@ -136,7 +135,7 @@ export function IdentityGate() {
   const cta = phase === "email" ? "Continue" : phase === "name" ? "Send my code" : "Verify and continue";
 
   return (
-    <form onSubmit={onSubmit} noValidate className="max-w-md pb-40 sm:pb-0">
+    <form method="post" onSubmit={onSubmit} noValidate className="max-w-md pb-40 sm:pb-0">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={phase} {...reveal} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
           <h2 className="c-h2">{phase === "otp" && !isNew ? "Welcome back." : COPY[phase].title}</h2>
@@ -217,14 +216,10 @@ export function IdentityGate() {
                 />
                 {error?.field === "code" ? (
                   <p role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">{error.message}</p>
-                ) : resent ? (
-                  <p role="status" className="c-caption">New code sent. It works for 10 minutes. Check spam if it isn&apos;t there.</p>
                 ) : (
-                  <p className="c-caption">It works for 10 minutes. Check spam if it isn&apos;t there.</p>
+                  <p className="c-caption">It works for 10 minutes.</p>
                 )}
-                <button type="button" onClick={resend} className="c-caption self-start py-1 font-semibold text-[var(--primary)] underline-offset-4 hover:underline">
-                  Resend code
-                </button>
+                <ResendCode onResend={resend} className="items-start" />
               </div>
             </Reveal>
           ) : null}

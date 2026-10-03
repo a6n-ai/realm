@@ -37,6 +37,7 @@ vi.mock("@foundry/auth-ui", () => ({
       }}
     />
   ),
+  ResendCode: () => null,
 }));
 
 import { IdentityGate } from "../identity-gate";

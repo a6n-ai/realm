@@ -11,64 +11,84 @@ import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
-import { CodeOtp } from "@foundry/auth-ui";
+import { AuthScreen, AuthWelcome, EmailCodeSignIn } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
-import { Card, CardContent } from "@foundry/ui/card";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
 import { verifyPinAction } from "./actions";
-import { AuthBrandPanel } from "../auth-brand-panel";
+import { BrandMark, BrandWordmark } from "@/components/brand-logo";
+import { IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";
 
 // Login is the shared gateway into both the customer and staff shells, so it
-// stays on the same iOS-sized control convention (IOS_BUTTON/IOS_PRESS, 50px
-// targets, 14px corners) the rest of the customer app already uses — see
-// components/customer/ios-button.ts. Staff surfaces keep bare shadcn defaults;
-// this screen is the one place both audiences share, so it follows the
-// customer app's own design system rather than either extreme.
-const IOS_INPUT = "!h-[50px] !rounded-[14px] !px-4 !text-[17px] tracking-[-0.011em]";
-
-// Single auth screen. Password by default; when a locked session with a PIN
-// exists (`canUsePin`), it defaults to PIN entry and offers an in-place toggle
-// to password (and vice-versa). No navigation between the two → no back button.
-type Mode = "email-otp" | "password" | "pin";
+// draws with the customer app's iOS-sized controls (components/auth/auth-kit).
+// The welcome -> email -> code flow itself is shared @foundry/auth-ui; this app
+// only skins it and decides where a signed-in user lands.
+type Mode = "welcome" | "email-otp" | "password" | "pin";
 
 export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
-  // Default to email-OTP (passwordless) — the primary method until SMS/WhatsApp
-  // exists. A locked session (PIN available) opens in PIN mode; both panels offer
-  // in-place toggles, so there's no navigation between methods.
-  const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : "email-otp");
+  const router = useRouter();
+  const params = useSearchParams();
+  const callbackUrl = params.get("callbackUrl");
+  // A locked session opens on its PIN. Someone bounced here from a protected
+  // page (callbackUrl) already knows why they're here, so they skip the
+  // welcome screen and land on the form.
+  const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : callbackUrl ? "email-otp" : "welcome");
+
+  async function landSignedIn() {
+    await clearLockSession();
+    router.push(callbackUrl ?? "/dashboard");
+    router.refresh();
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card className="overflow-hidden rounded-[20px] p-0 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_28px_-8px_rgba(0,0,0,0.18)] border-t-white/60 dark:border-t-white/10">
-        <CardContent className="grid p-0 md:grid-cols-2">
-          {/* key remounts on mode change so the swap cross-fades instead of an
-              instant DOM replace — mirrors the spatial-consistency treatment
-              CodeOtp's own step swap already uses in EmailOtpPanel. */}
-          <div key={mode} className="animate-in fade-in flex flex-col justify-center p-6 duration-200 motion-reduce:animate-none md:p-8">
-            {mode === "pin" ? (
-              <PinPanel onUsePassword={() => setMode("password")} />
-            ) : mode === "email-otp" ? (
-              <EmailOtpPanel onUsePassword={() => setMode("password")} />
-            ) : (
-              <PasswordPanel
-                canUsePin={canUsePin}
-                onUsePin={() => setMode("pin")}
-                onUseEmailOtp={() => setMode("email-otp")}
-              />
-            )}
-          </div>
-          <AuthBrandPanel />
-        </CardContent>
-      </Card>
-      <div className="text-muted-foreground hover:[&_a]:text-primary text-balance text-center text-xs [&_a]:underline [&_a]:underline-offset-4">
-        By continuing, you agree to our <Link href="/terms">Terms of Service</Link>{" "}
-        and <Link href="/privacy">Privacy Policy</Link>.
+    <AuthScreen
+      footer={<>By continuing, you agree to our <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</>}
+    >
+      {/* key remounts on mode change so each swap gets the panel's own entrance. */}
+      <div key={mode} className="flex flex-1 flex-col">
+        {mode === "welcome" ? (
+          <AuthWelcome
+            ui={tiffinAuthUi}
+            art={
+              <div className="flex flex-col items-center gap-3">
+                <BrandMark className="size-24" />
+                <BrandWordmark className="text-3xl" />
+              </div>
+            }
+            title="Home-style meals, your way."
+            tagline="Fresh tiffin meals, delivered on your schedule."
+            primary={{ label: "Sign in", onClick: () => setMode("email-otp") }}
+            secondary={{ label: "Get started", onClick: () => router.push("/subscribe") }}
+          />
+        ) : mode === "pin" ? (
+          <PinPanel onUsePassword={() => setMode("password")} />
+        ) : mode === "email-otp" ? (
+          <EmailCodeSignIn
+            ui={tiffinAuthUi}
+            title="Welcome back"
+            subtitle="Sign in with a code sent to your email."
+            onBack={callbackUrl ? undefined : () => setMode("welcome")}
+            onSendCode={(email) => authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" })}
+            onVerify={(email, otp) => signIn.emailOtp({ email, otp })}
+            onSuccess={landSignedIn}
+            extra={
+              <button type="button" onClick={() => setMode("password")} className={`text-muted-foreground mx-auto min-h-11 text-[15px] underline-offset-4 hover:underline ${IOS_PRESS}`}>
+                Sign in with a password instead
+              </button>
+            }
+          />
+        ) : (
+          <PasswordPanel
+            canUsePin={canUsePin}
+            onUsePin={() => setMode("pin")}
+            onUseEmailOtp={() => setMode("email-otp")}
+          />
+        )}
       </div>
-    </div>
+    </AuthScreen>
   );
 }
 
@@ -125,7 +145,9 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      {/* method="post": a tap before hydration would otherwise GET /login with
+          the email and password in the query string (history, logs, Referer). */}
+      <form method="post" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col items-center text-center">
             <h1 className="text-2xl font-bold tracking-[-0.02em]">Welcome back</h1>
@@ -203,102 +225,6 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
   );
 }
 
-const otpEmailSchema = z.object({ email: emailSchema });
-const otpCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code") });
-
-// Passwordless sign-in: email a 6-digit code, then sign in with it. The default
-// method until SMS/WhatsApp exists. Auto-registers a new email (magic-link style).
-function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
-  const router = useRouter();
-  const params = useSearchParams();
-  const [step, setStep] = useState<"email" | "code">("email");
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const emailForm = useForm<z.infer<typeof otpEmailSchema>>({ resolver: zodResolver(otpEmailSchema), defaultValues: { email: "" } });
-  const codeForm = useForm<z.infer<typeof otpCodeSchema>>({ resolver: zodResolver(otpCodeSchema), defaultValues: { code: "" } });
-
-  async function sendCode(values: z.infer<typeof otpEmailSchema>) {
-    setError(null);
-    // Never reveal whether the address exists — advance regardless of result.
-    await authClient.emailOtp.sendVerificationOtp({ email: values.email, type: "sign-in" });
-    setEmail(values.email);
-    setStep("code");
-  }
-
-  async function verify(values: z.infer<typeof otpCodeSchema>) {
-    setError(null);
-    const result = await signIn.emailOtp({ email, otp: values.code });
-    if (result?.error) {
-      setError("Invalid or expired code.");
-      return;
-    }
-    await clearLockSession();
-    router.push(params.get("callbackUrl") ?? "/dashboard");
-    router.refresh();
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-center text-center">
-        <h1 className="text-2xl font-bold tracking-[-0.02em]">Welcome back</h1>
-        <p className="text-muted-foreground text-balance">
-          {step === "email"
-            ? "Sign in with a code sent to your email"
-            : `Enter the code we emailed to ${email}. Not there? Check your spam folder.`}
-        </p>
-      </div>
-      {step === "email" ? (
-        <Form {...emailForm}>
-          {/* key forces a remount across the step swap — otherwise React reuses the
-              prior step's <form>/<input> DOM nodes, and the reused input's native
-              value-tracker can desync from the segmented OTP field's controlled value. */}
-          <form key="email" onSubmit={emailForm.handleSubmit(sendCode)} className="flex flex-col gap-4">
-            <FormField control={emailForm.control} name="email" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl><Input type="email" autoComplete="email" placeholder="you@example.com" className={IOS_INPUT} {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            {error ? <p className="text-destructive animate-in fade-in text-sm text-center duration-150">{error}</p> : null}
-            <Button type="submit" className={IOS_BUTTON} disabled={emailForm.formState.isSubmitting}>Email me a code</Button>
-          </form>
-        </Form>
-      ) : (
-        <Form {...codeForm}>
-          <form key="code" onSubmit={codeForm.handleSubmit(verify)} className="flex flex-col gap-4">
-            <FormField
-              control={codeForm.control}
-              name="code"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel>Verification code</FormLabel>
-                  <FormControl>
-                    <CodeOtp
-                      value={field.value}
-                      onChange={field.onChange}
-                      onComplete={() => codeForm.handleSubmit(verify)()}
-                      aria-invalid={!!fieldState.error}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {error ? <p className="text-destructive animate-in fade-in text-sm text-center duration-150">{error}</p> : null}
-            <Button type="submit" className={IOS_BUTTON} disabled={codeForm.formState.isSubmitting}>Sign in</Button>
-            <Button type="button" variant="ghost" className={IOS_BUTTON} onClick={() => { setStep("email"); setError(null); }}>Use a different email</Button>
-          </form>
-        </Form>
-      )}
-      <Button type="button" variant="ghost" className={IOS_BUTTON} onClick={onUsePassword}>Sign in with a password instead</Button>
-      <div className="text-center text-sm">
-        Don&apos;t have an account? <Link href="/signup" className="underline underline-offset-4">Sign up</Link>
-      </div>
-    </div>
-  );
-}
-
 function PinPanel({ onUsePassword }: { onUsePassword: () => void }) {
   const router = useRouter();
   const [pin, setPin] = useState("");
@@ -333,7 +259,7 @@ function PinPanel({ onUsePassword }: { onUsePassword: () => void }) {
         <h1 className="text-lg font-semibold">Session locked</h1>
         <p className="text-muted-foreground text-sm">Enter your PIN to continue.</p>
       </div>
-      <form onSubmit={(e) => { e.preventDefault(); verify(pin); }} className="flex w-full flex-col items-center gap-3">
+      <form method="post" onSubmit={(e) => { e.preventDefault(); verify(pin); }} className="flex w-full flex-col items-center gap-3">
         <PinOtp value={pin} onChange={setPin} onComplete={verify} autoFocus disabled={pending} aria-label="PIN" />
         {error && <p className="text-destructive animate-in fade-in text-sm text-center duration-150">{error}</p>}
         <Button type="submit" disabled={pending || pin.length !== 4} className={IOS_BUTTON}>
