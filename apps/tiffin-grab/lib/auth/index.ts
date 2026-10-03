@@ -159,8 +159,9 @@ export const auth = betterAuth({
       // or by an admin; nothing may self-register.
       disableSignUp: true,
       changeEmail: { enabled: true, verifyCurrentEmail: true },
-      sendVerificationOTP: async ({ email, otp, type }) => {
-        await sendAuthOtp(email, otp, type);
+      sendVerificationOTP: async ({ email, otp, type }, ctx) => {
+        // Same header the rate limiter trusts (advanced.ipAddress above).
+        await sendAuthOtp(email, otp, type, ctx?.request?.headers.get("x-real-ip") ?? null);
       },
     }),
     // Invite links (staff + customer). One click signs the invitee in, so no

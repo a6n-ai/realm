@@ -18,10 +18,10 @@ const log = createLogger("auth-otp");
  * share the generic verification-code copy with "email-verification", same
  * as the original direct-send routing.
  */
-export async function sendAuthOtp(email: string, otp: string, type: OtpType): Promise<void> {
+export async function sendAuthOtp(email: string, otp: string, type: OtpType, ip: string | null = null): Promise<void> {
   // Over the cap: drop silently. Throwing would turn into an error only known
   // accounts can produce (unknown addresses never reach here), leaking existence.
-  if (!allowOtpTo(email)) {
+  if (!allowOtpTo(email, ip)) {
     log.warn({ domain: email.split("@")[1] ?? null, type }, "otp send dropped: per-address cap");
     return;
   }
