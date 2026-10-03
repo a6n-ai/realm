@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
 
 export const metadata: Metadata = {
@@ -19,15 +21,21 @@ const SECTIONS = [
 ] as const;
 
 const KEY_POINTS: KeyPoint[] = [
-  { text: "We deliver Monday to Saturday across 7 GTA areas. Your address is confirmed at checkout.", section: 1 },
-  { text: "Delivery is included in your plan price. There are no hidden fees.", section: 2 },
-  { text: "Delivery windows are estimates, shared the evening before or the morning of delivery.", section: 4 },
+  { text: "We deliver across the GTA. The current areas are listed below, and your address is confirmed at checkout.", section: 1 },
+  { text: "Deliveries run Monday to Friday. This may change as we grow.", section: 3 },
+   { text: "Delivery windows are estimates, shared the evening before or the morning of delivery.", section: 4 },
   { text: "We make one attempt per delivery. Share buzzer or access codes 24 hours ahead, and safe drop-off spots 12 hours ahead.", section: 5 },
   { text: "If a delivery fails because of our error, that day is credited to your plan.", section: 5 },
   { text: "Refrigerate meals within 2 hours and eat them within 24 hours.", section: 7 },
 ];
 
-export default function DeliveryPolicyPage() {
+// The area list comes from the live delivery zones (same source as /locations),
+// so the policy never drifts from where we actually deliver.
+export const dynamic = "force-dynamic";
+
+export default async function DeliveryPolicyPage() {
+  const { zones } = await loadCatalogSnapshot();
+  const areas = zones.filter((z) => z.active).map((z) => z.name).sort((a, b) => a.localeCompare(b));
   return (
     <LegalPage title="Delivery policy" intro="Where and when we deliver, what to expect from delivery windows, what happens if a delivery is missed, and how to handle your meals once they arrive." updated="April 6, 2026" current="/delivery-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
@@ -37,7 +45,11 @@ export default function DeliveryPolicyPage() {
 
       <Clause n={1} title={SECTIONS[0]}>
         <p className="m-0">TiffinGrab currently delivers within the following Greater Toronto Area locations:</p>
-        <List items={["Scarborough", "Downtown Toronto", "North York", "Brampton", "Mississauga", "Markham", "Etobicoke"]} />
+        {areas.length > 0 ? (
+          <List items={areas} />
+        ) : (
+          <p className="text-muted-foreground m-0">Our current delivery areas are listed on the <Link href="/locations" className="underline underline-offset-4">Locations</Link> page.</p>
+        )}
         <p className="m-0">
           Serviceability for specific addresses is confirmed at checkout. We may add or remove service areas. If your area
           is removed after purchase, see the Refund Policy for the applicable remedy.
@@ -53,8 +65,9 @@ export default function DeliveryPolicyPage() {
 
       <Clause n={3} title={SECTIONS[2]}>
         <p className="m-0">
-          Standard deliveries are made <strong>Monday through Saturday</strong>. Sunday and public-holiday availability will
-          be communicated to active subscribers at least 48 hours in advance. We will notify you of scheduled off-days or
+          Standard deliveries are made <strong>Monday through Friday</strong>. Our delivery days may change as we grow.
+          Public-holiday availability will be
+          communicated to active subscribers at least 48 hours in advance. We will notify you of scheduled off-days or
           holiday closures by email or WhatsApp.
         </p>
       </Clause>
