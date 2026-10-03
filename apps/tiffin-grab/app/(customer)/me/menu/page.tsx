@@ -4,7 +4,9 @@ import { UtensilsCrossedIcon } from "lucide-react";
 import { parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { browsePublishedWeek } from "@/lib/menu/browse-published-week";
-import { getAppSettings, getTrialSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { PageShell, PageHeader } from "@/components/ds";
 import { ThisWeekMenuSection, ThisWeekMenuSectionSkeleton } from "@/components/customer/home/this-week-menu-section";
@@ -39,7 +41,7 @@ export default async function MenuPage() {
 }
 
 async function PlansSection() {
-  const [settings, catalog] = await Promise.all([getTrialSettings(), loadCatalogSnapshot()]);
+  const [settings, catalog] = await Promise.all([resolveRequestOrg().then(getTrialSettings), loadCatalogSnapshot()]);
   const open = settings.maxDays != null && settings.maxDays >= 1 && settings.weekdays.length > 0
     && catalog.mealSizes.some((m) => m.trial && !m.custom && m.priceable !== false);
   return <PlansCtaSection trial={open && settings.maxDays != null ? { href: "/me/renew", maxDays: settings.maxDays } : null} />;

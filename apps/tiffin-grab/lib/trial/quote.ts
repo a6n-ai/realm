@@ -1,12 +1,16 @@
-import { ValidationError } from "@foundry/commons";
+import { parseIsoDateUtc, ValidationError, weekdayKey } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing/types";
-import { getTrialSettings } from "@/lib/services/app-settings.service";
-import { assertTrialStart, durationWeeksCovering, trialDeliveryDates, trialSendDays } from "./schedule";
+import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { appToday } from "@/lib/services/start-date";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
+import { assertTrialStart, durationWeeksCovering, orderedTrialWeekdays, resolveTrialDays, trialDeliveryDates, trialSendDays, type TrialWeekday } from "./schedule";
 
 export type TrialQuote = {
   dates: string[];
+  /** Weekdays of `dates`, in week order: the order's eating days, like a regular meal size. */
+  eatingDays: TrialWeekday[];
   length: number;
   weekdays: string[];
   frequencyKey: string;
@@ -22,20 +26,18 @@ export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingS
   if (!meal?.trial) throw new ValidationError("This meal isn't a trial");
   if (meal.custom) throw new ValidationError("A custom meal can't be a trial");
 
-  const settings = await getTrialSettings();
+  const settings = await getTrialSettings(await resolveRequestOrg());
   const weekdays = trialSendDays(settings.weekdays, meal.servesWeekends);
   if (settings.maxDays == null || settings.maxDays < 1 || weekdays.length === 0) {
     throw new ValidationError("Trials aren't available right now");
   }
-  const length = selections.trialDays;
-  if (!Number.isInteger(length) || length == null || length < 1 || length > settings.maxDays) {
-    throw new ValidationError(`Choose 1 to ${settings.maxDays} days`);
-  }
-  assertTrialStart(selections.startDate, weekdays, new Date());
-  const dates = trialDeliveryDates(selections.startDate, length, weekdays);
+  const { sendDays, length } = resolveTrialDays(weekdays, settings.maxDays, selections.eatingDays, selections.trialDays);
+  assertTrialStart(selections.startDate, sendDays, appToday(snapshot.timezone));
+  const dates = trialDeliveryDates(selections.startDate, length, sendDays);
 
-  const frequency = snapshot.frequencies.find((f) => f.weekdays?.length) ?? snapshot.frequencies[0];
-  if (!frequency) throw new ValidationError("No delivery frequency is configured");
+  // The trial's delivery frequency from Trial settings, stored on the order like a meal size's.
+  const frequency = snapshot.frequencies.find((f) => f.key === settings.frequencyKey);
+  if (!frequency) throw new ValidationError("Trials aren't available right now");
 
   const persons = selections.persons;
   if (!Number.isInteger(persons) || persons < 1 || persons > 5) {
@@ -56,8 +58,9 @@ export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingS
 
   return {
     dates,
+    eatingDays: orderedTrialWeekdays(dates.map((d) => weekdayKey(parseIsoDateUtc(d)))),
     length,
-    weekdays,
+    weekdays: sendDays,
     frequencyKey: frequency.key,
     frequencyId: frequency.id,
     durationWeeks: durationWeeksCovering(dates[0]!, dates[dates.length - 1]!),

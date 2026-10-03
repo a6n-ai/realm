@@ -2,7 +2,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } f
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
-import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -98,7 +98,7 @@ function inquiriesResolver() {
   };
 }
 
-// True when a Postgres unique-violation (23505) hit the open-lead partial index.
+// True when a Postgres unique-violation (23505) hit an open-lead partial index.
 // drizzle wraps the driver error, so the real PostgresError (with code +
 // constraint_name) sits on .cause; postgres.js names the field constraint_name.
 function isOpenLeadConflict(e: unknown): boolean {
@@ -108,7 +108,7 @@ function isOpenLeadConflict(e: unknown): boolean {
   return layers.some(
     (l) =>
       l.code === "23505" &&
-      (l.constraint ?? l.constraint_name ?? "").includes("inquiries_open_phone_source_unique"),
+      /^inquiries_open_(phone|email)_unique$/.test(l.constraint ?? l.constraint_name ?? ""),
   );
 }
 
@@ -173,7 +173,38 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return (await findZone(zones, { postalCode }))?.id ?? null;
   }
 
-  async create(values: Record<string, unknown>) {
+  /**
+   * One open inquiry per person: a phone OR email match on an open (not
+   * converted/lost) inquiry is the same person. Email wins when phone and email
+   * point at different inquiries — email is the login identity. Newest first.
+   */
+  async findOpenMatch(phone: string, email?: string | null): Promise<typeof inquiries.$inferSelect | null> {
+    const byPhone = eq(sql`lower(${inquiries.phone})`, phone.toLowerCase());
+    const match = email ? or(byPhone, eq(sql`lower(${inquiries.email})`, email.toLowerCase()))! : byPhone;
+    const rows = await db
+      .select()
+      .from(inquiries)
+      .where(and(match, notInArray(inquiries.stage, ["converted", "lost"])))
+      .orderBy(desc(inquiries.createdAt));
+    const byEmail = email ? rows.find((r) => r.email?.toLowerCase() === email.toLowerCase()) : undefined;
+    return byEmail ?? rows[0] ?? null;
+  }
+
+  /** A repeat contact from the same person: log it on their open inquiry instead of a new row. */
+  private async logReinquiry(
+    inq: typeof inquiries.$inferSelect,
+    v: { phone: string; email: string; sourceKey: string; subSourceKey?: string; notes?: unknown },
+  ) {
+    const [src] = await db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.key, v.sourceKey)).limit(1);
+    const parts = [`Re-inquiry via ${src?.label ?? v.sourceKey}${v.subSourceKey ? ` (${v.subSourceKey})` : ""}`];
+    if (inq.phone.toLowerCase() !== v.phone.toLowerCase()) parts.push(`phone ${v.phone}`);
+    if ((inq.email ?? "").toLowerCase() !== v.email.toLowerCase()) parts.push(`email ${v.email}`);
+    const message = typeof v.notes === "string" && v.notes.trim() ? `\n${v.notes.trim()}` : "";
+    await inquiryActivitiesService.create({ inquiryId: inq.id, type: "reinquiry", note: parts.join(" · ") + message });
+  }
+
+  /** Creates the inquiry, or folds it into the person's open one (see findOpenMatch). */
+  async createOrFold(values: Record<string, unknown>): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean }> {
     const parsedPhone = phoneSchema().safeParse(values.phone);
     if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
     // Email is the customer login — required on inquiry create.
@@ -188,6 +219,20 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       subSourceKey?: string;
       [k: string]: unknown;
     };
+    const fold = async (existing: typeof inquiries.$inferSelect) => {
+      await this.logReinquiry(existing, {
+        phone: parsedPhone.data,
+        email: parsedEmail.data,
+        sourceKey,
+        subSourceKey,
+        notes: rest.notes,
+      });
+      return { inquiry: existing, folded: true };
+    };
+
+    const existing = await this.findOpenMatch(parsedPhone.data, parsedEmail.data);
+    if (existing) return fold(existing);
+
     // Zone resolution depends only on the postal code, so run it alongside the
     // source→owner chain instead of after it.
     const zoneIdP = this.resolveZoneId(rest.postalCode as string | undefined);
@@ -207,22 +252,12 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         zoneId,
       });
     } catch (e) {
-      // Partial unique index inquiries_open_phone_source_unique: one open lead per
-      // (phone, source). A concurrent insert lost the race — reuse the existing
-      // open inquiry rather than erroring (the dedup rule, enforced at the DB).
+      // Partial unique indexes inquiries_open_{phone,email}_unique: a concurrent
+      // insert for the same person won the race — fold into it (the dedup rule,
+      // enforced at the DB).
       if (isOpenLeadConflict(e)) {
-        const [existing] = await db
-          .select()
-          .from(inquiries)
-          .where(
-            and(
-              eq(sql`lower(${inquiries.phone})`, parsedPhone.data.toLowerCase()),
-              eq(inquiries.sourceId, sourceId),
-              notInArray(inquiries.stage, ["converted", "lost"]),
-            ),
-          )
-          .limit(1);
-        if (existing) return existing;
+        const winner = await this.findOpenMatch(parsedPhone.data, parsedEmail.data);
+        if (winner) return fold(winner);
       }
       throw e;
     }
@@ -231,7 +266,11 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       type: "created",
       toStage: inq.stage,
     });
-    return inq;
+    return { inquiry: inq, folded: false };
+  }
+
+  async create(values: Record<string, unknown>) {
+    return (await this.createOrFold(values)).inquiry;
   }
 
   async addNote(publicId: string, note: string) {
@@ -532,18 +571,10 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       if (picked.stage === "converted") throw new ValidationError("That inquiry is already converted");
       return picked.publicId;
     }
-    // Normalize once so the dedup lookup and the stored row use the identical
-    // canonical (E.164) phone — an unnormalized lookup would miss the normalized
-    // record and let a duplicate inquiry slip through.
-    const parsedPhone = phoneSchema().safeParse(input.phone);
-    const phone = parsedPhone.success ? parsedPhone.data : input.phone;
-    const open = await this.findOpenByPhone(phone);
-    const sameSource = open.find((o) => o.sourceKey === input.sourceKey);
-    if (sameSource) return sameSource.publicId;
-
+    // create() folds into the person's open inquiry (phone or email match).
     const inq = await this.create({
       fullName: input.contact.fullName,
-      phone,
+      phone: input.phone,
       ...(input.contact.email ? { email: input.contact.email } : {}),
       sourceKey: input.sourceKey,
       ...(input.interest ?? {}),

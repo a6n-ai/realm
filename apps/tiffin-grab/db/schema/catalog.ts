@@ -114,26 +114,12 @@ export const mealSizeItems = pgTable("meal_size_items", {
   index("meal_size_items_plan_idx").on(t.planId),
 ]);
 
-// Groups add-ons for the admin form and for gating which dish categories may
-// offer them (see dishCategoryAddonCategories in menu.ts). Mirrors dishCategories'
-// key/name shape, not its enabled/selectable legacy columns.
-export const addonCategories = pgTable("addon_categories", {
-  ...updatableColumns("adc"),
-  key: text("key").notNull().unique(),
-  name: text("name").notNull(),
-  sortOrder: integer("sort_order").notNull().default(0),
-  active: boolean("active").notNull().default(true),
-  // Client-scoping — see dishes.organizationId for the pattern.
-  organizationId: text("organization_id").references(() => organization.id),
-});
-
 export const addons = pgTable("addons", {
   ...updatableColumns("adn"),
   key: text("key").notNull().unique(),
   name: text("name").notNull(),
-  // Soft ref to addon_categories.key (mirrors dishes.category) — an add-on is only
-  // offered to a customer when its category is attached to the dish category being
-  // ordered, via dishCategoryAddonCategories.
+  // Soft ref to dish_categories.key (mirrors dishes.category): offered for any
+  // meal size carrying that category. Never part of the meal or its swaps.
   category: text("category").notNull(),
   pricePerWeek: numeric("price_per_week", { precision: 10, scale: 2 }).notNull(),
   // Admin-set ceiling on how many of this add-on one order may carry (e.g. 5x

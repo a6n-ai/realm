@@ -2,11 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
-import { setTrialSettings } from "@/lib/services/app-settings.service";
+import { setTrialSettings } from "@/lib/services/trial-settings.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
+import { runAction } from "@/app/(customer)/me/action-result";
 
-export async function saveTrialSettings(input: { maxDays: number | null; weekdays: string[] }): Promise<void> {
-  await requireAdmin();
-  await setTrialSettings(input);
-  revalidatePath("/dashboard/catalog/meal-sizes");
-  revalidatePath("/me/trial");
+export async function saveTrialSettings(input: { frequencyKey: string | null; maxDays: number | null }) {
+  return runAction(async () => {
+    await requireAdmin();
+    await setTrialSettings(input, await resolveRequestOrg());
+    revalidatePath("/dashboard/catalog/meal-sizes");
+  });
 }

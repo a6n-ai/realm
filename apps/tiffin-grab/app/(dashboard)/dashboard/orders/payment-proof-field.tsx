@@ -11,7 +11,7 @@ export type PaymentProofValue = { file: File | null; reference: string };
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
 
-/** Optional e-Transfer screenshot staff attach while creating the order. */
+/** e-Transfer screenshot staff attach while creating the order (shown under the "Already paid" toggle). */
 export function PaymentProofField({
   value,
   onChange,
@@ -35,14 +35,7 @@ export function PaymentProofField({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border p-4 text-sm">
-      <div>
-        <p className="font-medium">Already paid by e-Transfer?</p>
-        <p className="text-muted-foreground">
-          Attach the customer&apos;s screenshot. The payment is approved and the plan starts as soon as you create the
-          order. Leave it empty to collect payment later.
-        </p>
-      </div>
+    <div className="space-y-3 text-sm">
 
       {value.file && preview ? (
         <div className="flex items-center gap-3">

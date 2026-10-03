@@ -83,6 +83,18 @@ describe("redeliverTrip", () => {
     expect(o.pooledTiffinCount).toBe(0);
   });
 
+  it("a later pull leaves a delivery that was already confirmed successful", async () => {
+    const { mon } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ cutoffAt: 1, optimoCompletionStatus: "success" }).where(eq(deliveries.id, mon.id));
+    currentOrderNo = mon.publicId;
+    completionStatus = "failed";
+
+    await pullCompletions("2030-01-07", 1n);
+
+    const [m] = await db.select().from(deliveries).where(eq(deliveries.id, mon.id));
+    expect([m.status, m.optimoCompletionStatus]).toEqual(["scheduled", "success"]);
+  });
+
   it("a failed tiffin can still be moved after its own cutoff, one day at a time", async () => {
     const { mon } = await makeTripOrder(DEP, PFX);
     await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.id, mon.id));

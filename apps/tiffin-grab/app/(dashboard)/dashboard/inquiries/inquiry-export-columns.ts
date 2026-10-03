@@ -1,4 +1,5 @@
 // Single source of truth for the inquiries Excel export's column headers.
+import { zonedDateIso } from "@foundry/commons";
 import type { inquiriesService } from "@/lib/services/inquiries.service";
 
 export type ExportRow = Awaited<ReturnType<typeof inquiriesService.listForExport>>[number];
@@ -47,13 +48,13 @@ export const EXPORT_COLUMNS = [
 // the nextFollowUpAt correlated subquery) as strings, not numbers, unlike plain column
 // selects — Number() coerces either; the bare Date constructor's string overload would
 // instead try (and fail) to parse a numeric string as a date string.
-function epochToDate(ms: number | string | null | undefined): string {
+function epochToDate(ms: number | string | null | undefined, timezone: string): string {
   if (ms == null) return "";
   const n = Number(ms);
-  return Number.isFinite(n) ? new Date(n).toISOString().slice(0, 10) : "";
+  return Number.isFinite(n) ? zonedDateIso(n, timezone) : "";
 }
 
-export function inquiryRowToExcelRecord(row: ExportRow): Record<string, string | number> {
+export function inquiryRowToExcelRecord(row: ExportRow, timezone: string): Record<string, string | number> {
   return {
     Name: row.fullName,
     Phone: row.phone,
@@ -62,9 +63,9 @@ export function inquiryRowToExcelRecord(row: ExportRow): Record<string, string |
     "Sub Source": row.subSource ?? "",
     Stage: STAGE_LABELS[row.stage] ?? row.stage,
     Owner: row.ownerName ?? "",
-    Created: epochToDate(row.createdAt),
-    "Last Touch": epochToDate(row.lastTouchAt),
-    "Next Follow-up": epochToDate(row.nextFollowUpAt),
+    Created: epochToDate(row.createdAt, timezone),
+    "Last Touch": epochToDate(row.lastTouchAt, timezone),
+    "Next Follow-up": epochToDate(row.nextFollowUpAt, timezone),
     Overdue: row.overdue ? "Yes" : "No",
     "Plan Interest": row.planInterest ?? "",
     "Meal Size Interest": row.mealSizeInterest ?? "",

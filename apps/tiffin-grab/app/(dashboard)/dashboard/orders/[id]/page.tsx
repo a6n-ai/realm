@@ -7,7 +7,10 @@ import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext } from "@/lib/services/orders.service";
+import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
+import { appToday } from "@/lib/services/start-date";
+import { earliestTrialIso } from "@/lib/trial/schedule";
+import { nextWeekday } from "@foundry/commons";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -30,6 +33,8 @@ import { OrderOverview } from "./order-summary-panel";
 import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { ChangePlanControl } from "./change-plan-control";
+import { StartDateControl } from "./start-date-control";
+import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
 import { DeliveriesSection, loadSubscription } from "@/components/dashboard/subscription-panel";
@@ -82,7 +87,7 @@ async function OrderDetail({
   const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
-    db.select({ planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
+    db.select({ planType: plans.planType, allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
     order.userId != null
       ? db
           .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
@@ -166,6 +171,24 @@ async function OrderDetail({
     ? projectedEndDate({ startDate: migration.startDate, trips: tripsFor(migration.frequencyKey, migration.eatingDays), persons: migration.persons, targetTiffinCount: migration.tiffinCount })
     : null;
 
+  // A WordPress plan waiting to start has its own Start plan flow.
+  const migratedWaiting = order.deploymentId.startsWith("wc-") && order.status === "pending";
+  const startBlocker = migratedWaiting
+    ? "Use Start plan to set when this WordPress plan begins"
+    : await ordersService.startChangeBlocker(order.id, order.status);
+  const notStarted = startBlocker == null;
+  const startDays = order.trialLength != null ? (order.trialWeekdays ?? []) : (planRow?.allowedStartDays ?? []);
+  const startToday = appToday(settings.timezone);
+  const startAction = (
+    <StartDateControl
+      blockedReason={startBlocker}
+      orderId={order.publicId}
+      startDate={order.startDate}
+      minDate={order.trialLength != null ? earliestTrialIso(startToday, startDays) : nextWeekday(startToday).toISOString().slice(0, 10)}
+      allowedDays={startDays}
+    />
+  );
+
   const stats: StatItem[] = [
     { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" ? "Paused" : order.frequencyName, pixelValue: false },
     {
@@ -174,15 +197,19 @@ async function OrderDetail({
       icon: PackageIcon,
       hint: counts ? `${counts.delivered} delivered${order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}` : "Schedule not started",
     },
-    { label: "Next delivery", value: next ? humanDate(next.deliveryDate) : "None", icon: TruckIcon, hint: next?.routeDriverName ?? undefined, pixelValue: false },
+    notStarted
+      ? { label: "Starts", value: humanDate(order.startDate), icon: TruckIcon, hint: "Not started · start date can change", pixelValue: false }
+      : { label: "Next delivery", value: next ? humanDate(next.deliveryDate) : "None", icon: TruckIcon, hint: next?.routeDriverName ?? undefined, pixelValue: false },
     { label: "Paid", value: fmt(paid, settings.currency), icon: WalletIcon, hint: `of ${fmt(Number(order.total), settings.currency)}` },
     { label: "Balance due", value: fmt(due, settings.currency), icon: ReceiptIcon, tone: due > 0 ? "bad" : "ok", hint: toReview ? `${toReview} payment${toReview === 1 ? "" : "s"} to review` : undefined },
   ];
 
   const headerActions = (
     <>
+      {order.trialLength != null && <TrialPill className="self-center" />}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
-      <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />
+      {/* A trial can only have its dishes edited (orders.service rejects a plan change). */}
+      {order.trialLength == null && <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />}
     </>
   );
 
@@ -243,6 +270,7 @@ async function OrderDetail({
               timezone={settings.timezone}
               currency={settings.currency}
               categoryLabels={categoryLabels}
+              startAction={startAction}
             />
           ),
           deliveries: (

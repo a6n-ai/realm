@@ -26,9 +26,10 @@ export async function createInquiry(input: {
   notes?: string;
 }) {
   await requireStaff();
-  const inq = await inquiriesService.create(input);
+  // Same person (phone or email) with an open inquiry: logged there as a re-inquiry.
+  const { inquiry, folded } = await inquiriesService.createOrFold(input);
   revalidatePath("/dashboard/inquiries");
-  return { publicId: inq.publicId };
+  return { publicId: inquiry.publicId, folded, fullName: inquiry.fullName };
 }
 
 export async function setStage(

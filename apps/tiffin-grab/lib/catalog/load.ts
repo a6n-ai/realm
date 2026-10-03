@@ -166,6 +166,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     categoryLabels,
     addonsByCategory: Object.fromEntries(addonsByCategory),
     minTiffinsPerWeek: settings.minTiffinsPerWeek,
+    timezone: settings.timezone,
     maxTiffinsPerWeek: settings.maxTiffinsPerWeek,
     // A row whose target is inactive/missing is dropped rather than widened to "all".
     discounts: additiveDiscountRows.flatMap((d) => {

@@ -4,12 +4,13 @@ import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { dailyLabelSheet } from "@/lib/services/daily-labels.service";
+import { dailyLabelSheet, listDayDeliveryStatuses } from "@/lib/services/daily-labels.service";
 import { getKitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
 import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { LabelDatePicker } from "./label-date-picker";
 import { LabelsExportButton } from "./labels-export-button";
 import { LabelsPrintButton } from "./labels-print-button";
+import { DeliveryStatusList } from "./delivery-status-list";
 import { LabelsTable } from "./labels-table";
 import { KitchenCounts, LabelList } from "./labels-view";
 
@@ -48,7 +49,11 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
   const today = zonedDateIso(Date.now(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
 
-  const [sheet, packing] = await Promise.all([dailyLabelSheet(date), getKitchenPackingSheet(date)]);
+  const [sheet, packing, deliveries] = await Promise.all([
+    dailyLabelSheet(date),
+    getKitchenPackingSheet(date),
+    listDayDeliveryStatuses(date),
+  ]);
   const containers = sheet.counts.reduce((n, c) => n + c.count, 0);
 
   return (
@@ -82,6 +87,10 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
         <LabelsTable sheet={packing} />
       </SectionCard>
 
+      <SectionCard title="Deliveries">
+        <DeliveryStatusList rows={deliveries} />
+      </SectionCard>
+
       {sheet.menuWeekPublicId == null ? (
         <SectionCard title="No menu released">
           <p className="text-muted-foreground text-sm">
@@ -113,6 +122,9 @@ LabelsData.Skeleton = function LabelsDataSkeleton() {
       <SkeletonStatCards count={4} />
       <SectionCard title="Packing sheet">
         <Skeleton className="h-64 w-full" />
+      </SectionCard>
+      <SectionCard title="Deliveries">
+        <Skeleton className="h-40 w-full" />
       </SectionCard>
       <SectionCard title="Kitchen counts">
         <Skeleton className="h-40 w-full" />

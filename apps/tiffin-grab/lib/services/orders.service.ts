@@ -11,6 +11,10 @@ import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
   deliveries,
+  deliveryCategorySwaps,
+  deliveryExtraTiffins,
+  deliveryMoves,
+  mealSelections,
   deliveryFrequencies,
   durationPackages,
   member,
@@ -47,7 +51,8 @@ import { ledgerService } from "./ledger.service";
 import { reservedEndDatesExclusive } from "./order-window";
 import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
-import { validateStartDate } from "./start-date";
+import { appToday, validateStartDate } from "./start-date";
+import { assertTrialStart } from "@/lib/trial/schedule";
 import {
   walletService,
   lockAndQuoteCoinRedemption,
@@ -254,7 +259,8 @@ export async function createOrder(
     input.selections = {
       ...input.selections,
       frequencyKey: trial.frequencyKey,
-      eatingDays: undefined,
+      // Stored like a regular meal size: the days it eats, on an every-day frequency.
+      eatingDays: trial.eatingDays,
       durationWeeks: trial.durationWeeks,
       includeSaturday: false,
       includeSunday: false,
@@ -262,7 +268,7 @@ export async function createOrder(
       trialDays: trial.length,
     };
   } else {
-    validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
+    validateStartDate(input.selections.startDate, plan.allowedStartDays, appToday(snapshot.timezone));
   }
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
   if (!frequency) throw new ValidationError("Invalid delivery frequency");
@@ -1539,6 +1545,73 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     publishAnalyticsLive();
   }
 
+  /**
+   * Why this order's start date can't move, or null when it can: nothing has
+   * happened yet. Every delivery is still scheduled before its cutoff and the
+   * customer hasn't paused, skipped, moved, swapped, added tiffins or picked dishes,
+   * so its deliveries can be rebuilt from a new start without losing anything.
+   */
+  async startChangeBlocker(orderId: bigint, status: string, tx: Pick<typeof db, "select"> = db): Promise<string | null> {
+    if (status !== "active" && status !== "pending" && status !== "waitlisted") return "Only a plan that hasn't started can move its start date";
+    const rows = await tx.select({ id: deliveries.id, status: deliveries.status, cutoffAt: deliveries.cutoffAt })
+      .from(deliveries).where(eq(deliveries.orderId, orderId));
+    const now = Date.now();
+    if (rows.some((d) => d.cutoffAt <= now)) return "This plan has started: its first delivery is past the cutoff";
+    if (rows.some((d) => d.status !== "scheduled")) return "The customer has already skipped or paused a delivery";
+    const ids = rows.map((d) => d.id);
+    const touched = await Promise.all([
+      tx.select({ id: subscriptionPauses.id }).from(subscriptionPauses).where(eq(subscriptionPauses.orderId, orderId)).limit(1),
+      tx.select({ id: mealSelections.id }).from(mealSelections).where(eq(mealSelections.orderId, orderId)).limit(1),
+      ids.length ? tx.select({ id: deliveryMoves.id }).from(deliveryMoves).where(eq(deliveryMoves.orderId, orderId)).limit(1) : [],
+      ids.length ? tx.select({ id: deliveryCategorySwaps.id }).from(deliveryCategorySwaps).where(inArray(deliveryCategorySwaps.deliveryId, ids)).limit(1) : [],
+      ids.length ? tx.select({ id: deliveryExtraTiffins.id }).from(deliveryExtraTiffins).where(inArray(deliveryExtraTiffins.deliveryId, ids)).limit(1) : [],
+    ]);
+    if (touched.some((r) => r.length > 0)) return "The customer has already changed this plan's deliveries or dishes";
+    return null;
+  }
+
+  // Admin: move a plan's start before it starts. Its untouched deliveries are rebuilt
+  // from the new date exactly as createOrder built them (materializeDeliveries).
+  async changeStartDate(publicId: string, startDate: string): Promise<void> {
+    const actorId = await this.currentUserId();
+    const { timezone } = await getAppSettings();
+    await db.transaction(async (tx) => {
+      const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
+      if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
+      const blocker = await this.startChangeBlocker(order.id, order.status, tx);
+      if (blocker) throw new ValidationError(blocker);
+      if (startDate === order.startDate) return;
+      const today = appToday(timezone);
+      if (order.trialLength != null) {
+        assertTrialStart(startDate, order.trialWeekdays ?? [], today);
+      } else {
+        const [plan] = await tx.select({ allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1);
+        validateStartDate(startDate, plan?.allowedStartDays ?? [], today);
+      }
+
+      const [moved] = await tx.update(orders).set({ startDate, updatedBy: actorId, updatedAt: Date.now() })
+        .where(eq(orders.id, order.id)).returning();
+      const [had] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
+      if (had) {
+        await tx.delete(deliveries).where(eq(deliveries.orderId, order.id));
+        await materializeDeliveries(tx, moved!);
+        const [first] = await tx.select({ deliveryDate: deliveries.deliveryDate, cutoffAt: deliveries.cutoffAt }).from(deliveries)
+          .where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate)).limit(1);
+        if (first && first.cutoffAt <= Date.now()) {
+          throw new ValidationError(`The cutoff for ${first.deliveryDate} has passed. Pick a later start date`);
+        }
+      }
+      await tx.insert(orderActivities).values({
+        orderId: order.id,
+        type: "note",
+        note: `Start date moved from ${order.startDate} to ${startDate}`,
+        createdBy: actorId,
+        organizationId: order.organizationId,
+      });
+    });
+    publishAnalyticsLive();
+  }
+
   // Switch-over day: start every WordPress plan still waiting, from `fromDate` or its own
   // later next-due date (a customer WordPress hasn't started yet keeps that start). One plan
   // failing (cutoff passed, no balance) never stops the rest; each result says what happened.
@@ -1836,6 +1909,7 @@ export const ordersService = new OrdersService(new UpdatableRepository(db, order
 export const activateOrder = (publicId: string): Promise<void> => ordersService.activate(publicId);
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
 export const startMigratedOrder = (publicId: string, startDate: string): Promise<void> => ordersService.startMigrated(publicId, startDate);
+export const changeOrderStartDate = (publicId: string, startDate: string): Promise<void> => ordersService.changeStartDate(publicId, startDate);
 export const startAllMigratedOrders = (fromDate: string) => ordersService.startAllMigrated(fromDate);
 export async function countMigratedWaiting(): Promise<number> {
   const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(orders)
@@ -1855,7 +1929,7 @@ export const reassignOrder = (publicId: string, ownerId: string): Promise<void> 
 // elapsed. No-op if there's no open pause, the pause is indefinite, or untilDate hasn't passed yet.
 // Called from myActiveSubscriptions before it reports order status to the customer.
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
   const [open] = await db.select({ untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
     .from(subscriptionPauses)
     .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)))

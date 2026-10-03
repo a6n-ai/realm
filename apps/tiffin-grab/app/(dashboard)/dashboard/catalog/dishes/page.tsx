@@ -5,7 +5,7 @@ import { CatalogData, type SearchParams } from "../[resource]/page";
 import { ResourceEditorSkeleton } from "../[resource]/resource-editor";
 import { CatalogTabs } from "./catalog-tabs";
 
-// Combines the "dishes" and "dish-categories" resources into one tabbed card
+// Combines the "dishes", "addons" and "dish-categories" resources into one tabbed card
 // (Task 5): both remain distinct RESOURCES entries with their own schema and
 // service, and both editors reuse the existing per-resource CatalogData loader
 // and ResourceEditor — only the page shell is new.
@@ -18,6 +18,11 @@ export default function DishesAndCategoriesPage({ searchParams }: { searchParams
           dishes={
             <Suspense fallback={<ResourceEditorSkeleton resource="dishes" />}>
               <CatalogData resource="dishes" searchParams={searchParams} />
+            </Suspense>
+          }
+          addons={
+            <Suspense fallback={<ResourceEditorSkeleton resource="addons" />}>
+              <CatalogData resource="addons" searchParams={searchParams} />
             </Suspense>
           }
           categories={

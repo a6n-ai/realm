@@ -43,6 +43,34 @@
       "when": 1790876730919,
       "tag": "0005_broken_triathlon",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790881294479,
+      "tag": "0006_chilly_snowbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790886217119,
+      "tag": "0007_shiny_kabuki",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790887754145,
+      "tag": "0008_hesitant_puff_adder",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790893199197,
+      "tag": "0009_fat_the_hand",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,9 @@ vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
   resumeMySubscription: vi.fn(), scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
   setMyDeliveryAddress: vi.fn(), clearMyDeliveryAddress: vi.fn(),
 }));
+vi.mock("@/app/(dashboard)/dashboard/orders/[id]/actions", () => ({
+  setDeliveryStatusAction: vi.fn(async () => ({ ok: true, message: "Delivery status updated" })),
+}));
 afterEach(cleanup);
 
 const NOW = Date.parse("2026-09-21T12:00:00Z");
@@ -122,6 +125,11 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     render(<OrderWeekHub data={data} />);
     fireEvent.click(screen.getByRole("button", { name: "Details for Tue, Sep 22" }));
     expect(screen.getByRole("dialog", { name: /Tue, Sep 22 · meal/ })).toBeInTheDocument();
+  });
+  it("lets an admin change the delivery status", () => {
+    render(<OrderWeekHub data={data} canEditDeliveryStatus />);
+    expect(screen.getAllByRole("combobox", { name: "Delivery status" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("combobox", { name: "Delivery status" })[0]).toHaveTextContent("Upcoming");
   });
   it("next week arrow updates ?week via router.replace", () => {
     replace.mockClear();

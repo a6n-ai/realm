@@ -1,3 +1,5 @@
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { zonedDateIso } from "@foundry/commons";
 import { handler } from "@foundry/routes";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { requireStaff } from "@/lib/auth/guards";
@@ -24,13 +26,14 @@ export const GET = handler(async (request: Request): Promise<Response> => {
   const { condition } = parseFilterState(EXPORT_SPEC, sp);
   const rows = await inquiriesService.listForExport(condition);
 
+  const { timezone } = await getAppSettings();
   const XLSX = await import("xlsx");
-  const sheet = XLSX.utils.json_to_sheet(rows.map(inquiryRowToExcelRecord), { header: [...EXPORT_COLUMNS] });
+  const sheet = XLSX.utils.json_to_sheet(rows.map((r) => inquiryRowToExcelRecord(r, timezone)), { header: [...EXPORT_COLUMNS] });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Inquiries");
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 
-  const dateIso = new Date().toISOString().slice(0, 10);
+  const dateIso = zonedDateIso(Date.now(), timezone);
   return new Response(new Uint8Array(buffer), {
     status: 200,
     headers: {

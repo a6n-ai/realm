@@ -59,8 +59,8 @@ export function CompletionsView({ date }: { date: string }) {
           <CheckCircle2Icon data-icon="inline-start" /> Pull completions
         </Button>
         <p className="text-muted-foreground text-sm">
-          Pull completions reads proof-of-delivery status; a failed stop is skipped the same way
-          a dispatcher would skip it by hand.
+          Pull completions follows OptimoRoute. A success is recorded. A failed stop is skipped.
+          A stop the driver has not closed is left as it is.
         </p>
       </div>
 
@@ -77,7 +77,7 @@ export function CompletionsView({ date }: { date: string }) {
               </Badge>
             ) : null}
             {completions.pendingCount > 0 ? (
-              <Badge variant="outline">{completions.pendingCount} too early to tell</Badge>
+              <Badge variant="outline">{completions.pendingCount} not closed yet</Badge>
             ) : null}
             {completions.unmatched.length > 0 ? (
               <Badge variant="outline">{completions.unmatched.length} not found on OptimoRoute</Badge>

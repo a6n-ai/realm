@@ -4,7 +4,7 @@ import { UtensilsCrossedIcon } from "lucide-react";
 import { and, asc, desc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addonCategories, addons, deliveryFrequencies, deliveryZones, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans } from "@/db/schema";
+import { addons, deliveryFrequencies, deliveryZones, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { dishesService } from "@/lib/services/dishes.service";
@@ -27,7 +27,6 @@ const TABLES: Record<string, PgTable> = {
   "delivery-frequencies": deliveryFrequencies,
   "duration-packages": durationPackages,
   discounts,
-  "addon-categories": addonCategories,
   addons,
 };
 
@@ -118,23 +117,16 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   // categoriesByPlan — fetched once and shared between both, instead of once
   // per consumer.
   const needsPlans = def.fields.some((f) => f.optionsSource === "plans") || resource === "meal-sizes";
-  const needsAddonCategories = def.fields.some((f) => f.optionsSource === "addon-categories");
   // meal-sizes also needs every plan (active or not) to resolve a row's planId
   // FK to a publicId below — fetch the superset once and derive the
   // active-only dropdown options from it, rather than two separate queries.
   const needsTargets = def.fields.some((f) => f.optionsSource === "discount-targets");
-  const [categoryRows, allPlanRows, addonCatRows, targetRows] = await Promise.all([
+  const [categoryRows, allPlanRows, targetRows] = await Promise.all([
     needsCategories ? dishCategoriesService.enabledCategories() : Promise.resolve([]),
     // Dropdown value is the plan publicId — the same identifier the meal-size
     // service resolves back to plans.id on write.
     needsPlans
       ? db.select({ id: plans.id, publicId: plans.publicId, name: plans.name, active: plans.active }).from(plans)
-      : Promise.resolve([]),
-    // addons.category (soft ref) uses the key; dish-categories.addonCategoryIds
-    // (join membership) uses the publicId — same split as dishes.category vs
-    // dishes.planIds above.
-    needsAddonCategories
-      ? db.select({ publicId: addonCategories.publicId, key: addonCategories.key, name: addonCategories.name }).from(addonCategories).where(eq(addonCategories.active, true))
       : Promise.resolve([]),
     needsTargets
       ? Promise.all([
@@ -153,8 +145,6 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       dynamicOptions[f.key] = WEEKDAY_OPTIONS.map((d) => ({ value: d, label: WEEKDAY_LABELS[d] }));
     } else if (f.optionsSource === "plans") {
       dynamicOptions[f.key] = planRows.map((p) => ({ value: p.publicId, label: p.name }));
-    } else if (f.optionsSource === "addon-categories") {
-      dynamicOptions[f.key] = addonCatRows.map((a) => ({ value: resource === "addons" ? a.key : a.publicId, label: a.name }));
     } else if (f.optionsSource === "discount-targets" && targetRows) {
       dynamicOptions[f.key] = [
         { value: "all", label: "All" },
@@ -325,10 +315,6 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   if (resource === "dish-categories") {
     const byRow = await dishCategoriesService.plansByCategory();
     for (const dto of rows) dto.planIds = byRow.get(dto.publicId) ?? [];
-  }
-  if (resource === "dish-categories") {
-    const addonCatByRow = await dishCategoriesService.addonCategoriesByCategory();
-    for (const dto of rows) dto.addonCategoryIds = addonCatByRow.get(dto.publicId) ?? [];
   }
 
   let discountCtx: DiscountCtx | undefined;

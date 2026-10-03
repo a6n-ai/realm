@@ -1,6 +1,6 @@
 import { PlusIcon } from "lucide-react";
-import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
-import type { WizardSelections } from "../selections";
+import { listableMealSizes, mealSizeAddons, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
+import { DEFAULT_EATING_DAYS, type WizardSelections } from "../selections";
 import { Button, OptionCard, Pill, Stepper } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
@@ -28,17 +28,8 @@ export function StepBundle({
   const trials = trial ? meals.filter((m) => m.trial) : [];
   const selectedMeal = meals.find((m) => m.publicId === selections.mealSizeId);
 
-  // Only categories an admin explicitly attached add-ons to show up — see
-  // dishCategoryAddonCategories. Deduped: two component categories can share
-  // the same add-on category.
-  const eligibleAddons = (() => {
-    if (!selectedMeal || selectedMeal.trial) return [];
-    const byKey = new Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }>();
-    for (const item of selectedMeal.items) {
-      for (const addon of catalog.addonsByCategory?.[item.category] ?? []) byKey.set(addon.key, addon);
-    }
-    return [...byKey.values()];
-  })();
+  // Add-ons offered with any of this meal size's dish categories (addons.category).
+  const eligibleAddons = !selectedMeal || selectedMeal.trial ? [] : mealSizeAddons(catalog.addonsByCategory, selectedMeal.items);
 
   const addonSelections = selections.addonSelections ?? [];
   const qtyFor = (key: string) => addonSelections.find((s) => s.key === key)?.qty ?? 0;
@@ -85,7 +76,7 @@ export function StepBundle({
                   meal={m}
                   active={selections.mealSizeId === m.publicId}
                   categoryLabels={catalog.categoryLabels}
-                  onPick={() => set({ mealSizeId: m.publicId, trialDays: undefined })}
+                  onPick={() => set({ mealSizeId: m.publicId, trialDays: undefined, ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}) })}
                 />
               ))}
             </div>

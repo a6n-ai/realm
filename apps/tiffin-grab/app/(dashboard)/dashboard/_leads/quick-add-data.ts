@@ -8,7 +8,7 @@ import { deliveryZones, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { listableMealSizes } from "@/lib/catalog/types";
+import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import type { CustomMealCategory } from "../orders/custom-meal-builder";
@@ -19,6 +19,7 @@ export type QuickAddCatalog = {
   mealSizes: { id: string; name: string; diet: string; trial?: boolean }[];
   frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
+  timezone?: string;
   maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];
 };
@@ -69,9 +70,10 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
     zones,
     catalog: {
       plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-      mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends })),
+      mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends, addons: m.trial ? [] : mealSizeAddons(catalog.addonsByCategory, m.items) })),
       frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
+    timezone: catalog.timezone,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
       durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
     },

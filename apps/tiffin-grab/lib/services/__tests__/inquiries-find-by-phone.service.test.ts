@@ -22,22 +22,23 @@ describe("inquiriesService.findOpenByPhone", () => {
   });
   afterAll(reset);
 
-  it("returns open inquiries for a phone, newest first, with source key+label", async () => {
+  it("returns the single open inquiry for a phone, with source key+label", async () => {
     const phone = "+16475552000";
     await inquiriesService.create({ fullName: "Lead A", phone, sourceKey: "facebook", email: testEmail() });
+    // Same person again under another source folds in — still one open row.
     await inquiriesService.create({ fullName: "Lead A2", phone, sourceKey: "manual", email: testEmail() });
     const rows = await inquiriesService.findOpenByPhone(phone);
-    expect(rows).toHaveLength(2);
-    expect(rows[0].sourceKey).toBe("manual"); // newest first
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sourceKey).toBe("facebook");
     expect(rows[0].sourceLabel).toBeTruthy();
     expect(rows[0].stage).toBe("new");
   });
 
   it("excludes converted and lost inquiries", async () => {
     const phone = "+16475552001";
-    const open = await inquiriesService.create({ fullName: "Open", phone, sourceKey: "facebook", email: testEmail() });
     const lost = await inquiriesService.create({ fullName: "Lost", phone, sourceKey: "manual", email: testEmail() });
     await inquiriesService.markLost(lost.publicId, "no_response");
+    const open = await inquiriesService.create({ fullName: "Open", phone, sourceKey: "facebook", email: testEmail() });
     const rows = await inquiriesService.findOpenByPhone(phone);
     expect(rows.map((r) => r.publicId)).toEqual([open.publicId]);
   });

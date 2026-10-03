@@ -1,7 +1,7 @@
 import { updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
-import { addonCategories, dishes, plans } from "./catalog";
+import { dishes, plans } from "./catalog";
 import { orders } from "./orders";
 import { organization } from "./organizations";
 
@@ -112,29 +112,6 @@ export const categoryPlans = pgTable(
   ],
 );
 
-// Which add-on categories a dish category offers. An add-on only shows to the
-// customer once its category is attached here — this is the gate the admin sets
-// per user's brief ("dish and category admin has to add in add-ons only then
-// add-ons will be shown"). Mirrors categoryPlans.
-export const dishCategoryAddonCategories = pgTable(
-  "dish_category_addon_categories",
-  {
-    ...updatableColumns("dca"),
-    dishCategoryId: bigint("dish_category_id", { mode: "bigint" })
-      .notNull()
-      .references(() => dishCategories.id, { onDelete: "cascade" }),
-    addonCategoryId: bigint("addon_category_id", { mode: "bigint" })
-      .notNull()
-      .references(() => addonCategories.id, { onDelete: "cascade" }),
-    // Client-scoping — see dishCategories.organizationId for the pattern.
-    organizationId: text("organization_id").references(() => organization.id),
-  },
-  (t) => [
-    uniqueIndex("dish_category_addon_categories_unique").on(t.dishCategoryId, t.addonCategoryId),
-    index("dish_category_addon_categories_addon_category_idx").on(t.addonCategoryId),
-  ],
-);
-
 // draft   — the admin's working copy; content is editable, invisible to the public.
 // ready   — saved and content-frozen for review; still not on the website.
 // released — live and orderable. Editing one requires an explicit amend, because live
@@ -186,6 +163,7 @@ export const menuItems = pgTable(
   (t) => [
     uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.categoryId, t.dishId),
     index("menu_items_dish_idx").on(t.dishId),
+    index("menu_items_category_idx").on(t.categoryId),
   ],
 );
 
@@ -236,5 +214,8 @@ export const customMealPricing = pgTable(
     active: boolean("active").notNull().default(true),
     organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [uniqueIndex("custom_meal_pricing_category_plan_unique").on(t.categoryId, t.planId)],
+  (t) => [
+    uniqueIndex("custom_meal_pricing_category_plan_unique").on(t.categoryId, t.planId),
+    index("custom_meal_pricing_plan_idx").on(t.planId),
+  ],
 );

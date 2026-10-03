@@ -3,7 +3,8 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryFrequencies, orders, plans } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { getTrialSettings } from "@/lib/services/app-settings.service";
+import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
 import {
@@ -23,7 +24,7 @@ export default async function RenewPlanPage() {
 
   const [catalog, trialSettings, [lastOrder], earliestStartDate, subs] = await Promise.all([
     loadCatalogSnapshot(),
-    getTrialSettings(),
+    resolveRequestOrg().then(getTrialSettings),
     db
       .select({
         mealSizeId: orders.mealSizeId,

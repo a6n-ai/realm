@@ -11,6 +11,7 @@ import { makeImageThumbnail } from "@/components/ds";
 import { claimPaymentAction } from "@/app/(customer)/me/wallet/actions";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { sanitizeClientError } from "@/lib/format/client-error";
+import { PaymentInstructions } from "@/components/payment-instructions";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -124,19 +125,12 @@ export function ClaimPayment({
         </p>
       </div>
 
-      {(ctx.payeeHandle || ctx.instructions) && (
-        <div className="rounded-lg bg-muted/50 space-y-1 p-4 text-sm">
-          {ctx.payeeHandle && (
-            <p>
-              Send to: <span className="font-medium">{ctx.payeeHandle}</span>
-            </p>
-          )}
-          {ctx.instructions && <p className="whitespace-pre-wrap text-muted-foreground">{ctx.instructions}</p>}
-          <p className="text-muted-foreground">
-            Include reference: <span className="text-foreground font-mono font-medium">{ctx.referenceHint}</span>
-          </p>
-        </div>
-      )}
+      <PaymentInstructions
+        payeeHandle={ctx.payeeHandle}
+        instructions={ctx.instructions}
+        referenceHint={ctx.referenceHint}
+        className="rounded-lg bg-muted/50 p-4"
+      />
 
       {ctx.rejectNote && (
         <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">

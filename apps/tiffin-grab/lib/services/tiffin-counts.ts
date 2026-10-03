@@ -6,9 +6,9 @@
 // has passed (the pre-existing "too late to change it now, so it must be going out" proxy) OR
 // OptimoRoute has confirmed the courier actually completed it (lib/services/optimoroute/
 // completions.ts's pullCompletions, which can land before cutoff on an early route run). A
-// "failed" OptimoRoute completion never reaches this function as `scheduled` in the first
-// place — pullCompletions already flips those rows to `skipped`, so no separate handling is
-// needed here for the negative case. Paused, skipped, and cancelled rows never count as
+// "failed" OptimoRoute completion never reaches this function as `scheduled` — pullCompletions
+// flips those rows to `skipped`. An open stop stays scheduled, so it still counts once its
+// cutoff has passed. Paused, skipped, and cancelled rows never count as
 // delivered: a failed drop's tiffin is moved to another day, a cancelled one is void.
 
 export type DeliveryForCounts = {

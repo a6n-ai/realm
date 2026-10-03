@@ -3,6 +3,8 @@ import { validateStartDate } from "@/lib/services/start-date";
 
 export const TRIAL_WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 export type TrialWeekday = (typeof TRIAL_WEEKDAYS)[number];
+/** A trial runs inside one week: at most 5 days. */
+export const TRIAL_MAX_DAYS = 5;
 
 export function orderedTrialWeekdays(days: readonly string[]): TrialWeekday[] {
   const picked = new Set(days);
@@ -12,6 +14,68 @@ export function orderedTrialWeekdays(days: readonly string[]): TrialWeekday[] {
 /** Send days for a trial of this meal: Sat/Sun drop out when the meal has no weekend dish. */
 export function trialSendDays(weekdays: readonly string[], servesWeekends: boolean): TrialWeekday[] {
   return orderedTrialWeekdays(weekdays).filter((d) => servesWeekends || (d !== "sat" && d !== "sun"));
+}
+
+/**
+ * A franchise's trial rules: the delivery frequency a trial rides (its days are the
+ * send days) and up to how many of those days a trial takes. maxDays null = trials off.
+ */
+export type TrialSettings = { frequencyKey: string | null; weekdays: string[]; maxDays: number | null };
+
+/** Most days a trial may take with these send days: one per send day, within one week. */
+export function trialDaysCap(weekdays: readonly string[]): number {
+  return Math.min(orderedTrialWeekdays(weekdays).length, TRIAL_MAX_DAYS);
+}
+
+/** Throws unless maxDays fits the frequency's days (and 5). */
+export function assertTrialMax(maxDays: number, weekdays: readonly string[]): void {
+  const cap = trialDaysCap(weekdays);
+  if (!Number.isInteger(maxDays) || maxDays < 1 || maxDays > cap) {
+    throw new ValidationError(`Max days must be 1 to ${cap} for this delivery frequency`);
+  }
+}
+
+/**
+ * Which weekdays a trial uses and how many tiffins. Staff pick weekdays (one
+ * tiffin on each, from the start date); without picks it is a plain count over
+ * every allowed send day.
+ */
+export function resolveTrialDays(
+  allowed: readonly TrialWeekday[],
+  maxDays: number,
+  picks: readonly string[] | undefined,
+  count: number | undefined,
+): { sendDays: TrialWeekday[]; length: number } {
+  const picked = picks?.length ? orderedTrialWeekdays(picks) : null;
+  if (picked) {
+    const off = picked.filter((d) => !allowed.includes(d));
+    if (off.length) throw new ValidationError(`Trials aren't sent on ${off.join(", ")}`);
+  }
+  const length = picked ? picked.length : count;
+  // One tiffin per send day inside a single week, so never more than the send days allow.
+  const cap = Math.min(maxDays, allowed.length, TRIAL_MAX_DAYS);
+  if (length == null || !Number.isInteger(length) || length < 1 || length > cap) {
+    throw new ValidationError(`Choose 1 to ${cap} days`);
+  }
+  return { sendDays: picked ?? [...allowed], length };
+}
+
+/** Toggle one trial day: never below 1 or above `maxDays`, only send days, in week order. */
+export function toggleTrialPick(prev: readonly string[], day: string, sendDays: readonly string[], maxDays: number): TrialWeekday[] {
+  const next = prev.includes(day)
+    ? (prev.length > 1 ? prev.filter((d) => d !== day) : prev)
+    : prev.length < maxDays ? [...prev, day] : prev;
+  return orderedTrialWeekdays(next).filter((d) => sendDays.includes(d));
+}
+
+/** First date on or after `fromIso` that falls on one of `days`. */
+export function nextTrialStart(fromIso: string, days: readonly string[]): string | null {
+  const cursor = parseIsoDateUtc(fromIso);
+  for (let i = 0; i < 7; i++) {
+    if (days.includes(weekdayKey(cursor))) return cursor.toISOString().slice(0, 10);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return null;
 }
 
 /** Next `length` dates from `startDate` whose weekday is allowed, including the start date. */
@@ -42,6 +106,7 @@ export function durationWeeksCovering(startDate: string, lastDate: string): numb
  * start is allowed when that day is a send day, as long as it is after today.
  */
 export function assertTrialStart(startDate: string, weekdays: readonly string[], today: Date): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate ?? "")) throw new ValidationError("Pick a start date");
   const start = parseIsoDateUtc(startDate);
   const wk = weekdayKey(start);
   if (!weekdays.includes(wk)) throw new ValidationError("A trial can't be sent on that day");
