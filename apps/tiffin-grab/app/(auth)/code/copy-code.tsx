@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AUTH_LINK, AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
+import { AuthLogo } from "@/components/auth/auth-kit";
+import { IOS_BUTTON } from "@/components/customer/ios-button";
 
 /**
  * Email can't run JS, so the OTP email's "Copy code" links here. The code rides
@@ -26,26 +29,27 @@ export function CopyCode() {
     }
   }
 
-  if (!code) {
-    return (
-      <div className="flex flex-col items-center gap-4 text-center">
-        <h1 className="text-xl font-semibold">No code here.</h1>
-        <p className="text-muted-foreground text-sm">Open the code from your latest Tiffin Grab email.</p>
-        <Link href="/login" className="text-primary text-sm underline underline-offset-4">
-          Back to sign in
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col items-center gap-6 text-center">
-      <h1 className="text-xl font-semibold">Your Tiffin Grab code</h1>
-      <p className="select-all text-4xl font-bold tracking-[0.3em] tabular-nums">{code}</p>
-      <Button size="lg" className="w-full" onClick={copy}>
-        {copied ? "Copied" : "Copy code"}
-      </Button>
-      <p className="text-muted-foreground text-sm">Paste it back where you asked for it. It expires in 10 minutes.</p>
-    </div>
+    <AuthScreen>
+      <AuthPanel
+        art={<AuthLogo />}
+        title={code ? "Your sign-in code" : "No code here"}
+        tagline={code ? "Paste it back where you asked for it. It expires in 10 minutes." : "Open the code from your latest Tiffin Grab email."}
+      >
+        <div className="flex flex-1 flex-col gap-5">
+          {code ? <p className="select-all text-[40px] font-semibold tracking-[0.3em] tabular-nums">{code}</p> : null}
+          <div className="mt-auto flex flex-col gap-3 pt-4 sm:mt-2">
+            {code ? (
+              <Button className={IOS_BUTTON} onClick={copy}>
+                {copied ? "Copied" : "Copy code"}
+              </Button>
+            ) : null}
+            <div className="flex flex-col items-center">
+              <Link href="/login" className={`${AUTH_LINK} inline-flex items-center`}>Back to sign in</Link>
+            </div>
+          </div>
+        </div>
+      </AuthPanel>
+    </AuthScreen>
   );
 }
