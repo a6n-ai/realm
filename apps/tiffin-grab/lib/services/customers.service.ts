@@ -155,6 +155,34 @@ export async function sendCustomerInvite(email: string): Promise<void> {
   await sendCustomerInviteLink(email);
 }
 
+// "Pending" = a customer account that has never used its email (the same test
+// the list's Invite column uses), so a pressed invite drops them off the list.
+const pendingInvite = and(eq(users.role, "user"), eq(users.status, "active"), eq(users.emailVerified, false), isNotNull(users.email));
+
+export async function countPendingInvites(): Promise<number> {
+  return db.$count(users, pendingInvite);
+}
+
+/**
+ * One-off bulk invite, sent straight away (no queue) — staff wait on a loader.
+ * Sequential on purpose: SES allows ~14/s shared across apps, and one at a
+ * time stays under it. A failure is counted and skipped, never stops the rest.
+ */
+export async function invitePendingCustomers(): Promise<{ sent: number; failed: number }> {
+  const rows = await db.select({ email: users.email }).from(users).where(pendingInvite);
+  let sent = 0;
+  let failed = 0;
+  for (const { email } of rows) {
+    try {
+      await sendCustomerInviteLink(email!);
+      sent += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return { sent, failed };
+}
+
 export async function customerInviteUrl(email: string): Promise<string> {
   await assertCustomerEmail(email);
   return createCustomerInviteUrl(email);
