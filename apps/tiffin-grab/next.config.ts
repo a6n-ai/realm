@@ -37,6 +37,9 @@ const nextConfig: NextConfig = {
       // Delivery notes moved onto each saved address.
       { source: "/me/delivery-notes", destination: "/me/account?section=address", permanent: true },
       { source: "/me/usage", destination: "/me/wallet", permanent: true },
+      // The old WordPress site's legal URLs, still linked from emails and search results.
+      { source: "/terms-and-conditions", destination: "/terms", permanent: true },
+      { source: "/privacy-policy", destination: "/privacy", permanent: true },
     ];
   },
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },

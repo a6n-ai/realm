@@ -5,8 +5,11 @@ import { session as sessionTable } from "@/db/schema";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { linkCapture } from "./link-capture";
 import { sealCode } from "./magic-code";
+import { allowOtpTo } from "./otp-throttle";
+import { createLogger } from "@foundry/commons/logger";
 
 const APP_NAME = "Tiffin Grab";
+const log = createLogger("auth-otp");
 
 /**
  * emailOTP plugin callback: deliver a reset/verify/sign-in code. Migrated
@@ -15,7 +18,13 @@ const APP_NAME = "Tiffin Grab";
  * share the generic verification-code copy with "email-verification", same
  * as the original direct-send routing.
  */
-export async function sendAuthOtp(email: string, otp: string, type: OtpType): Promise<void> {
+export async function sendAuthOtp(email: string, otp: string, type: OtpType, ip: string | null = null): Promise<void> {
+  // Over the cap: drop silently. Throwing would turn into an error only known
+  // accounts can produce (unknown addresses never reach here), leaking existence.
+  if (!allowOtpTo(email, ip)) {
+    log.warn({ domain: email.split("@")[1] ?? null, type }, "otp send dropped: per-address cap");
+    return;
+  }
   const event = type === "forget-password" ? "email_otp_password_reset" : "email_otp_verification";
   await db.transaction((tx) =>
     enqueueNotification(tx, {

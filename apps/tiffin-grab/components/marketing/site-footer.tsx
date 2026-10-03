@@ -23,8 +23,14 @@ export function SiteFooter() {
           Customizable home-style tiffin delivery across {ZONES}.
         </p>
       </div>
-      <div className="border-background/15 text-background/60 border-t py-4 text-center text-xs">
-        © 2026 Tiffin Grab. All rights reserved.
+      <div className="border-background/15 text-background/60 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t px-4 py-4 text-xs">
+        <span>© 2026 Tiffin Grab. All rights reserved.</span>
+        <nav aria-label="Legal" className="flex flex-wrap justify-center gap-x-4 gap-y-1">
+          <Link href="/terms" className="hover:text-background">Terms</Link>
+          <Link href="/privacy" className="hover:text-background">Privacy</Link>
+          <Link href="/refund-policy" className="hover:text-background">Refunds</Link>
+          <Link href="/delivery-policy" className="hover:text-background">Delivery</Link>
+        </nav>
       </div>
       <div className="overflow-hidden px-2 pb-2">
         <div className="text-primary translate-y-[14%] text-center text-[clamp(58px,12.5vw,180px)] leading-[0.9] font-bold tracking-[-0.05em] select-none">
