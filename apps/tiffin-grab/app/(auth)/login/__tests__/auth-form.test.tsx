@@ -58,7 +58,7 @@ describe("safeCallbackUrl", () => {
   it("keeps same-site paths and drops anything that could leave the site", async () => {
     const { safeCallbackUrl } = await import("../auth-form");
     expect(safeCallbackUrl("/me/deliveries?x=1")).toBe("/me/deliveries?x=1");
-    for (const bad of ["https://evil.com", "//evil.com", "/\\evil.com", "javascript:alert(1)", "", null]) {
+    for (const bad of ["https://evil.com", "//evil.com", "/\\evil.com", "/\t/evil.com", "/\n/evil.com", "javascript:alert(1)", "", null]) {
       expect(safeCallbackUrl(bad)).toBeNull();
     }
   });

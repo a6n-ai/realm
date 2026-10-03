@@ -31,8 +31,18 @@ type Mode = "welcome" | "email-otp" | "password" | "pin";
 // callbackUrl comes off the query string, so anyone can craft a login link with
 // it. Only a same-site path ("/x", not "//evil.com" or "/\\evil.com") may be
 // followed after sign-in; anything else lands on the dashboard.
+// Parsed with URL rather than pattern-matched: the parser strips tabs/newlines
+// and folds backslashes exactly as the browser will, so "/\t/evil.com" is seen
+// as the "//evil.com" it becomes.
 export function safeCallbackUrl(raw: string | null): string | null {
-  return raw && /^\/(?![/\\])/.test(raw) ? raw : null;
+  if (!raw || !raw.startsWith("/")) return null;
+  const base = "https://same.invalid";
+  try {
+    const url = new URL(raw, base);
+    return url.origin === base ? url.pathname + url.search + url.hash : null;
+  } catch {
+    return null;
+  }
 }
 
 export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
