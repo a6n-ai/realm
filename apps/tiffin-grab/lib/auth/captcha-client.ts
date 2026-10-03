@@ -47,20 +47,44 @@ export function needsCaptcha(url: string | URL): boolean {
   return CAPTCHA_ENDPOINTS.some((e) => path.includes(e)) && !path.includes("/sign-in/email-otp");
 }
 
+/**
+ * Where the checkbox shows if Cloudflare wants a human: right under the email
+ * field of the form being submitted (every auth form has one), else pinned to
+ * the bottom of the screen. display:contents keeps the host out of the form's
+ * flex gap, so a visitor who passes silently sees no extra space.
+ */
+function placeHost(): HTMLElement {
+  const host = document.createElement("div");
+  // Safari doesn't focus a clicked button, so fall back to the page's email form.
+  const form =
+    document.activeElement?.closest("form") ?? document.querySelector('input[type="email"]')?.closest("form");
+  const email = form?.querySelector<HTMLInputElement>('input[type="email"]');
+  let row: Element | null | undefined = email;
+  while (row && row.parentElement !== form) row = row.parentElement;
+  if (row) {
+    host.dataset.inline = "1";
+    host.style.display = "contents";
+    row.after(host);
+  } else {
+    host.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:2147483647";
+    document.body.appendChild(host);
+  }
+  return host;
+}
+
 /** A single-use Turnstile token, or null when captcha is off. */
 export async function getCaptchaToken(): Promise<string | null> {
   const key = await loadSiteKey();
   if (!key) return null;
   await loadScript();
-  const host = document.createElement("div");
-  host.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:2147483647";
-  document.body.appendChild(host);
+  const host = placeHost();
   let id: string | undefined;
   try {
     return await new Promise<string>((resolve, reject) => {
       id = window.turnstile!.render(host, {
         sitekey: key,
         appearance: "interaction-only",
+        size: host.dataset.inline ? "flexible" : "normal",
         callback: resolve,
         "error-callback": () => reject(new Error("Security check failed. Please try again.")),
         "expired-callback": () => reject(new Error("Security check expired. Please try again.")),
