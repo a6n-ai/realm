@@ -33,7 +33,7 @@ export function InvitePendingButton({ count }: { count: number }) {
         </Button>
       }
       title={`Email ${count} invites?`}
-      description="Every customer who hasn't used their account yet gets the welcome email with a sign-in link. This sends now and can take a minute — keep this page open."
+      description="Customers who haven't used their account and were never sent the welcome email get it now, with a sign-in link. Anyone already invited is skipped — resend to them from their row. This can take a minute; keep this page open."
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>

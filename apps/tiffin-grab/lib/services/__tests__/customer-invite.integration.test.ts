@@ -12,7 +12,7 @@ vi.mock("next/headers", () => ({
 const { db } = await import("@/db/client");
 const { account, notificationOutbox, session, users } = await import("@/db/schema");
 const { auth } = await import("@/lib/auth");
-const { createCustomer, customerInviteUrl, sendCustomerInvite } = await import("../customers.service");
+const { countPendingInvites, createCustomer, customerInviteUrl, sendCustomerInvite } = await import("../customers.service");
 
 const EMAIL = "customer-invite-it@example.test";
 const PHONES = ["+16475554090"];
@@ -51,6 +51,15 @@ describe("sendCustomerInvite", () => {
 
     const replay = await auth.handler(new Request(url));
     expect(replay.headers.get("location")).toContain("error=INVALID_TOKEN");
+  });
+
+  it("an invited customer leaves the bulk-invite count; a failed send puts them back", async () => {
+    await createCustomer({ email: EMAIL, fullName: "Invite Cust", phone: PHONES[0] }, {});
+    const before = await countPendingInvites();
+    await sendCustomerInvite(EMAIL);
+    expect(await countPendingInvites()).toBe(before - 1);
+    await db.update(notificationOutbox).set({ status: "failed" }).where(eq(notificationOutbox.recipientEmail, EMAIL));
+    expect(await countPendingInvites()).toBe(before);
   });
 
   it("returns a copyable link that signs the customer in, and mails nothing", async () => {

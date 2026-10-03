@@ -156,8 +156,10 @@ export async function sendCustomerInvite(email: string): Promise<void> {
   await sendCustomerInviteLink(email);
 }
 
-// "Pending" = a customer account that has never used its email (the same test
-// the list's Invite column uses), so a pressed invite drops them off the list.
+// "Pending" = a customer account that has never used its email AND has never
+// been sent the welcome email. Once an invite is queued or sent they drop out,
+// so pressing "Invite all pending" twice never mails anyone twice; a resend is
+// a deliberate per-row action. A failed send counts as not sent.
 // A bounced or complained address (suppression scope "all") is skipped: mailing
 // it again in bulk is what gets an SES account paused.
 const pendingInvite = and(
@@ -166,6 +168,8 @@ const pendingInvite = and(
   eq(users.emailVerified, false),
   isNotNull(users.email),
   sql`not exists (select 1 from ${messageSuppression} s where s.address = ${users.email} and s.channel = 'email' and s.scope = 'all')`,
+  sql`not exists (select 1 from ${notificationOutbox} o where o.event = 'customer_invitation' and o.channel = 'email'
+    and o.recipient_email = ${users.email} and o.status <> 'failed')`,
 );
 
 export async function countPendingInvites(): Promise<number> {
