@@ -21,7 +21,7 @@ export function VerifyStatus() {
             : "You're all set. Continue to your account."
         }
       >
-        <div className="mt-auto pt-4 sm:mt-2">
+        <div className="pt-1">
           <Button asChild className={IOS_BUTTON}>
             <Link href={failed ? "/login" : "/dashboard"}>{failed ? "Go to sign in" : "Continue"}</Link>
           </Button>

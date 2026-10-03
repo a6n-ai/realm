@@ -41,7 +41,7 @@ export function CopyCode({ code }: { code: string | null }) {
               {code}
             </p>
           ) : null}
-          <div className="mt-auto flex flex-col gap-3 pt-4 sm:mt-2">
+          <div className="flex flex-col gap-3 pt-1">
             {code ? (
               // Thumb-sized and full width on phones; a compact centered pill on desktop.
               <Button

@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { CodeOtp } from "@foundry/auth-ui";
+import { CodeOtp, AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@foundry/ui/button";
-import { Card, CardContent } from "@foundry/ui/card";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { acceptInvitationAction } from "../actions";
+import { AUTH_BUTTON, AUTH_INPUT, AuthLogo } from "@/components/auth/auth-kit";
 
 export function AcceptInvitationForm({ invitationId }: { invitationId: string }) {
   const router = useRouter();
@@ -46,25 +46,24 @@ export function AcceptInvitationForm({ invitationId }: { invitationId: string })
       // that (session present, passwordSet false) and finishes the flow.
       router.push("/set-password");
     } catch {
-      setError("Invalid or expired code.");
+      setError("That code doesn't match or has expired. Check the latest email, or send a new code.");
     } finally {
       setVerifying(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card className="overflow-hidden p-0">
-        <CardContent className="grid gap-4 p-6 md:p-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold">Accept your invitation</h1>
-            <p className="text-muted-foreground text-sm">
-              Verify your email to join and finish setting up your account.
-            </p>
-          </div>
+    <AuthScreen>
+      <AuthPanel
+        art={<AuthLogo />}
+        title={sent ? "Enter the code" : "Accept your invitation"}
+        tagline={sent ? "If this email has an invitation, we've sent it a 6-digit code." : "Verify your email to join and finish setting up your account."}
+      >
+        <div className="flex flex-1 flex-col gap-5">
           <div className="grid gap-2">
             <Label htmlFor="invite-email">Email</Label>
             <Input
+              className={AUTH_INPUT}
               id="invite-email"
               type="email"
               value={email}
@@ -80,17 +79,19 @@ export function AcceptInvitationForm({ invitationId }: { invitationId: string })
             </div>
           ) : null}
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
-          {sent ? (
-            <Button type="button" className="w-full" disabled={verifying || otp.length !== 6} onClick={onVerify}>
-              {verifying ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "Verify & accept"}
-            </Button>
-          ) : (
-            <Button type="button" className="w-full" disabled={sending || !email} onClick={onSendCode}>
-              {sending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "Send code"}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+          <div className="pt-1">
+            {sent ? (
+              <Button type="button" className={AUTH_BUTTON} disabled={verifying || otp.length !== 6} onClick={onVerify}>
+                {verifying ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "Verify & accept"}
+              </Button>
+            ) : (
+              <Button type="button" className={AUTH_BUTTON} disabled={sending || !email} onClick={onSendCode}>
+                {sending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "Send code"}
+              </Button>
+            )}
+          </div>
+        </div>
+      </AuthPanel>
+    </AuthScreen>
   );
 }
