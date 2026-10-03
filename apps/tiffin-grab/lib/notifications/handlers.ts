@@ -23,6 +23,7 @@ function emailChannelProvider(): ChannelProvider {
         html: msg.html,
         text: msg.text,
         attachments: msg.attachments,
+        headers: msg.headers,
       }),
   };
 }
