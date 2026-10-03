@@ -1,8 +1,8 @@
 # Xplorers production runbook (Box C, ap-southeast-1 / Singapore)
 
-Xplorers runs on its OWN EC2 box + OWN RDS in **Singapore**, separate from
+Xplorers runs on its OWN EC2 box in **Singapore** with its OWN Neon project, separate from
 tiffin-grab and puchkaman (those stay **us-east-1**). Public URL:
-https://xplorers.a6n.ai. Full stack: web + pgbouncer → RDS, better-auth, SES.
+https://xplorers.a6n.ai. Full stack: web → Neon (pooled endpoint), better-auth, SES.
 No redis/worker. DNS is the existing `a6n.ai` hosted zone in Route 53.
 
 CI builds `xplorers-web` + `xplorers-tools` on push to `main` (see
@@ -54,20 +54,19 @@ Wait until the identity is Verified (SES console, **Singapore**).
 
 ## 3. Write SSM config (`/xplorers/prod/*` in ap-southeast-1)
 
-Every key from `env.production.example`, each as a SecureString. Use the RDS
-endpoint from step 1. Example:
+Every key from `env.production.example`, each as a SecureString. Database
+strings come from the Neon console (section 6). Example:
 
     aws ssm put-parameter --region ap-southeast-1 --overwrite --type SecureString \
       --name /xplorers/prod/BETTER_AUTH_SECRET --value "$(openssl rand -base64 32)"
 
 Keys: NODE_ENV, LOG_LEVEL, AWS_REGION, DATABASE_URL, DIRECT_DATABASE_URL,
-PGBOUNCER_DB_HOST, PGBOUNCER_DB_PORT, PGBOUNCER_DB_USER, PGBOUNCER_DB_PASSWORD,
-PGBOUNCER_DB_NAME, BETTER_AUTH_URL, BETTER_AUTH_SECRET, ACME_EMAIL,
+BETTER_AUTH_URL, BETTER_AUTH_SECRET, ACME_EMAIL,
 NOTIFY_FROM_EMAIL, NOTIFY_FROM_NAME, SES_CONFIGURATION_SET.
 
 `AWS_REGION` **must** be `ap-southeast-1`. `BETTER_AUTH_URL` is
-`https://xplorers.a6n.ai`. `DATABASE_URL` uses `pgbouncer:6432` (no sslmode);
-`DIRECT_DATABASE_URL` ends `?sslmode=no-verify`. Also copy `ACME_EMAIL` into
+`https://xplorers.a6n.ai`. `DATABASE_URL` is Neon's `-pooler`
+host and `DIRECT_DATABASE_URL` the direct host, both `?sslmode=require`. Also copy `ACME_EMAIL` into
 `proxy/.env.production` on the box (or let first-time bring-up do it).
 
 ## 4. First-time box bring-up
@@ -104,7 +103,7 @@ Push to main → CI builds xplorers-{web,tools} → deploy job SSHes Box C when
 `cd ~/realm/deployment/prod/xplorers && ./deploy.sh`. Rollback:
 `IMAGE_TAG=<sha> ./deploy.sh`.
 
-## 6. Move to Neon (in progress, started 2026-10-01)
+## 6. Database on Neon (moved from RDS 2026-10-01)
 
 Why: cost. Singapore RDS is ~$21/mo; Neon Free is $0 for this load because
 compute suspends after 5 min idle. xplorers goes first because it has no
@@ -124,7 +123,7 @@ Neon has two endpoints:
   container is dropped at cutover: two poolers stacked add a hop and nothing
   else, and our pooler holding server connections open could keep Neon awake.
 
-Steps:
+Steps used for the move (kept for the next app):
 
 1. Open the tunnel: `./deployment/prod/db-tunnel.sh xplorers` (port 5435).
 2. Put both strings from Neon console → Connect (pooling off / on) into

@@ -50,6 +50,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      # Migration `when` values are written only by drizzle-kit generate; this
+      # fails on an edited/back-dated/hand-typed one (silently skipped on deploy).
+      - name: Check migration journals
+        run: node scripts/check-migration-journal.mjs ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:

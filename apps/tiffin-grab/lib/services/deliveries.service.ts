@@ -331,9 +331,8 @@ export async function skipDelivery(
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertOriginal(row);
-    // The cutoff lock protects a customer from self-service-cancelling too late — it
-    // does not apply to the system's own post-cutoff reconciliation (pullCompletions),
-    // which by design only ever calls this once the cutoff has already passed.
+    // The cutoff lock protects a customer from self-service-cancelling too late. It does
+    // not apply when OptimoRoute has reported the stop failed (pullCompletions).
     if (!opts.bypassCutoffLock) assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot skip a ${row.status} delivery`);
     const updated = await tx.update(deliveries).set({ status: "skipped" })

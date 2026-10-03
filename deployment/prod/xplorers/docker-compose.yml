@@ -1,15 +1,13 @@
-# Xplorers prod stack on its OWN box in ap-southeast-1: web + pgbouncer +
-# one-shot migrate, fronted by the Box C Caddy in ../proxy which reaches it as
+# Xplorers prod stack on its OWN box in ap-southeast-1: web + one-shot
+# migrate, fronted by the Box C Caddy in ../proxy which reaches it as
 # xplorers-web:3000 over `edge`. No redis, no worker, no outbox drainer —
-# auth OTP sends SES inline.
+# auth OTP sends SES inline. The database is Neon (see RUNBOOK.md section 6):
+# web uses Neon's pooled endpoint, so there is no local pgbouncer.
 #
 # Two images from deployment/prod/Dockerfile (--build-arg APP=xplorers):
 #   xplorers-web   = runner target (Next standalone) → web
 #   xplorers-tools = build  target (source + drizzle-kit) → migrate
 # Pin via IMAGE_TAG (CI sets it to the commit SHA); defaults to :latest.
-include:
-  - pgbouncer/docker-compose.yml
-
 x-awslogs: &awslogs
   driver: awslogs
   options:
@@ -32,9 +30,6 @@ services:
     networks:
       - default
       - edge
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
 
   migrate:
     image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/xplorers-tools}:${IMAGE_TAG:-latest}
