@@ -28,6 +28,9 @@ import {
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
 import { ResubscribeLinkButton } from "../../resubscribe-link-button";
 
+// Oldest notification_outbox row in prod: earlier per-recipient send rows were lost.
+const OUTBOX_KEPT_SINCE = Date.UTC(2026, 8, 28, 11);
+
 // Resolves a live audience count on every view.
 export const dynamic = "force-dynamic";
 
@@ -216,7 +219,15 @@ export default async function CampaignPage({
             </SectionCard>
           </TabsContent>
           <TabsContent value="logs" className="pt-4">
-            <SectionCard title="Logs" subtitle="Sends for this campaign.">
+            <SectionCard
+              title="Logs"
+              subtitle={
+                // Per-recipient rows from before 2026-09-28 were not kept; the counts on the campaign row were.
+                row.sentAt != null && row.sentAt < OUTBOX_KEPT_SINCE
+                  ? "Per-recipient logs start 28 Sep 2026; this campaign was sent before that. Results still has its totals."
+                  : "Sends for this campaign."
+              }
+            >
               <Suspense fallback={<LogsTableSkeleton />}>
                 <CampaignLogsData campaignId={row.id} searchParams={searchParams} />
               </Suspense>
