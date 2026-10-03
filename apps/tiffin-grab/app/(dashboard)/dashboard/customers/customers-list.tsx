@@ -74,6 +74,8 @@ export function CustomersList({
                 email={c.email}
                 joined={c.joined}
                 hasActivePlan={c.latestStatus === "active" || c.latestStatus === "paused"}
+                lastInvite={c.lastInvite}
+                lastReminder={c.lastReminder}
               />
             </TableCell>
           </>

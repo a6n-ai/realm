@@ -99,6 +99,13 @@
       "when": 1791051347326,
       "tag": "0013_luxuriant_ender_wiggin",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791054359320,
+      "tag": "0014_cold_champions",
+      "breakpoints": true
     }
   ]
 }

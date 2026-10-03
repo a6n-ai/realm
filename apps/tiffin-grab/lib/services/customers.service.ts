@@ -4,7 +4,8 @@ import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
-import { account, deliveries, inquiries, leadSources, mealSizes, orders, payments, plans, users } from "@/db/schema";
+import { account, campaign, deliveries, inquiries, leadSources, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, users } from "@/db/schema";
+import { MENU_REMINDER_KEY } from "@/lib/notifications/menu-reminder";
 import type { SortState } from "@/lib/list/sort";
 import { auth } from "@/lib/auth";
 import { createCustomerInviteUrl, sendCustomerInviteLink } from "@/lib/auth/invite-links";
@@ -155,6 +156,42 @@ export async function sendCustomerInvite(email: string): Promise<void> {
   await sendCustomerInviteLink(email);
 }
 
+// "Pending" = a customer account that has never used its email (the same test
+// the list's Invite column uses), so a pressed invite drops them off the list.
+// A bounced or complained address (suppression scope "all") is skipped: mailing
+// it again in bulk is what gets an SES account paused.
+const pendingInvite = and(
+  eq(users.role, "user"),
+  eq(users.status, "active"),
+  eq(users.emailVerified, false),
+  isNotNull(users.email),
+  sql`not exists (select 1 from ${messageSuppression} s where s.address = ${users.email} and s.channel = 'email' and s.scope = 'all')`,
+);
+
+export async function countPendingInvites(): Promise<number> {
+  return db.$count(users, pendingInvite);
+}
+
+/**
+ * One-off bulk invite, sent straight away (no queue) — staff wait on a loader.
+ * Sequential on purpose: SES allows ~14/s shared across apps, and one at a
+ * time stays under it. A failure is counted and skipped, never stops the rest.
+ */
+export async function invitePendingCustomers(): Promise<{ sent: number; failed: number }> {
+  const rows = await db.select({ email: users.email }).from(users).where(pendingInvite);
+  let sent = 0;
+  let failed = 0;
+  for (const { email } of rows) {
+    try {
+      await sendCustomerInviteLink(email!);
+      sent += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return { sent, failed };
+}
+
 export async function customerInviteUrl(email: string): Promise<string> {
   await assertCustomerEmail(email);
   return createCustomerInviteUrl(email);
@@ -200,7 +237,15 @@ export type CustomerRow = {
   // password": customers sign in by email code and may never set one.
   joined: boolean;
   planCompletionDate: string | null;
+  /** Latest welcome email and latest menu reminder, for the row's status icons. */
+  lastInvite: SendState | null;
+  lastReminder: SendState | null;
 };
+
+/** One outbox row's delivery state; opened/delivered come from SES events. */
+export type SendState = { status: string; at: number; deliveredAt: number | null; openedAt: number | null };
+
+const sendStateJson = sql`json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)`;
 
 export type CustomerSortColumn = "name" | "email" | "phone" | "orders";
 
@@ -261,6 +306,16 @@ export async function listCustomersPage(
       latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
       joined: users.emailVerified,
       planCompletionDate: planCompletionSubquery,
+      // Correlated, but only for the page's rows (25ish). The invite row carries
+      // only an address (no account id on it), hence the email match.
+      // ponytail: unindexed recipient_email scan per row; add an index if the outbox grows large.
+      lastInvite: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
+        where o.event = 'customer_invitation' and o.channel = 'email' and o.recipient_email = ${users.email}
+        order by o.created_at desc limit 1)`,
+      lastReminder: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
+        join ${campaign} c on c.id = o.campaign_id and c.system_key = ${MENU_REMINDER_KEY}
+        where o.channel = 'email' and o.recipient_id = ${users.id}
+        order by o.created_at desc limit 1)`,
     })
     .from(users)
     .leftJoin(orders, eq(orders.userId, users.id))

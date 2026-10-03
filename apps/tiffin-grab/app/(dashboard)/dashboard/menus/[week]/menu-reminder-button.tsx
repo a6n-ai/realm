@@ -17,7 +17,7 @@ export function MenuReminderButton({ weekId }: { weekId: string }) {
       const r = await sendWeekMenuReminder(weekId);
       if ("error" in r) return void toast.error(r.error);
       toast.success(r.queued > 0 ? `Reminder queued for ${r.queued} customers` : "Everyone already has this week's reminder", {
-        description: "Track it under Notifications → System.",
+        description: "Track it under Notifications → Templates → Weekly menu reminder.",
       });
     });
   }

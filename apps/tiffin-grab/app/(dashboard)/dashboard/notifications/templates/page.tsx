@@ -11,6 +11,7 @@ import {
   type TemplateStatus,
 } from "@/components/notifications/template-list";
 import { TemplateListSkeleton } from "./template-list-skeleton";
+import { BulkTemplates } from "./bulk-templates";
 
 type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
@@ -53,6 +54,10 @@ export default function NotificationTemplatesPage({ searchParams }: { searchPara
     <div className="space-y-6">
       <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>
         <TemplateStatsData />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <BulkTemplates />
       </Suspense>
 
       <SectionCard title="Templates" subtitle="A channel with no template does not send. Select an event to edit.">

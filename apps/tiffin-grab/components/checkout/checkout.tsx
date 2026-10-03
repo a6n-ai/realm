@@ -800,7 +800,8 @@ function ApplyRow({ id, icon, label, hint, value, placeholder, inputMode, inputC
         <Input
           dense
           id={id}
-          className={inputClassName}
+          // min-w-0: an <input>'s intrinsic width otherwise pushes Apply off a phone screen.
+          className={`min-w-0 flex-1 ${inputClassName ?? ""}`}
           inputMode={inputMode}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -810,7 +811,7 @@ function ApplyRow({ id, icon, label, hint, value, placeholder, inputMode, inputC
           autoComplete="off"
           spellCheck={false}
         />
-        <Button pill variant="quiet" className="!min-h-11 !px-5" onClick={onApply} disabled={state.status === "checking"}>
+        <Button pill variant="quiet" className="!min-h-11 shrink-0 !px-5" onClick={onApply} disabled={state.status === "checking"}>
           {state.status === "checking" ? "Checking…" : "Apply"}
         </Button>
       </div>
