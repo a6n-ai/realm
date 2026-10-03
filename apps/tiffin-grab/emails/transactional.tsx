@@ -278,6 +278,63 @@ function Details({ rows }: { rows: [string, string][] }) {
   );
 }
 
+/**
+ * Numbered feature rows on a warm wash, after the launch post's 01–05 slides:
+ * saffron number, bold name, one muted line. Tables, so Outlook keeps the columns.
+ */
+function Features({ items }: { items: [string, string][] }) {
+  return (
+    <Section style={{ backgroundColor: C.wash, borderRadius: "16px", padding: "6px 18px", margin: "4px 0 24px" }}>
+      <table role="presentation" width="100%" cellPadding={0} cellSpacing={0}>
+        <tbody>
+          {items.map(([name, line], i) => (
+            <tr key={name}>
+              <td
+                style={{
+                  width: "34px",
+                  padding: "14px 0",
+                  verticalAlign: "top",
+                  fontSize: "13px",
+                  lineHeight: "22px",
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  color: C.saffron,
+                  borderTop: i === 0 ? "none" : `1px solid ${C.hairline}`,
+                }}
+              >
+                {String(i + 1).padStart(2, "0")}
+              </td>
+              <td style={{ padding: "14px 0", borderTop: i === 0 ? "none" : `1px solid ${C.hairline}` }}>
+                <Text style={{ margin: 0, fontSize: "15px", lineHeight: "22px", fontWeight: 600, color: C.ink }}>{name}</Text>
+                <Text style={{ margin: "2px 0 0", fontSize: "14px", lineHeight: "20px", color: C.muted }}>{line}</Text>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Section>
+  );
+}
+
+/**
+ * The weekly menu reminder. Not an event template: it is the seed content of
+ * the menu-reminder system campaign (lib/notifications/menu-reminder.ts),
+ * kept here so it shares the family look. The campaign footer (unsubscribe +
+ * postal address) is appended after this at send time.
+ */
+export const MENU_REMINDER = {
+  subject: "This week's menu is out — pick your meals",
+  element: (
+    <Layout preview="The menu for the week of {{weekLabel}} is live. Pick your meals before the cutoff.">
+      <Eyebrow>This week's menu</Eyebrow>
+      <Title lead="Your menu is" accent="out." />
+      <P>The menu for the week of {"{{weekLabel}}"} is live. Pick your meals before the cutoff, or keep the default and we'll cook that.</P>
+      <Cta href="{{url}}">Choose my meals</Cta>
+      <Note>Swap dishes, change portions, move a tiffin to another day or send one day to a different address, all from your account.</Note>
+    </Layout>
+  ),
+};
+
 export interface EmailTemplate {
   event: string;
   subject: string;
@@ -387,16 +444,28 @@ export const TEMPLATES: EmailTemplate[] = [
   },
   {
     event: "customer_invitation",
-    subject: "Welcome to Tiffin Grab",
+    subject: "Welcome to the new Tiffin Grab",
     element: (
-      <Layout preview="Your account is ready — track deliveries, pick meals, pause anytime.">
-        <Eyebrow>Welcome</Eyebrow>
-        <Title lead="Your tiffins, your" accent="way." />
-        <P>Your Tiffin Grab account is ready. Track your deliveries, pick your meals, and pause or reschedule anytime.</P>
-        <Cta href="{{url}}">Open my account</Cta>
+      <Layout preview="Your tiffin. Your rules. Pick meals, move a tiffin, change an address, any day, in a few taps.">
+        <Eyebrow>Now live · Your account</Eyebrow>
+        <Title lead="Your tiffin. Your" accent="rules." />
+        <P>
+          Welcome to the new Tiffin Grab. Everything about your tiffin now lives in one place, and you can change it
+          yourself, any day, in a few taps.
+        </P>
+        <Features
+          items={[
+            ["Subscribe to a bundle", "Choose a meal size, set your delivery days and start in minutes."],
+            ["Edit your menu", "Pick tomorrow's meal tonight. Swap dishes, change portions or keep the default."],
+            ["Reschedule any tiffin", "Away for a day? Move it to another day. Same meal, nothing wasted."],
+            ["Change address for a day", "At the office on Wednesday? Send just that tiffin there. The rest stays put."],
+            ["Enjoy wallet money", "Your balance is always in view at the top of your account."],
+          ]}
+        />
+        <Cta href="{{url}}">Log in &amp; take control</Cta>
         <Note>
-          This link signs you in once and works for 7 days. After that, sign in anytime with a code sent to this email —
-          no password needed.
+          This link signs you in once and works for 7 days. After that, sign in anytime with a code sent to this email,
+          no password needed. Questions? Just reply to this email.
         </Note>
       </Layout>
     ),

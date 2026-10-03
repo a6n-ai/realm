@@ -6,34 +6,31 @@ import { menuWeeks, orders, users } from "@/db/schema";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { notificationTables, usersRef } from "./tables";
 import { signalOutbox } from "./outbox-signal";
+import { MENU_REMINDER } from "@/emails/transactional";
 
 export const MENU_REMINDER_KEY = "menu_reminder";
 
-// Seeded once; after that staff edit the copy on the campaign page. It names
-// no dishes, so the same email works every week.
-const SEED_HTML = `<p>Hi {{contact.name}},</p>
-<p>The menu for the week of <strong>{{weekLabel}}</strong> is out. Sign in to pick your meals for the week before the cutoff.</p>
-<p><a href="{{url}}" style="display:inline-block;padding:12px 20px;border-radius:999px;background:#e8891c;color:#ffffff;text-decoration:none;font-weight:600">Choose my meals</a></p>
-<p style="color:#6b6b6b;font-size:13px">Or open this link: {{url}}</p>`;
-
-const SEED_TEXT = `Hi {{contact.name}},
-
-The menu for the week of {{weekLabel}} is out. Sign in to pick your meals for the week before the cutoff:
-
-{{url}}`;
-
-export function ensureMenuReminder() {
+// Seeded once from the shared email design; after that staff edit the copy on
+// the campaign page. It names no dishes, so the same email works every week.
+export async function ensureMenuReminder() {
   return ensureSystemCampaign(
     { db, tables: notificationTables },
     {
       key: MENU_REMINDER_KEY,
       name: "Weekly menu reminder",
       channels: ["email"],
-      content: [
-        { channel: "email", locale: "en", subject: "This week's menu is out — pick your meals", html: SEED_HTML, text: SEED_TEXT },
-      ],
+      content: [{ channel: "email", locale: "en", ...(await renderMenuReminder()) }],
     },
   );
+}
+
+export async function renderMenuReminder() {
+  const { render } = await import("@react-email/components");
+  return {
+    subject: MENU_REMINDER.subject,
+    html: await render(MENU_REMINDER.element),
+    text: await render(MENU_REMINDER.element, { plainText: true }),
+  };
 }
 
 async function releasedWeek(weekPublicId?: string) {

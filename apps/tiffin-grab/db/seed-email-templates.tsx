@@ -7,7 +7,9 @@
  * survive. `--overwrite` replaces existing rows with the designed version.
  *
  * Run:
- *   DATABASE_URL="$DIRECT_DATABASE_URL" tsx apps/tiffin-grab/db/seed-email-templates.tsx [--overwrite]
+ *   DATABASE_URL="$DIRECT_DATABASE_URL" tsx apps/tiffin-grab/db/seed-email-templates.tsx [--overwrite] [--only <event>]
+ * `--only` limits the run to one event, so redesigning one email cannot clobber
+ * staff edits to the others.
  * Links are absolute: set EMAIL_BASE_URL for a non-prod host (default https://app.tiffingrab.ca).
  */
 import { render } from "@react-email/components";
@@ -16,9 +18,13 @@ import { notificationTemplate } from "./schema";
 import { TEMPLATES } from "../emails/transactional";
 
 const overwrite = process.argv.includes("--overwrite");
+const onlyAt = process.argv.indexOf("--only");
+const only = onlyAt >= 0 ? process.argv[onlyAt + 1] : undefined;
 
 async function main() {
+  if (only && !TEMPLATES.some((t) => t.event === only)) throw new Error(`No template for event "${only}"`);
   for (const t of TEMPLATES) {
+    if (only && t.event !== only) continue;
     const html = await render(t.element);
     const text = await render(t.element, { plainText: true });
     const values = {
