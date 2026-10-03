@@ -4,7 +4,7 @@ import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
-import { account, deliveries, inquiries, leadSources, mealSizes, orders, payments, plans, users } from "@/db/schema";
+import { account, deliveries, inquiries, leadSources, mealSizes, messageSuppression, orders, payments, plans, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
 import { auth } from "@/lib/auth";
 import { createCustomerInviteUrl, sendCustomerInviteLink } from "@/lib/auth/invite-links";
@@ -157,7 +157,15 @@ export async function sendCustomerInvite(email: string): Promise<void> {
 
 // "Pending" = a customer account that has never used its email (the same test
 // the list's Invite column uses), so a pressed invite drops them off the list.
-const pendingInvite = and(eq(users.role, "user"), eq(users.status, "active"), eq(users.emailVerified, false), isNotNull(users.email));
+// A bounced or complained address (suppression scope "all") is skipped: mailing
+// it again in bulk is what gets an SES account paused.
+const pendingInvite = and(
+  eq(users.role, "user"),
+  eq(users.status, "active"),
+  eq(users.emailVerified, false),
+  isNotNull(users.email),
+  sql`not exists (select 1 from ${messageSuppression} s where s.address = ${users.email} and s.channel = 'email' and s.scope = 'all')`,
+);
 
 export async function countPendingInvites(): Promise<number> {
   return db.$count(users, pendingInvite);

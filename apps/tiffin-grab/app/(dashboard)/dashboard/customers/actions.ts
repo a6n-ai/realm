@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createLogger } from "@foundry/commons/logger";
-import { requireStaff } from "@/lib/auth/guards";
+import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { createCustomer, customerInviteUrl, invitePendingCustomers, sendCustomerInvite } from "@/lib/services/customers.service";
@@ -78,7 +78,8 @@ export async function sendCustomerMenuReminder(customerPublicId: string): Promis
 /** "Invite all pending": welcome email to every customer who hasn't used their account yet. */
 export async function inviteAllPendingCustomers(): Promise<ActionResult<{ sent: number; failed: number }>> {
   return runAction(async () => {
-    await requireStaff();
+    // Admin only: one press mails every pending customer.
+    await requireAdmin();
     const r = await invitePendingCustomers();
     revalidatePath("/dashboard/customers");
     return r;
