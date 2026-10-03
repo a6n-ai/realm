@@ -77,7 +77,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
               We sent a verification link to <span className="font-medium [overflow-wrap:anywhere]">{sent}</span>.
             </p>
             <p className="text-muted-foreground text-sm">No email after a few minutes? Sign in and we&apos;ll send a fresh link.</p>
-            <div className="mt-auto pt-4 sm:mt-2">
+            <div className="pt-1">
               <Button asChild className={IOS_BUTTON}>
                 <Link href="/login">Go to sign in</Link>
               </Button>
@@ -163,7 +163,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                   )}
                 />
                 {error ? <p className="text-destructive text-sm">{error}</p> : null}
-                <div className="mt-auto flex flex-col gap-3 pt-4 sm:mt-2">
+                <div className="flex flex-col gap-3 pt-1">
                   <Button type="submit" className={IOS_BUTTON} disabled={form.formState.isSubmitting}>
                     Create account
                   </Button>

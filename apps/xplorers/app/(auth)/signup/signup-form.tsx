@@ -98,7 +98,7 @@ export function SignupForm() {
                     {error}
                   </p>
                 ) : null}
-                <div className="mt-auto pt-4 sm:mt-2">
+                <div className="pt-1">
 <Button type="submit" className={AUTH_BUTTON} disabled={form.formState.isSubmitting}>
                   Create account
                 </Button>

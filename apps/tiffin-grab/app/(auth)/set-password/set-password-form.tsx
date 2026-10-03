@@ -118,7 +118,7 @@ export function SetPasswordForm() {
                   )}
                 />
                 {submitError ? <p className="text-destructive text-sm">{submitError}</p> : null}
-                <div className="mt-auto pt-4 sm:mt-2">
+                <div className="pt-1">
                   <Button type="submit" className={IOS_BUTTON} disabled={form.formState.isSubmitting}>
                     Save password
                   </Button>

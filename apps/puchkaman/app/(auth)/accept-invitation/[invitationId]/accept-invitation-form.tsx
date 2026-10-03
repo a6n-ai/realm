@@ -79,7 +79,7 @@ export function AcceptInvitationForm({ invitationId }: { invitationId: string })
             </div>
           ) : null}
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
-          <div className="mt-auto pt-4 sm:mt-2">
+          <div className="pt-1">
             {sent ? (
               <Button type="button" className={AUTH_BUTTON} disabled={verifying || otp.length !== 6} onClick={onVerify}>
                 {verifying ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "Verify & accept"}

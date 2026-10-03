@@ -170,7 +170,7 @@ function PasswordPanel({ onUseEmailOtp }: { onUseEmailOtp: () => void }) {
           ) : null}
           {/* Same bottom group as every auth screen: main button, then the
               secondary actions centered beneath it. */}
-          <div className="mt-auto flex flex-col gap-3 pt-4 sm:mt-2">
+          <div className="flex flex-col gap-3 pt-1">
             <Button type="submit" className={AUTH_BUTTON} disabled={form.formState.isSubmitting}>
               Sign in
             </Button>

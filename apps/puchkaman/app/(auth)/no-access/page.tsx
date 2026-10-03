@@ -26,7 +26,7 @@ export default async function NoAccessPage() {
             <span className="text-muted-foreground">Signed in as </span>
             <span className="font-medium [overflow-wrap:anywhere]">{session.user.email}</span>
           </p>
-          <div className="mt-auto pt-4 sm:mt-2">
+          <div className="pt-1">
             <SignOutButton />
           </div>
         </div>
