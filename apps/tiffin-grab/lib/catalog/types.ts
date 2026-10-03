@@ -178,7 +178,7 @@ export interface ClientCatalogSnapshot {
 }
 
 /** tuAmount: one row's portion in the category's TU; each qty adds one such row per tiffin. */
-export type CatalogAddon = { key: string; name: string; category: string; tuAmount: number; pricePerTiffin: number; maxQty: number };
+export type CatalogAddon = { key: string; name: string; category: string; tuAmount: number; pricePerTiffin: number; maxQty: number; portion?: string | null };
 
 /**
  * Add-ons a meal size may carry: the union of add-ons attached to its item

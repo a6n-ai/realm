@@ -1,8 +1,8 @@
 import { Fragment } from "react";
-import { PlusIcon } from "lucide-react";
-import { listableMealSizes, mealSizeAddons, type CatalogAddon, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
-import { DEFAULT_EATING_DAYS, type WizardSelections } from "../selections";
-import { Button, OptionCard, Pill, Stepper } from "@/components/customer/kit";
+import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
+import { DEFAULT_EATING_DAYS, offeredAddons, type WizardSelections } from "../selections";
+import { AddonsPanel } from "../addons-panel";
+import { OptionCard, Pill } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
 import { MealSizePrice } from "../meal-size-price";
@@ -27,17 +27,9 @@ export function StepBundle({
   const meals = listableMealSizes(catalog.mealSizes, selections.mealSizeId).filter((m) => m.planKey === selections.planKey);
   const weekly = meals.filter((m) => !m.trial);
   const trials = trial ? meals.filter((m) => m.trial) : [];
-  const selectedMeal = meals.find((m) => m.publicId === selections.mealSizeId);
 
   // Add-ons offered with any of this meal size's dish categories (addons.category).
-  const eligibleAddons = !selectedMeal || selectedMeal.trial ? [] : mealSizeAddons(catalog.addonsByCategory, selectedMeal.items);
-
-  const addonSelections = selections.addonSelections ?? [];
-  const qtyFor = (key: string) => addonSelections.find((s) => s.key === key)?.qty ?? 0;
-  const setQty = (key: string, qty: number) => {
-    const rest = addonSelections.filter((s) => s.key !== key);
-    set({ addonSelections: qty > 0 ? [...rest, { key, qty }] : rest });
-  };
+  const eligibleAddons = offeredAddons(catalog, selections);
 
   return (
     <div className="space-y-4">
@@ -85,9 +77,9 @@ export function StepBundle({
                       ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}),
                     })}
                   />
-                  {/* Right under the meal it extends, so it's seen the moment a meal is picked. */}
+                  {/* Desktop: right under the meal it extends. Phones get the drawer on Next instead. */}
                   {selections.mealSizeId === m.publicId && eligibleAddons.length > 0 && (
-                    <AddonsPanel addons={eligibleAddons} qtyFor={qtyFor} setQty={setQty} />
+                    <AddonsPanel addons={eligibleAddons} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
                   )}
                 </Fragment>
               ))}
@@ -96,47 +88,6 @@ export function StepBundle({
         );
       })}
     </div>
-  );
-}
-
-function AddonsPanel({
-  addons,
-  qtyFor,
-  setQty,
-}: {
-  addons: CatalogAddon[];
-  qtyFor: (key: string) => number;
-  setQty: (key: string, qty: number) => void;
-}) {
-  return (
-    <section aria-label="Add-ons" className="bg-card border-border rounded-2xl border p-4 sm:col-span-2">
-      <h4 className="text-[15px] font-semibold tracking-[-0.01em]">Add to every tiffin</h4>
-      <p className="text-muted-foreground mt-0.5 text-[13px]">Optional extras, billed per tiffin.</p>
-      <ul className="mt-3 space-y-2">
-        {addons.map((addon) => {
-          const qty = qtyFor(addon.key);
-          const active = qty > 0;
-          return (
-            <li
-              key={addon.key}
-              className={`border-border flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-2 transition-colors ${active ? "border-primary/40 bg-primary/10" : ""}`}
-            >
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate text-[15px] font-medium">{addon.name}</span>
-                <span className="nums text-muted-foreground text-[13px]">+${addon.pricePerTiffin.toFixed(2)} per tiffin</span>
-              </div>
-              {active ? (
-                <Stepper label={addon.name} value={qty} min={0} max={addon.maxQty} onChange={(n) => setQty(addon.key, n)} />
-              ) : (
-                <Button variant="quiet" pill className="min-h-11 shrink-0 gap-1 !px-4 text-sm font-medium" aria-label={`Add ${addon.name}`} onClick={() => setQty(addon.key, 1)}>
-                  <PlusIcon aria-hidden className="size-4" /> Add
-                </Button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
   );
 }
 
