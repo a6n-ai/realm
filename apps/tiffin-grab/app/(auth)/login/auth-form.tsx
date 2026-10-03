@@ -11,7 +11,7 @@ import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
-import { AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, authErrorMessage } from "@foundry/auth-ui";
+import { AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, EmailSuggestions, authErrorMessage } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -179,6 +179,7 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
                 <FormControl>
                   <Input type="email" autoComplete="email" placeholder="you@example.com" className={IOS_INPUT} {...field} />
                 </FormControl>
+                <EmailSuggestions value={field.value} onPick={field.onChange} />
                 <FormMessage />
               </FormItem>
             )}

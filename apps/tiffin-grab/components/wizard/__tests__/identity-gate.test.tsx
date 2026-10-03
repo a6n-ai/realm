@@ -26,7 +26,9 @@ vi.mock("@/lib/auth/client", () => ({
 }));
 
 // input-otp needs layout APIs jsdom lacks; a plain input keeps the contract.
-vi.mock("@foundry/auth-ui", () => ({
+// Real EmailSuggestions (the chips under test); the OTP input is faked.
+vi.mock("@foundry/auth-ui", async (importOriginal) => ({
+  EmailSuggestions: (await importOriginal<typeof import("@foundry/auth-ui")>()).EmailSuggestions,
   CodeOtp: ({ id, value, onChange, onComplete }: { id: string; value: string; onChange: (v: string) => void; onComplete?: (v: string) => void }) => (
     <input
       id={id}

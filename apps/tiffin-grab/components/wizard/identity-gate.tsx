@@ -7,8 +7,7 @@ import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { checkExistingAccount, createCheckoutAccount } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
-import { CodeOtp, ResendCode } from "@foundry/auth-ui";
-import { emailDomainSuggestions } from "./email-domains";
+import { CodeOtp, EmailSuggestions, ResendCode } from "@foundry/auth-ui";
 
 // Step zero of /subscribe for signed-out visitors, drawn in the wizard's own
 // language (question headline, kit Field, one hero CTA) so it reads as the
@@ -45,7 +44,6 @@ export function IdentityGate() {
   const [error, setError] = useState<{ field: "email" | "name" | "code" | "form"; message: string } | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
 
-  const suggestions = phase === "email" ? emailDomainSuggestions(email) : [];
   const reveal = reduced
     ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
     : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -4 } };
@@ -165,23 +163,14 @@ export function IdentityGate() {
               Use a different email
             </button>
           ) : null}
-          {suggestions.length > 0 ? (
-            <div role="group" aria-label="Suggested email addresses" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => {
-                    setEmail(s);
-                    emailRef.current?.focus();
-                  }}
-                  className="min-h-11 shrink-0 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 text-[13px] font-semibold tabular-nums transition-transform duration-100 active:scale-[0.97]"
-                >
-                  <span className="text-[var(--muted-foreground)]">@</span>
-                  {s.slice(s.indexOf("@") + 1)}
-                </button>
-              ))}
-            </div>
+          {phase === "email" ? (
+            <EmailSuggestions
+              value={email}
+              onPick={(s) => {
+                setEmail(s);
+                emailRef.current?.focus();
+              }}
+            />
           ) : null}
         </div>
 

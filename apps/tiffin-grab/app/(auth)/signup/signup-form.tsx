@@ -1,6 +1,6 @@
 "use client";
 
-import { AuthPanel, AuthScreen } from "@foundry/auth-ui";
+import { AuthPanel, AuthScreen, EmailSuggestions } from "@foundry/auth-ui";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -116,6 +116,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                       <FormControl>
                         <Input className={IOS_INPUT} type="email" autoComplete="email" placeholder="you@example.com" {...field} />
                       </FormControl>
+                      <EmailSuggestions value={field.value} onPick={field.onChange} />
                       <FormMessage />
                     </FormItem>
                   )}
