@@ -17,6 +17,8 @@ function emailChannelProvider(): ChannelProvider {
       provider.send({
         to: { email: msg.to.email! },
         from: msg.from,
+        // Sent from noreply@, so replies need somewhere a person reads.
+        replyTo: { email: process.env.NOTIFY_REPLY_TO ?? "info@tiffingrab.ca" },
         subject: msg.subject!,
         html: msg.html,
         text: msg.text,
