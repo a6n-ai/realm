@@ -10,10 +10,23 @@ function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
 }
 
-/** Move goes up to the plan's last delivery plus a week of slack; 28 days when the plan has no end (legacy) or the maths ends up negative/tiny. */
+/** First plan delivery weekday after the plan's last delivery: where "Move to end" sends a tiffin. */
+export function planEndDate(ctx: Pick<PlanContext, "lastDeliveryDate" | "deliveryWeekdays">): string | null {
+  if (!ctx.lastDeliveryDate) return null;
+  const weekdays = ctx.deliveryWeekdays.filter((k) => k !== "sat" && k !== "sun");
+  const cursor = parseIsoDateUtc(ctx.lastDeliveryDate);
+  for (let i = 0; i < 7; i++) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    if (weekdays.includes(weekdayKey(cursor))) return cursor.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+/** Move goes up to the plan's last delivery plus a week of slack (always reaching planEndDate); 28 days when the plan has no end (legacy) or the maths ends up negative/tiny. */
 function defaultHorizon(ctx: PlanContext, today: string): number {
   if (!ctx.lastDeliveryDate) return 28;
-  return Math.max(daysBetween(today, ctx.lastDeliveryDate) + 7, 7);
+  const end = planEndDate(ctx);
+  return Math.max(daysBetween(today, ctx.lastDeliveryDate) + 7, end ? daysBetween(today, end) + 1 : 0, 7);
 }
 
 export type MoveOption = {

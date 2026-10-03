@@ -5,7 +5,8 @@ import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/components/cu
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { addDays, weekDays } from "@/lib/deliveries-view/week";
 
-export type StripDot = { orderId: string; status: DeliveryStatus; truck: boolean };
+/** No status: a truck-only marker (Move marks delivery days that have no tiffin yet). */
+export type StripDot = { orderId: string; status?: DeliveryStatus; truck: boolean };
 
 const WD = ["M", "T", "W", "T", "F", "S", "S"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" });
@@ -34,7 +35,7 @@ interface Props {
   colorOf: (orderId: string) => string;
   onPickDay: (iso: string) => void;
   onWeek: (monday: string) => void;
-  /** Picker mode (move sheet): one week per screen, arrows in the header, no meal dots, unpickable days greyed. */
+  /** Picker mode (move sheet): one week per screen, arrows in the header, unpickable days greyed. */
   picker?: { isDisabled: (iso: string) => boolean; onDisabledTap?: (iso: string) => void };
 }
 
@@ -75,15 +76,17 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
               </div>
               <div className="grid grid-cols-7 gap-1">
                 {weekDays(w).map((iso, i) => {
-                  const ds = dots[iso] ?? [];
+                  const all = dots[iso] ?? [];
+                  const ds = all.filter((x): x is StripDot & { status: DeliveryStatus } => !!x.status);
+                  const truck = all.some((x) => x.truck);
                   const sel = iso === selectedDay;
                   const off = picker?.isDisabled(iso) ?? false;
-                  const text = `${d(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}${ds.length ? `, eating, ${ds.map((x) => STATUS_LABEL[x.status]).join(", ")}${ds.some((x) => x.truck) ? ", delivery arrives" : ""}` : ", nothing planned"}`;
+                  const text = `${d(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}${ds.length ? `, eating, ${ds.map((x) => STATUS_LABEL[x.status]).join(", ")}${truck ? ", delivery arrives" : ""}` : ", nothing planned"}`;
                   return (
                     <button
                       key={iso}
                       type="button"
-                      aria-label={picker ? `${text.replace(/, (eating|nothing planned).*$/, "")}${ds.some((x) => x.truck) ? ", delivery day" : ""}${off ? ", unavailable" : ""}` : text}
+                      aria-label={picker ? `${text.replace(/, (eating|nothing planned).*$/, "")}${truck ? ", delivery day" : ""}${off ? ", unavailable" : ""}` : text}
                       aria-pressed={sel}
                       aria-disabled={off || undefined}
                       data-day={iso}
@@ -93,11 +96,11 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, dots,
                       <span aria-hidden className="grid w-full grid-cols-[1fr_auto_1fr] items-center px-1">
                         <span className="flex justify-end">{ds.length > 0 && <Utensils className="size-2.5 text-[var(--muted-foreground,#6E6558)]" />}</span>
                         <span className="px-1 opacity-80">{WD[i]}</span>
-                        <span className="flex justify-start">{ds.some((x) => x.truck) && <Truck className="size-2.5 text-[var(--muted-foreground,#6E6558)]" />}</span>
+                        <span className="flex justify-start">{truck && <Truck className="size-2.5 text-[var(--muted-foreground,#6E6558)]" />}</span>
                       </span>
                       <b aria-hidden className={cn("grid size-7 place-items-center rounded-full text-[16px] tabular-nums", iso === today && !sel && "border-2 border-[var(--primary)]")}>{d(iso).getUTCDate()}</b>
                       <span aria-hidden className="flex h-3 w-full items-center justify-center gap-0.5 px-1.5">
-                        {!picker && ds.map((x, k) => <Dot key={k} status={x.status} />)}
+                        {ds.map((x, k) => <Dot key={k} status={x.status} />)}
                       </span>
                     </button>
                   );

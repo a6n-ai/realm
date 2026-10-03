@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { moveLockReason, moveOptions } from "../move";
+import { moveLockReason, moveOptions, planEndDate } from "../move";
 import type { PlanContext, Trip } from "../index";
 
 const NOW = Date.parse("2026-09-21T12:00:00Z");
 const ctx: PlanContext = { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon", "wed", "fri"] };
 const trip = { date: "2026-09-23", units: 1, coversDates: ["2026-09-23"] } as Trip;
+
+describe("planEndDate", () => {
+  it("is the first plan weekday after the last delivery, and always offered by moveOptions", () => {
+    expect(planEndDate(ctx)).toBe("2026-10-05"); // Fri 10-02 -> Mon
+    const weekly = { ...ctx, deliveryWeekdays: ["fri"] };
+    expect(planEndDate(weekly)).toBe("2026-10-09");
+    const o = moveOptions(trip, [], NOW, weekly, "2026-09-21");
+    expect(o.find((x) => x.date === "2026-10-09")?.disabledReason).toBeUndefined();
+    expect(planEndDate({ ...ctx, lastDeliveryDate: null })).toBeNull();
+  });
+});
 
 describe("moveOptions default horizon", () => {
   it("without an explicit horizon, offers up to the plan's last delivery plus a week", () => {
