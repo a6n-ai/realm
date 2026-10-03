@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { listCheckoutPaymentMethods } from "@/app/(public)/subscribe/actions";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { getSession } from "@/lib/auth/session";
@@ -32,6 +34,17 @@ export default async function CheckoutPage() {
   const prefill = (await getContactOnFile(userId)) ?? undefined;
   const savedAddresses = await addressService.list({ userId, orgId });
   const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
+
+  // Simulated payment is local-only; prod with no rail enabled can't take an order.
+  if (process.env.NODE_ENV === "production" && (await listCheckoutPaymentMethods()).length === 0) {
+    return (
+      <main className="mx-auto flex w-full max-w-md flex-col items-center gap-3 px-4 py-20 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">Sorry, checkout is unavailable</h1>
+        <p className="text-muted-foreground text-pretty">Payments aren&apos;t set up yet. Please contact admin.</p>
+        <Link href="/me" className="mt-2 text-sm font-semibold underline underline-offset-4">Back to your account</Link>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-10">

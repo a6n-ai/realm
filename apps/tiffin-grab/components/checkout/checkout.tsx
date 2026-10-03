@@ -32,7 +32,7 @@ import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { dropOffCatalog, dropOffSummary, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/address-picker";
-import { Check, ChevronRight, Coins, Info, MapPin, ShieldCheck, Tag } from "lucide-react";
+import { Check, ChevronRight, Coins, Info, MapPin, Tag } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 
 const STEPS = ["Plan", "Delivery", "Payment"] as const;
@@ -150,6 +150,8 @@ export function Checkout({
   const [waitlisted, setWaitlisted] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
+  // Payment methods arrive with the price; if that load fails the payment step offers a retry.
+  const [priceFailed, setPriceFailed] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   // The address sheet's working copy; null = closed. Saved into `contact` only on "Use this address".
   const [editor, setEditor] = useState<AddressDraft | null>(null);
@@ -213,7 +215,7 @@ export function Checkout({
     if (!selections) setSelections(s);
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
-    refreshPrice(s, undefined, null).catch(() => setResult(null));
+    refreshPrice(s, undefined, null).catch(() => { setResult(null); setPriceFailed(true); });
     // The default saved address is checked against our zones straight away, like a picked one.
     // The first price above already used its postal code, so no second re-price.
     if (defaultAddress) void checkPostal(defaultAddress.postalCode, false);
@@ -407,7 +409,20 @@ export function Checkout({
     : null;
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
   const realPayments = paymentMethods.length > 0;
-  const actionReason = step === 1 ? step1Reason : realPayments && !paymentMethodId ? "Choose a payment method to confirm." : null;
+  // Simulated payment is local-only; in prod an empty list just means not loaded yet
+  // (the page shows a sorry screen when no rail is enabled at all).
+  const simulated = !realPayments && result != null && process.env.NODE_ENV !== "production";
+  const payReason = realPayments ? (paymentMethodId ? null : "Choose a payment method to confirm.")
+    : simulated ? null
+    : priceFailed ? "Couldn't load payment options. Tap Retry."
+    : "Loading payment options…";
+  const retryPrice = () => {
+    if (!selections) return;
+    setPriceFailed(false);
+    void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined)
+      .catch(() => setPriceFailed(true));
+  };
+  const actionReason = step === 1 ? step1Reason : payReason;
   const addressLine = oneLine(contact);
   // Drop-off belongs to the picked address, so it renders under that address, not in its own section.
   const hasDropOffChoices = Boolean(catalog?.deliveryCharges && (catalog.deliveryCharges.addressTags.length > 0 || dropOff.groups.length > 0));
@@ -584,14 +599,16 @@ export function Checkout({
                         })}
                       </div>
                     ) : (
-                      <div className="mt-3 grid grid-cols-1 gap-4">
-                        <p className="text-muted-foreground flex items-center gap-1.5 text-sm"><ShieldCheck aria-hidden className="size-4" /> Simulated, no real charge.</p>
-                        <div className="grid grid-cols-1 gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" autoComplete="cc-number" className="nums" placeholder="4242 4242 4242 4242" /></div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="grid grid-cols-1 gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" inputMode="numeric" autoComplete="cc-exp" className="nums" placeholder="12/29" /></div>
-                          <div className="grid grid-cols-1 gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" inputMode="numeric" autoComplete="cc-csc" className="nums" placeholder="123" /></div>
+                      simulated ? (
+                        <p className="text-muted-foreground mt-3 text-sm">Simulated, no real charge (local only).</p>
+                      ) : priceFailed ? (
+                        <div role="alert" className="mt-3 flex items-center justify-between gap-3">
+                          <p className="text-destructive text-sm">Couldn&apos;t load payment options.</p>
+                          <Button pill variant="quiet" className="!min-h-11 !px-5" onClick={retryPrice}>Retry</Button>
                         </div>
-                      </div>
+                      ) : (
+                        <p className="text-muted-foreground mt-3 text-sm">Loading payment options…</p>
+                      )
                     )}
                     {selectedMethod && (
                       <p className="text-muted-foreground mt-3 flex items-start gap-2 text-[13px] text-pretty">
@@ -667,7 +684,8 @@ export function Checkout({
               <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={step1Reason != null} onClick={() => {
                 setStep(2);
                 // The address is final now — re-price so tax reflects its province.
-                void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined).catch(() => undefined);
+                void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined)
+                  .then(() => setPriceFailed(false), () => setPriceFailed(true));
               }}>Continue to payment</Button>
             ) : (
               <Button
@@ -675,7 +693,7 @@ export function Checkout({
                 size="lg"
                 className="flex-1 sm:min-h-10 sm:flex-none sm:px-8"
                 pending={submitting}
-                disabled={submitting || (realPayments && !paymentMethodId)}
+                disabled={submitting || payReason != null}
                 onClick={confirm}
               >
                 <span className="whitespace-nowrap">Confirm subscription</span>
