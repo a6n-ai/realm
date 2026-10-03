@@ -25,9 +25,9 @@ export const CRON_JOBS: CronJob[] = [
   },
   {
     key: "notifications",
-    name: "Notifications backstop",
-    description: "Sends scheduled campaigns when their time comes and anything a lost Redis signal left pending.",
-    cron: "0 * * * *",
+    name: "Send pending notifications",
+    description: "Scheduled campaigns now start on their own (the app checks Redis every 30s). Run this to send anything a lost signal left pending.",
+    cron: null,
     runnable: true,
   },
   {

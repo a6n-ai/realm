@@ -12,7 +12,8 @@ let pusher: Redis | undefined;
 
 /**
  * Wake the outbox listener. Fire-and-forget: a lost signal only delays the mail
- * until the next signal or the hourly cron, so it never fails the caller.
+ * until the next signal or a server restart (which drains pending rows), so it
+ * never fails the caller.
  */
 export function signalOutbox(): void {
   const url = process.env.REDIS_URL;

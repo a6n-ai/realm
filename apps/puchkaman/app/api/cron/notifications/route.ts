@@ -1,9 +1,9 @@
 import { createLogger } from "@foundry/commons/logger";
 import { drainPending, materializeDue } from "@/lib/notifications/drain";
 
-// Hourly backstop for the Redis-signalled outbox listener: expands scheduled
-// campaigns whose time has come and sends anything a lost signal or a restart
-// left pending. Same fail-closed CRON_SECRET contract as abandoned-recovery.
+// Manual backstop for the Redis-signalled outbox listener (no longer scheduled): expands
+// any due campaign and sends anything a lost signal left pending. Scheduled campaigns now
+// start from the listener (lib/notifications/campaign-schedule.ts). Fail-closed CRON_SECRET.
 export const dynamic = "force-dynamic";
 
 const log = createLogger("cron-notifications");

@@ -15,7 +15,6 @@ name: cron-tiffin-grab
 
 on:
   schedule:
-    - cron: "0 * * * *"
     # Nightly OptimoRoute completion pull, after drivers close their stops:
     # 02:00 UTC = 22:00 Toronto (EDT) / 21:00 (EST). The route pulls the app-timezone today.
     - cron: "0 2 * * *"
@@ -24,40 +23,18 @@ on:
       job:
         description: "Which pass to run by hand"
         type: choice
-        options: [notifications, pull-completions]
-        default: notifications
+        options: [pull-completions]
+        default: pull-completions
 
 concurrency:
   group: cron-tiffin-grab
   cancel-in-progress: false
 
 jobs:
-  # Backstop for the Redis outbox listener: expands scheduled campaigns when their time comes
-  # (nothing else does) and sends anything a lost signal left pending.
-  notifications:
-    if: github.event_name == 'schedule' && github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch' && inputs.job == 'notifications'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger notifications pass
-        env:
-          CRON_SECRET: ${{ secrets.TIFFIN_GRAB_CRON_SECRET }}
-        run: |
-          set -euo pipefail
-          code=$(curl -sS -o /tmp/response.json -w "%{http_code}" -X POST \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
-            https://app.tiffingrab.ca/api/cron/notifications)
-          echo "HTTP ${code}"
-          cat /tmp/response.json
-          echo
-          if [ "${code}" != "200" ]; then
-            echo "::error::notifications returned HTTP ${code}"
-            exit 1
-          fi
-
   # OptimoRoute's success/failed per stop is what marks a delivery delivered or not delivered;
   # an open or unmatched stop is left awaiting confirmation for staff.
   pull-completions:
-    if: github.event_name == 'schedule' && github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch' && inputs.job == 'pull-completions'
+    if: github.event_name == 'schedule' || inputs.job == 'pull-completions'
     runs-on: ubuntu-latest
     steps:
       - name: Pull today's OptimoRoute completions

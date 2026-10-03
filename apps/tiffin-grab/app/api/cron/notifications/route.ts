@@ -1,8 +1,8 @@
 import { runCronJob } from "@/lib/cron/run";
 
-// Hourly backstop for the Redis-signalled outbox listener: expands scheduled
-// campaigns whose time has come and sends anything a lost signal or a restart
-// left pending. Fail-closed CRON_SECRET contract.
+// Manual backstop for the Redis-signalled outbox listener (no longer scheduled): expands
+// any due campaign and sends anything a lost signal left pending. Scheduled campaigns now
+// start from the listener (lib/notifications/campaign-schedule.ts). Fail-closed CRON_SECRET.
 // Recorded in cron_runs (Settings → Scheduled jobs) via runCronJob.
 export const dynamic = "force-dynamic";
 
