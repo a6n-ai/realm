@@ -57,6 +57,7 @@ const grid = (
     categories?: { key: string; label: string; selectable: boolean; sortOrder: number }[];
     portionsBySlot?: Record<string, (string | null)[]>;
     portionsByDate?: Record<string, Record<string, (string | null)[]>>;
+    addonCounts?: Record<string, number>;
   } = {},
 ) => ({
   ok: true,
@@ -71,6 +72,7 @@ const grid = (
     rules: [],
     mealRules: [],
     preview: { items: [], tu: [], appliedByDate: {}, composition: { baseCounts: {}, mealSizeItems: [], categories: [] }, pairs: [] },
+    addonCounts: extras.addonCounts ?? {},
   },
 });
 const trip = (o: Partial<Trip> = {}): Trip => ({
@@ -94,6 +96,7 @@ const plan = {
   categoryLabels: { curry: "Curry", daal: "Daal" },
   swapCategories: {},
   days: [],
+  sub: { trial: false },
 } as unknown as PlanView;
 
 /** A swapped row's own dish (not the one already picked elsewhere) — tapping it undoes the swap. */
@@ -506,6 +509,38 @@ describe("PickSheet", () => {
     await waitFor(() => {
       expect(screen.queryByText(/Minified React error/)).not.toBeInTheDocument();
       expect(screen.getByText("Couldn't save that pick. Try again.")).toBeInTheDocument();
+    });
+  });
+
+  describe("add-on rows", () => {
+    const addonGrid = () => grid(
+      [cell({ pickIndex: 1 }), cell({ pickIndex: 2 })],
+      1,
+      { portionsBySlot: { curry: ["12oz", "8oz"] }, addonCounts: { curry: 1 } },
+    );
+
+    it("lists the add-on row in its own Add-ons section, with dish picks but no swap", async () => {
+      swapOptions.mockReturnValue([{
+        fromCategory: "curry", toCategory: "daal", available: true, reason: null,
+        validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "8oz", getNatural: "8oz" }],
+        minFromPicks: 1, maxFromPicks: 1, bundleIncrement: 1, giveNatural: "8oz", getNatural: "8oz",
+      }]);
+      load.mockResolvedValue(addonGrid());
+      show(trip({ coversDates: [mon] }));
+      const meal = await screen.findByRole("region", { name: "Curry" });
+      const addons = screen.getByRole("region", { name: "Add-ons" });
+      expect(within(meal).getByRole("radiogroup", { name: "Curry · 12oz" })).toBeInTheDocument();
+      expect(within(meal).queryByRole("radiogroup", { name: "Curry · 8oz" })).not.toBeInTheDocument();
+      const addonRow = within(addons).getByRole("radiogroup", { name: "Curry · 8oz" });
+      expect(within(addonRow).queryByRole("radio", { name: /Daal/ })).not.toBeInTheDocument();
+      expect(within(addonRow).getAllByRole("radio").length).toBeGreaterThan(0);
+    });
+
+    it("shows no Add-ons section when the order has none", async () => {
+      load.mockResolvedValue(grid([cell({})]));
+      show(trip({ coversDates: [mon] }));
+      await screen.findByRole("region", { name: "Curry" });
+      expect(screen.queryByRole("region", { name: "Add-ons" })).not.toBeInTheDocument();
     });
   });
 

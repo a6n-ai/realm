@@ -227,6 +227,16 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu),
     })
     : [];
+  // A category's last N plain rows are its add-on rows (appended after the meal's own; swaps
+  // only ever give meal rows, and exchanged-in rows sit on their source row). They get their
+  // own section with dish picks only — an add-on is never swapped.
+  const addonKeys = new Set<string>();
+  for (const g of rows) {
+    const n = grid?.addonCounts?.[g.key] ?? 0;
+    if (!n) continue;
+    for (const it of g.items.filter((x) => x.kind === "cell").slice(-n)) if (it.kind === "cell") addonKeys.add(cellKey(it.cell));
+  }
+  const isAddonItem = (item: (typeof rows)[number]["items"][number]) => item.kind === "cell" && addonKeys.has(cellKey(item.cell));
   if (pendingToPick) {
     const into = rows
       .flatMap((g) => g.swapped)
@@ -247,6 +257,58 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       setPendingPick(null);
     }
   }
+  const renderCellRow = (
+    group: (typeof rows)[number],
+    item: Extract<(typeof rows)[number]["items"][number], { kind: "cell" }>,
+    locked: boolean,
+    controlsOff: boolean,
+    withSwaps: boolean,
+  ) => {
+    const { cell, index: i, row: baseRow } = item;
+    const selectedId = effectiveDishId(cell, picked);
+    const key = cellKey(cell);
+    // A custom meal row offers only its own diet's dishes (the cell's own list).
+    const rowDishes = cell.dishes.length ? cell.dishes : group.dishes;
+    const built = buildSlotDropdownOptions({
+      cellIndexInCategory: i,
+      categoryKey: group.key,
+      dishes: rowDishes,
+      disabledDishIds: blockedDishes(group.key, rowDishes, cell),
+      swapOptions: withSwaps ? swapOptions : [],
+      allowedSwaps,
+      onePerRow: group.cells.every((c) => c.quantity === 1),
+      fromRow: baseRow,
+      categoryLabel: labelOf,
+      destinationName,
+      destinationDishes,
+    });
+    // A fixed item with no dish on the menu still gets its (greyed) box.
+    const options: SlotDropdownOption[] = built.length
+      ? built
+      : [{ kind: "dish", value: "fixed", label: group.label, dishId: "" }];
+    const cellOff = locked || cell.locked || controlsOff;
+    const isDefault = !!selectedId && cell.isDefaulted && picked[key] == null;
+    return (
+      <U.ChoiceRow
+        key={key}
+        label={slotLabel(group, i)}
+        hint={!cell.selectable ? "Included" : isDefault ? "Default pick" : undefined}
+        choices={options.map((o) => ({
+          value: o.value,
+          label: o.label,
+          reason: o.reason,
+          disabled:
+            cellOff
+            || !!o.disabled
+            // A fixed dish is never a choice; its box stays, greyed.
+            || (o.kind === "dish" && !cell.selectable)
+            || (o.kind === "swap" && swapLocked),
+        }))}
+        value={selectedId ? dishOptionValue(selectedId) : built.length ? "" : "fixed"}
+        onChange={(v) => onSlotChange(cell, i, v)}
+      />
+    );
+  };
   const summary = buildMealSummary(groups, picked);
   // Every pick in this meal (fixed sides too) — what meal rules are evaluated against.
   const mealPicks = cells.flatMap((c) => {
@@ -478,6 +540,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
               {rows.map((group) => {
                 const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                 const controlsOff = busy != null || saving;
+                const mealItems = group.items.filter((item) => !isAddonItem(item));
+                if (mealItems.length === 0) return null;
                 // The category's own dishes, even when swaps took every row of it. A fixed category
                 // (no choice) only ever had the day's one dish, so undoing a swap offers just that one.
                 const menuDishes = grid.menu?.[activeDay!]?.[group.key] ?? [];
@@ -485,7 +549,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 const ownDishes = group.dishes.length ? group.dishes : fixed ? menuDishes.slice(0, 1) : menuDishes;
                 return (
                   <U.CategorySection key={group.key} label={group.label}>
-                    {group.items.map((item) => {
+                    {mealItems.map((item) => {
                       if (item.kind === "swapped") {
                         const row = item.swapped;
                         const rowOff = locked || swapLocked || controlsOff;
@@ -594,54 +658,22 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                           </U.ChoiceRow>
                         );
                       }
-                      const { cell, index: i, row: baseRow } = item;
-                      const selectedId = effectiveDishId(cell, picked);
-                      const key = cellKey(cell);
-                      // A custom meal row offers only its own diet's dishes (the cell's own list).
-                      const rowDishes = cell.dishes.length ? cell.dishes : group.dishes;
-                      const built = buildSlotDropdownOptions({
-                        cellIndexInCategory: i,
-                        categoryKey: group.key,
-                        dishes: rowDishes,
-                        disabledDishIds: blockedDishes(group.key, rowDishes, cell),
-                        swapOptions,
-                        allowedSwaps,
-                        onePerRow: group.cells.every((c) => c.quantity === 1),
-                        fromRow: baseRow,
-                        categoryLabel: labelOf,
-                        destinationName,
-                        destinationDishes,
-                      });
-                      // A fixed item with no dish on the menu still gets its (greyed) box.
-                      const options: SlotDropdownOption[] = built.length
-                        ? built
-                        : [{ kind: "dish", value: "fixed", label: group.label, dishId: "" }];
-                      const cellOff = locked || cell.locked || controlsOff;
-                      const isDefault = !!selectedId && cell.isDefaulted && picked[key] == null;
-                      return (
-                        <U.ChoiceRow
-                          key={key}
-                          label={slotLabel(group, i)}
-                          hint={!cell.selectable ? "Included" : isDefault ? "Default pick" : undefined}
-                          choices={options.map((o) => ({
-                            value: o.value,
-                            label: o.label,
-                            reason: o.reason,
-                            disabled:
-                              cellOff
-                              || !!o.disabled
-                              // A fixed dish is never a choice; its box stays, greyed.
-                              || (o.kind === "dish" && !cell.selectable)
-                              || (o.kind === "swap" && swapLocked),
-                          }))}
-                          value={selectedId ? dishOptionValue(selectedId) : built.length ? "" : "fixed"}
-                          onChange={(v) => onSlotChange(cell, i, v)}
-                        />
-                      );
+                      return renderCellRow(group, item, locked, controlsOff, true);
                     })}
                   </U.CategorySection>
                 );
               })}
+
+              {addonKeys.size > 0 && (
+                <U.CategorySection label="Add-ons">
+                  {rows.flatMap((group) => {
+                    const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
+                    return group.items
+                      .filter(isAddonItem)
+                      .map((item) => (item.kind === "cell" ? renderCellRow(group, item, locked, busy != null || saving, false) : null));
+                  })}
+                </U.CategorySection>
+              )}
 
               {summary.length > 0 && (
                 <section aria-label="Your meal" className="border-t border-[var(--border,#E8E0D5)] pt-4">

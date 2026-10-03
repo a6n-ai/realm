@@ -45,6 +45,8 @@ export type PickGrid = {
   mealRules: MealRule[];
   /** Loaded once so the sheet previews swaps locally instead of reloading the grid per tap. */
   preview: PreviewBase;
+  /** Add-on rows per category: a category's last N plain rows are add-ons (pick only, no swap). */
+  addonCounts: Record<string, number>;
 };
 
 function mapPortions(portions: Map<string, (string | null)[]>): Record<string, (string | null)[]> {
@@ -86,6 +88,7 @@ export async function loadPickGrid(
       rules: await listRuleTextsForOrder(row.planId, row.mealSizeId),
       mealRules: await mealRulesService.listEnabledForOrder({ planId: row.planId, mealSizeId: row.mealSizeId }),
       preview: { items: [], tu: [], appliedByDate: {}, composition: { baseCounts: {}, mealSizeItems: [], categories: [] }, pairs: [] },
+      addonCounts: {},
     };
 
     // Natural portions from meal_size_items × category TU (formatTuHuman) — never hardcoded.
@@ -100,6 +103,7 @@ export async function loadPickGrid(
     ]);
     // Add-on rows (extra sabzi, roti…) get their own picks and portions, after the meal's rows.
     const items = [...sizeItems, ...addonItems];
+    for (const a of addonItems) grid.addonCounts[a.category] = (grid.addonCounts[a.category] ?? 0) + 1;
     const tuByKey = new Map<string, TuCategory>();
     for (const c of planCats) {
       tuByKey.set(c.key, {
