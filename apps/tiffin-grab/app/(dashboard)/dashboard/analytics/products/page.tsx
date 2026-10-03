@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import { StatGrid, SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownBarChart, DistributionDonutChart } from "@/components/analytics/charts";
+import { BreakdownList } from "@/components/analytics/breakdown-list";
+import { BreakdownBarChart } from "@/components/analytics/charts";
+import { ordersHref } from "@/lib/analytics/drill";
 import {
   getProductStats,
   getTopDishes,
@@ -24,12 +26,12 @@ export default function ProductsAnalyticsPage() {
       </ChartCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title="Orders by plan">
+        <ChartCard title="Paid orders by plan" subtitle="Money received on settled payments. Open a plan to see those orders.">
           <Suspense fallback={<ChartSkeleton />}>
             <PlanChart />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Orders by meal-size tier">
+        <ChartCard title="Paid orders by meal size" subtitle="Budget, medium, and premium. Custom sizes are not included.">
           <Suspense fallback={<ChartSkeleton />}>
             <TierChart />
           </Suspense>
@@ -58,12 +60,38 @@ async function TopDishesChart() {
   return <BreakdownBarChart data={rows} xKey="dish" yKey="n" height={280} />;
 }
 
+function money(n: number) {
+  return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
+}
+
 async function PlanChart() {
   const rows = await getOrdersByPlan();
-  return <DistributionDonutChart data={rows} nameKey="plan" valueKey="n" />;
+  return (
+    <BreakdownList
+      rows={rows.map((r) => ({
+        label: r.plan,
+        n: r.paid,
+        aside: money(r.paid),
+        meta: `${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
+        href: ordersHref({ plan: r.key }),
+      }))}
+      emptyLabel="No paid orders yet."
+    />
+  );
 }
 
 async function TierChart() {
   const rows = await getOrdersByTier();
-  return <DistributionDonutChart data={rows} nameKey="tier" valueKey="n" />;
+  return (
+    <BreakdownList
+      rows={rows.map((r) => ({
+        label: r.tier,
+        n: r.paid,
+        aside: money(r.paid),
+        meta: `${r.orders} ${r.orders === 1 ? "order" : "orders"}`,
+        href: ordersHref({ tier: r.key }),
+      }))}
+      emptyLabel="No paid orders yet."
+    />
+  );
 }

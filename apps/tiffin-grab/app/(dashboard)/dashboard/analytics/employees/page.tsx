@@ -1,5 +1,8 @@
 import { Suspense } from "react";
-import { StatGrid, SkeletonStatCards } from "@/components/ds";
+import Link from "next/link";
+import { SkeletonStatCards } from "@/components/ds";
+import { MetricTiles } from "@/components/analytics/metric-tiles";
+import { inquiriesHref } from "@/lib/analytics/drill";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownBarChart } from "@/components/analytics/charts";
@@ -35,12 +38,12 @@ async function StatsData() {
   const totalLeadsWorked = rows.reduce((s, r) => s + r.leadsWorked, 0);
   const totalTicketsResolved = rows.reduce((s, r) => s + r.ticketsResolved, 0);
   return (
-    <StatGrid
+    <MetricTiles
       cols={3}
       items={[
         { label: "Active reps", value: activeReps },
-        { label: "Total leads worked", value: totalLeadsWorked },
-        { label: "Total tickets resolved", value: totalTicketsResolved },
+        { label: "Total leads worked", value: totalLeadsWorked, href: inquiriesHref() },
+        { label: "Total tickets resolved", value: totalTicketsResolved, href: "/dashboard/tickets?status=resolved" },
       ]}
     />
   );
@@ -71,11 +74,34 @@ async function RollupTable() {
       <TableBody>
         {rows.map((r: EmployeeRow) => (
           <TableRow key={r.userId}>
-            <TableCell className="font-medium">{r.name}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.leadsWorked}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.leadsConverted}</TableCell>
+            <TableCell className="font-medium">
+              {r.publicId ? <Link href={inquiriesHref({ owner: r.publicId })} className="hover:underline">{r.name}</Link> : r.name}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {r.publicId ? (
+                <Link href={inquiriesHref({ owner: r.publicId })} className="hover:underline">{r.leadsWorked}</Link>
+              ) : (
+                r.leadsWorked
+              )}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {r.publicId ? (
+                <Link href={inquiriesHref({ owner: r.publicId, stage: "converted" })} className="hover:underline">
+                  {r.leadsConverted}
+                </Link>
+              ) : (
+                r.leadsConverted
+              )}
+            </TableCell>
             <TableCell className="text-right tabular-nums">{r.conversionRatePct}%</TableCell>
-            <TableCell className="text-right tabular-nums">{r.ticketsResolved}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              <Link
+                href={`/dashboard/tickets?status=resolved&owner=${encodeURIComponent(r.name)}`}
+                className="hover:underline"
+              >
+                {r.ticketsResolved}
+              </Link>
+            </TableCell>
             <TableCell className="text-right tabular-nums">
               {r.avgResolutionHours != null ? `${r.avgResolutionHours}h` : "—"}
             </TableCell>

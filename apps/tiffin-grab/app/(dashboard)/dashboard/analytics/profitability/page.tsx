@@ -1,6 +1,9 @@
 /* eslint-disable react-hooks/purity */
 import { cache, Suspense } from "react";
+import Link from "next/link";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
+import { paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
+import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { Card, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
@@ -95,24 +98,33 @@ async function Nav({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function Headline({ searchParams }: { searchParams: SearchParams }) {
-  const report = await reportFrom(searchParams);
-  return <HeadlineCards kpis={report.kpis} grain={report.grain} />;
+  const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
+  const range = zonedRangeMs(report.from, report.to, timezone);
+  return (
+    <HeadlineCards
+      kpis={report.kpis}
+      grain={report.grain}
+      cashHref={paymentsHref({ statuses: SETTLED_STATUSES, fromMs: range.from, toMs: range.to })}
+    />
+  );
 }
 
-function HeadlineCards({ kpis, grain }: { kpis: ProfitabilityKpis; grain: Grain }) {
+function HeadlineCards({ kpis, grain, cashHref }: { kpis: ProfitabilityKpis; grain: Grain; cashHref: string }) {
   const rangeHint =
     grain === "monthly" ? "Last 12 months" : grain === "weekly" ? "Weeks in this month" : "This month";
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Card className="p-4">
-          <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
-            <BanknoteIcon className="size-3.5" />
-            Cash collected
-          </p>
-          <p className="nums mt-1 text-2xl font-semibold tabular-nums">{money(kpis.cashCollected)}</p>
-          <p className="text-muted-foreground mt-0.5 text-xs">What customers actually paid, incl. tax. {rangeHint}.</p>
-        </Card>
+        <Link href={cashHref} className="hover-lift focus-visible:ring-ring block rounded-xl outline-none focus-visible:ring-2">
+          <Card className="h-full p-4">
+            <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+              <BanknoteIcon className="size-3.5" />
+              Cash collected
+            </p>
+            <p className="nums mt-1 text-2xl font-semibold tabular-nums">{money(kpis.cashCollected)}</p>
+            <p className="text-muted-foreground mt-0.5 text-xs">What customers actually paid, incl. tax. {rangeHint}.</p>
+          </Card>
+        </Link>
         <Card className="p-4">
           <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
             <TrendingUpIcon className="size-3.5" />

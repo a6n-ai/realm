@@ -1,6 +1,6 @@
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import type { Condition } from "@foundry/commons/model/condition";
+import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
@@ -1178,9 +1178,9 @@ export type OrderListRow = {
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
 
 // Server-side unified filters (Condition) + offset pagination + unpaginated
-// total — mirrors inquiriesService.listForPipeline. All filterable facets
-// (status/fullName/deploymentId/createdAt) live on the base `orders` table, so
-// a plain columnResolver suffices (no FK subqueries). The rows query joins
+// total — mirrors inquiriesService.listForPipeline. Status, name, id, and
+// createdAt live on `orders`. Plan and meal-size tier resolve through a
+// subquery (`ordersListResolver`) so the count stays on the base table. The rows query joins
 // plans (inner, non-nullable FK — safe) and users (left, nullable
 // currentOwner — display-only), but the count runs on the base `orders` table
 // alone with the identical `where` so the nullable owner join can't inflate it.
@@ -1201,6 +1201,45 @@ export async function resolveSessionVisibleOrgIds(session: {
   return resolveVisibleOrgIds({ platformRole: session.user.platformRole ?? null, memberOrgIds });
 }
 
+function filterValues(f: FilterCondition): string[] {
+  return f.operator === "in" ? (f.value as string[]) : [String(f.value)];
+}
+
+// Plan and meal-size tier live on joined tables. The URL carries the plan key
+// or tier name; a subquery resolves it so the orders list can open the rows
+// behind an analytics figure without putting an internal id in the link.
+function ordersListResolver() {
+  const base = columnResolver({
+    status: orders.status,
+    fullName: orders.fullName,
+    deploymentId: orders.deploymentId,
+    createdAt: orders.createdAt,
+  });
+  return (f: FilterCondition) => {
+    if (f.field === "plan") {
+      return inArray(
+        orders.planId,
+        db.select({ id: plans.id }).from(plans).where(inArray(plans.key, filterValues(f))),
+      );
+    }
+    if (f.field === "tier") {
+      return inArray(
+        orders.mealSizeId,
+        db
+          .select({ id: mealSizes.id })
+          .from(mealSizes)
+          .where(
+            and(
+              inArray(mealSizes.tier, filterValues(f) as ("budget" | "medium" | "premium")[]),
+              eq(mealSizes.custom, false),
+            ),
+          ),
+      );
+    }
+    return base(f);
+  };
+}
+
 export async function listOrdersPage(
   condition: Condition | undefined,
   page: PageRequest,
@@ -1208,15 +1247,7 @@ export async function listOrdersPage(
   visible: "all" | string[],
 ): Promise<Page<OrderListRow>> {
   const where = and(
-    conditionToSql(
-      condition,
-      columnResolver({
-        status: orders.status,
-        fullName: orders.fullName,
-        deploymentId: orders.deploymentId,
-        createdAt: orders.createdAt,
-      }),
-    ),
+    conditionToSql(condition, ordersListResolver()),
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 

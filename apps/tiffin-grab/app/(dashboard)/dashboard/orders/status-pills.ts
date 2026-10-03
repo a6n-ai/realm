@@ -31,4 +31,5 @@ export const ORDER_STATUS_PILLS = [
   { value: "waitlisted", label: "Waitlisted" },
   { value: "paused", label: "Paused" },
   { value: "cancelled", label: "Cancelled" },
+  { value: "completed", label: "Completed" },
 ] as const;

@@ -31,7 +31,7 @@ const STAGE_LABELS: Record<string, string> = {
 
 export async function getLeadsByStage() {
   const rows = await db.select({ stage: inquiries.stage, n: intCount }).from(inquiries).groupBy(inquiries.stage);
-  return rows.map((r) => ({ stage: STAGE_LABELS[r.stage] ?? r.stage, n: r.n }));
+  return rows.map((r) => ({ stage: STAGE_LABELS[r.stage] ?? r.stage, key: r.stage, n: r.n }));
 }
 
 const LOST_REASON_LABELS: Record<string, string> = {
@@ -54,18 +54,19 @@ export async function getLostReasonBreakdown() {
     .map((r) => ({ reason: LOST_REASON_LABELS[r.reason!] ?? r.reason!, n: r.n }));
 }
 
-export type SourcePerf = { source: string; total: number; converted: number; conversionRatePct: number };
+export type SourcePerf = { key: string; source: string; total: number; converted: number; conversionRatePct: number };
 
 export async function getSourcePerformance(): Promise<SourcePerf[]> {
   const rows = await db
     .select({
+      key: leadSources.key,
       source: leadSources.label,
       total: intCount,
       converted: sql<number>`cast(count(*) filter (where ${inquiries.stage} = 'converted') as int)`,
     })
     .from(inquiries)
     .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
-    .groupBy(leadSources.label)
+    .groupBy(leadSources.key, leadSources.label)
     .orderBy(sql`count(*) desc`);
   return rows.map((r) => ({
     ...r,
