@@ -24,7 +24,7 @@ describe("ForgotForm (OTP reset)", () => {
     fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), { target: { value: "user@x.com" } });
     fireEvent.click(screen.getByRole("button", { name: /send code/i }));
     await waitFor(() => expect(emailOtp.requestPasswordReset).toHaveBeenCalledWith({ email: "user@x.com" }));
-    expect(screen.getByText(/enter your code/i)).toBeDefined();
+    expect(screen.getByRole("heading", { name: /enter the code/i })).toBeDefined();
     // Phone reset is not merely unused now — the phoneNumber plugin is gone, so
     // authClient has no such method and the endpoint is not mounted.
   });
@@ -34,10 +34,28 @@ describe("ForgotForm (OTP reset)", () => {
     render(<ForgotForm />);
     fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), { target: { value: "user@x.com" } });
     fireEvent.click(screen.getByRole("button", { name: /send code/i }));
-    await waitFor(() => expect(screen.getByText(/enter your code/i)).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("heading", { name: /enter the code/i })).toBeDefined());
     const otpInput = document.querySelector('input[autocomplete="one-time-code"]') as HTMLInputElement;
     expect(otpInput).not.toBeNull();
     fireEvent.change(otpInput, { target: { value: "123456" } });
     expect(otpInput.value).toBe("123456");
+  });
+
+  it("still advances when the send fails, so it never reveals whether an account exists", async () => {
+    emailOtp.requestPasswordReset.mockResolvedValue({ error: { status: 500 } });
+    render(<ForgotForm />);
+    fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), { target: { value: "nobody@x.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /send code/i }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /enter the code/i })).toBeDefined());
+    expect(screen.getByText(/if there's an account for/i)).toBeDefined();
+  });
+
+  it("holds on the email step with a clear message when rate limited", async () => {
+    emailOtp.requestPasswordReset.mockResolvedValue({ error: { status: 429 } });
+    render(<ForgotForm />);
+    fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), { target: { value: "user@x.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /send code/i }));
+    await waitFor(() => expect(screen.getByText(/too many attempts/i)).toBeDefined());
+    expect(screen.getByRole("heading", { name: /reset your password/i })).toBeDefined();
   });
 });

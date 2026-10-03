@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -10,13 +11,13 @@ import { emailSchema, passwordSchema } from "@foundry/commons";
 import type { Country } from "react-phone-number-input";
 import { z } from "zod";
 import { Button } from "@foundry/ui/button";
-import { Card, CardContent } from "@foundry/ui/card";
+import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { AuthLegal, AuthLogo, IOS_INPUT } from "@/components/auth/auth-kit";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { signUpCustomer } from "./actions";
-import { AuthBrandPanel } from "../auth-brand-panel";
 
 const PhoneInput = dynamic(
   () => import("@foundry/ui/phone-input").then((m) => m.PhoneInput),
@@ -65,39 +66,34 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
 
   if (sent) {
     return (
-      <div className="flex flex-col gap-6">
-        <Card className="overflow-hidden">
-          <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
-            <h1 className="text-2xl font-bold">Check your email</h1>
-            <p className="text-muted-foreground text-balance">
-              We sent a verification link to <span className="font-medium">{sent}</span>. Click it to
-              finish setting up your account and sign in.
+      <AuthScreen footer={<AuthLegal />}>
+        <AuthPanel
+          art={<AuthLogo />}
+          title="Check your email"
+          tagline="Open the link we sent to finish setting up your account and sign in."
+        >
+          <div className="flex flex-1 flex-col gap-5">
+            <p className="text-[15px]">
+              We sent a verification link to <span className="font-medium [overflow-wrap:anywhere]">{sent}</span>.
             </p>
-            <p className="text-muted-foreground text-sm">
-              Nothing yet? Try signing in — we&apos;ll send a fresh link.
-            </p>
-            <Link href="/login" className="underline underline-offset-4">
-              Go to sign in
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+            <p className="text-muted-foreground text-sm">No email after a few minutes? Sign in and we&apos;ll send a fresh link.</p>
+            <div className="mt-auto pt-4 sm:mt-2">
+              <Button asChild className={IOS_BUTTON}>
+                <Link href="/login">Go to sign in</Link>
+              </Button>
+            </div>
+          </div>
+        </AuthPanel>
+      </AuthScreen>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card className="overflow-hidden p-0">
-        <CardContent className="grid p-0 md:grid-cols-2">
+    <AuthScreen footer={<AuthLegal />}>
+      <AuthPanel art={<AuthLogo />} title="Create your account" tagline="Sign up to order and manage your tiffin plan.">
           <Form {...form}>
-            <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col items-center text-center">
-                  <h1 className="text-2xl font-bold">Create your account</h1>
-                  <p className="text-muted-foreground text-balance">
-                    Sign up for Tiffin Grab
-                  </p>
-                </div>
+            <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col">
+              <div className="flex flex-1 flex-col gap-5">
                 <FormField
                   control={form.control}
                   name="phone"
@@ -118,7 +114,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                        <Input className={IOS_INPUT} type="email" autoComplete="email" placeholder="you@example.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -131,7 +127,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                     <FormItem>
                       <FormLabel>Name <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
                       <FormControl>
-                        <Input autoComplete="name" placeholder="Your name" {...field} />
+                        <Input className={IOS_INPUT} autoComplete="name" placeholder="Your name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -148,7 +144,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                           <Input
                             type={showPassword ? "text" : "password"}
                             autoComplete="new-password"
-                            className="pr-10"
+                            className={`${IOS_INPUT} pr-12`}
                             {...field}
                           />
                           <button
@@ -156,7 +152,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                             onClick={() => setShowPassword((v) => !v)}
                             aria-label={showPassword ? "Hide password" : "Show password"}
                             aria-pressed={showPassword}
-                            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+                            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-12 items-center justify-center"
                           >
                             {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                           </button>
@@ -167,25 +163,18 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                   )}
                 />
                 {error ? <p className="text-destructive text-sm">{error}</p> : null}
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                  Create account
-                </Button>
-                <div className="text-center text-sm">
-                  Already have an account?{" "}
-                  <Link href="/login" className="underline underline-offset-4">
-                    Sign in
-                  </Link>
+                <div className="mt-auto flex flex-col gap-3 pt-4 sm:mt-2">
+                  <Button type="submit" className={IOS_BUTTON} disabled={form.formState.isSubmitting}>
+                    Create account
+                  </Button>
+                  <p className="text-muted-foreground min-h-11 content-center text-center text-sm">
+                    Already have an account? <Link href="/login" className="text-foreground font-medium underline-offset-4 hover:underline">Sign in</Link>
+                  </p>
                 </div>
               </div>
             </form>
           </Form>
-          <AuthBrandPanel />
-        </CardContent>
-      </Card>
-      <div className="text-muted-foreground hover:[&_a]:text-primary text-balance text-center text-xs [&_a]:underline [&_a]:underline-offset-4">
-        By continuing, you agree to our <Link href="/terms">Terms of Service</Link>{" "}
-        and <Link href="/privacy">Privacy Policy</Link>.
-      </div>
-    </div>
+      </AuthPanel>
+    </AuthScreen>
   );
 }

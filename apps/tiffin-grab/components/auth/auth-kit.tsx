@@ -1,12 +1,14 @@
 "use client";
 
 import { useId } from "react";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import type { AuthButtonProps, AuthFieldProps, AuthUi } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 
 // TiffinGrab's skin for the shared @foundry/auth-ui screens: the same iOS-sized
 // controls (50px targets, 14px corners, 17px type) the customer app uses.
@@ -52,3 +54,21 @@ function KitField({ label, error, trailing, id, ref, className, ...input }: Auth
 }
 
 export const tiffinAuthUi: Partial<AuthUi> = { Button: KitButton, Field: KitField };
+
+/** The live logo, shown once per auth screen at the top of its AuthPanel. */
+export function AuthLogo() {
+  return (
+    <Link href="/" aria-label="TiffinGrab home" className="flex items-center gap-2.5">
+      <BrandMark className="size-12" />
+      <BrandWordmark className="text-[26px]" />
+    </Link>
+  );
+}
+
+export function AuthLegal() {
+  return (
+    <>
+      By continuing, you agree to our <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.
+    </>
+  );
+}

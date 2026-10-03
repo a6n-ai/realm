@@ -1,35 +1,32 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { AuthPanel, AuthScreen } from "@foundry/auth-ui";
+import { Button } from "@foundry/ui/button";
+import { AuthLogo } from "@/components/auth/auth-kit";
+import { IOS_BUTTON } from "@/components/customer/ios-button";
 
 export function VerifyStatus() {
-  const params = useSearchParams();
-  const error = params.get("error");
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center gap-4 text-center">
-        <h1 className="text-xl font-semibold">Verification link is invalid or expired.</h1>
-        <p className="text-muted-foreground text-sm">
-          The link may have already been used or has expired. You can request a new one from your account page.
-        </p>
-        <Link href="/dashboard" className="text-primary underline underline-offset-4 text-sm">
-          Go to dashboard
-        </Link>
-      </div>
-    );
-  }
+  const failed = Boolean(useSearchParams().get("error"));
 
   return (
-    <div className="flex flex-col items-center gap-4 text-center">
-      <h1 className="text-xl font-semibold">Your email is verified.</h1>
-      <p className="text-muted-foreground text-sm">
-        Your email address has been successfully verified.
-      </p>
-      <Link href="/dashboard" className="text-primary underline underline-offset-4 text-sm">
-        Go to dashboard
-      </Link>
-    </div>
+    <AuthScreen>
+      <AuthPanel
+        art={<AuthLogo />}
+        title={failed ? "This link has expired" : "Your email is verified"}
+        tagline={
+          failed
+            ? "It may already have been used. Sign in and we'll send you a fresh one."
+            : "You're all set. Continue to your account."
+        }
+      >
+        <div className="mt-auto pt-4 sm:mt-2">
+          <Button asChild className={IOS_BUTTON}>
+            <Link href={failed ? "/login" : "/dashboard"}>{failed ? "Go to sign in" : "Continue"}</Link>
+          </Button>
+        </div>
+      </AuthPanel>
+    </AuthScreen>
   );
 }

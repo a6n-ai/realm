@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { AuthForm } from "../auth-form";
+import { authClient, signIn } from "@/lib/auth/client";
 
 afterEach(cleanup);
 
@@ -51,6 +52,47 @@ describe("AuthForm", () => {
     expect(otpInput).not.toBeNull();
     fireEvent.change(otpInput, { target: { value: "123456" } });
     expect(otpInput.value).toBe("123456");
+  });
+});
+
+describe("AuthForm messages", () => {
+  async function toCodeStep(sendResult: unknown) {
+    vi.mocked(authClient.emailOtp.sendVerificationOtp).mockResolvedValue(sendResult as never);
+    render(<AuthForm canUsePin={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), { target: { value: "who@x.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /email me a code/i }));
+  }
+
+  it("opens the code step even when the send fails, without saying whether the account exists", async () => {
+    await toCodeStep({ error: { status: 500 } });
+    await waitFor(() => expect(screen.getByRole("heading", { name: /enter the code/i })).toBeDefined());
+    expect(screen.getByText(/if there's an account for this email/i)).toBeDefined();
+    expect(screen.queryByText(/couldn't send/i)).toBeNull();
+  });
+
+  it("shows the expired-code message from the server's error code", async () => {
+    await toCodeStep({});
+    vi.mocked(signIn.emailOtp).mockResolvedValue({ error: { code: "OTP_EXPIRED", status: 400 } } as never);
+    const otp = await waitFor(() => {
+      const el = document.querySelector('input[autocomplete="one-time-code"]') as HTMLInputElement | null;
+      if (!el) throw new Error("code field not open yet");
+      return el;
+    });
+    // Six digits auto-submit (onComplete); no button press needed.
+    fireEvent.change(otp, { target: { value: "123456" } });
+    await waitFor(() => expect(screen.getByText(/that code has expired/i)).toBeDefined());
+  });
+
+  it("explains a wrong password and points at reset", async () => {
+    vi.mocked(signIn.email).mockResolvedValue({ error: { status: 401, message: "Invalid email or password" } } as never);
+    render(<AuthForm canUsePin={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /sign in with a password instead/i }));
+    fireEvent.change(document.querySelector('input[autocomplete="email"]')!, { target: { value: "a@b.com" } });
+    fireEvent.change(document.querySelector('input[autocomplete="current-password"]')!, { target: { value: "x" } });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    await waitFor(() => expect(screen.getByText(/email and password don't match/i)).toBeDefined());
   });
 });
 

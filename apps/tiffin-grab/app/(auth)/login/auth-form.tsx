@@ -11,7 +11,7 @@ import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
-import { AuthScreen, AuthWelcome, EmailCodeSignIn } from "@foundry/auth-ui";
+import { AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, authErrorMessage } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -19,8 +19,7 @@ import {
 import { Input } from "@foundry/ui/input";
 import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
 import { verifyPinAction } from "./actions";
-import { BrandMark, BrandWordmark } from "@/components/brand-logo";
-import { IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";
+import { AuthLegal, AuthLogo, IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";
 
 // Login is the shared gateway into both the customer and staff shells, so it
 // draws with the customer app's iOS-sized controls (components/auth/auth-kit).
@@ -53,6 +52,7 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
   // page (callbackUrl) already knows why they're here, so they skip the
   // welcome screen and land on the form.
   const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : callbackUrl ? "email-otp" : "welcome");
+  const [codeStep, setCodeStep] = useState(false);
 
   async function landSignedIn() {
     await clearLockSession();
@@ -60,51 +60,55 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
     router.refresh();
   }
 
+  // Revolut-style: one screen. The mark stays put, the headline retitles per
+  // step in the same spot, and only the form underneath swaps.
+  const HEAD: Record<Exclude<Mode, "pin">, { title: string; tagline?: string }> = {
+    welcome: { title: "Home-style meals, your way.", tagline: "Fresh tiffin meals, delivered on your schedule." },
+    "email-otp": codeStep
+      ? { title: "Enter the code" }
+      : { title: "Welcome back", tagline: "Sign in with a code sent to your email." },
+    password: { title: "Welcome back", tagline: "Sign in with your email and password." },
+  };
+
   return (
     <AuthScreen
-      footer={<>By continuing, you agree to our <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</>}
+      footer={<AuthLegal />}
     >
-      {/* key remounts on mode change so each swap gets the panel's own entrance. */}
-      <div key={mode} className="flex flex-1 flex-col">
-        {mode === "welcome" ? (
-          <AuthWelcome
-            ui={tiffinAuthUi}
-            art={
-              <div className="flex flex-col items-center gap-3">
-                <BrandMark className="size-24" />
-                <BrandWordmark className="text-3xl" />
-              </div>
-            }
-            title="Home-style meals, your way."
-            tagline="Fresh tiffin meals, delivered on your schedule."
-            primary={{ label: "Sign in", onClick: () => setMode("email-otp") }}
-            secondary={{ label: "Get started", onClick: () => router.push("/subscribe") }}
-          />
-        ) : mode === "pin" ? (
-          <PinPanel onUsePassword={() => setMode("password")} />
-        ) : mode === "email-otp" ? (
-          <EmailCodeSignIn
-            ui={tiffinAuthUi}
-            title="Welcome back"
-            subtitle="Sign in with a code sent to your email."
-            onBack={callbackUrl ? undefined : () => setMode("welcome")}
-            onSendCode={(email) => authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" })}
-            onVerify={(email, otp) => signIn.emailOtp({ email, otp })}
-            onSuccess={landSignedIn}
-            extra={
-              <button type="button" onClick={() => setMode("password")} className={`text-muted-foreground mx-auto min-h-11 text-[15px] underline-offset-4 hover:underline ${IOS_PRESS}`}>
-                Sign in with a password instead
-              </button>
-            }
-          />
-        ) : (
-          <PasswordPanel
-            canUsePin={canUsePin}
-            onUsePin={() => setMode("pin")}
-            onUseEmailOtp={() => setMode("email-otp")}
-          />
-        )}
-      </div>
+      {mode === "pin" ? (
+        <PinPanel onUsePassword={() => setMode("password")} />
+      ) : (
+        <AuthWelcome
+          ui={tiffinAuthUi}
+          art={<AuthLogo />}
+          title={HEAD[mode].title}
+          tagline={HEAD[mode].tagline}
+          primary={{ label: "Sign in", onClick: () => setMode("email-otp") }}
+          secondary={{ label: "Get started", onClick: () => router.push("/subscribe") }}
+        >
+          {mode === "email-otp" ? (
+            <EmailCodeSignIn
+              compact
+              ui={tiffinAuthUi}
+              onStepChange={(step) => setCodeStep(step === "code")}
+              onBack={callbackUrl ? undefined : () => setMode("welcome")}
+              onSendCode={(email) => authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" })}
+              onVerify={(email, otp) => signIn.emailOtp({ email, otp })}
+              onSuccess={landSignedIn}
+              extra={
+                <button type="button" onClick={() => setMode("password")} className={AUTH_LINK}>
+                  Sign in with a password instead
+                </button>
+              }
+            />
+          ) : mode === "password" ? (
+            <PasswordPanel
+              canUsePin={canUsePin}
+              onUsePin={() => setMode("pin")}
+              onUseEmailOtp={() => { setCodeStep(false); setMode("email-otp"); }}
+            />
+          ) : null}
+        </AuthWelcome>
+      )}
     </AuthScreen>
   );
 }
@@ -147,11 +151,11 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
       const result = await signIn.email({ email: identifier, password });
       if (result?.error) {
         const msg = result.error.message;
-        setError(msg && SAFE_POST_AUTH_ERRORS.has(msg) ? msg : "Invalid credentials");
+        setError(msg && SAFE_POST_AUTH_ERRORS.has(msg) ? msg : authErrorMessage(result.error, "password"));
         return;
       }
     } catch {
-      setError("Invalid credentials");
+      setError(authErrorMessage(null, "password"));
       return;
     }
     // A full sign-in clears any prior lock so we don't bounce to a PIN prompt.
@@ -164,18 +168,8 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
     <Form {...form}>
       {/* method="post": a tap before hydration would otherwise GET /login with
           the email and password in the query string (history, logs, Referer). */}
-      <form method="post" onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col items-center text-center">
-            <h1 className="text-2xl font-bold tracking-[-0.02em]">Welcome back</h1>
-            <p className="text-muted-foreground text-balance">Sign in to your Tiffin Grab account</p>
-          </div>
-          {canUsePin && (
-            <Button type="button" variant="outline" className={`gap-2 ${IOS_BUTTON}`} onClick={onUsePin}>
-              <LockIcon className="size-4" />
-              Unlock with your PIN instead
-            </Button>
-          )}
+      <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col">
+        <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 flex flex-1 flex-col gap-5 duration-300 ease-out">
           <FormField
             control={form.control}
             name="identifier"
@@ -194,12 +188,7 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
             name="password"
             render={({ field }) => (
               <FormItem>
-                <div className="flex items-center">
-                  <FormLabel>Password</FormLabel>
-                  <Link href="/forgot-password" className="ml-auto text-sm underline-offset-2 hover:underline">
-                    Forgot your password?
-                  </Link>
-                </div>
+                <FormLabel>Password</FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input
@@ -223,18 +212,26 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
               </FormItem>
             )}
           />
-          {error ? <p className="text-destructive animate-in fade-in text-sm text-center duration-150">{error}</p> : null}
-          <Button type="submit" className={IOS_BUTTON} disabled={form.formState.isSubmitting}>
-            Sign in
-          </Button>
-          <Button type="button" variant="ghost" className={IOS_BUTTON} onClick={onUseEmailOtp}>
-            Email me a sign-in code instead
-          </Button>
-          <div className="text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="underline underline-offset-4">
-              Sign up
-            </Link>
+          {error ? <p className="text-destructive animate-in fade-in text-sm duration-150">{error}</p> : null}
+          {/* Same bottom group as every auth screen: main button, then the
+              secondary actions centered beneath it. */}
+          <div className="mt-auto flex flex-col gap-3 pt-4 sm:mt-2">
+            <Button type="submit" className={IOS_BUTTON} disabled={form.formState.isSubmitting}>
+              Sign in
+            </Button>
+            <div className="flex flex-col items-center">
+              <Link href="/forgot-password" className={`${AUTH_LINK} inline-flex items-center`}>Forgot your password?</Link>
+              <button type="button" onClick={onUseEmailOtp} className={AUTH_LINK}>Email me a sign-in code instead</button>
+              {canUsePin ? (
+                <button type="button" onClick={onUsePin} className={`${AUTH_LINK} inline-flex items-center gap-1.5`}>
+                  <LockIcon className="size-3.5" aria-hidden />
+                  Unlock with your PIN instead
+                </button>
+              ) : null}
+              <p className="text-muted-foreground min-h-11 content-center text-sm">
+                New here? <Link href="/signup" className="text-foreground font-medium underline-offset-4 hover:underline">Create an account</Link>
+              </p>
+            </div>
           </div>
         </div>
       </form>
@@ -282,7 +279,7 @@ function PinPanel({ onUsePassword }: { onUsePassword: () => void }) {
         <Button type="submit" disabled={pending || pin.length !== 4} className={IOS_BUTTON}>
           Unlock
         </Button>
-        <button type="button" className={`text-muted-foreground text-sm underline ${IOS_PRESS}`} onClick={onUsePassword}>
+        <button type="button" className={AUTH_LINK} onClick={onUsePassword}>
           Sign in with password instead
         </button>
       </form>
