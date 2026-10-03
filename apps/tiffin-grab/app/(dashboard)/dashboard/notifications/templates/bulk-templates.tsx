@@ -4,6 +4,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { SectionCard } from "@/components/ds";
 import { db } from "@/db/client";
+import { requireAdmin } from "@/lib/auth/guards";
 import { campaign } from "@/db/schema";
 import { ensureMenuReminder } from "@/lib/notifications/menu-reminder";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -15,6 +16,8 @@ import { formatEpoch } from "@/lib/format/datetime";
  * its run history on the campaign page this links to.
  */
 export async function BulkTemplates() {
+  // Own guard, not just the layout's: this render writes (seeds the reminder).
+  await requireAdmin();
   // Seeded on first view so staff can review the copy before the first send.
   await ensureMenuReminder();
   const [rows, { timezone }] = await Promise.all([
