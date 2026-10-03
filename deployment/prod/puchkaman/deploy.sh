@@ -27,7 +27,7 @@ test -s .env.production.tmp || { echo "no parameters under $SSM_PATH in $SSM_REG
 mv .env.production.tmp .env.production
 
 # Source into the environment so compose can interpolate ${DIRECT_DATABASE_URL},
-# ${AWS_REGION}, ${PGBOUNCER_*}, etc.
+# ${AWS_REGION}, etc.
 set -a; . ./.env.production; set +a
 
 export IMAGE_TAG="${IMAGE_TAG:-latest}"

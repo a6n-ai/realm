@@ -1,4 +1,4 @@
-# Puchkaman prod stack on its OWN box: web + redis + pgbouncer + one-shot migrate,
+# Puchkaman prod stack on its OWN box: web + redis + one-shot migrate,
 # fronted by the Box B Caddy in ../proxy which reaches it as puchkaman-web:3000
 # over `edge`. Redis only carries the outbox wake-up signal; web's outbox
 # listener (instrumentation.ts, NOTIFY_LISTENER=on) sends — no worker container.
@@ -7,9 +7,10 @@
 #   puchkaman-web   = runner target (Next standalone) → web
 #   puchkaman-tools = build  target (source + drizzle-kit) → migrate
 # Pin via IMAGE_TAG (CI sets it to the commit SHA); defaults to :latest.
+# The database is Neon (moved from RDS 2026-10-03): web uses Neon's pooled
+# endpoint, so there is no local pgbouncer.
 include:
   - redis/docker-compose.yml
-  - pgbouncer/docker-compose.yml
 
 x-awslogs: &awslogs
   driver: awslogs
@@ -38,12 +39,10 @@ services:
     expose:
       - "3000" # internal only; the Box B Caddy is the sole public ingress
     networks:
-      - default # reach redis/pgbouncer in this project
+      - default # reach redis in this project
       - edge # reached by the Box B Caddy in ../proxy
     depends_on:
       redis:
-        condition: service_healthy
-      pgbouncer:
         condition: service_healthy
 
   # One-shot migration runner. Reuses the tools image (has drizzle-kit + source).
@@ -54,7 +53,7 @@ services:
     env_file: .env.production
     environment:
       # Migrations bypass the pooler — drizzle-kit DDL + advisory lock need a
-      # real session on RDS.
+      # real session (Neon's direct endpoint, not -pooler).
       DATABASE_URL: ${DIRECT_DATABASE_URL}
     command: ["pnpm", "--filter", "puchkaman", "exec", "drizzle-kit", "migrate"]
     profiles:
