@@ -34,6 +34,14 @@ puchkaman.ca {
 		}
 	}
 
+	# Crawlers keep requesting gambling-spam URLs this site never had (likely
+	# indexed from the domain's past). Answering here keeps them off the app, so
+	# they don't render the layout and wake the Neon database, and 410 Gone tells
+	# search engines to drop them faster than a 404. Only unambiguous gambling
+	# words: short ones like "bet" or "slot" could be in a product slug.
+	@spam path_regexp spam (?i)(casino|roulette|poker|jackpot|blackjack|baccarat|gambl|sportsbook|betting)
+	respond @spam 410
+
 	# X-Real-IP is OVERWRITTEN (not appended) with the real socket peer, so a
 	# client cannot choose it. better-auth trusts only this header for rate
 	# limiting, and /api/checkout/pay forwards it to Clover for fraud scoring.
