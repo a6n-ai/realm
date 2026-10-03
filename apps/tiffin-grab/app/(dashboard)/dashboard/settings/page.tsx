@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRightIcon,
   BanknoteIcon,
+  ClockIcon,
   CreditCardIcon,
   HelpCircleIcon,
   PuzzleIcon,
@@ -42,6 +43,13 @@ export default async function SettingsPage() {
       description: "Timezone and order cutoff settings.",
       icon: SettingsIcon,
       href: "/dashboard/settings/general",
+    },
+    {
+      key: "scheduled-jobs",
+      label: "Scheduled jobs",
+      description: "Nightly OptimoRoute pull and other automatic jobs: last result and next run.",
+      icon: ClockIcon,
+      href: "/dashboard/settings/scheduled-jobs",
     },
     {
       key: "logs",

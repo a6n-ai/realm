@@ -69,8 +69,8 @@ jobs:
             -H "Authorization: Bearer ${CRON_SECRET}" \
             https://app.tiffingrab.ca/api/cron/pull-completions)
           echo "HTTP ${code}"
-          # Counts only: outcomes carry customer names, which don't belong in Actions logs.
-          jq '{date, confirmedOrFailed: (.outcomes | length), pending: .pendingCount, unmatched: (.unmatched | length), ambiguous: (.ambiguous | length)}' /tmp/response.json || head -c 300 /tmp/response.json
+          # The route returns counts only (no customer names) and records the run for Settings.
+          cat /tmp/response.json
           echo
           if [ "${code}" != "200" ]; then
             echo "::error::pull-completions returned HTTP ${code}"

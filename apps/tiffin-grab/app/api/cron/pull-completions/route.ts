@@ -1,6 +1,4 @@
-import { zonedDateIso } from "@foundry/commons";
-import { pullCompletions } from "@/lib/services/optimoroute/completions";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { runCronJob } from "@/lib/cron/run";
 
 // Nightly reconcile with OptimoRoute, same fail-closed bearer contract as the other cron
 // routes. PULL-ONLY: it records what OptimoRoute says for today's stops and never pushes.
@@ -11,6 +9,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 //
 //   # 22:00 IST — after drivers finish the run
 //   30 16 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" "https://…/api/cron/pull-completions"
+// Recorded in cron_runs (Settings → Scheduled jobs) via runCronJob.
 export const dynamic = "force-dynamic";
 
 async function handle(request: Request): Promise<Response> {
@@ -20,9 +19,8 @@ async function handle(request: Request): Promise<Response> {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { timezone } = await getAppSettings();
-  const result = await pullCompletions(zonedDateIso(Date.now(), timezone), null);
-  return Response.json(result);
+  const result = await runCronJob("pull-completions", "schedule");
+  return Response.json(result, { status: result.ok ? 200 : 500 });
 }
 
 export const GET = handle;

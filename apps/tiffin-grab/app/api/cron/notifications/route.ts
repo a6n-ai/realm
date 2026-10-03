@@ -1,12 +1,10 @@
-import { createLogger } from "@foundry/commons/logger";
-import { drainPending, materializeDue } from "@/lib/notifications/drain";
+import { runCronJob } from "@/lib/cron/run";
 
 // Hourly backstop for the Redis-signalled outbox listener: expands scheduled
 // campaigns whose time has come and sends anything a lost signal or a restart
 // left pending. Fail-closed CRON_SECRET contract.
+// Recorded in cron_runs (Settings → Scheduled jobs) via runCronJob.
 export const dynamic = "force-dynamic";
-
-const log = createLogger("cron-notifications");
 
 async function handle(request: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
@@ -15,15 +13,8 @@ async function handle(request: Request): Promise<Response> {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const materialized = await materializeDue();
-    const processed = await drainPending();
-    log.info({ materialized, processed }, "notifications pass complete");
-    return Response.json({ materialized, processed });
-  } catch (err) {
-    log.error({ err }, "notifications pass failed");
-    return Response.json({ error: "pass failed" }, { status: 500 });
-  }
+  const result = await runCronJob("notifications", "schedule");
+  return Response.json(result, { status: result.ok ? 200 : 500 });
 }
 
 export const GET = handle;
