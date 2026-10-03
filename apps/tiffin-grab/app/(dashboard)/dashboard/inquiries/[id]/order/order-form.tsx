@@ -555,7 +555,10 @@ export function OrderForm({
                       className={cn("flex min-h-14 items-center justify-between gap-3 px-3 py-2 transition-colors", qty > 0 && "bg-primary/5")}
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{addon.name}</p>
+                        <p className="truncate text-sm font-medium">
+                          {addon.name}
+                          {addon.portion ? <span className="text-muted-foreground font-normal"> · {addon.portion}</span> : null}
+                        </p>
                         <p className="text-muted-foreground nums text-xs">
                           ${addon.pricePerTiffin.toFixed(2)} per tiffin each{qty > 0 && <> · {qty} in every tiffin</>}
                         </p>
