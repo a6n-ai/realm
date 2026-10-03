@@ -315,17 +315,21 @@ export async function createOrder(
 
   const deploymentId = generateCode("SUB", 6);
 
-  // Resolve the payment rail and app currency before the tx. Empty config /
-  // omitted id → simulated (today's instant-paid path). A real id must be
-  // enabled and map to the enum.
+  // Resolve the payment rail and app currency before the tx. Simulated
+  // (instant-paid) is a local-testing path only, and only when no rail is
+  // enabled — otherwise a client that lost its method list would get a free,
+  // already-paid order. A real id must be enabled and map to the enum.
   const paymentCfg = await getPaymentConfig();
   const { currency } = await getAppSettings();
   const requestedMethodId = input.paymentMethodId?.trim() || null;
   const realMethods = enabledMethods(paymentCfg);
-  const useSimulated =
-    !requestedMethodId ||
-    requestedMethodId === "simulated" ||
-    realMethods.length === 0;
+  const useSimulated = realMethods.length === 0;
+  if (useSimulated && process.env.NODE_ENV === "production") {
+    throw new ValidationError("Payments aren't set up yet. Please contact admin.");
+  }
+  if (!useSimulated && (!requestedMethodId || requestedMethodId === "simulated")) {
+    throw new ValidationError("Choose a payment method");
+  }
   let paymentMethodId = "simulated";
   let methodTaxes: { name: string; ratePct: number }[] = [];
   if (!useSimulated) {

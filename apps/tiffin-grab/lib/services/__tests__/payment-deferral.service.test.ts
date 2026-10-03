@@ -97,6 +97,26 @@ describe("createOrder payment deferral", () => {
     expect(publicId).toBeTruthy();
   });
 
+  it("rails enabled: a missing or simulated method is rejected, never a free paid order", async () => {
+    await setPaymentConfig({
+      methods: [{ id: "etransfer", kind: "manual", enabled: true, label: "Interac e-Transfer", taxes: [] }],
+    });
+    await sharedCache("app-settings").evictAll();
+
+    await expect(createOrder(await baseInput())).rejects.toThrow("Choose a payment method");
+    await expect(createOrder(await baseInput({ paymentMethodId: "simulated" }))).rejects.toThrow("Choose a payment method");
+    expect(await db.select().from(payments)).toHaveLength(0);
+  });
+
+  it("no rails in production: refuses instead of simulating", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      await expect(createOrder(await baseInput())).rejects.toThrow("Payments aren't set up yet");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("real method: awaiting_payment, no ledger/coupon yet; verify settles all", async () => {
     await setPaymentConfig({
       methods: [
