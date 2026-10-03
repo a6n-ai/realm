@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,14 +9,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { z } from "zod";
 import { emailSchema } from "@foundry/commons";
-import { CodeOtp } from "@foundry/auth-ui";
+import { AuthScreen, AuthWelcome, EmailCodeSignIn } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
-import { Card, CardContent } from "@foundry/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { authClient, signIn } from "@/lib/auth/client";
 import { landingPathFor } from "@/lib/auth/landing";
-import { useResendCooldown } from "@/lib/auth/use-resend-cooldown";
 import { SITE_NAME } from "@/lib/brand";
 
 const schema = z.object({
@@ -26,51 +24,73 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const otpEmailSchema = z.object({
-  email: emailSchema,
-});
 
-type Mode = "password" | "email-otp";
+type Mode = "welcome" | "password" | "email-otp";
 
-/** Same pinboard as the public hero. Fixed light in both themes: the logo is
- *  drawn for light grounds only. */
-function BrandPanel({ copy }: { copy: string }) {
-  return (
-    <div
-      className="bg-brand-blush text-brand-ink relative hidden flex-col items-center justify-center gap-4 border-l p-8 md:flex"
-      style={{
-        backgroundImage: "radial-gradient(color-mix(in oklch, var(--brand-pink) 30%, transparent) 1px, transparent 1.2px)",
-        backgroundSize: "22px 22px",
-      }}
-    >
-      <Image src="/brand/logo-xplorers.png" alt={SITE_NAME} width={555} height={245} className="h-auto w-56 mix-blend-multiply" />
-      <p className="max-w-[28ch] text-balance text-center text-sm">{copy}</p>
-    </div>
-  );
-}
-
+/**
+ * Staff and customer login on the shared @foundry/auth-ui screens: a welcome
+ * screen, then the email-code flow customers use or the password form staff use.
+ */
 export function LoginForm() {
-  const [mode, setMode] = useState<Mode>("password");
+  const router = useRouter();
+  const params = useSearchParams();
+  const callbackUrl = params.get("callbackUrl");
+  // A plain visit gets the welcome. Bounced from the console: straight to the
+  // password form staff use; bounced from anywhere else: the code form.
+  const [mode, setMode] = useState<Mode>(
+    !callbackUrl ? "welcome" : callbackUrl.startsWith("/dashboard") ? "password" : "email-otp",
+  );
+  // Set by onVerify, read by onSuccess: landing depends on the signed-in role.
+  const role = useRef<string | undefined>(undefined);
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card className="overflow-hidden p-0">
-        <CardContent className="grid p-0 md:grid-cols-2">
-          <div className="p-6 md:p-8">
-            {/* Keyed by mode so switching sign-in method fades the new panel in
-                instead of swapping instantly. */}
-            <div key={mode} className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
-              {mode === "password" ? (
-                <PasswordPanel onUseEmailOtp={() => setMode("email-otp")} />
-              ) : (
-                <EmailOtpPanel onUsePassword={() => setMode("password")} />
-              )}
-            </div>
-          </div>
-          <BrandPanel copy="Families sign in with an emailed code. Staff use a password to reach the console." />
-        </CardContent>
-      </Card>
-    </div>
+    <AuthScreen>
+      <div key={mode} className="flex flex-1 flex-col">
+        {mode === "welcome" ? (
+          <AuthWelcome
+            art={
+              <div className="bg-brand-blush rounded-2xl px-6 py-5">
+                <Image src="/brand/logo-xplorers.png" alt={SITE_NAME} width={555} height={245} className="h-auto w-48 mix-blend-multiply" />
+              </div>
+            }
+            title={`Sign in to ${SITE_NAME}`}
+            tagline="Families sign in with an emailed code. Staff use a password to reach the console."
+            primary={{ label: "Sign in", onClick: () => setMode("email-otp") }}
+            secondary={{ label: "Create an account", onClick: () => router.push("/signup") }}
+          />
+        ) : mode === "email-otp" ? (
+          <EmailCodeSignIn
+            title="Welcome back"
+            subtitle="Sign in with a code sent to your email."
+            onBack={callbackUrl ? undefined : () => setMode("welcome")}
+            onSendCode={(email) => authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" })}
+            onVerify={async (email, otp) => {
+              const result = await signIn.emailOtp({ email, otp });
+              role.current = (result?.data?.user as { role?: string } | undefined)?.role;
+              return result;
+            }}
+            onSuccess={() => {
+              router.push(landingPathFor(role.current, callbackUrl));
+              router.refresh();
+            }}
+            // Sign-in never creates accounts, so an unknown address gets silence
+            // rather than a code. Say so, or a typo looks like a broken mail server.
+            codeHint="No code? Check the address. Codes only go to existing accounts."
+            extra={
+              <button
+                type="button"
+                onClick={() => setMode("password")}
+                className="text-muted-foreground mx-auto min-h-11 text-sm underline-offset-4 hover:underline"
+              >
+                Sign in with a password instead
+              </button>
+            }
+          />
+        ) : (
+          <PasswordPanel onUseEmailOtp={() => setMode("email-otp")} />
+        )}
+      </div>
+    </AuthScreen>
   );
 }
 
@@ -98,7 +118,9 @@ function PasswordPanel({ onUseEmailOtp }: { onUseEmailOtp: () => void }) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      {/* method="post": a tap before hydration would otherwise GET /login with
+          the email and password in the query string. */}
+      <form method="post" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col items-center text-center">
             <h1 className="text-2xl font-bold">Welcome back</h1>
@@ -171,154 +193,5 @@ function PasswordPanel({ onUseEmailOtp }: { onUseEmailOtp: () => void }) {
         </div>
       </form>
     </Form>
-  );
-}
-
-function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
-  const router = useRouter();
-  const params = useSearchParams();
-  const [step, setStep] = useState<"email" | "code">("email");
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [code, setCode] = useState("");
-  const [cooldown, startCooldown] = useResendCooldown(30);
-
-  const emailForm = useForm<z.infer<typeof otpEmailSchema>>({
-    resolver: zodResolver(otpEmailSchema),
-    defaultValues: { email: "" },
-  });
-
-  async function requestCode(target: string): Promise<boolean> {
-    setError(null);
-    setBusy(true);
-    const { error: err } = await authClient.emailOtp.sendVerificationOtp({
-      email: target,
-      type: "sign-in",
-    });
-    setBusy(false);
-    if (err) {
-      setError(
-        err.status === 429
-          ? "Too many codes requested. Try again in a minute."
-          : "Could not send the code. Try again.",
-      );
-      return false;
-    }
-    startCooldown();
-    return true;
-  }
-
-  async function sendCode(values: z.infer<typeof otpEmailSchema>) {
-    if (!(await requestCode(values.email))) return;
-    setEmail(values.email);
-    setStep("code");
-  }
-
-  async function resend() {
-    if (busy || cooldown > 0) return;
-    setNotice(null);
-    if (await requestCode(email)) setNotice("New code sent.");
-  }
-
-  async function verify(otp: string) {
-    setError(null);
-    setBusy(true);
-    const result = await signIn.emailOtp({ email, otp });
-    setBusy(false);
-    if (result?.error) {
-      setError("Invalid or expired code");
-      return;
-    }
-    const role = (result?.data?.user as { role?: string } | undefined)?.role;
-    router.push(landingPathFor(role, params.get("callbackUrl")));
-    router.refresh();
-  }
-
-  if (step === "email") {
-    return (
-      <Form {...emailForm}>
-        <form onSubmit={emailForm.handleSubmit(sendCode)}>
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col items-center text-center">
-              <h1 className="text-2xl font-bold">Email sign-in code</h1>
-              <p className="text-muted-foreground text-balance">We&apos;ll email a one-time code</p>
-            </div>
-            <FormField
-              control={emailForm.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {error ? (
-              <p className="text-destructive text-sm" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <Button type="submit" className="w-full" disabled={busy}>
-              {busy ? "Sending…" : "Email me a code"}
-            </Button>
-            <Button type="button" variant="ghost" className="w-full" onClick={onUsePassword}>
-              Sign in with a password instead
-            </Button>
-          </div>
-        </form>
-      </Form>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-center text-center">
-        <h1 className="text-2xl font-bold">Enter code</h1>
-        <p className="text-muted-foreground text-balance">We emailed a code to {email}</p>
-        <p className="text-muted-foreground mt-1 text-xs text-balance">
-          No code? Check the address — codes only go to existing accounts.
-        </p>
-      </div>
-      <CodeOtp
-        value={code}
-        onChange={setCode}
-        onComplete={(value) => {
-          void verify(value);
-        }}
-        disabled={busy}
-        autoFocus
-      />
-      {error ? (
-        <p className="text-destructive text-sm" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {notice ? (
-        <p className="text-muted-foreground text-sm" role="status">
-          {notice}
-        </p>
-      ) : null}
-      <Button type="button" variant="outline" className="w-full" onClick={resend} disabled={busy || cooldown > 0}>
-        {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        className="w-full"
-        onClick={() => {
-          setStep("email");
-          setCode("");
-          setError(null);
-          setNotice(null);
-        }}
-      >
-        Use a different email
-      </Button>
-    </div>
   );
 }
