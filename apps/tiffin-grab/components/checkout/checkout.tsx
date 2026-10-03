@@ -25,14 +25,14 @@ import { OrderSummary, money, startLabel } from "@/components/checkout/order-sum
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Progress } from "@/components/wizard/progress";
 import { TotalChip } from "@/components/wizard/total-chip";
-import { BottomBar, Button, Input, Label, OptionCard, Pill, PillToggle, Sheet } from "@/components/customer/kit";
+import { BottomBar, Button, Label, OptionCard, Pill, PillToggle, Sheet } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
 import { isFullPostalCode } from "@/lib/catalog/postal";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { dropOffCatalog, dropOffSummary, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/address-picker";
-import { Check, ChevronRight, Coins, Info, MapPin, Tag } from "lucide-react";
+import { Check, ChevronRight, Coins, Info, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 
 const STEPS = ["Plan", "Delivery", "Payment"] as const;
@@ -295,6 +295,14 @@ export function Checkout({
       status: "applied",
       message: inSet ? "Coupon applied" : "A better discount is already applied",
     });
+  };
+
+  const removeCoupon = async () => {
+    if (!selections) return;
+    setCouponCode("");
+    setAppliedCode(null);
+    setCouponState({ status: "idle" });
+    await refreshPrice(selections, undefined, paymentMethodId, appliedCoins || undefined);
   };
 
   const applyCoins = async () => {
@@ -620,33 +628,72 @@ export function Checkout({
 
                   <section aria-labelledby="co-savings">
                     <h2 id="co-savings" className={H}>Savings</h2>
-                    <div className="bg-card border-border mt-3 divide-y divide-[var(--border)] rounded-[20px] border">
-                      <ApplyRow
-                        id="coupon"
-                        icon={<Tag aria-hidden className="size-4" />}
-                        label="Coupon code"
-                        value={couponCode}
-                        placeholder="SAVE10"
-                        inputClassName="uppercase"
-                        onChange={(v) => { setCouponCode(v); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
-                        onApply={applyCoupon}
-                        state={couponState}
-                      />
-                      {coinBalance == null ? (
-                        <p className="text-muted-foreground p-4 text-[13px]"><Link href="/login" className="underline underline-offset-2">Sign in</Link> to pay with your coins.</p>
-                      ) : (
-                        <ApplyRow
-                          id="coins"
-                          icon={<Coins aria-hidden className="size-4" />}
-                          label={`Use coins (${coinBalance} available)`}
-                          hint={coinCap && coinBalance > 0 ? `${coinCap.maxCoins > 0 ? `Up to ${coinCap.maxCoins} coins on this order.` : "Coins can't be used on this order."}${coinCap.message ? ` ${coinCap.message}` : ""}` : undefined}
-                          value={coinsInput}
-                          placeholder="50"
-                          inputMode="numeric"
-                          onChange={(v) => { setCoinsInput(v); if (coinsState.status !== "idle") setCoinsState({ status: "idle" }); }}
-                          onApply={applyCoins}
-                          state={coinsState}
+                    <div className="bg-card border-border mt-3 divide-y divide-[var(--border)] overflow-hidden rounded-[20px] border">
+                      <AnimatePresence initial={false}>
+                        {applied.map((c) => (
+                          <motion.div key={c.code} {...reveal} className="flex min-h-16 items-center gap-3 px-4 py-3">
+                            <RowIcon tone="save"><Tag aria-hidden className="size-[18px]" /></RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[15px] font-semibold tracking-[0.04em] uppercase">{c.code}</p>
+                              <p className="text-muted-foreground truncate text-[13px]">{c.auto ? "Applied automatically" : c.name}</p>
+                            </div>
+                            <span className="nums shrink-0 text-[15px] font-semibold text-emerald-700 dark:text-emerald-400">−{money(c.amount)}</span>
+                            {!c.auto && (
+                              <button type="button" onClick={removeCoupon} aria-label={`Remove coupon ${c.code}`} className="text-muted-foreground -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--muted)] active:scale-[0.94] motion-reduce:active:scale-100">
+                                <X aria-hidden className="size-[18px]" />
+                              </button>
+                            )}
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                      {!appliedCode && (
+                        <CouponEntry
+                          value={couponCode}
+                          onChange={(v) => { setCouponCode(v); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
+                          onApply={applyCoupon}
+                          state={couponState}
+                          reveal={reveal}
                         />
+                      )}
+                      {coinBalance == null ? (
+                        <p className="text-muted-foreground flex min-h-16 items-center gap-3 px-4 py-3 text-[13px]">
+                          <RowIcon><Coins aria-hidden className="size-[18px]" /></RowIcon>
+                          <span><Link href="/login" className="text-primary font-semibold">Sign in</Link> to pay with your coins.</span>
+                        </p>
+                      ) : (
+                        <div className="px-4 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <RowIcon tone="wash"><Coins aria-hidden className="size-[18px]" /></RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <Label htmlFor="coins" className="text-[15px] !font-semibold">Use coins</Label>
+                              <p className="text-muted-foreground mt-1 text-[13px] text-pretty">
+                                <span className="nums">{`${coinBalance} available`}</span>
+                                {coinCap && coinBalance > 0 && (coinCap.maxCoins > 0 ? <> · up to <span className="nums">{coinCap.maxCoins}</span> on this order</> : " · can't be used on this order")}
+                              </p>
+                            </div>
+                          </div>
+                          {coinCap?.message && coinBalance > 0 && <p className="text-muted-foreground mt-2 pl-12 text-xs text-pretty">{coinCap.message}</p>}
+                          <ApplyField
+                            id="coins"
+                            className="mt-3"
+                            value={coinsInput}
+                            placeholder="0"
+                            inputMode="numeric"
+                            applyLabel="Apply coins"
+                            onChange={(v) => { setCoinsInput(v); if (coinsState.status !== "idle") setCoinsState({ status: "idle" }); }}
+                            onApply={applyCoins}
+                            state={coinsState}
+                            extra={coinCap && Math.min(coinBalance, coinCap.maxCoins) > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => { setCoinsInput(String(Math.min(coinBalance, coinCap.maxCoins))); setCoinsState({ status: "idle" }); }}
+                                className="text-primary h-9 shrink-0 rounded-[10px] px-2.5 text-[13px] font-semibold transition-colors hover:bg-[var(--primary-wash)]"
+                              >
+                                Max
+                              </button>
+                            ) : null}
+                          />
+                        </div>
                       )}
                     </div>
                   </section>
@@ -779,44 +826,95 @@ function ReviewRow({ term, action, children }: { term: string; action?: ReactNod
 
 type ApplyState = { status: "idle" | "checking" | "applied" | "error"; message?: string };
 
-function ApplyRow({ id, icon, label, hint, value, placeholder, inputMode, inputClassName, onChange, onApply, state }: {
+function RowIcon({ tone = "muted", children }: { tone?: "muted" | "wash" | "save"; children: ReactNode }) {
+  const toneCls = tone === "save" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
+    : tone === "wash" ? "bg-[var(--primary-wash)] text-[var(--primary)]"
+    : "bg-[var(--muted)] text-[var(--muted-foreground)]";
+  return <span aria-hidden className={`grid size-9 shrink-0 place-items-center rounded-full ${toneCls}`}>{children}</span>;
+}
+
+// A collapsed "Add a coupon code" row that opens into one field with Apply inside it,
+// so the action never sits off-screen and the row costs one line until it's needed.
+function CouponEntry({ value, onChange, onApply, state, reveal }: {
+  value: string;
+  onChange: (v: string) => void;
+  onApply: () => void;
+  state: ApplyState;
+  reveal: object;
+}) {
+  const [open, setOpen] = useState(value !== "" || state.status !== "idle");
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="coupon-entry"
+        onClick={() => setOpen((o) => !o)}
+        className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-[var(--muted)]"
+      >
+        <RowIcon tone="wash"><Tag aria-hidden className="size-[18px]" /></RowIcon>
+        <span className="flex-1 text-[15px] font-semibold">Add a coupon code</span>
+        <Plus aria-hidden className={`text-muted-foreground size-5 transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-45" : ""}`} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div key="coupon" id="coupon-entry" {...reveal} className="px-4 pb-4">
+            <Label htmlFor="coupon" className="sr-only">Coupon code</Label>
+            <ApplyField id="coupon" value={value} placeholder="Enter code" uppercase autoFocus applyLabel="Apply coupon" onChange={onChange} onApply={onApply} state={state} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// One rounded field with its action inside: the input flexes, the button never shrinks.
+function ApplyField({ id, className, value, placeholder, inputMode, uppercase, autoFocus, applyLabel, extra, onChange, onApply, state }: {
   id: string;
-  icon: ReactNode;
-  label: string;
-  hint?: string;
+  className?: string;
   value: string;
   placeholder: string;
   inputMode?: "numeric";
-  inputClassName?: string;
+  uppercase?: boolean;
+  autoFocus?: boolean;
+  applyLabel: string;
+  extra?: ReactNode;
   onChange: (v: string) => void;
   onApply: () => void;
   state: ApplyState;
 }) {
+  const checking = state.status === "checking";
   return (
-    <div className="p-4">
-      <Label htmlFor={id} className="!gap-1.5 !text-[13px] !font-semibold">{icon} {label}</Label>
-      {hint && <p className="text-muted-foreground mt-1 text-xs text-pretty">{hint}</p>}
-      <div className="mt-2 flex gap-2">
-        <Input
-          dense
+    <div className={className}>
+      <div className={`flex min-h-12 items-center gap-1 rounded-2xl border bg-[var(--background)] py-1 pr-1 pl-3.5 transition-colors focus-within:border-[var(--primary)] ${state.status === "error" ? "border-[#be123c]" : "border-[var(--border)]"}`}>
+        <input
           id={id}
-          // min-w-0: an <input>'s intrinsic width otherwise pushes Apply off a phone screen.
-          className={`min-w-0 flex-1 ${inputClassName ?? ""}`}
-          inputMode={inputMode}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onApply(); } }}
+          inputMode={inputMode}
           placeholder={placeholder}
-          autoCapitalize={id === "coupon" ? "characters" : undefined}
+          autoFocus={autoFocus}
+          autoCapitalize={uppercase ? "characters" : undefined}
           autoComplete="off"
           spellCheck={false}
+          aria-invalid={state.status === "error" || undefined}
+          aria-describedby={state.status === "applied" || state.status === "error" ? `${id}-msg` : undefined}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onApply(); } }}
+          className={`nums min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[var(--muted-foreground)] ${uppercase ? "uppercase placeholder:normal-case" : ""}`}
         />
-        <Button pill variant="quiet" className="!min-h-11 shrink-0 !px-5" onClick={onApply} disabled={state.status === "checking"}>
-          {state.status === "checking" ? "Checking…" : "Apply"}
-        </Button>
+        {extra}
+        <button
+          type="button"
+          onClick={onApply}
+          disabled={checking || !value.trim()}
+          aria-label={applyLabel}
+          className="h-10 shrink-0 rounded-xl bg-[var(--foreground)] px-4 text-[14px] font-semibold text-[var(--background)] transition-[opacity,transform] duration-150 active:scale-[0.97] disabled:opacity-35 motion-reduce:active:scale-100"
+        >
+          {checking ? "Checking…" : "Apply"}
+        </button>
       </div>
-      {state.status === "applied" && <p role="status" className="mt-2 text-[13px] font-medium text-emerald-700 dark:text-emerald-400">{state.message}</p>}
-      {state.status === "error" && <p role="alert" className="mt-2 text-[13px] font-medium text-amber-700 dark:text-amber-400">{state.message}</p>}
+      {state.status === "applied" && <p id={`${id}-msg`} role="status" className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-emerald-700 dark:text-emerald-400"><Check aria-hidden className="size-4" />{state.message}</p>}
+      {state.status === "error" && <p id={`${id}-msg`} role="alert" className="mt-2 text-[13px] font-medium text-[#be123c] dark:text-rose-400">{state.message}</p>}
     </div>
   );
 }

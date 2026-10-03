@@ -123,9 +123,9 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     await enterAddress("M5H 1A1");
     await waitFor(() => expect(continueBtn().getAttribute("aria-disabled")).toBeNull());
     fireEvent.click(continueBtn());
-    await screen.findByLabelText(/coupon code/i);
-    fireEvent.change(screen.getByLabelText(/coupon code/i), { target: { value: "BOGUS" } });
-    fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /add a coupon code/i }));
+    fireEvent.change(await screen.findByLabelText(/coupon code/i), { target: { value: "BOGUS" } });
+    fireEvent.click(screen.getByRole("button", { name: /apply coupon/i }));
 
     expect(await screen.findByText(/isn't valid/i)).toBeTruthy();
   });
