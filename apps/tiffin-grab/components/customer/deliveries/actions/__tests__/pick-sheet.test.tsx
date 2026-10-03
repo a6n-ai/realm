@@ -536,6 +536,17 @@ describe("PickSheet", () => {
       expect(within(addonRow).getAllByRole("radio").length).toBeGreaterThan(0);
     });
 
+    it("keeps a count category's combined row with the meal", async () => {
+      load.mockResolvedValue(grid(
+        [cell({ slot: "rice", selectable: false, quantity: 2, dishes: [{ id: "ri1", name: "Jeera Rice", image: null }], selectedDishId: "ri1" })],
+        1,
+        { categories: [{ key: "rice", label: "Rice", selectable: false, sortOrder: 1 }], portionsBySlot: { rice: ["2 unit"] }, addonCounts: { rice: 1 } },
+      ));
+      show(trip({ coversDates: [mon] }));
+      expect(await screen.findByRole("region", { name: "Rice" })).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Add-ons" })).not.toBeInTheDocument();
+    });
+
     it("shows no Add-ons section when the order has none", async () => {
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));

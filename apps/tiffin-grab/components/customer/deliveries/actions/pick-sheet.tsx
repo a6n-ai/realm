@@ -233,8 +233,11 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
   const addonKeys = new Set<string>();
   for (const g of rows) {
     const n = grid?.addonCounts?.[g.key] ?? 0;
-    if (!n) continue;
-    for (const it of g.items.filter((x) => x.kind === "cell").slice(-n)) if (it.kind === "cell") addonKeys.add(cellKey(it.cell));
+    const plain = g.items.filter((x) => x.kind === "cell");
+    // Only where each portion is its own row (sabzi). A count category (rice, roti) folds the
+    // meal's and the add-on's units into one row, which stays with the meal.
+    if (!n || !plain.every((x) => x.kind === "cell" && x.cell.quantity === 1)) continue;
+    for (const it of plain.slice(-n)) if (it.kind === "cell") addonKeys.add(cellKey(it.cell));
   }
   const isAddonItem = (item: (typeof rows)[number]["items"][number]) => item.kind === "cell" && addonKeys.has(cellKey(item.cell));
   if (pendingToPick) {
