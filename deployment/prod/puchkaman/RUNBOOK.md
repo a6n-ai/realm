@@ -1,7 +1,9 @@
 # Puchkaman production runbook (Box B)
 
-Puchkaman runs on its OWN EC2 box + OWN RDS, separate from tiffin-grab (Box A).
-Full stack: web + pgbouncer → RDS, better-auth admin, S3 uploads. No redis/worker.
+Puchkaman runs on its OWN EC2 box, separate from tiffin-grab (Box A). Database:
+Neon project `puchkaman` (weathered-moon-07553426) in Neon org `tiffingrab`,
+aws-us-east-1, moved from RDS 2026-10-03. Full stack: web → Neon (pooled
+endpoint) + redis (outbox signal), better-auth admin, S3 uploads. No worker.
 
 ## 1. Provision AWS (once)
 
@@ -29,11 +31,11 @@ endpoint from step 1. Example (repeat per key):
     aws ssm put-parameter --region us-east-1 --overwrite --type SecureString \
       --name /puchkaman/prod/BETTER_AUTH_SECRET --value "$(openssl rand -base64 32)"
 
-Keys: NODE_ENV, LOG_LEVEL, DATABASE_URL, DIRECT_DATABASE_URL, PGBOUNCER_DB_HOST,
-PGBOUNCER_DB_PORT, PGBOUNCER_DB_USER, PGBOUNCER_DB_PASSWORD, PGBOUNCER_DB_NAME,
+Keys: NODE_ENV, LOG_LEVEL, DATABASE_URL, DIRECT_DATABASE_URL,
 BETTER_AUTH_URL, BETTER_AUTH_SECRET, ACME_EMAIL, AWS_REGION, FILES_S3_BUCKET,
-FILES_S3_REGION, GOOGLE_PLACES_API_KEY, PLACES_PROVIDER. (DATABASE_URL uses
-pgbouncer:6432; DIRECT_DATABASE_URL ends `?sslmode=no-verify`.) Also copy
+FILES_S3_REGION, GOOGLE_PLACES_API_KEY, PLACES_PROVIDER. (DATABASE_URL is Neon's
+`-pooler` host, DIRECT_DATABASE_URL the direct host, both `?sslmode=require`
+with `channel_binding` removed - postgres.js would send it to the server.) Also copy
 ACME_EMAIL into `proxy/.env.production`. GOOGLE_PLACES_API_KEY and
 PLACES_PROVIDER back the delivery address lookup (`@foundry/places`) — see
 `apps/puchkaman/.env.example` for what each does when unset. Never commit a

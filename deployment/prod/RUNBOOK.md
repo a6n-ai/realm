@@ -3,7 +3,7 @@
 Each client app runs on its OWN EC2 box + OWN RDS:
 - **tiffin-grab** — Box A, https://app.tiffingrab.ca (web + worker + redis + pgbouncer + RDS).
   Deploy config here under `tiffin-grab/` + shared `proxy/`. **us-east-1**.
-- **puchkaman** — Box B, https://puchkaman.ca (web + pgbouncer + RDS + S3 admin).
+- **puchkaman** — Box B, https://puchkaman.ca (web + redis + Neon + S3 admin).
   Deploy config + its own RUNBOOK + Caddy under `puchkaman/`. **us-east-1**.
 - **xplorers** — Box C, https://xplorers.a6n.ai (web + Neon; see xplorers/RUNBOOK.md §6).
   Deploy config + RUNBOOK + Caddy under `xplorers/`. **ap-southeast-1** (Singapore).

@@ -6,6 +6,15 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     env_file: .env.production # provides $ACME_EMAIL to the Caddyfile
+    # Access log (see Caddyfile) goes to CloudWatch, stream `caddy` in the app's
+    # group: the box role may only write /puchkaman/prod. Changing this recreates
+    # the container once; certs survive in caddy_data.
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: us-east-1
+        awslogs-group: /puchkaman/prod
+        tag: caddy
     ports:
       - "80:80"
       - "443:443"
