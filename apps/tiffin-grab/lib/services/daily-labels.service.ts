@@ -37,6 +37,8 @@ export type LabelLine = {
   portion: string | null;
   /** True when the customer never picked and the menu default was used. */
   defaulted: boolean;
+  /** An add-on row (extra sabzi…); labels mark it, kitchen counts don't split on it. */
+  addon?: boolean;
 };
 
 export type DeliveryLabel = {
@@ -247,7 +249,8 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
           lines.push({
             category: category.category,
             categoryLabel: category.label,
-            dish: addonPicks.get(category.category)?.has(i + 1) ? `${pick.name} (add-on)` : pick.name,
+            dish: pick.name,
+            addon: addonPicks.get(category.category)?.has(i + 1) || undefined,
             portion: portionForPick(portions, category.category, i + 1),
             defaulted: pick.isDefaulted,
           });
