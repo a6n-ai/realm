@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { admin as adminPlugin, emailOTP, magicLink } from "better-auth/plugins";
+import { admin as adminPlugin, captcha, emailOTP, magicLink } from "better-auth/plugins";
+import { CAPTCHA_ENDPOINTS, turnstileKeys } from "./captcha";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { createOrganizationPlugin, authAuditAction } from "@foundry/auth";
@@ -192,6 +193,10 @@ export const auth = betterAuth({
       // auth.api — unreachable from inside this config. Every createInvitation
       // caller sends it via sendStaffInviteLink instead.
     }),
+    // Turnstile on code/password endpoints; off until both keys exist (lib/auth/captcha.ts).
+    ...(turnstileKeys()
+      ? [captcha({ provider: "cloudflare-turnstile", secretKey: turnstileKeys()!.secretKey, endpoints: CAPTCHA_ENDPOINTS })]
+      : []),
     nextCookies(),
   ],
   // Audit: log session deletion as logout.

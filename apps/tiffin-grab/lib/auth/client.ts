@@ -1,11 +1,22 @@
 import { createAuthClient } from "better-auth/react";
 import { emailOTPClient } from "better-auth/client/plugins";
+import { getCaptchaToken, needsCaptcha } from "./captcha-client";
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
   // Email only — the server mounts no phone/username sign-in, so a client plugin for
   // either would just be a method that 404s.
   plugins: [emailOTPClient()],
+  fetchOptions: {
+    // Turnstile token on every request that mails a code or checks a password
+    // (lib/auth/captcha.ts) — one place, so no form can forget it.
+    onRequest: async (context) => {
+      if (!needsCaptcha(context.url)) return;
+      const token = await getCaptchaToken();
+      if (token) context.headers.set("x-captcha-response", token);
+      return context;
+    },
+  },
 });
 
 export const { signIn, signUp, useSession } = authClient;
