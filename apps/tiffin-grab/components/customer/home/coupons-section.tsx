@@ -11,7 +11,7 @@ import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
 // Discount pill text — distinct from the admin table's couponValue() (which reads
 // "20%"/"$5.00"): the customer pill reads as a benefit ("20% off"/"$5 off").
-function discountLine(c: AvailableCoupon): string {
+export function discountLine(c: Pick<AvailableCoupon, "kind" | "valuePct" | "valueAmount">): string {
   switch (c.kind) {
     case "percentage":
       return `${Number(c.valuePct)}% off`;

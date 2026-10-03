@@ -34,6 +34,8 @@ import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/address-picker";
 import { Check, ChevronRight, Coins, Info, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
+import { discountLine } from "@/components/customer/home/coupons-section";
+import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
 const STEPS = ["Plan", "Delivery", "Payment"] as const;
 const TITLES = { 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
@@ -101,6 +103,7 @@ export function Checkout({
   catalog,
   savedAddresses = [],
   addressDropOffs = {},
+  suggestedCoupons = [],
 }: {
   defaultCountry: Country;
   closeHref?: string;
@@ -111,6 +114,8 @@ export function Checkout({
   savedAddresses?: SavedAddress[];
   /** Saved address public id → its drop-off. */
   addressDropOffs?: Record<string, DropOffValue>;
+  /** Live coupons a customer has to type in (auto-apply ones are excluded); shown as tap-to-apply chips. */
+  suggestedCoupons?: AvailableCoupon[];
 }) {
   const router = useRouter();
   const dropOff = dropOffCatalog(catalog?.deliveryCharges, catalog?.waivers);
@@ -272,9 +277,10 @@ export function Checkout({
     }
   };
 
-  const applyCoupon = async () => {
+  const applyCoupon = async (picked?: string) => {
     if (!selections) return;
-    const code = couponCode.trim();
+    if (picked) setCouponCode(picked);
+    const code = (picked ?? couponCode).trim();
     setCouponState({ status: code ? "checking" : "idle" });
     const r = await refreshPrice(selections, code || undefined, paymentMethodId, appliedCoins || undefined);
     if (!code) {
@@ -650,12 +656,14 @@ export function Checkout({
                         <CouponEntry
                           value={couponCode}
                           onChange={(v) => { setCouponCode(v); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
-                          onApply={applyCoupon}
+                          onApply={() => applyCoupon()}
                           state={couponState}
                           reveal={reveal}
+                          suggestions={suggestedCoupons.filter((c) => !applied.some((a) => a.code.toUpperCase() === c.code.toUpperCase()))}
+                          onPick={(code) => void applyCoupon(code)}
                         />
                       )}
-                      {coinBalance == null ? (
+                      {coinBalance === 0 ? null : coinBalance == null ? (
                         <p className="text-muted-foreground flex min-h-16 items-center gap-3 px-4 py-3 text-[13px]">
                           <RowIcon><Coins aria-hidden className="size-[18px]" /></RowIcon>
                           <span><Link href="/login" className="text-primary font-semibold">Sign in</Link> to pay with your coins.</span>
@@ -673,7 +681,7 @@ export function Checkout({
                             </div>
                           </div>
                           {coinCap?.message && coinBalance > 0 && <p className="text-muted-foreground mt-2 pl-12 text-xs text-pretty">{coinCap.message}</p>}
-                          <ApplyField
+                          {coinBalance > 0 && <ApplyField
                             id="coins"
                             className="mt-3"
                             value={coinsInput}
@@ -692,7 +700,7 @@ export function Checkout({
                                 Max
                               </button>
                             ) : null}
-                          />
+                          />}
                         </div>
                       )}
                     </div>
@@ -835,12 +843,14 @@ function RowIcon({ tone = "muted", children }: { tone?: "muted" | "wash" | "save
 
 // A collapsed "Add a coupon code" row that opens into one field with Apply inside it,
 // so the action never sits off-screen and the row costs one line until it's needed.
-function CouponEntry({ value, onChange, onApply, state, reveal }: {
+function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onPick }: {
   value: string;
   onChange: (v: string) => void;
   onApply: () => void;
   state: ApplyState;
   reveal: object;
+  suggestions: AvailableCoupon[];
+  onPick: (code: string) => void;
 }) {
   const [open, setOpen] = useState(value !== "" || state.status !== "idle");
   return (
@@ -864,6 +874,31 @@ function CouponEntry({ value, onChange, onApply, state, reveal }: {
           </motion.div>
         )}
       </AnimatePresence>
+      {suggestions.length > 0 && (
+        <div className="pb-4">
+          <p id="coupon-suggestions" className="text-muted-foreground px-4 text-[13px] font-semibold">Available for you</p>
+          {/* Edge-to-edge scroller on phones: chips peek past the card padding instead of wrapping into a wall. */}
+          <ul aria-labelledby="coupon-suggestions" className="mt-2 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {suggestions.map((c) => (
+              <li key={c.code} className="shrink-0 snap-start">
+                <button
+                  type="button"
+                  onClick={() => onPick(c.code)}
+                  disabled={state.status === "checking"}
+                  aria-label={`Apply ${c.code}, ${discountLine(c)}: ${c.name}`}
+                  className="flex min-h-14 max-w-[15rem] items-center gap-2.5 rounded-2xl border border-dashed border-[var(--primary)]/50 bg-[var(--primary-wash)] py-2 pr-3.5 pl-3 text-left transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[14px] font-semibold tracking-[0.04em] uppercase">{c.code}</span>
+                    <span className="text-muted-foreground block truncate text-[12px]">{c.name}</span>
+                  </span>
+                  <span className="text-primary shrink-0 text-[13px] font-semibold">{discountLine(c)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
