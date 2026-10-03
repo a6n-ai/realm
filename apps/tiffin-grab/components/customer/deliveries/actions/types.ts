@@ -1,4 +1,5 @@
 import type { Trip } from "@/lib/deliveries-view";
+import type { Agenda } from "@/lib/deliveries-view/week";
 import type { PlanView } from "../adapter";
 import type { SheetUi } from "./sheet-ui";
 
@@ -14,6 +15,8 @@ export type ActionSheetProps = {
   onDone: (message?: string) => void;
   /** Toasts and refreshes but keeps the sheet open (swap stacks several changes). */
   onChanged?: (message: string) => void;
+  /** The plan's eating-day agenda: Move draws the same status dots as the main calendar. */
+  agenda?: Agenda;
   /** Look only (kit by default; admin passes shadcn). Logic never changes with it. */
   ui?: Partial<SheetUi>;
 };

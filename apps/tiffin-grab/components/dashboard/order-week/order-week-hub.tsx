@@ -25,12 +25,9 @@ import { AddressSheet } from "@/components/customer/deliveries/actions/address-s
 import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
 import { actionModel } from "@/components/customer/deliveries/action-model";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
-import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
+import { ADMIN_SHEET_UI, STATUS_TONE } from "./admin-sheet-ui";
 
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;
-const STATUS_TONE: Record<string, string> = {
-  delivered: "bg-emerald-500", upcoming: "bg-sky-500", vacation: "bg-amber-500", hold: "bg-rose-500", combined: "bg-muted-foreground",
-};
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
@@ -224,7 +221,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
 
       {dlg === "info" && row && <InfoDialog row={row} plan={plan} tz={tz} onClose={() => setDlg(null)} />}
       {/* The customer's own sheets, drawn in shadcn: one implementation of every rule. */}
-      {dlg === "reschedule" && trip && <MoveSheet open trip={trip} plan={plan} day={row?.date} onDone={done} ui={ADMIN_SHEET_UI} />}
+      {dlg === "reschedule" && trip && <MoveSheet open trip={trip} plan={plan} agenda={agenda} day={row?.date} onDone={done} ui={ADMIN_SHEET_UI} />}
       {dlg === "address" && trip && <AddressSheet open trip={trip} plan={plan} onDone={done} ui={ADMIN_SHEET_UI} />}
       {dlg === "pick" && row && trip && (
         <PickSheet

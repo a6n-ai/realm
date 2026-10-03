@@ -20,6 +20,9 @@ import { addDays, weekDays } from "@/lib/deliveries-view/week";
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const WD = ["M", "T", "W", "T", "F", "S", "S"];
+export const STATUS_TONE: Record<string, string> = {
+  delivered: "bg-emerald-500", upcoming: "bg-sky-500", vacation: "bg-amber-500", hold: "bg-rose-500", combined: "bg-muted-foreground",
+};
 
 function ChoiceRow({
   label,
@@ -109,6 +112,7 @@ const WeekStrip: SheetUi["WeekStrip"] = ({ firstWeek, lastWeek, week, today, sel
       {weekDays(week).map((iso, i) => {
         const off = picker?.isDisabled(iso) ?? false;
         const ds = dots[iso] ?? [];
+        const truck = ds.some((x) => x.truck);
         const sel = iso === selectedDay;
         return (
           <button
@@ -116,20 +120,23 @@ const WeekStrip: SheetUi["WeekStrip"] = ({ firstWeek, lastWeek, week, today, sel
             type="button"
             aria-pressed={sel}
             aria-disabled={off || undefined}
-            aria-label={`${d(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}${ds.some((x) => x.truck) ? ", delivery day" : ""}${off ? ", unavailable" : ""}`}
+            aria-label={`${d(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}${truck ? ", delivery day" : ""}${off ? ", unavailable" : ""}`}
             onClick={() => (off ? picker?.onDisabledTap?.(iso) : onPickDay(iso))}
             className={cn(
-              "flex h-16 flex-col items-center justify-center gap-1 rounded-md border text-xs",
+              "flex h-[72px] flex-col items-center justify-center gap-1 rounded-md border text-xs",
               sel ? "border-primary bg-primary/10 font-semibold" : "border-transparent",
               off ? "opacity-40" : "hover:bg-muted",
               iso === today && !sel && "ring-primary ring-1",
             )}
           >
-            <span className="text-muted-foreground">{WD[i]}</span>
+            <span aria-hidden className="text-muted-foreground grid w-full grid-cols-[1fr_auto_1fr] items-center px-1">
+              <span className="flex justify-end">{ds.some((x) => x.status) && <Utensils className="size-2.5" />}</span>
+              <span className="px-1">{WD[i]}</span>
+              <span className="flex justify-start">{truck && <Truck className="size-2.5" />}</span>
+            </span>
             <b className="text-sm tabular-nums">{d(iso).getUTCDate()}</b>
-            <span className="text-muted-foreground flex h-3 items-center gap-0.5">
-              {!off && ds.length > 0 && <Utensils aria-hidden className="size-3" />}
-              {!off && ds.some((x) => x.truck) && <Truck aria-hidden className="size-3" />}
+            <span className="flex h-3 items-center gap-0.5">
+              {ds.map((x, k) => x.status && <span key={k} aria-hidden className={cn("size-2 rounded-full", STATUS_TONE[x.status])} />)}
             </span>
           </button>
         );
