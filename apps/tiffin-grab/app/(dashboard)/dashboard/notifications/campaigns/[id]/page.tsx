@@ -26,6 +26,10 @@ import {
   type AudienceValue,
 } from "@relay/engine/ui";
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
+import { ResubscribeLinkButton } from "../../resubscribe-link-button";
+
+// Oldest notification_outbox row in prod: earlier per-recipient send rows were lost.
+const OUTBOX_KEPT_SINCE = Date.UTC(2026, 8, 28, 11);
 
 // Resolves a live audience count on every view.
 export const dynamic = "force-dynamic";
@@ -52,12 +56,16 @@ export default async function CampaignPage({
       audience: campaign.audience,
       counts: campaign.counts,
       sentAt: campaign.sentAt,
+      systemKey: campaign.systemKey,
     })
     .from(campaign)
     .where(eq(campaign.publicId, id));
   if (!row) notFound();
 
-  const sendable = row.status === "draft" || row.status === "scheduled";
+  // A system campaign is re-run, never sent once: no send/retrigger lifecycle,
+  // and its content stays editable as the template for the next run.
+  const isSystem = row.systemKey != null;
+  const sendable = !isSystem && (row.status === "draft" || row.status === "scheduled");
   // Delivery sends each row once; failed rows wait here for an admin to retry.
   const failedCount = await db.$count(
     notificationTables.notificationOutbox,
@@ -67,7 +75,8 @@ export default async function CampaignPage({
     ),
   );
   const retriggerable =
-    row.status === "sent" || row.status === "completed" || row.status === "paused" || row.status === "cancelled";
+    !isSystem &&
+    (row.status === "sent" || row.status === "completed" || row.status === "paused" || row.status === "cancelled");
   // Only resolve a count when it can still be acted on — for a sent campaign
   // the stored counts are the record, and re-resolving would show today's
   // audience rather than the one that was actually mailed.
@@ -127,20 +136,25 @@ export default async function CampaignPage({
 
   return (
     <div className="space-y-6">
-      <BackButton href="/dashboard/notifications/campaigns" label="All campaigns" />
+      <BackButton
+        href={isSystem ? "/dashboard/notifications/system" : "/dashboard/notifications/campaigns"}
+        label={isSystem ? "System campaigns" : "All campaigns"}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold text-balance">{row.name}</h1>
           <p className="text-sm text-muted-foreground">
-            <Badge variant="outline">{row.status}</Badge>{" "}
+            <Badge variant="outline">{isSystem ? "system" : row.status}</Badge>{" "}
             <span className="ml-2">{(row.channels as string[]).join(", ")}</span>
           </p>
         </div>
         <div className="flex gap-2">
-          <CampaignDuplicateButton campaignPublicId={row.publicId} campaignName={row.name} lists={lists} timeZone={timezone} />
+          {!isSystem && (
+            <CampaignDuplicateButton campaignPublicId={row.publicId} campaignName={row.name} lists={lists} timeZone={timezone} />
+          )}
           {sendable && <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />}
-          {row.status === "sent" && <CampaignCompleteButton campaignPublicId={row.publicId} />}
+          {!isSystem && row.status === "sent" && <CampaignCompleteButton campaignPublicId={row.publicId} />}
           {retriggerable && <CampaignRetriggerButton campaignPublicId={row.publicId} lists={lists} />}
           {failedCount > 0 && (
             <CampaignRetryFailedButton campaignPublicId={row.publicId} failedCount={failedCount} />
@@ -172,11 +186,14 @@ export default async function CampaignPage({
             <TabsTrigger value="logs">Logs</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-6 pt-4">
-            <SectionCard title="Results" subtitle="Counts recorded at send time and from SES feedback.">
+            <SectionCard
+              title="Results"
+              subtitle={isSystem ? "All runs combined, from SES feedback." : "Counts recorded at send time and from SES feedback."}
+            >
               <CampaignAnalytics counts={counts} />
             </SectionCard>
             <SectionCard title="Content" subtitle="One row per channel and locale.">
-              <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} />
+              <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={isSystem} footer={footer} />
             </SectionCard>
             <SectionCard
               title="Unsubscribed"
@@ -191,7 +208,10 @@ export default async function CampaignPage({
                   {unsubscribes.map((u) => (
                     <div key={u.address} className="flex items-center justify-between gap-3 py-2 text-sm">
                       <span className="font-mono">{u.address}</span>
-                      <span className="text-muted-foreground">{formatConsentDate(u.createdAt, timezone)}</span>
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        {formatConsentDate(u.createdAt, timezone)}
+                        <ResubscribeLinkButton address={u.address} />
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -199,7 +219,15 @@ export default async function CampaignPage({
             </SectionCard>
           </TabsContent>
           <TabsContent value="logs" className="pt-4">
-            <SectionCard title="Logs" subtitle="Sends for this campaign.">
+            <SectionCard
+              title="Logs"
+              subtitle={
+                // Per-recipient rows from before 2026-09-28 were not kept; the counts on the campaign row were.
+                row.sentAt != null && row.sentAt < OUTBOX_KEPT_SINCE
+                  ? "Per-recipient logs start 28 Sep 2026; this campaign was sent before that. Results still has its totals."
+                  : "Sends for this campaign."
+              }
+            >
               <Suspense fallback={<LogsTableSkeleton />}>
                 <CampaignLogsData campaignId={row.id} searchParams={searchParams} />
               </Suspense>

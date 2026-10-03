@@ -8,6 +8,7 @@ import { Badge } from "@foundry/ui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
+import { ResubscribeLinkButton } from "../resubscribe-link-button";
 
 export type SuppressedSortColumn = "time" | "address" | "channel" | "scope" | "reason";
 
@@ -20,12 +21,13 @@ type Row = {
   createdAt: number;
 };
 
-const COLUMNS: readonly Column<SuppressedSortColumn>[] = [
+const COLUMNS: readonly Column<SuppressedSortColumn | "actions">[] = [
   { key: "time", label: "Time", sortable: true },
   { key: "address", label: "Address", sortable: true },
   { key: "channel", label: "Channel", sortable: true },
   { key: "scope", label: "Scope", sortable: true },
   { key: "reason", label: "Reason", sortable: true },
+  { key: "actions", label: "", align: "right" },
 ];
 
 export function SuppressedTable({
@@ -70,6 +72,10 @@ export function SuppressedTable({
               <Badge variant={r.scope === "all" ? "destructive" : "outline"}>{r.scope}</Badge>
             </TableCell>
             <TableCell className="text-sm text-muted-foreground">{r.reason}</TableCell>
+            <TableCell className="text-right">
+              {/* Only an unsubscribe can be undone; a bounce or complaint stays blocked. */}
+              {r.scope === "marketing" && <ResubscribeLinkButton address={r.address} />}
+            </TableCell>
           </>
         )}
       />
