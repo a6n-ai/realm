@@ -68,7 +68,7 @@ n=$(dst psql "$DST" -Atc "select count(*) from information_schema.tables where t
 src pg_dump "$SRC" -Fc --no-owner --no-acl -f "$WORK/$app.dump"
 
 rc=0
-dst pg_restore --no-owner --no-acl -d "$DST" "$WORK/$app.dump" || rc=$?
+dst pg_restore --no-owner --no-acl --single-transaction -d "$DST" "$WORK/$app.dump" || rc=$?
 
 echo "== Neon (target)"; checks dst "$DST" | tee "$WORK/dst.txt"
 
