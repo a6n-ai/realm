@@ -2,7 +2,7 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
 
-export type TripStatus = "upcoming" | "delivered" | "vacation" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed";
+export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "vacation" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed";
 export type TripAction = "pick" | "swap" | "move" | "address";
 export type Availability = { ok: boolean; why: string | null; sub: string };
 export type LegendKey = "delivered" | "upcoming" | "vacation" | "onHold";
@@ -127,7 +127,8 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       else if (d.optimoCompletionStatus === "success") status = "delivered";
       else if (d.optimoCompletionStatus === "failed") status = "failed";
       else if (!past) status = "upcoming";
-      else status = zonedDateIso(now, plan.timezone) >= d.date ? "delivered" : "cutoff-passed";
+      // Delivered only once OptimoRoute or an admin confirms it; until then it's awaiting confirmation.
+      else status = zonedDateIso(now, plan.timezone) >= d.date ? "unconfirmed" : "cutoff-passed";
       const own = d.mealsByDate?.[d.date] ?? d.meal;
       return {
         orderId,
@@ -162,6 +163,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
 const LEGEND: Record<TripStatus, LegendKey | null> = {
   upcoming: "upcoming",
   delivered: "delivered",
+  unconfirmed: "upcoming",
   "cutoff-passed": "delivered",
   rescheduled: "onHold",
   locked: "onHold",

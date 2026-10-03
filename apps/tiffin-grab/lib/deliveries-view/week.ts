@@ -26,7 +26,8 @@ export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
   if (d.status === "skipped") return "hold";
   if (d.optimoCompletionStatus === "failed") return "hold";
   if (d.optimoCompletionStatus === "success") return "delivered";
-  return now >= d.cutoffAt ? "delivered" : "upcoming";
+  // Not confirmed by OptimoRoute or an admin yet, whatever the cutoff says.
+  return "upcoming";
 }
 
 /** Stable colour per plan, by position in the customer's plan list. */

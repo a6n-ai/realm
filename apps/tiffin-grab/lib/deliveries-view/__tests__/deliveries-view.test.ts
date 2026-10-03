@@ -17,7 +17,8 @@ describe("buildTrips status", () => {
     ["future scheduled", { date: "2026-09-23" }, "upcoming"],
     ["cutoff passed, delivery day not reached", { date: "2026-09-22", locked: true }, "cutoff-passed"],
     ["cutoff passed via clock only", { date: "2026-09-22", cutoffAt: NOW - 1 }, "cutoff-passed"],
-    ["delivered today", { date: "2026-09-21", locked: true }, "delivered"],
+    ["today, not confirmed yet", { date: "2026-09-21", locked: true }, "unconfirmed"],
+    ["today, confirmed by OptimoRoute or an admin", { date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }, "delivered"],
     ["skipped (a failed drop; nobody holds days)", { date: "2026-09-25", status: "skipped" }, "failed"],
     ["skipped, rescheduled", { date: "2026-09-25", status: "skipped", rescheduled: true }, "rescheduled"],
     ["paused", { date: "2026-09-25", status: "paused" }, "vacation"],
@@ -42,7 +43,7 @@ describe("buildTrips status", () => {
   it("delivery day is judged in plan tz, not UTC", () => {
     // 2026-09-23 01:00Z is still Tue 21:00 Toronto
     expect(one({ date: "2026-09-23", locked: true }, plan, Date.UTC(2026, 8, 23, 1, 0)).status).toBe("cutoff-passed");
-    expect(one({ date: "2026-09-23", locked: true }, plan, Date.UTC(2026, 8, 23, 5, 0)).status).toBe("delivered");
+    expect(one({ date: "2026-09-23", locked: true }, plan, Date.UTC(2026, 8, 23, 5, 0)).status).toBe("unconfirmed");
   });
   it("units default to 1, coversDates and eating days from covers", () => {
     const t = one({ date: "2026-09-25", units: 3, covers: ["2026-09-25", "2026-09-26", "2026-09-27"], appliedSwaps: { "2026-09-26": [{ label: "1 Rice → 4 Roti" }] }, mealsByDate: { "2026-09-25": [{ label: "Curry", picks: [{ name: "Aloo Gobi" }], quantity: 1 }] } });
@@ -109,7 +110,7 @@ describe("actionAvailability copy", () => {
     expect(a.move.why).toBe("Changes closed Mon 6:00 pm. This trip is being prepared.");
   });
   it("delivered copy", () => {
-    const a = actionAvailability(one({ date: "2026-09-21", locked: true }), NOW, plan);
+    const a = actionAvailability(one({ date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }), NOW, plan);
     expect(a.pick.why).toBe("Delivered. Changes closed Sun 6:00 pm.");
     expect(a.move.why).toBe("Already delivered.");
   });
@@ -133,7 +134,7 @@ describe("buildDayStatusMap", () => {
   it("maps every eating day to the trip's legend key; merged source has none", () => {
     const trips = buildTrips([
       day({ date: "2026-09-25", units: 3, covers: ["2026-09-25", "2026-09-26", "2026-09-27"] }),
-      day({ date: "2026-09-21", locked: true }),
+      day({ date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }),
       day({ date: "2026-09-28", status: "skipped" }),
       day({ date: "2026-09-30", status: "paused" }),
       day({ date: "2026-10-02", status: "skipped", combinedInto: "2026-10-05" }),

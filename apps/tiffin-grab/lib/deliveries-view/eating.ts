@@ -59,7 +59,7 @@ export function isAddressRow(rows: EatingRow[], row: EatingRow): boolean {
   return anchor?.date === row.date;
 }
 
-const ARRIVING: TripStatus[] = ["upcoming", "delivered", "cutoff-passed", "locked"];
+const ARRIVING: TripStatus[] = ["upcoming", "delivered", "unconfirmed", "cutoff-passed", "locked"];
 
 /**
  * Eating rows for one calendar week. A moved tiffin keeps its original eat date and
@@ -92,6 +92,7 @@ export function deliveryLine(r: EatingRow): string {
   const with_ = r.own ? "" : ` with ${weekdayShort(t.date)}`;
   switch (t.status) {
     case "delivered": return `Delivered ${day}`;
+    case "unconfirmed": return `Awaiting confirmation, ${day}`;
     case "failed": return `Delivery failed ${day}`;
     case "cutoff-passed": return `Being prepared, arrives ${day}${with_}`;
     case "upcoming": return `Arrives ${day}${with_}`;

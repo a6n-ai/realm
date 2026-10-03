@@ -10,8 +10,9 @@ describe("labelDeliveryStatus", () => {
     expect(labelDeliveryStatus({ status: "scheduled", cutoffAt: BEFORE, optimoCompletionStatus: null }, NOW)).toBe("To be delivered");
   });
 
-  it("calls a past cutoff, or a driver success, delivered", () => {
-    expect(labelDeliveryStatus({ status: "scheduled", cutoffAt: AFTER, optimoCompletionStatus: null }, NOW)).toBe("Delivered");
+  it("calls only a confirmed success delivered; a past cutoff alone is awaiting confirmation", () => {
+    expect(labelDeliveryStatus({ status: "scheduled", cutoffAt: AFTER, optimoCompletionStatus: null }, NOW)).toBe("Awaiting confirmation");
+    expect(labelDeliveryStatus({ status: "scheduled", cutoffAt: AFTER, optimoCompletionStatus: "success" }, NOW)).toBe("Delivered");
     expect(labelDeliveryStatus({ status: "scheduled", cutoffAt: BEFORE, optimoCompletionStatus: "success" }, NOW)).toBe("Delivered");
   });
 

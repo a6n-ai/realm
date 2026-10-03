@@ -47,7 +47,7 @@ async function makeOrder() {
 async function seedDelivery(orderId: bigint, overrides: Partial<typeof deliveries.$inferInsert> = {}) {
   const [row] = await db.insert(deliveries).values({
     orderId,
-    deliveryDate: "2030-01-07",
+    deliveryDate: "2026-01-07",
     status: "scheduled",
     cutoffAt: 1,
     tiffinUnits: 1,
@@ -73,19 +73,20 @@ describe("adminSetDeliveryStatus", () => {
     expect([delivered.status, delivered.optimoCompletionStatus]).toEqual(["scheduled", "success"]);
   });
 
-  it("refuses Upcoming once the cutoff has passed", async () => {
+  it("puts a confirmed past delivery back to awaiting confirmation", async () => {
     const order = await makeOrder();
     const row = await seedDelivery(order.id);
-    await expect(adminSetDeliveryStatus(row.publicId, "upcoming", 1n)).rejects.toBeInstanceOf(ValidationError);
+    await adminSetDeliveryStatus(row.publicId, "delivered", 1n);
+    await adminSetDeliveryStatus(row.publicId, "upcoming", 1n);
+    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
+    expect(updated.optimoCompletionStatus).toBeNull();
+    expect(updated.status).toBe("scheduled");
   });
 
-  it("can mark a future delivery delivered before its cutoff", async () => {
+  it("refuses Delivered before the delivery's day", async () => {
     const order = await makeOrder();
     const row = await seedDelivery(order.id, { cutoffAt: Date.now() + 1e9, deliveryDate: "2030-06-02" });
-    await adminSetDeliveryStatus(row.publicId, "delivered", 1n);
-    const [updated] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
-    expect(updated.optimoCompletionStatus).toBe("success");
-    expect(updated.status).toBe("scheduled");
+    await expect(adminSetDeliveryStatus(row.publicId, "delivered", 1n)).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("removes a synced stop from OptimoRoute when marked not delivered", async () => {

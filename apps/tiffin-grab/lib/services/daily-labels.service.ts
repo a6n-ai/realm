@@ -39,7 +39,7 @@ export type LabelLine = {
 };
 
 /** Words on the Deliveries section. Same words as the order page. */
-export type LabelDeliveryStatus = "To be delivered" | "Delivered" | "Not delivered" | "Paused" | "Cancelled";
+export type LabelDeliveryStatus = "To be delivered" | "Awaiting confirmation" | "Delivered" | "Not delivered" | "Paused" | "Cancelled";
 
 /**
  * Scheduled and still before cutoff, with no driver confirmation, is waiting to go out.
@@ -58,8 +58,9 @@ export function labelDeliveryStatus(
     case "cancelled":
       return "Cancelled";
     case "scheduled":
-      if (row.optimoCompletionStatus === "success" || row.cutoffAt <= now) return "Delivered";
-      return "To be delivered";
+      if (row.optimoCompletionStatus === "success") return "Delivered";
+      // Past the cutoff the kitchen has it, but only OptimoRoute or an admin confirms it went out.
+      return row.cutoffAt <= now ? "Awaiting confirmation" : "To be delivered";
     default: {
       const unreachable: never = row.status;
       return unreachable;

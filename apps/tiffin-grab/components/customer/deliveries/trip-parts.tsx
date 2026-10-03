@@ -15,6 +15,7 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
   switch (t.status) {
     case "upcoming": return { label: t.isMakeup ? "Make-up" : "Upcoming", tone: "up", dot: "upcoming" };
     case "delivered": return { label: "Delivered", tone: "ok", dot: "delivered" };
+    case "unconfirmed": return { label: "Awaiting confirmation", tone: "neutral", dot: "upcoming" };
     case "cutoff-passed": return { label: "Being prepared", tone: "ok", dot: "delivered" };
     case "rescheduled": return { label: "Moved", tone: "hold", dot: "hold" };
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
@@ -196,6 +197,7 @@ export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow
 export const EXPLAIN: Record<Trip["status"], string> = {
   upcoming: "Scheduled. You can still change meals or reschedule until the cutoff.",
   delivered: "This delivery has been made.",
+  unconfirmed: "Sent out, waiting for the driver's confirmation. Tiffins left updates once it's confirmed.",
   "cutoff-passed": "The cutoff has passed and the kitchen is preparing it. It can no longer be changed.",
   rescheduled: "This day was moved to another day, so nothing arrives on the original date.",
   locked: "Closed. This day can no longer be changed.",

@@ -394,15 +394,17 @@ export async function adminSetDeliveryStatus(
     }
 
     const now = Date.now();
+    // Delivered only once confirmed (OptimoRoute or an admin); the cutoff alone proves nothing.
+    // "upcoming" is the unconfirmed state: Upcoming before the cutoff, Awaiting confirmation after.
     const current: AdminDeliveryStatus | "paused" =
       row.status === "skipped" ? "not_delivered"
       : row.status === "paused" ? "paused"
-      : row.optimoCompletionStatus === "success" || row.cutoffAt <= now ? "delivered"
+      : row.optimoCompletionStatus === "success" ? "delivered"
       : "upcoming";
     if (current === status) return;
 
-    if (status === "upcoming" && row.cutoffAt <= now) {
-      throw new ValidationError("Cutoff has passed. Mark it Delivered or Not delivered.");
+    if (status === "delivered" && row.deliveryDate > zonedDateIso(now, (await getAppSettings()).timezone)) {
+      throw new ValidationError("This delivery's day hasn't come yet, so it can't be marked Delivered.");
     }
 
     let patch: Partial<typeof deliveries.$inferInsert>;
@@ -410,7 +412,7 @@ export async function adminSetDeliveryStatus(
     switch (status) {
       case "upcoming":
         patch = { status: "scheduled", optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null };
-        label = "Upcoming";
+        label = row.cutoffAt <= now ? "Awaiting confirmation" : "Upcoming";
         break;
       case "delivered":
         patch = { status: "scheduled", optimoCompletionStatus: "success", optimoCompletedAt: row.optimoCompletedAt ?? now, optimoCompletionNote: null };
