@@ -1,20 +1,42 @@
 import type { Metadata } from "next";
-import { Callout, Clause, LegalPage, List, Mail, Sub } from "@/components/marketing/legal";
+import { Callout, Clause, LegalPage, List, Mail, Sub, SeeSection, type KeyPoint } from "@/components/marketing/legal";
 
 export const metadata: Metadata = {
   title: "Refund & return policy — Tiffin Grab",
   description: "When TiffinGrab refunds trial, weekly, and monthly plans, how to report quality issues, and processing times.",
 };
 
+
+const SECTIONS = [
+  "General refund principles",
+  "Trial & weekly plans",
+  "Monthly plans",
+  "Food quality & safety complaints",
+  "Damaged packaging",
+  "Area becomes unserviceable",
+  "Statutory consumer rights",
+  "Refund processing",
+  "Non-refundable situations",
+] as const;
+
+const KEY_POINTS: KeyPoint[] = [
+  { text: "Trial and weekly plans are not refundable, except where the law requires.", section: 2 },
+  { text: "Monthly plans: cancel in writing at least 48 hours before your first delivery for a full refund.", section: 3 },
+  { text: "Problem with a meal? Report it within 2 hours of delivery, with photos.", section: 4 },
+  { text: "Damaged packaging gets a one-day service credit for each verified incident.", section: 5 },
+  { text: "If we stop delivering to your area, you get a pro-rata refund within 14 business days.", section: 6 },
+  { text: "Approved refunds go back to your original payment method. Card refunds typically take 5–10 business days.", section: 8 },
+];
+
 export default function RefundPolicyPage() {
   return (
-    <LegalPage title="Refund & return policy" meta="Effective: April 6, 2026 · Last updated: April 6, 2026" current="/refund-policy">
+    <LegalPage title="Refund & return policy" intro="When you can get a refund or credit, how to report a problem with a meal, and how long refunds take. Food is perishable, so options are limited." updated="April 6, 2026" current="/refund-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout tone="warn">
         <strong>Important:</strong> Food is perishable and time-sensitive; refund options are limited. Read this policy
         before purchasing. Submit refund requests in writing to <Mail />.
       </Callout>
 
-      <Clause n={1} title="General refund principles">
+      <Clause n={1} title={SECTIONS[0]}>
         <p className="m-0">We aim to be fair while recognizing that prepared food cannot be returned like non-perishable goods.</p>
         <p className="m-0">Refund requests must:</p>
         <List
@@ -30,10 +52,10 @@ export default function RefundPolicyPage() {
         </p>
       </Clause>
 
-      <Clause n={2} title="Trial & weekly plans">
+      <Clause n={2} title={SECTIONS[1]}>
         <p className="m-0">
           <strong>No refund.</strong> Trial and weekly plans are priced for lower commitment. <strong>No refunds</strong>{" "}
-          are available except where required by law (see §7).
+          are available except where required by law (see <SeeSection n={7} />).
         </p>
         <p className="m-0">
           Quality issues may be reviewed; we may offer a <strong>service credit or replacement</strong> as a goodwill
@@ -41,7 +63,7 @@ export default function RefundPolicyPage() {
         </p>
       </Clause>
 
-      <Clause n={3} title="Monthly plans">
+      <Clause n={3} title={SECTIONS[2]}>
         <Sub title="3.1 Standard position">
           <p className="m-0">Monthly fees are generally <strong>non-refundable</strong> after the subscription has started.</p>
         </Sub>
@@ -60,7 +82,7 @@ export default function RefundPolicyPage() {
         </Sub>
       </Clause>
 
-      <Clause n={4} title="Food quality & safety complaints">
+      <Clause n={4} title={SECTIONS[3]}>
         <Sub title="4.1 Reporting timeframe">
           <p className="m-0">
             Report quality issues (stale, spoiled, foreign object, major misdescription) within{" "}
@@ -81,14 +103,14 @@ export default function RefundPolicyPage() {
         </Sub>
       </Clause>
 
-      <Clause n={5} title="Damaged packaging">
+      <Clause n={5} title={SECTIONS[4]}>
         <p className="m-0">
           Visible damage or leaking: report within two hours with photos. Verified incidents receive a{" "}
           <strong>one-day service credit</strong> per incident. Same-day re-delivery is not guaranteed.
         </p>
       </Clause>
 
-      <Clause n={6} title="Area becomes unserviceable">
+      <Clause n={6} title={SECTIONS[5]}>
         <p className="m-0">
           If your address was serviceable at purchase but we later remove the area for operational reasons, you receive a{" "}
           <strong>full pro-rata refund</strong> for undelivered days to your original payment method within{" "}
@@ -97,14 +119,14 @@ export default function RefundPolicyPage() {
         </p>
       </Clause>
 
-      <Clause n={7} title="Statutory consumer rights">
+      <Clause n={7} title={SECTIONS[6]}>
         <p className="m-0">
           Nothing here limits rights you may have under the <em>Consumer Protection Act, 2002</em> (Ontario) or other
           applicable Canadian consumer law. Where the law gives you more, the law prevails.
         </p>
       </Clause>
 
-      <Clause n={8} title="Refund processing">
+      <Clause n={8} title={SECTIONS[7]}>
         <p className="m-0">Approved refunds go to the <strong>original payment method</strong>.</p>
         <List
           items={[
@@ -118,7 +140,7 @@ export default function RefundPolicyPage() {
         </p>
       </Clause>
 
-      <Clause n={9} title="Non-refundable situations">
+      <Clause n={9} title={SECTIONS[8]}>
         <p className="m-0">Examples where we do not issue refunds include:</p>
         <List
           items={[

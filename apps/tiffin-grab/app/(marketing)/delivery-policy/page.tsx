@@ -1,20 +1,41 @@
 import type { Metadata } from "next";
-import { Callout, Clause, LegalPage, List, Mail, Sub } from "@/components/marketing/legal";
+import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
 
 export const metadata: Metadata = {
   title: "Delivery policy — Tiffin Grab",
   description: "TiffinGrab's service areas, delivery schedule and windows, failed deliveries, packaging, and food handling.",
 };
 
+
+const SECTIONS = [
+  "Service areas",
+  "Delivery fees",
+  "Delivery schedule",
+  "Delivery windows & timing",
+  "Failed & missed deliveries",
+  "Damaged or compromised packaging",
+  "Food handling after delivery",
+  "Weather & force majeure",
+] as const;
+
+const KEY_POINTS: KeyPoint[] = [
+  { text: "We deliver Monday to Saturday across 7 GTA areas. Your address is confirmed at checkout.", section: 1 },
+  { text: "Delivery is included in your plan price. There are no hidden fees.", section: 2 },
+  { text: "Delivery windows are estimates, shared the evening before or the morning of delivery.", section: 4 },
+  { text: "We make one attempt per delivery. Share buzzer or access codes 24 hours ahead, and safe drop-off spots 12 hours ahead.", section: 5 },
+  { text: "If a delivery fails because of our error, that day is credited to your plan.", section: 5 },
+  { text: "Refrigerate meals within 2 hours and eat them within 24 hours.", section: 7 },
+];
+
 export default function DeliveryPolicyPage() {
   return (
-    <LegalPage title="Delivery policy" meta="Effective: April 6, 2026 · Last updated: April 6, 2026" current="/delivery-policy">
+    <LegalPage title="Delivery policy" intro="Where and when we deliver, what to expect from delivery windows, what happens if a delivery is missed, and how to handle your meals once they arrive." updated="April 6, 2026" current="/delivery-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
         <strong>Please note:</strong> TiffinGrab delivers freshly prepared meals. Delivery windows are estimated, not
         guaranteed fixed times. Customer cooperation on access and availability helps us complete deliveries successfully.
       </Callout>
 
-      <Clause n={1} title="Service areas">
+      <Clause n={1} title={SECTIONS[0]}>
         <p className="m-0">TiffinGrab currently delivers within the following Greater Toronto Area locations:</p>
         <List items={["Scarborough", "Downtown Toronto", "North York", "Brampton", "Mississauga", "Markham", "Etobicoke"]} />
         <p className="m-0">
@@ -23,14 +44,14 @@ export default function DeliveryPolicyPage() {
         </p>
       </Clause>
 
-      <Clause n={2} title="Delivery fees">
+      <Clause n={2} title={SECTIONS[1]}>
         <p className="m-0">
           <strong>Delivery is included</strong> in the price of subscription plans unless otherwise stated at checkout. We do
           not add separate delivery, fuel, or hidden fees except for clearly disclosed custom or out-of-area arrangements.
         </p>
       </Clause>
 
-      <Clause n={3} title="Delivery schedule">
+      <Clause n={3} title={SECTIONS[2]}>
         <p className="m-0">
           Standard deliveries are made <strong>Monday through Saturday</strong>. Sunday and public-holiday availability will
           be communicated to active subscribers at least 48 hours in advance. We will notify you of scheduled off-days or
@@ -38,7 +59,7 @@ export default function DeliveryPolicyPage() {
         </p>
       </Clause>
 
-      <Clause n={4} title="Delivery windows & timing">
+      <Clause n={4} title={SECTIONS[3]}>
         <p className="m-0">
           Because routes are optimized daily, we provide <strong>estimated delivery windows</strong>, not exact times.
           Windows are typically communicated the evening before or the morning of delivery. Actual time within the window
@@ -50,7 +71,7 @@ export default function DeliveryPolicyPage() {
         </Callout>
       </Clause>
 
-      <Clause n={5} title="Failed & missed deliveries">
+      <Clause n={5} title={SECTIONS[4]}>
         <Sub title="5.1 Single delivery attempt">
           <p className="m-0">
             Our team makes <strong>one delivery attempt</strong> during your assigned window. If you are unavailable and no
@@ -79,7 +100,7 @@ export default function DeliveryPolicyPage() {
         </Sub>
       </Clause>
 
-      <Clause n={6} title="Damaged or compromised packaging">
+      <Clause n={6} title={SECTIONS[5]}>
         <p className="m-0">
           Report damaged packaging within <strong>two hours of delivery</strong> via WhatsApp{" "}
           <a href="https://wa.me/16472449813" className="underline underline-offset-4">+1 (647) 244-9813</a> or <Mail /> with a
@@ -88,7 +109,7 @@ export default function DeliveryPolicyPage() {
         </p>
       </Clause>
 
-      <Clause n={7} title="Food handling after delivery">
+      <Clause n={7} title={SECTIONS[6]}>
         <p className="m-0">Meals are prepared fresh and packed in food-safe materials. After delivery:</p>
         <List
           items={[
@@ -101,7 +122,7 @@ export default function DeliveryPolicyPage() {
         <p className="m-0">We are not liable for health issues arising from improper handling after delivery.</p>
       </Clause>
 
-      <Clause n={8} title="Weather & force majeure">
+      <Clause n={8} title={SECTIONS[7]}>
         <p className="m-0">
           Severe weather (Environment Canada warnings), road closures, emergencies, or other force majeure events may delay,
           reschedule, or cancel deliveries. Affected service days are <strong>credited</strong> to your subscription. We

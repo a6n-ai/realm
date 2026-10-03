@@ -30,6 +30,7 @@ export function SiteFooter() {
           <Link href="/privacy" className="hover:text-background">Privacy</Link>
           <Link href="/refund-policy" className="hover:text-background">Refunds</Link>
           <Link href="/delivery-policy" className="hover:text-background">Delivery</Link>
+          <Link href="/legal" className="hover:text-background">All policies</Link>
         </nav>
       </div>
       <div className="overflow-hidden px-2 pb-2">
