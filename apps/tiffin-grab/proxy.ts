@@ -16,7 +16,9 @@ import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
 // session cookie: Better Auth's own handler, cron (self-auths via CRON_SECRET
 // bearer inside the route), and the SES feedback webhook (self-auths by
 // verifying the SNS message signature). Add a prefix here to make it public.
-const PUBLIC_API = ["/api/auth", "/api/cron", "/api/webhooks"];
+// /api/unsubscribe: the HMAC token is the auth, and Gmail/Yahoo POST to it
+// (List-Unsubscribe one-click) with no cookie — a 401 there breaks unsubscribe.
+const PUBLIC_API = ["/api/auth", "/api/cron", "/api/webhooks", "/api/unsubscribe"];
 
 // Prefixes that never carry a URL-segment clientCode: the console, the API,
 // the customer account area, and the (auth) route group's own pages (all

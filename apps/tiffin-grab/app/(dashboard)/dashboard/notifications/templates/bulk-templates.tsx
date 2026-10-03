@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { isNotNull } from "drizzle-orm";
-import { SectionCard } from "@foundry/design-system";
 import { ChevronRightIcon } from "lucide-react";
+import { Badge } from "@foundry/ui/badge";
+import { SectionCard } from "@/components/ds";
 import { db } from "@/db/client";
-import { campaign } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
+import { campaign } from "@/db/schema";
 import { ensureMenuReminder } from "@/lib/notifications/menu-reminder";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
 
-export const dynamic = "force-dynamic";
-
-export default async function SystemCampaignsPage() {
+/**
+ * Bulk templates: reusable sends to existing customers (weekly menu reminder).
+ * Backed by a system campaign, so each keeps results, unsubscribes, logs and
+ * its run history on the campaign page this links to.
+ */
+export async function BulkTemplates() {
+  // Own guard, not just the layout's: this render writes (seeds the reminder).
   await requireAdmin();
   // Seeded on first view so staff can review the copy before the first send.
   await ensureMenuReminder();
@@ -25,8 +30,8 @@ export default async function SystemCampaignsPage() {
 
   return (
     <SectionCard
-      title="System campaigns"
-      subtitle="Reusable sends to existing customers. Sent from the transactional address; each keeps its results, unsubscribes and logs."
+      title="Bulk templates"
+      subtitle="Sent to many customers at once from the transactional address. Open one for its runs, results, unsubscribes and logs."
     >
       <div className="divide-y">
         {rows.map((r) => {
@@ -38,11 +43,13 @@ export default async function SystemCampaignsPage() {
               className="flex items-center justify-between gap-3 py-3 hover:bg-muted/40"
             >
               <div className="min-w-0">
-                <p className="font-medium">{r.name}</p>
+                <p className="flex items-center gap-2 font-medium">
+                  {r.name} <Badge variant="outline">Bulk</Badge>
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  {r.sentAt ? `Last sent ${formatEpoch(r.sentAt, { mode: "datetime", timeZone: timezone })}` : "Not sent yet"}
+                  {r.sentAt ? `Last run ${formatEpoch(r.sentAt, { mode: "datetime", timeZone: timezone })}` : "Not sent yet"}
                   {" · "}
-                  {counts.queued ?? 0} queued · {counts.delivered ?? 0} delivered
+                  {counts.queued ?? 0} queued · {counts.delivered ?? 0} delivered · {counts.opened ?? 0} opens
                 </p>
               </div>
               <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />

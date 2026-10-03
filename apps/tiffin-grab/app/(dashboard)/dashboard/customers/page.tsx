@@ -3,10 +3,11 @@ import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon } from "lucide-react";
 import { eq, sql } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listCustomersPage, type CustomerSortColumn } from "@/lib/services/customers.service";
+import { countPendingInvites, listCustomersPage, type CustomerSortColumn } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ds";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
+import { InvitePendingButton } from "./invite-pending-button";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -48,13 +50,26 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
       <Suspense fallback={<SkeletonStatCards count={4} />}>
         <CustomersStats />
       </Suspense>
-      <SectionCard title="All customers">
+      <SectionCard
+        title="All customers"
+        action={
+          <Suspense fallback={null}>
+            <InvitePendingAction />
+          </Suspense>
+        }
+      >
         <Suspense fallback={<CustomersListSkeleton />}>
           <CustomersData searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </PageShell>
   );
+}
+
+async function InvitePendingAction() {
+  await requireStaff();
+  if ((await getSession())?.user?.role !== "admin") return null;
+  return <InvitePendingButton count={await countPendingInvites()} />;
 }
 
 async function CustomersStats() {
