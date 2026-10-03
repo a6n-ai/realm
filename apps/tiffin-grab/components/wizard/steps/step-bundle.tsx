@@ -1,5 +1,6 @@
+import { Fragment } from "react";
 import { PlusIcon } from "lucide-react";
-import { listableMealSizes, mealSizeAddons, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
+import { listableMealSizes, mealSizeAddons, type CatalogAddon, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
 import { DEFAULT_EATING_DAYS, type WizardSelections } from "../selections";
 import { Button, OptionCard, Pill, Stepper } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
@@ -71,49 +72,71 @@ export function StepBundle({
             <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em] capitalize">{tier}</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {tierMeals.map((m) => (
-                <MealOption
-                  key={m.publicId}
-                  meal={m}
-                  active={selections.mealSizeId === m.publicId}
-                  categoryLabels={catalog.categoryLabels}
-                  onPick={() => set({ mealSizeId: m.publicId, trialDays: undefined, ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}) })}
-                />
+                <Fragment key={m.publicId}>
+                  <MealOption
+                    meal={m}
+                    active={selections.mealSizeId === m.publicId}
+                    categoryLabels={catalog.categoryLabels}
+                    onPick={() => set({
+                      mealSizeId: m.publicId,
+                      trialDays: undefined,
+                      // Another meal may not offer the same add-ons; the server would refuse a stale one.
+                      ...(m.publicId !== selections.mealSizeId ? { addonSelections: [] } : {}),
+                      ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}),
+                    })}
+                  />
+                  {/* Right under the meal it extends, so it's seen the moment a meal is picked. */}
+                  {selections.mealSizeId === m.publicId && eligibleAddons.length > 0 && (
+                    <AddonsPanel addons={eligibleAddons} qtyFor={qtyFor} setQty={setQty} />
+                  )}
+                </Fragment>
               ))}
             </div>
           </section>
         );
       })}
-
-      {eligibleAddons.length > 0 && (
-        <section>
-          <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">Add-ons</h3>
-          <div className="space-y-2">
-            {eligibleAddons.map((addon) => {
-              const qty = qtyFor(addon.key);
-              const active = qty > 0;
-              return (
-                <div
-                  key={addon.key}
-                  className={`border-border flex min-h-11 items-center justify-between gap-3 rounded-xl border px-4 py-2 transition-colors ${active ? "bg-primary/10" : ""}`}
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{addon.name}</span>
-                    <span className="nums text-muted-foreground text-xs">${addon.pricePerTiffin.toFixed(2)} per tiffin</span>
-                  </div>
-                  {active ? (
-                    <Stepper label={addon.name} value={qty} min={0} max={addon.maxQty} onChange={(n) => setQty(addon.key, n)} />
-                  ) : (
-                    <Button variant="quiet" pill className="gap-1 !px-4 py-1.5 text-sm font-medium" onClick={() => setQty(addon.key, 1)}>
-                      <PlusIcon aria-hidden className="size-3.5" /> Add
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </div>
+  );
+}
+
+function AddonsPanel({
+  addons,
+  qtyFor,
+  setQty,
+}: {
+  addons: CatalogAddon[];
+  qtyFor: (key: string) => number;
+  setQty: (key: string, qty: number) => void;
+}) {
+  return (
+    <section aria-label="Add-ons" className="bg-card border-border rounded-2xl border p-4 sm:col-span-2">
+      <h4 className="text-[15px] font-semibold tracking-[-0.01em]">Add to every tiffin</h4>
+      <p className="text-muted-foreground mt-0.5 text-[13px]">Optional extras, billed per tiffin.</p>
+      <ul className="mt-3 space-y-2">
+        {addons.map((addon) => {
+          const qty = qtyFor(addon.key);
+          const active = qty > 0;
+          return (
+            <li
+              key={addon.key}
+              className={`border-border flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-2 transition-colors ${active ? "border-primary/40 bg-primary/10" : ""}`}
+            >
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-[15px] font-medium">{addon.name}</span>
+                <span className="nums text-muted-foreground text-[13px]">+${addon.pricePerTiffin.toFixed(2)} per tiffin</span>
+              </div>
+              {active ? (
+                <Stepper label={addon.name} value={qty} min={0} max={addon.maxQty} onChange={(n) => setQty(addon.key, n)} />
+              ) : (
+                <Button variant="quiet" pill className="min-h-11 shrink-0 gap-1 !px-4 text-sm font-medium" aria-label={`Add ${addon.name}`} onClick={() => setQty(addon.key, 1)}>
+                  <PlusIcon aria-hidden className="size-4" /> Add
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
