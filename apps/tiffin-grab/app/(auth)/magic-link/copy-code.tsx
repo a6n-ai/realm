@@ -43,7 +43,11 @@ export function CopyCode({ code }: { code: string | null }) {
           ) : null}
           <div className="mt-auto flex flex-col gap-3 pt-4 sm:mt-2">
             {code ? (
-              <Button className={IOS_BUTTON} onClick={copy}>
+              // Thumb-sized and full width on phones; a compact centered pill on desktop.
+              <Button
+                className={`${IOS_BUTTON} sm:h-10 sm:min-h-10 sm:w-auto sm:self-center sm:px-5 sm:!text-[15px]`}
+                onClick={copy}
+              >
                 {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
                 {copied ? "Copied" : "Copy code"}
               </Button>
