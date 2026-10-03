@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { UpdatableRepository } from "@foundry/database";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
@@ -27,7 +27,10 @@ export async function getTrialSettings(orgId?: string | null): Promise<TrialSett
     .select({ maxDays: trialSettings.maxDays, key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays, active: deliveryFrequencies.active })
     .from(trialSettings)
     .leftJoin(deliveryFrequencies, eq(deliveryFrequencies.id, trialSettings.deliveryFrequencyId))
-    .where(forOrg(orgId))
+    // A franchise's own row wins; otherwise the app-wide row. Admin saves from
+    // /dashboard, where no org resolves, so the app-wide row is usually the only one.
+    .where(orgId ? or(eq(trialSettings.organizationId, orgId), isNull(trialSettings.organizationId)) : isNull(trialSettings.organizationId))
+    .orderBy(asc(sql`${trialSettings.organizationId} is null`))
     .limit(1);
   if (!row?.key || !row.active || row.maxDays == null) return OFF;
   return { frequencyKey: row.key, weekdays: frequencyDays({ key: row.key, weekdays: row.weekdays }), maxDays: row.maxDays };
