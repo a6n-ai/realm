@@ -20,7 +20,7 @@ const COLUMNS: readonly Column<CustomerSortColumn | "latestStatus" | "planComple
   { key: "orders", label: "Orders", sortable: true, align: "right" },
   { key: "latestStatus", label: "Latest status" },
   { key: "planCompletion", label: "Plan Completion" },
-  { key: "invite", label: "Invite", align: "right" },
+  { key: "invite", label: "Actions", align: "right" },
 ];
 
 export function CustomersList({
@@ -69,7 +69,12 @@ export function CustomersList({
               {c.planCompletionDate ? c.planCompletionDate : "—"}
             </TableCell>
             <TableCell>
-              <CustomerInviteCell email={c.email} joined={c.joined} />
+              <CustomerInviteCell
+                publicId={c.publicId}
+                email={c.email}
+                joined={c.joined}
+                hasActivePlan={c.latestStatus === "active" || c.latestStatus === "paused"}
+              />
             </TableCell>
           </>
         )}

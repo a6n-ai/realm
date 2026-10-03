@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { asc, count, desc } from "drizzle-orm";
+import { and, asc, count, desc, isNull } from "drizzle-orm";
 import { columnResolver, conditionToSql } from "@foundry/database";
 import { SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
@@ -102,9 +102,10 @@ async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
     dir: "desc",
   });
   const { condition, page } = parseFilterState(SPEC, sp);
-  const where = conditionToSql(
-    condition,
-    columnResolver({ name: campaign.name, status: campaign.status, createdAt: campaign.createdAt }),
+  // System campaigns (menu reminder) live on their own tab.
+  const where = and(
+    conditionToSql(condition, columnResolver({ name: campaign.name, status: campaign.status, createdAt: campaign.createdAt })),
+    isNull(campaign.systemKey),
   );
 
   const col = SORT_COL[sort.column];

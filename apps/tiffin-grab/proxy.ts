@@ -22,7 +22,7 @@ const PUBLIC_API = ["/api/auth", "/api/cron", "/api/webhooks"];
 // the customer account area, and the (auth) route group's own pages (all
 // single-segment, e.g. /login, /signup — none of these are ever a tenant's
 // client code). Resolution is skipped for these paths.
-const RESOLUTION_EXEMPT = ["/api", "/dashboard", "/me", "/login", "/signup", "/lock", "/verify-email", "/forgot-password", "/set-password", "/code"];
+const RESOLUTION_EXEMPT = ["/api", "/dashboard", "/me", "/login", "/signup", "/lock", "/verify-email", "/forgot-password", "/set-password", "/code", "/resubscribe"];
 
 // Cross-origin allowlist, comma-separated env. Empty = same-origin only
 // (browsers block cross-origin by default — this stays locked until set).
