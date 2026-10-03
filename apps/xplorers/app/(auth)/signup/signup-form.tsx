@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,12 +9,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { emailSchema, passwordSchema } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
-import { Card, CardContent } from "@foundry/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { signIn } from "@/lib/auth/client";
 import { SITE_NAME } from "@/lib/brand";
 import { signUpCustomer } from "./actions";
+import { AUTH_BUTTON, AUTH_INPUT, AuthLogo } from "@/components/auth/auth-kit";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
@@ -48,24 +49,19 @@ export function SignupForm() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card className="overflow-hidden p-0">
-        <CardContent className="grid p-0 md:grid-cols-2">
+    <AuthScreen>
+      <AuthPanel art={<AuthLogo />} title="Create a family account" tagline={`Join ${SITE_NAME} to manage classes and bookings.`}>
           <Form {...form}>
-            <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col items-center text-center">
-                  <h1 className="text-2xl font-bold">Create a family account</h1>
-                  <p className="text-muted-foreground text-balance">Join {SITE_NAME} to manage classes and bookings.</p>
-                </div>
-                <FormField
+            <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col">
+              <div className="flex flex-1 flex-col gap-5">
+                                <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Name</FormLabel>
                       <FormControl>
-                        <Input autoComplete="name" placeholder="Your name" {...field} />
+                        <Input className={AUTH_INPUT} autoComplete="name" placeholder="Your name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -78,7 +74,7 @@ export function SignupForm() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                        <Input className={AUTH_INPUT} type="email" autoComplete="email" placeholder="you@example.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -91,7 +87,7 @@ export function SignupForm() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" autoComplete="new-password" {...field} />
+                        <Input className={AUTH_INPUT} type="password" autoComplete="new-password" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -102,9 +98,11 @@ export function SignupForm() {
                     {error}
                   </p>
                 ) : null}
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                <div className="mt-auto pt-4 sm:mt-2">
+<Button type="submit" className={AUTH_BUTTON} disabled={form.formState.isSubmitting}>
                   Create account
                 </Button>
+</div>
                 <p className="text-muted-foreground text-center text-sm">
                   Already have an account?{" "}
                   <Link href="/login" className="underline underline-offset-4">
@@ -114,14 +112,7 @@ export function SignupForm() {
               </div>
             </form>
           </Form>
-          <div className="bg-primary text-primary-foreground relative hidden flex-col items-center justify-center gap-2 border-l p-8 md:flex">
-            <span className="text-2xl font-bold">{SITE_NAME}</span>
-            <p className="text-balance text-center text-sm opacity-90">
-              Families, members, and admins share one login. Staff accounts are invited.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      </AuthPanel>
+    </AuthScreen>
   );
 }

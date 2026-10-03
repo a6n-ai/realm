@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -8,7 +9,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { passwordSchema } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
-import { Card, CardContent } from "@foundry/ui/card";
 import {
   Form,
   FormControl,
@@ -19,6 +19,7 @@ import {
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { setInitialPassword } from "./actions";
+import { AUTH_BUTTON, AUTH_INPUT, AuthLogo } from "@/components/auth/auth-kit";
 
 const schema = z
   .object({
@@ -57,19 +58,12 @@ export function SetPasswordForm() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card className="overflow-hidden p-0">
-        <CardContent className="grid p-0 md:grid-cols-2">
+    <AuthScreen>
+      <AuthPanel art={<AuthLogo />} title="Set your password" tagline="Choose a password to finish setting up your account.">
           <Form {...form}>
-            <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col items-center text-center">
-                  <h1 className="text-2xl font-bold">Set your password</h1>
-                  <p className="text-muted-foreground text-balance">
-                    Choose a password to finish setting up your account.
-                  </p>
-                </div>
-                <FormField
+            <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col">
+              <div className="flex flex-1 flex-col gap-5">
+                                <FormField
                   control={form.control}
                   name="newPassword"
                   render={({ field }) => (
@@ -80,7 +74,7 @@ export function SetPasswordForm() {
                           <Input
                             type={showNew ? "text" : "password"}
                             autoComplete="new-password"
-                            className="pr-10"
+                            className={`${AUTH_INPUT} pr-12`}
                             {...field}
                           />
                           <button
@@ -88,7 +82,7 @@ export function SetPasswordForm() {
                             onClick={() => setShowNew((v) => !v)}
                             aria-label={showNew ? "Hide password" : "Show password"}
                             aria-pressed={showNew}
-                            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+                            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-12 items-center justify-center"
                           >
                             {showNew ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                           </button>
@@ -109,7 +103,7 @@ export function SetPasswordForm() {
                           <Input
                             type={showConfirm ? "text" : "password"}
                             autoComplete="new-password"
-                            className="pr-10"
+                            className={`${AUTH_INPUT} pr-12`}
                             {...field}
                           />
                           <button
@@ -117,7 +111,7 @@ export function SetPasswordForm() {
                             onClick={() => setShowConfirm((v) => !v)}
                             aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
                             aria-pressed={showConfirm}
-                            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+                            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-12 items-center justify-center"
                           >
                             {showConfirm ? (
                               <EyeOffIcon className="size-4" />
@@ -132,18 +126,15 @@ export function SetPasswordForm() {
                   )}
                 />
                 {submitError ? <p className="text-destructive text-sm">{submitError}</p> : null}
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                <div className="mt-auto pt-4 sm:mt-2">
+<Button type="submit" className={AUTH_BUTTON} disabled={form.formState.isSubmitting}>
                   Save password
                 </Button>
+</div>
               </div>
             </form>
           </Form>
-          <div className="relative hidden flex-col items-center justify-center gap-2 border-l border-[var(--green)] bg-[var(--yellow)] p-8 text-[var(--ink)] md:flex">
-            <span className="text-2xl font-bold text-[var(--red)]">Puchkaman</span>
-            <p className="text-balance text-center text-sm opacity-80">Operations console for staff.</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      </AuthPanel>
+    </AuthScreen>
   );
 }
