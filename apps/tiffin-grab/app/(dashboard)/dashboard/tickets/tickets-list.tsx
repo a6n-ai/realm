@@ -89,8 +89,11 @@ export function TicketsList({
   };
 
   const scoped = rows.filter((r) => {
+    // A comma-separated status is the analytics drill-through. The server already
+    // limited `rows` to those statuses; matching the whole string here would hide them.
     const matchStatus =
       activeStatus === "all" ||
+      activeStatus.includes(",") ||
       (activeStatus === "overdue" ? r.overdue : r.status === activeStatus);
     const matchOwner = owner === ALL_OWNERS || r.ownerName === owner;
     return matchStatus && matchOwner;

@@ -1,13 +1,18 @@
 import { cache, Suspense } from "react";
-import { StatGrid, SkeletonStatCards } from "@/components/ds";
+import { SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
+import { MetricTiles } from "@/components/analytics/metric-tiles";
 import { DistributionDonutChart, TrendLineChart } from "@/components/analytics/charts";
+import { complaintHref } from "@/lib/services/analytics/complaint-filters";
+import { inquiriesHref, ordersHref, paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
+import { SETTLED_STATUSES } from "@/lib/analytics/revenue";
 import { getLeadStats } from "@/lib/services/analytics/leads.service";
 import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
 import { getCustomerStats, getSubscriptionMix } from "@/lib/services/analytics/customers.service";
 import { getComplaintStats } from "@/lib/services/analytics/complaints.service";
 import { getOperationsStats } from "@/lib/services/analytics/operations.service";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -39,22 +44,48 @@ export default function OverviewAnalyticsPage() {
 }
 
 async function StatsData() {
-  const [leads, revenue, customers, complaints, operations] = await Promise.all([
+  const [leads, revenue, customers, complaints, operations, { timezone }] = await Promise.all([
     getLeadStats(),
     loadMonthToDate(),
     getCustomerStats(),
     getComplaintStats(),
     getOperationsStats(),
+    getAppSettings(),
   ]);
+  const range = zonedRangeMs(revenue.from, revenue.to, timezone);
   return (
-    <StatGrid
-      cols={5}
+    <MetricTiles
+      cols={4}
       items={[
-        { label: "Net sales (month to date)", value: money(revenue.kpis.netSales) },
-        { label: "Active subscriptions", value: customers.activeSubscriptions },
-        { label: "Lead conversion", value: `${leads.conversionRatePct}%` },
-        { label: "Open tickets", value: complaints.open },
-        { label: "Delivery skip rate", value: `${operations.skipRatePct}%` },
+        {
+          label: "Net sales (month to date)",
+          value: money(revenue.kpis.netSales),
+          hint: "Paid amounts, excluding tax",
+          href: paymentsHref({ statuses: SETTLED_STATUSES, fromMs: range.from, toMs: range.to }),
+        },
+        {
+          label: "Active subscriptions",
+          value: customers.activeSubscriptions,
+          href: ordersHref({ status: "active" }),
+        },
+        {
+          label: "Lead conversion",
+          value: `${leads.conversionRatePct}%`,
+          hint: `${leads.converted} of ${leads.total} leads`,
+          href: inquiriesHref(),
+        },
+        {
+          label: "Open tickets",
+          value: complaints.open,
+          href: complaintHref("/dashboard/tickets", {
+            statuses: ["open", "in_progress", "waiting_on_customer"],
+          }),
+        },
+        {
+          label: "Delivery skip rate",
+          value: `${operations.skipRatePct}%`,
+          hint: `${operations.skipped} skipped of ${operations.totalDeliveries}`,
+        },
       ]}
     />
   );

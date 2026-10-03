@@ -30,6 +30,53 @@ import {
 export const SETTLED_STATUSES = ["paid", "simulated_paid"] as const;
 export const PENDING_STATUSES = ["awaiting_payment", "pending_verification"] as const;
 
+/** Display order for the payments-by-status breakdown. Unknown statuses sort last. */
+export const PAYMENT_STATUS_ORDER = [
+  "paid",
+  "simulated_paid",
+  "awaiting_payment",
+  "pending_verification",
+  "pending",
+  "rejected",
+  "refunded",
+] as const;
+
+export const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  paid: "Paid",
+  simulated_paid: "Simulated",
+  awaiting_payment: "Awaiting payment",
+  pending_verification: "Needs review",
+  pending: "Pending",
+  rejected: "Rejected",
+  refunded: "Refunded",
+};
+
+export type PaymentStatusSlice = {
+  status: string;
+  label: string;
+  count: number;
+  amount: number;
+};
+
+/** Drop empty statuses and keep a stable order so the breakdown does not jump around. */
+export function presentPaymentStatuses(
+  rows: { status: string; count: number; amount: number }[],
+): PaymentStatusSlice[] {
+  const rank = (status: string) => {
+    const i = PAYMENT_STATUS_ORDER.indexOf(status as (typeof PAYMENT_STATUS_ORDER)[number]);
+    return i === -1 ? PAYMENT_STATUS_ORDER.length : i;
+  };
+  return rows
+    .filter((r) => r.count > 0)
+    .map((r) => ({
+      status: r.status,
+      label: PAYMENT_STATUS_LABEL[r.status] ?? r.status,
+      count: r.count,
+      amount: round2(Number(r.amount)),
+    }))
+    .sort((a, b) => rank(a.status) - rank(b.status) || a.label.localeCompare(b.label));
+}
+
 export type RevenuePaymentRow = {
   orderId: string;
   status: string;
@@ -68,7 +115,7 @@ export type RevenueSummary = {
   grain: Grain;
   kpis: RevenueKpis;
   trend: RevenueTrendPoint[];
-  byMethod: { method: string; amount: number }[];
+  byMethod: { method: string; key: string; amount: number }[];
   discounts: DiscountLine[];
 };
 
@@ -283,7 +330,7 @@ export function summarizeRevenue(input: {
         collected: round2(b.collected),
       })),
     byMethod: [...byMethod.entries()]
-      .map(([method, amount]) => ({ method: methodLabel(method), amount: round2(amount) }))
+      .map(([method, amount]) => ({ method: methodLabel(method), key: method, amount: round2(amount) }))
       .sort((a, b) => b.amount - a.amount),
     discounts: [...discountLines.values()]
       .map(({ orderIds, ...line }) => ({ ...line, amount: round2(line.amount), orders: orderIds.size }))

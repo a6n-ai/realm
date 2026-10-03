@@ -46,7 +46,11 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
 
 export async function getSubscriptionMix() {
   const rows = await db.select({ status: orders.status, n: intCount }).from(orders).groupBy(orders.status);
-  return rows.map((r) => ({ status: ORDER_STATUS_LABELS[r.status] ?? r.status, n: r.n }));
+  return rows.map((r) => ({
+    status: ORDER_STATUS_LABELS[r.status] ?? r.status,
+    key: r.status,
+    n: r.n,
+  }));
 }
 
 export async function getTopCities(limit = 8) {

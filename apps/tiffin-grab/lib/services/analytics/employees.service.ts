@@ -6,6 +6,7 @@ const intCount = sql<number>`cast(count(*) as int)`;
 
 export type EmployeeRow = {
   userId: string;
+  publicId: string | null;
   name: string;
   leadsWorked: number;
   leadsConverted: number;
@@ -43,10 +44,10 @@ export async function getEmployeeRollup(): Promise<EmployeeRow[]> {
       .from(coupons)
       .where(sql`${coupons.kind} = 'rep_daily' and ${coupons.ownerUserId} is not null`)
       .groupBy(coupons.ownerUserId),
-    db.select({ id: users.id, name: users.name, email: users.email }).from(users),
+    db.select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email }).from(users),
   ]);
 
-  const nameById = new Map(staff.map((u) => [u.id.toString(), u.name?.trim() || u.email]));
+  const staffById = new Map(staff.map((u) => [u.id.toString(), u]));
 
   const byOwner = new Map<string, EmployeeRow>();
   const ensure = (id: bigint): EmployeeRow => {
@@ -55,7 +56,8 @@ export async function getEmployeeRollup(): Promise<EmployeeRow[]> {
     if (!row) {
       row = {
         userId: key,
-        name: nameById.get(key) ?? "Unknown",
+        publicId: staffById.get(key)?.publicId ?? null,
+        name: staffById.get(key)?.name?.trim() || staffById.get(key)?.email || "Unknown",
         leadsWorked: 0,
         leadsConverted: 0,
         conversionRatePct: 0,
