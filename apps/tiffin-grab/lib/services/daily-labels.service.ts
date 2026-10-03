@@ -27,6 +27,7 @@ import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
+import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 
 export type LabelLine = {
   category: string;
@@ -36,6 +37,8 @@ export type LabelLine = {
   portion: string | null;
   /** True when the customer never picked and the menu default was used. */
   defaulted: boolean;
+  /** An add-on row (extra sabzi…); labels mark it, kitchen counts don't split on it. */
+  addon?: boolean;
 };
 
 /** Words on the Deliveries section. Same words as the order page. */
@@ -276,12 +279,14 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
   );
   // Per delivery and eating day, not per meal size: two orders on the same size differ once
   // one of them has a swap applied, and a carried day only gets its own for_date swaps.
+  // The meal size's rows, then the order's add-on rows packed in every tiffin.
+  const addonsByOrder = await addonItemsByOrder(rows.map((r) => r.order.id));
+  const itemsFor = (r: DayDeliveryRow) => [
+    ...sizeItems.filter((i) => i.mealSizeId === r.order.mealSizeId),
+    ...(addonsByOrder.get(r.order.id) ?? []),
+  ];
   const portionsFor = (r: DayDeliveryRow, date: string) =>
-    portionsByCategory(
-      sizeItems.filter((i) => i.mealSizeId === r.order.mealSizeId),
-      categoriesByKey,
-      swapsForDay(swapRows, r.delivery, date),
-    );
+    portionsByCategory(itemsFor(r), categoriesByKey, swapsForDay(swapRows, r.delivery, date));
 
   const extrasById = await loadExtraDates(db, rows.map((r) => r.delivery.id));
   const labels: DeliveryLabel[] = [];
@@ -302,12 +307,14 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
         ? await resolveTripDay(order, dayWeek, forDate, person, swapsForDay(swapRows, delivery, forDate))
         : [];
       const lines: LabelLine[] = [];
+      const addonPicks = addonPickIndexes(itemsFor(row), swapsForDay(swapRows, delivery, forDate), categoriesByKey);
       for (const category of resolved) {
         category.picks.forEach((pick, i) => {
           lines.push({
             category: category.category,
             categoryLabel: category.label,
             dish: pick.name,
+            addon: addonPicks.get(category.category)?.has(i + 1) || undefined,
             portion: portionForPick(portions, category.category, i + 1),
             defaulted: pick.isDefaulted,
           });

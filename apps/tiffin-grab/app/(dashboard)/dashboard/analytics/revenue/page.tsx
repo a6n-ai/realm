@@ -3,18 +3,20 @@ import { cache, Suspense } from "react";
 import { SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton, ListSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownBarChart, TrendLineChart } from "@/components/analytics/charts";
+import { TrendLineChart } from "@/components/analytics/charts";
+import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { MetricTiles } from "@/components/analytics/metric-tiles";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
+import { paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   REVENUE_METHODS,
   getRevenueReport,
   parseRevenueFilters,
-  type RevenueSummary,
+  type RevenueReport,
 } from "@/lib/services/analytics/revenue.service";
 import { clockInZone } from "@/lib/analytics/profitability";
-import { methodLabel, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
+import { SETTLED_STATUSES, methodLabel, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
 import { RevenueFilters } from "./filters";
 
 function money(n: number) {
@@ -37,7 +39,7 @@ const loadReport = cache((from: string, to: string, method: string) =>
   getRevenueReport(parseRevenueFilters({ from, to, method })),
 );
 
-async function reportFrom(searchParams: SearchParams): Promise<RevenueSummary> {
+async function reportFrom(searchParams: SearchParams): Promise<RevenueReport> {
   const sp = await searchParams;
   return loadReport(sp.from ?? "", sp.to ?? "", sp.method ?? "");
 }
@@ -62,9 +64,18 @@ export default function RevenueAnalyticsPage({ searchParams }: { searchParams: S
         </Suspense>
       </ChartCard>
 
+      <ChartCard
+        title="Payments by status"
+        subtitle="Created in this range. Open a row to see those payments. The totals above follow the day the money moved."
+      >
+        <Suspense fallback={<ListSkeleton />}>
+          <Statuses searchParams={searchParams} />
+        </Suspense>
+      </ChartCard>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="By payment method" subtitle="Settled payments, including tax.">
-          <Suspense fallback={<ChartSkeleton />}>
+          <Suspense fallback={<ListSkeleton />}>
             <MethodChart searchParams={searchParams} />
           </Suspense>
         </ChartCard>
@@ -91,21 +102,39 @@ async function RangeAndLive({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
+async function rangeFor(searchParams: SearchParams) {
+  const sp = await searchParams;
+  const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
+  const filters = parseRevenueFilters(sp);
+  const range = zonedRangeMs(report.from, report.to, timezone);
+  const settled = (extra: { statuses?: readonly string[] } = {}) =>
+    paymentsHref({
+      statuses: extra.statuses ?? SETTLED_STATUSES,
+      methods: filters.methods,
+      fromMs: range.from,
+      toMs: range.to,
+    });
+  return { report, filters, range, settled };
+}
+
 async function Kpis({ searchParams }: { searchParams: SearchParams }) {
-  const { kpis: k } = await reportFrom(searchParams);
+  const { report, settled } = await rangeFor(searchParams);
+  const k = report.kpis;
+  const paid = settled();
   return (
     <div className="space-y-3">
       <MetricTiles
         cols={4}
         items={[
-          { label: "Gross sales", value: money(k.grossSales), hint: "List price before discounts, excl. tax" },
+          { label: "Gross sales", value: money(k.grossSales), hint: "List price before discounts, excl. tax", href: paid },
           {
             label: "Discounts",
             value: money(k.discounts),
             hint: k.discountRatePct == null ? "No sales in range" : `${k.discountRatePct}% of gross sales`,
+            href: paid,
           },
-          { label: "Net sales", value: money(k.netSales), hint: "Gross sales minus discounts, excl. tax" },
-          { label: "Tax collected", value: money(k.tax), hint: "Owed to the government, not revenue" },
+          { label: "Net sales", value: money(k.netSales), hint: "Gross sales minus discounts, excl. tax", href: paid },
+          { label: "Tax collected", value: money(k.tax), hint: "Owed to the government, not revenue", href: paid },
         ]}
       />
       <MetricTiles
@@ -114,29 +143,53 @@ async function Kpis({ searchParams }: { searchParams: SearchParams }) {
           {
             label: "Net collected",
             value: money(k.netCollected),
-            hint: k.refunded > 0 ? `${money(k.collected)} received − ${money(k.refunded)} refunded` : "Net sales plus tax",
+            hint: k.refunded > 0 ? `${money(k.collected)} received − ${money(k.refunded)} refunded` : "Paid amounts, including tax",
+            href: paid,
           },
           {
             label: "Refunded",
             value: money(k.refunded),
             tone: k.refunded > 0 ? "warn" : "default",
             hint: "By original payment date",
+            href: settled({ statuses: ["refunded"] }),
           },
           {
             label: "Awaiting payment",
             value: money(k.pendingAmount),
             tone: k.pendingCount > 0 ? "warn" : "default",
             hint: `${k.pendingCount} ${k.pendingCount === 1 ? "payment" : "payments"} not yet verified`,
-            href: k.pendingCount > 0 ? "/dashboard/payments/requests" : undefined,
+            href: settled({ statuses: ["awaiting_payment", "pending_verification"] }),
           },
           {
             label: "Avg order value",
             value: k.avgOrderValue == null ? "—" : money(k.avgOrderValue),
             hint: `${k.orders} settled ${k.orders === 1 ? "order" : "orders"}, excl. tax`,
+            href: paid,
           },
         ]}
       />
     </div>
+  );
+}
+
+async function Statuses({ searchParams }: { searchParams: SearchParams }) {
+  const { report, filters, range } = await rangeFor(searchParams);
+  return (
+    <BreakdownList
+      rows={report.byStatus.map((s) => ({
+        label: s.label,
+        n: s.count,
+        aside: money(s.amount),
+        meta: `${s.count} ${s.count === 1 ? "payment" : "payments"}`,
+        href: paymentsHref({
+          statuses: [s.status],
+          methods: filters.methods,
+          fromMs: range.from,
+          toMs: range.to,
+        }),
+      }))}
+      emptyLabel="No payments created in this range."
+    />
   );
 }
 
@@ -156,8 +209,23 @@ async function Trend({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function MethodChart({ searchParams }: { searchParams: SearchParams }) {
-  const report = await reportFrom(searchParams);
-  return <BreakdownBarChart data={report.byMethod} xKey="method" yKey="amount" format="currency" />;
+  const { report, range } = await rangeFor(searchParams);
+  return (
+    <BreakdownList
+      rows={report.byMethod.map((m) => ({
+        label: m.method,
+        n: m.amount,
+        aside: money(m.amount),
+        href: paymentsHref({
+          statuses: SETTLED_STATUSES,
+          methods: [m.key],
+          fromMs: range.from,
+          toMs: range.to,
+        }),
+      }))}
+      emptyLabel="No settled payments in this range."
+    />
+  );
 }
 
 const SOURCE_LABEL: Record<DiscountSource, string> = {

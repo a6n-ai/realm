@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
@@ -8,9 +7,9 @@ import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { savePct } from "@/lib/pricing/discounts";
 import { OptionCard, Pill, PillToggle } from "@/components/customer/kit";
 import { planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { TripTimeline } from "../trip-timeline";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
 
 export function StepSchedule({
@@ -31,7 +30,6 @@ export function StepSchedule({
   const row = frequencies.find((f) => f.key === selections.frequencyKey);
   const deliveryDays = (row?.weekdays ?? []) as DayOfWeek[];
   const eating = selections.eatingDays ?? [];
-  const reduce = useReducedMotion();
 
   const setEating = (days: DayOfWeek[]) => {
     const sorted = WEEK_DAYS.filter((d) => days.includes(d));
@@ -59,7 +57,6 @@ export function StepSchedule({
   const atMin = eating.length <= bounds.min;
   const weekendsOff = !servesWeekends(catalog, selections);
   const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
-  const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
 
   return (
     <div className="space-y-8">
@@ -140,35 +137,7 @@ export function StepSchedule({
             <span className="text-muted-foreground ml-1.5 text-sm font-medium">{eating.length === 1 ? "tiffin" : "tiffins"} a week</span>
           </p>
         </div>
-        {trips ? (
-          <ul
-            aria-label="Delivery preview"
-            className="mt-4 grid grid-cols-2 gap-3 sm:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]"
-            style={{ "--cols": Math.max(1, trips.length) } as React.CSSProperties}
-          >
-            <AnimatePresence initial={false} mode="popLayout">
-              {trips.map((t) => (
-                <motion.li
-                  key={t.day}
-                  layout={!reduce}
-                  initial={{ opacity: 0, y: reduce ? 0 : 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: reduce ? 0 : -8 }}
-                  transition={spring}
-                  className="bg-muted/50 border-border flex min-h-[104px] min-w-0 flex-col gap-2 rounded-2xl border p-3.5"
-                >
-                  <span className="text-[22px] leading-none font-bold tracking-[-0.03em]">{LABEL[t.day]}</span>
-                  <span className="text-primary text-[15px] font-semibold">{plural(t.units, "tiffin", "tiffins")}</span>
-                  <span className="mt-auto flex flex-wrap gap-1">
-                    {t.days.map((e) => (
-                      <Pill key={e} size="sm" tone="wash" className="!px-2 !text-[11px] !leading-normal">{LABEL[e]}</Pill>
-                    ))}
-                  </span>
-                </motion.li>
-              ))}
-            </AnimatePresence>
-          </ul>
-        ) : null}
+        {trips ? <TripTimeline trips={trips} /> : null}
       </section>
     </div>
   );

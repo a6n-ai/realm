@@ -96,7 +96,7 @@ export function LabelList({ labels }: { labels: DeliveryLabel[] }) {
           <ul className="space-y-0.5 text-xs">
             {label.lines.map((line, i) => (
               <li key={`${line.category}-${i}`} className="flex items-baseline gap-1">
-                <span>{line.dish}</span>
+                <span>{line.dish}{line.addon ? " (add-on)" : ""}</span>
                 {line.portion ? <span className="text-muted-foreground">({line.portion})</span> : null}
                 {/* Defaulted = the customer never picked, so the menu default was packed. */}
                 {line.defaulted ? <span className="text-muted-foreground">·default</span> : null}

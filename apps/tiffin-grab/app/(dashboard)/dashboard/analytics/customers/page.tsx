@@ -1,8 +1,11 @@
 import { Suspense } from "react";
-import { StatGrid, SkeletonStatCards } from "@/components/ds";
+import { SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownBarChart, DistributionDonutChart, TrendLineChart } from "@/components/analytics/charts";
+import { BreakdownList } from "@/components/analytics/breakdown-list";
+import { MetricTiles } from "@/components/analytics/metric-tiles";
+import { BreakdownBarChart, TrendLineChart } from "@/components/analytics/charts";
+import { customersHref, ordersHref } from "@/lib/analytics/drill";
 import {
   getCustomerStats,
   getSignupTrend,
@@ -42,13 +45,18 @@ export default function CustomersAnalyticsPage() {
 async function StatsData() {
   const s = await getCustomerStats();
   return (
-    <StatGrid
+    <MetricTiles
       cols={4}
       items={[
-        { label: "Total customers", value: s.totalCustomers },
-        { label: "Active subscriptions", value: s.activeSubscriptions },
-        { label: "Paused now", value: s.pausedNow },
-        { label: "Cancelled (ever)", value: s.cancelledEver },
+        { label: "Total customers", value: s.totalCustomers, href: customersHref() },
+        { label: "Active subscriptions", value: s.activeSubscriptions, href: ordersHref({ status: "active" }) },
+        {
+          label: "Paused now",
+          value: s.pausedNow,
+          hint: "Open pause windows. Opens orders marked paused.",
+          href: ordersHref({ status: "paused" }),
+        },
+        { label: "Cancelled (ever)", value: s.cancelledEver, href: ordersHref({ status: "cancelled" }) },
       ]}
     />
   );
@@ -61,7 +69,16 @@ async function SignupChart() {
 
 async function MixChart() {
   const rows = await getSubscriptionMix();
-  return <DistributionDonutChart data={rows} nameKey="status" valueKey="n" />;
+  return (
+    <BreakdownList
+      rows={rows.map((r) => ({
+        label: r.status,
+        n: r.n,
+        href: ordersHref({ status: r.key }),
+      }))}
+      emptyLabel="No subscriptions yet."
+    />
+  );
 }
 
 async function CitiesChart() {

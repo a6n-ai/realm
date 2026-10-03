@@ -56,7 +56,7 @@ function LabelCell({ label, date }: { label: DeliveryLabel; date: string }) {
       {label.forLabel ? <Text style={styles.forTag}>{label.forLabel}</Text> : null}
       {label.lines.map((line, i) => (
         <Text key={`${line.category}-${i}`} style={styles.line}>
-          • {line.dish}
+          • {line.dish}{line.addon ? " (add-on)" : ""}
           {line.portion ? <Text style={styles.portion}> ({line.portion})</Text> : null}
         </Text>
       ))}

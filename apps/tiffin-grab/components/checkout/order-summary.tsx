@@ -22,6 +22,7 @@ export function OrderSummary({
   editHref,
   diet,
   mealName,
+  addons,
   baseline,
   deliveryType,
   plain = false,
@@ -32,6 +33,8 @@ export function OrderSummary({
   editHref: string;
   diet?: string;
   mealName?: string | null;
+  /** Add-ons riding in every tiffin. */
+  addons?: { name: string; qty: number }[];
   /** Plan/baseline name, e.g. Veg. */
   baseline?: string | null;
   /** e.g. "3-day delivery · Mon Wed Fri". */
@@ -60,6 +63,12 @@ export function OrderSummary({
       <div className="mt-1 space-y-2 text-[13px]">
         {(mealName || diet) && <p className="text-[22px] leading-tight font-bold tracking-[-0.03em]">{mealName ?? diet}</p>}
         {baseline && <p className="text-muted-foreground">{baseline}</p>}
+        {addons && addons.length > 0 && (
+          <p aria-label="Add-ons">
+            {addons.map((a) => `+ ${a.name}${a.qty > 1 ? ` ×${a.qty}` : ""}`).join(" · ")}
+            <span className="text-muted-foreground"> in every tiffin</span>
+          </p>
+        )}
         {deliveryType && <p className="text-muted-foreground">{deliveryType}</p>}
         {perWeek > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-0.5" aria-label="Eating days">

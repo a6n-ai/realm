@@ -15,6 +15,7 @@ import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { isContainerCategory } from "@/lib/menu/format-tu";
 import { itemsForRow, rowPlanIds, type RowPlans } from "@/lib/menu/row-plans";
+import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -161,7 +162,7 @@ export function resolveCategoriesForDay(
 }
 
 async function defaultPickContext(order: Order) {
-  const [planDishIds, exclusiveDishIds, itemRows, rules, [size]] = await Promise.all([
+  const [planDishIds, exclusiveDishIds, sizeRows, addonRows, rules, [size]] = await Promise.all([
     // The union of every plan this meal size's OWN composition rows target — not
     // just the order's own plan. A meal size can carry two sabzi rows (one veg,
     // one non-veg), and both must be servable to the subscriber.
@@ -176,9 +177,12 @@ async function defaultPickContext(order: Order) {
       })
       .from(mealSizeItems)
       .where(eq(mealSizeItems.mealSizeId, order.mealSizeId)),
+    addonItemsForOrder(order.id),
     mealRulesService.listEnabledForOrder({ planId: order.planId, mealSizeId: order.mealSizeId }),
     db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, order.mealSizeId)).limit(1),
   ]);
+  // Add-on rows count as picks too (same default as the meal), after the meal's own rows.
+  const itemRows = [...sizeRows, ...addonRows];
   const byCat = new Map<string, typeof itemRows>();
   const liveCounts: Record<string, number> = {};
   for (const row of itemRows) {

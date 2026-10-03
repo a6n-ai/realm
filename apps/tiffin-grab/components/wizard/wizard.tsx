@@ -10,8 +10,9 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Sheet } from "@/components/customer/kit";
+import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, initialSelections, nextBlockedReason, selectionIsTrial, servesWeekends, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { adjacentWizardStep, initialSelections, nextBlockedReason, offeredAddons, pickedAddons, selectionIsTrial, servesWeekends, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -134,6 +135,20 @@ export function Wizard({
   };
 
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  // Phones: Next on Bundle asks once per meal whether to add extras (the inline panel is desktop-only).
+  const [addonsOpen, setAddonsOpen] = useState(false);
+  const [addonsAskedFor, setAddonsAskedFor] = useState<string | null>(null);
+  const offered = offeredAddons(catalog, selections);
+  const goNext = () => {
+    const phone = typeof matchMedia === "function" && !matchMedia("(min-width: 640px)").matches;
+    if (step === 1 && phone && offered.length > 0 && addonsAskedFor !== selections.mealSizeId) {
+      setAddonsAskedFor(selections.mealSizeId);
+      setAddonsOpen(true);
+      return;
+    }
+    setStep(adjacentWizardStep(step, 1, trialSelected));
+  };
+  const addonCount = (selections.addonSelections ?? []).reduce((n, a) => n + a.qty, 0);
   const reduce = useReducedMotion();
   const slide = reduce ? 0 : 24;
   const sign = direction === "forward" ? 1 : -1;
@@ -189,16 +204,40 @@ export function Wizard({
               weeks={selections.durationWeeks}
               startDate={selections.startDate}
               tiffinCount={result.tiffinCount}
+              addons={pickedAddons(catalog, selections)}
             />
             <Invoice result={result} />
           </div>
         )}
       </Sheet>
 
+      <Sheet
+        bottom
+        open={addonsOpen}
+        onClose={() => setAddonsOpen(false)}
+        title="Add to every tiffin?"
+        footer={
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full"
+            onClick={() => {
+              setAddonsOpen(false);
+              setStep(adjacentWizardStep(1, 1, trialSelected));
+            }}
+          >
+            {addonCount > 0 ? "Continue" : "Skip extras"}
+          </Button>
+        }
+      >
+        <p className="text-muted-foreground -mt-1 mb-3 text-[13px]">Optional extras for your {catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId)?.name ?? "meal"}, billed per tiffin.</p>
+        <AddonsPanel bare addons={offered} selections={selections} set={set} className="pb-2" />
+      </Sheet>
+
       <BottomBar alignEnd note={blocked ?? undefined} className="sm:sticky sm:mt-6 sm:px-0">
         <Button variant="quiet" size="lg" className="w-24 shrink-0 sm:hidden" onClick={goBack}>Back</Button>
         {step < 3 ? (
-          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={() => setStep(adjacentWizardStep(step, 1, trialSelected))}>Next</Button>
+          <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={goNext}>Next</Button>
         ) : (
           <Button variant="primary" size="lg" className="flex-1 sm:min-h-10 sm:flex-none sm:px-8" disabled={!canNext} onClick={deploy}>
             Continue to checkout

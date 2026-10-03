@@ -1,7 +1,8 @@
-import { PlusIcon } from "lucide-react";
-import { listableMealSizes, mealSizeAddons, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
-import { DEFAULT_EATING_DAYS, type WizardSelections } from "../selections";
-import { Button, OptionCard, Pill, Stepper } from "@/components/customer/kit";
+import { Fragment } from "react";
+import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView } from "@/lib/catalog/types";
+import { DEFAULT_EATING_DAYS, offeredAddons, type WizardSelections } from "../selections";
+import { AddonsPanel } from "../addons-panel";
+import { OptionCard, Pill } from "@/components/customer/kit";
 import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
 import { MealSizePrice } from "../meal-size-price";
@@ -26,17 +27,9 @@ export function StepBundle({
   const meals = listableMealSizes(catalog.mealSizes, selections.mealSizeId).filter((m) => m.planKey === selections.planKey);
   const weekly = meals.filter((m) => !m.trial);
   const trials = trial ? meals.filter((m) => m.trial) : [];
-  const selectedMeal = meals.find((m) => m.publicId === selections.mealSizeId);
 
   // Add-ons offered with any of this meal size's dish categories (addons.category).
-  const eligibleAddons = !selectedMeal || selectedMeal.trial ? [] : mealSizeAddons(catalog.addonsByCategory, selectedMeal.items);
-
-  const addonSelections = selections.addonSelections ?? [];
-  const qtyFor = (key: string) => addonSelections.find((s) => s.key === key)?.qty ?? 0;
-  const setQty = (key: string, qty: number) => {
-    const rest = addonSelections.filter((s) => s.key !== key);
-    set({ addonSelections: qty > 0 ? [...rest, { key, qty }] : rest });
-  };
+  const eligibleAddons = offeredAddons(catalog, selections);
 
   return (
     <div className="space-y-4">
@@ -71,48 +64,29 @@ export function StepBundle({
             <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em] capitalize">{tier}</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {tierMeals.map((m) => (
-                <MealOption
-                  key={m.publicId}
-                  meal={m}
-                  active={selections.mealSizeId === m.publicId}
-                  categoryLabels={catalog.categoryLabels}
-                  onPick={() => set({ mealSizeId: m.publicId, trialDays: undefined, ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}) })}
-                />
+                <Fragment key={m.publicId}>
+                  <MealOption
+                    meal={m}
+                    active={selections.mealSizeId === m.publicId}
+                    categoryLabels={catalog.categoryLabels}
+                    onPick={() => set({
+                      mealSizeId: m.publicId,
+                      trialDays: undefined,
+                      // Another meal may not offer the same add-ons; the server would refuse a stale one.
+                      ...(m.publicId !== selections.mealSizeId ? { addonSelections: [] } : {}),
+                      ...(selections.trialDays != null ? { eatingDays: DEFAULT_EATING_DAYS } : {}),
+                    })}
+                  />
+                  {/* Desktop: right under the meal it extends. Phones get the drawer on Next instead. */}
+                  {selections.mealSizeId === m.publicId && eligibleAddons.length > 0 && (
+                    <AddonsPanel addons={eligibleAddons} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
+                  )}
+                </Fragment>
               ))}
             </div>
           </section>
         );
       })}
-
-      {eligibleAddons.length > 0 && (
-        <section>
-          <h3 className="text-muted-foreground mb-3 text-[13px] font-semibold tracking-[0.02em]">Add-ons</h3>
-          <div className="space-y-2">
-            {eligibleAddons.map((addon) => {
-              const qty = qtyFor(addon.key);
-              const active = qty > 0;
-              return (
-                <div
-                  key={addon.key}
-                  className={`border-border flex min-h-11 items-center justify-between gap-3 rounded-xl border px-4 py-2 transition-colors ${active ? "bg-primary/10" : ""}`}
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{addon.name}</span>
-                    <span className="nums text-muted-foreground text-xs">${addon.pricePerWeek.toFixed(2)}/wk each</span>
-                  </div>
-                  {active ? (
-                    <Stepper label={addon.name} value={qty} min={0} max={addon.maxQty} onChange={(n) => setQty(addon.key, n)} />
-                  ) : (
-                    <Button variant="quiet" pill className="gap-1 !px-4 py-1.5 text-sm font-medium" onClick={() => setQty(addon.key, 1)}>
-                      <PlusIcon aria-hidden className="size-3.5" /> Add
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

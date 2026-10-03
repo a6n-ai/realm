@@ -25,7 +25,9 @@ export type PaymentSortKey = (typeof PAYMENT_SORT_KEYS)[number];
 export const PAYMENT_STATUS_OPTIONS = [
   { value: "pending_verification", label: "Needs review" },
   { value: "awaiting_payment", label: "Awaiting payment" },
+  { value: "pending", label: "Pending" },
   { value: "paid", label: "Paid" },
+  { value: "simulated_paid", label: "Simulated" },
   { value: "rejected", label: "Rejected" },
   { value: "refunded", label: "Refunded" },
 ] as const;
