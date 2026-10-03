@@ -45,6 +45,7 @@ export function PlanHeader({ name, sub, counts, renew, color }: {
           {sub.tagLabel || sub.planName}
         </Pill>
         {sub.trial && <Pill tone="warn">Trial</Pill>}
+        {sub.addons?.map((a) => <Pill key={a.name}>+ {a.name}{a.qty > 1 ? ` ×${a.qty}` : ""}</Pill>)}
         <Pill>{counts.remaining} of {counts.total} tiffins left</Pill>
         {renew != null && <Pill>renews in {renew} {renew === 1 ? "day" : "days"}</Pill>}
       </div>

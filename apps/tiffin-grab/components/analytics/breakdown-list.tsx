@@ -7,6 +7,8 @@ export type BreakdownRow = {
   href?: string;
   /** Secondary text shown under the label (e.g. the parent category). */
   meta?: string;
+  /** Replaces the raw count on the right, for example a money amount. The bar still uses `n`. */
+  aside?: string;
   /** Marks the currently drilled-into row. */
   active?: boolean;
   /** Dimmed styling for rows that are shown but excluded from the metrics. */
@@ -44,7 +46,7 @@ export function BreakdownList({
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-3">
                 <span className={cn("truncate text-sm", r.muted && "text-muted-foreground")}>{r.label}</span>
-                <span className="nums text-sm font-semibold tabular-nums">{r.n}</span>
+                <span className="nums text-sm font-semibold tabular-nums">{r.aside ?? r.n}</span>
               </div>
               {r.meta ? <p className="text-muted-foreground truncate text-xs">{r.meta}</p> : null}
               <div className="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full">

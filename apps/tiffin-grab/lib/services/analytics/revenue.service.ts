@@ -1,16 +1,21 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
+import { zonedRangeMs } from "@/lib/analytics/drill";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   PENDING_STATUSES,
   SETTLED_STATUSES,
+  presentPaymentStatuses,
   resolveRevenueBounds,
   summarizeRevenue,
+  type PaymentStatusSlice,
   type RevenueSummary,
 } from "@/lib/analytics/revenue";
 
-export type { RevenueSummary };
+export type { RevenueSummary, PaymentStatusSlice };
+
+export type RevenueReport = RevenueSummary & { byStatus: PaymentStatusSlice[] };
 
 export type RevenueFilters = { from?: string; to?: string; methods: string[] };
 
@@ -39,7 +44,7 @@ const moneyAt = sql<number>`coalesce(${payments.capturedAt}, ${payments.createdA
 export async function getRevenueReport(
   filters: RevenueFilters,
   opts: { now?: number } = {},
-): Promise<RevenueSummary> {
+): Promise<RevenueReport> {
   const now = opts.now ?? Date.now();
   const { timezone } = await getAppSettings();
   const { from, to } = resolveRevenueBounds(filters.from, filters.to, timezone, now);
@@ -52,8 +57,11 @@ export async function getRevenueReport(
   const methodWhere = filters.methods.length
     ? inArray(payments.method, filters.methods as PaymentMethod[])
     : undefined;
+  // The payments list filters createdAt, so the status breakdown uses the same
+  // window. A click on a status then shows exactly the rows that were counted.
+  const created = zonedRangeMs(from, to, timezone);
 
-  const [rows, pending] = await Promise.all([
+  const [rows, pending, statusRows] = await Promise.all([
     db
       .select({
         orderId: payments.orderId,
@@ -77,9 +85,18 @@ export async function getRevenueReport(
           methodWhere,
         ),
       ),
+    db
+      .select({
+        status: payments.status,
+        count: sql<number>`cast(count(*) as int)`,
+        amount: sql<number>`coalesce(sum(${payments.amount}::float8), 0)`,
+      })
+      .from(payments)
+      .where(and(gte(payments.createdAt, created.from), lte(payments.createdAt, created.to), methodWhere))
+      .groupBy(payments.status),
   ]);
 
-  return summarizeRevenue({
+  const summary = summarizeRevenue({
     from,
     to,
     timezone,
@@ -94,6 +111,13 @@ export async function getRevenueReport(
     })),
     pending: pending.map((p) => ({ amount: Number(p.amount), at: Number(p.at) })),
   });
+
+  return {
+    ...summary,
+    byStatus: presentPaymentStatuses(
+      statusRows.map((r) => ({ status: r.status, count: r.count, amount: Number(r.amount) })),
+    ),
+  };
 }
 
 export const REVENUE_METHODS: readonly PaymentMethod[] = PAYMENT_METHODS;

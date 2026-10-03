@@ -52,7 +52,12 @@ export function OrderOverview({
   categoryLabels: Record<string, string>;
 }) {
   const snap = order.pricingSnapshot;
-  const categoryEntries = Object.entries(order.categoryCounts).filter(([, qty]) => qty > 0);
+  // categoryCounts carries add-on rows too; the meal's own items are what's left after them.
+  const addonByCategory = new Map<string, number>();
+  for (const a of order.addons) addonByCategory.set(a.category, (addonByCategory.get(a.category) ?? 0) + a.qty);
+  const categoryEntries = Object.entries(order.categoryCounts)
+    .map(([key, qty]) => [key, qty - (addonByCategory.get(key) ?? 0)] as const)
+    .filter(([, qty]) => qty > 0);
   const eatingDays = order.eatingDays as DayOfWeek[] | null;
   const deliveryDays = orderDeliveryDays({
     frequencyKey: order.frequencyKey,
@@ -75,6 +80,13 @@ export function OrderOverview({
                 ? categoryEntries.map(([key, qty]) => `${qty}× ${categoryLabels[key] ?? key}`).join(", ")
                 : dash}
             </DetailRow>
+            {order.addons.length > 0 && (
+              <DetailRow label="Add-ons">
+                {order.addons
+                  .map((a) => `${a.qty}× ${a.name} · ${fmt(Number(a.pricePerTiffin), currency)}/tiffin`)
+                  .join(", ")}
+              </DetailRow>
+            )}
             <DetailRow label="Persons">{order.persons}</DetailRow>
             <DetailRow label="Meal slots">{order.mealSlots.map((m) => cap(m.replaceAll("_", " "))).join(", ")}</DetailRow>
             <DetailRow label="Frequency">{order.frequencyName}</DetailRow>

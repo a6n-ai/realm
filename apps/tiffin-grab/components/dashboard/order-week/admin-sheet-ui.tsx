@@ -1,7 +1,7 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Info, Truck, Utensils } from "lucide-react";
+import { useId, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight, CircleAlert, Info, Truck, Utensils } from "lucide-react";
 import { AddressFields as FoundryAddressFields } from "@foundry/ui/address-fields";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
@@ -41,8 +41,8 @@ function ChoiceRow({
   nested?: boolean;
   children?: ReactNode;
 }) {
-  const [why, setWhy] = useState<string | null>(null);
-  const shown = choices.find((c) => c.value === why && c.reason);
+  // Desktop staff view: why a choice is unavailable is printed on it as an error, not behind
+  // a hover/tap icon — staff are guiding a customer and need the reason at a glance.
   return (
     <div className={nested ? "ml-3 grid gap-2 border-l-2 pl-3" : "grid gap-2"}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -52,45 +52,38 @@ function ChoiceRow({
       <div role="radiogroup" aria-label={label} className="grid gap-2 sm:grid-cols-2">
         {choices.map((c) => {
           const on = c.value === value;
+          const errorId = c.reason ? `${label}-${c.value}-why` : undefined;
           return (
-            <div key={c.value} className="relative">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={on}
-                disabled={c.disabled}
-                onClick={() => !on && onChange(c.value)}
-                className={cn(
-                  "flex min-h-10 w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
-                  "focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
-                  on ? "border-primary bg-primary/5 font-medium" : "hover:bg-muted/60",
-                  c.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent",
-                  c.reason && "pr-9",
-                )}
-              >
-                <span className={cn("size-3.5 shrink-0 rounded-full border", on && "border-primary border-4")} aria-hidden />
-                <span className="min-w-0 flex-1 leading-snug">{c.label}</span>
-              </button>
-              {c.reason && (
-                <button
-                  type="button"
-                  aria-label={`Why ${c.label} is unavailable`}
-                  aria-expanded={why === c.value}
-                  onClick={() => setWhy((w) => (w === c.value ? null : c.value))}
-                  className="text-destructive absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded-full"
-                >
-                  <Info aria-hidden className="size-4" />
-                </button>
+            <button
+              key={c.value}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              aria-describedby={errorId}
+              disabled={c.disabled}
+              onClick={() => !on && onChange(c.value)}
+              className={cn(
+                "flex min-h-10 w-full items-start gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                "focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
+                on ? "border-primary bg-primary/5 font-medium" : "hover:bg-muted/60",
+                c.disabled && "cursor-not-allowed hover:bg-transparent",
+                c.reason && "border-destructive/40 bg-destructive/5",
               )}
-            </div>
+            >
+              <span className={cn("mt-0.5 size-3.5 shrink-0 rounded-full border", on && "border-primary border-4", c.disabled && "opacity-50")} aria-hidden />
+              <span className="grid min-w-0 flex-1 gap-0.5 leading-snug">
+                <span className={cn(c.disabled && "text-muted-foreground")}>{c.label}</span>
+                {c.reason && (
+                  <span id={errorId} className="text-destructive flex items-start gap-1 text-xs font-medium text-pretty">
+                    <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
+                    {c.reason}
+                  </span>
+                )}
+              </span>
+            </button>
           );
         })}
       </div>
-      {shown && (
-        <p role="status" className="text-destructive text-xs font-medium text-pretty">
-          {shown.label}: {shown.reason}
-        </p>
-      )}
       {children}
     </div>
   );

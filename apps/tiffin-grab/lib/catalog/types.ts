@@ -91,7 +91,7 @@ export interface CatalogSnapshot {
   // An add-on only shows for a meal size when its key appears here under one of
   // that meal size's item categories — see buildPricingCatalog. Optional for the
   // same back-compat reason as categoryLabels.
-  addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;
+  addonsByCategory?: Record<string, CatalogAddon[]>;
   minTiffinsPerWeek?: number;
   // App-settings timezone: "today" for start dates is this zone's calendar date.
   timezone?: string;
@@ -145,7 +145,7 @@ export interface ClientCatalogSnapshot {
   durations: { publicId: string; weeks: number }[];
   zones: { publicId: string; name: string; radiusKm: number | null; postalPrefixes: string[]; slotWindow: string | null; active: boolean }[];
   categoryLabels?: Record<string, string>;
-  addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;
+  addonsByCategory?: Record<string, CatalogAddon[]>;
   minTiffinsPerWeek?: number;
   // App-settings timezone: "today" for start dates is this zone's calendar date.
   timezone?: string;
@@ -177,7 +177,8 @@ export interface ClientCatalogSnapshot {
   };
 }
 
-export type CatalogAddon = { key: string; name: string; pricePerWeek: number; maxQty: number };
+/** tuAmount: one row's portion in the category's TU; each qty adds one such row per tiffin. */
+export type CatalogAddon = { key: string; name: string; category: string; tuAmount: number; pricePerTiffin: number; maxQty: number; portion?: string | null };
 
 /**
  * Add-ons a meal size may carry: the union of add-ons attached to its item

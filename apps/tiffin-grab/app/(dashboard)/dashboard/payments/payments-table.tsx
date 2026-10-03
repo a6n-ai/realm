@@ -29,7 +29,7 @@ const COLUMNS: readonly Column<PaymentSortKey | "actions">[] = [
 ];
 
 const SPEC: FacetDef[] = [
-  { kind: "pills", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
+  { kind: "multi", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
   { kind: "multi", field: "method", label: "Method", options: [...PAYMENT_METHOD_OPTIONS] },
   { kind: "dateRange", field: "createdAt", label: "Created" },
   { kind: "search", fields: [] },

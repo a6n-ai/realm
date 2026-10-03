@@ -2,6 +2,7 @@
 // resolveCategoriesForDay (resolve-delivery-meal.ts). buildMealsGrid consumes it, and any
 // future kitchen/ops/Optimo read MUST too — a second implementation will drift, and then
 // the subscriber sees one meal while the kitchen packs another.
+import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
 import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -194,7 +195,8 @@ export const selectionsService = {
       .select({ category: mealSizeItems.category })
       .from(mealSizeItems)
       .where(eq(mealSizeItems.mealSizeId, order.mealSizeId));
-    const baseCounts = mealItems.length > 0 ? categoryCountsFromItems(mealItems) : (order.categoryCounts ?? {});
+    // Add-on rows are picks too (an extra sabzi gets its own dish), after the meal's rows.
+    const baseCounts = mealItems.length > 0 ? categoryCountsFromItems([...mealItems, ...(await addonItemsForOrder(order.id))]) : (order.categoryCounts ?? {});
     const max = applySwapsToCounts(baseCounts, daySwaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
     const rowPlan = (await rowPlansForMealSize(order.mealSizeId))?.get(slot)?.[pickIndex - 1];

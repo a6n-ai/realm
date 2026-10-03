@@ -7,7 +7,7 @@ export const ACTION_LABEL: Record<TripAction, string> = {
   address: "Change address",
 };
 
-const CLOSED = new Set<Trip["status"]>(["delivered", "cutoff-passed", "locked", "combined-into", "rescheduled"]);
+const CLOSED = new Set<Trip["status"]>(["delivered", "unconfirmed", "cutoff-passed", "locked", "combined-into", "rescheduled"]);
 
 /** Move stays available; pick needs a resolved menu, so a not-yet-released week disables it with one reason. */
 const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet.", sub: "" };

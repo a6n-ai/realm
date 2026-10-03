@@ -1,6 +1,6 @@
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import type { Condition } from "@foundry/commons/model/condition";
+import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
@@ -34,6 +34,7 @@ import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/lib/catalog/load";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
+import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
 import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
@@ -623,7 +624,8 @@ export async function createOrder(
         frequencyId: frequency.id,
         persons: input.selections.persons,
         mealSlots,
-        categoryCounts,
+        // Add-on rows ride in every tiffin, so picks and kitchen counts include them.
+        categoryCounts: countsWithAddons(categoryCounts, pricingCatalog.addons),
         eatingDays: input.selections.eatingDays ?? null,
         // Legacy readers (meal grids, posters) still key off these flags, so mirror the eating days.
         includeSaturday: input.selections.eatingDays ? input.selections.eatingDays.includes("sat") : input.selections.includeSaturday,
@@ -663,17 +665,7 @@ export async function createOrder(
     // already the buildPricingCatalog-validated (eligible, priced, qty-clamped)
     // resolution of input.selections.addonSelections, so no re-validation needed here.
     if (pricingCatalog.addons.length) {
-      await tx.insert(orderAddons).values(
-        pricingCatalog.addons.map((addon) => ({
-          orderId: order.id,
-          addonKey: addon.key,
-          addonName: addon.name,
-          pricePerWeek: addon.pricePerWeek.toFixed(2),
-          qty: addon.qty,
-          amount: (Math.round((addon.pricePerWeek * addon.qty * input.selections.durationWeeks + Number.EPSILON) * 100) / 100).toFixed(2),
-          organizationId,
-        })),
-      );
+      await tx.insert(orderAddons).values(orderAddonValues(order.id, pricingCatalog.addons, pricing.tiffinCount, organizationId));
     }
 
     // Start immediately: in-zone orders materialize deliveries now, even when
@@ -1178,9 +1170,9 @@ export type OrderListRow = {
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
 
 // Server-side unified filters (Condition) + offset pagination + unpaginated
-// total — mirrors inquiriesService.listForPipeline. All filterable facets
-// (status/fullName/deploymentId/createdAt) live on the base `orders` table, so
-// a plain columnResolver suffices (no FK subqueries). The rows query joins
+// total — mirrors inquiriesService.listForPipeline. Status, name, id, and
+// createdAt live on `orders`. Plan and meal-size tier resolve through a
+// subquery (`ordersListResolver`) so the count stays on the base table. The rows query joins
 // plans (inner, non-nullable FK — safe) and users (left, nullable
 // currentOwner — display-only), but the count runs on the base `orders` table
 // alone with the identical `where` so the nullable owner join can't inflate it.
@@ -1201,6 +1193,45 @@ export async function resolveSessionVisibleOrgIds(session: {
   return resolveVisibleOrgIds({ platformRole: session.user.platformRole ?? null, memberOrgIds });
 }
 
+function filterValues(f: FilterCondition): string[] {
+  return f.operator === "in" ? (f.value as string[]) : [String(f.value)];
+}
+
+// Plan and meal-size tier live on joined tables. The URL carries the plan key
+// or tier name; a subquery resolves it so the orders list can open the rows
+// behind an analytics figure without putting an internal id in the link.
+function ordersListResolver() {
+  const base = columnResolver({
+    status: orders.status,
+    fullName: orders.fullName,
+    deploymentId: orders.deploymentId,
+    createdAt: orders.createdAt,
+  });
+  return (f: FilterCondition) => {
+    if (f.field === "plan") {
+      return inArray(
+        orders.planId,
+        db.select({ id: plans.id }).from(plans).where(inArray(plans.key, filterValues(f))),
+      );
+    }
+    if (f.field === "tier") {
+      return inArray(
+        orders.mealSizeId,
+        db
+          .select({ id: mealSizes.id })
+          .from(mealSizes)
+          .where(
+            and(
+              inArray(mealSizes.tier, filterValues(f) as ("budget" | "medium" | "premium")[]),
+              eq(mealSizes.custom, false),
+            ),
+          ),
+      );
+    }
+    return base(f);
+  };
+}
+
 export async function listOrdersPage(
   condition: Condition | undefined,
   page: PageRequest,
@@ -1208,15 +1239,7 @@ export async function listOrdersPage(
   visible: "all" | string[],
 ): Promise<Page<OrderListRow>> {
   const where = and(
-    conditionToSql(
-      condition,
-      columnResolver({
-        status: orders.status,
-        fullName: orders.fullName,
-        deploymentId: orders.deploymentId,
-        createdAt: orders.createdAt,
-      }),
-    ),
+    conditionToSql(condition, ordersListResolver()),
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 
@@ -1317,6 +1340,8 @@ export type OrderDetail = typeof orders.$inferSelect & {
   frequencyWeekdays: string[] | null;
   mealSizeName: string;
   payments: OrderPaymentDetail[];
+  /** Add-ons sold on the order; each qty is an extra row in every tiffin. */
+  addons: { name: string; category: string; qty: number; pricePerTiffin: string }[];
 };
 
 // Same org scoping as listOrdersPage (see @foundry/auth resolveVisibleOrgIds). A
@@ -1346,6 +1371,11 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
     )
     .limit(1);
   if (!row) throw new NotFoundError("Order not found");
+  const addons = await db
+    .select({ name: orderAddons.addonName, category: orderAddons.category, qty: orderAddons.qty, pricePerTiffin: orderAddons.pricePerTiffin })
+    .from(orderAddons)
+    .where(eq(orderAddons.orderId, row.order.id))
+    .orderBy(asc(orderAddons.id));
   const pays = await db
     .select({
       publicId: payments.publicId,
@@ -1379,6 +1409,7 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
 
   return {
     ...row.order,
+    addons,
     planName: row.planName,
     planKey: row.planKey,
     frequencyKey: row.frequencyKey,
@@ -1797,9 +1828,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // Out of scope on purpose: coupons/coins are not re-resolved (adjustments: []
   // below) — a plan change is a catalog correction, not a new checkout, so any
   // discount the customer originally had is dropped rather than guessed at.
-  // Existing orderAddons rows are left untouched; they may no longer be
-  // eligible for the new meal size's categories, which is a known limitation
-  // an admin reviewing the change should check.
+  // Add-ons carry over, repriced; the change is refused if the new size can't offer one.
   async changeMealSize(publicId: string, mealSizePublicId: string): Promise<void> {
     const order = await this.read(publicId);
     if (order.status === "cancelled" || order.status === "completed") {
@@ -1866,6 +1895,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       // Keep the order's drop-off surcharges. One retired, or re-tagged / re-connected since
       // checkout so it no longer fits with the rest, is dropped rather than failing the change.
       deliveryStrategyIds: stillValidPicks(pricingSnapshot, order.deliveryStrategyIds),
+      // Carried over and repriced; buildPricingCatalog refuses one the new size can't offer.
+      addonSelections: await db.select({ key: orderAddons.addonKey, qty: orderAddons.qty }).from(orderAddons).where(eq(orderAddons.orderId, order.id)),
     };
     const pricingCatalog = buildPricingCatalog(pricingSnapshot, selections);
     const pricing = priceSubscription(selections, pricingCatalog, [], taxes);
@@ -1881,7 +1912,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .set({
           planId: mealSize.planId,
           mealSizeId: mealSize.id,
-          categoryCounts,
+          categoryCounts: countsWithAddons(categoryCounts, pricingCatalog.addons),
           mealSlots,
           tiffinCount: pricing.tiffinCount,
           perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
@@ -1892,6 +1923,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .where(eq(orders.publicId, publicId))
         .returning();
       if (!row) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.delete(orderAddons).where(eq(orderAddons.orderId, row.id));
+      if (pricingCatalog.addons.length) {
+        await tx.insert(orderAddons).values(orderAddonValues(row.id, pricingCatalog.addons, pricing.tiffinCount, row.organizationId));
+      }
       await tx.insert(orderActivities).values({
         orderId: row.id,
         type: "note",

@@ -602,7 +602,9 @@ async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapsh
       outcome = await applyOne(r, snapshot, orgId, today);
     } catch (err) {
       outcome = "failed";
-      console.log(`  FAILED wc-${r.record.wpOrderId}: ${err instanceof Error ? err.message : String(err)}`);
+      // Drizzle's "Failed query: <sql>" hides the real reason in `cause`; print that instead.
+      const cause = err instanceof Error && err.cause instanceof Error ? err.cause.message : null;
+      console.log(`  FAILED wc-${r.record.wpOrderId}: ${cause ?? (err instanceof Error ? err.message : String(err))}`);
     }
     counts[outcome]++;
   }

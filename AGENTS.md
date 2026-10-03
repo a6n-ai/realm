@@ -81,12 +81,17 @@ below comes from an incident (2026-09-24/25).
 3. **Never hand-edit `when` in `meta/_journal.json`.** Keep the value
    `drizzle-kit generate` wrote. Never use round or future values (0043–0045 were set
    to 2026-09-30, which silently blocked every migration generated before that date).
-4. **`when` must be strictly increasing and in the past.** When renumbering after a
-   merge from main, move your migration to the end **and** re-stamp its `when` to now,
-   above every existing entry. A lower `when` is skipped in any DB that already ran
-   the later ones. (0027 landed below 0026.)
-5. **`db/__tests__/migration-journal.test.ts` must pass** in both apps. Never add to
-   its `GRANDFATHERED` set to make a new migration pass; fix the `when` instead.
+4. **`when` must be strictly increasing and in the past — and only drizzle writes it.**
+   When an unpushed migration collides after a merge from main, never edit its number
+   or `when`: take main's `_journal.json` and snapshots, delete your `.sql` and its
+   snapshot, then rerun `drizzle-kit generate`. It renumbers to the end and stamps
+   `when` = now. A lower `when` is skipped in any DB that already ran the later ones.
+   (0027 landed below 0026.)
+5. **`db/__tests__/migration-journal.test.ts` and `scripts/check-migration-journal.mjs`
+   must pass.** The script runs in CI and before every deploy builds: it fails if a
+   shipped entry's `when`, tag or SQL changed, or a new `when` is not after main's
+   newest, is in the future, or is a whole second (hand-typed). Never add to the
+   test's `GRANDFATHERED` set to make a new migration pass; regenerate instead.
 6. **Every migration is generated with `drizzle-kit generate`**, reviewed, and applied
    locally with `pnpm db:migrate` before it is pushed. Use the `/new-migration` skill.
 7. **Never apply a migration by hand** (psql, IDE console). A DB that ran an older

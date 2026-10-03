@@ -121,7 +121,9 @@ export const addons = pgTable("addons", {
   // Soft ref to dish_categories.key (mirrors dishes.category): offered for any
   // meal size carrying that category. Never part of the meal or its swaps.
   category: text("category").notNull(),
-  pricePerWeek: numeric("price_per_week", { precision: 10, scale: 2 }).notNull(),
+  pricePerTiffin: numeric("price_per_tiffin", { precision: 10, scale: 2 }).notNull(),
+  // Portion of one add-on row, in the category's TU (same unit as meal_size_items.tu_amount).
+  tuAmount: numeric("tu_amount", { precision: 6, scale: 2 }).notNull().default("1"),
   // Admin-set ceiling on how many of this add-on one order may carry (e.g. 5x
   // Extra Roti). Enforced server-side in buildPricingCatalog, not just the wizard.
   maxQty: integer("max_qty").notNull().default(5),

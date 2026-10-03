@@ -39,7 +39,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     if (!Number.isInteger(qty) || qty < 1 || qty > addon.maxQty) {
       throw new ValidationError(`Invalid quantity for ${addon.name} (1–${addon.maxQty})`);
     }
-    return { key: addon.key, name: addon.name, pricePerWeek: addon.pricePerWeek, qty };
+    return { key: addon.key, name: addon.name, category: addon.category, tuAmount: addon.tuAmount, pricePerTiffin: addon.pricePerTiffin, qty };
   });
 
   const duration = snapshot.durations.find((d) => d.weeks === selections.durationWeeks);

@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import { PackageIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { db } from "@/db/client";
-import { leadSources, leadSubsources, orders } from "@/db/schema";
+import { leadSources, leadSubsources, orders, plans } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -105,12 +105,28 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
     { column: "created", dir: "desc" },
   );
 
+  const planOptions = await db
+    .select({ value: plans.key, label: plans.name })
+    .from(plans)
+    .orderBy(plans.name);
+
   const spec: FacetDef[] = [
     {
       kind: "pills",
       field: "status",
       label: "Status",
       options: ORDER_STATUS_PILLS.map((p) => ({ value: p.value, label: p.label })),
+    },
+    { kind: "select", field: "plan", label: "Plan", options: planOptions },
+    {
+      kind: "select",
+      field: "tier",
+      label: "Meal size",
+      options: [
+        { value: "budget", label: "Budget" },
+        { value: "medium", label: "Medium" },
+        { value: "premium", label: "Premium" },
+      ],
     },
     { kind: "dateRange", field: "createdAt", label: "Created" },
     { kind: "search", fields: ["fullName", "deploymentId"] },

@@ -10,14 +10,14 @@ function row(over: Partial<DeliveryForCounts>): DeliveryForCounts {
 }
 
 describe("tiffin-counts", () => {
-  it("sums past-cutoff scheduled rows' tiffinUnits as delivered", () => {
-    const rows = [row({ cutoffAt: past, tiffinUnits: 2 }), row({ cutoffAt: future, tiffinUnits: 2 })];
+  it("sums confirmed scheduled rows' tiffinUnits as delivered", () => {
+    const rows = [row({ cutoffAt: past, tiffinUnits: 2, optimoCompletionStatus: "success" }), row({ cutoffAt: future, tiffinUnits: 2 })];
     expect(deliveredTiffinCount(rows, now)).toBe(2);
     expect(remainingTiffinCount(10, rows, now)).toBe(8);
   });
 
-  it("counts a past-cutoff makeup row (still scheduled) as delivered", () => {
-    const rows = [row({ cutoffAt: past, makeupForDeliveryId: 42n })];
+  it("counts a confirmed makeup row (still scheduled) as delivered", () => {
+    const rows = [row({ cutoffAt: past, makeupForDeliveryId: 42n, optimoCompletionStatus: "success" })];
     expect(deliveredTiffinCount(rows, now)).toBe(1);
   });
 
@@ -37,7 +37,10 @@ describe("tiffin-counts", () => {
 
   it("counts a weekend-bundled Friday's higher tiffinUnits, not a flat per-row count", () => {
     // 1 plain weekday (1 unit) + 1 Friday absorbing a Saturday add-on (2 units) = 3 delivered.
-    const rows = [row({ cutoffAt: past, tiffinUnits: 1 }), row({ cutoffAt: past, tiffinUnits: 2 })];
+    const rows = [
+      row({ cutoffAt: past, tiffinUnits: 1, optimoCompletionStatus: "success" }),
+      row({ cutoffAt: past, tiffinUnits: 2, optimoCompletionStatus: "success" }),
+    ];
     expect(deliveredTiffinCount(rows, now)).toBe(3);
   });
 
@@ -47,10 +50,9 @@ describe("tiffin-counts", () => {
     expect(remainingTiffinCount(5, rows, now)).toBe(3);
   });
 
-  it("still counts a past-cutoff row as delivered with no OptimoRoute data at all", () => {
-    // The pull is nightly-cron-only, not real-time — most rows have no completion data yet
-    // when a customer checks their count, so the cutoff-passed proxy must keep working.
+  it("does not count a past-cutoff row until OptimoRoute or an admin confirms it", () => {
+    // The cutoff locks customer changes; it is not proof the tiffin went out.
     const rows = [row({ cutoffAt: past, optimoCompletionStatus: null })];
-    expect(deliveredTiffinCount(rows, now)).toBe(1);
+    expect(deliveredTiffinCount(rows, now)).toBe(0);
   });
 });

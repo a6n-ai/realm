@@ -17,6 +17,7 @@ import { loadCompositionContext } from "@/lib/services/swap-options.service";
 import type { TuCategory } from "@/lib/menu/format-tu";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
+import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
 import { AppError } from "@foundry/commons";
 
 export type PickGrid = {
@@ -44,6 +45,8 @@ export type PickGrid = {
   mealRules: MealRule[];
   /** Loaded once so the sheet previews swaps locally instead of reloading the grid per tap. */
   preview: PreviewBase;
+  /** Add-on rows per category: a category's last N plain rows are add-ons (pick only, no swap). */
+  addonCounts: Record<string, number>;
 };
 
 function mapPortions(portions: Map<string, (string | null)[]>): Record<string, (string | null)[]> {
@@ -85,17 +88,22 @@ export async function loadPickGrid(
       rules: await listRuleTextsForOrder(row.planId, row.mealSizeId),
       mealRules: await mealRulesService.listEnabledForOrder({ planId: row.planId, mealSizeId: row.mealSizeId }),
       preview: { items: [], tu: [], appliedByDate: {}, composition: { baseCounts: {}, mealSizeItems: [], categories: [] }, pairs: [] },
+      addonCounts: {},
     };
 
     // Natural portions from meal_size_items × category TU (formatTuHuman) — never hardcoded.
-    const [items, planCats] = await Promise.all([
+    const [sizeItems, addonItems, planCats] = await Promise.all([
       db
         .select({ category: mealSizeItems.category, tuAmount: mealSizeItems.tuAmount, sortOrder: mealSizeItems.sortOrder })
         .from(mealSizeItems)
         .where(eq(mealSizeItems.mealSizeId, row.mealSizeId))
         .orderBy(asc(mealSizeItems.sortOrder)),
+      addonItemsForOrder(row.id),
       dishCategoriesService.forPlan(row.planId),
     ]);
+    // Add-on rows (extra sabzi, roti…) get their own picks and portions, after the meal's rows.
+    const items = [...sizeItems, ...addonItems];
+    for (const a of addonItems) grid.addonCounts[a.category] = (grid.addonCounts[a.category] ?? 0) + 1;
     const tuByKey = new Map<string, TuCategory>();
     for (const c of planCats) {
       tuByKey.set(c.key, {

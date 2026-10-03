@@ -42,7 +42,11 @@ export function MetricTiles({ items, cols = 3 }: { items: MetricTile[]; cols?: 3
           </Card>
         );
         return it.href ? (
-          <Link key={it.label} href={it.href} className="hover-lift block rounded-xl transition-transform">
+          <Link
+            key={it.label}
+            href={it.href}
+            className="hover-lift focus-visible:ring-ring block rounded-xl transition-transform outline-none focus-visible:ring-2"
+          >
             {body}
           </Link>
         ) : (

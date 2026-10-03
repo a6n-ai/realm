@@ -61,7 +61,7 @@ function rangeFor(month: string, grain: Grain): { from: string; to: string } {
 
 /**
  * Delivered tiffins in the window — same predicate as tiffin-counts.ts
- * `deliveredTiffinCount` (scheduled AND (past cutoff OR OptimoRoute confirmed)),
+ * `deliveredTiffinCount` (scheduled AND confirmed delivered),
  * re-expressed in SQL so we don't load every row. Revenue is the order total
  * (excluding tax) spread across that order's tiffinCount, then attributed to the
  * delivery DATE, never the payment date.
@@ -84,7 +84,7 @@ export async function getProfitabilityReport(opts: {
 
   const deliveredWhere = and(
     eq(deliveries.status, "scheduled"),
-    sql`(${deliveries.cutoffAt} <= ${now} or ${deliveries.optimoCompletionStatus} = 'success')`,
+    eq(deliveries.optimoCompletionStatus, "success"),
     gte(deliveries.deliveryDate, from),
     lte(deliveries.deliveryDate, to),
   );

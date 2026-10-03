@@ -250,7 +250,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
   // Scenario 7: Order Total includes Plan Price + Delivery Charge + Addons - Discounts + Taxes
   it("Scenario 7: Full order calculation with plan, addons, delivery, discount, and tax", () => {
     // Plan: 10 tiffins @ $10 = $100
-    // Addon: 1 addon @ $10/wk * 2 wks = $20
+    // Addon: 1 addon @ $2/tiffin * 10 tiffins = $20
     // Delivery: Base $2 + Type $1 + Tag 5% ($5) = $8
     // Subtotal: 100 + 20 + 8 = $128
     // Cadence discount: 10% on tiffins ($100 * 10% = $10)
@@ -260,7 +260,7 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     const r = priceSubscription(
       sel(),
       catalog(10, {
-        addons: [{ key: "extra_curry", name: "Extra Curry", pricePerWeek: 10, qty: 1 }],
+        addons: [{ key: "extra_curry", name: "Extra Curry", category: "sabzi", tuAmount: 1, pricePerTiffin: 2, qty: 1 }],
         discounts: [{ key: "disc_10", label: "Delivery discount (10%)", percent: 10 }],
         deliveryChargeConfig: {
           baseCharge: 2,

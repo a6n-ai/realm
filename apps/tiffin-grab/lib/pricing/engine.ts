@@ -28,14 +28,13 @@ export function priceSubscription(
     { label: `Tiffins (${tiffinCount} × $${perTiffinPrice.toFixed(2)})`, amount: tiffinSubtotal },
   ];
 
-  // Add-ons bill per delivery week, not per tiffin — same cadence as the
-  // subscription itself, independent of frequency/persons.
+  // Each add-on qty rides in every tiffin, so it bills per tiffin like the meal.
   let addonSubtotal = 0;
   for (const addon of catalog.addons) {
-    const amount = round2(addon.pricePerWeek * addon.qty * selections.durationWeeks);
+    const amount = round2(addon.pricePerTiffin * addon.qty * tiffinCount);
     addonSubtotal += amount;
     const qtyLabel = addon.qty > 1 ? ` ×${addon.qty}` : "";
-    lineItems.push({ label: `${addon.name}${qtyLabel} (add-on, ${selections.durationWeeks} wk)`, amount });
+    lineItems.push({ label: `${addon.name}${qtyLabel} (add-on, ${tiffinCount} × $${addon.pricePerTiffin.toFixed(2)})`, amount });
   }
   addonSubtotal = round2(addonSubtotal);
 

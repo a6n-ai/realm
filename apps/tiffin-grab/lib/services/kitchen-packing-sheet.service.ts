@@ -24,6 +24,7 @@ import {
 } from "@/lib/menu/packing-requirement";
 import { formatTuHuman, isContainerCategory } from "@/lib/menu/format-tu";
 import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
+import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -136,6 +137,12 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel, selectable: c.selectable },
     ]),
   );
+  // The meal size's rows, then the order's add-on rows (extra sabzi, roti…) packed in every tiffin.
+  const addonsByOrder = await addonItemsByOrder(deliveryRows.map((r) => r.orderId));
+  const itemsFor = (r: { orderId: bigint; mealSizeId: bigint }) => [
+    ...sizeItems.filter((i) => i.mealSizeId === r.mealSizeId),
+    ...(addonsByOrder.get(r.orderId) ?? []),
+  ];
 
   const dayDishTotals = new Map<string, Map<string, number>>();
   const rowAcc: {
@@ -158,10 +165,12 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     // Slot key → line. Selectable picks keep pickIndex so sabzi 12oz and 8oz stay separate.
     const lineBySlot = new Map<string, PackingItemLine>();
     const portions = portionsByCategory(
-      sizeItems.filter((i) => i.mealSizeId === row.mealSizeId),
+      itemsFor(row),
       tuByKey,
       swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate),
     );
+    // Add-on rows (extra sabzi…) are marked so the packer sees what's extra in the tiffin.
+    const addonPicks = addonPickIndexes(itemsFor(row), swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate), tuByKey);
 
     const week = await loadWeek(forDate);
     if (week) {
@@ -188,7 +197,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
               addOrBumpLine(
                 lineBySlot,
                 slotKey,
-                pick.name,
+                addonPicks.get(cat.category)?.has(pickIndex) ? `${pick.name} (add-on)` : pick.name,
                 portion,
                 1,
                 (categorySort.get(cat.category) ?? 0) * 100 + pickIndex,
@@ -199,7 +208,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
             // Count/bulk categories (roti/rice): one pick name, quantity = slot count.
             const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
             const pick = cat.picks[0]!;
-            const mealItems = sizeItems.filter((i) => i.mealSizeId === row.mealSizeId);
+            const mealItems = itemsFor(row);
             const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity, daySwaps, tuByKey);
             const portion =
               converter && tuTotal > 0

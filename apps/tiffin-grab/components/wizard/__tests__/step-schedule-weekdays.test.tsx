@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render as rtlRender, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StepSchedule } from "../steps/step-schedule";
@@ -62,9 +62,9 @@ describe("StepSchedule", () => {
 
   it("previews trips on the carrying delivery day", () => {
     render(<StepSchedule catalog={catalog} selections={sel(["mon", "tue", "thu"])} set={vi.fn()} />);
-    const rows = screen.getAllByRole("listitem").map((r) => r.textContent);
-    expect(rows).toContain("Mon2 tiffinsMonTue");
-    expect(rows).toContain("Wed1 tiffinThu");
+    const timeline = screen.getByRole("list", { name: "Delivery preview" });
+    const rows = within(timeline).getAllByRole("listitem").map((r) => r.textContent);
+    expect(rows).toEqual(["Monday2 tiffinsFor Monday and Tuesday", "Wednesday1 tiffinFor Thursday"]);
   });
 
   it("errors and blocks below min", () => {

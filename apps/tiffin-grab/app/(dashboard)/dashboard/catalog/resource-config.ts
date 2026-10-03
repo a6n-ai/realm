@@ -156,7 +156,9 @@ const addonsSchema = z.object({
   // Soft ref to dish_categories.key (like dishes.category): the add-on is offered
   // for any meal size carrying that category. Never part of the meal or its swaps.
   category: z.string().trim().min(1, "Pick a category"),
-  pricePerWeek: reqNum(z.coerce.number().nonnegative()),
+  // Same TU unit as meal-size items: one qty = one row of this portion in every tiffin.
+  tuAmount: reqNum(z.coerce.number().positive().default(1).transform((n) => n.toFixed(2))),
+  pricePerTiffin: reqNum(z.coerce.number().nonnegative()),
   maxQty: reqNum(z.coerce.number().int().positive().default(5)),
   active,
 });
@@ -297,8 +299,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
       { key: "category", label: "Offered with", type: "select", optionsSource: "categories", help: "Meal sizes that include this category show the add-on at checkout." },
-      { key: "pricePerWeek", label: "Price / week", type: "number", unit: "$" },
-      { key: "maxQty", label: "Max qty per order", type: "number" },
+      { key: "tuAmount", label: "Portion (TU)", type: "number", help: "One row's portion, in the same TU as meal-size items. Each qty adds one such row to every tiffin." },
+      { key: "pricePerTiffin", label: "Price / tiffin", type: "number", unit: "$", help: "Charged per tiffin for each qty." },
+      { key: "maxQty", label: "Max qty per tiffin", type: "number" },
     ],
   },
 };

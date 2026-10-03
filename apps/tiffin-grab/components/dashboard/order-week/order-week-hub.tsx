@@ -1,6 +1,7 @@
 /* eslint-disable */
 "use client";
 
+import { zonedDateIso } from "@foundry/commons";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
 import { ChevronLeft, ChevronRight, Info, Truck, Utensils } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -46,7 +47,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
   const rows = useMemo(() => eatingRowsInWeek(trips, weekStart, weekEnd), [trips, weekStart, weekEnd]);
   const row: EatingRow | null = (sel ? rows.find((r) => r.date === sel) ?? rows.find((r) => r.trip.date === sel) : null) ?? (sel ? null : [...rows].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
   const trip = row?.trip ?? null;
-  const editChoice = trip && canEditDeliveryStatus && trip.deliveryId ? statusChoice(trip, now) : null;
+  const editChoice = trip && canEditDeliveryStatus && trip.deliveryId ? statusChoice(trip) : null;
   const av = trip ? actionAvailability(trip, now, plan.ctx) : null;
   const tz = plan.ctx.timezone;
 
@@ -161,7 +162,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
                   <Truck className="size-5" aria-hidden />
                   {deliveryLine(row)}
                   {editChoice && trip.deliveryId ? (
-                    <DeliveryStatusSelect deliveryId={trip.deliveryId} value={editChoice} cutoffPassed={trip.cutoffAt <= now} onDone={done} />
+                    <DeliveryStatusSelect deliveryId={trip.deliveryId} value={editChoice} cutoffPassed={trip.cutoffAt <= now} beforeDay={trip.date > zonedDateIso(now, tz)} onDone={done} />
                   ) : (
                     <Badge variant="outline">{rowMeta(row).label}</Badge>
                   )}
@@ -209,6 +210,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
                     dot={dotStatus(x, now)}
                     trips={trips}
                     now={now}
+                    tz={tz}
                     canEdit={canEditDeliveryStatus}
                     onDone={done}
                   />
@@ -242,7 +244,7 @@ const OPENS: Record<TripAction, Dlg> = { pick: "pick", move: "reschedule", addre
 
 type StatusValue = "upcoming" | "delivered" | "not_delivered" | "paused";
 
-function statusChoice(trip: Trip, now: number): StatusValue | null {
+function statusChoice(trip: Trip): StatusValue | null {
   if (!trip.deliveryId || trip.mergedInto) return null;
   switch (trip.status) {
     case "combined-into":
@@ -254,10 +256,12 @@ function statusChoice(trip: Trip, now: number): StatusValue | null {
     case "failed":
       return "not_delivered";
     case "delivered":
-    case "cutoff-passed":
       return "delivered";
+    // Not confirmed by OptimoRoute or an admin yet: Upcoming before the cutoff, Awaiting confirmation after.
+    case "unconfirmed":
+    case "cutoff-passed":
     case "upcoming":
-      return trip.cutoffAt <= now ? "delivered" : "upcoming";
+      return "upcoming";
     default: {
       const unreachable: never = trip.status;
       return unreachable;
@@ -277,8 +281,9 @@ function agendaLabel(dot: string, moved: boolean): string {
 }
 
 function EatingDayStatus({
-  truck, moved, deliveryDate, dot, trips, now, canEdit, onDone,
+  truck, moved, deliveryDate, dot, trips, now, tz, canEdit, onDone,
 }: {
+  tz: string;
   truck: boolean;
   moved: boolean;
   deliveryDate: string;
@@ -289,11 +294,11 @@ function EatingDayStatus({
   onDone: (message: string) => void;
 }) {
   const tripRow = truck && !moved ? trips.find((t) => t.date === deliveryDate && t.deliveryId) : undefined;
-  const choice = tripRow ? statusChoice(tripRow, now) : null;
+  const choice = tripRow ? statusChoice(tripRow) : null;
   if (canEdit && tripRow?.deliveryId && choice) {
     return (
       <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        <DeliveryStatusSelect deliveryId={tripRow.deliveryId} value={choice} cutoffPassed={tripRow.cutoffAt <= now} onDone={onDone} />
+        <DeliveryStatusSelect deliveryId={tripRow.deliveryId} value={choice} cutoffPassed={tripRow.cutoffAt <= now} beforeDay={tripRow.date > zonedDateIso(now, tz)} onDone={onDone} />
       </div>
     );
   }
@@ -301,11 +306,13 @@ function EatingDayStatus({
 }
 
 function DeliveryStatusSelect({
-  deliveryId, value, cutoffPassed, onDone,
+  deliveryId, value, cutoffPassed, beforeDay, onDone,
 }: {
   deliveryId: string;
   value: StatusValue;
   cutoffPassed: boolean;
+  /** The delivery date hasn't come yet, so it can't have been delivered. */
+  beforeDay: boolean;
   onDone: (message: string) => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -326,8 +333,8 @@ function DeliveryStatusSelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="upcoming" disabled={cutoffPassed}>Upcoming</SelectItem>
-        <SelectItem value="delivered">Delivered</SelectItem>
+        <SelectItem value="upcoming">{cutoffPassed ? "Awaiting confirmation" : "Upcoming"}</SelectItem>
+        <SelectItem value="delivered" disabled={beforeDay}>Delivered</SelectItem>
         <SelectItem value="not_delivered">Not delivered</SelectItem>
         {value === "paused" ? <SelectItem value="paused">Paused</SelectItem> : null}
       </SelectContent>

@@ -46,7 +46,7 @@ const OPEN_STATUSES = ["open", "in_progress", "waiting_on_customer"] as const;
  * complaint volume comparable as the business grows.
  *
  * The predicate mirrors lib/services/tiffin-counts.ts `deliveredTiffinCount`
- * (scheduled AND (past cutoff OR OptimoRoute confirmed)), re-expressed in SQL
+ * (scheduled AND confirmed delivered), re-expressed in SQL
  * because analytics aggregates over far too many rows to load them into memory.
  * That file stays the canonical definition; complaints-rate.test.ts asserts the
  * two agree on the same fixtures, so they cannot drift unnoticed.
@@ -54,7 +54,7 @@ const OPEN_STATUSES = ["open", "in_progress", "waiting_on_customer"] as const;
 async function deliveredTiffins(filters: ComplaintFilters, now = Date.now()): Promise<number> {
   const parts = [
     eq(deliveries.status, "scheduled"),
-    sql`(${deliveries.cutoffAt} <= ${now} or ${deliveries.optimoCompletionStatus} = 'success')`,
+    eq(deliveries.optimoCompletionStatus, "success"),
   ];
   // deliveryDate is a DATE; the filters are epoch ms, so compare on app-timezone calendar days.
   const { timezone } = await getAppSettings();
