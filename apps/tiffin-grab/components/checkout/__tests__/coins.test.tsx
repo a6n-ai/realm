@@ -69,7 +69,7 @@ const selections: WizardSelections = {
   startDate: "2026-07-20",
 };
 
-const applyCoinsButton = () => screen.getAllByRole("button", { name: /^apply$/i })[1]!;
+const applyCoinsButton = () => screen.getByRole("button", { name: /apply coins/i });
 
 // Savings (coupon + coins) live on the Payment step: fill the delivery step and continue.
 async function toPayment() {
