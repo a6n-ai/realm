@@ -28,10 +28,17 @@ import { IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";
 // only skins it and decides where a signed-in user lands.
 type Mode = "welcome" | "email-otp" | "password" | "pin";
 
+// callbackUrl comes off the query string, so anyone can craft a login link with
+// it. Only a same-site path ("/x", not "//evil.com" or "/\\evil.com") may be
+// followed after sign-in; anything else lands on the dashboard.
+export function safeCallbackUrl(raw: string | null): string | null {
+  return raw && /^\/(?![/\\])/.test(raw) ? raw : null;
+}
+
 export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl");
+  const callbackUrl = safeCallbackUrl(params.get("callbackUrl"));
   // A locked session opens on its PIN. Someone bounced here from a protected
   // page (callbackUrl) already knows why they're here, so they skip the
   // welcome screen and land on the form.
@@ -139,7 +146,7 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
     }
     // A full sign-in clears any prior lock so we don't bounce to a PIN prompt.
     await clearLockSession();
-    router.push(params.get("callbackUrl") ?? "/dashboard");
+    router.push(safeCallbackUrl(params.get("callbackUrl")) ?? "/dashboard");
     router.refresh();
   }
 
