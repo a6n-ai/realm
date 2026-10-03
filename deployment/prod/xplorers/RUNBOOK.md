@@ -132,7 +132,7 @@ Steps used for the move (kept for the next app):
        NEON_URL='<direct>'
        NEON_POOLED_URL='<pooled>'
 
-3. `./deployment/prod/xplorers/neon-copy.sh`: prints RDS checks, refuses a
+3. `./deployment/prod/neon-copy.sh xplorers`: prints RDS checks, refuses a
    non-empty target, dumps, restores, prints the same checks for Neon. The
    `migrations` count + newest `created_at`, `users`, `session` and `tables`
    must match. Any `!!` line or mismatch: stop, reset the Neon branch, rerun.
