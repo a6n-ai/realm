@@ -18,8 +18,17 @@ const BTN = cn(
  */
 export const RowActionTooltipButton = React.forwardRef<
   HTMLButtonElement,
-  { icon: LucideIcon; label: string; onClick?: () => void; disabled?: boolean }
->(function RowActionTooltipButton({ icon: Icon, label, onClick, disabled }, ref) {
+  {
+    icon: LucideIcon;
+    label: string;
+    onClick?: () => void;
+    disabled?: boolean;
+    /** Icon color class (e.g. a status tone); default is muted. */
+    tone?: string;
+    /** Tooltip text when it should say more than the aria label. */
+    hint?: string;
+  }
+>(function RowActionTooltipButton({ icon: Icon, label, onClick, disabled, tone, hint }, ref) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -34,10 +43,10 @@ export const RowActionTooltipButton = React.forwardRef<
             onClick?.();
           }}
         >
-          <Icon className="size-4 transition-transform duration-200 group-hover/row:scale-110" />
+          <Icon className={cn("size-4 transition-transform duration-200 group-hover/row:scale-110", tone)} />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="top">{label}</TooltipContent>
+      <TooltipContent side="top">{hint ?? label}</TooltipContent>
     </Tooltip>
   );
 });

@@ -27,6 +27,7 @@ import {
 } from "@relay/engine/ui";
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
 import { ResubscribeLinkButton } from "../../resubscribe-link-button";
+import { BulkRuns } from "./bulk-runs";
 
 // Oldest notification_outbox row in prod: earlier per-recipient send rows were lost.
 const OUTBOX_KEPT_SINCE = Date.UTC(2026, 8, 28, 11);
@@ -137,15 +138,15 @@ export default async function CampaignPage({
   return (
     <div className="space-y-6">
       <BackButton
-        href={isSystem ? "/dashboard/notifications/system" : "/dashboard/notifications/campaigns"}
-        label={isSystem ? "System campaigns" : "All campaigns"}
+        href={isSystem ? "/dashboard/notifications/templates" : "/dashboard/notifications/campaigns"}
+        label={isSystem ? "Templates" : "All campaigns"}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold text-balance">{row.name}</h1>
           <p className="text-sm text-muted-foreground">
-            <Badge variant="outline">{isSystem ? "system" : row.status}</Badge>{" "}
+            <Badge variant="outline">{isSystem ? "bulk" : row.status}</Badge>{" "}
             <span className="ml-2">{(row.channels as string[]).join(", ")}</span>
           </p>
         </div>
@@ -183,6 +184,7 @@ export default async function CampaignPage({
         <Tabs defaultValue="overview">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            {isSystem && <TabsTrigger value="runs">Bulk runs</TabsTrigger>}
             <TabsTrigger value="logs">Logs</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-6 pt-4">
@@ -218,6 +220,15 @@ export default async function CampaignPage({
               )}
             </SectionCard>
           </TabsContent>
+          {isSystem && (
+            <TabsContent value="runs" className="pt-4">
+              <SectionCard title="Bulk runs" subtitle="Each send of this template, newest first. Opens come from SES and lag a little.">
+                <Suspense fallback={null}>
+                  <BulkRuns campaignId={row.id} timeZone={timezone} />
+                </Suspense>
+              </SectionCard>
+            </TabsContent>
+          )}
           <TabsContent value="logs" className="pt-4">
             <SectionCard
               title="Logs"
