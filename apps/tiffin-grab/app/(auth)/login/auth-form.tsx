@@ -19,6 +19,7 @@ import {
 import { Input } from "@foundry/ui/input";
 import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
 import { verifyPinAction } from "./actions";
+import { clearPendingSignIn, rememberPendingSignIn } from "../code/pending-sign-in";
 import { AuthLegal, AuthLogo, IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";
 
 // Login is the shared gateway into both the customer and staff shells, so it
@@ -55,6 +56,7 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
   const [codeStep, setCodeStep] = useState(false);
 
   async function landSignedIn() {
+    clearPendingSignIn();
     await clearLockSession();
     router.push(callbackUrl ?? "/dashboard");
     router.refresh();
@@ -91,7 +93,10 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
               ui={tiffinAuthUi}
               onStepChange={(step) => setCodeStep(step === "code")}
               onBack={callbackUrl ? undefined : () => setMode("welcome")}
-              onSendCode={(email) => authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" })}
+              onSendCode={(email) => {
+                rememberPendingSignIn(email, callbackUrl);
+                return authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
+              }}
               onVerify={(email, otp) => signIn.emailOtp({ email, otp })}
               onSuccess={landSignedIn}
               extra={
