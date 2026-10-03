@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countsWithAddons, orderAddonValues } from "../order-addon-items";
+import { addonPickIndexes, countsWithAddons, orderAddonValues } from "../order-addon-items";
 
 describe("countsWithAddons", () => {
   it("adds one row per add-on qty to its category", () => {
@@ -48,5 +48,24 @@ describe("addonItemsForOrder (integration)", () => {
     } finally {
       await resetTrips(DEPLOY, PREFIX);
     }
+  });
+});
+
+describe("addonPickIndexes", () => {
+  const meal = { category: "sabzi", tuAmount: "1.50", sortOrder: 1 };
+  const daal = { category: "daal", tuAmount: "1.00", sortOrder: 2 };
+  const extra = { category: "sabzi", tuAmount: "1.00", sortOrder: 100_000, addon: true as const };
+
+  it("marks the add-on row after the meal's own rows", () => {
+    expect(addonPickIndexes([meal, daal, extra], []).get("sabzi")).toEqual(new Set([2]));
+  });
+
+  it("follows the add-on when a swap gives away the meal's own sabzi", () => {
+    const swap = { fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1, fromRow: 0 };
+    expect(addonPickIndexes([meal, daal, extra], [swap]).get("sabzi")).toEqual(new Set([1]));
+  });
+
+  it("marks nothing without add-ons", () => {
+    expect(addonPickIndexes([meal, daal], []).size).toBe(0);
   });
 });

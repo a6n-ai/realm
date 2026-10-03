@@ -3,7 +3,7 @@ import { NotFoundError, Role, ValidationError, weekdayKey, zonedDateIso } from "
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, mealSizes, menuItems, orderActivities, orderAddons, orders, payments, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
@@ -98,6 +98,8 @@ export type Subscription = {
   mealSizeCustom?: boolean;
   /** A trial order: dishes can be edited, and the plan cannot be paused or moved. */
   trial?: boolean;
+  /** Add-ons on the order, each riding in every tiffin. */
+  addons?: { name: string; qty: number }[];
   persons: number;
   /** Per-category item counts from the meal size at checkout (e.g. sabzi: 2). */
   categoryCounts: Record<string, number>;
@@ -167,6 +169,10 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
   const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.deliveryTagId, strategyIds: r.deliveryStrategyIds })));
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
+  const addonRows = rows.length
+    ? await db.select({ orderId: orderAddons.orderId, name: orderAddons.addonName, qty: orderAddons.qty }).from(orderAddons)
+      .where(inArray(orderAddons.orderId, rows.map((r) => r.id))).orderBy(asc(orderAddons.id))
+    : [];
   return rows
     .filter((r) => !isHiddenFromCustomer(payByOrder.get(r.id) ?? []))
     .map((r) => {
@@ -187,6 +193,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
         mealSizeName: r.mealSizeName,
         mealSizeCustom: r.mealSizeCustom,
         trial: r.trialLength != null,
+        addons: addonRows.filter((a) => a.orderId === r.id).map(({ name, qty }) => ({ name, qty })),
         persons: r.persons,
         categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
         tagLabel: r.tagLabel,

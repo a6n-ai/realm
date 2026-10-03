@@ -23,7 +23,7 @@ import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { packingItemLabel } from "@/lib/menu/packing-item-label";
 import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
-import { addonItemsByOrder } from "@/lib/menu/order-addon-items";
+import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { tuToNatural } from "@/lib/menu/format-tu";
 import { dishCategoriesService } from "./dish-categories.service";
 
@@ -165,12 +165,14 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
       }
     }
 
+    const addonPicks = addonPickIndexes(itemsFor(row), daySwaps, tuByKey);
     const items = [...qtyByCategory.entries()]
       .filter(([, qty]) => qty > 0)
       .sort(([a], [b]) => (sortOrder.get(a) ?? 0) - (sortOrder.get(b) ?? 0))
       .slice(0, ITEM_SLOTS)
       .map(([category, pickCount]) => {
-        const picks = picksByCategory.get(category) ?? [];
+        const addonAt = addonPicks.get(category);
+        const picks = (picksByCategory.get(category) ?? []).map((p, i) => (addonAt?.has(i + 1) ? { ...p, name: `${p.name} (add-on)` } : p));
         const pickPortions = picks.map((_, i) => portionForPick(portions, category, i + 1));
         const converter = tuByKey.get(category);
         const tuTotal = sumTuForPicks(

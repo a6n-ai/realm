@@ -21,5 +21,11 @@ describe("PlanSummary", () => {
     render(<PlanSummary mealName="Small Thali" eatingDays={["mon"]} weeks={1} tiffinCount={1} />);
     expect(screen.getByText("1 tiffin a week × 1 week = 1 tiffin")).toBeTruthy();
     expect(screen.queryByText(/Starts/)).toBeNull();
+    expect(screen.queryByLabelText("Add-ons")).toBeNull();
+  });
+
+  it("names the add-ons riding in every tiffin", () => {
+    render(<PlanSummary mealName="Small Thali" eatingDays={["mon"]} weeks={1} tiffinCount={1} addons={[{ name: "Extra Sabzi", qty: 2 }, { name: "Extra Roti", qty: 1 }]} />);
+    expect(screen.getByLabelText("Add-ons").textContent).toBe("+ Extra Sabzi ×2 · + Extra Roti in every tiffin");
   });
 });

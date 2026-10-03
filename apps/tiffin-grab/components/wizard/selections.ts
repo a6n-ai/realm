@@ -1,5 +1,5 @@
 import type { PricingSelections } from "@/lib/pricing";
-import { listableMealSizes, type ClientCatalogSnapshot } from "@/lib/catalog/types";
+import { listableMealSizes, mealSizeAddons, type ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { eatingDaysError, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 export interface WizardSelections extends PricingSelections {
@@ -38,6 +38,18 @@ export const tiffinBounds = (catalog: ClientCatalogSnapshot) => ({
   min: catalog.minTiffinsPerWeek ?? 3,
   max: catalog.maxTiffinsPerWeek ?? 7,
 });
+
+/** The picked add-ons by name, for summaries; unknown or ineligible keys drop out. */
+export function pickedAddons(catalog: ClientCatalogSnapshot | undefined, s: WizardSelections): { name: string; qty: number }[] {
+  if (!s.addonSelections?.length) return [];
+  const meal = catalog?.mealSizes.find((m) => m.publicId === s.mealSizeId);
+  if (!catalog || !meal) return [];
+  const byKey = new Map(mealSizeAddons(catalog.addonsByCategory, meal.items ?? []).map((a) => [a.key, a]));
+  return (s.addonSelections ?? []).flatMap(({ key, qty }) => {
+    const a = byKey.get(key);
+    return a ? [{ name: a.name, qty }] : [];
+  });
+}
 
 /** True when the picked size is a trial, so the wizard skips Schedule. */
 export function selectionIsTrial(catalog: ClientCatalogSnapshot, s: WizardSelections): boolean {

@@ -11,7 +11,7 @@ import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Sheet } from "@/components/customer/kit";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, initialSelections, nextBlockedReason, selectionIsTrial, servesWeekends, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { adjacentWizardStep, initialSelections, nextBlockedReason, pickedAddons, selectionIsTrial, servesWeekends, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -189,6 +189,7 @@ export function Wizard({
               weeks={selections.durationWeeks}
               startDate={selections.startDate}
               tiffinCount={result.tiffinCount}
+              addons={pickedAddons(catalog, selections)}
             />
             <Invoice result={result} />
           </div>

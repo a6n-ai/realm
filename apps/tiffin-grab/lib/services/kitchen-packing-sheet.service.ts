@@ -24,7 +24,7 @@ import {
 } from "@/lib/menu/packing-requirement";
 import { formatTuHuman, isContainerCategory } from "@/lib/menu/format-tu";
 import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
-import { addonItemsByOrder } from "@/lib/menu/order-addon-items";
+import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -169,6 +169,8 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       tuByKey,
       swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate),
     );
+    // Add-on rows (extra sabzi…) are marked so the packer sees what's extra in the tiffin.
+    const addonPicks = addonPickIndexes(itemsFor(row), swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate), tuByKey);
 
     const week = await loadWeek(forDate);
     if (week) {
@@ -195,7 +197,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
               addOrBumpLine(
                 lineBySlot,
                 slotKey,
-                pick.name,
+                addonPicks.get(cat.category)?.has(pickIndex) ? `${pick.name} (add-on)` : pick.name,
                 portion,
                 1,
                 (categorySort.get(cat.category) ?? 0) * 100 + pickIndex,

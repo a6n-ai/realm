@@ -1,6 +1,8 @@
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderAddons, orders } from "@/db/schema";
+import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
+import type { TuCategory } from "./format-tu";
 
 /**
  * Catalog add-ons as extra rows in every tiffin. Each qty of an order's add-on is one
@@ -69,4 +71,29 @@ export function orderAddonValues(
     amount: (Math.round((a.pricePerTiffin * a.qty * tiffinCount + Number.EPSILON) * 100) / 100).toFixed(2),
     organizationId,
   }));
+}
+
+/**
+ * Which picks (1-based, per category) are add-on rows once the day's swaps are folded in.
+ * slotRowsAfterSwaps keeps each slot's source row, so a slot is an add-on exactly when its
+ * source row is one — whatever swaps gave away or brought in around it.
+ */
+export function addonPickIndexes(
+  items: (MealSizeItemRow & { addon?: true })[],
+  swaps: PortionSwap[],
+  categoriesByKey?: Map<string, TuCategory>,
+): Map<string, Set<number>> {
+  const out = new Map<string, Set<number>>();
+  if (!items.some((i) => i.addon)) return out;
+  for (const [category, slots] of slotRowsAfterSwaps(items, swaps, categoriesByKey)) {
+    const sorted = items.filter((i) => i.category === category).sort((a, b) => a.sortOrder - b.sortOrder);
+    slots.forEach((slot, i) => {
+      if (slot.row != null && sorted[slot.row]?.addon) {
+        const set = out.get(category) ?? new Set<number>();
+        set.add(i + 1);
+        out.set(category, set);
+      }
+    });
+  }
+  return out;
 }
