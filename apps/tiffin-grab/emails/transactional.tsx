@@ -211,9 +211,10 @@ function Code({ value }: { value: string }) {
           {value}
         </Text>
       </Section>
-      {/* Same browser that asked for the code: /code signs straight in. Anywhere else it shows the code to copy. */}
-      <Cta href={`${BASE}/code#${value}`} fallback={false}>
-        Continue
+      {/* Email can't copy to the clipboard; /magic-link shows the code with a real Copy button.
+          The link carries the code sealed (lib/auth/magic-code.ts), never the code itself. */}
+      <Cta href={`${BASE}/magic-link?t={{magicToken}}`} fallback={false}>
+        Copy code
       </Cta>
     </>
   );

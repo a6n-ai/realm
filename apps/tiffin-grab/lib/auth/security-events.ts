@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { session as sessionTable } from "@/db/schema";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { linkCapture } from "./link-capture";
+import { sealCode } from "./magic-code";
 
 const APP_NAME = "Tiffin Grab";
 
@@ -22,7 +23,7 @@ export async function sendAuthOtp(email: string, otp: string, type: OtpType): Pr
       recipientEmail: email,
       title: `Your ${APP_NAME} verification code`,
       body: "",
-      data: { otp },
+      data: { otp, magicToken: sealCode(otp) },
       channels: ["email"],
       kind: "transactional",
       // Scoped by the code itself (fresh per request) — only guards an
