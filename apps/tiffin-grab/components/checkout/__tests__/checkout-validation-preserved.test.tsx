@@ -129,4 +129,19 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
 
     expect(await screen.findByText(/isn't valid/i)).toBeTruthy();
   });
+
+  it("tapping a suggested coupon re-prices with that code", async () => {
+    validatePostal.mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } });
+    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    const suggested = [{ code: "WELCOME10", name: "Welcome offer", description: null, kind: "percentage" as const, valuePct: "10", valueAmount: null, minSubtotal: null, planTypes: [], autoApply: false, expiresAt: null }];
+    render(<Checkout defaultCountry="CA" prefill={MEMBER} suggestedCoupons={suggested} />);
+
+    fireEvent.change(await screen.findByLabelText(/phone/i), { target: { value: "4165551234" } });
+    await enterAddress("M5H 1A1");
+    await waitFor(() => expect(continueBtn().getAttribute("aria-disabled")).toBeNull());
+    fireEvent.click(continueBtn());
+    fireEvent.click(await screen.findByRole("button", { name: /apply welcome10, 10% off/i }));
+
+    await waitFor(() => expect(reprice.mock.calls.some((c) => c[1] === "WELCOME10")).toBe(true));
+  });
 });
