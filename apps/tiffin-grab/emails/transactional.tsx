@@ -145,7 +145,7 @@ function Note({ children }: { children: ReactNode }) {
 }
 
 /** Bulletproof pill button: a padded table cell renders in Outlook too. */
-function Cta({ href, children }: { href: string; children: ReactNode }) {
+function Cta({ href, children, fallback = true }: { href: string; children: ReactNode; fallback?: boolean }) {
   return (
     <>
       <table role="presentation" cellPadding={0} cellSpacing={0} style={{ margin: "8px 0 4px" }}>
@@ -178,42 +178,44 @@ function Cta({ href, children }: { href: string; children: ReactNode }) {
         </tbody>
       </table>
       {/* Some in-app mail browsers swallow the redirect; the raw link can be copied instead. */}
-      <Text style={{ margin: "12px 0 0", fontSize: "12px", lineHeight: "18px", color: C.muted }}>
-        Button not working? Copy this link into your browser:
-        <br />
-        <Link href={href} style={{ color: C.muted, wordBreak: "break-all" as const, userSelect: "all" as const }}>
-          {href}
-        </Link>
-      </Text>
+      {fallback ? (
+        <Text style={{ margin: "12px 0 0", fontSize: "12px", lineHeight: "18px", color: C.muted }}>
+          Button not working? Copy this link into your browser:
+          <br />
+          <Link href={href} style={{ color: C.muted, wordBreak: "break-all" as const, userSelect: "all" as const }}>
+            {href}
+          </Link>
+        </Text>
+      ) : null}
     </>
   );
 }
 
 function Code({ value }: { value: string }) {
   return (
-    <Section style={{ backgroundColor: C.saffronWash, borderRadius: "16px", padding: "18px 12px", margin: "4px 0 8px", textAlign: "center" as const }}>
-      <Text
-        style={{
-          margin: 0,
-          fontSize: "34px",
-          lineHeight: "40px",
-          fontWeight: 700,
-          letterSpacing: "0.3em",
-          color: C.ink,
-          fontVariantNumeric: "tabular-nums",
-          userSelect: "all",
-          WebkitUserSelect: "all",
-        }}
-      >
-        {value}
-      </Text>
-      <Link
-        href={`${BASE}/code#${value}`}
-        style={{ display: "inline-block", marginTop: "10px", fontSize: "14px", fontWeight: 600, color: C.saffron, textDecoration: "none" }}
-      >
-        Copy code
-      </Link>
-    </Section>
+    <>
+      <Section style={{ backgroundColor: C.saffronWash, borderRadius: "16px", padding: "18px 12px", margin: "4px 0 8px", textAlign: "center" as const }}>
+        <Text
+          style={{
+            margin: 0,
+            fontSize: "34px",
+            lineHeight: "40px",
+            fontWeight: 700,
+            letterSpacing: "0.3em",
+            color: C.ink,
+            fontVariantNumeric: "tabular-nums",
+            userSelect: "all",
+            WebkitUserSelect: "all",
+          }}
+        >
+          {value}
+        </Text>
+      </Section>
+      {/* Same browser that asked for the code: /code signs straight in. Anywhere else it shows the code to copy. */}
+      <Cta href={`${BASE}/code#${value}`} fallback={false}>
+        Continue
+      </Cta>
+    </>
   );
 }
 
