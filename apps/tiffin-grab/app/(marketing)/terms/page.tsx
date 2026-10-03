@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Callout, Clause, LegalPage, List, Mail, Sub } from "@/components/marketing/legal";
+import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
 
 export const metadata: Metadata = {
   title: "Terms & conditions — Tiffin Grab",
@@ -14,16 +14,40 @@ const ALLERGENS = [
   ["Sesame / soy / eggs", "MOD", "Various menu items"],
 ] as const;
 
+
+const SECTIONS = [
+  "Parties & definitions",
+  "Eligibility & account",
+  "Services",
+  "Payment & billing",
+  "Subscriptions & changes",
+  "Allergens & food safety",
+  "Acceptable use",
+  "Intellectual property",
+  "Limitation of liability",
+  "Disputes & governing law",
+  "General",
+] as const;
+
+const KEY_POINTS: KeyPoint[] = [
+  { text: "You must be 18 or older (or have a guardian's consent) and live in an area we deliver to.", section: 2 },
+  { text: "Prices are in CAD and plans are paid upfront. A plan renews automatically only if checkout says so.", section: 4 },
+  { text: "To pause, tell us at least 24 hours before your next delivery. Unused days may be credited to the end of your plan, not refunded in cash.", section: 5 },
+  { text: "Our kitchen handles gluten, dairy, tree nuts, peanuts, sesame, soy, and eggs. Our food is not suitable for severe allergies.", section: 6 },
+  { text: "If something goes wrong, our liability is limited to what you paid for that order or period in the last 30 days.", section: 9 },
+  { text: "Ontario and Canadian law apply, and disputes go to Ontario courts.", section: 10 },
+];
+
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms & conditions" meta="Effective: April 6, 2026 · Last updated: April 6, 2026 · Version: 1.0" current="/terms">
+    <LegalPage title="Terms & conditions" intro="The agreement between you and TiffinGrab when you order or subscribe: who can order, how billing and plans work, allergens, and what each side is responsible for." updated="April 6, 2026" current="/terms" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
         <strong>Binding agreement.</strong> By using tiffingrab.ca, placing an order, or subscribing, you agree to these
         Terms with TiffinGrab. If you disagree, do not use our services. These Terms are governed by the laws of Ontario
         and Canada.
       </Callout>
 
-      <Clause n={1} title="Parties & definitions">
+      <Clause n={1} title={SECTIONS[0]}>
         <List
           items={[
             <><strong>“TiffinGrab”</strong> means the business operating under that name in Ontario, Canada.</>,
@@ -34,7 +58,7 @@ export default function TermsPage() {
         />
       </Clause>
 
-      <Clause n={2} title="Eligibility & account">
+      <Clause n={2} title={SECTIONS[1]}>
         <p className="m-0">You must:</p>
         <List
           items={[
@@ -50,7 +74,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n={3} title="Services">
+      <Clause n={3} title={SECTIONS[2]}>
         <p className="m-0">
           We deliver fresh, home-style meals in select GTA areas. Availability, menus, and service areas may change. We
           may modify or pause services with reasonable notice where feasible.
@@ -60,7 +84,7 @@ export default function TermsPage() {
         </Callout>
       </Clause>
 
-      <Clause n={4} title="Payment & billing">
+      <Clause n={4} title={SECTIONS[3]}>
         <Sub title="4.1 Payment">
           <p className="m-0">Fees are due at purchase unless we agree otherwise in writing.</p>
         </Sub>
@@ -84,7 +108,7 @@ export default function TermsPage() {
         </Sub>
       </Clause>
 
-      <Clause n={5} title="Subscriptions & changes">
+      <Clause n={5} title={SECTIONS[4]}>
         <p className="m-0">Plans are non-transferable and tied to the registered delivery address unless we approve a change.</p>
         <p className="m-0">
           <strong>Pausing:</strong> request at least <strong>24 hours</strong> before the next delivery via WhatsApp or
@@ -96,7 +120,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n={6} title="Allergens & food safety">
+      <Clause n={6} title={SECTIONS[5]}>
         <Callout tone="warn">
           <strong>Allergen warning:</strong> Meals are prepared in a <strong>shared kitchen</strong> where gluten, dairy,
           tree nuts, peanuts, sesame, soy, eggs, and other allergens may be present. <strong>Cross-contact is
@@ -134,21 +158,21 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n={7} title="Acceptable use">
+      <Clause n={7} title={SECTIONS[6]}>
         <p className="m-0">
           You will not submit fraudulent claims, harass staff or couriers, abuse chargebacks, break the law, or share
           account access to evade plan rules. Breach may mean immediate termination without refund.
         </p>
       </Clause>
 
-      <Clause n={8} title="Intellectual property">
+      <Clause n={8} title={SECTIONS[7]}>
         <p className="m-0">
           Site content, branding, menus, and media are owned by TiffinGrab or licensors. No copying or commercial reuse
           without written permission.
         </p>
       </Clause>
 
-      <Clause n={9} title="Limitation of liability">
+      <Clause n={9} title={SECTIONS[8]}>
         <p className="m-0">
           To the fullest extent permitted by law, our aggregate liability for a claim is limited to the{" "}
           <strong>amount you paid for the specific order or subscription period</strong> giving rise to the claim in the
@@ -161,7 +185,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n={10} title="Disputes & governing law">
+      <Clause n={10} title={SECTIONS[9]}>
         <p className="m-0">
           These Terms are governed by <strong>Ontario and Canadian federal law</strong>. Disputes should first be
           negotiated in good faith. If unresolved, courts in Ontario have exclusive jurisdiction, to the extent permitted.
@@ -169,7 +193,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n={11} title="General">
+      <Clause n={11} title={SECTIONS[10]}>
         <List
           items={[
             <><strong>Entire agreement:</strong> These Terms and the linked policies replace prior oral or inconsistent terms.</>,
