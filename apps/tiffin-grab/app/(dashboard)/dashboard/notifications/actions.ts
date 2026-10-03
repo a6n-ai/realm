@@ -17,7 +17,7 @@ export async function resubscribeLink(address: string): Promise<ActionResult<{ u
     const base = process.env.CAMPAIGN_BASE_URL ?? process.env.SITE_URL;
     if (!secret || !base) throw new ValidationError("UNSUBSCRIBE_SECRET and SITE_URL must be set");
     // Whoever holds the link can confirm it, staff included — so record who issued it.
-    log.info({ actorId: (await getSession())?.user?.id ?? null, address }, "re-subscribe link issued");
+    log.info({ actorId: (await getSession())?.user?.id ?? null, domain: address.split("@")[1] ?? null }, "re-subscribe link issued");
     return { url: buildResubscribeUrl(base, secret, address) };
   });
 }
