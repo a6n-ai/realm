@@ -143,6 +143,58 @@ Resources:
       ResourceRecords:
         - '"v=spf1 include:amazonses.com ~all"'
 
+  # --- SES transactional sender notify.tiffingrab.ca (stack tiffin-grab-ses-notify),
+  #     custom MAIL FROM mail.notify.tiffingrab.ca. Marketing stays on tiffingrab.ca. ---
+  SesNotifyDkim1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: rgpvcdn5tikweaxpji57ka7orksxmhys._domainkey.notify.tiffingrab.ca
+      Type: CNAME
+      TTL: 14400
+      ResourceRecords:
+        - rgpvcdn5tikweaxpji57ka7orksxmhys.dkim.amazonses.com
+
+  SesNotifyDkim2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: cay7flp6yp2hdbyj66sz5shhvgi6lw6g._domainkey.notify.tiffingrab.ca
+      Type: CNAME
+      TTL: 14400
+      ResourceRecords:
+        - cay7flp6yp2hdbyj66sz5shhvgi6lw6g.dkim.amazonses.com
+
+  SesNotifyDkim3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: zno5whc35fwyjnq5lvwcpks3z6khdxy2._domainkey.notify.tiffingrab.ca
+      Type: CNAME
+      TTL: 14400
+      ResourceRecords:
+        - zno5whc35fwyjnq5lvwcpks3z6khdxy2.dkim.amazonses.com
+
+  SesNotifyMailFromMx:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: mail.notify.tiffingrab.ca
+      Type: MX
+      TTL: 14400
+      ResourceRecords:
+        - "10 feedback-smtp.us-east-1.amazonses.com"
+
+  SesNotifyMailFromSpf:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: mail.notify.tiffingrab.ca
+      Type: TXT
+      TTL: 14400
+      ResourceRecords:
+        - '"v=spf1 include:amazonses.com ~all"'
+
   # --- The Realm app on EC2 ---
   AppA:
     Type: AWS::Route53::RecordSet
