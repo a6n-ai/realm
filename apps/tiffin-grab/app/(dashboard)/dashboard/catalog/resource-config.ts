@@ -300,8 +300,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
+      { key: "category", label: "Category", type: "select", optionsSource: "categories", help: "The dish category this add-on adds a row of in every tiffin." },
       { key: "planId", label: "Dish from plan", type: "select", optionsSource: "plans", help: "The menu this add-on's dish is picked from in edit meal (Veg Sabzi → veg), whatever the order's plan." },
-      { key: "category", label: "Category", type: "select", optionsSource: "categories", help: "The dish category this add-on adds a row of, from that plan's released menu." },
       { key: "tuAmount", label: "Portion (TU)", type: "number", help: "One row's portion, in the same TU as meal-size items. Each qty adds one such row to every tiffin." },
       { key: "pricePerTiffin", label: "Price / tiffin", type: "number", unit: "$", help: "Charged per tiffin for each qty." },
       { key: "maxQty", label: "Max qty per tiffin", type: "number" },
