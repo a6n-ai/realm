@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ClockIcon } from "lucide-react";
 import { useTimezone } from "@/components/providers/timezone-provider";
 
 // Live clock in the app-settings timezone, so staff in another zone (India) see
@@ -31,10 +30,10 @@ export function AppClock() {
 
   return (
     <span
-      title={tz}
+      title={`Canada time (${tz})`}
       className="hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs tabular-nums text-muted-foreground sm:inline-flex"
     >
-      <ClockIcon className="size-3.5" aria-hidden />
+      <span role="img" aria-label="Canada time" className="text-sm leading-none">🇨🇦</span>
       {label}
     </span>
   );
