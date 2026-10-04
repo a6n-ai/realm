@@ -27,23 +27,24 @@ describe("addonItemsForOrder (integration)", () => {
   const DEPLOY = "test-order-addon-items";
   const PREFIX = "order-addon-items-";
 
-  it("expands each add-on qty into a row after the meal's rows, on the order's plan", async () => {
+  it("expands each add-on qty into a row after the meal's rows, on the add-on's own plan", async () => {
     const { eq } = await import("drizzle-orm");
     const { db } = await import("@/db/client");
-    const { orderAddons } = await import("@/db/schema");
+    const { orderAddons, plans } = await import("@/db/schema");
     const { addonItemsForOrder, ADDON_SORT_BASE } = await import("../order-addon-items");
     const { makeTripOrder, resetTrips } = await import("@/lib/services/__tests__/trip-fixture");
     await resetTrips(DEPLOY, PREFIX);
     try {
       const { order } = await makeTripOrder(DEPLOY, PREFIX);
+      const [plan] = await db.select({ id: plans.id, key: plans.key }).from(plans).where(eq(plans.id, order.planId));
       await db.insert(orderAddons).values(orderAddonValues(order.id, [
-        { key: "extra_sabzi", name: "Extra Sabzi", category: "sabzi", tuAmount: 1, pricePerTiffin: 3, qty: 2 },
-        { key: "extra_roti", name: "Extra Roti", category: "roti", tuAmount: 2, pricePerTiffin: 1, qty: 1 },
+        { key: "extra_sabzi", name: "Extra Sabzi", category: "sabzi", planKey: plan.key, tuAmount: 1, pricePerTiffin: 3, qty: 2 },
+        { key: "extra_roti", name: "Extra Roti", category: "roti", planKey: plan.key, tuAmount: 2, pricePerTiffin: 1, qty: 1 },
       ], 7, null));
 
       const rows = await addonItemsForOrder(order.id);
       expect(rows.map((r) => [r.category, r.tuAmount])).toEqual([["sabzi", "1.00"], ["sabzi", "1.00"], ["roti", "2.00"]]);
-      expect(rows.every((r) => r.sortOrder >= ADDON_SORT_BASE && r.planId === order.planId)).toBe(true);
+      expect(rows.every((r) => r.sortOrder >= ADDON_SORT_BASE && r.planId === plan.id)).toBe(true);
       await db.delete(orderAddons).where(eq(orderAddons.orderId, order.id));
     } finally {
       await resetTrips(DEPLOY, PREFIX);

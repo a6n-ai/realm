@@ -7,8 +7,8 @@ import { initialSelections, offeredAddons, pickedAddons, type WizardSelections }
 
 afterEach(cleanup);
 
-const sabzi = { key: "extra-sabzi", name: "Extra Sabzi", category: "sabzi", tuAmount: 1, pricePerTiffin: 3.5, maxQty: 2, portion: "8oz" };
-const roti = { key: "extra-roti", name: "Extra Roti", category: "roti", tuAmount: 0.5, pricePerTiffin: 1, maxQty: 4, portion: "2 roti" };
+const sabzi = { key: "extra-sabzi", name: "Extra Sabzi", category: "sabzi", planKey: "veg", tuAmount: 1, pricePerTiffin: 3.5, maxQty: 2, portion: "8oz" };
+const roti = { key: "extra-roti", name: "Extra Roti", category: "roti", planKey: "veg", tuAmount: 0.5, pricePerTiffin: 1, maxQty: 4, portion: "2 roti" };
 const sel = (o: Partial<WizardSelections> = {}): WizardSelections => ({ ...initialSelections, mealSizeId: "msz_1", ...o });
 
 describe("AddonsPanel", () => {

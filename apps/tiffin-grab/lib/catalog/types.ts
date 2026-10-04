@@ -181,19 +181,18 @@ export interface ClientCatalogSnapshot {
 export type CatalogAddon = { key: string; name: string; category: string; planKey?: string | null; tuAmount: number; pricePerTiffin: number; maxQty: number; portion?: string | null };
 
 /**
- * Add-ons a meal size may carry, independent of its own rows (a Sabzi Only size can
- * still add rice). Each add-on picks from one plan's menu — its own planKey, else the
- * meal's plan — and is offered when that menu releases its category (plan.offeredSlots,
- * the same list the menu builder publishes), so every add-on row has a dish to pick.
+ * Add-ons any meal size may carry, independent of its rows and its plan (a Sabzi Only
+ * size can still add rice). Each add-on picks from its own plan's menu, never the
+ * order's, and is offered when that menu releases its category (plan.offeredSlots, the
+ * same list the menu builder publishes), so every add-on row has a dish to pick.
  * The one eligibility rule for the wizard, the admin order form and server-side pricing.
  */
 export function mealSizeAddons(
   catalog: { plans: { key: string; offeredSlots: string[] }[]; addonsByCategory?: Record<string, CatalogAddon[]> },
-  meal: { planKey: string },
 ): CatalogAddon[] {
   const slots = new Map(catalog.plans.map((p) => [p.key, p.offeredSlots]));
   return Object.values(catalog.addonsByCategory ?? {}).flat()
-    .filter((a) => slots.get(a.planKey ?? meal.planKey)?.includes(a.category) ?? false);
+    .filter((a) => (a.planKey != null && slots.get(a.planKey)?.includes(a.category)) ?? false);
 }
 
 export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapshot {

@@ -27,11 +27,9 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     throw new ValidationError("Invalid duration");
   }
 
-  // Eligible add-ons are those on this meal size's plan menu — never trust the
-  // client's addonSelections as-is,
-  // re-derive eligibility (and the maxQty ceiling) from the snapshot and reject
-  // anything outside it.
-  const eligibleAddons = new Map(mealSizeAddons(snapshot, mealSize).map((a) => [a.key, a]));
+  // Never trust the client's addonSelections as-is: re-derive eligibility (and
+  // the maxQty ceiling) from the snapshot and reject anything outside it.
+  const eligibleAddons = new Map(mealSizeAddons(snapshot).map((a) => [a.key, a]));
   const addonSelections = selections.addonSelections ?? [];
   const addons = addonSelections.map(({ key, qty }) => {
     const addon = eligibleAddons.get(key);

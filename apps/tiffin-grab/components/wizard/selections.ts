@@ -43,7 +43,7 @@ export const tiffinBounds = (catalog: ClientCatalogSnapshot) => ({
 export function offeredAddons(catalog: ClientCatalogSnapshot | undefined, s: WizardSelections): CatalogAddon[] {
   const meal = catalog?.mealSizes.find((m) => m.publicId === s.mealSizeId);
   if (!catalog || !meal || meal.trial) return [];
-  return mealSizeAddons(catalog, meal);
+  return mealSizeAddons(catalog);
 }
 
 /** The picked add-ons by name, for summaries; unknown or ineligible keys drop out. */
