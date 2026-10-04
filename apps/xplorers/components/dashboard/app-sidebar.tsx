@@ -98,7 +98,14 @@ export function AppSidebar({
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton asChild isActive={active}>
-                      <Link href={item.href}>
+                      {/* No viewport prefetch (every nav item at once overloads the box);
+                          prefetch on intent instead, down to dashboard/loading.tsx. */}
+                      <Link
+                        href={item.href}
+                        prefetch={false}
+                        onMouseEnter={() => router.prefetch(item.href)}
+                        onFocus={() => router.prefetch(item.href)}
+                      >
                         <item.icon />
                         <span>{item.title}</span>
                       </Link>
