@@ -11,7 +11,7 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { ResponsiveDialog } from "@foundry/design-system";
-import { isValidPhone } from "@foundry/ui/phone-input";
+import { isValidPhoneNumber as isValidPhone } from "libphonenumber-js";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { InquiryMatch } from "../_leads/inquiry-match";
 import { CustomerSearch } from "../_leads/customer-search";
