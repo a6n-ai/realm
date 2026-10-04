@@ -303,9 +303,9 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     });
   }
 
-  // Dishes has a direct planId FK (bigint), so hydrate it to the publicId space
-  // the select dropdown uses — same pattern as meal-sizes' planId above.
-  if (resource === "dishes") {
+  // Dishes and add-ons store planId as a bigint FK, so hydrate it to the publicId
+  // space the select dropdown uses — same pattern as meal-sizes' planId above.
+  if (resource === "dishes" || resource === "addons") {
     const planPublicById = new Map(allPlanRows.map((p) => [p.id, p.publicId]));
     rows.forEach((dto, i) => {
       dto.planId = raw[i].planId == null ? "" : (planPublicById.get(raw[i].planId as bigint) ?? "");
