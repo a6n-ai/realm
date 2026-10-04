@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useListNav } from "@/components/ds";
 import type { FacetDef, Option } from "@/components/ds";
 import { DateRangePicker } from "@foundry/ui/date-range-picker";
 import {
@@ -52,7 +53,7 @@ function DateFacetRenderer(label: string) {
 }
 
 export function ReuiFacetFilters({ spec }: { spec: FacetDef[] }) {
-  const router = useRouter();
+  const nav = useListNav();
   const pathname = usePathname();
   const params = useSearchParams();
 
@@ -173,7 +174,7 @@ export function ReuiFacetFilters({ spec }: { spec: FacetDef[] }) {
     }
 
     sp.delete("page"); // any filter change resets to page 0
-    router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
+    nav(`${pathname}?${sp.toString()}`);
   };
 
   return (

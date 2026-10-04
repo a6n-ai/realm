@@ -1,4 +1,5 @@
-import { asc, desc, eq, gte, ilike, inArray, lte, or, sql, and, type AnyColumn, type SQL } from "drizzle-orm";
+import { eq, gte, ilike, inArray, lte, or, sql, and, type AnyColumn, type SQL } from "drizzle-orm";
+import { pageOrder } from "@foundry/database";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
@@ -66,36 +67,38 @@ export async function listPayments(
   );
 
   const col = SORT_COL[sort.column];
-  const [{ total }] = await db
-    .select({ total: sql<number>`cast(count(*) as int)` })
-    .from(payments)
-    .innerJoin(orders, eq(orders.id, payments.orderId))
-    .leftJoin(users, eq(users.id, orders.userId))
-    .where(where);
-  const rows = await db
-    .select({
-      publicId: payments.publicId,
-      createdAt: payments.createdAt,
-      status: payments.status,
-      method: payments.method,
-      amount: payments.amount,
-      reference: payments.reference,
-      proof: payments.proof,
-      claimedAt: payments.claimedAt,
-      capturedAt: payments.capturedAt,
-      note: payments.note,
-      name: users.name,
-      email: users.email,
-      phone: users.phone,
-      orderPublicId: orders.publicId,
-    })
-    .from(payments)
-    .innerJoin(orders, eq(orders.id, payments.orderId))
-    .leftJoin(users, eq(users.id, orders.userId))
-    .where(where)
-    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-    .limit(page.size)
-    .offset(page.page * page.size);
+  const [[{ total }], rows] = await Promise.all([
+    db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(payments)
+      .innerJoin(orders, eq(orders.id, payments.orderId))
+      .leftJoin(users, eq(users.id, orders.userId))
+      .where(where),
+    db
+      .select({
+        publicId: payments.publicId,
+        createdAt: payments.createdAt,
+        status: payments.status,
+        method: payments.method,
+        amount: payments.amount,
+        reference: payments.reference,
+        proof: payments.proof,
+        claimedAt: payments.claimedAt,
+        capturedAt: payments.capturedAt,
+        note: payments.note,
+        name: users.name,
+        email: users.email,
+        phone: users.phone,
+        orderPublicId: orders.publicId,
+      })
+      .from(payments)
+      .innerJoin(orders, eq(orders.id, payments.orderId))
+      .leftJoin(users, eq(users.id, orders.userId))
+      .where(where)
+      .orderBy(...pageOrder(sort.dir, col, payments.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+  ]);
 
   return {
     rows: await Promise.all(

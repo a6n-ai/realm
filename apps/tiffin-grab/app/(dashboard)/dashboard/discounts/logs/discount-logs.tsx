@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { HistoryIcon } from "lucide-react";
-import { DataTable, SkeletonStatCards, StatGrid, type Column } from "@/components/ds";
+import { DataTable, ListPagination, SkeletonStatCards, StatGrid, type Column } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -37,10 +37,16 @@ export function DiscountLogs({
   stats,
   rows,
   sort,
+  total,
+  page,
+  size,
 }: {
   stats: Stat[];
   rows: DiscountLogRow[];
   sort: SortState<DiscountLogSortColumn>;
+  total: number;
+  page: number;
+  size: number;
 }) {
   const tz = useTimezone();
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
@@ -49,6 +55,7 @@ export function DiscountLogs({
       <StatGrid cols={4} items={stats} />
 
       <DataTable
+        serialOffset={page * size}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
@@ -56,7 +63,7 @@ export function DiscountLogs({
         search={{
           placeholder: "Search discount logs…",
           shortPlaceholder: "Search…",
-          keys: ["code", "email", "redeemedByEmail", "orderPublicId"],
+          debounceMs: 300,
         }}
         emptyIcon={HistoryIcon}
         emptyMessage="No discounts redeemed yet. Coupon redemptions will appear here."
@@ -80,6 +87,7 @@ export function DiscountLogs({
           </>
         )}
       />
+      <ListPagination page={page} size={size} total={total} />
     </>
   );
 }

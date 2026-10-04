@@ -1,5 +1,5 @@
-import { BaseRepository } from "@foundry/database";
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { BaseRepository, pageOrder } from "@foundry/database";
+import { and, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, organization, payments } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -58,7 +58,7 @@ export class PaymentsRepository extends BaseRepository<typeof payments> {
     page: { page: number; size: number },
   ): Promise<{ items: PaymentListRow[]; page: number; size: number; total: number }> {
     const col = PAYMENT_SORT_COL[sort.column] ?? payments.createdAt;
-    const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+    const orderBy = pageOrder(sort.dir, col, payments.id);
     const scopeMode = await resolveOrgScopeMode();
     const scopedWhere =
       scopeMode.mode === "org" ? and(where, eq(payments.organizationId, scopeMode.orgId)) : where;
@@ -83,7 +83,7 @@ export class PaymentsRepository extends BaseRepository<typeof payments> {
         .innerJoin(orders, eq(payments.orderId, orders.id))
         .leftJoin(organization, eq(payments.organizationId, organization.id))
         .where(scopedWhere)
-        .orderBy(orderBy)
+        .orderBy(...orderBy)
         .limit(page.size)
         .offset(page.page * page.size),
       this.db

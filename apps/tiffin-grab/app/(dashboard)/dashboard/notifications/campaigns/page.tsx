@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { and, asc, count, desc, isNull } from "drizzle-orm";
-import { columnResolver, conditionToSql } from "@foundry/database";
+import { and, count, desc, isNull } from "drizzle-orm";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { getSesSendQuota } from "@relay/email";
@@ -109,7 +109,7 @@ async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
   );
 
   const col = SORT_COL[sort.column];
-  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+  const orderBy = pageOrder(sort.dir, col, campaign.id);
 
   const [rows, [totalRow], lists, { timezone }] = await Promise.all([
     db
@@ -125,7 +125,7 @@ async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
       })
       .from(campaign)
       .where(where)
-      .orderBy(orderBy)
+      .orderBy(...orderBy)
       .limit(page.size)
       .offset(page.page * page.size),
     db.select({ n: count() }).from(campaign).where(where),

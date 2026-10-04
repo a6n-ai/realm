@@ -75,6 +75,7 @@ export function TransactionsTable({
   return (
     <div className="space-y-4">
       <DataTable
+        serialOffset={page * size}
         columns={columns}
         rows={rows}
         rowKey={(r) => r.publicId}

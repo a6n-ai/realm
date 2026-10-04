@@ -3,7 +3,7 @@ import { createLogger } from "@foundry/commons/logger";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { getCloverConnection } from "@foundry/clover";
-import { columnResolver, conditionToSql } from "@foundry/database";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
@@ -230,7 +230,7 @@ class ProductsService extends SessionUpdatableService<typeof products> {
         .select()
         .from(products)
         .where(where)
-        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .orderBy(...pageOrder(sort.dir, col, products.id))
         .limit(page.size)
         .offset(page.page * page.size),
       db

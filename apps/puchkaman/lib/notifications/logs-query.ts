@@ -1,5 +1,5 @@
-import { and, asc, count, desc, eq } from "drizzle-orm";
-import { columnResolver, conditionToSql } from "@foundry/database";
+import { and, count, eq } from "drizzle-orm";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { eventLabel } from "@relay/engine/ui";
 import { db } from "@/db/client";
@@ -98,7 +98,7 @@ export async function loadNotificationLogs(
   const where = linkedCampaignId ? and(facetWhere, eq(notificationOutbox.campaignId, linkedCampaignId)) : facetWhere;
 
   const col = SORT_COL[sort.column];
-  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+  const orderBy = pageOrder(sort.dir, col, notificationOutbox.id);
 
   const [rows, [totalRow]] = await Promise.all([
     db
@@ -117,7 +117,7 @@ export async function loadNotificationLogs(
       .from(notificationOutbox)
       .leftJoin(users, eq(users.id, notificationOutbox.recipientId))
       .where(where)
-      .orderBy(orderBy)
+      .orderBy(...orderBy)
       .limit(page.size)
       .offset(page.page * page.size),
     db
@@ -203,7 +203,7 @@ export async function loadSuppressedAddresses(
   );
 
   const col = SUPPRESSION_SORT_COL[sort.column];
-  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+  const orderBy = pageOrder(sort.dir, col, messageSuppression.id);
 
   const [rows, [totalRow]] = await Promise.all([
     db
@@ -217,7 +217,7 @@ export async function loadSuppressedAddresses(
       })
       .from(messageSuppression)
       .where(where)
-      .orderBy(orderBy)
+      .orderBy(...orderBy)
       .limit(page.size)
       .offset(page.page * page.size),
     db.select({ n: count() }).from(messageSuppression).where(where),

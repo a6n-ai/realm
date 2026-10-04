@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { asc, desc, eq, ilike, inArray, and, or, sql } from "drizzle-orm";
+import { eq, ilike, inArray, and, or, sql } from "drizzle-orm";
+import { pageOrder } from "@foundry/database";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { orderActivities, orders, users } from "@/db/schema";
@@ -40,29 +41,30 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
     q ? or(ilike(orders.publicId, `%${q}%`), ilike(orderActivities.note, `%${q}%`), ilike(actor.email, `%${q}%`)) : undefined,
   );
 
-  const [{ total }] = await db
-    .select({ total: sql<number>`cast(count(*) as int)` })
-    .from(orderActivities)
-    .innerJoin(orders, eq(orders.id, orderActivities.orderId))
-    .leftJoin(actor, eq(actor.id, orderActivities.createdBy))
-    .where(where);
-
-  const rows = await db
-    .select({
-      publicId: orderActivities.publicId,
-      createdAt: orderActivities.createdAt,
-      type: orderActivities.type,
-      note: orderActivities.note,
-      actorEmail: actor.email,
-      orderPublicId: orders.publicId,
-    })
-    .from(orderActivities)
-    .innerJoin(orders, eq(orders.id, orderActivities.orderId))
-    .leftJoin(actor, eq(actor.id, orderActivities.createdBy))
-    .where(where)
-    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-    .limit(page.size)
-    .offset(page.page * page.size);
+  const [[{ total }], rows] = await Promise.all([
+    db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(orderActivities)
+      .innerJoin(orders, eq(orders.id, orderActivities.orderId))
+      .leftJoin(actor, eq(actor.id, orderActivities.createdBy))
+      .where(where),
+    db
+      .select({
+        publicId: orderActivities.publicId,
+        createdAt: orderActivities.createdAt,
+        type: orderActivities.type,
+        note: orderActivities.note,
+        actorEmail: actor.email,
+        orderPublicId: orders.publicId,
+      })
+      .from(orderActivities)
+      .innerJoin(orders, eq(orders.id, orderActivities.orderId))
+      .leftJoin(actor, eq(actor.id, orderActivities.createdBy))
+      .where(where)
+      .orderBy(...pageOrder(sort.dir, col, orderActivities.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+  ]);
 
   return <LogsTable rows={rows} total={total} page={page.page} size={page.size} sort={sort} />;
 }

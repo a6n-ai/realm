@@ -127,26 +127,10 @@ export async function CustomersData({ searchParams }: { searchParams: SearchPara
     { kind: "search", fields: ["name", "phone"] },
   ];
 
-  const { condition, page } = parseFilterState(spec, sp);
-  
-  // parseFilterState turns select into an `eq` condition on `planCompletesInDays`.
-  // We need to extract it, parse the number, and remove it from `condition`
-  // since `listCustomersPage` doesn't know about `planCompletesInDays` column in DB.
-  let planCompletesInDays: number | undefined;
-  if (sp.planCompletesInDays) {
-    const parsed = Number(sp.planCompletesInDays);
-    if (!isNaN(parsed)) planCompletesInDays = parsed;
-  }
-
-  // To avoid `conditionToSql` failing on `planCompletesInDays` not being in columnResolver,
-  // we could just omit it from `spec` or remove it from the URL params before parsing.
-  // Actually, wait, `parseFilterState` creates the condition. If we leave it in `spec`,
-  // `conditionToSql` will crash if we don't map `planCompletesInDays` in `columnResolver`.
-  // Since we pass it via `customFilters`, we can just NOT put it in `spec` and render a custom UI?
-  // No, `ListSearchFilters` relies on `spec`.
-  
-  // So instead, we'll parse the condition with a spec that excludes it, 
-  // but we'll pass the full spec to `CustomersList` for UI rendering.
+  // planCompletesInDays is a derived value, not a column: the full spec drives the
+  // filter UI, the DB condition is parsed without it and it goes in as a custom filter.
+  const parsed = Number(sp.planCompletesInDays);
+  const planCompletesInDays = sp.planCompletesInDays && Number.isFinite(parsed) ? parsed : undefined;
   const dsSpec = spec.filter((s) => s.kind !== "select" || s.field !== "planCompletesInDays");
   const { condition: dbCondition, page: dbPage } = parseFilterState(dsSpec, sp);
 

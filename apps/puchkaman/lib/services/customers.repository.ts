@@ -1,7 +1,7 @@
-import { stripCreateOnly, columnResolver, conditionToSql } from "@foundry/database";
+import { stripCreateOnly, columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { and, asc, desc, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
+import { and, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { cloverCustomers, organization } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -49,7 +49,7 @@ export class CloverCustomersRepository extends ClientScopedRepository<typeof clo
       ),
     );
     const col = SORT_COL[sort.column] ?? cloverCustomers.name;
-    const orderBy = sort.dir === "desc" ? desc(col) : asc(col);
+    const orderBy = pageOrder(sort.dir, col, cloverCustomers.id);
 
     const [rows, [{ count }]] = await Promise.all([
       this.db
@@ -57,7 +57,7 @@ export class CloverCustomersRepository extends ClientScopedRepository<typeof clo
         .from(cloverCustomers)
         .leftJoin(organization, eq(cloverCustomers.organizationId, organization.id))
         .where(where)
-        .orderBy(orderBy)
+        .orderBy(...orderBy)
         .limit(page.size)
         .offset(page.page * page.size),
       this.db

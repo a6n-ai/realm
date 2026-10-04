@@ -1,7 +1,7 @@
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { columnResolver, conditionToSql } from "@foundry/database";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { auditLog, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -52,7 +52,7 @@ class AuditService {
   ): Promise<Page<AuditListRow>> {
     const where = conditionToSql(condition, resolveAuditFacet);
     const col = SORT_COL[sort.column] ?? auditLog.createdAt;
-    const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+    const orderBy = pageOrder(sort.dir, col, auditLog.id);
 
     const [rows, [{ count }]] = await Promise.all([
       db
@@ -70,7 +70,7 @@ class AuditService {
         .from(auditLog)
         .leftJoin(users, eq(auditLog.createdBy, users.id))
         .where(where)
-        .orderBy(orderBy)
+        .orderBy(...orderBy)
         .limit(page.size)
         .offset(page.page * page.size),
       db

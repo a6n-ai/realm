@@ -36,27 +36,28 @@ export type MoneyLedgerTx = {
 /** Paginated subscription receipts for the signed-in customer (IDOR-gated). */
 export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Page<CustomerBill>> {
   const where = eq(orders.userId, userId);
-  const rows = await db
-    .select({
-      publicId: orders.publicId,
-      deploymentId: orders.deploymentId,
-      planName: plans.name,
-      status: orders.status,
-      total: orders.total,
-      createdAt: orders.createdAt,
-      id: orders.id,
-    })
-    .from(orders)
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .where(where)
-    .orderBy(desc(orders.createdAt))
-    .limit(page.size)
-    .offset(page.page * page.size);
-
-  const [{ count }] = await db
-    .select({ count: sql<number>`cast(count(*) as int)` })
-    .from(orders)
-    .where(where);
+  const [rows, [{ count }]] = await Promise.all([
+    db
+      .select({
+        publicId: orders.publicId,
+        deploymentId: orders.deploymentId,
+        planName: plans.name,
+        status: orders.status,
+        total: orders.total,
+        createdAt: orders.createdAt,
+        id: orders.id,
+      })
+      .from(orders)
+      .innerJoin(plans, eq(orders.planId, plans.id))
+      .where(where)
+      .orderBy(desc(orders.createdAt), desc(orders.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+    db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(orders)
+      .where(where),
+  ]);
 
   if (rows.length === 0) {
     return { items: [], page: page.page, size: page.size, total: count };
@@ -115,27 +116,28 @@ export async function myMoneyLedgerPage(
   );
   const where = facet ? and(eq(ledgerEntries.userId, userId), facet) : eq(ledgerEntries.userId, userId);
 
-  const rows = await db
-    .select({
-      publicId: ledgerEntries.publicId,
-      type: ledgerEntries.type,
-      direction: ledgerEntries.direction,
-      amount: ledgerEntries.amount,
-      memo: ledgerEntries.memo,
-      createdAt: ledgerEntries.createdAt,
-      orderPublicId: orders.publicId,
-    })
-    .from(ledgerEntries)
-    .leftJoin(orders, eq(ledgerEntries.orderId, orders.id))
-    .where(where)
-    .orderBy(desc(ledgerEntries.createdAt))
-    .limit(page.size)
-    .offset(page.page * page.size);
-
-  const [{ count }] = await db
-    .select({ count: sql<number>`cast(count(*) as int)` })
-    .from(ledgerEntries)
-    .where(where);
+  const [rows, [{ count }]] = await Promise.all([
+    db
+      .select({
+        publicId: ledgerEntries.publicId,
+        type: ledgerEntries.type,
+        direction: ledgerEntries.direction,
+        amount: ledgerEntries.amount,
+        memo: ledgerEntries.memo,
+        createdAt: ledgerEntries.createdAt,
+        orderPublicId: orders.publicId,
+      })
+      .from(ledgerEntries)
+      .leftJoin(orders, eq(ledgerEntries.orderId, orders.id))
+      .where(where)
+      .orderBy(desc(ledgerEntries.createdAt), desc(ledgerEntries.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+    db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(ledgerEntries)
+      .where(where),
+  ]);
 
   return {
     items: rows.map((r) => ({ ...r, orderPublicId: r.orderPublicId ?? null })),

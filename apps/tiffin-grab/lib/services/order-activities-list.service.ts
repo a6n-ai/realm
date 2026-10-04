@@ -1,7 +1,7 @@
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { columnResolver, conditionToSql } from "@foundry/database";
-import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
+import { eq, inArray, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { orderActivities, orders, users } from "@/db/schema";
@@ -84,7 +84,7 @@ export async function listOrderActivitiesPage(
 ): Promise<Page<ActivityListRow>> {
   const where = conditionToSql(condition, activitiesResolver());
   const col = SORT_COL[sort.column] ?? orderActivities.createdAt;
-  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+  const orderBy = pageOrder(sort.dir, col, orderActivities.id);
 
   const [rows, [{ count }]] = await Promise.all([
     db
@@ -107,7 +107,7 @@ export async function listOrderActivitiesPage(
       .innerJoin(orders, eq(orders.id, orderActivities.orderId))
       .leftJoin(actor, eq(actor.id, orderActivities.createdBy))
       .where(where)
-      .orderBy(orderBy)
+      .orderBy(...orderBy)
       .limit(page.size)
       .offset(page.page * page.size),
     db

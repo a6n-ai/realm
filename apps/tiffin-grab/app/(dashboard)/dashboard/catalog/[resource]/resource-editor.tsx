@@ -787,6 +787,7 @@ export function ResourceEditor({
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
       <DataTable
+        serialOffset={page * size}
         columns={tableColumns(def)}
         rows={rows}
         rowKey={(r) => r.publicId}

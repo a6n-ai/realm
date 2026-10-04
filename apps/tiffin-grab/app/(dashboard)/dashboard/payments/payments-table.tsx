@@ -72,6 +72,7 @@ export function PaymentsTable({
   return (
     <div className="space-y-4">
     <DataTable
+      serialOffset={page * size}
       columns={COLUMNS}
       rows={rows}
       rowKey={(r) => r.publicId}

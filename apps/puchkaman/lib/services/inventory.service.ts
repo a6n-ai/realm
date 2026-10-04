@@ -1,8 +1,8 @@
 import { NotFoundError, ValidationError } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { columnResolver, conditionToSql } from "@foundry/database";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
+import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   discounts,
@@ -310,7 +310,7 @@ class ProductCategoriesService extends SessionUpdatableService<typeof productCat
         })
         .from(productCategories)
         .where(where)
-        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .orderBy(...pageOrder(sort.dir, col, productCategories.id))
         .limit(page.size)
         .offset(page.page * page.size),
       db
@@ -370,7 +370,7 @@ class ModifierGroupsService extends SessionUpdatableService<typeof modifierGroup
         })
         .from(modifierGroups)
         .where(where)
-        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .orderBy(...pageOrder(sort.dir, col, modifierGroups.id))
         .limit(page.size)
         .offset(page.page * page.size),
       db
@@ -494,7 +494,7 @@ class TaxRatesService extends SessionUpdatableService<typeof taxRates> {
         })
         .from(taxRates)
         .where(where)
-        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .orderBy(...pageOrder(sort.dir, col, taxRates.id))
         .limit(page.size)
         .offset(page.page * page.size),
       db.select({ count: sql<number>`cast(count(*) as int)` }).from(taxRates).where(where),
@@ -534,7 +534,7 @@ class PrinterLabelsService extends SessionUpdatableService<typeof printerLabels>
         })
         .from(printerLabels)
         .where(where)
-        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .orderBy(...pageOrder(sort.dir, col, printerLabels.id))
         .limit(page.size)
         .offset(page.page * page.size),
       db.select({ count: sql<number>`cast(count(*) as int)` }).from(printerLabels).where(where),
@@ -585,7 +585,7 @@ class MenusService extends SessionUpdatableService<typeof menus> {
         })
         .from(menus)
         .where(where)
-        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .orderBy(...pageOrder(sort.dir, col, menus.id))
         .limit(page.size)
         .offset(page.page * page.size),
       db

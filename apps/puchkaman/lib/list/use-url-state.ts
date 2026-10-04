@@ -1,5 +1,6 @@
 "use client";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useListNav } from "@foundry/design-system";
 import { useCallback } from "react";
 
 // Copied from tiffin-grab, matching lib/list/sort.ts: these are app-local list
@@ -12,16 +13,16 @@ export function mergeParam(current: string, key: string, value: string, fallback
 }
 
 export function useUrlState(key: string, fallback: string): [string, (v: string) => void] {
-  const router = useRouter();
+  const nav = useListNav();
   const pathname = usePathname();
   const params = useSearchParams();
   const value = params.get(key) ?? fallback;
   const set = useCallback(
     (v: string) => {
       const qs = mergeParam(params.toString(), key, v, fallback);
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      nav(qs ? `${pathname}?${qs}` : pathname);
     },
-    [key, fallback, params, pathname, router],
+    [key, fallback, params, pathname, nav],
   );
   return [value, set];
 }

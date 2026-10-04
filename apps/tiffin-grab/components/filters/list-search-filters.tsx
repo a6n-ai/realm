@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useListNav } from "@/components/ds";
 import { SearchInput, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "./reui-facet-filters";
 
@@ -21,7 +22,7 @@ export function ListSearchFilters({
   shortPlaceholder?: string;
 }) {
   const searchFacet = spec.find((f) => f.kind === "search");
-  const router = useRouter();
+  const nav = useListNav();
   const pathname = usePathname();
   const params = useSearchParams();
   const q = params.get("q") ?? "";
@@ -34,9 +35,9 @@ export function ListSearchFilters({
       else sp.delete("q");
       sp.delete("page");
       const qs = sp.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      nav(qs ? `${pathname}?${qs}` : pathname);
     },
-    [params, pathname, router],
+    [params, pathname, nav],
   );
 
   return (

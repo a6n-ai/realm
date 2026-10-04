@@ -1,8 +1,8 @@
 import { ValidationError } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { columnResolver, conditionToSql } from "@foundry/database";
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { bookings, studioSessionOccurrences, studioSessions } from "@/db/schema";
 import { ATTENDANCE_MODES, SESSION_CATEGORIES, type AttendanceMode, type SessionCategory } from "@/db/schema/studio";
@@ -118,7 +118,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
   ): Promise<Page<AdminClassRow>> {
     const where = and(eq(studioSessions.archived, false), conditionToSql(condition, resolveClassFacet));
     const col = CLASS_SORT[sort.column] ?? studioSessions.title;
-    const order = sort.dir === "asc" ? asc(col) : desc(col);
+    const order = pageOrder(sort.dir, col, studioSessions.id);
 
     const [items, [{ count }]] = await Promise.all([
       db
@@ -129,7 +129,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         .from(studioSessions)
         .leftJoin(sessionCountAgg, eq(sessionCountAgg.sessionId, studioSessions.id))
         .where(where)
-        .orderBy(order)
+        .orderBy(...order)
         .limit(page.size)
         .offset(page.page * page.size),
       db.select({ count: sql<number>`cast(count(*) as int)` }).from(studioSessions).where(where),
@@ -156,7 +156,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       conditionToSql(condition, resolveSessionFacet(timeZone)),
     );
     const col = SESSION_SORT[sort.column] ?? studioSessionOccurrences.occursOn;
-    const order = sort.dir === "asc" ? asc(col) : desc(col);
+    const order = pageOrder(sort.dir, col, studioSessionOccurrences.id);
 
     const [items, [{ count }]] = await Promise.all([
       db
@@ -169,7 +169,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
         .leftJoin(confirmedAgg, eq(confirmedAgg.occurrenceId, studioSessionOccurrences.id))
         .where(where)
-        .orderBy(order, asc(studioSessions.startsAt))
+        .orderBy(order[0], asc(studioSessions.startsAt), order[1])
         .limit(page.size)
         .offset(page.page * page.size),
       db

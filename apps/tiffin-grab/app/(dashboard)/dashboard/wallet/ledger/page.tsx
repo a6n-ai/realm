@@ -1,11 +1,12 @@
 import { Suspense } from "react";
-import { asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { unexpired } from "@foundry/wallet";
 import { walletLedger, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { SkeletonStatCards, StatGrid } from "@/components/ds";
+import { SkeletonStatCards, StatGrid, parseFilterState } from "@/components/ds";
+import { pageOrder } from "@foundry/database";
 import { LedgerTable, LedgerTableSkeleton } from "./ledger-table";
 
 const SORT_COL = {
@@ -20,7 +21,7 @@ const SORT_COL = {
 
 type WalletSortColumn = keyof typeof SORT_COL;
 
-type SearchParams = Promise<{ q?: string; sort?: string; dir?: string }>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function WalletLedgerPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -123,29 +124,37 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
       )
     : undefined;
 
-  const col = SORT_COL[sort.column];
-  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+  const { page } = parseFilterState([], sp);
 
-  const rows = await db
-    .select({
-      publicId: walletLedger.publicId,
-      createdAt: walletLedger.createdAt,
-      direction: walletLedger.direction,
-      eventType: walletLedger.eventType,
-      sourceType: walletLedger.sourceType,
-      coins: walletLedger.coins,
-      memo: walletLedger.memo,
-      email: users.email,
-      orderPublicId: orders.publicId,
-    })
-    .from(walletLedger)
-    .leftJoin(users, eq(users.id, walletLedger.userId))
-    .leftJoin(orders, eq(orders.id, walletLedger.orderId))
-    .where(where)
-    .orderBy(orderBy)
-    .limit(100);
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        publicId: walletLedger.publicId,
+        createdAt: walletLedger.createdAt,
+        direction: walletLedger.direction,
+        eventType: walletLedger.eventType,
+        sourceType: walletLedger.sourceType,
+        coins: walletLedger.coins,
+        memo: walletLedger.memo,
+        email: users.email,
+        orderPublicId: orders.publicId,
+      })
+      .from(walletLedger)
+      .leftJoin(users, eq(users.id, walletLedger.userId))
+      .leftJoin(orders, eq(orders.id, walletLedger.orderId))
+      .where(where)
+      .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column], walletLedger.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+    db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(walletLedger)
+      .leftJoin(users, eq(users.id, walletLedger.userId))
+      .leftJoin(orders, eq(orders.id, walletLedger.orderId))
+      .where(where),
+  ]);
 
-  return <LedgerTable rows={rows} sort={sort} />;
+  return <LedgerTable rows={rows} sort={sort} total={total} page={page.page} size={page.size} />;
 }
 
 export type { WalletSortColumn };

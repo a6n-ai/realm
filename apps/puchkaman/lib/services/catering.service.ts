@@ -1,7 +1,7 @@
-import { asc, desc, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { columnResolver, conditionToSql } from "@foundry/database";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { cateringInquiries } from "@/db/schema";
 import type { CateringInquiry } from "@/lib/catering/schema";
@@ -82,7 +82,7 @@ export async function listCateringInquiriesPage(
       .select()
       .from(cateringInquiries)
       .where(where)
-      .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+      .orderBy(...pageOrder(sort.dir, col, cateringInquiries.id))
       .limit(page.size)
       .offset(page.page * page.size),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(cateringInquiries).where(where),

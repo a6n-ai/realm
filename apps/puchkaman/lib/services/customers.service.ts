@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, exists, sql } from "drizzle-orm";
+import { and, desc, eq, exists, sql } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { columnResolver, conditionToSql } from "@foundry/database";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -137,7 +137,7 @@ export async function listCustomersPage(
         users.createdAt,
         users.cloverCustomerId,
       )
-      .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+      .orderBy(...pageOrder(sort.dir, col, users.id))
       .limit(page.size)
       .offset(page.page * page.size),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(users).where(where),

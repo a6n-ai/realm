@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
-import { and, asc, desc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
+import { pageOrder } from "@foundry/database";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { addons, deliveryFrequencies, deliveryZones, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans } from "@/db/schema";
@@ -209,7 +210,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   const statusField = def.statusField ?? "active";
   const columns = getTableColumns(table) as Record<string, DrizzleColumn>;
   const sortCol = columns[sort.column === STATUS_SORT_KEY ? statusField : sort.column];
-  const orderBy = sort.dir === "asc" ? asc(sortCol) : desc(sortCol);
+  const orderBy = pageOrder(sort.dir, sortCol, columns.id);
 
   const spec = facetsFor(def, dynamicOptions);
   const { condition, page } = parseFilterState(spec, sp);
@@ -246,7 +247,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       .select()
       .from(table)
       .where(where)
-      .orderBy(orderBy)
+      .orderBy(...orderBy)
       .limit(page.size)
       .offset(page.page * page.size) as Promise<Record<string, unknown>[]>,
   ]);

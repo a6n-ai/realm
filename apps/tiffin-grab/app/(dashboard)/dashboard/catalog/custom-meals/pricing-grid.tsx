@@ -47,6 +47,7 @@ export function PricingGrid({ rows, spec, page, size, total }: {
     >
       <div className="space-y-4">
         <DataTable
+serialOffset={page * size}
           columns={COLUMNS}
           rows={rows}
           rowKey={(r) => `${r.categoryKey}:${r.planKey}`}
