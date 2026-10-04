@@ -9,6 +9,10 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      # HTTP/3 (QUIC). Caddy already advertises h3 via Alt-Svc; without the UDP
+      # port browsers try it, fail, and fall back. QUIC folds the TCP+TLS
+      # handshakes into one round trip. Needs UDP 443 open in the box's SG.
+      - "443:443/udp"
     volumes:
       # Mount the DIRECTORY, never the file. A single-file bind mount binds that
       # file's inode, and `git pull` replaces the file rather than editing it in
