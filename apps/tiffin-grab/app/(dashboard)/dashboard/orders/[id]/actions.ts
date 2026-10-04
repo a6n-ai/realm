@@ -16,6 +16,8 @@ import {
   changeMealSize,
   rejectPayment,
   verifyPayment,
+  assertOrderVisible,
+  resolveSessionVisibleOrgIds,
 } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
@@ -114,6 +116,7 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
 export async function sendPaymentReminderAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
     await sendPaymentReminder(orderId, paymentPublicId, await currentUserId());
   });
   if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);

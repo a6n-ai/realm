@@ -7,7 +7,7 @@ import { mealPlanKey, type CustomMealItem } from "@/lib/custom-meal/composition"
 import { customMealSchema, findOrCreateCustomMealSize, priceCustomComposition } from "@/lib/services/custom-meal.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
-import { reassignOrder, startAllMigratedOrders, type CreateOrderInput } from "@/lib/services/orders.service";
+import { assertOrderVisible, resolveSessionVisibleOrgIds, reassignOrder, startAllMigratedOrders, type CreateOrderInput } from "@/lib/services/orders.service";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import { getSession } from "@/lib/auth/session";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
@@ -129,6 +129,7 @@ export async function createOrderFlow(input: {
 export async function settleNewOrderWithProofAction(orderPublicId: string, form: FormData): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
     const [internalId, session] = await Promise.all([currentUserId(), getSession()]);
     const paymentPublicId = await findUnpaidPayment(orderPublicId);
     const proof = await uploadPaymentProof(paymentPublicId, form.get("proof"), form.get("proof_thumb"));
@@ -152,6 +153,7 @@ export async function settleNewOrderWithProofAction(orderPublicId: string, form:
 export async function emailPaymentLinkAction(orderPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
     await sendPaymentReminder(orderPublicId, await findUnpaidPayment(orderPublicId), await currentUserId());
   });
   if ("ok" in res) revalidatePath(`/dashboard/orders/${orderPublicId}`);

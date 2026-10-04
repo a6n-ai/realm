@@ -1180,6 +1180,15 @@ export async function resolveSessionVisibleOrgIds(session: {
   return resolveVisibleOrgIds({ platformRole: session.user.platformRole ?? null, memberOrgIds });
 }
 
+/** Staff actions that take an order public id: refuse an order outside the caller's organizations. */
+export async function assertOrderVisible(publicId: string, visible: "all" | string[]): Promise<void> {
+  if (visible !== "all" && visible.length === 0) throw new NotFoundError("Order not found");
+  const [row] = await db.select({ id: orders.id }).from(orders)
+    .where(and(eq(orders.publicId, publicId), visible === "all" ? undefined : inArray(orders.organizationId, visible)))
+    .limit(1);
+  if (!row) throw new NotFoundError("Order not found");
+}
+
 function filterValues(f: FilterCondition): string[] {
   return f.operator === "in" ? (f.value as string[]) : [String(f.value)];
 }
