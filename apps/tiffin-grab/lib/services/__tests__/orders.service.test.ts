@@ -226,3 +226,26 @@ describe("plan overlap guard: only running plans reserve days", () => {
     expect(await earliestNewPlanStart(db, o.userId!)).toBe(before);
   });
 });
+
+describe("activate: a waitlisted plan meets the overlap guard", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("refuses to activate onto days a running plan already holds", async () => {
+    const { ordersService } = await import("../orders.service");
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    await createOrder(input);
+    const laterStart = nextWeekday(new Date());
+    laterStart.setUTCDate(laterStart.getUTCDate() + 7);
+    const second = await createOrder({ ...input, selections: { ...input.selections, startDate: laterStart.toISOString().slice(0, 10) } });
+    const [o2] = await db.select().from(orders).where(eq(orders.publicId, second.publicId));
+    // Waitlisted with the running plan's start: overlaps, and holds no days yet.
+    await db.delete(deliveries).where(eq(deliveries.orderId, o2.id));
+    await db.update(orders).set({ status: "waitlisted", startDate: input.selections.startDate }).where(eq(orders.id, o2.id));
+
+    await expect(ordersService.activate(second.publicId)).rejects.toThrow(/already have a plan running/);
+    const [after] = await db.select().from(orders).where(eq(orders.id, o2.id));
+    expect(after.status).toBe("waitlisted");
+  });
+});

@@ -77,6 +77,12 @@ function firstWeekdayOnOrAfter(iso: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+function dayBeforeIso(iso: string): string {
+  const d = parseIsoDateUtc(iso);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 const multiDayTrialPicks = (picked: readonly string[], weekdays: readonly string[], max: number) => (max > 1 && picked.length ? picked : weekdays);
 
 export function OrderForm({
@@ -541,7 +547,7 @@ export function OrderForm({
                     <FormControl><Input type="date" min={minStart} {...field} /></FormControl>
                     {renewalBound ? (
                       <p className="text-muted-foreground text-xs text-pretty">
-                        Renewal: this customer&apos;s current plan runs until the day before {renewFrom}, so the new plan starts on or after{" "}
+                        Renewal: current plan runs through {dayBeforeIso(renewFrom!)}. The new plan starts on or after{" "}
                         <button type="button" className="text-primary font-medium underline-offset-2 hover:underline" onClick={() => form.setValue("startDate", renewalStart!, { shouldDirty: true, shouldValidate: true })}>
                           {renewalStart}
                         </button>.
