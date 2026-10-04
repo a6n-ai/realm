@@ -15,7 +15,7 @@ describe("orderAddonValues", () => {
   it("bills price per tiffin × qty × tiffins and snapshots category and portion", () => {
     const [row] = orderAddonValues(
       7n,
-      [{ key: "extra_sabzi", name: "Extra Sabzi", category: "sabzi", tuAmount: 1, pricePerTiffin: 2.5, qty: 2 }],
+      [{ key: "extra_sabzi", name: "Extra Sabzi", category: "sabzi", planKey: "veg", tuAmount: 1, pricePerTiffin: 2.5, qty: 2 }],
       20,
       "org_1",
     );

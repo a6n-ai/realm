@@ -59,18 +59,22 @@ export function orderAddonValues(
   tiffinCount: number,
   organizationId: string | null,
 ) {
-  return addons.map((a) => ({
-    orderId,
-    addonKey: a.key,
-    addonName: a.name,
-    category: a.category,
-    planId: a.planKey ? sql<bigint>`(select ${plans.id} from ${plans} where ${plans.key} = ${a.planKey})` : null,
-    tuAmount: a.tuAmount.toFixed(2),
-    pricePerTiffin: a.pricePerTiffin.toFixed(2),
-    qty: a.qty,
-    amount: (Math.round((a.pricePerTiffin * a.qty * tiffinCount + Number.EPSILON) * 100) / 100).toFixed(2),
-    organizationId,
-  }));
+  return addons.map((a) => {
+    // addons.plan_id is NOT NULL, so a priced add-on always carries its plan.
+    if (!a.planKey) throw new Error(`Add-on ${a.key} has no plan`);
+    return {
+      orderId,
+      addonKey: a.key,
+      addonName: a.name,
+      category: a.category,
+      planId: sql<bigint>`(select ${plans.id} from ${plans} where ${plans.key} = ${a.planKey})`,
+      tuAmount: a.tuAmount.toFixed(2),
+      pricePerTiffin: a.pricePerTiffin.toFixed(2),
+      qty: a.qty,
+      amount: (Math.round((a.pricePerTiffin * a.qty * tiffinCount + Number.EPSILON) * 100) / 100).toFixed(2),
+      organizationId,
+    };
+  });
 }
 
 /**

@@ -155,8 +155,8 @@ export const orderAddons = pgTable("order_addons", {
   // Dish-category key and per-row TU at order time: each qty adds one such row to every
   // tiffin (picks, kitchen, labels), never to swaps.
   category: text("category").notNull(),
-  // addons.plan_id at order time; null = picks follow the order's plan.
-  planId: bigint("plan_id", { mode: "bigint" }).references(() => plans.id),
+  // addons.plan_id at order time: the menu this row's picks come from.
+  planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
   tuAmount: numeric("tu_amount", { precision: 6, scale: 2 }).notNull(),
   pricePerTiffin: numeric("price_per_tiffin", { precision: 10, scale: 2 }).notNull(),
   qty: integer("qty").notNull().default(1),
