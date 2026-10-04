@@ -94,7 +94,7 @@ start. EIP, root volume, and containers (`restart: unless-stopped`, docker enabl
 
 1. **EC2**: Amazon Linux 2023, **x86_64** (CI images are amd64 — Graviton breaks them),
    `t2.micro` + swap (see above), 30 GiB gp3 encrypted, IAM instance profile `realm-tiffin-grab-prod-role`
-   (CloudWatch logs + SES + **SSM Parameter Store read**, see below). SG opens 22/80/443.
+   (CloudWatch logs + SES + **SSM Parameter Store read**, see below). SG opens TCP 22/80/443 and UDP 443 (HTTP/3).
 
    The instance role needs this on top of logs/SES — `deploy.sh` reads config from SSM.
    `kms:Decrypt` is required even for the AWS-managed `alias/aws/ssm` key
