@@ -45,7 +45,7 @@ const ENUM_LABELS: Record<string, string> = {
 };
 
 export function slug(name: string): string {
-  return name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
 // Underscores are allowed alongside hyphens: real seeded keys (meal_sizes.key like

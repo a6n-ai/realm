@@ -586,15 +586,15 @@ function EditorDialog({
     defaultValues: editing.row ? rowToForm(def, editing.row) : emptyForm(def),
   });
 
-  // On create, mirror `key` to slug(name) until the user unlocks it manually.
-  const [keyManual, setKeyManual] = useState(false);
+  // Admins never type a key: on create it is derived from the name (categories call it label).
   const nameVal = form.watch("name");
+  const labelVal = form.watch("label");
   const similarDishes = dishNames
     ? findSimilarDishes(String(nameVal ?? ""), dishNames.filter((d) => d.id !== editing.id))
     : [];
   useEffect(() => {
-    if (isNew && def.keyed && !keyManual) form.setValue("key", slug(String(nameVal ?? "")));
-  }, [isNew, def.keyed, keyManual, nameVal, form]);
+    if (isNew && def.keyed) form.setValue("key", slug(String(nameVal ?? labelVal ?? "")));
+  }, [isNew, def.keyed, nameVal, labelVal, form]);
 
   async function onSubmit(values: Record<string, unknown>) {
     try {
@@ -603,14 +603,13 @@ function EditorDialog({
       router.refresh();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Save failed";
-      if (/key|unique|duplicate/i.test(msg)) form.setError("key", { message: "That key is already taken" });
-      form.setError("root", { message: msg });
+      form.setError("root", { message: /key|unique|duplicate/i.test(msg) ? `A ${def.singular} with this name already exists` : msg });
     }
   }
 
   const submitting = form.formState.isSubmitting;
-  const keyField = def.fields.find((f) => f.key === "key");
   const watched = form.watch();
+  const formFields = isNew ? def.fields.filter((f) => f.key !== "key") : def.fields;
 
   return (
     <ResponsiveDialog
@@ -633,8 +632,8 @@ function EditorDialog({
         <form id="resource-editor-form" onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {def.note ? <p className="text-muted-foreground text-sm sm:col-span-2">{def.note}</p> : null}
-            {def.fields.map((f, i) => {
-              const prevSection = i > 0 ? def.fields[i - 1].section : undefined;
+            {formFields.map((f, i) => {
+              const prevSection = i > 0 ? formFields[i - 1].section : undefined;
               const showSectionHeader = f.section && f.section !== prevSection;
               return (
                 <Fragment key={f.key}>
@@ -660,15 +659,6 @@ function EditorDialog({
                           ))}
                         </ul>
                       </div>
-                    ) : null}
-                    {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs transition-colors"
-                        onClick={() => setKeyManual(true)}
-                      >
-                        <PencilIcon className="size-3" /> Edit key
-                      </button>
                     ) : null}
                   </div>
                 </Fragment>
