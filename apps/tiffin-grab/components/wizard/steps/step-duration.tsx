@@ -119,6 +119,18 @@ export function StepDuration({
           Your current plan runs through{" "}
           <strong>{formatDateOnly(dayBefore(minDate), { mode: "short" })}</strong>. This renewal can
           start on or after <strong>{formatDateOnly(minDate, { mode: "short" })}</strong>.
+          {selections.startDate !== earliest ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                className="font-semibold underline underline-offset-2"
+                onClick={() => { set({ startDate: earliest }); setStartDateError(null); }}
+              >
+                Renew from {formatDateOnly(earliest, { mode: "short" })}
+              </button>
+            </>
+          ) : null}
         </CurrentPlanHint>
       ) : currentPlan ? (
         <CurrentPlanHint>

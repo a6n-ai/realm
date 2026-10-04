@@ -49,7 +49,7 @@ import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
-import { reservedEndDatesExclusive } from "./order-window";
+import { assertNoPlanOverlap } from "./order-window";
 import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
 import { appToday, validateStartDate } from "./start-date";
@@ -453,29 +453,12 @@ export async function createOrder(
     // calendar days (materializeDeliveries wrote rows for them), so a second
     // order starting inside that reserved band would double-book delivery.
     // Waitlisted orders never materialize deliveries (out of zone), so they
-    // don't occupy any dates and are excluded from this check.
-    const newStart = parseIsoDateUtc(input.selections.startDate);
-    const newEndExclusive = new Date(newStart);
-    newEndExclusive.setUTCDate(newEndExclusive.getUTCDate() + input.selections.durationWeeks * 7);
-    const currentOrders = await tx
-      .select({ id: orders.id, startDate: orders.startDate, durationWeeks: orders.durationWeeks })
-      .from(orders)
-      .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
-    // The reserved band uses each order's true last materialized delivery date, not
-    // just startDate + durationWeeks*7 — pooled/rescheduled tiffins can push real
-    // deliveries later than that naive window (see reservedEndDatesExclusive's doc).
-    const reservedEnds = await reservedEndDatesExclusive(tx, currentOrders);
-    for (const o of currentOrders) {
-      const existingStart = parseIsoDateUtc(o.startDate);
-      const existingEndExclusive = reservedEnds.get(o.id.toString())!;
-      if (newStart < existingEndExclusive && existingStart < newEndExclusive) {
-        const lastDay = new Date(existingEndExclusive);
-        lastDay.setUTCDate(lastDay.getUTCDate() - 1);
-        throw new ValidationError(
-          `You already have a plan running through ${lastDay.toISOString().slice(0, 10)} — choose a start date after it ends`,
-        );
-      }
-    }
+    // don't occupy any dates and are excluded from this check, as are cancelled/completed.
+    await assertNoPlanOverlap(tx, {
+      userId,
+      startDate: input.selections.startDate,
+      durationWeeks: input.selections.durationWeeks,
+    });
 
     // Server-side discount resolution. Both coupon kinds land as a single
     // adjustments[] line; the redemptions (row + ledger debit) are written
@@ -1489,6 +1472,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // comment above): those helpers aren't tx-aware, so a raw in-tx write is
     // the smaller change vs threading a tx through the shared service layer.
     const updated = await db.transaction(async (tx) => {
+      // Waitlisted orders skipped the overlap guard at checkout (they held no days); now they will.
+      if (order.userId != null) {
+        await assertNoPlanOverlap(tx, { userId: order.userId, startDate: order.startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
+      }
       const [row] = await tx
         .update(orders)
         .set({ status: "active", updatedBy: actorId })
@@ -1557,6 +1544,11 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       if (rows[0]!.cutoffAt <= Date.now()) {
         throw new ValidationError(`The cutoff for ${rows[0]!.deliveryDate} has passed. Pick a later start date`);
       }
+      if (order.userId != null) {
+        // Bounded rows can run past durationWeeks; cover the span they actually occupy.
+        const spanDays = Math.round((parseIsoDateUtc(rows.at(-1)!.deliveryDate).getTime() - parseIsoDateUtc(startDate).getTime()) / 86_400_000) + 1;
+        await assertNoPlanOverlap(tx, { userId: order.userId, startDate, durationWeeks: Math.max(order.durationWeeks, Math.ceil(spanDays / 7)), excludeOrderId: order.id });
+      }
 
       await tx.update(orders).set({ status: "active", startDate, updatedBy: actorId, updatedAt: Date.now() })
         .where(eq(orders.id, order.id));
@@ -1623,6 +1615,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       } else {
         const [plan] = await tx.select({ allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1);
         validateStartDate(startDate, plan?.allowedStartDays ?? [], today);
+      }
+      // Waitlisted/pending plans hold no days yet; they meet the guard when they activate.
+      if (order.userId != null && (order.status === "active" || order.status === "paused")) {
+        await assertNoPlanOverlap(tx, { userId: order.userId, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
       }
 
       const [moved] = await tx.update(orders).set({ startDate, updatedBy: actorId, updatedAt: Date.now() })

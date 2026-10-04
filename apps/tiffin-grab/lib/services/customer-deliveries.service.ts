@@ -24,7 +24,7 @@ import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
 import { toDropOffValues } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
-import { reservedEndDatesExclusive } from "./order-window";
+import { earliestNewPlanStart } from "./order-window";
 import { getAppSettings } from "./app-settings.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "./session-service";
@@ -496,18 +496,7 @@ export async function myTiffinCounts(userId: bigint, orderPublicId: string): Pro
 // discovering the conflict after the customer fills out the whole form and submits.
 // Returns null when the customer has no active/paused orders (no constraint to apply).
 export async function myEarliestNewPlanStartDate(userId: bigint): Promise<string | null> {
-  const currentOrders = await db
-    .select({ id: orders.id, startDate: orders.startDate, durationWeeks: orders.durationWeeks })
-    .from(orders)
-    .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
-  if (currentOrders.length === 0) return null;
-
-  const reservedEnds = await reservedEndDatesExclusive(db, currentOrders);
-  let latest: Date | null = null;
-  for (const end of reservedEnds.values()) {
-    if (latest == null || end > latest) latest = end;
-  }
-  return latest ? latest.toISOString().slice(0, 10) : null;
+  return earliestNewPlanStart(db, userId);
 }
 
 /** Original delivery id -> the day its tiffin moved to (the picked eat day for a single-day trip, else the make-up's delivery date). */

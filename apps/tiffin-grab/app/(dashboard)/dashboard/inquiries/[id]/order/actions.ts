@@ -14,6 +14,7 @@ import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { earliestNewPlanStart } from "@/lib/services/order-window";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
@@ -94,6 +95,17 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
 export async function trialFormSettings() {
   await requireStaff();
   return getTrialSettings(await resolveRequestOrg());
+}
+
+// First day a new plan for this customer may start (the day after their running plans
+// end), or null for a new customer / no running plan. Same rule createOrder enforces.
+export async function customerRenewalStart(email: string): Promise<string | null> {
+  await requireStaff();
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes("@")) return null;
+  const [user] = await db.select({ id: users.id }).from(users)
+    .where(and(eq(users.email, normalized), eq(users.role, "user"))).limit(1);
+  return user ? earliestNewPlanStart(db, user.id) : null;
 }
 
 // Returned, not thrown: production strips a thrown action's message, and staff

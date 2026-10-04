@@ -19,7 +19,10 @@ export function StartDateControl({
   minDate,
   allowedDays,
   blockedReason = null,
+  otherPlanEnd = null,
 }: {
+  /** First free day after the customer's other running plans, when they have any. */
+  otherPlanEnd?: string | null;
   /** Why the start can't move; shown as a tooltip on a disabled Edit. */
   blockedReason?: string | null;
   orderId: string;
@@ -80,6 +83,14 @@ export function StartDateControl({
         <Label htmlFor="order-start-date">Start date</Label>
         <Input id="order-start-date" type="date" min={minDate} value={value} onChange={(e) => setValue(e.target.value)} className="w-48" />
         <p className="text-muted-foreground text-xs">Earliest {minDate} · starts on {allowedDays.map(dayName).join(", ")}</p>
+        {otherPlanEnd && otherPlanEnd > minDate ? (
+          <p className="text-muted-foreground text-xs text-pretty">
+            This customer has another plan running; its first free day is {otherPlanEnd}. A start that overlaps it is refused.{" "}
+            <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setValue(otherPlanEnd)}>
+              Start {otherPlanEnd}
+            </Button>
+          </p>
+        ) : null}
         {error && <p role="alert" className="text-destructive text-sm">{error}</p>}
       </div>
     </ResponsiveDialog>

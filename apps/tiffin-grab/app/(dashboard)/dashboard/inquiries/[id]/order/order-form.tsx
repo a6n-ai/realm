@@ -34,7 +34,7 @@ import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialDeliveryDates, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
-import { convertInquiry, previewPrice, repCouponInfo, trialFormSettings, type RepCouponInfo } from "./actions";
+import { convertInquiry, customerRenewalStart, previewPrice, repCouponInfo, trialFormSettings, type RepCouponInfo } from "./actions";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
 
@@ -70,6 +70,14 @@ type Catalog = {
 };
 
 type EnabledSlot = { key: string; label: string };
+
+function firstWeekdayOnOrAfter(iso: string): string {
+  const d = parseIsoDateUtc(iso);
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+const multiDayTrialPicks = (picked: readonly string[], weekdays: readonly string[], max: number) => (max > 1 && picked.length ? picked : weekdays);
 
 export function OrderForm({
   inquiryId,
@@ -123,6 +131,8 @@ export function OrderForm({
   const [successOpen, setSuccessOpen] = useState(false);
   const [trialSettings, setTrialSettings] = useState<TrialSettings | null>(null);
   const [pickedDays, setPickedDays] = useState<DayOfWeek[]>([]);
+  // First free day after the customer's running plans; the new plan renews from there.
+  const [renewFrom, setRenewFrom] = useState<string | null>(null);
 
   const defaultSlots = enabledSlots.some((s) => s.key === "lunch")
     ? ["lunch"]
@@ -191,9 +201,17 @@ export function OrderForm({
   // Trial send days for this meal: no Sat/Sun when it has no weekend dish.
   const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true) : [];
   const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
-  const minStart = isTrial && trialSettings
+  const baseMinStart = isTrial && trialSettings
     ? earliestTrialIso(appToday(catalog.timezone), trialWeekdays)
     : nextWeekday(appToday(catalog.timezone)).toISOString().slice(0, 10);
+  const renewalBound = renewFrom != null && renewFrom > baseMinStart;
+  const minStart = renewalBound ? renewFrom : baseMinStart;
+  // The renewal date itself may fall on a non-start day; offer the first one on/after it.
+  const renewalStart = !renewalBound
+    ? null
+    : isTrial
+      ? nextTrialStart(renewFrom, multiDayTrialPicks(pickedDays, trialWeekdays, trialSettings?.maxDays ?? 0)) ?? renewFrom
+      : firstWeekdayOnOrAfter(renewFrom);
   const realPayments = paymentMethods.length > 0;
   const trialMax = trialSettings?.maxDays ?? 0;
   const multiDayTrial = trialMax > 1;
@@ -216,6 +234,21 @@ export function OrderForm({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trialKey]);
+
+  useEffect(() => {
+    let live = true;
+    const t = setTimeout(() => {
+      customerRenewalStart(email ?? "").then((d) => { if (live) setRenewFrom(d); }).catch(() => { if (live) setRenewFrom(null); });
+    }, 300);
+    return () => { live = false; clearTimeout(t); };
+  }, [email]);
+
+  // Renewal: an empty or now-overlapping start jumps to the day after the current plan.
+  useEffect(() => {
+    if (!renewalStart) return;
+    if (!startDate || startDate < renewFrom!) form.setValue("startDate", renewalStart, { shouldDirty: true, shouldValidate: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renewalStart]);
 
   // A trial starts on a picked day; move the start date there when the picks change.
   useEffect(() => {
@@ -506,6 +539,14 @@ export function OrderForm({
                   <FormItem>
                     <FormLabel>Start date <span className="text-destructive">*</span></FormLabel>
                     <FormControl><Input type="date" min={minStart} {...field} /></FormControl>
+                    {renewalBound ? (
+                      <p className="text-muted-foreground text-xs text-pretty">
+                        Renewal: this customer&apos;s current plan runs until the day before {renewFrom}, so the new plan starts on or after{" "}
+                        <button type="button" className="text-primary font-medium underline-offset-2 hover:underline" onClick={() => form.setValue("startDate", renewalStart!, { shouldDirty: true, shouldValidate: true })}>
+                          {renewalStart}
+                        </button>.
+                      </p>
+                    ) : null}
                     <FormMessage />
                   </FormItem>
                 )}

@@ -9,6 +9,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
 import { appToday } from "@/lib/services/start-date";
+import { earliestNewPlanStart } from "@/lib/services/order-window";
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
@@ -119,7 +120,7 @@ async function OrderDetail({
   // instead of five sequential round trips.
   const migratedWaiting = order.deploymentId.startsWith("wc-") && order.status === "pending";
   const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
-  const [categoryRows, catalogSnapshot, , sub, startBlocker] = await Promise.all([
+  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd] = await Promise.all([
     dishCategoriesService.forPlanType(planType),
     loadCatalogSnapshot(order.organizationId),
     // Staff-on-behalf claim form for payments that still need a reference/screenshot.
@@ -136,6 +137,8 @@ async function OrderDetail({
     migratedWaiting
       ? "Use Start plan to set when this WordPress plan begins"
       : ordersService.startChangeBlocker(order.id, order.status),
+    // Moving the start must not land inside another running plan of this customer.
+    order.userId != null ? earliestNewPlanStart(db, order.userId, order.id) : null,
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((c) => [c.key, c.label]));
   const checkoutMethodId = (order.pricingSnapshot as { paymentMethodId?: string } | null)?.paymentMethodId;
@@ -189,6 +192,7 @@ async function OrderDetail({
       orderId={order.publicId}
       startDate={order.startDate}
       minDate={order.trialLength != null ? earliestTrialIso(startToday, startDays) : nextWeekday(startToday).toISOString().slice(0, 10)}
+      otherPlanEnd={otherPlanEnd}
       allowedDays={startDays}
     />
   );

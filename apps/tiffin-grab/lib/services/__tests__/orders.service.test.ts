@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { desc, eq, ne } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
@@ -190,5 +190,39 @@ describe("createOrder (integration)", () => {
     const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
     expect(o.latitude).toBeNull();
     expect(o.longitude).toBeNull();
+  });
+});
+
+describe("plan overlap guard: only running plans reserve days", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("a cancelled plan does not block a new plan on the same days", async () => {
+    const { earliestNewPlanStart } = await import("../order-window");
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    const first = await createOrder(input);
+    const [o] = await db.select().from(orders).where(eq(orders.publicId, first.publicId));
+    expect(await earliestNewPlanStart(db, o.userId!)).not.toBeNull();
+
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, o.id));
+    await db.update(deliveries).set({ status: "cancelled" }).where(eq(deliveries.orderId, o.id));
+
+    expect(await earliestNewPlanStart(db, o.userId!)).toBeNull();
+    await expect(createOrder(input)).resolves.toBeTruthy();
+  });
+
+  it("cancelled delivery rows of a running plan do not stretch its reserved window", async () => {
+    const { earliestNewPlanStart } = await import("../order-window");
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    const first = await createOrder(input);
+    const [o] = await db.select().from(orders).where(eq(orders.publicId, first.publicId));
+    const before = await earliestNewPlanStart(db, o.userId!);
+
+    const [last] = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id)).orderBy(desc(deliveries.deliveryDate)).limit(1);
+    await db.insert(deliveries).values({ ...last, id: undefined, publicId: undefined, deliveryDate: "2099-01-05", status: "cancelled" });
+
+    expect(await earliestNewPlanStart(db, o.userId!)).toBe(before);
   });
 });
