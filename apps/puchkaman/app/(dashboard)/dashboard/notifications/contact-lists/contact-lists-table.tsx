@@ -54,12 +54,13 @@ export function ContactListsTable({
   return (
     <div className="space-y-4">
       <DataTable
+        serialOffset={page * size}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
         idHref={(r) => `/dashboard/notifications/contact-lists/${r.publicId}`}
-        search={{ placeholder: "Search lists…", shortPlaceholder: "Search…", keys: ["name"] }}
+        search={{ placeholder: "Search lists…", shortPlaceholder: "Search…", debounceMs: 300 }}
         filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={ListIcon}
         emptyMessage="No lists yet."

@@ -155,15 +155,17 @@ const COLUMNS: readonly Column<CouponSortColumn | "value" | "actions">[] = [
   { key: "window", label: "Window", sortable: true },
   { key: "stackable", label: "Stackable", sortable: true },
   { key: "status", label: "Status", sortable: true },
-  { key: "actions", label: "", width: "w-px" },
+  { key: "actions", label: "", width: "w-44" },
 ];
 
 export function CouponsManager({
   coupons,
   sort,
+  pagination,
 }: {
   coupons: CouponRow[];
   sort: SortState<CouponSortColumn>;
+  pagination: { page: number; size: number };
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
@@ -237,6 +239,7 @@ export function CouponsManager({
         rowKey={(c) => c.publicId}
         sort={sort}
         search={{ placeholder: "Search coupons…", shortPlaceholder: "Search…", keys: ["code", "name"] }}
+        pagination={pagination}
         rowClassName={(c) => (c.active ? "" : "opacity-60")}
         emptyIcon={TicketPercentIcon}
         emptyMessage="No coupons yet."

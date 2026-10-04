@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { asc, count, desc, sql } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 import { ListIcon, UsersIcon } from "lucide-react";
-import { columnResolver, conditionToSql } from "@foundry/database";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { ResponsiveDialog, SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -127,7 +127,7 @@ async function ContactListsData({ searchParams }: { searchParams: SearchParams }
   );
 
   const col = SORT_COL[sort.column];
-  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+  const orderBy = pageOrder(sort.dir, col, contactList.id);
 
   const [rows, [totalRow], { timezone }] = await Promise.all([
     db
@@ -143,7 +143,7 @@ async function ContactListsData({ searchParams }: { searchParams: SearchParams }
       })
       .from(contactList)
       .where(where)
-      .orderBy(orderBy)
+      .orderBy(...orderBy)
       .limit(page.size)
       .offset(page.page * page.size),
     db.select({ n: count() }).from(contactList).where(where),

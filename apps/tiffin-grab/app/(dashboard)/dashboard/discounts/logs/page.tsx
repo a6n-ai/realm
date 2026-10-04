@@ -1,10 +1,12 @@
 import { Suspense } from "react";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { eq, ilike, or, sql } from "drizzle-orm";
+import { pageOrder } from "@foundry/database";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
+import { parseFilterState } from "@/components/ds";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
 
 const customer = alias(users, "customer");
@@ -21,7 +23,7 @@ const SORT_COL = {
 
 type DiscountLogSortColumn = keyof typeof SORT_COL;
 
-type SearchParams = Promise<{ sort?: string; dir?: string }>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function DiscountLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -36,16 +38,25 @@ export default function DiscountLogsPage({ searchParams }: { searchParams: Searc
 async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
+  const sp = await searchParams;
   const sort: SortState<DiscountLogSortColumn> = parseSort(
-    await searchParams,
+    sp,
     ["time", "coupon", "user", "amount", "order", "redeemedBy"],
     { column: "time", dir: "desc" },
   );
 
-  const col = SORT_COL[sort.column];
-  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+  const { page } = parseFilterState([], sp);
+  const q = sp.q?.trim();
+  const where = q
+    ? or(
+        ilike(coupons.code, `%${q}%`),
+        ilike(customer.email, `%${q}%`),
+        ilike(redeemer.email, `%${q}%`),
+        ilike(orders.publicId, `%${q}%`),
+      )
+    : undefined;
 
-  const [[agg], rows] = await Promise.all([
+  const [[agg], rows, [{ total }]] = await Promise.all([
     db
       .select({
         redemptions: sql<number>`cast(count(*) as int)`,
@@ -55,22 +66,32 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
       })
       .from(couponRedemptions),
     db
-    .select({
-      publicId: couponRedemptions.publicId,
-      createdAt: couponRedemptions.createdAt,
-      amountApplied: couponRedemptions.amountApplied,
-      code: coupons.code,
-      email: customer.email,
-      redeemedByEmail: redeemer.email,
-      orderPublicId: orders.publicId,
-    })
-    .from(couponRedemptions)
-    .leftJoin(coupons, eq(coupons.id, couponRedemptions.couponId))
-    .leftJoin(customer, eq(customer.id, couponRedemptions.userId))
-    .leftJoin(redeemer, eq(redeemer.id, couponRedemptions.redeemedBy))
-    .leftJoin(orders, eq(orders.id, couponRedemptions.orderId))
-    .orderBy(orderBy)
-    .limit(100),
+      .select({
+        publicId: couponRedemptions.publicId,
+        createdAt: couponRedemptions.createdAt,
+        amountApplied: couponRedemptions.amountApplied,
+        code: coupons.code,
+        email: customer.email,
+        redeemedByEmail: redeemer.email,
+        orderPublicId: orders.publicId,
+      })
+      .from(couponRedemptions)
+      .leftJoin(coupons, eq(coupons.id, couponRedemptions.couponId))
+      .leftJoin(customer, eq(customer.id, couponRedemptions.userId))
+      .leftJoin(redeemer, eq(redeemer.id, couponRedemptions.redeemedBy))
+      .leftJoin(orders, eq(orders.id, couponRedemptions.orderId))
+      .where(where)
+      .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column], couponRedemptions.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+    db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(couponRedemptions)
+      .leftJoin(coupons, eq(coupons.id, couponRedemptions.couponId))
+      .leftJoin(customer, eq(customer.id, couponRedemptions.userId))
+      .leftJoin(redeemer, eq(redeemer.id, couponRedemptions.redeemedBy))
+      .leftJoin(orders, eq(orders.id, couponRedemptions.orderId))
+      .where(where),
   ]);
 
   const stats = [
@@ -80,7 +101,7 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
     { label: "Customers", value: agg.customers.toLocaleString() },
   ];
 
-  return <DiscountLogs stats={stats} rows={rows} sort={sort} />;
+  return <DiscountLogs stats={stats} rows={rows} sort={sort} total={total} page={page.page} size={page.size} />;
 }
 
 export type { DiscountLogSortColumn };

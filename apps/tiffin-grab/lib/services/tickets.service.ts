@@ -1,7 +1,8 @@
-import { BaseRepository, UpdatableRepository } from "@foundry/database";
+import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
 import { AuthError, ForbiddenError, NotFoundError, Role, ValidationError, type RoleValue } from "@foundry/commons";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, asc, desc, eq, ilike, inArray, lt, or, sql, type SQL } from "drizzle-orm";
+import { alias, type PgSelect } from "drizzle-orm/pg-core";
+import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveryZones, orders, plans, ticketMessages, tickets, users, type Attachment } from "@/db/schema";
 import { complaintWhere, type ComplaintFilters } from "@/lib/services/analytics/complaint-filters";
@@ -226,10 +227,33 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
    * and metric there can deep-link into this queue and land on exactly the
    * tickets it counted.
    */
+  /** Everyone who currently owns a ticket, for the queue's owner filter. */
+  async listQueueOwners(): Promise<{ publicId: string; name: string }[]> {
+    const rows = await db
+      .selectDistinct({ publicId: users.publicId, name: users.name })
+      .from(tickets)
+      .innerJoin(users, eq(tickets.currentOwner, users.id))
+      .orderBy(users.name);
+    return rows.map((r) => ({ publicId: r.publicId, name: r.name ?? "(no name)" }));
+  }
+
   async listForQueue(
     sort: SortState<QueueSortColumn> = { column: "lastMessage", dir: "desc" },
     filters?: ComplaintFilters,
   ) {
+    return (await this.listQueuePage(sort, filters, { page: { page: 0, size: 500 } })).items;
+  }
+
+  /**
+   * The staff queue, server-paged. Status pills, owner and search all filter in
+   * SQL so the page, its total and the overdue count describe the same rows.
+   * `overdue` is not a stored status: open / in_progress with stale activity.
+   */
+  async listQueuePage(
+    sort: SortState<QueueSortColumn> = { column: "lastMessage", dir: "desc" },
+    filters: ComplaintFilters | undefined,
+    opts: { page: PageRequest; overdue?: boolean; ownerId?: string; q?: string },
+  ): Promise<Page<QueueRow> & { overdueCount: number }> {
     const customer = alias(users, "customer");
     const owner = alias(users, "owner");
 
@@ -254,34 +278,67 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     } as const;
     const col = SORT_COL[sort.column] ?? agg.lastMessageAt;
 
-    const rows = await db
-      .select({
-        publicId: tickets.publicId,
-        subject: tickets.subject,
-        customerName: customer.name,
-        category: tickets.category,
-        status: tickets.status,
-        ownerId: owner.publicId,
-        ownerName: owner.name,
-        priority: tickets.priority,
-        createdAt: tickets.createdAt,
-        lastMessageAt: agg.lastMessageAt,
-      })
-      .from(tickets)
-      .innerJoin(customer, eq(tickets.raisedBy, customer.id))
-      .leftJoin(owner, eq(tickets.currentOwner, owner.id))
-      .leftJoin(agg, eq(agg.ticketId, tickets.id))
-      // Joined even when unfiltered so the plan/zone predicates can reference
-      // them; left joins keep tickets with no linked order in the queue.
-      .leftJoin(orders, eq(tickets.orderId, orders.id))
-      .leftJoin(plans, eq(orders.planId, plans.id))
-      .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
-      .where(filters ? complaintWhere(filters, { complaintsOnly: false }) : undefined)
-      .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-      .limit(500);
-
     const now = Date.now();
-    return rows.map((r) => ({ ...r, overdue: computeOverdue(r.status, r.lastMessageAt, now) }));
+    const isOverdue = and(
+      inArray(tickets.status, ["open", "in_progress"]),
+      lt(agg.lastMessageAt, now - OVERDUE_MS),
+    );
+    const q = opts.q?.trim();
+    const base = and(
+      filters ? complaintWhere(filters, { complaintsOnly: false }) : undefined,
+      opts.ownerId ? eq(owner.publicId, opts.ownerId) : undefined,
+      q
+        ? or(ilike(tickets.subject, `%${q}%`), ilike(customer.name, `%${q}%`), ilike(tickets.publicId, `%${q}%`))
+        : undefined,
+    );
+    const where = and(base, opts.overdue ? isOverdue : undefined);
+
+    // Joined even when unfiltered so the plan/zone predicates can reference
+    // them; left joins keep tickets with no linked order in the queue.
+    const withJoins = <T extends PgSelect>(qb: T) =>
+      qb
+        .innerJoin(customer, eq(tickets.raisedBy, customer.id))
+        .leftJoin(owner, eq(tickets.currentOwner, owner.id))
+        .leftJoin(agg, eq(agg.ticketId, tickets.id))
+        .leftJoin(orders, eq(tickets.orderId, orders.id))
+        .leftJoin(plans, eq(orders.planId, plans.id))
+        .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id));
+    const counted = (w: SQL | undefined) =>
+      withJoins(db.select({ n: sql<number>`cast(count(*) as int)` }).from(tickets).$dynamic()).where(w);
+
+    const [rows, [{ n: total }], [{ n: overdueCount }]] = await Promise.all([
+      withJoins(
+        db
+          .select({
+            publicId: tickets.publicId,
+            subject: tickets.subject,
+            customerName: customer.name,
+            category: tickets.category,
+            status: tickets.status,
+            ownerId: owner.publicId,
+            ownerName: owner.name,
+            priority: tickets.priority,
+            createdAt: tickets.createdAt,
+            lastMessageAt: agg.lastMessageAt,
+          })
+          .from(tickets)
+          .$dynamic(),
+      )
+        .where(where)
+        .orderBy(...pageOrder(sort.dir, col, tickets.id))
+        .limit(opts.page.size)
+        .offset(opts.page.page * opts.page.size),
+      counted(where),
+      counted(and(base, isOverdue)),
+    ]);
+
+    return {
+      items: rows.map((r) => ({ ...r, overdue: computeOverdue(r.status, r.lastMessageAt, now) })),
+      page: opts.page.page,
+      size: opts.page.size,
+      total,
+      overdueCount,
+    };
   }
 }
 
@@ -292,7 +349,19 @@ const ticketMessagesService = new SessionBaseService(
   new BaseRepository(db, ticketMessages, ticketMessages.publicId, ticketMessages.id),
 );
 
-export type QueueRow = Awaited<ReturnType<TicketsService["listForQueue"]>>[number];
+export type QueueRow = {
+  publicId: string;
+  subject: string;
+  customerName: string | null;
+  category: TicketCategory;
+  status: TicketStatus;
+  ownerId: string | null;
+  ownerName: string | null;
+  priority: TicketPriority;
+  createdAt: number;
+  lastMessageAt: number | null;
+  overdue: boolean;
+};
 export type CustomerTicketRow = Awaited<ReturnType<TicketsService["listForCustomer"]>>[number];
 export type TicketRecord = typeof tickets.$inferSelect;
 export type TicketMessageRecord = typeof ticketMessages.$inferSelect;

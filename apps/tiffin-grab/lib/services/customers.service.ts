@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, or, sql } from "dri
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { conditionToSql, columnResolver } from "@foundry/database";
+import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { account, campaign, deliveries, inquiries, leadSources, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, users } from "@/db/schema";
 import { MENU_REMINDER_KEY } from "@/lib/notifications/menu-reminder";
@@ -300,39 +300,40 @@ export async function listCustomersPage(
   } as const;
   const col = SORT_COL[sort.column] ?? users.name;
 
-  const rows = await db
-    .select({
-      publicId: users.publicId,
-      name: users.name,
-      email: users.email,
-      phone: users.phone,
-      orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
-      latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
-      joined: users.emailVerified,
-      planCompletionDate: planCompletionSubquery,
-      // Correlated, but only for the page's rows (25ish). The invite row carries
-      // only an address (no account id on it), hence the email match.
-      // ponytail: unindexed recipient_email scan per row; add an index if the outbox grows large.
-      lastInvite: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
-        where o.event = 'customer_invitation' and o.channel = 'email' and o.recipient_email = ${users.email}
-        order by o.created_at desc limit 1)`,
-      lastReminder: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
-        join ${campaign} c on c.id = o.campaign_id and c.system_key = ${MENU_REMINDER_KEY}
-        where o.channel = 'email' and o.recipient_id = ${users.id}
-        order by o.created_at desc limit 1)`,
-    })
-    .from(users)
-    .leftJoin(orders, eq(orders.userId, users.id))
-    .where(where)
-    .groupBy(users.id, users.publicId, users.name, users.email, users.phone)
-    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-    .limit(page.size)
-    .offset(page.page * page.size);
-
-  const [{ count }] = await db
-    .select({ count: sql<number>`cast(count(*) as int)` })
-    .from(users)
-    .where(where);
+  const [rows, [{ count }]] = await Promise.all([
+    db
+      .select({
+        publicId: users.publicId,
+        name: users.name,
+        email: users.email,
+        phone: users.phone,
+        orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
+        latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
+        joined: users.emailVerified,
+        planCompletionDate: planCompletionSubquery,
+        // Correlated, but only for the page's rows (25ish). The invite row carries
+        // only an address (no account id on it), hence the email match.
+        // ponytail: unindexed recipient_email scan per row; add an index if the outbox grows large.
+        lastInvite: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
+          where o.event = 'customer_invitation' and o.channel = 'email' and o.recipient_email = ${users.email}
+          order by o.created_at desc limit 1)`,
+        lastReminder: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
+          join ${campaign} c on c.id = o.campaign_id and c.system_key = ${MENU_REMINDER_KEY}
+          where o.channel = 'email' and o.recipient_id = ${users.id}
+          order by o.created_at desc limit 1)`,
+      })
+      .from(users)
+      .leftJoin(orders, eq(orders.userId, users.id))
+      .where(where)
+      .groupBy(users.id, users.publicId, users.name, users.email, users.phone)
+      .orderBy(...pageOrder(sort.dir, col, users.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+    db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(users)
+      .where(where),
+  ]);
 
   return { items: rows, page: page.page, size: page.size, total: count };
 }

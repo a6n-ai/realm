@@ -9,6 +9,7 @@ import { parseComplaintFilters, type ComplaintSearchParams } from "@/lib/service
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { canReassign } from "@/lib/services/reassign";
 import { parseSort } from "@/lib/list/sort";
+import { parseFilterState } from "@/components/ds";
 import {
   PageShell,
   PageHeader,
@@ -30,7 +31,17 @@ const SORT_COLUMNS = [
   "created",
 ] as const;
 
-type TicketSearchParams = Promise<{ sort?: string; dir?: string } & ComplaintSearchParams>;
+type TicketSearchParams = Promise<
+  { sort?: string; dir?: string; q?: string; owner?: string; page?: string; size?: string } & ComplaintSearchParams
+>;
+
+// The pills put "all" / "overdue" in ?status=; neither is a stored status, so they
+// are peeled off before the rest goes through the shared complaint filters.
+function queueParams(sp: Awaited<TicketSearchParams>) {
+  const overdue = sp.status === "overdue";
+  const status = sp.status === "all" || overdue ? undefined : sp.status;
+  return { filters: parseComplaintFilters({ ...sp, status }), overdue };
+}
 
 export default function TicketsPage({ searchParams }: { searchParams: TicketSearchParams }) {
   return (
@@ -39,7 +50,7 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
       <PageHeader icon={LifeBuoyIcon} title="Tickets" />
 
       <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>
-        <TicketStats searchParams={searchParams} />
+        <TicketStats />
       </Suspense>
 
       <SectionCard title="All tickets">
@@ -51,17 +62,12 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
   );
 }
 
-async function TicketStats({ searchParams }: { searchParams: TicketSearchParams }) {
+async function TicketStats() {
   await requireStaff();
 
-  const sort = parseSort(await searchParams, SORT_COLUMNS, {
-    column: "lastMessage",
-    dir: "desc",
-  });
-
-  const [statusCounts, rows] = await Promise.all([
+  const [statusCounts, { overdueCount: overdue }] = await Promise.all([
     db.select({ status: tickets.status, n: count() }).from(tickets).groupBy(tickets.status),
-    ticketsService.listForQueue(sort),
+    ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 1 } }),
   ]);
 
   const countOf = (...statuses: string[]) =>
@@ -69,7 +75,6 @@ async function TicketStats({ searchParams }: { searchParams: TicketSearchParams 
 
   const open = countOf("open", "in_progress", "waiting_on_customer");
   const resolved = countOf("resolved", "closed");
-  const overdue = rows.filter((r) => r.overdue).length;
 
   return (
     <StatGrid
@@ -93,18 +98,25 @@ async function TicketsData({ searchParams }: { searchParams: TicketSearchParams 
   });
   // Complaint analytics links here with these params, so the queue lands on
   // exactly the tickets the chart or metric counted.
-  const filters = parseComplaintFilters(sp);
+  const { filters, overdue } = queueParams(sp);
+  const { page } = parseFilterState([], sp);
 
-  const [statusCounts, rows, allowReassign] = await Promise.all([
+  const [statusCounts, result, owners, allowReassign] = await Promise.all([
     db.select({ status: tickets.status, n: count() }).from(tickets).groupBy(tickets.status),
-    ticketsService.listForQueue(sort, filters),
+    ticketsService.listQueuePage(sort, filters, { page, overdue, ownerId: sp.owner, q: sp.q }),
+    ticketsService.listQueueOwners(),
     canReassign(),
   ]);
   const staff = allowReassign ? await listAssignableStaff() : [];
 
   return (
     <TicketsList
-      rows={rows}
+      rows={result.items}
+      total={result.total}
+      page={page.page}
+      size={page.size}
+      overdueCount={result.overdueCount}
+      owners={owners}
       statusCounts={statusCounts}
       sort={sort}
       staff={staff}

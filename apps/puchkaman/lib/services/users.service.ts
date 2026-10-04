@@ -1,8 +1,8 @@
 import { Role, type RoleValue, ValidationError } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { columnResolver, conditionToSql } from "@foundry/database";
-import { and, asc, desc, eq, exists, getTableColumns, isNull, sql } from "drizzle-orm";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
+import { and, eq, exists, getTableColumns, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, session as sessionTable, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -114,7 +114,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
         .leftJoin(organization, eq(organization.id, member.organizationId))
         .where(where)
         .groupBy(users.id)
-        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .orderBy(...pageOrder(sort.dir, col, users.id))
         .limit(page.size)
         .offset(page.page * page.size),
       db.select({ count: sql<number>`cast(count(*) as int)` }).from(users).where(where),

@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, sql } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { columnResolver, conditionToSql } from "@foundry/database";
+import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -137,7 +137,7 @@ export async function listCustomersPage(
         users.createdAt,
         users.cloverCustomerId,
       )
-      .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+      .orderBy(...pageOrder(sort.dir, col, users.id))
       .limit(page.size)
       .offset(page.page * page.size),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(users).where(where),
@@ -205,8 +205,11 @@ export type CustomerDetail = {
   totalSpent: string;
 };
 
-/** One customer plus their order history. Null when the id is not a customer. */
-export async function getCustomerDetail(publicId: string): Promise<CustomerDetail | null> {
+/** One customer plus one page of their order history. Null when the id is not a customer. */
+export async function getCustomerDetail(
+  publicId: string,
+  orderPage: PageRequest = { page: 0, size: 25 },
+): Promise<CustomerDetail | null> {
   const [user] = await db
     .select({
       id: users.id,
@@ -227,25 +230,27 @@ export async function getCustomerDetail(publicId: string): Promise<CustomerDetai
   // offer a customer view of an account that has no customer side.
   if (!user || user.role !== "user") return null;
 
-  const orderRows = await db
-    .select({
-      publicId: orders.publicId,
-      status: orders.status,
-      total: orders.total,
-      createdAt: orders.createdAt,
-    })
-    .from(orders)
-    .where(eq(orders.userId, user.id))
-    .orderBy(desc(orders.createdAt))
-    .limit(50);
-
-  const [{ spent, count }] = await db
-    .select({
-      spent: sql<string>`coalesce(sum(${orders.total}) filter (where ${orders.status} in ('paid','fulfilled')), 0)`,
-      count: sql<number>`cast(count(*) as int)`,
-    })
-    .from(orders)
-    .where(eq(orders.userId, user.id));
+  const [orderRows, [{ spent, count }]] = await Promise.all([
+    db
+      .select({
+        publicId: orders.publicId,
+        status: orders.status,
+        total: orders.total,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .where(eq(orders.userId, user.id))
+      .orderBy(...pageOrder("desc", orders.createdAt, orders.id))
+      .limit(orderPage.size)
+      .offset(orderPage.page * orderPage.size),
+    db
+      .select({
+        spent: sql<string>`coalesce(sum(${orders.total}) filter (where ${orders.status} in ('paid','fulfilled')), 0)`,
+        count: sql<number>`cast(count(*) as int)`,
+      })
+      .from(orders)
+      .where(eq(orders.userId, user.id)),
+  ]);
 
   const { id: _id, role: _role, ...rest } = user;
   return { ...rest, orders: orderRows, orderCount: count, totalSpent: spent };

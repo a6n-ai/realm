@@ -142,7 +142,7 @@ export async function listCronRunsPage(job: string, condition: Condition | undef
       .from(cronRuns)
       .leftJoin(users, eq(users.id, cronRuns.createdBy))
       .where(where)
-      .orderBy(desc(cronRuns.startedAt))
+      .orderBy(desc(cronRuns.startedAt), desc(cronRuns.id))
       .limit(page.size)
       .offset(page.page * page.size),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(cronRuns).where(where),

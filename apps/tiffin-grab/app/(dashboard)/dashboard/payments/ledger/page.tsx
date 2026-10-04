@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { ledgerEntries, orders, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -50,31 +51,32 @@ async function MoneyLedgerData({ searchParams }: { searchParams: SearchParams })
       : undefined,
   );
 
-  const [{ total }] = await db
-    .select({ total: sql<number>`cast(count(*) as int)` })
-    .from(ledgerEntries)
-    .leftJoin(users, eq(users.id, ledgerEntries.userId))
-    .leftJoin(orders, eq(orders.id, ledgerEntries.orderId))
-    .where(where);
-
-  const rows = await db
-    .select({
-      publicId: ledgerEntries.publicId,
-      createdAt: ledgerEntries.createdAt,
-      direction: ledgerEntries.direction,
-      type: ledgerEntries.type,
-      amount: ledgerEntries.amount,
-      memo: ledgerEntries.memo,
-      email: users.email,
-      orderPublicId: orders.publicId,
-    })
-    .from(ledgerEntries)
-    .leftJoin(users, eq(users.id, ledgerEntries.userId))
-    .leftJoin(orders, eq(orders.id, ledgerEntries.orderId))
-    .where(where)
-    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-    .limit(page.size)
-    .offset(page.page * page.size);
+  const [[{ total }], rows] = await Promise.all([
+    db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(ledgerEntries)
+      .leftJoin(users, eq(users.id, ledgerEntries.userId))
+      .leftJoin(orders, eq(orders.id, ledgerEntries.orderId))
+      .where(where),
+    db
+      .select({
+        publicId: ledgerEntries.publicId,
+        createdAt: ledgerEntries.createdAt,
+        direction: ledgerEntries.direction,
+        type: ledgerEntries.type,
+        amount: ledgerEntries.amount,
+        memo: ledgerEntries.memo,
+        email: users.email,
+        orderPublicId: orders.publicId,
+      })
+      .from(ledgerEntries)
+      .leftJoin(users, eq(users.id, ledgerEntries.userId))
+      .leftJoin(orders, eq(orders.id, ledgerEntries.orderId))
+      .where(where)
+      .orderBy(...pageOrder(sort.dir, col, ledgerEntries.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+  ]);
 
   return <MoneyLedgerTable rows={rows} total={total} page={page.page} size={page.size} sort={sort} />;
 }

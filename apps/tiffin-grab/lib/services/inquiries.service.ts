@@ -1,8 +1,8 @@
-import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@foundry/database";
+import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
-import { and, asc, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -417,38 +417,39 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     } as const;
     const col = SORT_COL[sort.column as keyof typeof SORT_COL] ?? inquiries.createdAt;
 
-    const rows = await db
-      .select({
-        publicId: inquiries.publicId,
-        fullName: inquiries.fullName,
-        phone: inquiries.phone,
-        source: leadSources.label,
-        stage: inquiries.stage,
-        ownerId: users.publicId,
-        ownerName: users.name,
-        createdAt: inquiries.createdAt,
-        lastTouchAt: agg.lastTouchAt,
-        nextFollowUpAt: sql<number | null>`(
-          select a.next_follow_up_at from inquiry_activities a
-          where a.inquiry_id = ${inquiries.id}
-          order by a.created_at desc limit 1
-        )`,
-      })
-      .from(inquiries)
-      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
-      .leftJoin(users, eq(inquiries.currentOwner, users.id))
-      .leftJoin(agg, eq(agg.inquiryId, inquiries.id))
-      .where(where)
-      .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-      .limit(page.size)
-      .offset(page.page * page.size);
-
     // Count on the base table with the identical predicate — all facets are base
     // columns (owner/source/subsource resolve via subquery), so no join is needed.
-    const [{ count }] = await db
-      .select({ count: sql<number>`cast(count(*) as int)` })
-      .from(inquiries)
-      .where(where);
+    const [rows, [{ count }]] = await Promise.all([
+      db
+        .select({
+          publicId: inquiries.publicId,
+          fullName: inquiries.fullName,
+          phone: inquiries.phone,
+          source: leadSources.label,
+          stage: inquiries.stage,
+          ownerId: users.publicId,
+          ownerName: users.name,
+          createdAt: inquiries.createdAt,
+          lastTouchAt: agg.lastTouchAt,
+          nextFollowUpAt: sql<number | null>`(
+            select a.next_follow_up_at from inquiry_activities a
+            where a.inquiry_id = ${inquiries.id}
+            order by a.created_at desc limit 1
+          )`,
+        })
+        .from(inquiries)
+        .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+        .leftJoin(users, eq(inquiries.currentOwner, users.id))
+        .leftJoin(agg, eq(agg.inquiryId, inquiries.id))
+        .where(where)
+        .orderBy(...pageOrder(sort.dir, col, inquiries.id))
+        .limit(page.size)
+        .offset(page.page * page.size),
+      db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(inquiries)
+        .where(where),
+    ]);
 
     const now = Date.now();
     const items = rows.map((r) => ({ ...r, overdue: computeOverdue(r.stage, r.nextFollowUpAt, now) }));

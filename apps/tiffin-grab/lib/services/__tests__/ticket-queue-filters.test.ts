@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 
 // Staff session: listForQueue is staff-only reading, and the filters are the
 // contract complaint analytics links through.
@@ -130,5 +130,27 @@ describe("ticket queue honours complaint filters", () => {
     const sp = Object.fromEntries(new URL(href, "http://x").searchParams) as Record<string, string>;
     const rows = await ticketsService.listForQueue(undefined, parseComplaintFilters(sp));
     expect(rows).toHaveLength(1);
+  });
+
+  it("pages the queue server-side with a total, overdue filter and search", async () => {
+    const { mk } = await seed();
+    const stale = await mk({ status: "open", subject: "stale lunch" });
+    await db.update(ticketMessages).set({ createdAt: now - 2 * DAY }).where(eq(ticketMessages.ticketId, stale.id));
+    for (let i = 0; i < 4; i++) await mk({ status: "open", subject: `fresh ${i}` });
+
+    const first = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 2 } });
+    const rest = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 1, size: 2 } });
+    const last = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 2, size: 2 } });
+    expect(first.total).toBe(5);
+    expect(first.overdueCount).toBe(1);
+    // Every ticket on exactly one page, even though all five tie on created time.
+    const ids = [...first.items, ...rest.items, ...last.items].map((r) => r.publicId);
+    expect(new Set(ids).size).toBe(5);
+
+    const overdue = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 25 }, overdue: true });
+    expect(overdue.items.map((r) => r.subject)).toEqual(["stale lunch"]);
+
+    const found = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 25 }, q: "STALE" });
+    expect(found.total).toBe(1);
   });
 });

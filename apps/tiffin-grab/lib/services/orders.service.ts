@@ -2,7 +2,7 @@ import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema,
 import { createLogger } from "@foundry/commons/logger";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@foundry/database";
+import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
@@ -1257,34 +1257,35 @@ export async function listOrdersPage(
   } as const;
   const col = SORT_COL[sort.column] ?? orders.createdAt;
 
-  const rows = await db
-    .select({
-      id: orders.id,
-      publicId: orders.publicId,
-      deploymentId: orders.deploymentId,
-      fullName: orders.fullName,
-      city: orders.city,
-      planKey: plans.key,
-      status: orders.status,
-      startDate: orders.startDate,
-      total: orders.total,
-      createdAt: orders.createdAt,
-      ownerId: users.publicId,
-      ownerName: users.name,
-      trialLength: orders.trialLength,
-    })
-    .from(orders)
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .leftJoin(users, eq(orders.currentOwner, users.id))
-    .where(where)
-    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-    .limit(page.size)
-    .offset(page.page * page.size);
-
-  const [{ count }] = await db
-    .select({ count: sql<number>`cast(count(*) as int)` })
-    .from(orders)
-    .where(where);
+  const [rows, [{ count }]] = await Promise.all([
+    db
+      .select({
+        id: orders.id,
+        publicId: orders.publicId,
+        deploymentId: orders.deploymentId,
+        fullName: orders.fullName,
+        city: orders.city,
+        planKey: plans.key,
+        status: orders.status,
+        startDate: orders.startDate,
+        total: orders.total,
+        createdAt: orders.createdAt,
+        ownerId: users.publicId,
+        ownerName: users.name,
+        trialLength: orders.trialLength,
+      })
+      .from(orders)
+      .innerJoin(plans, eq(orders.planId, plans.id))
+      .leftJoin(users, eq(orders.currentOwner, users.id))
+      .where(where)
+      .orderBy(...pageOrder(sort.dir, col, orders.id))
+      .limit(page.size)
+      .offset(page.page * page.size),
+    db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(orders)
+      .where(where),
+  ]);
 
   // One payment status per order (newest wins) for the admin badge overlay — keep
   // the list query free of a multiplying payments join.

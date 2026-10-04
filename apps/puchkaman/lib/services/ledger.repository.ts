@@ -1,5 +1,5 @@
-import { BaseRepository } from "@foundry/database";
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { BaseRepository, pageOrder } from "@foundry/database";
+import { and, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ledgerEntries, organization, orders } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -54,7 +54,7 @@ export class LedgerRepository extends BaseRepository<typeof ledgerEntries> {
     page: { page: number; size: number },
   ): Promise<{ items: LedgerListRow[]; page: number; size: number; total: number }> {
     const col = LEDGER_SORT_COL[sort.column] ?? ledgerEntries.createdAt;
-    const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+    const orderBy = pageOrder(sort.dir, col, ledgerEntries.id);
     const scopeMode = await resolveOrgScopeMode();
     const scopedWhere =
       scopeMode.mode === "org" ? and(where, eq(ledgerEntries.organizationId, scopeMode.orgId)) : where;
@@ -77,7 +77,7 @@ export class LedgerRepository extends BaseRepository<typeof ledgerEntries> {
         .leftJoin(orders, eq(ledgerEntries.orderId, orders.id))
         .leftJoin(organization, eq(ledgerEntries.organizationId, organization.id))
         .where(scopedWhere)
-        .orderBy(orderBy)
+        .orderBy(...orderBy)
         .limit(page.size)
         .offset(page.page * page.size),
       this.db

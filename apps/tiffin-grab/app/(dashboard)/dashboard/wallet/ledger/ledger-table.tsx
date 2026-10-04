@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ScrollTextIcon } from "lucide-react";
-import { DataTable, type Column } from "@/components/ds";
+import { DataTable, ListPagination, type Column } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { eventLabel } from "@relay/engine/ui";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -38,47 +38,57 @@ const COLUMNS: readonly Column<WalletSortColumn>[] = [
 export function LedgerTable({
   rows,
   sort,
+  total,
+  page,
+  size,
 }: {
   rows: Row[];
   sort: SortState<WalletSortColumn>;
+  total: number;
+  page: number;
+  size: number;
 }) {
   const tz = useTimezone();
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
-    <DataTable
-      columns={COLUMNS}
-      rows={rows}
-      rowKey={(r) => r.publicId}
-      sort={sort}
-      search={{ placeholder: "Search ledger…", shortPlaceholder: "Search…", debounceMs: 300 }}
-      emptyIcon={ScrollTextIcon}
-      emptyMessage="No wallet activity yet. Earns and redemptions will appear here."
-      renderRow={(r) => {
-        const credit = r.direction === "credit";
-        return (
-          <>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
-            <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>
-            <TableCell>{r.eventType ? eventLabel(r.eventType) : "—"}</TableCell>
-            <TableCell className="text-muted-foreground">{r.sourceType}</TableCell>
-            <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
-              {credit ? "+" : "−"}
-              {r.coins}
-            </TableCell>
-            <TableCell>
-              {r.orderPublicId ? (
-                <Link href={`/dashboard/orders/${r.orderPublicId}`} className="text-muted-foreground hover:underline">
-                  {r.orderPublicId}
-                </Link>
-              ) : (
-                <span className="text-muted-foreground">—</span>
-              )}
-            </TableCell>
-            <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{r.memo ?? ""}</TableCell>
-          </>
-        );
-      }}
-    />
+    <div className="space-y-4">
+      <DataTable
+        serialOffset={page * size}
+        columns={COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.publicId}
+        sort={sort}
+        search={{ placeholder: "Search ledger…", shortPlaceholder: "Search…", debounceMs: 300 }}
+        emptyIcon={ScrollTextIcon}
+        emptyMessage="No wallet activity yet. Earns and redemptions will appear here."
+        renderRow={(r) => {
+          const credit = r.direction === "credit";
+          return (
+            <>
+              <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
+              <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>
+              <TableCell>{r.eventType ? eventLabel(r.eventType) : "—"}</TableCell>
+              <TableCell className="text-muted-foreground">{r.sourceType}</TableCell>
+              <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
+                {credit ? "+" : "−"}
+                {r.coins}
+              </TableCell>
+              <TableCell>
+                {r.orderPublicId ? (
+                  <Link href={`/dashboard/orders/${r.orderPublicId}`} className="text-muted-foreground hover:underline">
+                    {r.orderPublicId}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
+              <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{r.memo ?? ""}</TableCell>
+            </>
+          );
+        }}
+      />
+      <ListPagination page={page} size={size} total={total} />
+    </div>
   );
 }
 

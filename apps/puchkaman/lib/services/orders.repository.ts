@@ -1,5 +1,5 @@
-import { UpdatableRepository } from "@foundry/database";
-import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { UpdatableRepository, pageOrder } from "@foundry/database";
+import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderItems, orders, organization, payments, type OrderPricingSnapshot } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -59,7 +59,7 @@ export class OrdersRepository extends UpdatableRepository<typeof orders> {
     page: { page: number; size: number },
   ): Promise<{ items: OrderListRow[]; page: number; size: number; total: number }> {
     const col = ORDER_SORT_COL[sort.column] ?? orders.createdAt;
-    const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+    const orderBy = pageOrder(sort.dir, col, orders.id);
     const scopeMode = await resolveOrgScopeMode();
     const scopedWhere =
       scopeMode.mode === "org" ? and(where, eq(orders.organizationId, scopeMode.orgId)) : where;
@@ -82,7 +82,7 @@ export class OrdersRepository extends UpdatableRepository<typeof orders> {
         .from(orders)
         .leftJoin(organization, eq(orders.organizationId, organization.id))
         .where(scopedWhere)
-        .orderBy(orderBy)
+        .orderBy(...orderBy)
         .limit(page.size)
         .offset(page.page * page.size),
       this.db

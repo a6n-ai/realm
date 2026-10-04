@@ -1,19 +1,27 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { EmptyState, PageHeader, PageShell, SectionCard } from "@foundry/design-system";
+import { EmptyState, ListPagination, PageHeader, PageShell, SectionCard, parseFilterState } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { getSession } from "@/lib/auth/session";
-import { myOrders, splitOrders } from "@/lib/customers/my-orders";
+import { myOrdersPage } from "@/lib/customers/my-orders";
 import { OrderSummaryList } from "@/components/customer/order-summary-list";
 
-export default async function CustomerOrdersPage() {
+export default async function CustomerOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const session = await getSession();
   if (!session?.user) redirect("/login?callbackUrl=/me/orders");
 
-  const { ongoing, past } = splitOrders(await myOrders(session.user.id));
+  const { page } = parseFilterState([], await searchParams);
+  const [{ items: ongoing }, past] = await Promise.all([
+    myOrdersPage(session.user.id, { ongoing: true, page: { page: 0, size: 50 } }),
+    myOrdersPage(session.user.id, { ongoing: false, page }),
+  ]);
 
-  if (ongoing.length === 0 && past.length === 0) {
+  if (ongoing.length === 0 && past.total === 0) {
     return (
       <PageShell>
         <PageHeader icon={PackageIcon} title="Orders" />
@@ -38,9 +46,10 @@ export default async function CustomerOrdersPage() {
           <OrderSummaryList orders={ongoing} />
         </SectionCard>
       ) : null}
-      {past.length > 0 ? (
+      {past.total > 0 ? (
         <SectionCard title="Past">
-          <OrderSummaryList orders={past} />
+          <OrderSummaryList orders={past.items} />
+          <ListPagination page={past.page} size={past.size} total={past.total} />
         </SectionCard>
       ) : null}
     </PageShell>

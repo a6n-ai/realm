@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
-import { conditionToSql } from "@foundry/database";
+import { conditionToSql, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -127,7 +127,7 @@ export async function queryOrganizations(
       .leftJoin(parentOrg, eq(parentOrg.id, organization.parentOrganizationId))
       .where(where)
       .groupBy(organization.id, parentOrg.name)
-      .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+      .orderBy(...pageOrder(sort.dir, col, organization.id))
       .limit(page.size)
       .offset(page.page * page.size),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(organization).where(where),

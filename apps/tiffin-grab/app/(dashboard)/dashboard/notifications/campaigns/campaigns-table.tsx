@@ -78,13 +78,14 @@ export function CampaignsTable({
   return (
     <div className="space-y-4">
       <DataTable
+        serialOffset={page * size}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/notifications/campaigns/${r.publicId}`}
-        search={{ placeholder: "Search campaigns…", shortPlaceholder: "Search…", keys: ["name"] }}
+        search={{ placeholder: "Search campaigns…", shortPlaceholder: "Search…", debounceMs: 300 }}
         filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={MegaphoneIcon}
         emptyMessage="No campaigns yet."
