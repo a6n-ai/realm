@@ -156,8 +156,8 @@ const addonsSchema = z.object({
   // Soft ref to dish_categories.key (like dishes.category): the add-on is offered
   // for any meal size carrying that category. Never part of the meal or its swaps.
   category: z.string().trim().min(1, "Pick a category"),
-  // Plan public_id, or blank = the order's own plan.
-  planId: z.preprocess((v) => (v === "" || v == null ? null : v), z.string().trim().min(1).nullable().optional()),
+  // Plan public_id: the menu the add-on's dish is picked from in edit meal, independent of the order's plan.
+  planId: z.string().trim().min(1, "Pick a plan"),
   // Same TU unit as meal-size items: one qty = one row of this portion in every tiffin.
   tuAmount: reqNum(z.coerce.number().positive().default(1).transform((n) => n.toFixed(2))),
   pricePerTiffin: reqNum(z.coerce.number().nonnegative()),
@@ -300,8 +300,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
-      { key: "category", label: "Category", type: "select", optionsSource: "categories", help: "The dish category this add-on adds a row of, picked from the released menu." },
-      { key: "planId", label: "Dish from plan", type: "select", optionsSource: "plans", optional: true, help: "Set it and the add-on shows on every plan, always picking from this plan's menu (Veg Sabzi → veg). Blank: follows the order's plan." },
+      { key: "planId", label: "Dish from plan", type: "select", optionsSource: "plans", help: "The menu this add-on's dish is picked from in edit meal (Veg Sabzi → veg), whatever the order's plan." },
+      { key: "category", label: "Category", type: "select", optionsSource: "categories", help: "The dish category this add-on adds a row of, from that plan's released menu." },
       { key: "tuAmount", label: "Portion (TU)", type: "number", help: "One row's portion, in the same TU as meal-size items. Each qty adds one such row to every tiffin." },
       { key: "pricePerTiffin", label: "Price / tiffin", type: "number", unit: "$", help: "Charged per tiffin for each qty." },
       { key: "maxQty", label: "Max qty per tiffin", type: "number" },

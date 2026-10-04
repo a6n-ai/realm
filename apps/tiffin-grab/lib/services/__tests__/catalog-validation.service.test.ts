@@ -27,12 +27,14 @@ describe("catalog service validation", () => {
   });
 
   it("addon create works (new resource)", async () => {
-    const row = await addonService.create({ key: "zz-test-addon", name: "ZZ Addon", category: "uncategorized", pricePerTiffin: "12.50" });
+    const [plan] = await db.select({ publicId: plans.publicId }).from(plans).limit(1);
+    const row = await addonService.create({ key: "zz-test-addon", name: "ZZ Addon", category: "uncategorized", planId: plan.publicId, pricePerTiffin: "12.50" });
     expect(row.key).toBe("zz-test-addon");
   });
 
   it("partial update (reactivate) passes validation", async () => {
-    const row = await addonService.create({ key: "zz-test-addon", name: "ZZ Addon", category: "uncategorized", pricePerTiffin: "10" });
+    const [plan] = await db.select({ publicId: plans.publicId }).from(plans).limit(1);
+    const row = await addonService.create({ key: "zz-test-addon", name: "ZZ Addon", category: "uncategorized", planId: plan.publicId, pricePerTiffin: "10" });
     await expect(addonService.update(row.publicId, { active: false })).resolves.toBeTruthy();
     await expect(addonService.update(row.publicId, { active: true })).resolves.toBeTruthy();
   });

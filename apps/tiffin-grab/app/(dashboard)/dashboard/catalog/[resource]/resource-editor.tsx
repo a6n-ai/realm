@@ -299,7 +299,7 @@ function CompositionRow({
 }
 
 function FieldControl({
-  f, form, options, isNew, categoriesByPlan, compositionCategories, plansByCategory, planOptional,
+  f, form, options, isNew, categoriesByPlan, compositionCategories, plansByCategory, categoriesWithoutPlan,
 }: {
   f: FieldDef;
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
@@ -308,7 +308,7 @@ function FieldControl({
   categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
   compositionCategories?: CompositionCategoryOption[];
   plansByCategory?: Record<string, { value: string; label: string }[]>;
-  planOptional?: boolean;
+  categoriesWithoutPlan?: boolean;
 }) {
   if (f.type === "composition") {
     return (
@@ -328,9 +328,7 @@ function FieldControl({
   // could never appear on that plan's menu anyway.
    
   const dishPlanId = f.key === "category" && categoriesByPlan ? (form.watch("planId") as string | undefined) : undefined;
-  // An add-on's plan is optional (blank = the order's own plan), so a blank plan
-  // offers every enabled category instead of gating on "Pick a plan first".
-  const needsPlan = dishPlanId !== undefined && !dishPlanId && !planOptional;
+  const needsPlan = dishPlanId !== undefined && !dishPlanId && !categoriesWithoutPlan;
   const opts = dishPlanId
     ? (categoriesByPlan?.[dishPlanId] ?? [])
     : needsPlan
@@ -617,7 +615,8 @@ function EditorDialog({
   const submitting = form.formState.isSubmitting;
   const watched = form.watch();
   const formFields = isNew ? def.fields.filter((f) => f.key !== "key") : def.fields;
-  const planOptional = def.fields.find((f) => f.key === "planId")?.optional ?? false;
+  // Add-on categories never gate on the plan: every enabled category until a plan is picked.
+  const categoriesWithoutPlan = resource === "addons";
 
   return (
     <ResponsiveDialog
@@ -657,7 +656,7 @@ function EditorDialog({
                     </h3>
                   ) : null}
                   <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
-                    <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} compositionCategories={compositionCategories} plansByCategory={plansByCategory} planOptional={planOptional} />
+                    <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} compositionCategories={compositionCategories} plansByCategory={plansByCategory} categoriesWithoutPlan={categoriesWithoutPlan} />
                     {f.key === "name" && similarDishes.length > 0 ? (
                       <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
                         <p className="mb-1 font-medium">Already in the catalog. Edit that one instead?</p>
