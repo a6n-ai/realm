@@ -14,6 +14,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Public repo: a committed secret is published the moment it is pushed.
+  # Binary instead of gitleaks-action, which needs a paid license for org repos.
+  # Full history scans in ~2s; reviewed false positives live in .gitleaksignore.
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - run: |
+          v=8.30.1
+          curl -sSfLO "https://github.com/gitleaks/gitleaks/releases/download/v$v/gitleaks_${v}_linux_x64.tar.gz"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v$v/gitleaks_${v}_checksums.txt" | grep linux_x64 | sha256sum -c -
+          tar xzf "gitleaks_${v}_linux_x64.tar.gz" gitleaks
+          ./gitleaks git . --redact --no-banner
+
   foundry:
     name: Foundry git deps
     runs-on: ubuntu-latest

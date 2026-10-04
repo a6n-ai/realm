@@ -1,0 +1,7 @@
+# Reviewed false positives (2026-10-05): env var names in docs, test data keys.
+328e91d48490a24181e5222a34a7deed9b623de6:apps/tiffin-grab/lib/services/__tests__/meal-rules-and-swap-options.test.ts:generic-api-key:71
+c6749e201539df4a1adae951e7a1968890aff0e1:apps/tiffin-grab/db/seed-qa-plans.test.ts:generic-api-key:133
+fc0bbd893ac0ac2ac731023b5a3de54b5d4204cd:AGENTS.md:generic-api-key:79
+fc0bbd893ac0ac2ac731023b5a3de54b5d4204cd:foundry/packages/clover/README.md:generic-api-key:11
+b68cd2bba74136a802c821b3a58bc0f2f1e40992:AGENTS.md:generic-api-key:81
+55414e0cc8cc6a52b05596e50988c0d44a35cdd0:packages/clover/README.md:generic-api-key:11
