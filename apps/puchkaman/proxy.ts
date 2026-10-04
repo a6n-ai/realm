@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { db } from "./db/client";
@@ -69,6 +68,33 @@ export const PUBLIC_API = [
  */
 export const PROTECTED_PREFIXES = ["/dashboard", "/me", "/no-access"];
 
+// The organization table is a handful of rows, but every public request (and
+// every RSC prefetch) did up to 3 sequential lookups here before routing.
+// ponytail: per-process 60s snapshot; a new/renamed org shows up within a minute.
+// Move to a shared cache if this app ever runs more than one process.
+type OrgSnapshot = { byCode: Map<string, string>; defaultId: string | null; at: number };
+let orgSnapshot: OrgSnapshot | null = null;
+let orgLoad: Promise<OrgSnapshot> | null = null;
+// Tests rewrite org rows between requests, so they always read fresh.
+const ORG_TTL_MS = process.env.NODE_ENV === "test" ? 0 : 60_000;
+
+function orgs(): Promise<OrgSnapshot> {
+  if (orgSnapshot && Date.now() - orgSnapshot.at < ORG_TTL_MS) return Promise.resolve(orgSnapshot);
+  orgLoad ??= db
+    .select({ id: organization.id, clientCode: organization.clientCode, isDefault: organization.isDefaultLocation })
+    .from(organization)
+    .then((rows) => {
+      const byCode = new Map<string, string>();
+      for (const r of rows) if (r.clientCode) byCode.set(r.clientCode, r.id);
+      orgSnapshot = { byCode, defaultId: rows.find((r) => r.isDefault)?.id ?? null, at: Date.now() };
+      return orgSnapshot;
+    })
+    .finally(() => {
+      orgLoad = null;
+    });
+  return orgLoad;
+}
+
 function unauthorized(): NextResponse {
   const body = { type: "about:blank", title: "Unauthorized", status: 401, detail: "Authentication required" };
   return new NextResponse(JSON.stringify(body), { status: 401, headers: { "content-type": "application/problem+json" } });
@@ -92,29 +118,15 @@ export async function proxy(request: NextRequest) {
 
   if (!resolutionExempt) {
     const segment = pathname.split("/")[1] || null;
-    const [org] = segment
-      ? await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, segment)).limit(1)
-      : [];
-    if (org) {
-      resolvedOrgId = org.id;
-    } else {
-      // A visitor-picked franchise (location popup, ip-api-detected or manual)
-      // is stored as a plain `franchise` cookie holding clientCode.
-      const pickedCode = request.cookies.get("franchise")?.value ?? null;
-      const [picked] = pickedCode
-        ? await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, pickedCode)).limit(1)
-        : [];
-      if (picked) {
-        resolvedOrgId = picked.id;
-      } else {
-        const [fallback] = await db
-          .select({ id: organization.id })
-          .from(organization)
-          .where(eq(organization.isDefaultLocation, true))
-          .limit(1);
-        if (fallback) resolvedOrgId = fallback.id;
-      }
-    }
+    const { byCode, defaultId } = await orgs();
+    // A visitor-picked franchise (location popup, ip-api-detected or manual)
+    // is stored as a plain `franchise` cookie holding clientCode.
+    const pickedCode = request.cookies.get("franchise")?.value ?? null;
+    resolvedOrgId =
+      (segment ? byCode.get(segment) : undefined) ??
+      (pickedCode ? byCode.get(pickedCode) : undefined) ??
+      defaultId ??
+      undefined;
   }
 
   if (resolvedOrgId) request.headers.set("x-realm-org-id", resolvedOrgId);

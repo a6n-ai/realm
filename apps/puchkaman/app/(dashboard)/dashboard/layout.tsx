@@ -20,6 +20,7 @@ import { AppBrand } from "@/components/dashboard/app-brand";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBellMount } from "@/components/dashboard/notification-bell-mount";
+import { getFeed } from "@/lib/notifications/feed";
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
@@ -40,15 +41,20 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // First-login gate: an account still on its issued default password must set
   // its own before it can reach anything under /dashboard. /set-password sits
   // outside this layout so it can't trap the user.
-  const [u, statuses, cloverVisibleInNav] = await Promise.all([
-    db
-      .select({ passwordSet: users.passwordSet, name: users.name, status: users.status })
-      .from(users)
-      .where(eq(users.publicId, session.user.id))
-      .limit(1)
-      .then((rows) => rows[0]),
+  const userP = db
+    .select({ id: users.id, passwordSet: users.passwordSet, name: users.name, status: users.status })
+    .from(users)
+    .where(eq(users.publicId, session.user.id))
+    .limit(1)
+    .then((rows) => rows[0]);
+  // Org switcher and the bell's feed ride the same wave; neither depends on the gates below.
+  const [u, statuses, cloverVisibleInNav, memberOrganizations, notificationFeed] = await Promise.all([
+    userP,
     resolveStatuses(PLUGINS),
     isCloverVisibleInNav(),
+    getMemberOrganizations(session),
+    // Server-rendered so the bell paints with its badge instead of fetching after hydration.
+    userP.then((row) => (row ? getFeed(row.id) : undefined)),
   ]);
   if (!u) redirect("/login");
   // A brand admin with no direct Clover connection of its own still manages
@@ -65,7 +71,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   if (!u.passwordSet) redirect("/set-password");
 
   const granted = grantedKeys(session.user.role);
-  const memberOrganizations = await getMemberOrganizations(session);
 
   return (
     <div className="crm-app">
@@ -84,7 +89,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           actions={
             <>
               <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
-              <NotificationBellMount userPublicId={session.user.id} />
+              <NotificationBellMount userPublicId={session.user.id} initial={notificationFeed} />
               <ModeToggle />
             </>
           }
