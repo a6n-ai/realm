@@ -36,7 +36,7 @@ export interface PricingCatalog {
   // — buildPricingCatalog rejects any key not attached to the chosen meal
   // size's categories and clamps qty to the addon's maxQty, so by the time this
   // reaches the engine every entry is billable as-is.
-  addons: { key: string; name: string; category: string; tuAmount: number; pricePerTiffin: number; qty: number }[];
+  addons: { key: string; name: string; category: string; planKey?: string | null; tuAmount: number; pricePerTiffin: number; qty: number }[];
   // Already filtered to those applicable to the selections; engine sums, caps, prints.
   discounts?: { key: string; label: string; percent: number }[];
   maxDiscountPct?: number;

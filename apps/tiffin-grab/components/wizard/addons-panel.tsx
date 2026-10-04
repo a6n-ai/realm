@@ -1,4 +1,4 @@
-import { PlusIcon } from "lucide-react";
+import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import { Button, Stepper } from "@/components/customer/kit";
 import type { WizardSelections } from "./selections";
@@ -6,16 +6,19 @@ import type { WizardSelections } from "./selections";
 /**
  * The add-on picker: inline under the picked meal on desktop, inside the
  * "Add to every tiffin?" drawer on phones. `bare` drops the card chrome for the drawer,
- * which already has its own title.
+ * which already has its own title. One collapsible section per dish category; a
+ * section opens on its own when it already holds a pick, or when it is the only one.
  */
 export function AddonsPanel({
   addons,
+  categoryLabels,
   selections,
   set,
   bare = false,
   className = "",
 }: {
   addons: CatalogAddon[];
+  categoryLabels?: Record<string, string>;
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
   bare?: boolean;
@@ -28,9 +31,12 @@ export function AddonsPanel({
     set({ addonSelections: qty > 0 ? [...rest, { key, qty }] : rest });
   };
 
-  const list = (
-    <ul className={bare ? "space-y-2" : "mt-3 space-y-2"}>
-      {addons.map((addon) => {
+  const groups = new Map<string, CatalogAddon[]>();
+  for (const a of addons) groups.set(a.category, [...(groups.get(a.category) ?? []), a]);
+
+  const rows = (items: CatalogAddon[]) => (
+    <ul className="space-y-2 pt-2">
+      {items.map((addon) => {
         const qty = qtyFor(addon.key);
         const active = qty > 0;
         return (
@@ -56,6 +62,27 @@ export function AddonsPanel({
         );
       })}
     </ul>
+  );
+
+  const list = (
+    <div className={bare ? "space-y-2" : "mt-3 space-y-2"}>
+      {[...groups].map(([category, items]) => {
+        const count = items.reduce((n, a) => n + qtyFor(a.key), 0);
+        const total = items.reduce((sum, a) => sum + qtyFor(a.key) * a.pricePerTiffin, 0);
+        return (
+          <details key={category} open={count > 0 || groups.size === 1} className="group">
+            <summary className="border-border flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-xl border px-4 [&::-webkit-details-marker]:hidden">
+              <span className="text-[15px] font-semibold">{categoryLabels?.[category] ?? category}</span>
+              <span className="text-muted-foreground flex items-center gap-2 text-[13px]">
+                {count > 0 ? <span className="nums text-primary font-medium">{count} added · +${total.toFixed(2)}/tiffin</span> : `${items.length} option${items.length === 1 ? "" : "s"}`}
+                <ChevronDownIcon aria-hidden className="size-4 transition-transform group-open:rotate-180" />
+              </span>
+            </summary>
+            {rows(items)}
+          </details>
+        );
+      })}
+    </div>
   );
 
   if (bare) return <section aria-label="Add-ons" className={className}>{list}</section>;

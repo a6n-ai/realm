@@ -1,6 +1,6 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orderAddons, orders } from "@/db/schema";
+import { orderAddons, orders, plans } from "@/db/schema";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
 import type { TuCategory } from "./format-tu";
 
@@ -17,7 +17,7 @@ export type AddonItemRow = {
   category: string;
   tuAmount: string;
   sortOrder: number;
-  // Picks follow the order's own plan (diet).
+  // Picks follow the add-on's own plan when set ("Veg Sabzi"), else the order's.
   planId: bigint;
   maxTuAmount: null;
   addon: true;
@@ -27,7 +27,7 @@ export async function addonItemsByOrder(orderIds: bigint[]): Promise<Map<bigint,
   const out = new Map<bigint, AddonItemRow[]>();
   if (orderIds.length === 0) return out;
   const rows = await db
-    .select({ orderId: orderAddons.orderId, category: orderAddons.category, tuAmount: orderAddons.tuAmount, qty: orderAddons.qty, planId: orders.planId })
+    .select({ orderId: orderAddons.orderId, category: orderAddons.category, tuAmount: orderAddons.tuAmount, qty: orderAddons.qty, planId: sql<bigint>`coalesce(${orderAddons.planId}, ${orders.planId})`.mapWith(BigInt) })
     .from(orderAddons)
     .innerJoin(orders, eq(orders.id, orderAddons.orderId))
     .where(inArray(orderAddons.orderId, [...new Set(orderIds)]))
@@ -56,7 +56,7 @@ export function countsWithAddons(base: Record<string, number>, addons: { categor
 /** order_addons rows for a priced order: the snapshot of what each tiffin carries and costs. */
 export function orderAddonValues(
   orderId: bigint,
-  addons: { key: string; name: string; category: string; tuAmount: number; pricePerTiffin: number; qty: number }[],
+  addons: { key: string; name: string; category: string; planKey?: string | null; tuAmount: number; pricePerTiffin: number; qty: number }[],
   tiffinCount: number,
   organizationId: string | null,
 ) {
@@ -65,6 +65,7 @@ export function orderAddonValues(
     addonKey: a.key,
     addonName: a.name,
     category: a.category,
+    planId: a.planKey ? sql<bigint>`(select ${plans.id} from ${plans} where ${plans.key} = ${a.planKey})` : null,
     tuAmount: a.tuAmount.toFixed(2),
     pricePerTiffin: a.pricePerTiffin.toFixed(2),
     qty: a.qty,

@@ -171,7 +171,7 @@ async function NewCustomerAction() {
 
   const orderCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends, addons: m.trial ? [] : mealSizeAddons(catalog.addonsByCategory, m.items) })),
+    mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends, addons: m.trial ? [] : mealSizeAddons(catalog, m) })),
     frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     timezone: catalog.timezone,

@@ -261,7 +261,21 @@ class DiscountService extends SoftDeleteService<typeof discounts> {
 
 export const planService = new CatalogService(new UpdatableRepository(db, plans, plans.publicId, plans.id), RESOURCES.plans.schema);
 export const mealSizeService = new MealSizeService(new UpdatableRepository(db, mealSizes, mealSizes.publicId, mealSizes.id));
-export const addonService = new CatalogService(new UpdatableRepository(db, addons, addons.publicId, addons.id), RESOURCES.addons.schema);
+// The form picks the dish plan by publicId; the row stores plans.id.
+class AddonService extends SoftDeleteService<typeof addons> {
+  async create(values: Record<string, unknown>) {
+    return super.create(await this.withPlanId(RESOURCES.addons.schema.parse(values)));
+  }
+  async update(id: string, patch: Record<string, unknown>) {
+    return super.update(id, await this.withPlanId(RESOURCES.addons.schema.partial().parse(patch)));
+  }
+  private async withPlanId(parsed: Record<string, unknown>) {
+    if (parsed.planId === undefined) return parsed;
+    return { ...parsed, planId: parsed.planId == null ? null : await resolvePlanId(parsed.planId as string) };
+  }
+}
+
+export const addonService = new AddonService(new UpdatableRepository(db, addons, addons.publicId, addons.id));
 export const deliveryFrequencyService = new CatalogService(new UpdatableRepository(db, deliveryFrequencies, deliveryFrequencies.publicId, deliveryFrequencies.id), RESOURCES["delivery-frequencies"].schema);
 export const durationPackageService = new CatalogService(new UpdatableRepository(db, durationPackages, durationPackages.publicId, durationPackages.id), RESOURCES["duration-packages"].schema);
 export const discountService = new DiscountService(new UpdatableRepository(db, discounts, discounts.publicId, discounts.id));
