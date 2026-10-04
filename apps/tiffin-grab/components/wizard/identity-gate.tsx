@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
+import { warmCaptcha } from "@/lib/auth/captcha-client";
 import { checkExistingAccount, createCheckoutAccount } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
 import { CodeOtp, EmailSuggestions, ResendCode } from "@foundry/auth-ui";
@@ -43,6 +44,7 @@ export function IdentityGate() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<{ field: "email" | "name" | "code" | "form"; message: string } | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
+  useEffect(() => warmCaptcha(), []);
 
   const reveal = reduced
     ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }

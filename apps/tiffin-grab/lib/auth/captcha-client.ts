@@ -72,8 +72,38 @@ function placeHost(): HTMLElement {
   return host;
 }
 
+// Turnstile tokens live 300s; leave margin for the request itself.
+const TOKEN_TTL_MS = 270_000;
+let ready: { token: Promise<string | null>; at: number } | undefined;
+
+/**
+ * Do the slow parts (site key, script, challenge) before the click, so Send
+ * only waits on its own request. `solve: false` warms key + script only — use it
+ * on screens with no email form yet, where a checkbox would have nowhere to sit.
+ */
+export function warmCaptcha(solve = true): void {
+  void loadSiteKey();
+  void loadScript().catch(() => {});
+  if (!solve || (ready && Date.now() - ready.at < TOKEN_TTL_MS)) return;
+  const token = solveToken();
+  token.catch(() => {
+    if (ready?.token === token) ready = undefined;
+  });
+  ready = { token, at: Date.now() };
+}
+
 /** A single-use Turnstile token, or null when captcha is off. */
 export async function getCaptchaToken(): Promise<string | null> {
+  const pre = ready;
+  ready = undefined;
+  if (pre && Date.now() - pre.at < TOKEN_TTL_MS) {
+    const token = await pre.token.catch(() => undefined);
+    if (token !== undefined) return token;
+  }
+  return solveToken();
+}
+
+async function solveToken(): Promise<string | null> {
   const key = await loadSiteKey();
   if (!key) return null;
   await loadScript();

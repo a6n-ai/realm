@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon, LockIcon } from "lucide-react";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
+import { warmCaptcha } from "@/lib/auth/captcha-client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
 import { AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, EmailSuggestions, authErrorMessage } from "@foundry/auth-ui";
@@ -53,6 +54,8 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
   // welcome screen and land on the form.
   const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : callbackUrl ? "email-otp" : "welcome");
   const [codeStep, setCodeStep] = useState(false);
+  // Email and password forms both hit captcha'd routes; solve ahead of Send.
+  useEffect(() => warmCaptcha(mode === "email-otp" || mode === "password"), [mode]);
 
   async function landSignedIn() {
     await clearLockSession();
