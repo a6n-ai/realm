@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, EyeIcon, InboxIcon, XIcon } from "lucide-react";
+import { CheckIcon, EyeIcon, InboxIcon, MailIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
@@ -21,7 +21,8 @@ import {
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import { rejectPaymentAction, verifyPaymentAction } from "../../orders/[id]/actions";
+import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "../../orders/[id]/actions";
+import { sendTone } from "../../customers/customer-invite-cell";
 import { PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "../payment-facets";
 import { PaymentStatusPill } from "../payment-status-pill";
 import { PaymentDetailDialog } from "../payment-detail-dialog";
@@ -35,14 +36,14 @@ const SPEC: FacetDef[] = [
 
 // reference/proof/actions have no sort key in PAYMENT_SORT_KEYS, so they stay plain headers.
 const COLUMNS: readonly Column<PaymentSortKey | "reference" | "proof" | "actions">[] = [
-  { key: "time", label: "Submitted", sortable: true },
+  { key: "time", label: "Submitted", sortable: true, width: "w-44" },
   { key: "customer", label: "Customer", sortable: true },
   { key: "order", label: "Order", sortable: true },
-  { key: "reference", label: "Reference" },
-  { key: "proof", label: "Proof" },
-  { key: "status", label: "Status", sortable: true },
-  { key: "amount", label: "Amount", sortable: true, align: "right" },
-  { key: "actions", label: "", align: "right" },
+  { key: "reference", label: "Reference", width: "w-24" },
+  { key: "proof", label: "Proof", width: "w-16" },
+  { key: "status", label: "Status", sortable: true, width: "w-40" },
+  { key: "amount", label: "Amount", sortable: true, align: "right", width: "w-24" },
+  { key: "actions", label: "Actions", align: "right", width: "w-24" },
 ];
 
 export function RequestsTable({
@@ -74,6 +75,18 @@ export function RequestsTable({
       }
       toast.success(`Approved ${formatMoney(Number(r.amount))} for ${r.orderPublicId}`);
       setViewing(null);
+      router.refresh();
+    });
+  }
+
+  function remind(r: PaymentRow) {
+    start(async () => {
+      const res = await sendPaymentReminderAction(r.orderPublicId, r.publicId);
+      if ("error" in res) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Payment reminder emailed", { description: r.email ?? undefined });
       router.refresh();
     });
   }
@@ -116,9 +129,9 @@ export function RequestsTable({
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
               {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
             </TableCell>
-            <TableCell className="text-muted-foreground">{r.email ?? "-"}</TableCell>
+            <TableCell className="text-muted-foreground truncate" title={r.email ?? undefined}>{r.email ?? "-"}</TableCell>
             <TableCell>
-              <Link href={`/dashboard/orders/${r.orderPublicId}`} className="hover:underline">
+              <Link href={`/dashboard/orders/${r.orderPublicId}`} className="block truncate hover:underline">
                 {r.orderPublicId}
               </Link>
             </TableCell>
@@ -140,6 +153,19 @@ export function RequestsTable({
             <TableCell className="text-right">
               <RowActions>
                 <RowActionTooltipButton icon={EyeIcon} label="View e-transfer" onClick={() => setViewing(r)} />
+                {(r.status === "awaiting_payment" || r.status === "rejected") && (() => {
+                  const { tone, status } = sendTone(r.lastReminder, (ms) => formatEpoch(ms, { mode: "datetime", timeZone: tz }));
+                  return (
+                    <RowActionTooltipButton
+                      icon={MailIcon}
+                      label="Send payment reminder"
+                      hint={`Send payment reminder · ${status}`}
+                      tone={tone}
+                      disabled={pending || !r.email}
+                      onClick={() => remind(r)}
+                    />
+                  );
+                })()}
                 {r.status === "pending_verification" && (
                   <>
                     <RowActionTooltipButton icon={CheckIcon} label="Approve" disabled={pending} onClick={() => approve(r)} />

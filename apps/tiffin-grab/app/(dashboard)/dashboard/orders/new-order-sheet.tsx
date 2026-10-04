@@ -24,8 +24,9 @@ import { OrderForm } from "../inquiries/[id]/order/order-form";
 import { interestToPrefill } from "../inquiries/_leads/interest-prefill";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { OrderPricingBreakdown } from "./[id]/order-pricing-breakdown";
+import { useRouter } from "next/navigation";
 import {
-  AdminOrderCreatedDialog,
+  AdminOrderCreatedPanel,
   type AdminOrderCreated,
 } from "./admin-order-created-dialog";
 import { createOrderFlow, saveOrderLeadAction, settleNewOrderWithProofAction } from "./actions";
@@ -55,6 +56,11 @@ type OrderDraft = { order: CreateOrderInput; preview: PricingResult };
 const DAY_LABEL: Record<string, string> = {
   mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
 };
+
+const PAYMENT_INFO_CHOICES = [
+  { paid: false, label: "No payment info yet", hint: "Copy or email the payment link after create." },
+  { paid: true, label: "Already paid", hint: "Attach their screenshot; the plan starts on create." },
+] as const;
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -108,7 +114,7 @@ export function NewOrderSheet({
   const enabledSlots: EnabledSlot[] = categories.map((c) => ({ key: c.key, label: c.label }));
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [paidNow, setPaidNow] = useState(false);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
@@ -122,13 +128,12 @@ export function NewOrderSheet({
   const [leadError, setLeadError] = useState<string | null>(null);
   const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
   const [customMeal, setCustomMeal] = useState<CustomMealValue | null>(null);
-  const [draft, setDraft] = useState<OrderDraft | null>(null);
   const [creating, setCreating] = useState(false);
   // Loader text while Create runs: the order first, then the screenshot approval.
   const [stage, setStage] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
-  const [successOpen, setSuccessOpen] = useState(false);
+  const router = useRouter();
   const [proof, setProof] = useState<PaymentProofValue>({ file: null, reference: "" });
   // Keyed by the inquiry it was fetched for, so clearing the pick derives an empty
   // prefill instead of writing one synchronously in the effect below.
@@ -195,10 +200,8 @@ export function NewOrderSheet({
       setLeadError(null);
       setFetchedPrefill(null);
       setCustomMeal(null);
-      setDraft(null);
       setCreateError(null);
       setCreated(null);
-      setSuccessOpen(false);
       setProof({ file: null, reference: "" });
       setPaidNow(false);
     }
@@ -222,8 +225,7 @@ export function NewOrderSheet({
     }
   }
 
-  async function createFromDraft() {
-    if (!draft) return;
+  async function createFromDraft(draft: OrderDraft) {
     setCreating(true);
     setStage("Creating customer and order…");
     setCreateError(null);
@@ -247,7 +249,7 @@ export function NewOrderSheet({
           : undefined,
       }));
       let paid: AdminOrderCreated["paid"];
-      if (paidNow && proof.file && isEtransfer) {
+      if (paidNow && proof.file) {
         // Order already exists; a failed upload must not hide that, so it is
         // reported on the success dialog rather than thrown.
         setStage("Saving screenshot and approving payment…");
@@ -260,7 +262,7 @@ export function NewOrderSheet({
         paid = "error" in settled ? { ok: false, error: settled.error } : { ok: true };
       }
       setCreated({ ...result, paid });
-      setSuccessOpen(true);
+      setStep(4);
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : "Failed to create order");
     } finally {
@@ -269,18 +271,72 @@ export function NewOrderSheet({
     }
   }
 
-  const mealLabel = customMeal
-    ? "Custom meal"
-    : (catalog.mealSizes.find((m) => m.id === draft?.order.selections.mealSizeId)?.name ?? "Meal");
-  const planLabel = customMeal
-    ? (catalog.plans.find((p) => p.key === customMeal.planKey)?.name ?? customMeal.planKey)
-    : (catalog.plans.find((p) => p.key === draft?.order.planKey)?.name
-      ?? catalog.mealSizes.find((m) => m.id === draft?.order.selections.mealSizeId)?.diet
-      ?? "");
-  const frequencyLabel = catalog.frequencies.find((f) => f.key === draft?.order.selections.frequencyKey)?.name;
-  const eating = draft?.order.selections.eatingDays ?? [];
-  const trialDays = draft?.order.selections.trialDays;
-  const isEtransfer = draft?.order.paymentMethodId === "etransfer";
+  function reviewSummary({ order, preview }: { order: CreateOrderInput; preview: PricingResult | null }) {
+    const mealLabel = customMeal
+      ? "Custom meal"
+      : (catalog.mealSizes.find((m) => m.id === order.selections.mealSizeId)?.name ?? "Meal");
+    const planLabel = customMeal
+      ? (catalog.plans.find((p) => p.key === customMeal.planKey)?.name ?? customMeal.planKey)
+      : (catalog.plans.find((p) => p.key === order.planKey)?.name
+        ?? catalog.mealSizes.find((m) => m.id === order.selections.mealSizeId)?.diet
+        ?? "");
+    const frequencyLabel = catalog.frequencies.find((f) => f.key === order.selections.frequencyKey)?.name;
+    const eating = order.selections.eatingDays ?? [];
+    const trialDays = order.selections.trialDays;
+    return (
+      <>
+        <section className="grid gap-3">
+          <SectionLabel>Customer</SectionLabel>
+          <div className="rounded-lg border p-4 text-sm">
+            <p className="font-medium">{fullName}</p>
+            <p className="text-muted-foreground">{email.trim()}</p>
+            <p className="text-muted-foreground">{phone}</p>
+          </div>
+        </section>
+
+        <section className="grid gap-3">
+          <div className="flex items-center justify-between">
+            <SectionLabel>Plan</SectionLabel>
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="text-muted-foreground hover:text-foreground min-h-11 text-sm font-medium sm:min-h-0"
+            >
+              Edit
+            </button>
+          </div>
+          <div className="space-y-2 rounded-lg border p-4 text-sm">
+            <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
+              {mealLabel}
+              {trialDays != null && <TrialPill />}
+            </p>
+            {planLabel ? <p className="text-muted-foreground">{planLabel}</p> : null}
+            {customMeal && customMeal.basePriceOverride != null ? (
+              <p className="text-muted-foreground nums">
+                Staff override ${customMeal.basePriceOverride.toFixed(2)} / tiffin
+              </p>
+            ) : null}
+            <p className="text-muted-foreground">
+              {order.selections.persons} {order.selections.persons === 1 ? "person" : "persons"}
+              {trialDays != null
+                ? ` · ${trialDays} trial ${trialDays === 1 ? "day" : "days"}`
+                : ` · ${order.selections.durationWeeks} wk`}
+              {frequencyLabel ? ` · ${frequencyLabel}` : ""}
+            </p>
+            {eating.length > 0 && (
+              <p className="text-muted-foreground">Eating {eating.map((d) => DAY_LABEL[d] ?? d).join(", ")}</p>
+            )}
+            <p className="text-muted-foreground">Starts {order.selections.startDate || "—"}</p>
+          </div>
+        </section>
+
+        <section className="grid gap-3">
+          <SectionLabel>Price breakup</SectionLabel>
+          <OrderPricingBreakdown result={preview} currency={currency} />
+        </section>
+      </>
+    );
+  }
 
   return (
     <>
@@ -300,7 +356,7 @@ export function NewOrderSheet({
           ) : undefined
         }
         title="New order"
-        description="Contact, plan, then verify pricing before create."
+        description="Contact, plan, then delivery and payment."
         footer={
           sources.length > 0 && step === 1 ? (
             <div className="flex w-full items-center justify-end gap-3">
@@ -322,30 +378,18 @@ export function NewOrderSheet({
                 )}
               </Button>
             </div>
-          ) : sources.length > 0 && step === 3 ? (
-            <div className="flex w-full items-center justify-between gap-3">
-              <div className="text-sm">
-                <span className="text-muted-foreground">Total </span>
-                <span className="nums font-medium">
-                  {draft ? `$${draft.preview.total.toFixed(2)}` : "—"}
-                </span>
-                {draft ? (
-                  <span className="text-muted-foreground nums"> · {draft.preview.tiffinCount} tiffins</span>
-                ) : null}
-              </div>
+          ) : step === 4 && created ? (
+            <div className="flex w-full items-center justify-end gap-2">
+              <Button variant="outline" onClick={() => resetAndClose(false)} className="min-h-11 sm:min-h-9">Close</Button>
               <Button
-                disabled={!draft || creating}
-                onClick={() => void createFromDraft()}
-                className="min-h-11 active:scale-[0.96] sm:min-h-9"
+                onClick={() => {
+                  const id = created.publicId;
+                  resetAndClose(false);
+                  router.push(`/dashboard/orders/${id}`);
+                }}
+                className="min-h-11 sm:min-h-9"
               >
-                {creating ? (
-                  <>
-                    <Loader2Icon className="size-4 animate-spin" />
-                    Creating…
-                  </>
-                ) : (
-                  "Create order"
-                )}
+                View order
               </Button>
             </div>
           ) : undefined
@@ -355,7 +399,7 @@ export function NewOrderSheet({
           <NoSources noun="order" />
         ) : (
           <>
-            <StepHeader step={step} steps={["Contact", "Order", "Review"]} />
+            <StepHeader step={step} steps={["Contact", "Order", "Payment", "Done"]} />
 
             {creating ? (
               <div
@@ -497,15 +541,16 @@ export function NewOrderSheet({
               </div>
             ) : null}
 
-            <div className={step === 2 ? "space-y-5 px-5 py-5 sm:px-6" : "hidden"}>
+            <div className={step === 2 || step === 3 ? "space-y-5 px-5 py-5 sm:px-6" : "hidden"}>
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => setStep(step === 3 ? 2 : 1)}
                 className="text-muted-foreground hover:text-foreground -ml-1 flex min-h-11 items-center gap-1 text-sm transition-colors"
               >
-                ← <span className="font-medium">{fullName}</span>
+                ← <span className="font-medium">{step === 3 ? "Edit order" : fullName}</span>
               </button>
-              {/* Keep mounted across steps 2–3 so schedule/address aren't wiped on Edit. */}
+              {createError ? <p className="text-destructive text-sm" role="alert">{createError}</p> : null}
+              {/* One form across Order and Payment so nothing is wiped when staff step back. */}
               {step >= 2 && (
                 <OrderForm
                   inquiryId=""
@@ -528,135 +573,44 @@ export function NewOrderSheet({
                     <CustomMealBuilder plans={catalog.plans} categories={categories} value={customMeal} onChange={setCustomMeal} />
                   ) : null}
                   customMeal={customMeal ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
-                  paymentExtra={(methodId) => methodId === "etransfer" ? (
+                  paymentExtra={() => (
                     <div className="grid gap-3 rounded-lg border p-3">
-                      <Label htmlFor="paidNowToggle" className="flex items-center justify-between gap-3">
-                        <span className="grid gap-0.5">
-                          <span>Already paid by e-Transfer</span>
-                          <span className="text-muted-foreground text-xs font-normal">
-                            Attach their screenshot to approve the payment and start the plan on create.
-                          </span>
-                        </span>
-                        <Switch id="paidNowToggle" checked={paidNow} onCheckedChange={setPaidNow} />
-                      </Label>
+                      <p className="text-sm font-medium">Payment info</p>
+                      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Payment info">
+                        {PAYMENT_INFO_CHOICES.map((c) => (
+                          <button
+                            key={c.label}
+                            type="button"
+                            role="radio"
+                            aria-checked={paidNow === c.paid}
+                            onClick={() => setPaidNow(c.paid)}
+                            className={`grid gap-0.5 rounded-md border p-3 text-left text-sm transition-colors ${paidNow === c.paid ? "border-primary bg-primary/5" : "hover:bg-muted/40"}`}
+                          >
+                            <span className="font-medium">{c.label}</span>
+                            <span className="text-muted-foreground text-xs">{c.hint}</span>
+                          </button>
+                        ))}
+                      </div>
                       {paidNow && <PaymentProofField value={proof} onChange={setProof} />}
                     </div>
-                  ) : null}
-                  onReview={(next) => {
-                    setDraft(next);
-                    setCreateError(null);
-                    setStep(3);
-                  }}
+                  )}
+                  page={step === 3 ? "payment" : "order"}
+                  onContinue={() => setStep(3)}
+                  summary={reviewSummary}
+                  onReview={(next) => void createFromDraft(next)}
                 />
               )}
             </div>
 
-            {step === 3 ? (
-              <div className="space-y-5 px-5 py-5 sm:px-6">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="text-muted-foreground hover:text-foreground -ml-1 flex min-h-11 items-center gap-1 text-sm transition-colors"
-                >
-                  ← <span className="font-medium">Edit order</span>
-                </button>
-
-                <section className="grid gap-3">
-                  <SectionLabel>Customer</SectionLabel>
-                  <div className="rounded-lg border p-4 text-sm">
-                    <p className="font-medium">{fullName}</p>
-                    <p className="text-muted-foreground">{email.trim()}</p>
-                    <p className="text-muted-foreground">{phone}</p>
-                  </div>
-                </section>
-
-                <section className="grid gap-3">
-                  <SectionLabel>Plan</SectionLabel>
-                  <div className="space-y-2 rounded-lg border p-4 text-sm">
-                    <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
-                      {mealLabel}
-                      {trialDays != null && <TrialPill />}
-                    </p>
-                    {planLabel ? <p className="text-muted-foreground">{planLabel}</p> : null}
-                    {customMeal && customMeal.basePriceOverride != null ? (
-                      <p className="text-muted-foreground nums">
-                        Staff override ${customMeal.basePriceOverride.toFixed(2)} / tiffin
-                      </p>
-                    ) : null}
-                    <p className="text-muted-foreground">
-                      {draft?.order.selections.persons ?? 1}{" "}
-                      {(draft?.order.selections.persons ?? 1) === 1 ? "person" : "persons"}
-                      {trialDays != null
-                        ? ` · ${trialDays} trial ${trialDays === 1 ? "day" : "days"}`
-                        : ` · ${draft?.order.selections.durationWeeks ?? "—"} wk`}
-                      {frequencyLabel ? ` · ${frequencyLabel}` : ""}
-                    </p>
-                    {eating.length > 0 && (
-                      <p className="text-muted-foreground">
-                        Eating {eating.map((d) => DAY_LABEL[d] ?? d).join(", ")}
-                      </p>
-                    )}
-                    <p className="text-muted-foreground">
-                      Starts {draft?.order.selections.startDate ?? "—"}
-                    </p>
-                    <p className="text-muted-foreground">
-                      {[
-                        draft?.order.contact.addressLine,
-                        draft?.order.contact.city,
-                        draft?.order.contact.postalCode,
-                      ].filter(Boolean).join(", ")}
-                    </p>
-                  </div>
-                </section>
-
-                <section className="grid gap-3">
-                  <SectionLabel>Price breakup</SectionLabel>
-                  <OrderPricingBreakdown result={draft?.preview ?? null} currency={currency} />
-                </section>
-
-                {draft?.order.paymentMethodId ? (
-                  <section className="grid gap-3">
-                    <div className="flex items-center justify-between">
-                      <SectionLabel>Payment</SectionLabel>
-                      <button
-                        type="button"
-                        onClick={() => setStep(2)}
-                        className="text-muted-foreground hover:text-foreground min-h-11 text-sm font-medium sm:min-h-0"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                    <div className="rounded-lg border p-4 text-sm">
-                      {paidNow && proof.file && isEtransfer ? (
-                        <p>
-                          e-Transfer screenshot attached
-                          {proof.reference.trim() ? ` · ref ${proof.reference.trim()}` : ""} — approved on create, plan
-                          starts right away.
-                        </p>
-                      ) : (
-                        <p className="text-muted-foreground">Payment collected later with the customer payment link.</p>
-                      )}
-                    </div>
-                  </section>
-                ) : null}
-
-                {createError ? (
-                  <p className="text-destructive text-sm" role="alert">{createError}</p>
-                ) : null}
+            {step === 4 && created ? (
+              <div className="px-5 py-5 sm:px-6">
+                <AdminOrderCreatedPanel key={created.publicId} result={created} heading />
               </div>
             ) : null}
           </>
         )}
       </FormDrawer>
 
-      <AdminOrderCreatedDialog
-        open={successOpen}
-        onOpenChange={(openSuccess) => {
-          setSuccessOpen(openSuccess);
-          if (!openSuccess && created) resetAndClose(false);
-        }}
-        result={created}
-      />
     </>
   );
 }

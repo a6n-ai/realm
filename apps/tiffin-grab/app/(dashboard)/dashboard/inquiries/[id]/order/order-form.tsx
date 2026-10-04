@@ -5,7 +5,8 @@ import { PaymentInstructions } from "@/components/payment-instructions";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { CheckIcon, Loader2Icon, MinusIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, Loader2Icon, MinusIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
+import { toast } from "sonner";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
@@ -14,10 +15,13 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
+import { Textarea } from "@foundry/ui/textarea";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { AddressFields } from "@foundry/ui/address-fields";
 import { DeliveryAreaNote, useDeliveryArea } from "@/components/customer/address/delivery-area";
+import { DropOffPicker } from "@/components/customer/address/drop-off";
+import { dropOffCatalog, NO_DROP_OFF, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { PricingResult } from "@/lib/pricing";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
@@ -34,16 +38,19 @@ import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialDeliveryDates, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
-import { convertInquiry, customerRenewalStart, previewPrice, repCouponInfo, trialFormSettings, type RepCouponInfo } from "./actions";
+import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo } from "./actions";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
+
+const APP_NAME = "Tiffin Grab";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
 /** One group of the order form: a heading, one line of help, an optional header control. */
-function FormSection({ title, hint, action, children }: { title: string; hint?: string; action?: React.ReactNode; children: React.ReactNode }) {
+function FormSection({ title, hint, action, hidden = false, children }: { title: string; hint?: string; action?: React.ReactNode; hidden?: boolean; children: React.ReactNode }) {
+  // Hidden, not unmounted: a step switch must keep what staff already entered.
   return (
-    <section className="grid gap-4">
+    <section className={cn("grid gap-4", hidden && "hidden")}>
       <div className="flex items-start justify-between gap-4">
         <div className="grid gap-0.5">
           <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-balance">{title}</h3>
@@ -70,6 +77,28 @@ type Catalog = {
 };
 
 type EnabledSlot = { key: string; label: string };
+
+/** CRM toggle pill for DropOffPicker and address types (the customer kit pill is public-site styled). */
+function AdminPill({ on, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { on: boolean }) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={cn(
+        "inline-flex min-h-9 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors disabled:opacity-50",
+        on ? "border-primary bg-primary/10 text-foreground font-medium" : "hover:bg-muted/50",
+        className?.replace(/\b(h-10|text-\[14px\]|sm:text-\[14px\])\b/g, ""),
+      )}
+    />
+  );
+}
+
+function chargeHint(item: { chargeType: "none" | "fixed" | "percent"; chargeValue: number }): string {
+  if (item.chargeType === "none" || item.chargeValue === 0) return "Free";
+  return item.chargeType === "fixed" ? `+$${item.chargeValue.toFixed(2)}` : `+${item.chargeValue}%`;
+}
+
+type DeliveryOptions = Awaited<ReturnType<typeof orderFormDeliveryOptions>>;
 
 function firstWeekdayOnOrAfter(iso: string): string {
   const d = parseIsoDateUtc(iso);
@@ -99,7 +128,16 @@ export function OrderForm({
   mealBuilder,
   hideMealSizePicker = false,
   customMeal = null,
+  page,
+  onContinue,
+  summary,
 }: {
+  /** Split into two steps: "order" = meal + schedule, "payment" = delivery + payment + review. Unset = one page. */
+  page?: "order" | "payment";
+  /** "order" page's Continue, after its fields validate. */
+  onContinue?: () => void;
+  /** Review block on top of the "payment" page, fed the live order and price. */
+  summary?: (draft: { order: CreateOrderInput; preview: PricingResult | null }) => React.ReactNode;
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
   catalog: Catalog;
@@ -138,7 +176,14 @@ export function OrderForm({
   const [trialSettings, setTrialSettings] = useState<TrialSettings | null>(null);
   const [pickedDays, setPickedDays] = useState<DayOfWeek[]>([]);
   // First free day after the customer's running plans; the new plan renews from there.
-  const [renewFrom, setRenewFrom] = useState<string | null>(null);
+  const [customerCtx, setCustomerCtx] = useState<CustomerOrderContext>({ renewFrom: null, addresses: [] });
+  const renewFrom = customerCtx.renewFrom;
+  const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOptions | null>(null);
+  // A picked saved address (its fields and notes come from the address book), or null for a typed one.
+  const [addressPublicId, setAddressPublicId] = useState<string | null>(null);
+  const [notes, setNotes] = useState("");
+  const [addressTagId, setAddressTagId] = useState<string | null>(null);
+  const [dropOff, setDropOff] = useState<DropOffValue>(NO_DROP_OFF);
 
   const defaultSlots = enabledSlots.some((s) => s.key === "lunch")
     ? ["lunch"]
@@ -244,7 +289,9 @@ export function OrderForm({
   useEffect(() => {
     let live = true;
     const t = setTimeout(() => {
-      customerRenewalStart(email ?? "").then((d) => { if (live) setRenewFrom(d); }).catch(() => { if (live) setRenewFrom(null); });
+      customerOrderContext(email ?? "")
+        .then((c) => { if (live) setCustomerCtx(c); })
+        .catch(() => { if (live) setCustomerCtx({ renewFrom: null, addresses: [] }); });
     }, 300);
     return () => { live = false; clearTimeout(t); };
   }, [email]);
@@ -276,6 +323,12 @@ export function OrderForm({
     if (form.getValues("addonSelections")?.length) form.setValue("addonSelections", []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mealSizeId, hideMealSizePicker]);
+
+  useEffect(() => {
+    let cancelled = false;
+    orderFormDeliveryOptions().then((o) => { if (!cancelled) setDeliveryOptions(o); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -321,7 +374,11 @@ export function OrderForm({
       startDate: v.startDate,
       addonSelections: trial || hideMealSizePicker ? [] : (v.addonSelections ?? []),
       ...(trial ? { trialDays: trialPicks.length } : {}),
+      addressTagId,
+      deliveryTagId: dropOff.tagId,
+      deliveryStrategyIds: dropOff.strategyIds,
     },
+    addressPublicId: addressPublicId ?? undefined,
     contact: {
       fullName: contact.fullName,
       phone: contact.phone,
@@ -329,6 +386,7 @@ export function OrderForm({
       addressLine: v.addressLine,
       city: v.city,
       postalCode: v.postalCode,
+      deliveryInstructions: notes.trim() || null,
     },
     paymentMethodId: realPayments ? paymentMethodId : null,
     repCoupon: repInfo?.available && discount > 0
@@ -389,17 +447,70 @@ export function OrderForm({
         setPreviewError("Couldn't price this order. Check your connection and try again.");
       });
     return () => { cancelled = true; };
-    // email/addressLine/city/postalCode intentionally excluded — they don't affect
+    // Postal code's first letter is its province, which sets the tax rate; the rest is per-keystroke noise.
+    // email/addressLine/city/full postalCode intentionally excluded — they don't affect
     // pricing and are per-keystroke, so including them would refire preview on every
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialPicks.join(), isTrial]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ceiling]);
+
+  const dropOffs = dropOffCatalog(deliveryOptions?.deliveryCharges ?? undefined, deliveryOptions?.waivers);
+
+  function pickSavedAddress(id: string | null) {
+    setAddressPublicId(id);
+    const a = customerCtx.addresses.find((x) => x.publicId === id);
+    if (!a) return;
+    for (const [key, value] of [["addressLine", a.addressLine], ["city", a.city], ["postalCode", a.postalCode]] as const) {
+      form.setValue(key, value ?? "", { shouldDirty: true, shouldValidate: true });
+    }
+    setNotes(a.deliveryInstructions ?? "");
+    setDropOff(validDropOff(dropOffs, a.dropOff));
+  }
+
+  // An existing customer starts on their default saved address, same as checkout.
+  useEffect(() => {
+    if (addressPublicId != null || addressLine) return;
+    const preferred = customerCtx.addresses.find((a) => a.isDefault) ?? customerCtx.addresses[0];
+    if (preferred) pickSavedAddress(preferred.publicId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerCtx]);
+
+  // Staff paste this into WhatsApp/SMS; the order code isn't known until create.
+  async function copyPaymentDetails(m: CheckoutPaymentMethod) {
+    const amount = shownPreview ? `$${shownPreview.total.toFixed(2)}` : "the order total";
+    const lines = [
+      `Hi ${contact.fullName.split(" ")[0] || "there"}, your ${APP_NAME} order total is ${amount}.`,
+      m.id === "etransfer"
+        ? `Please send an Interac e-Transfer of ${amount}${m.payeeHandle ? ` to ${m.payeeHandle}` : ""} with your name in the message, and share the screenshot with us.`
+        : `Payment method: ${m.label}${m.payeeHandle ? ` (${m.payeeHandle})` : ""}.`,
+      m.instructions?.trim() || null,
+    ].filter(Boolean);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      toast.success("Payment details copied");
+    } catch {
+      toast.error("Could not copy");
+    }
+  }
+
+  const orderFields = ["planKey", "mealSizeId", "frequencyKey", "eatingDays", "persons", "mealSlots", "durationWeeks", "startDate"] as const;
+  async function continueToPayment() {
+    setError(null);
+    if (!(await form.trigger(orderFields))) return;
+    if (isTrial && !trialOpen) return setError("Trials aren't available right now");
+    if (isTrial && !trialStartOk) return setError("Pick a start date on a trial day");
+    if (!isTrial) {
+      const err = eatingDaysError(deliveryDays, eatingDays, bounds);
+      if (err) return setError(err);
+    }
+    onContinue?.();
+  }
 
   const onSubmit = form.handleSubmit(async (v) => {
     setError(null);
@@ -443,15 +554,24 @@ export function OrderForm({
     }
   });
 
-  const missing = [
+  const orderMissing = [
     hideMealSizePicker ? !customKey && "custom meal items" : !mealSizeId && "meal size",
     !startDate && "start date",
     isTrial && !!startDate && !trialStartOk && "a start date on a trial day",
+  ];
+  const paymentMissing = [
     !addressLine && "address",
     !city && "city",
     !postalCode && "postal code",
     realPayments && !paymentMethodId && "payment method",
-  ].filter(Boolean) as string[];
+  ];
+  const missing = (page === "order" ? orderMissing : [...orderMissing, ...paymentMissing]).filter(Boolean) as string[];
+  const liveDraft = page === "payment" && summary
+    ? {
+        order: buildInput({ ...(form.getValues() as OrderFormValues), persons: Number(persons), durationWeeks: Number(durationWeeks) }),
+        preview: shownPreview,
+      }
+    : null;
 
   return (
     <>
@@ -473,7 +593,9 @@ export function OrderForm({
             </div>
           )}
 
-          <FormSection title="Meal" hint={mealBuilder ? "Built item by item for this order." : "Diet, then the meal size."} action={mealAction}>
+          {liveDraft && <section className="grid gap-5">{summary!(liveDraft)}</section>}
+
+          <FormSection hidden={page === "payment"} title="Meal" hint={mealBuilder ? "Built item by item for this order." : "Diet, then the meal size."} action={mealAction}>
             <fieldset className="grid gap-4" disabled={submitting}>
               <FormField
                 control={form.control}
@@ -509,7 +631,7 @@ export function OrderForm({
             </fieldset>
           </FormSection>
 
-          <FormSection title="Schedule" hint={isTrial ? `${multiDayTrial ? "Pick the days the trial arrives" : "A one-day trial arrives on its start date"}${trialFrequencyName ? ` · ${trialFrequencyName}` : ""}.` : "When it starts, how long it runs, and which days they eat."}>
+          <FormSection hidden={page === "payment"} title="Schedule" hint={isTrial ? `${multiDayTrial ? "Pick the days the trial arrives" : "A one-day trial arrives on its start date"}${trialFrequencyName ? ` · ${trialFrequencyName}` : ""}.` : "When it starts, how long it runs, and which days they eat."}>
             <fieldset className={cn("grid gap-4", isTrial ? "sm:grid-cols-2" : "sm:grid-cols-3")} disabled={submitting}>
               <FormField
                 control={form.control}
@@ -645,34 +767,96 @@ export function OrderForm({
           </fieldset>}
           </FormSection>
 
-          <FormSection title="Delivery address" hint="Pick a suggestion to fill the city and postal code.">
-          <fieldset className="space-y-3" disabled={submitting}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2 grid gap-2">
-                <AddressFields
-                  idPrefix="order"
-                  fields={["addressLine", "city", "postalCode"]}
-                  values={{ addressLine, city, postalCode }}
-                  onChange={(patch) => {
-                    for (const key of ["addressLine", "city", "postalCode"] as const) {
-                      if (patch[key] !== undefined) form.setValue(key, patch[key], { shouldDirty: true, shouldValidate: true });
-                    }
-                  }}
-                  errors={{
-                    addressLine: form.formState.errors.addressLine?.message,
-                    city: form.formState.errors.city?.message,
-                    postalCode: form.formState.errors.postalCode?.message,
-                  }}
-                  resolveUrl="/api/address/resolve"
-                />
-                <DeliveryAreaNote area={deliveryArea} />
+          <FormSection hidden={page === "order"} title="Delivery" hint="Where it goes, notes for the driver, and how it's dropped off.">
+          <fieldset className="space-y-4" disabled={submitting}>
+            {customerCtx.addresses.length > 0 && (
+              <div className="grid gap-2" role="radiogroup" aria-label="Saved addresses">
+                <p className="text-sm font-medium">Saved addresses</p>
+                {customerCtx.addresses.map((a) => {
+                  const on = addressPublicId === a.publicId;
+                  return (
+                    <button
+                      key={a.publicId}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => pickSavedAddress(on ? null : a.publicId)}
+                      className={cn("flex items-start justify-between gap-3 rounded-lg border p-3 text-left text-sm transition-colors", on ? "border-primary bg-primary/5" : "hover:bg-muted/40")}
+                    >
+                      <span className="grid gap-0.5">
+                        <span className="font-medium">
+                          {a.label}{a.isDefault ? <span className="text-muted-foreground font-normal"> · Default</span> : null}
+                        </span>
+                        <span className="text-muted-foreground">{[a.addressUnit, a.addressLine, a.city, a.postalCode].filter(Boolean).join(", ")}</span>
+                        {a.deliveryInstructions ? <span className="text-muted-foreground text-xs">Notes: {a.deliveryInstructions}</span> : null}
+                      </span>
+                      {on && <CheckIcon className="text-primary mt-0.5 size-4 shrink-0" />}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={addressPublicId == null}
+                  onClick={() => pickSavedAddress(null)}
+                  className={cn("rounded-lg border p-3 text-left text-sm font-medium transition-colors", addressPublicId == null ? "border-primary bg-primary/5" : "hover:bg-muted/40")}
+                >
+                  A new address
+                </button>
               </div>
+            )}
+            <fieldset className="grid gap-2" disabled={addressPublicId != null}>
+              <AddressFields
+                idPrefix="order"
+                fields={["addressLine", "city", "postalCode"]}
+                values={{ addressLine, city, postalCode }}
+                onChange={(patch) => {
+                  for (const key of ["addressLine", "city", "postalCode"] as const) {
+                    if (patch[key] !== undefined) form.setValue(key, patch[key], { shouldDirty: true, shouldValidate: true });
+                  }
+                }}
+                errors={{
+                  addressLine: form.formState.errors.addressLine?.message,
+                  city: form.formState.errors.city?.message,
+                  postalCode: form.formState.errors.postalCode?.message,
+                }}
+                resolveUrl="/api/address/resolve"
+              />
+              <DeliveryAreaNote area={deliveryArea} />
+            </fieldset>
+            <div className="grid gap-2">
+              <Label htmlFor="order-delivery-notes">Delivery notes</Label>
+              <Textarea
+                id="order-delivery-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                disabled={addressPublicId != null}
+                placeholder="Buzzer code, leave at door, call on arrival…"
+                rows={2}
+                maxLength={500}
+              />
+              {addressPublicId != null && (
+                <p className="text-muted-foreground text-xs">From the saved address. Change it on the customer&apos;s address book, or pick A new address.</p>
+              )}
             </div>
+            {deliveryOptions?.deliveryCharges && deliveryOptions.deliveryCharges.addressTags.length > 0 && (
+              <div className="grid gap-2">
+                <p className="text-sm font-medium">Address type</p>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Address type">
+                  {deliveryOptions.deliveryCharges.addressTags.map((tag) => (
+                    <AdminPill key={tag.id} role="radio" aria-checked={addressTagId === tag.id} on={addressTagId === tag.id} onClick={() => setAddressTagId(addressTagId === tag.id ? null : tag.id)}>
+                      {tag.name}
+                      <span className="text-muted-foreground text-xs">{chargeHint(tag)}</span>
+                    </AdminPill>
+                  ))}
+                </div>
+              </div>
+            )}
+            <DropOffPicker catalog={dropOffs} value={dropOff} onChange={setDropOff} disabled={submitting} Pill={AdminPill} />
           </fieldset>
-
           </FormSection>
 
-          <FormSection title="Payment" hint={realPayments ? "How the customer pays. They get a payment link after you create the order." : undefined}>
+          <FormSection hidden={page === "order"} title="Payment" hint={realPayments ? "How the customer pays. Attach proof if they already paid; otherwise share the payment link after create." : undefined}>
           <fieldset className="space-y-3" disabled={submitting}>
             {realPayments ? (
               <>
@@ -697,7 +881,12 @@ export function OrderForm({
                         </button>
                         {/* Outside the select button: the copy button can't nest inside it. */}
                         {selected ? (
-                          <PaymentInstructions payeeHandle={m.payeeHandle} instructions={m.instructions} className="px-3 pb-3" />
+                          <div className="grid gap-2 px-3 pb-3">
+                            <PaymentInstructions payeeHandle={m.payeeHandle} instructions={m.instructions} />
+                            <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={() => void copyPaymentDetails(m)}>
+                              <CopyIcon className="size-4" /> Copy payment details
+                            </Button>
+                          </div>
                         ) : null}
                       </div>
                     );
@@ -779,18 +968,25 @@ export function OrderForm({
               {!shownPreview && previewError && missing.length === 0 && (
                 <p role="alert" className="text-destructive max-w-80 text-right text-xs">{previewError}</p>
               )}
-              <Button type="submit" disabled={submitting || missing.length > 0 || (onReview != null && !shownPreview)}>
+              {page === "order" ? (
+                // Distinct keys: reusing one <button> lets the async click land on the new type="submit" and create the order.
+                <Button key="continue" type="button" disabled={missing.length > 0} onClick={() => void continueToPayment()}>
+                  Continue to payment
+                </Button>
+              ) : (
+              <Button key="submit" type="submit" disabled={submitting || missing.length > 0 || (onReview != null && !shownPreview)}>
                 {submitting ? (
                   <>
                     <Loader2Icon className="size-4 animate-spin" />
                     Creating…
                   </>
-                ) : onReview ? (
+                ) : onReview && page !== "payment" ? (
                   "Review order"
                 ) : (
                   "Create order"
                 )}
               </Button>
+              )}
             </div>
           </div>
         </form>

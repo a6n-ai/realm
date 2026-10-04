@@ -17,6 +17,7 @@ export type PaymentRow = {
   email: string | null;
   phone: string | null;
   orderPublicId: string;
+  lastReminder: { status: string; at: number; deliveredAt: number | null; openedAt: number | null } | null;
 };
 
 export const PAYMENT_SORT_KEYS = ["time", "customer", "order", "method", "status", "amount"] as const;

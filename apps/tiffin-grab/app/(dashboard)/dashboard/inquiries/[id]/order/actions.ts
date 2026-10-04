@@ -12,11 +12,18 @@ import { coupons, orders, users } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { resolveSessionVisibleOrgIds, type CreateOrderInput } from "@/lib/services/orders.service";
 import { couponsService } from "@/lib/services/coupons.service";
-import { getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getDiscountPolicy, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { findMethod } from "@foundry/payments";
+import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import { earliestNewPlanStart } from "@/lib/services/order-window";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { toClientCatalog } from "@/lib/catalog/types";
+import type { DropOffValue } from "@/lib/catalog/drop-off";
+import type { SavedAddress } from "@foundry/address";
+import { addressService } from "@/lib/services/addresses.service";
+import { dropOffsFor } from "@/lib/services/address-drop-off.service";
 import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
@@ -97,24 +104,45 @@ export async function trialFormSettings() {
   return getTrialSettings(await resolveRequestOrg());
 }
 
-// First day a new plan for this customer may start (the day after their running plans
-// end), or null for a new customer / no running plan. Same rule createOrder enforces.
-export async function customerRenewalStart(email: string): Promise<string | null> {
+export type CustomerOrderContext = {
+  /** First day a new plan may start (after their running plans), or null. Same rule createOrder enforces. */
+  renewFrom: string | null;
+  /** Saved addresses with the drop-off picked under each. */
+  addresses: (SavedAddress & { dropOff: DropOffValue | null })[];
+};
+
+const NO_CONTEXT: CustomerOrderContext = { renewFrom: null, addresses: [] };
+
+// An existing customer's renewal date and address book for the staff order form, or
+// empty for a new customer.
+export async function customerOrderContext(email: string): Promise<CustomerOrderContext> {
   await requireStaff();
   const normalized = email.trim().toLowerCase();
-  if (!normalized.includes("@")) return null;
+  if (!normalized.includes("@")) return NO_CONTEXT;
   const [user] = await db.select({ id: users.id }).from(users)
     .where(and(eq(users.email, normalized), eq(users.role, "user"))).limit(1);
-  if (!user) return null;
-  // Only reveal plan dates to staff who can already see one of this customer's orders.
+  if (!user) return NO_CONTEXT;
+  // Only reveal plan dates and addresses to staff who can already see one of this customer's orders.
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   if (visible !== "all") {
-    if (visible.length === 0) return null;
+    if (visible.length === 0) return NO_CONTEXT;
     const [seen] = await db.select({ id: orders.id }).from(orders)
       .where(and(eq(orders.userId, user.id), inArray(orders.organizationId, visible))).limit(1);
-    if (!seen) return null;
+    if (!seen) return NO_CONTEXT;
   }
-  return earliestNewPlanStart(db, user.id);
+  const [renewFrom, saved] = await Promise.all([
+    earliestNewPlanStart(db, user.id),
+    addressService.list({ userId: user.id, orgId: await resolveRequestOrg() }),
+  ]);
+  const dropOffs = await dropOffsFor(saved.map((a) => a.publicId));
+  return { renewFrom, addresses: saved.map((a) => ({ ...a, dropOff: dropOffs[a.publicId] ?? null })) };
+}
+
+// Address types and drop-off strategies with their fees, as checkout offers them.
+export async function orderFormDeliveryOptions() {
+  await requireStaff();
+  const client = toClientCatalog(await loadCatalogSnapshot());
+  return { deliveryCharges: client.deliveryCharges ?? null, waivers: client.waivers ?? [] };
 }
 
 // Returned, not thrown: production strips a thrown action's message, and staff
@@ -154,7 +182,11 @@ async function quotePrice(
   const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
   const catalog = trial ? trial.catalog : buildPricingCatalog(snap, input.selections);
   if (override != null) catalog.mealSize = { ...catalog.mealSize, basePrice: round2(override) };
-  const base = priceSubscription(trial ? trial.pricingSelections : input.selections, catalog);
+  // Same tax resolution as createOrder (delivery postal code + the method's own taxes), so the
+  // total staff see and copy to the customer is the total charged.
+  const method = input.paymentMethodId ? findMethod(await getPaymentConfig(), input.paymentMethodId) : undefined;
+  const { taxes } = await resolveCheckoutTaxes({ postalCode: input.contact.postalCode, methodTaxes: method?.enabled ? method.taxes : [] });
+  const base = priceSubscription(trial ? trial.pricingSelections : input.selections, catalog, [], taxes);
 
   const code = couponCode?.trim();
   if (!code || requestedAmount == null || requestedAmount <= 0) return base;
@@ -170,7 +202,7 @@ async function quotePrice(
       actorId,
       planType: plan?.planType,
     });
-    return priceSubscription(input.selections, catalog, [line]);
+    return priceSubscription(input.selections, catalog, [line], taxes);
   } catch {
     return base;
   }

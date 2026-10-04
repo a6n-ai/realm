@@ -2,7 +2,8 @@ import { eq, gte, ilike, inArray, lte, or, sql, and, type AnyColumn, type SQL } 
 import { pageOrder } from "@foundry/database";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
-import { orders, payments, users } from "@/db/schema";
+import { notificationOutbox, orders, payments, users } from "@/db/schema";
+import type { SendState } from "@/lib/services/customers.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
 import {
@@ -90,6 +91,12 @@ export async function listPayments(
         email: users.email,
         phone: users.phone,
         orderPublicId: orders.publicId,
+        // Latest payment-reminder email for this order (its vars carry the order code).
+        lastReminder: sql<SendState | null>`(select json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)
+          from ${notificationOutbox} o
+          where o.event = 'payment_reminder' and o.channel = 'email' and o.recipient_email = ${users.email}
+            and o.payload->'vars'->'payment'->>'orderCode' = ${orders.deploymentId}
+          order by o.created_at desc limit 1)`,
       })
       .from(payments)
       .innerJoin(orders, eq(orders.id, payments.orderId))

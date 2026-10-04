@@ -12,6 +12,7 @@ import { runAction, type ActionResult } from "@/app/(customer)/me/action-result"
 import { getSession } from "@/lib/auth/session";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { findUnpaidPayment, settleWithStaffProof } from "@/lib/services/payment-settle";
+import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 
 type Source = { sourceKey: string; subSourceKey?: string };
 type Contact = { fullName: string; phone: string; email: string };
@@ -144,6 +145,16 @@ export async function settleNewOrderWithProofAction(orderPublicId: string, form:
     revalidatePath(`/dashboard/orders/${orderPublicId}`);
     revalidatePath("/dashboard/payments", "layout");
   }
+  return res;
+}
+
+// Optional, staff-clicked: emails the customer a sign-in link to pay this new order.
+export async function emailPaymentLinkAction(orderPublicId: string): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await sendPaymentReminder(orderPublicId, await findUnpaidPayment(orderPublicId), await currentUserId());
+  });
+  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderPublicId}`);
   return res;
 }
 

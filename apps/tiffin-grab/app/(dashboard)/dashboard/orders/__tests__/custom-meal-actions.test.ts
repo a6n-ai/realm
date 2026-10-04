@@ -185,17 +185,17 @@ describe("createOrderFlow with a custom meal", () => {
     expect(r).toHaveProperty("error", expect.stringMatching(/Custom meal/));
   });
 
-  it("previewPrice for a custom meal quotes the same pre-tax price createOrder then charges", async () => {
+  it("previewPrice for a custom meal quotes the same total createOrder then charges", async () => {
     for (const [suffix, override] of [["0174", null], ["0175", 1.005]] as const) {
       const { order } = await orderInput(suffix);
       const preview = (await unwrapAction(previewPrice(order, undefined, undefined, { items: ITEMS, basePriceOverride: override }))).preview;
       expect(preview.total).toBeGreaterThan(0);
       const { o } = await flow(suffix, override);
-      // previewPrice is pre-tax for every order (tax depends on the province resolved at create).
+      // Tax included: staff copy this total to the customer, so it must be what's charged.
       const snap = o.pricingSnapshot as { subtotal: number; perTiffinPrice: number; total: number; taxTotal: number };
       expect(snap.perTiffinPrice).toBe(preview.perTiffinPrice);
       expect(snap.subtotal).toBe(preview.subtotal);
-      expect(Math.round((snap.total - snap.taxTotal) * 100) / 100).toBe(preview.total);
+      expect(snap.total).toBe(preview.total);
     }
   });
 
