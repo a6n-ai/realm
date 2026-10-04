@@ -83,7 +83,7 @@ export function CampaignsTable({
         rowKey={(r) => r.publicId}
         sort={sort}
         idHref={(r) => `/dashboard/notifications/campaigns/${r.publicId}`}
-        search={{ placeholder: "Search campaigns…", shortPlaceholder: "Search…", keys: ["name"] }}
+        search={{ placeholder: "Search campaigns…", shortPlaceholder: "Search…", debounceMs: 300 }}
         filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={MegaphoneIcon}
         emptyMessage="No campaigns yet."

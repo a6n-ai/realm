@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { asc, desc, ne } from "drizzle-orm";
+import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -19,7 +20,7 @@ const SORT_COL = {
 
 type CouponSortColumn = keyof typeof SORT_COL;
 
-type SearchParams = Promise<{ sort?: string; dir?: string }>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function CouponsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -32,8 +33,9 @@ export default function CouponsPage({ searchParams }: { searchParams: SearchPara
 async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
+  const sp = await searchParams;
   const sort: SortState<CouponSortColumn> = parseSort(
-    await searchParams,
+    sp,
     ["code", "kind", "autoApply", "window", "stackable", "status"],
     { column: "window", dir: "desc" },
   );
@@ -69,7 +71,9 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
     .where(ne(coupons.kind, "rep_daily"))
     .orderBy(primary, desc(coupons.createdAt));
 
-  return <CouponsManager coupons={couponRows} sort={sort} />;
+  // Hand-made coupons are a small set, so search and paging stay client-side.
+  const { page } = parseFilterState([], sp);
+  return <CouponsManager coupons={couponRows} sort={sort} pagination={page} />;
 }
 
 export type { CouponSortColumn };

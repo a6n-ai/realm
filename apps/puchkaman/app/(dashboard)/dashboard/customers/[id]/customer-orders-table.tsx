@@ -1,7 +1,7 @@
 "use client";
 
 import { PackageIcon } from "lucide-react";
-import { DataTable, type Column } from "@foundry/design-system";
+import { DataTable, ListPagination, type Column } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 
@@ -21,28 +21,41 @@ export const CUSTOMER_ORDER_COLUMNS: readonly Column<"order" | "status" | "creat
   { key: "total", label: "Total", align: "right" },
 ];
 
-export function CustomerOrdersTable({ rows }: { rows: OrderRow[] }) {
+export function CustomerOrdersTable({
+  rows,
+  page,
+  size,
+  total,
+}: {
+  rows: OrderRow[];
+  page: number;
+  size: number;
+  total: number;
+}) {
   return (
-    <DataTable
-      columns={CUSTOMER_ORDER_COLUMNS}
-      rows={rows}
-      rowKey={(r) => r.publicId}
-      serial={false}
-      idHref={(r) => `/dashboard/orders/${r.publicId}`}
-      emptyIcon={PackageIcon}
-      emptyMessage="No orders yet."
-      renderRow={(r) => (
-        <>
-          <TableCell className="font-mono text-xs">{r.publicId}</TableCell>
-          <TableCell>
-            <Badge variant="outline">{r.status}</Badge>
-          </TableCell>
-          <TableCell className="text-muted-foreground text-right text-xs tabular-nums">
-            {r.createdAtLabel}
-          </TableCell>
-          <TableCell className="text-right tabular-nums">{r.totalLabel}</TableCell>
-        </>
-      )}
-    />
+    <div className="space-y-4">
+      <DataTable
+        columns={CUSTOMER_ORDER_COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.publicId}
+        serial={false}
+        idHref={(r) => `/dashboard/orders/${r.publicId}`}
+        emptyIcon={PackageIcon}
+        emptyMessage="No orders yet."
+        renderRow={(r) => (
+          <>
+            <TableCell className="font-mono text-xs">{r.publicId}</TableCell>
+            <TableCell>
+              <Badge variant="outline">{r.status}</Badge>
+            </TableCell>
+            <TableCell className="text-muted-foreground text-right text-xs tabular-nums">
+              {r.createdAtLabel}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">{r.totalLabel}</TableCell>
+          </>
+        )}
+      />
+      {total > 0 ? <ListPagination page={page} size={size} total={total} /> : null}
+    </div>
   );
 }

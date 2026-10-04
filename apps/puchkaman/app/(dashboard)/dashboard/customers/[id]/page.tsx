@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { UserIcon } from "lucide-react";
 import { formatMoney, formatPhone } from "@foundry/commons";
-import { BackButton, PageHeader, PageShell, SectionCard, StatGrid } from "@foundry/design-system";
+import { BackButton, PageHeader, PageShell, SectionCard, StatGrid, parseFilterState } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { requirePermission } from "@/lib/auth/guards";
 import { getCustomerDetail } from "@/lib/services/customers.service";
@@ -13,11 +13,18 @@ const shopDateTime = (ms: number) =>
 const shopDate = (ms: number) =>
   new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 
-export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CustomerDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   await requirePermission({ user: ["get"] });
 
   const { id } = await params;
-  const customer = await getCustomerDetail(id);
+  const { page } = parseFilterState([], await searchParams);
+  const customer = await getCustomerDetail(id, page);
   if (!customer) notFound();
 
   return (
@@ -67,6 +74,9 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             totalLabel: formatMoney(Number(o.total)),
             createdAtLabel: shopDateTime(o.createdAt),
           }))}
+          page={page.page}
+          size={page.size}
+          total={customer.orderCount}
         />
       </SectionCard>
     </PageShell>

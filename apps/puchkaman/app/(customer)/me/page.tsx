@@ -4,7 +4,7 @@ import { PackageIcon } from "lucide-react";
 import { EmptyState, PageHeader, PageShell, SectionCard } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { getSession } from "@/lib/auth/session";
-import { myOrders, splitOrders } from "@/lib/customers/my-orders";
+import { myOrdersPage } from "@/lib/customers/my-orders";
 import { OrderSummaryList } from "@/components/customer/order-summary-list";
 
 // Every read here is per-viewer and live; a cached render would show one
@@ -13,7 +13,10 @@ export default async function CustomerHomePage() {
   const session = await getSession();
   if (!session?.user) redirect("/login?callbackUrl=/me");
 
-  const { ongoing, past } = splitOrders(await myOrders(session.user.id));
+  const [{ items: ongoing }, past] = await Promise.all([
+    myOrdersPage(session.user.id, { ongoing: true, page: { page: 0, size: 50 } }),
+    myOrdersPage(session.user.id, { ongoing: false, page: { page: 0, size: 5 } }),
+  ]);
 
   return (
     <PageShell>
@@ -33,12 +36,12 @@ export default async function CustomerHomePage() {
           <OrderSummaryList orders={ongoing} />
         )}
       </SectionCard>
-      {past.length > 0 ? (
+      {past.total > 0 ? (
         <SectionCard title="Past orders">
-          <OrderSummaryList orders={past.slice(0, 5)} />
-          {past.length > 5 ? (
+          <OrderSummaryList orders={past.items} />
+          {past.total > 5 ? (
             <Button asChild variant="ghost">
-              <Link href="/me/orders">See all {past.length} orders</Link>
+              <Link href="/me/orders">See all {past.total} orders</Link>
             </Button>
           ) : null}
         </SectionCard>
