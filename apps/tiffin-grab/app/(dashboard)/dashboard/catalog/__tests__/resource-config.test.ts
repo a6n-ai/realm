@@ -28,17 +28,17 @@ describe("catalogIndexEntries", () => {
 });
 
 describe("slug", () => {
-  it("lowercases, hyphenates, strips junk", () => {
-    expect(slug("Tiffin Standard")).toBe("tiffin-standard");
-    expect(slug("  Healthy   Pro!! ")).toBe("healthy-pro");
-    expect(slug("A/B & C")).toBe("a-b-c");
+  it("lowercases, underscores, strips junk", () => {
+    expect(slug("Tiffin Standard")).toBe("tiffin_standard");
+    expect(slug("  Healthy   Pro!! ")).toBe("healthy_pro");
+    expect(slug("A/B & C")).toBe("a_b_c");
   });
 });
 
 describe("plans schema", () => {
   const s = RESOURCES.plans.schema;
   it("accepts a valid plan", () => {
-    expect(() => s.parse({ key: "tiffin-standard", name: "Tiffin Standard", planType: "tiffin", allowedStartDays: ["mon"] })).not.toThrow();
+    expect(() => s.parse({ key: "tiffin_standard", name: "Tiffin Standard", planType: "tiffin", allowedStartDays: ["mon"] })).not.toThrow();
   });
   it("rejects a bad planType enum", () => {
     expect(() => s.parse({ key: "x", name: "X", planType: "deluxe", allowedStartDays: [] })).toThrow();
