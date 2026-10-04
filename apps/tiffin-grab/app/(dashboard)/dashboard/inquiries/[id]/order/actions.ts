@@ -1,16 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { ValidationError, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { weekendDaysError } from "@/lib/menu/delivery-days";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
-import { coupons, users } from "@/db/schema";
+import { coupons, orders, users } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
-import type { CreateOrderInput } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds, type CreateOrderInput } from "@/lib/services/orders.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
@@ -105,7 +105,16 @@ export async function customerRenewalStart(email: string): Promise<string | null
   if (!normalized.includes("@")) return null;
   const [user] = await db.select({ id: users.id }).from(users)
     .where(and(eq(users.email, normalized), eq(users.role, "user"))).limit(1);
-  return user ? earliestNewPlanStart(db, user.id) : null;
+  if (!user) return null;
+  // Only reveal plan dates to staff who can already see one of this customer's orders.
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  if (visible !== "all") {
+    if (visible.length === 0) return null;
+    const [seen] = await db.select({ id: orders.id }).from(orders)
+      .where(and(eq(orders.userId, user.id), inArray(orders.organizationId, visible))).limit(1);
+    if (!seen) return null;
+  }
+  return earliestNewPlanStart(db, user.id);
 }
 
 // Returned, not thrown: production strips a thrown action's message, and staff
