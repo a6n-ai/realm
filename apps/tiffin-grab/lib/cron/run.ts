@@ -14,16 +14,22 @@ type Summary = Record<string, number | string | null>;
 const RUNNERS: Partial<Record<CronJobKey, () => Promise<Summary>>> = {
   "pull-completions": async () => {
     const { pullCompletions } = await import("@/lib/services/optimoroute/completions");
-    const date = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
-    const r = await pullCompletions(date, null);
-    return {
-      date,
-      confirmed: r.outcomes.filter((o) => o.action === "confirmed").length,
-      notDelivered: r.outcomes.filter((o) => o.action === "skipped").length,
-      awaiting: r.pendingCount,
-      unmatched: r.unmatched.length,
-      ambiguous: r.ambiguous.length,
-    };
+    // Yesterday too: GitHub's schedule can fire hours late (a 22:00 run landed at 03:56), and
+    // past local midnight "today" is the next, still-unrun day. Re-pulling yesterday is a no-op
+    // for days already settled — pullCompletions only loads scheduled/skipped rows.
+    const { timezone } = await getAppSettings();
+    const now = Date.now();
+    const dates = [zonedDateIso(now - 86_400_000, timezone), zonedDateIso(now, timezone)];
+    const summary = { dates: dates.join(", "), confirmed: 0, notDelivered: 0, awaiting: 0, unmatched: 0, ambiguous: 0 };
+    for (const date of dates) {
+      const r = await pullCompletions(date, null);
+      summary.confirmed += r.outcomes.filter((o) => o.action === "confirmed").length;
+      summary.notDelivered += r.outcomes.filter((o) => o.action === "skipped").length;
+      summary.awaiting += r.pendingCount;
+      summary.unmatched += r.unmatched.length;
+      summary.ambiguous += r.ambiguous.length;
+    }
+    return summary;
   },
   notifications: async () => {
     const { drainPending, materializeDue } = await import("@/lib/notifications/drain");
