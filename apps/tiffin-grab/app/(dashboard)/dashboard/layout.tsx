@@ -8,6 +8,7 @@ import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { couponsService, type RepCouponToday } from "@/lib/services/coupons.service";
 import { usersService } from "@/lib/services/users.service";
 import { newActivity } from "@/lib/services/section-seen.service";
+import { getFeed } from "@/lib/notifications/feed";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { GlobalSearch } from "@/components/dashboard/global-search";
 import { IdleLock } from "@/components/dashboard/idle-lock";
@@ -83,11 +84,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   };
 
   // Independent reads; this layout blocks first byte of every /dashboard page.
-  const [{ timezone }, memberOrganizations, activity, repCoupon] = await Promise.all([
+  const [{ timezone }, memberOrganizations, activity, repCoupon, notificationFeed] = await Promise.all([
     getAppSettings(),
     getMemberOrganizations(session),
     newActivity(),
     loadRepCoupon(),
+    // Server-rendered so the bell paints with its badge instead of fetching after hydration.
+    getFeed(user.id),
   ]);
 
   return (
@@ -111,7 +114,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <>
           <AppClock />
           <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
-          <NotificationBellMount userPublicId={session.user.id} />
+          <NotificationBellMount userPublicId={session.user.id} initial={notificationFeed} />
           <LockButton hasPin={hasPin} />
           <ModeToggle />
         </>
