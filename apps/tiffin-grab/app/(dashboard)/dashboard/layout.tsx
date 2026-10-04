@@ -65,27 +65,30 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const hasPin = Boolean(user.pinHash);
   if (hasPin && (await isLocked())) redirect("/login");
 
-  const { timezone } = await getAppSettings();
-  const memberOrganizations = await getMemberOrganizations(session);
-
   const role = session.user.role;
   const email = user.email ?? session.user.email ?? "";
-  const activity = await newActivity();
 
   // Sales reps (role member) get today's daily-coupon card in the sidebar, but
   // only when the allowance is on and this rep is not disabled. publicId is the
   // session id; the service resolves it to the internal owner id server-side.
-  let repCoupon: RepCouponToday | null = null;
-  if (role === "member") {
+  const loadRepCoupon = async (): Promise<RepCouponToday | null> => {
+    if (role !== "member") return null;
     const policy = await getDiscountPolicy();
     const override = policy.repDaily.perRep[session.user.id];
     const repActive = !(override && override.active === false);
-    if (policy.repDaily.enabled && repActive) {
-      // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-      const istDate = zonedDateIso(Date.now(), "Asia/Kolkata");
-      repCoupon = await couponsService.getTodayRepCoupon(session.user.id, istDate);
-    }
-  }
+    if (!policy.repDaily.enabled || !repActive) return null;
+    // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+    const istDate = zonedDateIso(Date.now(), "Asia/Kolkata");
+    return couponsService.getTodayRepCoupon(session.user.id, istDate);
+  };
+
+  // Independent reads; this layout blocks first byte of every /dashboard page.
+  const [{ timezone }, memberOrganizations, activity, repCoupon] = await Promise.all([
+    getAppSettings(),
+    getMemberOrganizations(session),
+    newActivity(),
+    loadRepCoupon(),
+  ]);
 
   return (
     <div className="crm-app">

@@ -1,5 +1,6 @@
 import { BaseService, UpdatableService, stripManaged } from "@foundry/database";
 import { createLogger } from "@foundry/commons/logger";
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { getSession } from "@/lib/auth/session";
@@ -12,13 +13,19 @@ const log = createLogger("session-service");
 // session.user.id is the acting user's public_id (usr_…); audit columns are
 // bigint. Resolve the public_id → users internal bigint once per call so the
 // service stamps createdBy/updatedBy with the internal id (null if no session).
+// cache(): the shell resolves the same actor 3+ times per render (audit stamp,
+// sidebar activity, org switcher); one query per request instead.
+export const userIdByPublicId = cache(async (publicId: string): Promise<bigint | null> => {
+  const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
+  return row?.id ?? null;
+});
+
 async function sessionActorId(): Promise<bigint | null> {
   try {
     const session = await getSession();
     const publicId = session?.user?.id;
     if (!publicId) return null;
-    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-    return row?.id ?? null;
+    return await userIdByPublicId(publicId);
   } catch {
     // No request context (e.g. tests/scripts) → no actor to stamp.
     return null;
@@ -101,7 +108,9 @@ export class SessionBaseService<TTable extends PgTable> extends BaseService<TTab
 
   async read(publicId: string): Promise<TTable["$inferSelect"]> {
     const row = await super.read(publicId);
-    if (this.sensitive) {
+    // A user loading their own row (every shell render does) is not a sensitive
+    // access event; auditing it wrote one audit_log row per page view.
+    if (this.sensitive && publicId !== (await getSession())?.user?.id) {
       await recordAudit({
         entity: this.repo.tableName,
         entityPublicId: publicId,
