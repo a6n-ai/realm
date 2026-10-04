@@ -55,6 +55,8 @@ export function parseMode(raw: string | null): SyncMode {
 export async function runScheduledSync(opts: {
   mode?: SyncMode;
   daysAhead?: number;
+  /** Exact dates instead of today + 1..daysAhead (Settings → Run now). */
+  dates?: string[];
 } = {}): Promise<SyncSummary> {
   const mode = opts.mode ?? "push";
   const daysAhead = opts.daysAhead ?? 1;
@@ -64,7 +66,7 @@ export async function runScheduledSync(opts: {
   if (!optimoRouteApiKey()) return { mode, ran: false, skipped: "OPTIMOROUTE_API_KEY not set", days: [] };
 
   const { timezone } = await getAppSettings();
-  const dates = syncDates(zonedDateIso(Date.now(), timezone), daysAhead);
+  const dates = opts.dates?.length ? opts.dates : syncDates(zonedDateIso(Date.now(), timezone), daysAhead);
 
   const days: SyncDay[] = [];
   for (const date of dates) {
