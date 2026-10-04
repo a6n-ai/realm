@@ -739,47 +739,54 @@ export type CalendarDay = {
 export async function myCalendar(userId: bigint, orderPublicId: string, range: { from: string; until: string }): Promise<CalendarDay[]> {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before any read
 
-  const [order] = await db
-    .select({ id: orders.id, planId: orders.planId, mealSizeId: orders.mealSizeId, categoryCounts: orders.categoryCounts, persons: orders.persons, planType: plans.planType, planKey: plans.key })
-    .from(orders)
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .where(eq(orders.publicId, orderPublicId))
-    .limit(1);
+  // Customer home renders this; reads below come in two parallel waves (order +
+  // rows, then everything keyed by them) rather than ~12 sequential round trips.
+  const [[order], allRows] = await Promise.all([
+    db
+      .select({ id: orders.id, planId: orders.planId, mealSizeId: orders.mealSizeId, categoryCounts: orders.categoryCounts, persons: orders.persons, planType: plans.planType, planKey: plans.key })
+      .from(orders)
+      .innerJoin(plans, eq(orders.planId, plans.id))
+      .where(eq(orders.publicId, orderPublicId))
+      .limit(1),
+    myDeliveries(userId, range.from, range.until),
+  ]);
   if (!order) throw new NotFoundError("Subscription not found");
 
-  const rows = (await myDeliveries(userId, range.from, range.until)).filter((r) => r.orderPublicId === orderPublicId);
+  const rows = allRows.filter((r) => r.orderPublicId === orderPublicId);
   if (rows.length === 0) return [];
 
   // Only released weeks are ever shown: an unreleased next-week has no menu to resolve against,
   // so its delivery days are simply absent from the calendar rather than rendered blank.
   // Uses menuService.getReleasedWeeks — same exact weekStart gate as Menu / myDeliveryMeal.
   const weekStarts = [...new Set(rows.map((r) => mondayOfIso(r.deliveryDate)))];
-  const releasedWeeks = await menuService.getReleasedWeeks(weekStarts);
-  const weekByStart = new Map(releasedWeeks.map((w) => [w.weekStart, w]));
+  const rowIds = rows.map((r) => r.id);
+  // Merged-source rows carry no tiffins of their own — say where they went.
+  const mergeTargetIds = [...new Set(rows.flatMap((r) => (r.mergedIntoDeliveryId ? [r.mergedIntoDeliveryId] : [])))];
 
-  const cats = await dishCategoriesService.forPlanType(order.planType as "tiffin" | "healthy");
+  const [releasedWeeks, cats, planDishIds, mergeTargets, extrasById, moves, replacedRows, swapPairs, swapRows] = await Promise.all([
+    menuService.getReleasedWeeks(weekStarts),
+    dishCategoriesService.forPlanType(order.planType as "tiffin" | "healthy"),
+    allowedDishIdsForMealSize(order.mealSizeId),
+    mergeTargetIds.length === 0
+      ? Promise.resolve([])
+      : db.select({ id: deliveries.id, deliveryDate: deliveries.deliveryDate }).from(deliveries).where(inArray(deliveries.id, mergeTargetIds)),
+    loadExtraDates(db, rowIds),
+    db.select({ fromId: deliveryMoves.fromDeliveryId, toId: deliveryMoves.toDeliveryId, from: deliveryMoves.fromEatDate, to: deliveryMoves.toEatDate })
+      .from(deliveryMoves).where(or(inArray(deliveryMoves.toDeliveryId, rowIds), inArray(deliveryMoves.fromDeliveryId, rowIds))),
+    db.select({ src: deliveries.makeupForDeliveryId }).from(deliveries).where(inArray(deliveries.makeupForDeliveryId, rowIds)),
+    dishCategoriesService.swapPairsForMealSize(order.mealSizeId),
+    db
+      .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, receiveTu: deliveryCategorySwaps.receiveTu, forDate: deliveryCategorySwaps.forDate })
+      .from(deliveryCategorySwaps)
+      .where(inArray(deliveryCategorySwaps.deliveryId, rowIds)).orderBy(asc(deliveryCategorySwaps.id)),
+  ]);
+  const weekByStart = new Map(releasedWeeks.map((w) => [w.weekStart, w]));
   // A category the plan doesn't include (categoryCounts[key] absent or 0) is never offered,
   // even if it's marked selectable in general — matches resolveCategoriesForDay's own count gate.
   const selectableCats = cats.filter((c) => c.selectable && (order.categoryCounts?.[c.key] ?? 0) > 0);
-  const planDishIds = await allowedDishIdsForMealSize(order.mealSizeId);
-
-  // Per-week caches: myDeliveries can return many days across the same released week, so batch
-  // the resolution and the day's menu items once per week instead of once per delivery row.
-  const resolvedByWeek = new Map<bigint, Awaited<ReturnType<typeof resolveDeliveryMealsForWeek>>>();
-  const itemsByWeek = new Map<bigint, { dayOfWeek: string; slot: string; dishId: bigint; publicId: string; name: string; image: FileDetail | null }[]>();
-
-  // Merged-source rows carry no tiffins of their own — say where they went.
-  const mergeTargetIds = [...new Set(rows.flatMap((r) => (r.mergedIntoDeliveryId ? [r.mergedIntoDeliveryId] : [])))];
-  const mergeTargets = mergeTargetIds.length === 0 ? [] : await db
-    .select({ id: deliveries.id, deliveryDate: deliveries.deliveryDate })
-    .from(deliveries)
-    .where(inArray(deliveries.id, mergeTargetIds));
   const targetDateById = new Map(mergeTargets.map((t) => [t.id, t.deliveryDate]));
-  const extrasById = await loadExtraDates(db, rows.map((r) => r.id));
-  const rowIds = rows.map((r) => r.id);
-  const moves = await db.select({ fromId: deliveryMoves.fromDeliveryId, toId: deliveryMoves.toDeliveryId, from: deliveryMoves.fromEatDate, to: deliveryMoves.toEatDate })
-    .from(deliveryMoves).where(or(inArray(deliveryMoves.toDeliveryId, rowIds), inArray(deliveryMoves.fromDeliveryId, rowIds)));
-  const replaced = new Set((await db.select({ src: deliveries.makeupForDeliveryId }).from(deliveries).where(inArray(deliveries.makeupForDeliveryId, rowIds))).map((r) => r.src));
+  const replaced = new Set(replacedRows.map((r) => r.src));
+
   const tripFields = (row: CustomerDelivery) => {
     const covers = coveredDates(row);
     return {
@@ -794,11 +801,6 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     };
   };
 
-  const swapPairs = await dishCategoriesService.swapPairsForMealSize(order.mealSizeId);
-  const swapRows = await db
-    .select({ deliveryId: deliveryCategorySwaps.deliveryId, publicId: deliveryCategorySwaps.publicId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, receiveTu: deliveryCategorySwaps.receiveTu, forDate: deliveryCategorySwaps.forDate })
-    .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id))).orderBy(asc(deliveryCategorySwaps.id));
   const swapFields = (row: CustomerDelivery) => ({
     eatingDays: coveredDates(row).map((date): EatingDaySwaps => ({
       date,
@@ -810,25 +812,52 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     swapAllowance: null,
   });
 
-  const loadWeek = weekLoader();
+  const loadWeek = weekLoader(); // memoizes the week promise, so concurrent days share one read
   const carriedFields = async (row: CustomerDelivery) => {
+    const carried = await Promise.all(
+      coveredDates(row)
+        .filter((date) => date !== row.deliveryDate)
+        .map(async (date) => {
+          const w = await loadWeek(date);
+          if (!w) return null;
+          const daySwaps = swapRows.filter((s) => s.deliveryId === row.id && swapAppliesTo(s.forDate, row.deliveryDate, date));
+          return [date, await resolveTripDay(order, w, date, 1, daySwaps)] as const;
+        }),
+    );
     const carriedMeals: Record<string, ResolvedMeal> = {};
-    for (const date of coveredDates(row)) {
-      if (date === row.deliveryDate) continue;
-      const w = await loadWeek(date);
-      if (!w) continue;
-      const daySwaps = swapRows.filter((s) => s.deliveryId === row.id && swapAppliesTo(s.forDate, row.deliveryDate, date));
-      carriedMeals[date] = await resolveTripDay(order, w, date, 1, daySwaps);
-    }
+    for (const c of carried) if (c) carriedMeals[c[0]] = c[1];
     return { carriedMeals };
   };
 
-  const out: CalendarDay[] = [];
-  for (const row of rows) {
+  // Per-week caches: myDeliveries can return many days across the same released week, so batch
+  // the resolution and the day's menu items once per week instead of once per delivery row.
+  const shownWeeks = [...new Map(rows.flatMap((r) => {
+    const w = weekByStart.get(mondayOfIso(r.deliveryDate));
+    return w ? [[w.id, w] as const] : [];
+  })).values()];
+  const perWeek = await Promise.all(
+    shownWeeks.map(async (week) => {
+      const [resolved, items] = await Promise.all([
+        resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, mealSizeId: order.mealSizeId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, order.persons),
+        db
+          .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, publicId: dishes.publicId, name: dishes.name, image: dishes.image })
+          .from(menuItems)
+          .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+          .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
+          .where(eq(menuItems.menuWeekId, week.id))
+          .orderBy(asc(menuItems.position)),
+      ]);
+      return [week.id, { resolved, items }] as const;
+    }),
+  );
+  const byWeek = new Map(perWeek);
+
+  return Promise.all(rows.map(async (row): Promise<CalendarDay> => {
     const week = weekByStart.get(mondayOfIso(row.deliveryDate));
+    const carried = await carriedFields(row);
     if (!week) {
       // Delivery is scheduled but the week's menu isn't released — still show the day tile.
-      out.push({
+      return {
         date: row.deliveryDate,
         status: row.status as CalendarDay["status"],
         locked: row.cutoffAt <= Date.now(),
@@ -838,29 +867,12 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
         options: [],
         ...tripFields(row),
         ...swapFields(row),
-        ...(await carriedFields(row)),
+        ...carried,
         coverCount: coveredDates(row).length,
-      });
-      continue;
+      };
     }
 
-    let weekResolved = resolvedByWeek.get(week.id);
-    if (!weekResolved) {
-      weekResolved = await resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, mealSizeId: order.mealSizeId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, order.persons);
-      resolvedByWeek.set(week.id, weekResolved);
-    }
-    let weekItems = itemsByWeek.get(week.id);
-    if (!weekItems) {
-      weekItems = await db
-        .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, publicId: dishes.publicId, name: dishes.name, image: dishes.image })
-        .from(menuItems)
-        .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
-        .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
-        .where(eq(menuItems.menuWeekId, week.id))
-        .orderBy(asc(menuItems.position));
-      itemsByWeek.set(week.id, weekItems);
-    }
-
+    const { resolved: weekResolved, items: weekItems } = byWeek.get(week.id)!;
     // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
     // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
     const dayOfWeek = weekdayKey(new Date(`${row.deliveryDate}T00:00:00Z`));
@@ -873,7 +885,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
         .map((i) => ({ category: c.key, dishId: i.publicId, name: i.name, image: i.image ?? null })),
     );
 
-    out.push({
+    return {
       date: row.deliveryDate,
       status: row.status as CalendarDay["status"],
       locked: row.cutoffAt <= Date.now(),
@@ -883,9 +895,8 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       options,
       ...tripFields(row),
       ...swapFields(row),
-      ...(await carriedFields(row)),
-        coverCount: coveredDates(row).length,
-    });
-  }
-  return out;
+      ...carried,
+      coverCount: coveredDates(row).length,
+    };
+  }));
 }

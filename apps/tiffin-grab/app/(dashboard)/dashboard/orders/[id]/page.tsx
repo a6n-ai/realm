@@ -115,13 +115,33 @@ async function OrderDetail({
     }));
 
   const planType = (planRow?.planType ?? "tiffin") as "tiffin" | "healthy";
-  const categoryRows = await dishCategoriesService.forPlanType(planType);
+  // Second wave: everything below needs only order/planRow, so run it together
+  // instead of five sequential round trips.
+  const migratedWaiting = order.deploymentId.startsWith("wc-") && order.status === "pending";
+  const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
+  const [categoryRows, catalogSnapshot, , sub, startBlocker] = await Promise.all([
+    dishCategoriesService.forPlanType(planType),
+    loadCatalogSnapshot(order.organizationId),
+    // Staff-on-behalf claim form for payments that still need a reference/screenshot.
+    Promise.all(
+      order.payments
+        .filter((p) => p.status === "awaiting_payment" || p.status === "rejected")
+        .map(async (p) => {
+          const ctx = await getClaimPaymentContext(p.publicId);
+          if (ctx) claimContexts[p.publicId] = ctx;
+        }),
+    ),
+    loadSubscription(order, week),
+    // A WordPress plan waiting to start has its own Start plan flow.
+    migratedWaiting
+      ? "Use Start plan to set when this WordPress plan begins"
+      : ordersService.startChangeBlocker(order.id, order.status),
+  ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((c) => [c.key, c.label]));
   const checkoutMethodId = (order.pricingSnapshot as { paymentMethodId?: string } | null)?.paymentMethodId;
   const checkoutMethodLabel = checkoutMethodId
     ? findMethod(paymentCfg, checkoutMethodId)?.label ?? checkoutMethodId
     : null;
-  const catalogSnapshot = await loadCatalogSnapshot(order.organizationId);
   const currentMealSizePublicId = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.publicId;
   const mealSizeOptions = listableMealSizes(catalogSnapshot.mealSizes, currentMealSizePublicId).map((m) => ({
     publicId: m.publicId,
@@ -129,17 +149,6 @@ async function OrderDetail({
     planKey: m.planKey,
   }));
 
-  // Staff-on-behalf claim form for payments that still need a reference/screenshot.
-  const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
-  await Promise.all(
-    order.payments
-      .filter((p) => p.status === "awaiting_payment" || p.status === "rejected")
-      .map(async (p) => {
-        const ctx = await getClaimPaymentContext(p.publicId);
-        if (ctx) claimContexts[p.publicId] = ctx;
-      }),
-  );
-  const sub = await loadSubscription(order, week);
 
   const counts = sub.week?.plan.counts ?? null;
   const next = deliveryRows
@@ -171,11 +180,6 @@ async function OrderDetail({
     ? projectedEndDate({ startDate: migration.startDate, trips: tripsFor(migration.frequencyKey, migration.eatingDays), persons: migration.persons, targetTiffinCount: migration.tiffinCount })
     : null;
 
-  // A WordPress plan waiting to start has its own Start plan flow.
-  const migratedWaiting = order.deploymentId.startsWith("wc-") && order.status === "pending";
-  const startBlocker = migratedWaiting
-    ? "Use Start plan to set when this WordPress plan begins"
-    : await ordersService.startChangeBlocker(order.id, order.status);
   const notStarted = startBlocker == null;
   const startDays = order.trialLength != null ? (order.trialWeekdays ?? []) : (planRow?.allowedStartDays ?? []);
   const startToday = appToday(settings.timezone);
