@@ -24,7 +24,24 @@ const nextConfig: NextConfig = {
   ],
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
-  experimental: { optimizePackageImports: ["radix-ui"] },
+  // Caddy compresses (encode zstd gzip) and skips already-encoded bodies, so Next
+  // gzipping on the single Node event loop was pure CPU cost.
+  compress: false,
+  experimental: {
+    // Barrel packages: tree-shake their re-exports instead of pulling whole
+    // packages into every page that imports one symbol.
+    optimizePackageImports: [
+      "radix-ui",
+      "@foundry/commons",
+      "@foundry/design-system",
+      "@foundry/crm",
+      "@foundry/auth-ui",
+      "@foundry/ui",
+    ],
+    // Reuse a visited dynamic page for 30s on back/forward and repeat clicks
+    // instead of a fresh server round trip. Server actions still invalidate it.
+    staleTimes: { dynamic: 30 },
+  },
   async redirects() {
     return [
       { source: "/about", destination: "/the-place", permanent: true },

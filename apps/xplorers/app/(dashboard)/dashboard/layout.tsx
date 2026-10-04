@@ -27,18 +27,22 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   if (session.user.role === Role.USER) redirect("/me");
   if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) redirect("/no-access");
 
-  const [u] = await db
-    .select({ passwordSet: users.passwordSet, name: users.name, status: users.status })
-    .from(users)
-    .where(eq(users.publicId, session.user.id))
-    .limit(1);
+  // The org switcher and clock reads don't depend on the gates below; start them
+  // together with the user read instead of after it.
+  const [[u], memberOrganizations, { timezone }] = await Promise.all([
+    db
+      .select({ passwordSet: users.passwordSet, name: users.name, status: users.status })
+      .from(users)
+      .where(eq(users.publicId, session.user.id))
+      .limit(1),
+    getMemberOrganizations(session),
+    getAppClock(),
+  ]);
   if (!u) redirect("/login");
   if (u.status !== "active") redirect("/login?suspended=1");
   if (!u.passwordSet) redirect("/set-password");
 
   const granted = grantedKeys(session.user.role);
-  const memberOrganizations = await getMemberOrganizations(session);
-  const { timezone } = await getAppClock();
 
   return (
     <div className="crm-app">
