@@ -91,6 +91,18 @@ Resources:
         # Report-only while we confirm every sender aligns; BIMI needs p=quarantine+ later.
         - '"v=DMARC1; p=none; rua=mailto:info@tiffingrab.ca"'
 
+  # Logo is apps/tiffin-grab/public/brand/bimi.svg (SVG Tiny PS). Covers notify. too.
+  # Inboxes ignore it until DMARC is p=quarantine+; Gmail/Apple also need a VMC/CMC in a=.
+  Bimi:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: default._bimi.tiffingrab.ca
+      Type: TXT
+      TTL: 3600
+      ResourceRecords:
+        - '"v=BIMI1; l=https://app.tiffingrab.ca/brand/bimi.svg; a=; avp=brand;"'
+
   # --- SES (app email: invites, OTP, notifications). Identity tiffingrab.ca, EasyDKIM,
   #     custom MAIL FROM mail.tiffingrab.ca (deployment/email/ses-tiffin-grab.yaml). ---
   SesDkim1:
