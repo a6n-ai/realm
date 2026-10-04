@@ -42,7 +42,27 @@ const nextConfig: NextConfig = {
       { source: "/privacy-policy", destination: "/privacy", permanent: true },
     ];
   },
-  experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
+  // Caddy compresses (encode zstd gzip) and skips already-encoded bodies, so Next
+  // gzipping on the single Node event loop was pure CPU cost.
+  compress: false,
+  experimental: {
+    // Barrel packages: without this, one named import from @relay/engine/ui pulled
+    // the whole email editor (react-email + TipTap + Tailwind compiler, ~2 MB) into
+    // every dashboard page via the notification bell.
+    optimizePackageImports: [
+      "radix-ui",
+      "cmdk",
+      "@relay/engine",
+      "@foundry/commons",
+      "@foundry/design-system",
+      "@foundry/crm",
+      "@foundry/auth-ui",
+      "@foundry/ui",
+    ],
+    // Reuse a visited dynamic page for 30s on back/forward and repeat clicks
+    // instead of a fresh server round trip. Server actions still invalidate it.
+    staleTimes: { dynamic: 30 },
+  },
 };
 
 export default nextConfig;
