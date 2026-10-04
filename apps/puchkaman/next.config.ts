@@ -34,7 +34,28 @@ const nextConfig: NextConfig = {
     // this optimizer, so there's no raw-passthrough vector to guard against.
     contentDispositionType: "inline",
   },
-  experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
+  // Caddy compresses (encode zstd gzip) and skips already-encoded bodies, so Next
+  // gzipping on the single Node event loop was pure CPU cost.
+  compress: false,
+  experimental: {
+    // Barrel packages: one named import from @relay/engine/ui otherwise pulls the
+    // whole email editor (react-email + TipTap + Tailwind compiler, ~2 MB) into
+    // every dashboard page via the notification bell.
+    optimizePackageImports: [
+      "radix-ui",
+      "cmdk",
+      "@relay/engine",
+      "@foundry/commons",
+      "@foundry/design-system",
+      "@foundry/crm",
+      "@foundry/auth-ui",
+      "@foundry/ui",
+      "@foundry/clover",
+    ],
+    // Reuse a visited dynamic page for 30s on back/forward and repeat clicks
+    // instead of a fresh server round trip. Server actions still invalidate it.
+    staleTimes: { dynamic: 30 },
+  },
   // /menu and /productsmenu were both live public URLs before the rename to
   // /eats — keep indexed/bookmarked links alive.
   async redirects() {
