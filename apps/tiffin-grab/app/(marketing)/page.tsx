@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { DabbaMath } from "@/components/marketing/dabba-math";
 import { GoogleReviewsSection } from "@/components/marketing/google-reviews-section";
 import { Hero } from "@/components/marketing/hero";
@@ -14,7 +15,8 @@ export const metadata: Metadata = {
   description: "Build and subscribe to home-style, customizable tiffin meal plans delivered across the Greater Toronto Area.",
 };
 
-// ISR: revalidate every 10 min so the DB isn't hit on every request for the highest-traffic page
+// Rendered per request: the image build has no database to prerender against, and
+// with the catalog/menu reads cached the render is ~50ms on the box.
 export const dynamic = "force-dynamic";
 
 const FAQS = [
@@ -45,7 +47,10 @@ export default async function LandingPage() {
         <HowItWorksSteps eyebrow="03 — How it works" />
         <DabbaMath eyebrow="04 — The dabba math" />
       </Section>
-      <GoogleReviewsSection />
+      {/* External Places fetch: a cache miss must not hold back the rest of the page. */}
+      <Suspense fallback={null}>
+        <GoogleReviewsSection />
+      </Suspense>
       <Section id="faq" className="max-w-2xl scroll-mt-24">
         <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">05 — Questions</p>
         <h2 className="m-0 mb-6.5 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">Frequently asked.</h2>

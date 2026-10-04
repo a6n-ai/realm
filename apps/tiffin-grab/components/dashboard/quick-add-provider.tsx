@@ -2,10 +2,17 @@
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { NewOrderSheet } from "@/app/(dashboard)/dashboard/orders/new-order-sheet";
-import { AddInquirySheet } from "@/app/(dashboard)/dashboard/inquiries/new-inquiry-form";
-import { NewCustomerSheet } from "@/app/(dashboard)/dashboard/customers/new-customer-sheet";
+import dynamic from "next/dynamic";
 import { loadQuickAddData, type QuickAddData } from "@/app/(dashboard)/dashboard/_leads/quick-add-data";
+
+// Lazy: these three forms (+ react-hook-form, zod, pricing, phone input) used to
+// ship on every dashboard page although they only open on demand.
+const importOrder = () => import("@/app/(dashboard)/dashboard/orders/new-order-sheet");
+const importInquiry = () => import("@/app/(dashboard)/dashboard/inquiries/new-inquiry-form");
+const importCustomer = () => import("@/app/(dashboard)/dashboard/customers/new-customer-sheet");
+const NewOrderSheet = dynamic(() => importOrder().then((m) => m.NewOrderSheet), { ssr: false });
+const AddInquirySheet = dynamic(() => importInquiry().then((m) => m.AddInquirySheet), { ssr: false });
+const NewCustomerSheet = dynamic(() => importCustomer().then((m) => m.NewCustomerSheet), { ssr: false });
 
 export type QuickAddKind = "order" | "inquiry" | "customer";
 
@@ -34,7 +41,9 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
       }
       setLoading(true);
       try {
-        setData(await loadQuickAddData());
+        // Fetch the form code alongside the data, not after it.
+        const [d] = await Promise.all([loadQuickAddData(), importOrder(), importInquiry(), importCustomer()]);
+        setData(d);
         setWhich(kind);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Couldn't load the form");

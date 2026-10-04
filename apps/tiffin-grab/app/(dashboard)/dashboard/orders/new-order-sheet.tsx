@@ -9,7 +9,7 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Switch } from "@foundry/ui/switch";
-import { isValidPhone } from "@foundry/ui/phone-input";
+import { isValidPhoneNumber as isValidPhone } from "libphonenumber-js";
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { InquiryMatch } from "../_leads/inquiry-match";
