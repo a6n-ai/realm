@@ -13,6 +13,8 @@ export type CronJob = {
   cron: string | null;
   /** Safe for an admin to start from Settings. */
   runnable: boolean;
+  /** Extra Run now fields: a day to run for, and for the route sync a push/pull choice. */
+  inputs?: "date" | "sync";
 };
 
 export const CRON_JOBS: CronJob[] = [
@@ -22,6 +24,7 @@ export const CRON_JOBS: CronJob[] = [
     description: "Reads yesterday's and today's delivered / failed stops from OptimoRoute. Only this or an admin marks a delivery delivered.",
     cron: "0 2 * * *",
     runnable: true,
+    inputs: "date",
   },
   {
     key: "notifications",
@@ -33,9 +36,10 @@ export const CRON_JOBS: CronJob[] = [
   {
     key: "optimoroute-sync",
     name: "OptimoRoute route sync",
-    description: "Pushes tomorrow's stops and pulls planned routes back. Run from Dispatch for now.",
+    description: "Push sends a day's stops to OptimoRoute; pull reads the planned routes back so labels print in van order. Run by hand: routes are planned in OptimoRoute between the two.",
     cron: null,
-    runnable: false,
+    runnable: true,
+    inputs: "sync",
   },
   {
     key: "review-nudge",
