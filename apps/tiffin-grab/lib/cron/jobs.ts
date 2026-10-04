@@ -19,7 +19,7 @@ export const CRON_JOBS: CronJob[] = [
   {
     key: "pull-completions",
     name: "OptimoRoute completion pull",
-    description: "Reads today's delivered / failed stops from OptimoRoute. Only this or an admin marks a delivery delivered.",
+    description: "Reads yesterday's and today's delivered / failed stops from OptimoRoute. Only this or an admin marks a delivery delivered.",
     cron: "0 2 * * *",
     runnable: true,
   },
