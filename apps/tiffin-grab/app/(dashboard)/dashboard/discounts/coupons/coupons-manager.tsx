@@ -155,7 +155,7 @@ const COLUMNS: readonly Column<CouponSortColumn | "value" | "actions">[] = [
   { key: "window", label: "Window", sortable: true },
   { key: "stackable", label: "Stackable", sortable: true },
   { key: "status", label: "Status", sortable: true },
-  { key: "actions", label: "", width: "w-px" },
+  { key: "actions", label: "", width: "w-44" },
 ];
 
 export function CouponsManager({
