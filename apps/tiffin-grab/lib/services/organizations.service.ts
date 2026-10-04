@@ -3,14 +3,10 @@ import type { OrgLocation } from "@foundry/commons";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
+import { userIdByPublicId } from "./session-service";
 
-// Same publicId -> internal bigint resolution as orders.service.ts's private
-// resolveUserId — kept local rather than exported cross-file since it's a
-// one-line lookup, not shared logic.
-async function resolveUserId(publicId: string): Promise<bigint | null> {
-  const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-  return row?.id ?? null;
-}
+// Per-request memoized: the dashboard shell resolves the same actor several times.
+const resolveUserId = userIdByPublicId;
 
 export type MemberOrganization = { id: string; name: string; clientCode: string };
 

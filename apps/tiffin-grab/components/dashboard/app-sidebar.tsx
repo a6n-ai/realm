@@ -178,7 +178,14 @@ export function AppSidebar({
                       tooltip={item.title}
                       className="group/nav"
                     >
-                      <Link href={item.href} prefetch={false}>
+                      {/* No viewport prefetch (every nav item at once 503'd the box); prefetch
+                          on intent instead, down to dashboard/loading.tsx. */}
+                      <Link
+                        href={item.href}
+                        prefetch={false}
+                        onMouseEnter={() => router.prefetch(item.href)}
+                        onFocus={() => router.prefetch(item.href)}
+                      >
                         <item.icon className="transition-transform duration-200 group-hover/nav:scale-110" />
                         <span>{item.title}</span>
                         {(() => {
