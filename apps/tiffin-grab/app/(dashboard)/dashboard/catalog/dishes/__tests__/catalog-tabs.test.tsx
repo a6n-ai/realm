@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, cleanup } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { TooltipProvider } from "@foundry/ui/tooltip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CatalogTabs } from "../catalog-tabs";
 import { ResourceEditor } from "../../[resource]/resource-editor";
+
+// The root layout provides TooltipProvider in the app; row actions are icon buttons with tooltips.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: TooltipProvider });
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),

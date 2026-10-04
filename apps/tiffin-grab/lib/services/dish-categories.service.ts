@@ -123,14 +123,15 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    */
   async addonsByDishCategory(): Promise<Map<string, CatalogAddon[]>> {
     const rows = await db
-      .select({ categoryKey: addons.category, addonKey: addons.key, addonName: addons.name, tuAmount: addons.tuAmount, pricePerTiffin: addons.pricePerTiffin, maxQty: addons.maxQty })
+      .select({ categoryKey: addons.category, addonKey: addons.key, addonName: addons.name, planKey: plans.key, tuAmount: addons.tuAmount, pricePerTiffin: addons.pricePerTiffin, maxQty: addons.maxQty })
       .from(addons)
+      .leftJoin(plans, eq(plans.id, addons.planId))
       .where(eq(addons.active, true))
       .orderBy(asc(addons.name));
     const out = new Map<string, CatalogAddon[]>();
     for (const r of rows) {
       const bucket = out.get(r.categoryKey) ?? [];
-      bucket.push({ key: r.addonKey, name: r.addonName, category: r.categoryKey, tuAmount: Number(r.tuAmount), pricePerTiffin: Number(r.pricePerTiffin), maxQty: r.maxQty });
+      bucket.push({ key: r.addonKey, name: r.addonName, category: r.categoryKey, planKey: r.planKey, tuAmount: Number(r.tuAmount), pricePerTiffin: Number(r.pricePerTiffin), maxQty: r.maxQty });
       out.set(r.categoryKey, bucket);
     }
     return out;

@@ -121,6 +121,10 @@ export const addons = pgTable("addons", {
   // Soft ref to dish_categories.key (mirrors dishes.category): offered for any
   // meal size carrying that category. Never part of the meal or its swaps.
   category: text("category").notNull(),
+  // The plan whose menu the add-on's dish comes from ("Veg Sabzi" is always a veg
+  // sabzi, even on a non-veg order). Set: offered on every plan. Null: follows the
+  // order's own plan and only shows where that plan's menu has the category.
+  planId: bigint("plan_id", { mode: "bigint" }).references(() => plans.id),
   pricePerTiffin: numeric("price_per_tiffin", { precision: 10, scale: 2 }).notNull(),
   // Portion of one add-on row, in the category's TU (same unit as meal_size_items.tu_amount).
   tuAmount: numeric("tu_amount", { precision: 6, scale: 2 }).notNull().default("1"),
