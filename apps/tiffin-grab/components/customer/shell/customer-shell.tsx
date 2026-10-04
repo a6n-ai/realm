@@ -63,8 +63,14 @@ export function CustomerShell({ coinBalance, userPublicId, children }: { coinBal
 
   useEffect(() => {
     const source = new EventSource(`/api/realtime?channel=${encodeURIComponent(`refresh:${userPublicId}`)}`);
-    source.onmessage = () => {
-      router.refresh();
+    source.onmessage = (e) => {
+      // Only a "message" frame means data changed; the presence frame sent on
+      // connect used to re-render the whole page right after every load.
+      try {
+        if ((JSON.parse(e.data) as { type?: string }).type === "message") router.refresh();
+      } catch {
+        /* malformed frame: ignore */
+      }
     };
     return () => source.close();
   }, [userPublicId, router]);
