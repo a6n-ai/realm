@@ -30,14 +30,15 @@ describe("AddonsPanel", () => {
 
 describe("offeredAddons / pickedAddons", () => {
   const catalog = {
+    plans: [{ key: "veg", offeredSlots: ["sabzi", "roti"] }],
     mealSizes: [
-      { publicId: "msz_1", name: "Thali", trial: false, items: [{ category: "sabzi" }, { category: "roti" }] },
-      { publicId: "msz_trial", name: "Trial", trial: true, items: [{ category: "sabzi" }] },
+      { publicId: "msz_1", name: "Thali", planKey: "veg", trial: false, items: [{ category: "sabzi" }] },
+      { publicId: "msz_trial", name: "Trial", planKey: "veg", trial: true, items: [{ category: "sabzi" }] },
     ],
     addonsByCategory: { sabzi: [sabzi], roti: [roti] },
   } as unknown as ClientCatalogSnapshot;
 
-  it("offers the picked meal's add-ons, none for a trial", () => {
+  it("offers the plan menu's add-ons even beyond the meal's rows, none for a trial", () => {
     expect(offeredAddons(catalog, sel()).map((a) => a.key)).toEqual(["extra-sabzi", "extra-roti"]);
     expect(offeredAddons(catalog, sel({ mealSizeId: "msz_trial" }))).toEqual([]);
   });
@@ -45,5 +46,15 @@ describe("offeredAddons / pickedAddons", () => {
   it("names picked add-ons and drops ones the meal doesn't offer", () => {
     const s = sel({ addonSelections: [{ key: "extra-roti", qty: 2 }, { key: "gone", qty: 1 }] });
     expect(pickedAddons(catalog, s)).toEqual([{ name: "Extra Roti", qty: 2 }]);
+  });
+});
+
+describe("AddonsPanel category sections", () => {
+  it("groups by category and sums a section's picks in its header", () => {
+    const sabzi2 = { ...sabzi, key: "big-sabzi", name: "Big Sabzi", pricePerTiffin: 5 };
+    const s = sel({ addonSelections: [{ key: "extra-sabzi", qty: 2 }, { key: "big-sabzi", qty: 1 }] });
+    render(<AddonsPanel addons={[sabzi, sabzi2, roti]} categoryLabels={{ sabzi: "Sabzi", roti: "Roti" }} selections={s} set={vi.fn()} />);
+    expect(screen.getByText("3 added · +$12.00/tiffin")).toBeTruthy();
+    expect(screen.getByText("1 option")).toBeTruthy();
   });
 });

@@ -161,7 +161,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   // attached to that plan is never offered. Sent as a map rather than fetched per
   // change, so switching the plan dropdown is instant.
   let categoriesByPlan: Record<string, { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string }[]> | undefined;
-  if (resource === "dishes") {
+  if (resource === "dishes" || resource === "addons") {
     const entries = await Promise.all(
       planRows.map(async (p) => [
         p.publicId,
@@ -308,7 +308,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   if (resource === "dishes") {
     const planPublicById = new Map(allPlanRows.map((p) => [p.id, p.publicId]));
     rows.forEach((dto, i) => {
-      dto.planId = planPublicById.get(raw[i].planId as bigint) ?? "";
+      dto.planId = raw[i].planId == null ? "" : (planPublicById.get(raw[i].planId as bigint) ?? "");
     });
   }
   // Slots carry plan membership in a join table, so the generic column flatten

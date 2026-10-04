@@ -28,7 +28,7 @@ export function StepBundle({
   const weekly = meals.filter((m) => !m.trial);
   const trials = trial ? meals.filter((m) => m.trial) : [];
 
-  // Add-ons offered with any of this meal size's dish categories (addons.category).
+  // Add-ons on this plan's menu, plus plan-bound ones (see mealSizeAddons).
   const eligibleAddons = offeredAddons(catalog, selections);
 
   return (
@@ -79,7 +79,7 @@ export function StepBundle({
                   />
                   {/* Desktop: right under the meal it extends. Phones get the drawer on Next instead. */}
                   {selections.mealSizeId === m.publicId && eligibleAddons.length > 0 && (
-                    <AddonsPanel addons={eligibleAddons} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
+                    <AddonsPanel addons={eligibleAddons} categoryLabels={catalog.categoryLabels} selections={selections} set={set} className="hidden sm:col-span-2 sm:block" />
                   )}
                 </Fragment>
               ))}

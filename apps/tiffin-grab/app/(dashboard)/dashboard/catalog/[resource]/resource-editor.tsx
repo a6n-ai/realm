@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@foundry/ui/switch";
 import { findSimilarDishes } from "@/lib/menu/similar-dishes";
 import { TableCell } from "@foundry/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { cn } from "@foundry/ui/cn";
 import type { SortState } from "@/lib/list/sort";
 import { formatTuHuman, type TuCategory } from "@/lib/menu/format-tu";
@@ -834,21 +835,21 @@ export function ResourceEditor({
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
                   {discountCtx ? (
-                    <Button size="sm" variant="ghost" onClick={() => setDiscountDlg({ discount: discountCtx.byTarget[row.publicId], target: row.publicId })} disabled={busy}>
-                      <TicketPercentIcon className="size-3.5" /> {discountCtx.byTarget[row.publicId] ? "Discount" : "Add discount"}
-                    </Button>
+                    <IconAction label={discountCtx.byTarget[row.publicId] ? "Edit discount" : "Add discount"} onClick={() => setDiscountDlg({ discount: discountCtx.byTarget[row.publicId], target: row.publicId })} disabled={busy}>
+                      <TicketPercentIcon className={discountCtx.byTarget[row.publicId] ? "text-primary size-4" : "size-4"} />
+                    </IconAction>
                   ) : null}
-                  <Button size="sm" variant="ghost" onClick={() => setEditing({ id: row.publicId, row })} disabled={busy}>
-                    <PencilIcon className="size-3.5" /> Edit
-                  </Button>
+                  <IconAction label={`Edit ${def.singular}`} onClick={() => setEditing({ id: row.publicId, row })} disabled={busy}>
+                    <PencilIcon className="size-4" />
+                  </IconAction>
                   {isRetired ? (
-                    <Button size="sm" variant="ghost" onClick={() => act(row.publicId, () => reactivateItem(resource as ResourceKey, row.publicId))} disabled={busy}>
-                      <RotateCcwIcon className="size-3.5" /> Restore
-                    </Button>
+                    <IconAction label={`Restore ${def.singular}`} onClick={() => act(row.publicId, () => reactivateItem(resource as ResourceKey, row.publicId))} disabled={busy}>
+                      <RotateCcwIcon className="size-4" />
+                    </IconAction>
                   ) : (
-                    <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => act(row.publicId, () => retireItem(resource as ResourceKey, row.publicId))} disabled={busy}>
-                      <ArchiveIcon className="size-3.5" /> Retire
-                    </Button>
+                    <IconAction label={`Retire ${def.singular}`} className="text-muted-foreground hover:text-foreground" onClick={() => act(row.publicId, () => retireItem(resource as ResourceKey, row.publicId))} disabled={busy}>
+                      <ArchiveIcon className="size-4" />
+                    </IconAction>
                   )}
                 </div>
               </TableCell>
@@ -884,6 +885,19 @@ export function ResourceEditor({
         />
       ) : null}
     </div>
+  );
+}
+
+function IconAction({ label, className, onClick, disabled, children }: { label: string; className?: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button size="icon-sm" variant="ghost" className={className} onClick={onClick} disabled={disabled} aria-label={label}>
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 

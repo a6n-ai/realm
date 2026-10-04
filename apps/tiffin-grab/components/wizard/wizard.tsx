@@ -231,7 +231,7 @@ export function Wizard({
         }
       >
         <p className="text-muted-foreground -mt-1 mb-3 text-[13px]">Optional extras for your {catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId)?.name ?? "meal"}, billed per tiffin.</p>
-        <AddonsPanel bare addons={offered} selections={selections} set={set} className="pb-2" />
+        <AddonsPanel bare addons={offered} categoryLabels={catalog.categoryLabels} selections={selections} set={set} className="pb-2" />
       </Sheet>
 
       <BottomBar alignEnd note={blocked ?? undefined} className="sm:sticky sm:mt-6 sm:px-0">

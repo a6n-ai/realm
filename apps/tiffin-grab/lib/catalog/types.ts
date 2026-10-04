@@ -88,8 +88,8 @@ export interface CatalogSnapshot {
   // fall back to the raw category key when it's absent.
   categoryLabels?: Record<string, string>;
   // dish-category key -> add-ons offered with it (addons.category).
-  // An add-on only shows for a meal size when its key appears here under one of
-  // that meal size's item categories — see buildPricingCatalog. Optional for the
+  // An add-on shows for a meal size when its category is on the plan's menu —
+  // see mealSizeAddons. Optional for the
   // same back-compat reason as categoryLabels.
   addonsByCategory?: Record<string, CatalogAddon[]>;
   minTiffinsPerWeek?: number;
@@ -178,22 +178,22 @@ export interface ClientCatalogSnapshot {
 }
 
 /** tuAmount: one row's portion in the category's TU; each qty adds one such row per tiffin. */
-export type CatalogAddon = { key: string; name: string; category: string; tuAmount: number; pricePerTiffin: number; maxQty: number; portion?: string | null };
+export type CatalogAddon = { key: string; name: string; category: string; planKey?: string | null; tuAmount: number; pricePerTiffin: number; maxQty: number; portion?: string | null };
 
 /**
- * Add-ons a meal size may carry: the union of add-ons attached to its item
- * categories (addons.category), deduped by key. The one eligibility
- * rule for the wizard, the admin order form and server-side pricing.
+ * Add-ons a meal size may carry, independent of its own rows (a Sabzi Only size can
+ * still add rice). Each add-on picks from one plan's menu — its own planKey, else the
+ * meal's plan — and is offered when that menu releases its category (plan.offeredSlots,
+ * the same list the menu builder publishes), so every add-on row has a dish to pick.
+ * The one eligibility rule for the wizard, the admin order form and server-side pricing.
  */
 export function mealSizeAddons(
-  addonsByCategory: Record<string, CatalogAddon[]> | undefined,
-  items: { category: string }[],
+  catalog: { plans: { key: string; offeredSlots: string[] }[]; addonsByCategory?: Record<string, CatalogAddon[]> },
+  meal: { planKey: string },
 ): CatalogAddon[] {
-  const byKey = new Map<string, CatalogAddon>();
-  for (const item of items) {
-    for (const addon of addonsByCategory?.[item.category] ?? []) byKey.set(addon.key, addon);
-  }
-  return [...byKey.values()];
+  const slots = new Map(catalog.plans.map((p) => [p.key, p.offeredSlots]));
+  return Object.values(catalog.addonsByCategory ?? {}).flat()
+    .filter((a) => slots.get(a.planKey ?? meal.planKey)?.includes(a.category) ?? false);
 }
 
 export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapshot {

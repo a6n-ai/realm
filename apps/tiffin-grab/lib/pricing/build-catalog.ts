@@ -27,11 +27,11 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     throw new ValidationError("Invalid duration");
   }
 
-  // Eligible add-ons are the union of whatever's attached to this meal size's own
-  // component categories — never trust the client's addonSelections as-is,
+  // Eligible add-ons are those on this meal size's plan menu — never trust the
+  // client's addonSelections as-is,
   // re-derive eligibility (and the maxQty ceiling) from the snapshot and reject
   // anything outside it.
-  const eligibleAddons = new Map(mealSizeAddons(snapshot.addonsByCategory, mealSize.items).map((a) => [a.key, a]));
+  const eligibleAddons = new Map(mealSizeAddons(snapshot, mealSize).map((a) => [a.key, a]));
   const addonSelections = selections.addonSelections ?? [];
   const addons = addonSelections.map(({ key, qty }) => {
     const addon = eligibleAddons.get(key);
@@ -39,7 +39,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     if (!Number.isInteger(qty) || qty < 1 || qty > addon.maxQty) {
       throw new ValidationError(`Invalid quantity for ${addon.name} (1–${addon.maxQty})`);
     }
-    return { key: addon.key, name: addon.name, category: addon.category, tuAmount: addon.tuAmount, pricePerTiffin: addon.pricePerTiffin, qty };
+    return { key: addon.key, name: addon.name, category: addon.category, planKey: addon.planKey ?? null, tuAmount: addon.tuAmount, pricePerTiffin: addon.pricePerTiffin, qty };
   });
 
   const duration = snapshot.durations.find((d) => d.weeks === selections.durationWeeks);
