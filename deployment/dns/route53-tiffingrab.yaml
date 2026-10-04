@@ -88,8 +88,8 @@ Resources:
       Type: TXT
       TTL: 14400
       ResourceRecords:
-        # Reports went to Brevo's collector (rua); Brevo is gone, so no report address.
-        - '"v=DMARC1; p=none"'
+        # Report-only while we confirm every sender aligns; BIMI needs p=quarantine+ later.
+        - '"v=DMARC1; p=none; rua=mailto:info@tiffingrab.ca"'
 
   # --- SES (app email: invites, OTP, notifications). Identity tiffingrab.ca, EasyDKIM,
   #     custom MAIL FROM mail.tiffingrab.ca (deployment/email/ses-tiffin-grab.yaml). ---

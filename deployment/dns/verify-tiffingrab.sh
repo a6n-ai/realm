@@ -52,6 +52,6 @@ expect tiffingrab.ca A "$wp_ip"
 expect www.tiffingrab.ca CNAME tiffingrab.ca
 # Brevo dropped on purpose: its verification TXT, DKIM and DMARC report address.
 expect tiffingrab.ca TXT '"v=spf1 include:spf.titan.email ~all"'
-expect _dmarc.tiffingrab.ca TXT '"v=dmarc1; p=none"'
+expect _dmarc.tiffingrab.ca TXT '"v=dmarc1; p=none; rua=mailto:info@tiffingrab.ca"'
 expect brevo1._domainkey.tiffingrab.ca CNAME ""
 exit $bad
