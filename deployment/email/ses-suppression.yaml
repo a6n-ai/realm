@@ -59,6 +59,15 @@ Resources:
         MatchingEventTypes:
           - BOUNCE
           - COMPLAINT
+          # Campaign stats (delivered/opened/clicked on the outbox row).
+          - DELIVERY
+          - OPEN
+          - CLICK
+          # No-ops in the webhook today; recorded so an accepted-but-never-
+          # delivered send shows up in SES metrics instead of vanishing.
+          - DELIVERY_DELAY
+          - REJECT
+          - RENDERING_FAILURE
         SnsDestination:
           TopicARN: !Ref FeedbackTopic
 
