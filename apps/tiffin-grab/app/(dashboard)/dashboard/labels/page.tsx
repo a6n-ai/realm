@@ -14,9 +14,8 @@ import { DeliveryStatusList } from "./delivery-status-list";
 import { LabelsTable } from "./labels-table";
 import { KitchenCounts, LabelList } from "./labels-view";
 import { LabelsTabs } from "./labels-tabs";
-import { LABEL_TABS, type LabelTab } from "./label-tab";
 
-type SearchParams = Promise<{ date?: string; tab?: string }>;
+type SearchParams = Promise<{ date?: string }>;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -43,8 +42,7 @@ export default async function LabelsPage({ searchParams }: { searchParams: Searc
 
 async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
-  const { date: dateParam, tab: tabParam } = await searchParams;
-  const tab: LabelTab = (LABEL_TABS as readonly string[]).includes(tabParam ?? "") ? (tabParam as LabelTab) : "packing";
+  const { date: dateParam } = await searchParams;
   const { timezone } = await getAppSettings();
 
   // Default to today in the app timezone, the same clock the rest of the app runs on.
@@ -58,6 +56,15 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
     listDayDeliveryStatuses(date),
   ]);
   const containers = sheet.counts.reduce((n, c) => n + c.count, 0);
+  const noMenu = sheet.menuWeekPublicId == null ? (
+    <SectionCard title="No menu released">
+      <p className="text-muted-foreground text-sm">
+        No menu week is released for the week of {sheet.weekStart}, so the dishes for this day
+        cannot be resolved. Release that week first — labels must show the same meal the
+        customer sees on their calendar.
+      </p>
+    </SectionCard>
+  ) : null;
 
   return (
     <>
@@ -88,40 +95,35 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
 
       <LabelsTabs
         date={date}
-        active={tab}
         counts={{
           packing: packing.rows.length,
           deliveries: deliveries.length,
           kitchen: sheet.counts.length,
           labels: sheet.labels.length,
         }}
+        panels={{
+          packing: (
+            <SectionCard title="Packing sheet">
+              <LabelsTable sheet={packing} />
+            </SectionCard>
+          ),
+          deliveries: (
+            <SectionCard title="Deliveries">
+              <DeliveryStatusList rows={deliveries} />
+            </SectionCard>
+          ),
+          kitchen: noMenu ?? (
+            <SectionCard title="Kitchen counts">
+              <KitchenCounts counts={sheet.counts} byRoute={sheet.byRoute} />
+            </SectionCard>
+          ),
+          labels: noMenu ?? (
+            <SectionCard title="Labels">
+              <LabelList labels={sheet.labels} />
+            </SectionCard>
+          ),
+        }}
       />
-
-      {tab === "packing" ? (
-        <SectionCard title="Packing sheet">
-          <LabelsTable sheet={packing} />
-        </SectionCard>
-      ) : tab === "deliveries" ? (
-        <SectionCard title="Deliveries">
-          <DeliveryStatusList rows={deliveries} />
-        </SectionCard>
-      ) : sheet.menuWeekPublicId == null ? (
-        <SectionCard title="No menu released">
-          <p className="text-muted-foreground text-sm">
-            No menu week is released for the week of {sheet.weekStart}, so the dishes for this day
-            cannot be resolved. Release that week first — labels must show the same meal the
-            customer sees on their calendar.
-          </p>
-        </SectionCard>
-      ) : tab === "kitchen" ? (
-        <SectionCard title="Kitchen counts">
-          <KitchenCounts counts={sheet.counts} byRoute={sheet.byRoute} />
-        </SectionCard>
-      ) : (
-        <SectionCard title="Labels">
-          <LabelList labels={sheet.labels} />
-        </SectionCard>
-      )}
     </>
   );
 }

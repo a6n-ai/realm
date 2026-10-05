@@ -26,6 +26,10 @@ import { formatTuHuman, isContainerCategory } from "@/lib/menu/format-tu";
 import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { withConcurrency } from "@/lib/concurrency";
+
+// Under the pool size (10) so the other loaders on the labels page still get connections.
+const ROW_CONCURRENCY = 6;
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -157,7 +161,9 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
   }[] = [];
 
   const extrasById = await loadExtraDates(db, deliveryRows.map((r) => r.deliveryId));
-  for (const row of deliveryRows) {
+  // Rows are independent and each resolves its meal with several queries; run them
+  // side by side instead of ~2 queries × every tiffin back to back. Output is sorted below.
+  await withConcurrency(deliveryRows, async (row) => {
     const covered = coveredDates({ deliveryDate: row.deliveryDate, coversDates: row.coversDates });
     // A day a moved-in tiffin doubled up on repeats here — one pass per physical tiffin, not per date.
     const occurrences = occurrenceDates({ deliveryDate: row.deliveryDate, coversDates: row.coversDates }, extrasById.get(row.deliveryId));
@@ -242,7 +248,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       lines,
     });
     }
-  }
+  }, ROW_CONCURRENCY);
 
   const maxItems = rowAcc.reduce((n, r) => Math.max(n, r.lines.length), 0);
   const itemHeaders = Array.from({ length: maxItems }, (_, i) => `Item${i + 1}`);
@@ -259,7 +265,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       mealSizeName: r.mealSizeName,
       items: r.lines.map((line) => formatItemCell(line)),
     }))
-    .sort((a, b) => a.customerName.localeCompare(b.customerName) || a.forDate.localeCompare(b.forDate));
+    .sort((a, b) => a.customerName.localeCompare(b.customerName) || a.forDate.localeCompare(b.forDate) || a.orderId.localeCompare(b.orderId));
 
   const summary: KitchenSummaryLine[] = [];
   for (const dish of [...dayDishTotals.keys()].sort((a, b) => a.localeCompare(b))) {

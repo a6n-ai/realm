@@ -1,6 +1,7 @@
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { optimoRouteApiKey } from "./config";
+import { withConcurrency as runLimited } from "@/lib/concurrency";
 
 const log = createLogger("optimoroute.client");
 
@@ -236,23 +237,13 @@ export async function deleteOrder(orderNo: string): Promise<void> {
   }
 }
 
-/** Runs tasks with at most MAX_CONCURRENCY in flight, preserving input order. */
-export async function withConcurrency<T, R>(
+/** OptimoRoute calls default to MAX_CONCURRENCY — its rate limit, not ours. */
+export function withConcurrency<T, R>(
   items: T[],
   worker: (item: T, index: number) => Promise<R>,
   limit = MAX_CONCURRENCY,
 ): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    for (;;) {
-      const index = cursor++;
-      if (index >= items.length) return;
-      results[index] = await worker(items[index], index);
-    }
-  });
-  await Promise.all(runners);
-  return results;
+  return runLimited(items, worker, limit);
 }
 
 /** Connectivity + auth check for the settings screen. Never throws on a bad key. */

@@ -28,6 +28,10 @@ import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
+import { withConcurrency } from "@/lib/concurrency";
+
+// Under the pool size (10) so the other loaders on the labels page still get connections.
+const ROW_CONCURRENCY = 6;
 
 export type LabelLine = {
   category: string;
@@ -290,7 +294,8 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
 
   const extrasById = await loadExtraDates(db, rows.map((r) => r.delivery.id));
   const labels: DeliveryLabel[] = [];
-  for (const row of rows) {
+  // Rows are independent; resolve them side by side (sortForPrinting fixes the order).
+  await withConcurrency(rows, async (row) => {
     const { delivery, order } = row;
     const address = effectiveAddress(delivery, order);
     const covered = coveredDates(delivery);
@@ -344,7 +349,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
         lines,
       });
     }
-  }
+  }, ROW_CONCURRENCY);
 
   return {
     date: dateIso,
@@ -414,6 +419,7 @@ export function sortForPrinting(labels: DeliveryLabel[]): DeliveryLabel[] {
       (a.routeStop ?? Number.MAX_SAFE_INTEGER) - (b.routeStop ?? Number.MAX_SAFE_INTEGER) ||
       a.customerName.localeCompare(b.customerName) ||
       a.personIndex - b.personIndex ||
-      a.forDate.localeCompare(b.forDate),
+      a.forDate.localeCompare(b.forDate) ||
+      a.deploymentId.localeCompare(b.deploymentId),
   );
 }
