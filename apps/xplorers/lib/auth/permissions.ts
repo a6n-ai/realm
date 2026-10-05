@@ -7,6 +7,7 @@ export const statement = {
   organization: ["read", "write"],
   studioSession: ["create", "read", "update", "delete"],
   booking: ["create", "read"],
+  discount: ["create", "read", "update", "delete"],
 } as const;
 
 export const ac = createAccessControl(statement);
@@ -21,6 +22,7 @@ export const roles = {
     organization: ["read", "write"],
     studioSession: ["create", "read", "update", "delete"],
     booking: ["read"],
+    discount: ["create", "read", "update", "delete"],
   }),
   member: ac.newRole({
     settings: ["read"],
@@ -28,6 +30,7 @@ export const roles = {
     organization: ["read"],
     studioSession: ["read"],
     booking: ["read"],
+    discount: ["read"],
   }),
 };
 

@@ -62,7 +62,7 @@ class LedgerService extends SessionBaseService<typeof ledgerEntries> {
     throw new Error("ledger_entries is append-only");
   }
 
-  async listRecent(limit = 50): Promise<LedgerListRow[]> {
+  async listRecent(limit = 50, type?: LedgerEntryType): Promise<LedgerListRow[]> {
     const rows = await db
       .select({
         publicId: ledgerEntries.publicId,
@@ -77,6 +77,7 @@ class LedgerService extends SessionBaseService<typeof ledgerEntries> {
       })
       .from(ledgerEntries)
       .innerJoin(users, eq(users.id, ledgerEntries.userId))
+      .where(type ? eq(ledgerEntries.type, type) : undefined)
       .orderBy(desc(ledgerEntries.createdAt))
       .limit(limit);
     return rows;

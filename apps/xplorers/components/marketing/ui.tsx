@@ -38,6 +38,7 @@ type ButtonProps = {
   type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
+  onClick?: () => void;
 };
 
 export function Button({
@@ -50,6 +51,7 @@ export function Button({
   type = "button",
   disabled,
   className,
+  onClick,
 }: ButtonProps) {
   const Glyph = icon === "arrow-right" ? ArrowRight : icon === "arrow-up-right" ? ArrowUpRight : null;
   const props = {
@@ -76,7 +78,7 @@ export function Button({
     );
   }
   return (
-    <button type={type} disabled={disabled} {...props}>
+    <button type={type} disabled={disabled} onClick={onClick} {...props}>
       {content}
     </button>
   );

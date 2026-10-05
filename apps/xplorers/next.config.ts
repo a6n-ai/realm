@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
   transpilePackages: [
     "@foundry/commons",
+    "@foundry/coupons",
     "@foundry/database",
     "@foundry/routes",
     "@foundry/themes",

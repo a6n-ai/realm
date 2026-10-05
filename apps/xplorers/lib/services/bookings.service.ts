@@ -2,22 +2,25 @@ import { ValidationError } from "@foundry/commons";
 import { findMethod, providerFor } from "@foundry/payments";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { bookings, payments, studioSessionOccurrences, studioSessions, users } from "@/db/schema";
+import { bookings, couponRedemptions, coupons, payments, studioSessionOccurrences, studioSessions, users } from "@/db/schema";
+import { priceBooking, toPricing, type CodeError } from "@/lib/discounts/quote";
 import { occurrenceStartsAt } from "@/lib/sessions/schedule";
-import { getAppClock, getPaymentConfig } from "./app-settings.service";
+import { getAppClock, getDiscountSettings, getPaymentConfig } from "./app-settings.service";
 import { assertCanBook, remainingSeats, RESERVED_BOOKING_STATUSES } from "./booking-policy";
-import { quoteBooking, paymentsService } from "./payments.service";
+import { discountsService } from "./discounts.service";
+import { ledgerService } from "./ledger.service";
+import { paymentsService } from "./payments.service";
 import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 import { bookingsRepository, type BookingRow } from "./bookings.repository";
 
-export type CreateBookingResult = BookingRow & { paymentPublicId: string | null };
+export type CreateBookingResult = BookingRow & { paymentPublicId: string | null; codeError: CodeError | null };
 
 class BookingsService extends SessionUpdatableService<typeof bookings> {
   async createForUser(
     userPublicId: string,
     occurrencePublicId: string,
     seats: number,
-    methodId?: string,
+    opts: { methodId?: string; code?: string | null } = {},
   ): Promise<CreateBookingResult> {
     const actorId = await currentUserId();
     const [user] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
@@ -26,8 +29,10 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
     const rails = await paymentsService.enabledRails();
     const { timezone, currency } = await getAppClock();
     const cfg = await getPaymentConfig();
+    const { maxDiscountPct } = await getDiscountSettings();
+    const code = opts.code?.trim() ? opts.code : null;
 
-    const { booking, paymentPublicId } = await db.transaction(async (tx) => {
+    const { booking, paymentPublicId, codeError } = await db.transaction(async (tx) => {
       const [occurrence] = await tx
         .select()
         .from(studioSessionOccurrences)
@@ -75,11 +80,31 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       });
 
       const unit = Number(session.priceAmount);
-      const needsPay = rails.length > 0 && Number.isFinite(unit) && unit > 0;
-      const method = needsPay
-        ? findMethod(cfg, methodId ?? rails[0]!.id) ?? rails.find((r) => r.enabled) ?? rails[0]
+      const pricedClass = rails.length > 0 && Number.isFinite(unit) && unit > 0;
+      const method = pricedClass
+        ? findMethod(cfg, opts.methodId ?? rails[0]!.id) ?? rails.find((r) => r.enabled) ?? rails[0]
         : undefined;
-      if (needsPay && !method?.enabled) throw new ValidationError("No payment method is enabled.");
+      if (pricedClass && !method?.enabled) throw new ValidationError("No payment method is enabled.");
+
+      // The coupon row is locked here, so a racing booking for the same code waits
+      // and then sees the incremented redemption count.
+      const rules = pricedClass
+        ? await discountsService.loadPricing(tx, { code, userId: user.id, lock: true })
+        : { discounts: [], coupon: null };
+      const quote = pricedClass
+        ? priceBooking({
+            unitPrice: session.priceAmount,
+            seats,
+            session: { id: session.id, category: session.category },
+            method: method ?? null,
+            discounts: rules.discounts,
+            coupon: rules.coupon,
+            codeTyped: Boolean(code),
+            maxDiscountPct,
+            now: now.getTime(),
+          })
+        : null;
+      const needsPay = quote != null && quote.total > 0;
 
       const [row] = await tx
         .insert(bookings)
@@ -89,20 +114,46 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
           userId: user.id,
           seats,
           status: needsPay ? "pending" : "confirmed",
+          pricing: quote ? toPricing(quote) : null,
           createdBy: actorId,
           updatedBy: actorId,
         })
         .returning();
       if (!row) throw new ValidationError("Could not save the booking.");
 
-      if (!needsPay || !method) return { booking: row, paymentPublicId: null as string | null };
+      const applied = quote?.adjustments.find((a) => a.kind === "coupon");
+      if (applied) {
+        const [c] = await tx
+          .update(coupons)
+          .set({ redemptionCount: sql`${coupons.redemptionCount} + 1`, updatedBy: actorId })
+          .where(eq(coupons.publicId, applied.publicId))
+          .returning({ id: coupons.id });
+        if (!c) throw new ValidationError("Could not apply the code.");
+        await tx.insert(couponRedemptions).values({
+          couponId: c.id,
+          bookingId: row.id,
+          userId: user.id,
+          amountApplied: applied.amount.toFixed(2),
+          createdBy: actorId,
+          updatedBy: actorId,
+        });
+      }
+      if (quote && quote.discountTotal > 0) {
+        await ledgerService.record(tx, {
+          userId: user.id,
+          bookingId: row.id,
+          direction: "credit",
+          type: "discount",
+          amount: quote.discountTotal.toFixed(2),
+          currency,
+          memo: quote.adjustments.map((a) => a.name).join(", "),
+        });
+      }
 
-      const { total } = quoteBooking(session.priceAmount, seats, method);
-      const initiated = providerFor(method).initiate({
-        orderRef: row.publicId,
-        amount: total,
-        method,
-      });
+      const codeError = quote?.codeError ?? null;
+      if (!needsPay || !method) return { booking: row, paymentPublicId: null as string | null, codeError };
+
+      const initiated = providerFor(method).initiate({ orderRef: row.publicId, amount: quote.total, method });
       const reference = initiated.kind === "manual_instructions" ? initiated.reference : row.publicId;
       const [pay] = await tx
         .insert(payments)
@@ -111,7 +162,7 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
           userId: user.id,
           status: "awaiting_payment",
           method: method.id,
-          amount: total.toFixed(2),
+          amount: quote.total.toFixed(2),
           currency,
           reference,
           createdBy: actorId,
@@ -119,17 +170,23 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
         })
         .returning({ publicId: payments.publicId });
       if (!pay) throw new ValidationError("Could not start payment.");
-      return { booking: row, paymentPublicId: pay.publicId };
+      return { booking: row, paymentPublicId: pay.publicId, codeError };
     });
 
     await recordAudit({
       entity: "bookings",
       entityPublicId: booking.publicId,
       operation: "create",
-      changes: { occurrencePublicId, seats, status: booking.status, paymentPublicId },
+      changes: {
+        occurrencePublicId,
+        seats,
+        status: booking.status,
+        paymentPublicId,
+        adjustments: booking.pricing?.adjustments ?? [],
+      },
       createdBy: actorId,
     });
-    return { ...booking, paymentPublicId };
+    return { ...booking, paymentPublicId, codeError };
   }
 
   async listForUser(
