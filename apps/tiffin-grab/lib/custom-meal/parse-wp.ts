@@ -44,7 +44,9 @@ export function parseCustomMealName(text: string, units: Map<string, CategoryUni
     else if ((m = seg.match(SIDE))) sides.push({ category: m[2].toLowerCase(), n: Number(m[1]) });
     else return null;
   }
-  const planKey = sabzi.some((s) => s.planKey === "non-veg") ? "non-veg" : "veg";
+  // Only sabzi has a diet. Plain roti, rice, dal, raita and salad exist only as veg dishes, and a
+  // custom meal can only serve dishes of its own rows' plans: a non-veg roti row would never print.
+  const planKey = "veg";
   const items = [...sabzi];
   if (roti) items.push({ category: "roti", planKey, tuAmount: roti / rotiSize });
   if (rice) items.push({ category: "rice", planKey, tuAmount: rice / riceSize });

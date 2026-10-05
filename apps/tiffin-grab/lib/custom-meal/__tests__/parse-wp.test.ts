@@ -17,8 +17,8 @@ const withSides = new Map<string, CategoryUnit>([
 describe("parseCustomMealName", () => {
   it("parses the common shape", () => {
     expect(parseCustomMealName("Custom Meal - 1 Non-Veg(12oz) + 2 Veg(8oz) + 4 Rotis + 1 Rice", units)).toEqual([
-      { category: "rice", planKey: "non-veg", tuAmount: 1 },
-      { category: "roti", planKey: "non-veg", tuAmount: 1 },
+      { category: "rice", planKey: "veg", tuAmount: 1 },
+      { category: "roti", planKey: "veg", tuAmount: 1 },
       { category: "sabzi", planKey: "non-veg", tuAmount: 1.5 },
       { category: "sabzi", planKey: "veg", tuAmount: 1 },
       { category: "sabzi", planKey: "veg", tuAmount: 1 },
@@ -35,7 +35,7 @@ describe("parseCustomMealName", () => {
     const veg8 = { category: "sabzi", planKey: "veg", tuAmount: 1 };
     const nv12 = { category: "sabzi", planKey: "non-veg", tuAmount: 1.5 };
     expect(parseCustomMealName("Custom Meal - 1 Non-Veg(12oz) Curry - 3 Rotis - ---", units)).toEqual([
-      { category: "roti", planKey: "non-veg", tuAmount: 0.75 },
+      { category: "roti", planKey: "veg", tuAmount: 0.75 },
       nv12,
     ]);
     expect(parseCustomMealName("Custom Meal - 2 Veg Curries (8oz) - 4 Rotis - 1 Rice", units)).toEqual([
@@ -59,8 +59,8 @@ describe("parseCustomMealName", () => {
 
   it("accepts size-first 'N 12oz NON VEG CURRY' and glued '6ROTIS'", () => {
     expect(parseCustomMealName("Custom Meal - 2 12oz NON VEG CURRIES - 1 8oz VEG MAIN CURRY - 1 RICE + 6ROTIS", units)).toEqual([
-      { category: "rice", planKey: "non-veg", tuAmount: 1 },
-      { category: "roti", planKey: "non-veg", tuAmount: 1.5 },
+      { category: "rice", planKey: "veg", tuAmount: 1 },
+      { category: "roti", planKey: "veg", tuAmount: 1.5 },
       { category: "sabzi", planKey: "non-veg", tuAmount: 1.5 },
       { category: "sabzi", planKey: "non-veg", tuAmount: 1.5 },
       { category: "sabzi", planKey: "veg", tuAmount: 1 },
@@ -70,7 +70,7 @@ describe("parseCustomMealName", () => {
 
   it("counts rice containers/boxes as rice and 'Rotis Only' as roti", () => {
     expect(parseCustomMealName("Custom Meal - 2 Veg(8oz) + 1 Non-Veg(8oz) Curry - 2 Rice Containers - -", units)).toEqual([
-      { category: "rice", planKey: "non-veg", tuAmount: 2 },
+      { category: "rice", planKey: "veg", tuAmount: 2 },
       { category: "sabzi", planKey: "non-veg", tuAmount: 1 },
       { category: "sabzi", planKey: "veg", tuAmount: 1 },
       { category: "sabzi", planKey: "veg", tuAmount: 1 },
@@ -87,7 +87,7 @@ describe("parseCustomMealName", () => {
     ]) expect(parseCustomMealName(name, withSides)).toBeNull();
   });
 
-  it("parses raita and salad as one 8oz pick each on the meal's plan (active legacy orders)", () => {
+  it("parses raita and salad as one 8oz veg pick each, whatever the meal's diet (active legacy orders)", () => {
     expect(parseCustomMealName("Custom Meal - 1 Veg(12oz) + 3 Rotis + 1 Rice + 1 Salad", withSides)).toEqual([
       { category: "rice", planKey: "veg", tuAmount: 1 },
       { category: "roti", planKey: "veg", tuAmount: 0.75 },
@@ -101,7 +101,7 @@ describe("parseCustomMealName", () => {
     ]) expect(parseCustomMealName(name, withSides)).not.toBeNull();
     expect(parseCustomMealName("Custom Meal - 1 Non-Veg(8oz) + 2 Rotis + 1 Rice + 1 Raita", withSides)).toContainEqual({
       category: "raita",
-      planKey: "non-veg",
+      planKey: "veg",
       tuAmount: 1,
     });
     expect(parseCustomMealName("Custom Meal - 1 Veg(12oz) veg + 2 Rotis", withSides)).toEqual([

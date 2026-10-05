@@ -16,11 +16,11 @@
  * `wc-<wordpress order id>`: a `pending` one is refreshed with WordPress's current
  * balance and address; one staff already started is never touched again.
  */
-import { and, eq, inArray, isNull, like, ne, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, ne, or, sql } from "drizzle-orm";
 import mysql from "mysql2/promise";
 import { emailSchema, zonedDateIso } from "@foundry/commons";
 import { db } from "./client";
-import { orderActivities, orders, organization, users } from "./schema";
+import { deliveries, orderActivities, orders, organization, users } from "./schema";
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "../lib/catalog/load";
 import { findZone } from "../lib/catalog/zone-match";
 import { categoryCountsFromItems } from "../lib/menu/pick-size";
@@ -284,8 +284,12 @@ export function mapRow(row: WpRow): MigrationRecord {
 export function dedupeByPhone(records: MigrationRecord[]): { kept: MigrationRecord[]; dropped: MigrationRecord[] } {
   const byPhone = new Map<string, MigrationRecord>();
   const dropped: MigrationRecord[] = [];
+  // Families share one phone ("Chirag Pathak" + "Bela Pathak"): the same plan under another
+  // first name is a second person, not a renewal, so it goes to staff instead of being summed.
+  const firstName = (n: string) => n.toLowerCase().replace(/\(.*?\)|\bsd\d+\b|\d+/g, " ").trim().split(/\s+/)[0] ?? "";
   const samePlan = (a: MigrationRecord, b: MigrationRecord) =>
-    a.productText === b.productText && a.addonsText === b.addonsText && a.persons === b.persons && a.eatingDays.join() === b.eatingDays.join();
+    a.productText === b.productText && a.addonsText === b.addonsText && a.persons === b.persons && a.eatingDays.join() === b.eatingDays.join()
+    && firstName(a.fullName) === firstName(b.fullName);
   for (const r of [...records].sort((a, b) => a.wpOrderId - b.wpOrderId)) {
     const existing = byPhone.get(r.phone);
     if (!existing) {
@@ -364,10 +368,10 @@ export function matchMealSize(productText: string, planKey: "veg" | "non-veg", m
 
 /** Base meal + add-on portions. An extra sabzi keeps its own diet; an extra roti, rice,
  * raita or salad joins the base meal's row for that category (whatever diet that row is
- * tagged with), else rides on the meal's diet. */
-function withAddons(base: CustomMealItem[], addons: CustomMealItem[], mealPlan: string, units: Map<string, CategoryUnit>): CustomMealItem[] {
+ * tagged with), else is veg: those dishes only exist on the veg plan. */
+function withAddons(base: CustomMealItem[], addons: CustomMealItem[], units: Map<string, CategoryUnit>): CustomMealItem[] {
   const extra = addons.map((a) =>
-    a.category === "sabzi" ? a : { ...a, planKey: base.find((b) => b.category === a.category)?.planKey ?? mealPlan });
+    a.category === "sabzi" ? a : { ...a, planKey: base.find((b) => b.category === a.category)?.planKey ?? "veg" });
   return normalizeItems([...base, ...extra], units);
 }
 
@@ -427,7 +431,7 @@ export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot, units: Map<st
       // Add-ons are extra portions in every tiffin: the meal becomes base + add-ons, a custom meal.
       const baseItems: CustomMealItem[] | undefined = parsedCustom
         ?? (addons ? matched!.mealSize.items.map((i) => ({ category: i.category, planKey: i.planKey ?? record.planKey, tuAmount: i.tuAmount })) : undefined);
-      const customItems = baseItems && addons ? withAddons(baseItems, addons, record.planKey, units) : baseItems;
+      const customItems = baseItems && addons ? withAddons(baseItems, addons, units) : baseItems;
       if (customItems) {
         const placeholder = matched?.mealSize ?? snapshot.mealSizes.find((m) => m.planKey === record.planKey && !m.custom);
         if (!placeholder) throw new Error(`No meal size available for plan ${record.planKey}`);
@@ -575,11 +579,15 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
       .where(or(eq(users.phone, phone), eq(users.email, x.email))).limit(1);
     if (existingUser && existingUser.role !== "user") throw new Error("phone/email belongs to a staff account");
     // R13: plans cannot overlap, so a second live plan would double-book the customer's days.
+    // A started plan whose last delivery is before this one's start is sequential, not overlapping.
     if (existingUser) {
-      const [live] = await tx.select({ deploymentId: orders.deploymentId }).from(orders)
+      const live = await tx.select({ deploymentId: orders.deploymentId, status: orders.status, lastDelivery: sql<string | null>`max(${deliveries.deliveryDate})::text` })
+        .from(orders)
+        .leftJoin(deliveries, eq(deliveries.orderId, orders.id))
         .where(and(eq(orders.userId, existingUser.id), inArray(orders.status, ["pending", "active", "paused"]), ne(orders.deploymentId, deploymentId)))
-        .limit(1);
-      if (live) throw new Error(`customer already has a live plan: ${live.deploymentId}`);
+        .groupBy(orders.id);
+      const clash = live.find((o) => o.status === "pending" || !o.lastDelivery || o.lastDelivery >= startDate);
+      if (clash) throw new Error(`customer already has a live plan: ${clash.deploymentId} (${clash.status}, last delivery ${clash.lastDelivery ?? "none"}, this plan starts ${startDate})`);
     }
     const userId = existingUser?.id ?? await provisionCustomerByPhone(tx, { fullName: contact.fullName, phone, email: x.email, addressLine: x.addressLine, city: x.city, postalCode: x.postalCode }, null);
 
@@ -626,6 +634,50 @@ async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapsh
   for (const [k, v] of Object.entries(counts)) console.log(`${k}: ${v}`);
 }
 
+// ---------- renewals of a started plan ----------
+
+function dayAfter(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** A started plan is never touched again, so a renewal WordPress folds into it after the
+ * start would vanish. Each such renewal becomes its own plan, starting the day after the
+ * running one's last delivery (sequential plans are fine; overlapping ones are not). */
+export async function renewalsOfStartedPlans(
+  planned: Extract<PlanResult, { kind: "planned" }>[],
+  rows: WpRow[],
+  snapshot: CatalogSnapshot,
+  units: Map<string, CategoryUnit>,
+): Promise<Extract<PlanResult, { kind: "planned" }>[]> {
+  const inDb = await db.select({ id: orders.id, deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount, pricingSnapshot: orders.pricingSnapshot })
+    .from(orders).where(like(orders.deploymentId, "wc-%"));
+  const byId = new Map(inDb.map((o) => [o.deploymentId, o]));
+  const rowById = new Map(rows.map((r) => [r.id, r]));
+  const out: Extract<PlanResult, { kind: "planned" }>[] = [];
+  for (const { record: x } of planned) {
+    const ids = [x.wpOrderId, ...x.mergedWpOrderIds];
+    const started = ids.map((i) => byId.get(`wc-${i}`)).find((o) => o && o.status !== "pending" && o.status !== "cancelled");
+    if (!started) continue;
+    const known = new Set([Number(started.deploymentId.slice(3)), ...((started.pricingSnapshot as OrderPricingSnapshot | null)?.wordpress?.mergedOrderIds ?? [])]);
+    const fresh = ids.filter((i) => !known.has(i) && !byId.has(`wc-${i}`));
+    // Only when WordPress holds more than every plan here combined: an older import may
+    // already carry a renewal without listing it in mergedOrderIds.
+    const here = ids.map((i) => byId.get(`wc-${i}`)).filter((o) => o && o.status !== "cancelled").reduce((n, o) => n + o!.tiffinCount, 0);
+    if (!fresh.length || x.tiffinCount <= here) continue;
+    const [last] = await db.select({ d: sql<string>`max(${deliveries.deliveryDate})::text` }).from(deliveries).where(eq(deliveries.orderId, started.id));
+    for (const id of fresh) {
+      const [r] = planSeed([rowById.get(id)!], snapshot, units).results;
+      if (r?.kind !== "planned") continue;
+      r.record.sourceStartDate = last?.d ? dayAfter(last.d) : r.record.sourceStartDate;
+      r.record.lastDeliveredDate = null;
+      out.push(r);
+    }
+  }
+  return out;
+}
+
 // ---------- balance check ----------
 
 /** Tiffins left in our DB vs WordPress's live counter, per imported plan. A pending plan must
@@ -642,6 +694,7 @@ export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned
   const willRefresh: string[] = [];
   const doubleDelivery: string[] = [];
   const notImported: string[] = [];
+  const moreOnWordPress: string[] = [];
   for (const { record: x } of planned) {
     const ids = planIdsOf(x);
     const o = ids.map((i) => byId.get(i)).find(Boolean);
@@ -650,10 +703,14 @@ export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned
     if (o.status === "pending") {
       if (o.tiffinCount === x.tiffinCount) match++;
       else willRefresh.push(`${id}: ours ${o.tiffinCount}, WordPress ${x.tiffinCount}`);
-    } else if (o.status !== "cancelled" && x.tiffinCount < o.tiffinCount) {
-      doubleDelivery.push(`${id} (${o.status}): started with ${o.tiffinCount}, WordPress now ${x.tiffinCount}`);
-    } else {
+    } else if (o.status === "cancelled") {
       match++;
+    } else {
+      // A renewal imported as its own plan counts toward the same WordPress balance.
+      const here = ids.map((i) => byId.get(i)).filter((p) => p && p.status !== "cancelled").reduce((n, p) => n + p!.tiffinCount, 0);
+      if (x.tiffinCount < here) doubleDelivery.push(`${id} (${o.status}): started with ${here}, WordPress now ${x.tiffinCount}`);
+      else if (x.tiffinCount > here) moreOnWordPress.push(`${id} (${o.status}): here ${here}, WordPress ${x.tiffinCount}`);
+      else match++;
     }
   }
   const goneFromWordPress = inDb.filter((o) => o.status === "pending" && !wanted.has(o.deploymentId)).map((o) => o.deploymentId);
@@ -666,9 +723,11 @@ export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned
   for (const l of notImported) console.log(`  ${l}`);
   console.log(`Started but WordPress kept delivering (stop them on WordPress!): ${doubleDelivery.length}`);
   for (const l of doubleDelivery) console.log(`  ${l}`);
+  console.log(`Started here, WordPress has more (a renewal not imported, or a staff top-up): ${moreOnWordPress.length}`);
+  for (const l of moreOnWordPress) console.log(`  ${l}`);
   console.log(`Pending here, no longer an active WordPress plan (ended, cancelled or now skipped): ${goneFromWordPress.length}`);
   for (const l of goneFromWordPress) console.log(`  ${l}`);
-  return { mismatches: willRefresh.length + doubleDelivery.length + notImported.length + goneFromWordPress.length };
+  return { mismatches: willRefresh.length + doubleDelivery.length + notImported.length + moreOnWordPress.length + goneFromWordPress.length };
 }
 
 const isDirectRun = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
@@ -687,6 +746,9 @@ if (isDirectRun) {
     const { results, duplicates, mixedKind } = planSeed(rows, snapshot, units);
     printReport(rows.length, results, duplicates, mixedKind, units);
     const planned = results.filter((r): r is Extract<PlanResult, { kind: "planned" }> => r.kind === "planned");
+    const renewals = await renewalsOfStartedPlans(planned, rows, snapshot, units);
+    console.log(`\n--- Renewals of a started plan, not here yet (imported as their own plan after it ends) ---`);
+    for (const { record: x } of renewals) console.log(`  wc-${x.wpOrderId} ***${x.phone.slice(-4)} "${x.productText}" left=${x.tiffinCount} from ${x.sourceStartDate}`);
     await balanceCheck(planned);
     if (!process.argv.includes("--apply")) {
       console.log(`\nDry run only — pass --apply to write.`);
@@ -694,7 +756,8 @@ if (isDirectRun) {
     }
     // --only=15146,15323 applies just those WordPress orders (the report still covers all).
     const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7).split(",").map(Number);
-    await apply(only ? planned.filter((r) => only.includes(r.record.wpOrderId)) : planned, snapshot);
+    const toApply = [...planned, ...renewals];
+    await apply(only ? toApply.filter((r) => only.includes(r.record.wpOrderId)) : toApply, snapshot);
     console.log(`\nAfter apply:`);
     await balanceCheck(planned);
   })()
