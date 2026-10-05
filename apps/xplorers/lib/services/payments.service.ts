@@ -112,18 +112,21 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
     return this.update(publicId, { status: "rejected", note: note?.trim() || null });
   }
 
-  async listForOccurrence(occurrencePublicId: string): Promise<Array<PaymentRow & { bookingPublicId: string; seats: number }>> {
+  async listForOccurrence(
+    occurrencePublicId: string,
+  ): Promise<Array<PaymentRow & { bookingPublicId: string; seats: number; pricing: BookingPricing | null }>> {
     const rows = await db
       .select({
         payment: payments,
         bookingPublicId: bookings.publicId,
         seats: bookings.seats,
+        pricing: bookings.pricing,
       })
       .from(payments)
       .innerJoin(bookings, eq(bookings.id, payments.bookingId))
       .innerJoin(studioSessionOccurrences, eq(studioSessionOccurrences.id, bookings.occurrenceId))
       .where(eq(studioSessionOccurrences.publicId, occurrencePublicId));
-    return rows.map((r) => ({ ...r.payment, bookingPublicId: r.bookingPublicId, seats: r.seats }));
+    return rows.map((r) => ({ ...r.payment, bookingPublicId: r.bookingPublicId, seats: r.seats, pricing: r.pricing }));
   }
 
   async listRecent(limit = 50): Promise<PaymentListRow[]> {

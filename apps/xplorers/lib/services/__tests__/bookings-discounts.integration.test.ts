@@ -100,6 +100,13 @@ describe("createForUser with discounts", () => {
     expect(led).toMatchObject({ direction: "credit", amount: "20.00" });
     const [red] = await db.select().from(schema.couponRedemptions).where(eq(schema.couponRedemptions.bookingId, b.id));
     expect(red!.amountApplied).toBe("20.00");
+    await db
+      .insert(schema.ledgerEntries)
+      .values({ userId: b.userId, direction: "debit", type: "payment", amount: "1.00", currency: "CAD", memo: `${MARK} pay` });
+    const { ledgerService } = await import("../ledger.service");
+    const logs = await ledgerService.listRecent(500, "discount");
+    expect(logs.every((r) => r.type === "discount")).toBe(true);
+    expect(logs.some((r) => r.memo?.includes(`${MARK} free`))).toBe(true);
   });
 
   it("applies an automatic category discount and charges the rest", async () => {

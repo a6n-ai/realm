@@ -82,6 +82,12 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
                 <div>
                   <p className="font-medium">
                     {pay.currency} {pay.amount} · {pay.method}
+                    {pay.pricing?.discountTotal ? (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · {pay.pricing.adjustments.map((x) => x.code ?? x.name).join(", ")} −{pay.pricing.discountTotal.toFixed(2)}
+                      </span>
+                    ) : null}
                   </p>
                   <p className="text-muted-foreground">
                     {pay.bookingPublicId} · {pay.seats} seat{pay.seats === 1 ? "" : "s"} · {pay.status}
