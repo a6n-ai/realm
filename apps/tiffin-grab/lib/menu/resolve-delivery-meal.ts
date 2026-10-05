@@ -16,6 +16,7 @@ import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { isContainerCategory } from "@/lib/menu/format-tu";
 import { itemsForRow, rowPlanIds, type RowPlans } from "@/lib/menu/row-plans";
 import { addonItemsForOrder, type AddonItemRow } from "@/lib/menu/order-addon-items";
+import { loadSideRules, rolesByCategory, sideDefault, sideKey, sideRulesForDay, type MealItemRole, type SideRules } from "@/lib/menu/side-rules";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -85,6 +86,9 @@ export function resolveCategoriesForDay(
   rules: MealRule[] = [],
   // Custom meals: pick N serves only row N's plan (see row-plans.ts). null = catalog union.
   rowPlans: RowPlans | null = null,
+  // Side picks (role side_1/side_2) of standard meals: the day's side dish, or undefined
+  // to keep the normal default. A customer's own pick still wins.
+  sideFor: ((category: string, pickIndex: number) => Item | undefined) | null = null,
 ): ResolvedCategory[] {
   const out: ResolvedCategory[] = [];
   for (const c of cats) {
@@ -97,6 +101,8 @@ export function resolveCategoriesForDay(
     const maxTuPi = maxTuByCategory.get(c.key) ?? 1;
     // A custom row's own diet already decides the dish, so the exclusive-dish override is off.
     const rowDefault = (pi: number) => {
+      const side = sideFor?.(c.key, pi);
+      if (side) return side;
       const row = itemsForRow(slotItems, rowPlans, c.key, pi);
       return rowPlans
         ? (row.find((i) => i.isDefault) ?? row[0]!)
@@ -176,6 +182,7 @@ function loadSizeContext(order: Order) {
         tuAmount: mealSizeItems.tuAmount,
         sortOrder: mealSizeItems.sortOrder,
         planId: mealSizeItems.planId,
+        role: mealSizeItems.role,
       })
       .from(mealSizeItems)
       .where(eq(mealSizeItems.mealSizeId, order.mealSizeId)),
@@ -232,6 +239,7 @@ export function createMealResolveCache(
         return out;
       }),
     sizeContext: (order: Order) => once(`size:${order.planId}:${order.mealSizeId}`, () => loadSizeContext(order)),
+    sideRules: (weekId: bigint) => once(`sides:${weekId}`, () => loadSideRules(weekId)),
     addons: (orderId: bigint) =>
       addonsByOrder ? Promise.resolve(addonsByOrder.get(orderId) ?? []) : once(`addons:${orderId}`, () => addonItemsForOrder(orderId)),
   };
@@ -264,6 +272,23 @@ async function defaultPickContext(order: Order, cache?: MealResolveCache) {
     liveCounts: itemRows.length > 0 ? liveCounts : null,
     rules,
     rowPlans: rowPlanIds(itemRows, size?.custom ?? false),
+    // Standard meals only: a custom meal's second sabzi is a real second sabzi.
+    roles: size?.custom ? null : rolesByCategory(sizeRows),
+  };
+}
+
+/** Side picks for one day: the role of pick N, then that role's rule for the day. */
+function sideResolver(
+  roles: Map<string, MealItemRole[]> | null,
+  rules: SideRules,
+  dayItems: Item[],
+  planDishIds: Set<bigint>,
+): ((category: string, pickIndex: number) => Item | undefined) | null {
+  if (!roles || rules.size === 0) return null;
+  return (category, pickIndex) => {
+    const role = roles.get(category)?.[pickIndex - 1];
+    if (!role || role === "main") return undefined;
+    return sideDefault(rules.get(sideKey(category, role)), dayItems, planDishIds);
   };
 }
 
@@ -312,8 +337,9 @@ export async function resolveDeliveryMeal(
     swaps = tripDate && eatingDate ? rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatingDate)) : rows;
   }
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans } = await defaultPickContext(order, cache);
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans, roles } = await defaultPickContext(order, cache);
   const baseCounts = liveCounts ?? order.categoryCounts ?? {};
+  const sideRules = roles ? sideRulesForDay(await (cache ? cache.sideRules(week.id) : loadSideRules(week.id)), dayOfWeek) : new Map();
   return resolveCategoriesForDay(
     items,
     picks,
@@ -324,6 +350,7 @@ export async function resolveDeliveryMeal(
     maxTuByCat,
     rules,
     rowPlans,
+    sideResolver(roles, sideRules, items, planDishIds),
   );
 }
 
@@ -356,8 +383,9 @@ export async function resolveDeliveryMealsForWeek(
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id)));
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans } = await defaultPickContext(order);
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans, roles } = await defaultPickContext(order);
   const baseCounts = liveCounts ?? order.categoryCounts ?? {};
+  const weekSides = roles ? await loadSideRules(week.id) : null;
 
   // Batch-fetch this week's delivery rows (to map date -> delivery id) and every
   // swap applied to any of them, in two queries total rather than one lookup per
@@ -392,7 +420,8 @@ export async function resolveDeliveryMealsForWeek(
       const dayPersonPicks = picks.filter((p) => p.dayOfWeek === day && p.personIndex === person);
       result.set(
         resolvedMealsWeekKey(day, person),
-        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules, rowPlans),
+        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules, rowPlans,
+          weekSides ? sideResolver(roles, sideRulesForDay(weekSides, day), dayItems, planDishIds) : null),
       );
     }
   }

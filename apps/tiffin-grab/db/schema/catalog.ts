@@ -6,6 +6,9 @@ import { organization } from "./organizations";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
+// Which of a meal's items of one category this is: the 1st is the main, the 2nd and 3rd
+// are sides. A side can follow another category on the day's menu (menu_side_defaults).
+export const mealItemRole = pgEnum("meal_item_role", ["main", "side_1", "side_2"]);
 
 export const plans = pgTable("plans", {
   ...updatableColumns("pln"),
@@ -109,6 +112,7 @@ export const mealSizeItems = pgTable("meal_size_items", {
   // (bounded only by the meal size's overall composition). Checked at swap-apply time.
   maxTuAmount: numeric("max_tu_amount", { precision: 6, scale: 2 }),
   sortOrder: integer("sort_order").notNull().default(0),
+  role: mealItemRole("role").notNull().default("main"),
 }, (t) => [
   index("meal_size_items_meal_size_idx").on(t.mealSizeId),
   index("meal_size_items_plan_idx").on(t.planId),

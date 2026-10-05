@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, inArray, like, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { dishes, mealSelections, mealSizeItems, menuItems, menuSideDefaults, menuWeeks, orders, users } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { exclusiveDishIdsForPlan } from "../selections.service";
@@ -65,6 +65,27 @@ describe("resolveDeliveryMeal", () => {
     });
   });
   afterAll(reset);
+
+  it("packs the day's dal as a standard meal's side_1 sabzi, keeping the main", async () => {
+    const [second] = await db.select({ id: mealSizeItems.id }).from(mealSizeItems)
+      .where(and(eq(mealSizeItems.mealSizeId, order.mealSizeId), eq(mealSizeItems.category, "sabzi")))
+      .orderBy(asc(mealSizeItems.sortOrder), asc(mealSizeItems.id)).offset(1).limit(1);
+    expect(second, "item5_regular_veg has two sabzi rows").toBeDefined();
+    const [dal] = await db.insert(dishes).values({ planId: await testPlanId(), name: "Masoor Dal", category: "daal" }).returning();
+    await attachDishToPlans(dal.id);
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("daal"), dishId: dal.id, isDefault: true });
+    const sabziId = await categoryIdFor("sabzi");
+    await db.update(mealSizeItems).set({ role: "side_1" }).where(eq(mealSizeItems.id, second!.id));
+    await db.insert(menuSideDefaults).values({ categoryId: sabziId, role: "side_1", sourceCategoryId: await categoryIdFor("daal") });
+    try {
+      const sabzi = (await resolveDeliveryMeal(order, week, "mon", 1, null)).find((m) => m.category === "sabzi")!;
+      // pick 1 is the customer's own Bhindi; pick 2 (side_1) is the day's dal, not a second sabzi.
+      expect(sabzi.picks.map((p) => p.name)).toEqual(["Bhindi", "Masoor Dal"]);
+    } finally {
+      await db.delete(menuSideDefaults).where(eq(menuSideDefaults.categoryId, sabziId));
+      await db.update(mealSizeItems).set({ role: "main" }).where(eq(mealSizeItems.id, second!.id));
+    }
+  });
 
   it("resolves selectable categories with per-pick picks/defaults and fixed categories as a single read-only quantity", async () => {
     const meal = await resolveDeliveryMeal(order, week, "mon", 1, null);

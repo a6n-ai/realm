@@ -1,7 +1,7 @@
 import { updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
-import { dishes, plans } from "./catalog";
+import { bigint, boolean, check, date, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { dishes, mealItemRole, plans } from "./catalog";
 import { orders } from "./orders";
 import { organization } from "./organizations";
 
@@ -217,5 +217,46 @@ export const customMealPricing = pgTable(
   (t) => [
     uniqueIndex("custom_meal_pricing_category_plan_unique").on(t.categoryId, t.planId),
     index("custom_meal_pricing_plan_idx").on(t.planId),
+  ],
+);
+
+// A side item (meal_size_items.role side_1/side_2) of one category can take its dish from
+// another category on the day's menu: "sabzi side_1 -> daal" packs the day's dal as the 8oz
+// side of a 5 Item thali while its 12oz main stays the day's sabzi. The standing rule lives
+// here; menuDaySides overrides it for one menu day.
+export const menuSideDefaults = pgTable(
+  "menu_side_defaults",
+  {
+    ...updatableColumns("msd"),
+    categoryId: bigint("category_id", { mode: "bigint" })
+      .notNull()
+      .references(() => dishCategories.id, { onDelete: "cascade" }),
+    role: mealItemRole("role").notNull(),
+    sourceCategoryId: bigint("source_category_id", { mode: "bigint" })
+      .notNull()
+      .references(() => dishCategories.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").references(() => organization.id),
+  },
+  (t) => [uniqueIndex("menu_side_defaults_unique").on(t.categoryId, t.role)],
+);
+
+// One menu day's side: another category's dish of that day, or one specific dish.
+export const menuDaySides = pgTable(
+  "menu_day_sides",
+  {
+    ...updatableColumns("mds"),
+    menuWeekId: bigint("menu_week_id", { mode: "bigint" }).notNull().references(() => menuWeeks.id, { onDelete: "cascade" }),
+    dayOfWeek: dayOfWeek("day_of_week").notNull(),
+    categoryId: bigint("category_id", { mode: "bigint" })
+      .notNull()
+      .references(() => dishCategories.id, { onDelete: "cascade" }),
+    role: mealItemRole("role").notNull(),
+    sourceCategoryId: bigint("source_category_id", { mode: "bigint" }).references(() => dishCategories.id, { onDelete: "cascade" }),
+    dishId: bigint("dish_id", { mode: "bigint" }).references(() => dishes.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").references(() => organization.id),
+  },
+  (t) => [
+    uniqueIndex("menu_day_sides_unique").on(t.menuWeekId, t.dayOfWeek, t.categoryId, t.role),
+    check("menu_day_sides_one_source", sql`(${t.sourceCategoryId} is null) <> (${t.dishId} is null)`),
   ],
 );
