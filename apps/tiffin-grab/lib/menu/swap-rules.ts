@@ -113,9 +113,21 @@ export function swapQuantities(
   const fromTu = from.pickTu ?? to.pickTu!;
   const toTu = to.pickTu ?? from.pickTu!;
   const qtyTo = crossUnitPicks(fromPicks * fromTu, toTu);
+  if (qtyTo >= 1) return { ok: true, qtyTo };
   // Customer-facing: never mention pick counts / TU math.
-  if (qtyTo < 1) return { ok: false, reason: NOT_ENOUGH_FOR_SWAP };
-  return { ok: true, qtyTo };
+  return partialPortionTu(fromPicks * fromTu, to) != null ? { ok: true, qtyTo: 1 } : { ok: false, reason: NOT_ENOUGH_FOR_SWAP };
+}
+
+/**
+ * Cross-unit swap into a destination row bigger than what was given — 1 rice (1 TU) against
+ * an 8-roti row (2 TU): the customer receives the given TU as one smaller portion of whole
+ * destination units (4 roti), the "1 TU ↔ 1 TU" the Swaps page promises, instead of a refusal
+ * for not filling the whole row. Null when it buys not even one unit, or the unit is unknown.
+ */
+export function partialPortionTu(giveTu: number, to: Pick<SwapCategory, "unitSize">): number | null {
+  if (!to.unitSize) return null;
+  const tu = Math.floor(giveTu * to.unitSize + 1e-9) / to.unitSize;
+  return tu > 0 ? tu : null;
 }
 
 export const NOT_ENOUGH_FOR_SWAP = "Not enough to swap for a full portion.";

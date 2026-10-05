@@ -50,7 +50,12 @@ describe("swapQuantities", () => {
     const roti6 = cat("roti", 1.5, { unitType: "count", unitLabel: "roti" });
     expect(swapQuantities(roti6, rice, 1)).toEqual({ ok: true, qtyTo: 1 });
   });
-  it("refuses 1 TU for half a pick across units — a swap only ever moves whole picks", () => {
+  it("1 rice buys a smaller roti portion when the roti row is a whole 8-roti pack", () => {
+    const rice1 = cat("rice", 1, { unitType: "count", unitLabel: "unit", unitSize: 1 });
+    const rotiPack = cat("roti", 2, { unitType: "count", unitLabel: "roti", unitSize: 4 });
+    expect(swapQuantities(rice1, rotiPack, 1)).toEqual({ ok: true, qtyTo: 1 });
+  });
+  it("refuses 1 TU for half a pick across units when the destination unit is unknown", () => {
     const doubleTu = cat("bigportion", 2, { unitType: "count", unitLabel: "unit" });
     expect(swapQuantities(daal8, doubleTu, 1)).toMatchObject({ ok: false });
   });
