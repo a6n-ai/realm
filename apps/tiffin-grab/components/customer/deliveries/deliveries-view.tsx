@@ -9,7 +9,7 @@ import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, deliveryLine, eatingRowsInWeek, isAddressRow, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
-import { addDays, dotStatus, mondayOf, PLAN_COLORS, type Agenda } from "@/lib/deliveries-view/week";
+import { addDays, mondayOf, type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { actionModel } from "./action-model";
@@ -18,7 +18,7 @@ import { ActionSheet } from "./actions/registry";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, EatingRowButton, InfoButton, TripInfoSheet, tiffins } from "./trip-parts";
-import { WeekStrip } from "./week-strip";
+import { WeekTimeline } from "./week-timeline";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "move"];
 const WEEK = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -58,7 +58,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const router = useRouter();
   const [navigating, startNav] = useTransition();
   const multi = subs.length > 1;
-  const color = PLAN_COLORS[Math.max(subs.findIndex((s) => s.publicId === plan.orderId), 0) % PLAN_COLORS.length]!;
 
   const [sel, setSel] = useState<string | null>(initialTrip);
   const [wk, setWk] = useState(weekStart);
@@ -96,12 +95,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
   const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo, trial: plan.sub.trial === true }) : null;
-
-  const dots = useMemo(() => {
-    const out: Record<string, { orderId: string; status: DeliveryStatus; truck: boolean }[]> = {};
-    for (const [date, ds] of Object.entries(agenda)) out[date] = ds.map((d) => ({ orderId: d.orderId, status: dotStatus(d, now), truck: d.truck }));
-    return out;
-  }, [agenda, now]);
 
   const qs = (over: Record<string, string | null>) => {
     const p = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
@@ -190,18 +183,19 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       )}
 
       <div className="mb-4">
-        <WeekStrip
+        <WeekTimeline
           firstWeek={firstWeek}
           lastWeek={lastWeek}
           week={weekStart}
           today={today}
           selectedDay={row?.date ?? sel}
-          dots={dots}
-          colorOf={() => color}
+          agenda={agenda}
+          now={now}
           onPickDay={pickDay}
           onWeek={(m) => goWeek(m)}
         />
       </div>
+
 
       <div className={navigating ? "opacity-60 transition-opacity" : undefined} aria-busy={navigating}>
         <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--muted-foreground,#6E6558)]">{weekTitle(weekStart)}</h2>
