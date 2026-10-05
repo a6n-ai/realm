@@ -29,6 +29,7 @@ import {
   exchangeOverride,
   foldSwaps,
   NOT_ENOUGH_FOR_SWAP,
+  partialPortionTu,
   sameUnit,
   swapPairFits,
   takeGiven,
@@ -385,8 +386,17 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
   } else {
     const toRate = receivePickTu(composition, next.toCategory) ?? 0;
     qtyTo = crossUnitPicks(giveTu, toRate);
-    if (qtyTo < 1) return { ok: false, reason: NOT_ENOUGH_FOR_SWAP };
-    getTu = qtyTo * toRate;
+    if (qtyTo >= 1) {
+      getTu = qtyTo * toRate;
+    } else {
+      // Smaller than one destination row (1 rice vs an 8-roti row): one portion of the given TU,
+      // snapshotted like an override so kitchen and labels pack exactly that.
+      const partial = partialPortionTu(giveTu, to);
+      if (partial == null) return { ok: false, reason: NOT_ENOUGH_FOR_SWAP };
+      qtyTo = 1;
+      receiveTu = partial;
+      getTu = partial;
+    }
   }
 
   const proposed: SwapRow = {
@@ -568,7 +578,7 @@ export function computeSwapOption(args: {
       giveNatural: sameUnit(from, to) ? naturalForSlots(from, fromSlots.slice(0, q)) : naturalForTu(from, r.giveTu),
       getNatural:
         r.receiveTu != null
-          ? naturalForSlots(to, Array<number>(q).fill(r.receiveTu))
+          ? naturalForSlots(to, Array<number>(r.qtyTo).fill(r.receiveTu))
           : sameUnit(from, to) ? naturalForSlots(to, fromSlots.slice(0, q)) : naturalForTu(to, r.getTu),
       receiveTu: r.receiveTu,
     });

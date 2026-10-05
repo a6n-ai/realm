@@ -90,9 +90,9 @@ describe("validateProposedSwap / computeSwapOption — Roti ↔ Rice", () => {
 });
 
 describe("Rice → Roti uneven pickTu (representative first-row)", () => {
-  // Roti pickTu 1.5, rice 1: 1 rice rounds down to 0 roti, so options start at
-  // 2 rice → 1 roti (floor 1.33); 3 rice → 2 roti.
-  it("does not offer 1 rice; 2 rice rounds down to 1 roti", () => {
+  // Roti row 1.5 TU (6 roti), rice 1 TU: 1 rice no longer refuses for not filling a 6-roti
+  // row — it buys 4 roti (1 TU ↔ 1 TU, as the Swaps page states), one rice at a time.
+  it("offers 1 rice → 4 roti as a smaller portion", () => {
     const rice = cat("rice", 1);
     const roti = cat("roti", 1.5, { unitSize: 4 });
     const ctx = composition({
@@ -108,8 +108,7 @@ describe("Rice → Roti uneven pickTu (representative first-row)", () => {
     });
     const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "rice", toCategory: "roti" });
     expect(opt.available).toBe(true);
-    expect(opt.validBundles.map((b) => [b.fromPicks, b.toPicks])).toEqual([[2, 1], [3, 2]]);
-    expect(opt.validBundles.some((b) => b.fromPicks === 1)).toBe(false);
+    expect(opt.validBundles).toEqual([expect.objectContaining({ fromPicks: 1, toPicks: 1, receiveTu: 1, getNatural: "4 roti" })]);
   });
 });
 
@@ -430,3 +429,28 @@ describe("Swap engine: Opposing swaps & single-item bundle suppression (Fix 1 & 
   });
 });
 
+
+describe("validateProposedSwap — rice into a one-row roti pack (Maharaja Thali)", () => {
+  // Roti is one 8-roti row (2 TU); rice is one 1 TU unit. The Swaps page promises 1 TU ↔ 1 TU.
+  const ctx = composition({
+    baseCounts: { rice: 1, roti: 1 },
+    mealSizeItems: [
+      { category: "rice", tuAmount: 1, maxTuAmount: null, sortOrder: 0 },
+      { category: "roti", tuAmount: 2, maxTuAmount: null, sortOrder: 1 },
+    ],
+    categories: new Map([["rice", cat("rice", 1)], ["roti", cat("roti", 2)]]),
+  });
+
+  it("1 rice buys 4 roti as one smaller portion instead of refusing for not filling the 8-roti row", () => {
+    expect(validateProposedSwap({ composition: ctx, applied: [], next: { fromCategory: "rice", toCategory: "roti", fromPicks: 1 } }))
+      .toMatchObject({ ok: true, qtyTo: 1, receiveTu: 1, getTu: 1 });
+    const opt = computeSwapOption({ composition: ctx, applied: [], fromCategory: "rice", toCategory: "roti" });
+    expect(opt.available).toBe(true);
+    expect(opt.validBundles[0]).toMatchObject({ fromPicks: 1, toPicks: 1, getNatural: "4 roti", receiveTu: 1 });
+  });
+
+  it("8 roti → 2 rice still trades in whole rice rows", () => {
+    expect(validateProposedSwap({ composition: ctx, applied: [], next: { fromCategory: "roti", toCategory: "rice", fromPicks: 1 } }))
+      .toMatchObject({ ok: true, qtyTo: 2, receiveTu: null });
+  });
+});
