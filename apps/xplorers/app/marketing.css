@@ -1485,6 +1485,40 @@ body:has(.xl):not(:has(.crm-app)) {
     color: var(--xl-pink-700);
   }
 
+  .xl-input-code {
+    width: 112px;
+    text-transform: uppercase;
+  }
+
+  .xl-quote {
+    display: grid;
+    gap: 2px;
+    min-width: 180px;
+    font-size: var(--size-xs);
+    color: var(--text-muted);
+  }
+
+  .xl-quote div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .xl-quote dd {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-strong);
+  }
+
+  .xl-quote div:last-child {
+    font-weight: 700;
+  }
+
+  .xl-hint {
+    max-width: 22ch;
+    font-size: var(--size-xs);
+    color: var(--text-muted);
+  }
+
   @media (min-width: 720px) {
     .xl-book {
       align-items: flex-end;

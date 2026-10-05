@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capAdjustments, priceBooking, type CouponRule, type DiscountRule } from "../quote";
+import { CODE_ERROR_MESSAGE, capAdjustments, priceBooking, type CouponRule, type DiscountRule } from "../quote";
 
 const NOW = Date.UTC(2026, 9, 5);
 const cash = { id: "cash", kind: "manual" as const, enabled: true, label: "Cash", taxes: [{ name: "GST", ratePct: 10 }] };
@@ -152,5 +152,12 @@ describe("capAdjustments", () => {
   it("leaves adjustments under the cap untouched", () => {
     const adj = [{ kind: "discount" as const, publicId: "a", name: "A", amount: 10 }];
     expect(capAdjustments(adj, 100, 50)).toBe(adj);
+  });
+});
+
+describe("CODE_ERROR_MESSAGE", () => {
+  it("has a plain message for every code error", () => {
+    for (const msg of Object.values(CODE_ERROR_MESSAGE)) expect(msg.length).toBeGreaterThan(5);
+    expect(Object.keys(CODE_ERROR_MESSAGE)).toHaveLength(9);
   });
 });

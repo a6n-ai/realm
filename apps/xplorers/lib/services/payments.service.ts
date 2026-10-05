@@ -10,8 +10,8 @@ import {
 import { PAYMENTS_PLUGIN_ID } from "@foundry/payments/plugin";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { bookings, payments, studioSessionOccurrences, users } from "@/db/schema";
-import { getAppClock, getIntegrationsConfig, getPaymentConfig } from "./app-settings.service";
+import { bookings, payments, studioSessionOccurrences, users, type BookingPricing } from "@/db/schema";
+import { getIntegrationsConfig, getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
 import { SessionUpdatableService } from "./session-service";
 
@@ -50,7 +50,7 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
   async readForFamily(
     publicId: string,
     userPublicId: string,
-  ): Promise<PaymentRow & { methodConfig: PaymentMethodConfig; bookingPublicId: string }> {
+  ): Promise<PaymentRow & { methodConfig: PaymentMethodConfig; bookingPublicId: string; pricing: BookingPricing | null }> {
     const row = await this.read(publicId);
     const [owner] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, row.userId)).limit(1);
     if (!owner || owner.publicId !== userPublicId) throw new ValidationError("Payment not found.");
@@ -58,12 +58,12 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
     const methodConfig = findMethod(cfg, row.method);
     if (!methodConfig) throw new ValidationError("Payment method is no longer configured.");
     const [booking] = await db
-      .select({ publicId: bookings.publicId })
+      .select({ publicId: bookings.publicId, pricing: bookings.pricing })
       .from(bookings)
       .where(eq(bookings.id, row.bookingId))
       .limit(1);
     if (!booking) throw new ValidationError("Booking not found.");
-    return { ...row, methodConfig, bookingPublicId: booking.publicId };
+    return { ...row, methodConfig, bookingPublicId: booking.publicId, pricing: booking.pricing };
   }
 
   async claim(publicId: string, userPublicId: string, reference: string): Promise<PaymentRow> {
