@@ -168,10 +168,13 @@ export function StepDuration({
           value={String(selections.durationWeeks)}
           onChange={(v) => set({ durationWeeks: Number(v) })}
         >
-          {catalog.durations.map((d) => {
+          {[...catalog.durations].sort((a, b) => b.weeks - a.weeks).map((d) => {
             const save = savings[d.weeks] ?? 0;
+            const tint = save > 0 && selections.durationWeeks !== d.weeks
+              ? "border-[color-mix(in_oklch,var(--primary)_45%,var(--border))] bg-[color-mix(in_oklch,var(--primary)_6%,var(--card))]"
+              : "";
             return (
-              <Choice key={d.weeks} value={String(d.weeks)} className="min-h-[72px] p-4 text-sm font-semibold">
+              <Choice key={d.weeks} value={String(d.weeks)} className={`min-h-[72px] p-4 text-sm font-semibold ${tint}`}>
                 <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="text-[22px] leading-none font-bold tracking-[-0.03em]">{d.weeks}wk</span>
                   {save > 0 && <Pill tone="save" size="sm" aria-label={`Save ${save}%`}>Save {save}%</Pill>}

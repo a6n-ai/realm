@@ -105,9 +105,17 @@ export function compareOptions({ snapshot, selections, vary }: { snapshot: Clien
   const o = options(snapshot, selections, vary);
   if (!o?.currentAlt) return { state: "none" };
   const cur = perUnit(o.currentAlt);
+  const dearest = (alts: Alt[]) => alts.filter((a) => a.units > 0).reduce<Alt | null>((w, a) => (w === null || perUnit(a) > perUnit(w) ? a : w), null);
   const cheaper = rankDeals(dealBasis(o.current), o.alternatives, { limit: 1 })[0];
-  if (cheaper) return { state: "recommend", deal: cheaper };
-  const least = o.alternatives.filter((a) => a.units > 0).reduce<Alt | null>((w, a) => (w === null || perUnit(a) > perUnit(w) ? a : w), null);
+  if (cheaper) {
+    // Quote the saving against the dearest option (the baseline the "Save N%" pills use), not against
+    // the current pick — otherwise a 4wk pick already at 5% off shows 12wk at 10% as "save 5%".
+    const top = dearest([o.currentAlt, ...o.alternatives]);
+    const alt = o.alternatives.find((a) => a.id === cheaper.id);
+    const [vsBase] = top && alt ? rankDeals({ total: top.total, units: top.units }, [alt], { limit: 1 }) : [];
+    return { state: "recommend", deal: vsBase ?? cheaper };
+  }
+  const least = dearest(o.alternatives);
   if (!least) return { state: "none" };
   const [deal] = rankDeals({ total: least.total, units: least.units }, [o.currentAlt], { limit: 1 });
   return deal && cur < perUnit(least) ? { state: "applied", deal, least: least.payload } : { state: "none" };
