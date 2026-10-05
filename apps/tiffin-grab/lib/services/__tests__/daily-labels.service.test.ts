@@ -340,11 +340,16 @@ describe("dailyLabelSheet (integration)", () => {
     expect(sheet.counts).toEqual([]);
   });
 
-  it("labels a prepaid zero-total order with no payment row (WordPress migration)", async () => {
+  it("labels a WordPress-prepaid plan with no payment row, but no other zero-total order", async () => {
     await db.delete(payments).where(eq(payments.orderId, order.id));
+    await db.update(orders).set({ total: "0" }).where(eq(orders.id, order.id));
     expect((await dailyLabelSheet(MONDAY)).labels).toEqual([]);
 
-    await db.update(orders).set({ total: "0" }).where(eq(orders.id, order.id));
-    expect((await dailyLabelSheet(MONDAY)).labels).toHaveLength(1);
+    await db.update(orders).set({ deploymentId: "wc-LBL001" }).where(eq(orders.id, order.id));
+    try {
+      expect((await dailyLabelSheet(MONDAY)).labels).toHaveLength(1);
+    } finally {
+      await db.update(orders).set({ deploymentId: DEPLOYMENT }).where(eq(orders.id, order.id));
+    }
   });
 });
