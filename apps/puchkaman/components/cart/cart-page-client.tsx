@@ -7,11 +7,11 @@ import { MinOrderBanner } from "@/components/cart/min-order-banner";
 import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable-notice";
 import { OrderSummary } from "@/components/order/order-summary";
 import { money } from "@/lib/cart/types";
-import { useCartQuote } from "@/lib/cart/use-cart-quote";
+import { useLiveCartQuote } from "@/components/cart/use-live-cart-quote";
 
 export function CartPageClient() {
   const { items, count, subtotal, hydrated, clear, orderingEnabled, minOrderValue } = useCart();
-  const quote = useCartQuote(items);
+  const quote = useLiveCartQuote(items);
   const belowMinimum = minOrderValue > 0 && subtotal < minOrderValue;
 
   if (!hydrated) {

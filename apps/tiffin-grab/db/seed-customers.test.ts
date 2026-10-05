@@ -133,6 +133,14 @@ describe("hasVegConflict", () => {
   it("accepts matching diet", () => {
     expect(hasVegConflict(row({ veg: "Non-Veg", products: "5 Item Non-Veg Thali (Regular)" }))).toBe(false);
   });
+
+  it("uses the staff-confirmed diet and the product's size", () => {
+    const r = row({ id: 15146, veg: "Veg", products: "4 Item Non-Veg Thali Meal (Large)" });
+    expect(hasVegConflict(r)).toBe(false);
+    expect(mapRow(r).planKey).toBe("veg");
+    expect(catalogKeyFor(r.products!, "veg")).toBe("item4_large_veg");
+    expect(mapRow(row({ id: 15469, veg: "Veg", products: "4 Item Non-Veg Thali Meal (Large)" })).planKey).toBe("non-veg");
+  });
 });
 
 describe("dedupeByPhone", () => {

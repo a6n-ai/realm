@@ -3,6 +3,8 @@ import { Btn, PageBanner, SectionHead } from "@/components/brutal/shared";
 import { FaqAccordion, type Faq } from "@/components/brutal/faq-accordion";
 import { listPublicFaqs } from "@/lib/services/faqs.service";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { publicCached } from "@/lib/public-cache";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 export const metadata: Metadata = buildMetadata({
   title: "FAQ — Hours, Delivery, Catering & Ordering | Puchkaman Canada",
@@ -22,7 +24,8 @@ const breadcrumb = breadcrumbJsonLd([
 ]);
 
 export default async function FaqPage() {
-  const faqs: Faq[] = (await listPublicFaqs()).map((f) => ({ q: f.question, a: f.answer }));
+  const orgId = await resolveRequestOrg();
+  const faqs: Faq[] = (await publicCached(`faq:${orgId}`, () => listPublicFaqs())).map((f) => ({ q: f.question, a: f.answer }));
 
   // FAQPage schema lives here and only here — the homepage teases the same
   // questions, and marking both up would submit duplicate FAQ entities.

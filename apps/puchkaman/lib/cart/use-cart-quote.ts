@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { CartItem } from "./types";
+import type { CartItem, LivePriceLine } from "./types";
 
 export type CartQuote = {
   subtotal: number;
@@ -14,6 +14,8 @@ export type CartQuote = {
   invalidCode: boolean;
   /** Set only when coins were requested this quote. `applied` is what createCheckout would charge. */
   coins: { requested: number; coinsSpent: number; applied: number; message: string | null } | null;
+  /** Current server prices per line; useLiveCartQuote writes them back into the cart. */
+  lines: LivePriceLine[];
 };
 
 /** Ids and a typed code only — the server derives every amount. */

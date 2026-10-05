@@ -3,6 +3,8 @@ import { PageBanner } from "@/components/brutal/shared";
 import { listFranchiseLocations } from "@/lib/services/organizations.service";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { LocationCard } from "./location-card";
+import { publicCached } from "@/lib/public-cache";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 export const metadata: Metadata = buildMetadata({
   title: "Our Locations — Puchkaman",
@@ -17,7 +19,8 @@ const breadcrumb = breadcrumbJsonLd([
 ]);
 
 export default async function LocationsPage() {
-  const locations = await listFranchiseLocations();
+  const orgId = await resolveRequestOrg();
+  const locations = await publicCached(`locations:${orgId}`, () => listFranchiseLocations());
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />

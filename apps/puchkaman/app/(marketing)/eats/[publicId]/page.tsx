@@ -5,6 +5,8 @@ import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";
 import { buildMetadata, breadcrumbJsonLd, jsonLdHtml } from "@/lib/seo";
+import { publicCached } from "@/lib/public-cache";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { ProductDetailView } from "./product-detail-view";
 
 // Same reason as the menu index: no build-time database, so nothing is prerendered.
@@ -16,11 +18,12 @@ export const dynamic = "force-dynamic";
  * whether something can be bought.
  */
 async function getProduct(publicId: string) {
-  const [rows, orderable, orderingEnabled] = await Promise.all([
-    productsService.listForPublicMenu(),
-    ordersService.listOrderableCatalog(),
-    isPublicOrderingEnabled(),
-  ]);
+  // One cache entry serves every product page: crawlers walk products one at a
+  // time, so a per-product entry would miss on almost every visit.
+  const orgId = await resolveRequestOrg();
+  const [rows, orderable, orderingEnabled] = await publicCached(`product-data:${orgId}`, () =>
+    Promise.all([productsService.listForPublicMenu(), ordersService.listOrderableCatalog(), isPublicOrderingEnabled()]),
+  );
 
   const row = rows.find((r) => r.publicId === publicId);
   if (!row) return null;

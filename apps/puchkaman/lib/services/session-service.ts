@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { auditLog, users } from "@/db/schema";
 import { AUDIT_UPDATE_SKIP } from "./audit-config";
+import { clearPublicCache } from "@/lib/public-cache";
 
 const log = createLogger("session-service");
 
@@ -79,6 +80,11 @@ function jsonSafe(value: Record<string, unknown> | null): Record<string, unknown
 }
 
 export async function recordAudit(entry: AuditEntry): Promise<void> {
+  // Every audited write may change what the public site shows (products,
+  // settings, FAQs, delivery, org). See lib/public-cache.ts.
+  if (entry.operation === "create" || entry.operation === "update" || entry.operation === "delete") {
+    clearPublicCache();
+  }
   try {
     await db.insert(auditLog).values({
       entity: entry.entity,

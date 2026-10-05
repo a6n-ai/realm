@@ -7,6 +7,8 @@ import { LocationPicker } from "@/components/marketing/location-picker";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { getMinOrderValue } from "@/lib/services/integrations.service";
 import { getActiveLocation } from "@/lib/services/organizations.service";
+import { publicCached } from "@/lib/public-cache";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 // Ordering is gated on the persisted Clover connection, so this layout reads the
 // DB — and the CI Docker build has no Postgres, so prerendering any page under it
@@ -16,11 +18,10 @@ import { getActiveLocation } from "@/lib/services/organizations.service";
 export const dynamic = "force-dynamic";
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
-  const [orderingEnabled, minOrderValue, location] = await Promise.all([
-    isPublicOrderingEnabled(),
-    getMinOrderValue(),
-    getActiveLocation(),
-  ]);
+  const orgId = await resolveRequestOrg();
+  const [orderingEnabled, minOrderValue, location] = await publicCached(`layout:${orgId}`, () =>
+    Promise.all([isPublicOrderingEnabled(), getMinOrderValue(), getActiveLocation()]),
+  );
   // The store the server resolved — the same one checkout prices against. A null
   // city is the brand default, i.e. the customer has not chosen a location yet.
   const activeFranchise = location ? { clientCode: location.clientCode, label: location.city } : null;

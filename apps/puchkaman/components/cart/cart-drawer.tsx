@@ -6,12 +6,16 @@ import { Btn } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
 import { MinOrderBanner } from "@/components/cart/min-order-banner";
+import { useLiveCartQuote } from "@/components/cart/use-live-cart-quote";
 import { useModalFocus } from "@/lib/a11y/use-modal-focus";
 import { useDragDismiss } from "@/lib/motion/use-drag-dismiss";
 import { money } from "@/lib/cart/types";
 
 export function CartDrawer() {
   const { items, count, subtotal, drawerOpen, closeDrawer, minOrderValue } = useCart();
+  // Opening the bag refreshes its saved prices from the server, so lines and
+  // subtotal show current prices even for items added before a Clover pull.
+  useLiveCartQuote(items, drawerOpen);
   const belowMinimum = minOrderValue > 0 && subtotal < minOrderValue;
   const panel = useRef<HTMLElement | null>(null);
   // Swipe right to close — the direction it entered from, so the gesture and

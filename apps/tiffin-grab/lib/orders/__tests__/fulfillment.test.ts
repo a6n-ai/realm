@@ -12,4 +12,10 @@ describe("isFulfillmentReady", () => {
     expect(isFulfillmentReady("paused", ["paid"])).toBe(false);
     expect(isFulfillmentReady("active", [])).toBe(false);
   });
+
+  it("treats a zero-total order (prepaid on WordPress) as settled", () => {
+    expect(isFulfillmentReady("active", [], true)).toBe(true);
+    expect(isFulfillmentReady("active", ["pending_verification"], true)).toBe(false);
+    expect(isFulfillmentReady("paused", [], true)).toBe(false);
+  });
 });
