@@ -15,6 +15,9 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder, MenuBuilderSkeleton } from "../menu-builder";
 import { MenuReminderButton } from "./menu-reminder-button";
+import { SideDishesCard } from "../side-dishes-card";
+import { menuSidesService } from "@/lib/services/menu-sides.service";
+import { DAYS, type DayOfWeek } from "@/lib/menu/poster";
 import type { Slot } from "../menu-grid";
 
 type Params = Promise<{ week: string }>;
@@ -122,6 +125,18 @@ async function WeekData({ params }: { params: Params }) {
     (a, b) => a.sortOrder - b.sortOrder || a.planName.localeCompare(b.planName),
   );
 
+  // Side dishes: the day's dishes (any category) the side can take, by weekday.
+  const [sideSlots, daySides] = await Promise.all([menuSidesService.sideSlots(), menuSidesService.daySides(week.id)]);
+  const dishByPublicId = new Map(activeDishes.map((d) => [d.id, d]));
+  const dayDishes: Partial<Record<DayOfWeek, { publicId: string; name: string; category: string; isDefault: boolean }[]>> = {};
+  for (const i of items) {
+    const d = dishByPublicId.get(i.dishId);
+    if (!d) continue;
+    const list = (dayDishes[i.dayOfWeek as DayOfWeek] ??= []);
+    if (!list.some((x) => x.publicId === d.id)) list.push({ publicId: d.id, name: d.name, category: i.slot, isDefault: i.isDefault });
+  }
+  const menuDays = DAYS.filter((d) => dayDishes[d]?.length);
+
   return (
     <SectionCard
       title={weekRange(week.weekStart)}
@@ -144,6 +159,14 @@ async function WeekData({ params }: { params: Params }) {
           .filter((w) => w.publicId !== week.id && w.itemCount > 0)
           .map((w) => ({ id: w.publicId, weekStart: w.weekStart }))}
         problems={problems}
+      />
+      <SideDishesCard
+        weekId={week.id}
+        slots={sideSlots}
+        categories={categories.map((c) => ({ key: c.key, label: c.label }))}
+        days={menuDays.length ? menuDays : (["mon", "tue", "wed", "thu", "fri"] as DayOfWeek[])}
+        dayDishes={dayDishes}
+        daySides={daySides}
       />
     </SectionCard>
   );

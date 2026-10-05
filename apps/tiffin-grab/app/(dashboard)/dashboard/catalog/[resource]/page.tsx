@@ -293,6 +293,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
         // numeric column ⇒ string in Drizzle; blank the null so the Input renders empty.
         tuAmount: String(it.tuAmount),
         maxTuAmount: it.maxTuAmount == null ? "" : String(it.maxTuAmount),
+        role: it.role,
       });
       itemsByMealSize.set(it.mealSizeId, bucket);
     }

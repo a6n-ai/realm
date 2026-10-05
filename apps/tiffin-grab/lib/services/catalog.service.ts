@@ -45,6 +45,7 @@ type CompositionItem = {
   planId: string;
   tuAmount: string;
   maxTuAmount: string | null;
+  role?: "main" | "side_1" | "side_2";
 };
 
 // A meal size owns a `meal_size_items` composition and belongs to exactly one
@@ -171,7 +172,7 @@ async function resolvePlanId(value: string): Promise<bigint> {
  * plan (Catalog → Dish categories). Returns the insert rows (mealSizeId still 0n) and components.
  */
 export async function resolveCompositionRows(
-  items: { category: string; planId: string; tuAmount: string; maxTuAmount?: string | null }[],
+  items: { category: string; planId: string; tuAmount: string; maxTuAmount?: string | null; role?: "main" | "side_1" | "side_2" }[],
 ): Promise<{ components: string[]; rows: (typeof mealSizeItems.$inferInsert)[] }> {
   const itemPlanIds = await Promise.all(items.map((i) => resolvePlanId(i.planId)));
   const catsByPlan = new Map(
@@ -189,6 +190,7 @@ export async function resolveCompositionRows(
       tuAmount: item.tuAmount,
       maxTuAmount: item.maxTuAmount ?? null,
       sortOrder: index,
+      role: item.role ?? "main",
     };
   });
   return { components: rows.map((r) => r.label), rows };

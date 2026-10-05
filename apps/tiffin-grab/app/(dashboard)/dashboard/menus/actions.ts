@@ -7,6 +7,8 @@ import { menuService, type DraftMenuItem } from "@/lib/services/menu.service";
 import { dishesService } from "@/lib/services/dishes.service";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import { sendMenuReminderForWeek } from "@/lib/notifications/menu-reminder";
+import { menuSidesService, type DaySideValue, type SideRole } from "@/lib/services/menu-sides.service";
+import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 
 // Draft edits are invisible to the public site — only a release changes what is served.
 // Revalidating "/" and /menu/weekly on every add/remove was busting the marketing home
@@ -139,5 +141,23 @@ export async function sendWeekMenuReminder(menuWeekId: string): Promise<ActionRe
   return runAction(async () => {
     await requireAdmin();
     return sendMenuReminderForWeek(menuWeekId);
+  });
+}
+
+// Side dishes: the standing source for a side role, and one menu day's override. Saved on
+// their own, outside the menu draft, so they never trip the amend / customer-pick checks.
+export async function setSideDefault(input: { category: string; role: SideRole; source: string | null }): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    await menuSidesService.setDefault(input);
+    revalidate();
+  });
+}
+
+export async function setDaySide(input: { weekId: string; day: DayOfWeek; category: string; role: SideRole; value: DaySideValue }): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    await menuSidesService.setDay(input);
+    revalidate();
   });
 }

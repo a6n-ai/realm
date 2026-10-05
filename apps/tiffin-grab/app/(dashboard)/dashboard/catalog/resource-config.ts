@@ -91,6 +91,8 @@ const compositionItem = z.object({
   // between categories. See lib/menu/format-tu.ts for how this renders to the kitchen.
   tuAmount: reqNum(z.coerce.number().positive().default(1).transform((n) => n.toFixed(2))),
   maxTuAmount: optNum(z.coerce.number().positive().transform((n) => n.toFixed(2))),
+  // main = the category's main pick; side_1/side_2 take the day's side dish (Menus → side defaults).
+  role: z.enum(["main", "side_1", "side_2"]).default("main"),
 });
 
 const mealSizesSchema = z.object({

@@ -170,7 +170,7 @@ function CompositionField({
           variant="outline"
           size="sm"
           className="justify-self-start transition-transform active:scale-[0.96]"
-          onClick={() => append({ category: "", planId: "", tuAmount: "1", maxTuAmount: "" })}
+          onClick={() => append({ category: "", planId: "", tuAmount: "1", maxTuAmount: "", role: "main" })}
         >
           <PlusIcon className="size-4" /> Add item
         </Button>
@@ -205,7 +205,7 @@ function CompositionRow({
 
   return (
     <div className="grid gap-2 rounded-lg border p-2">
-      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_6rem_4.5rem_auto]">
+      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_6rem_4.5rem_7rem_auto]">
         <Controller
           control={form.control}
           name={`${f.key}.${idx}.category`}
@@ -273,6 +273,23 @@ function CompositionRow({
             </label>
           )}
         />
+        <Controller
+          control={form.control}
+          name={`${f.key}.${idx}.role`}
+          render={({ field }) => (
+            <label className="grid gap-1">
+              <span className="text-muted-foreground text-xs">Role</span>
+              <Select value={(field.value as string | undefined) || "main"} onValueChange={field.onChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="main">Main</SelectItem>
+                  <SelectItem value="side_1">Side 1</SelectItem>
+                  <SelectItem value="side_2">Side 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+          )}
+        />
         <Button
           type="button"
           variant="ghost"
@@ -287,6 +304,7 @@ function CompositionRow({
       <div className="text-muted-foreground grid gap-0.5 text-[11px] leading-snug sm:pr-12">
         <p><span className="font-medium text-foreground/80">TU / pick</span> — amount of this category included in each pick.</p>
         <p><span className="font-medium text-foreground/80">Max TU</span> — maximum this category can reach after swaps (leave blank for uncapped).</p>
+        <p><span className="font-medium text-foreground/80">Role</span> — Main is the category&apos;s main pick; a Side takes the day&apos;s side dish set on the menu (e.g. the day&apos;s dal).</p>
         {naturalHint ? (
           <p className="text-foreground/70">
             {tuAmount} TU = <span className="font-medium">{naturalHint}</span>
