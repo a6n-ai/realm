@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Button } from "@foundry/ui/button";
 
@@ -22,11 +22,13 @@ export function LabelDatePicker({
   basePath?: string;
 }) {
   const router = useRouter();
+  const tab = useSearchParams().get("tab");
   const [pending, startTransition] = useTransition();
 
+  // Keep the open tab across days; its page/sort/search reset with the new day's data.
   const go = (next: string) => {
     if (!next) return;
-    startTransition(() => router.push(`${basePath}?date=${next}`));
+    startTransition(() => router.push(`${basePath}?date=${next}${tab ? `&tab=${encodeURIComponent(tab)}` : ""}`));
   };
 
   return (

@@ -13,8 +13,9 @@ import { LabelsPrintButton } from "./labels-print-button";
 import { DeliveryStatusList } from "./delivery-status-list";
 import { LabelsTable } from "./labels-table";
 import { KitchenCounts, LabelList } from "./labels-view";
+import { LABEL_TABS, LabelsTabs, type LabelTab } from "./labels-tabs";
 
-type SearchParams = Promise<{ date?: string }>;
+type SearchParams = Promise<{ date?: string; tab?: string }>;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -41,7 +42,8 @@ export default async function LabelsPage({ searchParams }: { searchParams: Searc
 
 async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
-  const { date: dateParam } = await searchParams;
+  const { date: dateParam, tab: tabParam } = await searchParams;
+  const tab: LabelTab = (LABEL_TABS as readonly string[]).includes(tabParam ?? "") ? (tabParam as LabelTab) : "packing";
   const { timezone } = await getAppSettings();
 
   // Default to today in the app timezone, the same clock the rest of the app runs on.
@@ -83,15 +85,26 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
         ]}
       />
 
-      <SectionCard title="Packing sheet">
-        <LabelsTable sheet={packing} />
-      </SectionCard>
+      <LabelsTabs
+        date={date}
+        active={tab}
+        counts={{
+          packing: packing.rows.length,
+          deliveries: deliveries.length,
+          kitchen: sheet.counts.length,
+          labels: sheet.labels.length,
+        }}
+      />
 
-      <SectionCard title="Deliveries">
-        <DeliveryStatusList rows={deliveries} />
-      </SectionCard>
-
-      {sheet.menuWeekPublicId == null ? (
+      {tab === "packing" ? (
+        <SectionCard title="Packing sheet">
+          <LabelsTable sheet={packing} />
+        </SectionCard>
+      ) : tab === "deliveries" ? (
+        <SectionCard title="Deliveries">
+          <DeliveryStatusList rows={deliveries} />
+        </SectionCard>
+      ) : sheet.menuWeekPublicId == null ? (
         <SectionCard title="No menu released">
           <p className="text-muted-foreground text-sm">
             No menu week is released for the week of {sheet.weekStart}, so the dishes for this day
@@ -99,15 +112,14 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
             customer sees on their calendar.
           </p>
         </SectionCard>
+      ) : tab === "kitchen" ? (
+        <SectionCard title="Kitchen counts">
+          <KitchenCounts counts={sheet.counts} byRoute={sheet.byRoute} />
+        </SectionCard>
       ) : (
-        <>
-          <SectionCard title="Kitchen counts">
-            <KitchenCounts counts={sheet.counts} byRoute={sheet.byRoute} />
-          </SectionCard>
-          <SectionCard title="Labels">
-            <LabelList labels={sheet.labels} />
-          </SectionCard>
-        </>
+        <SectionCard title="Labels">
+          <LabelList labels={sheet.labels} />
+        </SectionCard>
       )}
     </>
   );
@@ -120,17 +132,9 @@ LabelsData.Skeleton = function LabelsDataSkeleton() {
         <Skeleton className="h-9 w-64" />
       </SectionCard>
       <SkeletonStatCards count={4} />
+      <Skeleton className="h-9 w-full max-w-xl" />
       <SectionCard title="Packing sheet">
-        <Skeleton className="h-64 w-full" />
-      </SectionCard>
-      <SectionCard title="Deliveries">
-        <Skeleton className="h-40 w-full" />
-      </SectionCard>
-      <SectionCard title="Kitchen counts">
-        <Skeleton className="h-40 w-full" />
-      </SectionCard>
-      <SectionCard title="Labels">
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-96 w-full" />
       </SectionCard>
     </>
   );

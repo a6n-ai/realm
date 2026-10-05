@@ -1,17 +1,51 @@
 "use client";
 
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import { PackageOpenIcon } from "lucide-react";
 import { TableCell } from "@foundry/ui/table";
 import { Button } from "@foundry/ui/button";
-import { DataTable } from "@/components/ds";
+import { DataTable, type Column } from "@/components/ds";
+import { sortRows } from "@/lib/list/sort";
 import type { KitchenPackingSheet, KitchenPackingRow } from "@/lib/services/kitchen-packing-sheet.service";
+import { useTableParams } from "./use-table-params";
 
 export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
-  const searchParams = useSearchParams();
-  const page = parseInt(searchParams.get("page") ?? "0", 10);
   const [planFilter, setPlanFilter] = useState<string>("all");
+
+  // Item headers ("Item1"…) come from the sheet, so they are sortable keys too.
+  const columns: Column<string>[] = useMemo(
+    () => [
+      { key: "customer", label: "Customer", sortable: true },
+      { key: "orderId", label: "Order ID", sortable: true },
+      { key: "planName", label: "Plan", sortable: true },
+      { key: "mealSize", label: "Meal size", sortable: true },
+      ...sheet.itemHeaders.map((header) => ({ key: header, label: header, sortable: true })),
+    ],
+    [sheet.itemHeaders],
+  );
+  const { sort, pagination } = useTableParams<string>(
+    columns.map((c) => c.key),
+    { column: "customer", dir: "asc" },
+  );
+
+  const plans = useMemo(() => Array.from(new Set(sheet.rows.map((r) => r.planName))).sort(), [sheet.rows]);
+  const shownRows = useMemo(() => {
+    const filtered = planFilter === "all" ? sheet.rows : sheet.rows.filter((r) => r.planName === planFilter);
+    return sortRows(filtered, sort, (r: KitchenPackingRow, column) => {
+      switch (column) {
+        case "customer":
+          return r.customerName;
+        case "orderId":
+          return r.orderId;
+        case "planName":
+          return r.planName;
+        case "mealSize":
+          return r.mealSizeName;
+        default:
+          return r.items[sheet.itemHeaders.indexOf(column)];
+      }
+    });
+  }, [planFilter, sheet.rows, sheet.itemHeaders, sort]);
 
   if (sheet.rows.length === 0) {
     return (
@@ -23,20 +57,7 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
     );
   }
 
-  const columns = [
-    { key: "deliveryDate", label: "Delivery Date" },
-    { key: "customer", label: "Customer" },
-    { key: "orderId", label: "Order ID" },
-    { key: "planName", label: "Plan Name" },
-    { key: "mealSize", label: "Meal Size" },
-    ...sheet.itemHeaders.map((header) => ({
-      key: header,
-      label: header,
-    })),
-  ] as const;
-
-  const plans = Array.from(new Set(sheet.rows.map((r) => r.planName))).sort();
-  const shownRows = planFilter === "all" ? sheet.rows : sheet.rows.filter((r) => r.planName === planFilter);
+  const planCount = (plan: string) => sheet.rows.filter((r) => r.planName === plan).length;
 
   return (
     // key={dateIso}: client Table cells do not always drop prior-day rows on soft nav.
@@ -44,27 +65,18 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
       <DataTable
         columns={columns}
         rows={shownRows}
-        rowKey={(r: KitchenPackingRow) => `${r.deliveryPublicId}-${r.forDate}`}
-        serial={false}
-        search={{ keys: ["customerName", "orderId", "planName", "mealSizeName"], placeholder: "Search labels..." }}
-        pagination={{ page, size: 25 }}
+        rowKey={(r) => `${r.deliveryPublicId}-${r.forDate}`}
+        sort={sort}
+        search={{ keys: ["customerName", "orderId", "planName", "mealSizeName"], placeholder: "Search customer, order, plan..." }}
+        pagination={pagination}
         filters={
           <div className="flex flex-wrap gap-1.5">
-            <Button
-              size="sm"
-              variant={planFilter === "all" ? "default" : "outline"}
-              onClick={() => setPlanFilter("all")}
-            >
-              All Plans
+            <Button size="sm" variant={planFilter === "all" ? "default" : "outline"} onClick={() => setPlanFilter("all")}>
+              All plans <span className="tabular-nums opacity-70">{sheet.rows.length}</span>
             </Button>
             {plans.map((p) => (
-              <Button
-                key={p}
-                size="sm"
-                variant={planFilter === p ? "default" : "outline"}
-                onClick={() => setPlanFilter(p)}
-              >
-                {p}
+              <Button key={p} size="sm" variant={planFilter === p ? "default" : "outline"} onClick={() => setPlanFilter(p)}>
+                {p} <span className="tabular-nums opacity-70">{planCount(p)}</span>
               </Button>
             ))}
           </div>
@@ -73,8 +85,10 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
         emptyMessage="No labels found."
         renderRow={(row) => (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums">{row.deliveryDate}</TableCell>
-            <TableCell className="whitespace-nowrap">{row.customerName}{row.forLabel ? ` · ${row.forLabel}` : ""}</TableCell>
+            <TableCell className="whitespace-nowrap">
+              {row.customerName}
+              {row.forLabel ? <span className="text-muted-foreground"> · {row.forLabel}</span> : null}
+            </TableCell>
             <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
             <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
             <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>
