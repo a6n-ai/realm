@@ -1,7 +1,8 @@
 import { updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, date, index, integer, numeric, pgEnum, pgTable, smallint, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, smallint, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
+import type { BookingPricing } from "./discounts";
 
 export const SESSION_CATEGORIES = [
   "kids",
@@ -82,6 +83,8 @@ export const bookings = pgTable(
       .references(() => users.id),
     seats: integer("seats").notNull().default(1),
     status: bookingStatus("status").notNull().default("confirmed"),
+    /** Price snapshot at booking time. Null for free classes and pre-discount rows. */
+    pricing: jsonb("pricing").$type<BookingPricing>(),
   },
   (t) => [
     index("bookings_session_status_idx").on(t.sessionId, t.status),

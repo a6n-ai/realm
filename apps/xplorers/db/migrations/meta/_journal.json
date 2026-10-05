@@ -50,6 +50,13 @@
       "when": 1774000006000,
       "tag": "0006_invitation_created_at",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791183191593,
+      "tag": "0007_discounts_coupons",
+      "breakpoints": true
     }
   ]
 }
