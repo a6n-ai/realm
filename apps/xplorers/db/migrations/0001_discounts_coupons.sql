@@ -12,7 +12,8 @@ CREATE TABLE "coupon_redemptions" (
 	"user_id" bigint NOT NULL,
 	"amount_applied" numeric(10, 2) NOT NULL,
 	CONSTRAINT "coupon_redemptions_public_id_unique" UNIQUE("public_id")
-);--> statement-breakpoint
+);
+--> statement-breakpoint
 CREATE TABLE "coupons" (
 	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
 	"public_id" text NOT NULL,
@@ -36,7 +37,8 @@ CREATE TABLE "coupons" (
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "coupons_public_id_unique" UNIQUE("public_id"),
 	CONSTRAINT "coupons_one_value" CHECK (("coupons"."percent_off" IS NULL) <> ("coupons"."amount_off" IS NULL))
-);--> statement-breakpoint
+);
+--> statement-breakpoint
 CREATE TABLE "discounts" (
 	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
 	"public_id" text NOT NULL,
@@ -61,7 +63,8 @@ CREATE TABLE "discounts" (
 	CONSTRAINT "discounts_scope_target" CHECK (("discounts"."scope" = 'all' AND "discounts"."category" IS NULL AND "discounts"."session_id" IS NULL)
         OR ("discounts"."scope" = 'category' AND "discounts"."category" IS NOT NULL AND "discounts"."session_id" IS NULL)
         OR ("discounts"."scope" = 'session' AND "discounts"."session_id" IS NOT NULL AND "discounts"."category" IS NULL))
-);--> statement-breakpoint
+);
+--> statement-breakpoint
 ALTER TABLE "app" ADD COLUMN "discount_settings" jsonb;--> statement-breakpoint
 ALTER TABLE "bookings" ADD COLUMN "pricing" jsonb;--> statement-breakpoint
 ALTER TABLE "coupon_redemptions" ADD CONSTRAINT "coupon_redemptions_coupon_id_coupons_id_fk" FOREIGN KEY ("coupon_id") REFERENCES "public"."coupons"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
