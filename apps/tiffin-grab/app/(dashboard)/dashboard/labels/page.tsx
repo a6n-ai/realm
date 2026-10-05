@@ -13,7 +13,8 @@ import { LabelsPrintButton } from "./labels-print-button";
 import { DeliveryStatusList } from "./delivery-status-list";
 import { LabelsTable } from "./labels-table";
 import { KitchenCounts, LabelList } from "./labels-view";
-import { LABEL_TABS, LabelsTabs, type LabelTab } from "./labels-tabs";
+import { LabelsTabs } from "./labels-tabs";
+import { LABEL_TABS, type LabelTab } from "./label-tab";
 
 type SearchParams = Promise<{ date?: string; tab?: string }>;
 

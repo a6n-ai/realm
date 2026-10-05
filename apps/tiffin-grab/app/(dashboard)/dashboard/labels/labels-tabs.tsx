@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { PackageOpenIcon, TagIcon, TruckIcon, UtensilsCrossedIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
-
-export const LABEL_TABS = ["packing", "deliveries", "kitchen", "labels"] as const;
-export type LabelTab = (typeof LABEL_TABS)[number];
+import { LABEL_TABS, type LabelTab } from "./label-tab";
 
 const META: Record<LabelTab, { label: string; icon: typeof TagIcon }> = {
   packing: { label: "Packing sheet", icon: PackageOpenIcon },
