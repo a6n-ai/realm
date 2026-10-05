@@ -16,6 +16,8 @@ import { buildMetadata } from "@/lib/seo";
 import { getReviewsSummary } from "@foundry/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { getActiveLocation } from "@/lib/services/organizations.service";
+import { publicCached } from "@/lib/public-cache";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { FUSION_FALLBACK_IMAGE, storeForFranchise } from "@/lib/links";
 
 export const metadata: Metadata = buildMetadata({
@@ -81,11 +83,16 @@ const COMBOS = [
 ];
 
 export default async function HomePage() {
-  const [reviews, location, faqRows] = await Promise.all([
-    getReviewsSummary(integrationsConfigStore),
-    getActiveLocation(),
-    listPublicFaqs(),
-  ]);
+  const orgId = await resolveRequestOrg();
+  const [reviews, location, faqRows, featured, active] = await publicCached(`home:${orgId}`, () =>
+    Promise.all([
+      getReviewsSummary(integrationsConfigStore),
+      getActiveLocation(),
+      listPublicFaqs(),
+      productsService.featuredProducts(6),
+      productsService.listActive(),
+    ]),
+  );
   const cityLabel = location?.city ?? "Scarborough";
   const addressLabel = location?.address ?? "3315 Danforth Ave, Scarborough";
   // Each storefront has its own number, hours and Instagram, so the CTAs and the
@@ -106,10 +113,6 @@ export default async function HomePage() {
   // Curated "featured" products first; if none are flagged, fall back to real
   // active products that have a photo (so home shows the actual menu, not empty
   // placeholder tiles). Static BEST_SELLERS is the last resort for a fresh DB.
-  const [featured, active] = await Promise.all([
-    productsService.featuredProducts(6),
-    productsService.listActive(),
-  ]);
   const withPhoto = active.filter((p) => p.image);
   const picks = featured.length ? featured : withPhoto.slice(0, 6);
   const cards: BestSellerCard[] = picks.length

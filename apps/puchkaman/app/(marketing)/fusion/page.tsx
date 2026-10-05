@@ -10,6 +10,8 @@ import { getActiveLocation } from "@/lib/services/organizations.service";
 import { TAG_STYLE } from "@/lib/menu-categories";
 import { FUSION_FALLBACK_IMAGE } from "@/lib/links";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { publicCached } from "@/lib/public-cache";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 // Tried ISR (`revalidate = 60`) for a caching win, but the CI Docker build has
 // no real DB at build time and Next tries to prerender ISR/static pages during
@@ -47,7 +49,10 @@ const FUSION_ITEMS: [string, string, string, string][] = [
 export default async function FusionPage() {
   // Real fusion-category products with photos; fall back to the static copy when
   // the menu has none (fresh DB).
-  const [products, location] = await Promise.all([productsService.listActive(), getActiveLocation()]);
+  const orgId = await resolveRequestOrg();
+  const [products, location] = await publicCached(`fusion:${orgId}`, () =>
+    Promise.all([productsService.listActive(), getActiveLocation()]),
+  );
   const cityLabel = location?.city ?? "Scarborough";
   const fusionProducts = products.filter((p) => p.category === "fusion");
   const fusionCards: FusionCard[] = fusionProducts.length

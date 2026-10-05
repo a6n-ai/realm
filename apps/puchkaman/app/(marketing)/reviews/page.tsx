@@ -7,6 +7,8 @@ import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { getReviewsSummary } from "@foundry/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { getActiveLocation } from "@/lib/services/organizations.service";
+import { publicCached } from "@/lib/public-cache";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 export const metadata: Metadata = buildMetadata({
   title: "Reviews — Puchkaman Canada",
@@ -23,10 +25,10 @@ const breadcrumb = breadcrumbJsonLd([
 export const dynamic = "force-dynamic";
 
 export default async function ReviewsPage() {
-  const [summary, location] = await Promise.all([
-    getReviewsSummary(integrationsConfigStore),
-    getActiveLocation(),
-  ]);
+  const orgId = await resolveRequestOrg();
+  const [summary, location] = await publicCached(`reviews:${orgId}`, () =>
+    Promise.all([getReviewsSummary(integrationsConfigStore), getActiveLocation()]),
+  );
   const cityLabel = location?.city ?? "Scarborough";
 
   return (

@@ -15,6 +15,7 @@ import { getSession } from "../auth/session";
 import { getAllDeliveryTypes } from "../delivery/zones.service";
 import { PICKUP_TYPE_KEY } from "../delivery/type-pricing";
 import { resolveRequestOrg } from "../tenant/resolve-request-org";
+import { clearPublicCache } from "@/lib/public-cache";
 import { franchiseCookieApplies } from "../tenant/franchise-cookie-scope";
 import { SessionUpdatableService } from "./session-service";
 
@@ -150,6 +151,8 @@ export async function setIntegrationsConfig(cfg: IntegrationsConfig): Promise<vo
   if (org) {
     await db.update(organization).set({ integrationsConfig: parsed }).where(eq(organization.id, org.id));
   }
+  // Ordering on/off, reviews and Clover connection all read from this config.
+  clearPublicCache();
 }
 
 export const integrationsConfigStore: IntegrationsConfigStore = {

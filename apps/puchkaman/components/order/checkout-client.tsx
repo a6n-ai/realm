@@ -14,7 +14,8 @@ import { OrderSummary } from "@/components/order/order-summary";
 import { DEFAULT_DIAL_CODE, joinPhone, PhoneField } from "@/components/order/phone-field";
 import { StaticMap } from "@foundry/design-system";
 import { money } from "@/lib/cart/types";
-import { useCartQuote, type DiscountSelection } from "@/lib/cart/use-cart-quote";
+import { type DiscountSelection } from "@/lib/cart/use-cart-quote";
+import { useLiveCartQuote } from "@/components/cart/use-live-cart-quote";
 import { PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";
 import {
   SCHEDULE_MAX_AHEAD_MS,
@@ -179,7 +180,7 @@ export function CheckoutClient({
   // will be charged; the server reads the percentage, we only send the key.
   // Pickup has a configurable discount of its own, so it gets quoted like any
   // other type — passing null here is what kept it out of the bag entirely.
-  const quote = useCartQuote(
+  const quote = useLiveCartQuote(
     items,
     !session,
     discounts,
@@ -523,6 +524,7 @@ export function CheckoutClient({
                     // the payment step tell the customer what actually happened to
                     // their coins even if the preview quote never landed before submit.
                     coins: session.coins,
+                    lines: [],
                   }
                 : quote
             }

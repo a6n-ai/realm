@@ -62,3 +62,35 @@ export function cartCount(items: CartItem[]) {
 export function cartSubtotal(items: CartItem[]) {
   return Math.round(items.reduce((s, i) => s + cartUnitPrice(i) * i.quantity, 0) * 100) / 100;
 }
+
+/** A server-priced bag line, as returned by /api/checkout/quote. */
+export type LivePriceLine = {
+  productPublicId: string;
+  unitPrice: number;
+  modifiers: { cloverModifierId: string; price: number }[];
+};
+
+/**
+ * Overwrite the prices a cart saved when items were added with the server's
+ * current ones, so the bag never shows a price from before an admin's Clover
+ * pull. Matched by line identity, not position. Returns the same array when
+ * nothing changed, so a caller storing it in state does not re-render or loop.
+ */
+export function applyLivePrices(items: CartItem[], lines: LivePriceLine[]): CartItem[] {
+  const byKey = new Map(lines.map((l) => [cartLineKey(l), l]));
+  let changed = false;
+  const next = items.map((item) => {
+    const live = byKey.get(cartLineKey(item));
+    if (!live) return item;
+    const modPrice = new Map(live.modifiers.map((m) => [m.cloverModifierId, m.price]));
+    const modifiers = item.modifiers.map((m) => {
+      const p = modPrice.get(m.cloverModifierId);
+      return p === undefined || p === m.price ? m : { ...m, price: p };
+    });
+    const modsChanged = modifiers.some((m, i) => m !== item.modifiers[i]);
+    if (live.unitPrice === item.price && !modsChanged) return item;
+    changed = true;
+    return { ...item, price: live.unitPrice, modifiers };
+  });
+  return changed ? next : items;
+}

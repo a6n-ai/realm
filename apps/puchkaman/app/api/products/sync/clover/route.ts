@@ -1,6 +1,7 @@
 import { ValidationError } from "@foundry/commons";
 import { handler, json } from "@foundry/routes";
 import { requirePermission } from "@/lib/auth/guards";
+import { clearPublicCache } from "@/lib/public-cache";
 import { productsService } from "@/lib/services/products.service";
 
 /** Bulk Clover pull/push — route → ProductsService. */
@@ -20,5 +21,10 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     ? body.publicIds.filter((id): id is string => typeof id === "string")
     : undefined;
 
-  return json(await productsService.syncCloverBulk(direction, publicIds));
+  try {
+    return json(await productsService.syncCloverBulk(direction, publicIds));
+  } finally {
+    // A sync that fails partway may still have written rows.
+    clearPublicCache();
+  }
 });

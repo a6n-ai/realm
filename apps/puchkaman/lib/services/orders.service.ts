@@ -171,6 +171,14 @@ export type CartQuoteResult = {
    * away (a coarse rate against a small remainder, or an already fully-discounted cart).
    */
   coins: { requested: number; coinsSpent: number; applied: number; message: string | null } | null;
+  /** Live unit and modifier prices per bag line, in request order, so the cart can show current prices. */
+  lines: CartQuoteLine[];
+};
+
+export type CartQuoteLine = {
+  productPublicId: string;
+  unitPrice: number;
+  modifiers: { cloverModifierId: string; price: number }[];
 };
 
 export type CheckoutPayResult = {
@@ -477,6 +485,11 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       ],
       invalidCode: discounts.invalidCode,
       coins: coinsResult,
+      lines: lines.map((l) => ({
+        productPublicId: l.productPublicId,
+        unitPrice: l.unitPrice,
+        modifiers: (l.modifiers ?? []).map((m) => ({ cloverModifierId: m.cloverModifierId, price: m.price })),
+      })),
     };
   }
 

@@ -21,6 +21,8 @@ import {
   type CartAddInput,
   type CartItem,
   type CartModifier,
+  applyLivePrices as applyLivePricesTo,
+  type LivePriceLine,
 } from "@/lib/cart/types";
 import {
   CART_FRANCHISE_STORAGE_KEY,
@@ -54,6 +56,8 @@ type CartContextValue = {
   franchiseConflict: { from: CartFranchise; to: CartFranchise } | null;
   /** Resolve a conflict by emptying the cart and continuing at the current store. */
   emptyCartForCurrentStore: () => void;
+  /** Replace saved prices with the server's current ones (see useLiveCartQuote). */
+  applyLivePrices: (lines: LivePriceLine[]) => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -284,6 +288,10 @@ export function CartProvider({
 
   const clear = useCallback(() => setItems([]), []);
 
+  const applyLivePrices = useCallback((lines: LivePriceLine[]) => {
+    setItems((prev) => applyLivePricesTo(prev, lines));
+  }, []);
+
   const emptyCartForCurrentStore = useCallback(() => {
     setItems([]);
     if (activeCode) setCartFranchise({ clientCode: activeCode, label: activeLabel });
@@ -309,6 +317,7 @@ export function CartProvider({
       clear,
       franchiseConflict,
       emptyCartForCurrentStore,
+      applyLivePrices,
     }),
     [
       visibleItems,
@@ -327,6 +336,7 @@ export function CartProvider({
       clear,
       franchiseConflict,
       emptyCartForCurrentStore,
+      applyLivePrices,
     ],
   );
 

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { ContactView } from "./contact-view";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { getActiveLocation } from "@/lib/services/organizations.service";
+import { publicCached } from "@/lib/public-cache";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 export const metadata: Metadata = buildMetadata({
   title: "Contact Puchkaman — Scarborough, ON & Delta, BC (Metro Vancouver) | Hours & Directions",
@@ -18,7 +20,8 @@ const breadcrumb = breadcrumbJsonLd([
 export const dynamic = "force-dynamic";
 
 export default async function ContactPage() {
-  const location = await getActiveLocation();
+  const orgId = await resolveRequestOrg();
+  const location = await publicCached(`contact:${orgId}`, () => getActiveLocation());
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />

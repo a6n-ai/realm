@@ -1,6 +1,7 @@
 import { ValidationError } from "@foundry/commons";
 import { handler, json } from "@foundry/routes";
 import { requirePermission } from "@/lib/auth/guards";
+import { clearPublicCache } from "@/lib/public-cache";
 import { productsService } from "@/lib/services/products.service";
 
 /**
@@ -20,5 +21,9 @@ export const POST = handler(async (
     throw new ValidationError('direction must be "pull" or "push"');
   }
 
-  return json(await productsService.syncCloverOne(publicId, direction));
+  try {
+    return json(await productsService.syncCloverOne(publicId, direction));
+  } finally {
+    clearPublicCache();
+  }
 });
