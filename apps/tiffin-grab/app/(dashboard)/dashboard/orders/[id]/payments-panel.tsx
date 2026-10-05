@@ -16,6 +16,7 @@ import type { ClaimPaymentContext, OrderPaymentDetail } from "@/lib/services/ord
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { formatEpoch } from "@/lib/format/datetime";
 import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "./actions";
+import { ReferenceEditor } from "./reference-editor";
 
 function statusLabel(status: OrderPaymentDetail["status"]): string {
   switch (status) {
@@ -250,10 +251,8 @@ function PaymentRow({
             </span>
           </div>
           <p className="text-muted-foreground font-mono text-xs">{payment.publicId}</p>
-          {payment.reference && (
-            <p className="text-sm">
-              Reference: <span className="font-mono">{payment.reference}</span>
-            </p>
+          {(payment.reference || payment.method !== "simulated") && (
+            <ReferenceEditor orderId={orderId} paymentId={payment.publicId} reference={payment.reference} allowAdd={payment.method !== "simulated"} />
           )}
           {payment.note && payment.status === "rejected" && (
             <p className="text-destructive text-sm">Rejected: {payment.note}</p>

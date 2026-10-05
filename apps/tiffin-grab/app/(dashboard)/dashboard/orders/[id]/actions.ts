@@ -15,6 +15,7 @@ import {
   changeOrderStartDate,
   changeMealSize,
   rejectPayment,
+  updatePaymentReference,
   verifyPayment,
   assertOrderVisible,
   resolveSessionVisibleOrgIds,
@@ -108,6 +109,19 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
     if (order.length > 0) {
       memoryBus.publish(`refresh:${order[0].userPublicId}`, { type: "message", channel: `refresh:${order[0].userPublicId}` });
     }
+  }
+  return res;
+}
+
+export async function updatePaymentReferenceAction(orderId: string, paymentPublicId: string, reference: string): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
+    await updatePaymentReference(orderId, paymentPublicId, reference, await currentUserId());
+  });
+  if ("ok" in res) {
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/payments", "layout");
   }
   return res;
 }

@@ -1074,6 +1074,35 @@ export async function rejectPayment(
   publishAnalyticsLive();
 }
 
+/** Staff fix a mistyped or missing transfer reference on one of this order's payments.
+ * Logged as an order note: a dedicated activity type would need an enum migration. */
+export async function updatePaymentReference(
+  orderPublicId: string,
+  paymentPublicId: string,
+  reference: string,
+  actorId: bigint | null = null,
+): Promise<void> {
+  const next = reference.trim() || null;
+  if (next && next.length > 120) throw new ValidationError("Keep the reference under 120 characters");
+  const [pay] = await db
+    .select({ id: payments.id, orderId: payments.orderId, reference: payments.reference })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .where(and(eq(payments.publicId, paymentPublicId), eq(orders.publicId, orderPublicId)))
+    .limit(1);
+  if (!pay) throw new NotFoundError("Payment not found");
+  if (pay.reference === next) return;
+
+  await db.update(payments).set({ reference: next }).where(eq(payments.id, pay.id));
+  const change = !pay.reference ? `set to ${next}` : next ? `changed from ${pay.reference} to ${next}` : `cleared (was ${pay.reference})`;
+  await db.insert(orderActivities).values({
+    orderId: pay.orderId,
+    type: "note",
+    note: `Payment ${paymentPublicId} reference ${change}`,
+    createdBy: actorId,
+  });
+}
+
 // Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
   paymentPublicId: string;
