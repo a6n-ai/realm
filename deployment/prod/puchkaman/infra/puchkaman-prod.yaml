@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Puchkaman prod - dedicated RDS + IAM instance role + security group (mirrors tiffin-grab).
+Description: Puchkaman prod - IAM instance role + security group. The database is Neon (RDS removed 2026-10-05; final snapshot kept).
 
 # Naming mirrors tiffin-grab (realm-<app>-prod-*): RDS realm-puchkaman-prod-db,
 # one security group realm-puchkaman-prod-sg (box + RDS share it, 5432 self-ref),
@@ -10,18 +10,6 @@ Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id
     Description: VPC for the security group + RDS (uses the VPC's default DB subnet group).
-  DbMasterPassword:
-    Type: String
-    NoEcho: true
-    MinLength: 16
-    Description: RDS master password (also stored in SSM by the operator, not here).
-  DbInstanceClass:
-    Type: String
-    Default: db.t4g.micro
-  DbEngineVersion:
-    Type: String
-    Default: "18.3"
-    Description: PostgreSQL engine version. Pinned to match tiffin-grab (client parity).
   AllowSshCidr:
     Type: String
     Default: 0.0.0.0/0
@@ -42,38 +30,6 @@ Resources:
         - { IpProtocol: tcp, FromPort: 80,  ToPort: 80,  CidrIp: 0.0.0.0/0 }
         - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
       Tags: [{ Key: app, Value: puchkaman }, { Key: Name, Value: realm-puchkaman-prod-sg }]
-
-  # Self-referencing 5432 ingress as a separate resource (avoids a create-time cycle).
-  DbIngressSelf:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref AppSecurityGroup
-      IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
-      SourceSecurityGroupId: !Ref AppSecurityGroup
-
-  Database:
-    Type: AWS::RDS::DBInstance
-    DeletionPolicy: Snapshot
-    Properties:
-      DBInstanceIdentifier: realm-puchkaman-prod-db
-      Engine: postgres
-      EngineVersion: !Ref DbEngineVersion
-      DBName: puchkaman
-      MasterUsername: puchkaman
-      MasterUserPassword: !Ref DbMasterPassword
-      DBInstanceClass: !Ref DbInstanceClass
-      AllocatedStorage: "20"
-      StorageType: gp3
-      StorageEncrypted: true
-      MultiAZ: false
-      PubliclyAccessible: false
-      BackupRetentionPeriod: 7
-      # Reuse the VPC's default subnet group (same as tiffin-grab: default-vpc-<vpcId>).
-      DBSubnetGroupName: !Sub "default-${VpcId}"
-      VPCSecurityGroups: [!Ref AppSecurityGroup]
-      Tags: [{ Key: app, Value: puchkaman }, { Key: Name, Value: realm-puchkaman-prod-db }]
 
   # NOTE: the files bucket is created OUT OF BAND, not here. Its name uses the S3
   # "account-regional namespace" (suffix -<accountId>-<region>-an), whose CreateBucket
@@ -172,8 +128,6 @@ Resources:
       Roles: [!Ref BoxRole]
 
 Outputs:
-  DbEndpoint:
-    Value: !GetAtt Database.Endpoint.Address
   SecurityGroupId:
     Description: Shared box + RDS security group (realm-puchkaman-prod-sg).
     Value: !Ref AppSecurityGroup

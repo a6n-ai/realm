@@ -2,7 +2,8 @@
 
 Puchkaman runs on its OWN EC2 box, separate from tiffin-grab (Box A). Database:
 Neon project `puchkaman` (weathered-moon-07553426) in Neon org `tiffingrab`,
-aws-us-east-1, moved from RDS 2026-10-03. Full stack: web → Neon (pooled
+aws-us-east-1, moved from RDS 2026-10-03 (RDS deleted 2026-10-05; final snapshot
+`puchkaman-prod-snapshot-database-avtvn0cfjthy`). Full stack: web → Neon (pooled
 endpoint) + redis (outbox signal), better-auth admin, S3 uploads. No worker.
 
 ## 1. Provision AWS (once)
@@ -12,11 +13,10 @@ endpoint) + redis (outbox signal), better-auth admin, S3 uploads. No worker.
       --template-file infra/puchkaman-prod.yaml \
       --capabilities CAPABILITY_NAMED_IAM \
       --parameter-overrides \
-        VpcId=vpc-XXXX \
-        DbMasterPassword='<32+ char password>' AllowSshCidr=<your-ip>/32
+        VpcId=vpc-XXXX AllowSshCidr=<your-ip>/32
 
-The stack uses the VPC's default DB subnet group (default-vpc-<vpcId>) and one
-security group realm-puchkaman-prod-sg shared by the box + RDS, matching tiffin-grab.
+The stack creates the box's IAM role and the security group realm-puchkaman-prod-sg.
+Its description still mentions RDS on purpose: changing it replaces the SG.
 
 Read the outputs:
 
@@ -25,8 +25,8 @@ Read the outputs:
 
 ## 2. Write SSM config (/puchkaman/prod/*)
 
-Every key from `.env.production.example`, each as a SecureString. Use the RDS
-endpoint from step 1. Example (repeat per key):
+Every key from `.env.production.example`, each as a SecureString. Database
+strings come from the Neon console (direct + `-pooler`). Example (repeat per key):
 
     aws ssm put-parameter --region us-east-1 --overwrite --type SecureString \
       --name /puchkaman/prod/BETTER_AUTH_SECRET --value "$(openssl rand -base64 32)"
@@ -94,7 +94,7 @@ AFTER.
          https://puchkaman.ca/dashboard
 
    Then in a browser (accept the cert warning), log in and create a product +
-   test an S3 upload — this exercises the NEW RDS + NEW bucket end to end.
+   test an S3 upload — this exercises the database + bucket end to end.
    Also confirm the baseline migrated: `docker compose --profile tools run --rm
    migrate` in step 3 above prints "No migrations to apply" on a second run.
 
