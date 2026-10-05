@@ -98,6 +98,18 @@ describe("compareOptions", () => {
     const s = snapshot({ discounts: [d("dd", "duration", { targetPublicId: "dur_8", percent: 5 })] });
     expect(compareOptions({ snapshot: s, selections: sel({ durationWeeks: 8 }), vary: "duration" }).state).toBe("applied");
   });
+  it("recommend quotes the saving the pills show, not the gap from the current pick", () => {
+    const s = snapshot({
+      durations: [{ publicId: "dur_1", weeks: 1 }, { publicId: "dur_4", weeks: 4 }, { publicId: "dur_12", weeks: 12 }] as never,
+      discounts: [d("d4", "duration", { targetPublicId: "dur_4", percent: 5 }), d("d12", "duration", { targetPublicId: "dur_12", percent: 10 })],
+    });
+    const c = compareOptions({ snapshot: s, selections: sel({ durationWeeks: 4 }), vary: "duration" });
+    expect(c.state).toBe("recommend");
+    if (c.state === "recommend") {
+      expect(c.deal.payload.durationWeeks).toBe(12);
+      expect(Math.round(c.deal.savingPct)).toBe(durationSavings(s, sel())[12]);
+    }
+  });
   it("none when nothing differs", () => {
     const flat = snapshot();
     expect(compareOptions({ snapshot: flat, selections: sel(), vary: "frequency" }).state).toBe("none");
