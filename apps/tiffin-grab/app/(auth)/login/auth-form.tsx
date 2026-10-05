@@ -68,7 +68,7 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
   const HEAD: Record<Exclude<Mode, "pin">, { title: string; tagline?: string }> = {
     welcome: { title: "Home-style meals, your way.", tagline: "Fresh tiffin meals, delivered on your schedule." },
     "email-otp": codeStep
-      ? { title: "Enter the code" }
+      ? { title: "Enter the code", tagline: "Not in your inbox? Check your spam folder." }
       : { title: "Welcome back", tagline: "Sign in with a code sent to your email." },
     password: { title: "Welcome back", tagline: "Sign in with your email and password." },
   };

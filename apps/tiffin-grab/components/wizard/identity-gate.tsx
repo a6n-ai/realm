@@ -208,7 +208,7 @@ export function IdentityGate() {
                 {error?.field === "code" ? (
                   <p role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">{error.message}</p>
                 ) : (
-                  <p className="c-caption">It works for 10 minutes.</p>
+                  <p className="c-caption">It works for 10 minutes. Not in your inbox? Check your spam folder.</p>
                 )}
                 <ResendCode onResend={resend} className="items-start" />
               </div>

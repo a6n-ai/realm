@@ -16,7 +16,7 @@ export function ForgotForm() {
       <AuthPanel
         art={<AuthLogo />}
         title={step === "request" ? "Reset your password" : "Enter the code"}
-        tagline={step === "request" ? "Enter your email and we'll send you a code." : "Then choose a new password."}
+        tagline={step === "request" ? "Enter your email and we'll send you a code." : "Not in your inbox? Check your spam folder. Then choose a new password."}
       >
         <div className="flex flex-1 flex-col">
           <ForgotPasswordForm
