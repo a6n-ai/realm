@@ -17,6 +17,14 @@ describe("isLocalDb", () => {
     expect(isLocalDb("postgres://u@10.0.1.5:5432/tiffin")).toBe(false);
   });
 
+  it("treats a prod tunnel on loopback as remote", () => {
+    expect(isLocalDb("postgres://u:pw@127.0.0.1:5433/tiffin?sslmode=require")).toBe(false);
+    expect(isLocalDb("postgres://u:pw@127.0.0.1:5433/tiffin")).toBe(false);
+    expect(isLocalDb("postgres://u:pw@localhost:5434/puchkaman")).toBe(false);
+    expect(isLocalDb("postgres://u:pw@127.0.0.1:6000/tiffin?sslmode=no-verify")).toBe(false);
+    expect(isLocalDb("postgres://u@localhost:5432/tiffin_v2?sslmode=disable")).toBe(true);
+  });
+
   it("treats an unparseable url as remote, never local", () => {
     // Fail closed: a malformed URL must not be read as "probably my laptop".
     expect(isLocalDb("not a url")).toBe(false);

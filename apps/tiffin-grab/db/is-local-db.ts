@@ -6,13 +6,24 @@
  * scripts create a login with a password committed to this PUBLIC repo, so
  * "probably local" is not good enough: anything that is not unambiguously
  * loopback is treated as remote.
+ *
+ * Loopback alone is not enough either: deployment/prod/db-tunnel.sh forwards prod
+ * RDS to 127.0.0.1:5433/5434/5435, and a test run through that tunnel truncated
+ * prod's wallet tables (2026-10-05). A tunnel port or an SSL-required URL (every
+ * remote URL carries sslmode; a local one never does) is therefore remote.
  */
+const TUNNEL_PORTS = new Set(["5433", "5434", "5435", "5440"]);
+
 export function isLocalDb(url: string): boolean {
   try {
+    const u = new URL(url);
     // URL.hostname keeps the brackets on an IPv6 literal ("[::1]"), so comparing
     // it to a bare "::1" never matched — strip them before the check.
-    const h = new URL(url).hostname.replace(/^\[|\]$/g, "");
-    return h === "localhost" || h === "127.0.0.1" || h === "::1";
+    const h = u.hostname.replace(/^\[|\]$/g, "");
+    if (h !== "localhost" && h !== "127.0.0.1" && h !== "::1") return false;
+    if (TUNNEL_PORTS.has(u.port)) return false;
+    const ssl = u.searchParams.get("sslmode");
+    return !ssl || ssl === "disable";
   } catch {
     return false;
   }
