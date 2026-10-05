@@ -34,12 +34,12 @@ describe("quoteBookingAction", () => {
 });
 
 describe("createBookingAction", () => {
-  it("still books after the preview limit is spent; the server re-checks the code", async () => {
+  it("books without the code once the guess limit is spent, so bookings cannot be used to probe codes", async () => {
     createForUser.mockResolvedValue({ paymentPublicId: "pay_1", codeError: null });
     const fd = new FormData();
     fd.set("occurrencePublicId", "occ_1");
     fd.set("code", "GUESS99");
     await expect(createBookingAction({}, fd)).rejects.toThrow("REDIRECT /me/pay/pay_1");
-    expect(createForUser).toHaveBeenCalledWith("usr_code_guess", "occ_1", 1, { code: "GUESS99" });
+    expect(createForUser).toHaveBeenCalledWith("usr_code_guess", "occ_1", 1, { code: null });
   });
 });
