@@ -3,7 +3,7 @@
 
 import { zonedDateIso } from "@foundry/commons";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
-import { ChevronLeft, ChevronRight, Info, Truck, Utensils } from "lucide-react";
+import { Info, Truck, Utensils } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { deliveryLine, eatingRowsInWeek, isAddressRow, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { addDays, dotStatus, mondayOf, weekDays } from "@/lib/deliveries-view/week";
+import { addDays, dotStatus, mondayOf } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { movedFact, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
@@ -27,10 +27,9 @@ import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
 import { actionModel } from "@/components/customer/deliveries/action-model";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI, STATUS_TONE } from "./admin-sheet-ui";
+import { WeekTimeline } from "@/components/customer/deliveries/week-timeline";
 
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;
-const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" });
-const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
 export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: OrderWeek; canEditDeliveryStatus?: boolean }) {
@@ -63,8 +62,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
     startNav(() => router.replace(`?${sp.toString()}`, { scroll: false }));
   };
   const done = (msg?: string) => (msg ? (toast.success(msg), setDlg(null), router.refresh()) : setDlg(null));
-  const weeks: string[] = [];
-  for (let w = firstWeek; w <= lastWeek; w = addDays(w, 7)) weeks.push(w);
   const nextTruck = Object.values(agenda).flat().filter((x) => x.truck && x.status === "scheduled" && x.deliveryDate >= plan.today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
 
   return (
@@ -88,45 +85,17 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
         </Card>
       )}
 
-      <div className="flex items-stretch gap-1" data-testid="week-strip">
-        <Button variant="ghost" size="icon" aria-label="Previous week" disabled={weekStart <= firstWeek} onClick={() => goWeek(addDays(weekStart, -7))}><ChevronLeft /></Button>
-        <div className="flex min-w-0 flex-1 snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
-          {weeks.map((w) => (
-            <div key={w} className={cn("w-full shrink-0 snap-start rounded-lg border p-2 lg:w-[calc(50%-4px)]", w === weekStart ? "border-primary bg-muted/50" : "border-border")}>
-              <button type="button" className="text-muted-foreground mb-1 text-xs font-semibold uppercase tracking-wider" onClick={() => goWeek(w)}>
-                {MON.format(d(w))} {d(w).getUTCDate()} – {MON.format(d(addDays(w, 6)))} {d(addDays(w, 6)).getUTCDate()}
-              </button>
-              <div className="grid grid-cols-7 gap-1">
-                {weekDays(w).map((iso) => {
-                  const ds = agenda[iso] ?? [];
-                  const picked = iso === (row?.date ?? sel);
-                  return (
-                    <button
-                      key={iso}
-                      type="button"
-                      aria-pressed={picked}
-                      aria-label={`${humanDate(iso)}${ds.length ? `, eating${ds.some((x) => x.truck) ? ", delivery arrives" : ""}` : ", nothing planned"}`}
-                      onClick={() => (w === weekStart ? setSel(iso) : goWeek(w, iso))}
-                      className={cn("relative flex h-[72px] flex-col items-center justify-center gap-1 rounded-md border text-xs", picked ? "border-primary bg-primary/10 font-semibold" : "border-transparent hover:bg-muted", iso === plan.today && "ring-1 ring-primary")}
-                    >
-                      <span aria-hidden className="text-muted-foreground grid w-full grid-cols-[1fr_auto_1fr] items-center px-1">
-                        <span className="flex justify-end">{ds.length > 0 && <Utensils className="size-2.5" />}</span>
-                        <span className="px-1">{weekdayShort(iso)[0]}</span>
-                        <span className="flex justify-start">{ds.some((x) => x.truck) && <Truck className="size-2.5" />}</span>
-                      </span>
-                      <b className="text-sm tabular-nums">{d(iso).getUTCDate()}</b>
-                      <span className="flex h-3 items-center gap-0.5">
-                        {ds.map((x, i) => <span key={i} aria-hidden className={cn("size-2 rounded-full", STATUS_TONE[dotStatus(x, now)])} />)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-        <Button variant="ghost" size="icon" aria-label="Next week" disabled={weekStart >= lastWeek} onClick={() => goWeek(addDays(weekStart, 7))}><ChevronRight /></Button>
-      </div>
+      <WeekTimeline
+        firstWeek={firstWeek}
+        lastWeek={lastWeek}
+        week={weekStart}
+        today={plan.today}
+        selectedDay={row?.date ?? sel}
+        agenda={agenda}
+        now={now}
+        onPickDay={(iso) => (mondayOf(iso) === weekStart ? setSel(iso) : goWeek(mondayOf(iso), iso))}
+        onWeek={(m) => goWeek(m)}
+      />
 
       {menuOut && (
         <Card data-testid="menu-not-released" className="py-3"><CardContent className="space-y-0.5"><p className="text-sm font-medium">Menu not released yet.</p><p className="text-muted-foreground text-sm">Dish picks and swaps open once the kitchen releases this week&apos;s menu. Days can still be moved or re-addressed.</p></CardContent></Card>

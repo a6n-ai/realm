@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, CircleAlert, Info, Truck, Utensils } from "lucide-react";
+import { CircleAlert, Info } from "lucide-react";
 import { AddressFields as FoundryAddressFields } from "@foundry/ui/address-fields";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
@@ -12,14 +12,10 @@ import { ResponsiveDialog, Tabs, TabsList, TabsTrigger } from "@/components/ds";
 import type { SheetUi } from "@/components/customer/deliveries/actions/sheet-ui";
 import type { RowChoice } from "@/components/customer/deliveries/actions/choice-row";
 import { DeliveryAreaNote, useDeliveryArea } from "@/components/customer/address/delivery-area";
-import { addDays, weekDays } from "@/lib/deliveries-view/week";
 
 // The delivery action sheets (Edit meal, Move, Change address) drawn in the CRM's shadcn
 // language. Every rule and server call stays in the shared sheets; this file is look only.
 
-const MON = new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" });
-const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
-const WD = ["M", "T", "W", "T", "F", "S", "S"];
 export const STATUS_TONE: Record<string, string> = {
   delivered: "bg-emerald-500", upcoming: "bg-sky-500", vacation: "bg-amber-500", hold: "bg-rose-500", combined: "bg-muted-foreground",
 };
@@ -89,54 +85,6 @@ function ChoiceRow({
   );
 }
 
-// ponytail: one week at a time with arrows (the sheets only use the picker mode); the hub keeps its own two-week strip.
-const WeekStrip: SheetUi["WeekStrip"] = ({ firstWeek, lastWeek, week, today, selectedDay, dots, onPickDay, onWeek, picker }) => (
-  <div className="rounded-md border p-2" data-testid="move-week">
-    <div className="mb-1 flex items-center justify-between">
-      <span className="text-muted-foreground px-1 text-xs font-semibold tracking-wider uppercase">
-        {MON.format(d(week))} {d(week).getUTCDate()} – {MON.format(d(addDays(week, 6)))} {d(addDays(week, 6)).getUTCDate()}
-      </span>
-      <span className="flex">
-        <Button variant="ghost" size="icon" aria-label="Previous week" disabled={week <= firstWeek} onClick={() => onWeek(addDays(week, -7))}><ChevronLeft /></Button>
-        <Button variant="ghost" size="icon" aria-label="Next week" disabled={week >= lastWeek} onClick={() => onWeek(addDays(week, 7))}><ChevronRight /></Button>
-      </span>
-    </div>
-    <div className="grid grid-cols-7 gap-1">
-      {weekDays(week).map((iso, i) => {
-        const off = picker?.isDisabled(iso) ?? false;
-        const ds = dots[iso] ?? [];
-        const truck = ds.some((x) => x.truck);
-        const sel = iso === selectedDay;
-        return (
-          <button
-            key={iso}
-            type="button"
-            aria-pressed={sel}
-            aria-disabled={off || undefined}
-            aria-label={`${d(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}${truck ? ", delivery day" : ""}${off ? ", unavailable" : ""}`}
-            onClick={() => (off ? picker?.onDisabledTap?.(iso) : onPickDay(iso))}
-            className={cn(
-              "flex h-[72px] flex-col items-center justify-center gap-1 rounded-md border text-xs",
-              sel ? "border-primary bg-primary/10 font-semibold" : "border-transparent",
-              off ? "opacity-40" : "hover:bg-muted",
-              iso === today && !sel && "ring-primary ring-1",
-            )}
-          >
-            <span aria-hidden className="text-muted-foreground grid w-full grid-cols-[1fr_auto_1fr] items-center px-1">
-              <span className="flex justify-end">{ds.some((x) => x.status) && <Utensils className="size-2.5" />}</span>
-              <span className="px-1">{WD[i]}</span>
-              <span className="flex justify-start">{truck && <Truck className="size-2.5" />}</span>
-            </span>
-            <b className="text-sm tabular-nums">{d(iso).getUTCDate()}</b>
-            <span className="flex h-3 items-center gap-0.5">
-              {ds.map((x, k) => x.status && <span key={k} aria-hidden className={cn("size-2 rounded-full", STATUS_TONE[x.status])} />)}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  </div>
-);
 
 export const ADMIN_SHEET_UI: SheetUi = {
   Shell: ({ open, onClose, title, footer, children }) => (
@@ -195,7 +143,6 @@ export const ADMIN_SHEET_UI: SheetUi = {
       <div className="grid gap-4">{children}</div>
     </section>
   ),
-  WeekStrip,
   OptionCard: ({ selected, className, children, type = "button", ...rest }) => (
     <button
       {...rest}
