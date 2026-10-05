@@ -3,65 +3,94 @@
 import { useMemo, useState } from "react";
 import { TruckIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
-import { Input } from "@foundry/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
+import { Button } from "@foundry/ui/button";
+import { TableCell } from "@foundry/ui/table";
+import { DataTable, type Column } from "@/components/ds";
+import { sortRows } from "@/lib/list/sort";
 import type { DayDeliveryStatusRow, LabelDeliveryStatus } from "@/lib/services/daily-labels.service";
+import { useTableParams } from "./use-table-params";
+
+type Key = "customer" | "orderId" | "planName" | "mealSize" | "tiffins" | "status";
+
+const COLUMNS: readonly Column<Key>[] = [
+  { key: "customer", label: "Customer", sortable: true },
+  { key: "orderId", label: "Order ID", sortable: true },
+  { key: "planName", label: "Plan", sortable: true },
+  { key: "mealSize", label: "Meal size", sortable: true },
+  { key: "tiffins", label: "Tiffins", sortable: true, align: "right" },
+  { key: "status", label: "Status", sortable: true },
+];
+
+const VALUE: Record<Key, (r: DayDeliveryStatusRow) => string | number> = {
+  customer: (r) => r.customerName,
+  orderId: (r) => r.orderId,
+  planName: (r) => r.planName,
+  mealSize: (r) => r.mealSizeName,
+  tiffins: (r) => r.tiffinUnits,
+  status: (r) => r.status,
+};
 
 export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
-  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LabelDeliveryStatus | "all">("all");
+  const { sort, pagination } = useTableParams(
+    COLUMNS.map((c) => c.key),
+    { column: "customer", dir: "asc" },
+  );
+
+  const statusCounts = useMemo(() => {
+    const counts = new Map<LabelDeliveryStatus, number>();
+    for (const r of rows) counts.set(r.status, (counts.get(r.status) ?? 0) + 1);
+    return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [rows]);
+
   const shown = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((row) =>
-      [row.customerName, row.orderId, row.planName, row.mealSizeName, row.status]
-        .some((value) => value.toLowerCase().includes(needle)),
-    );
-  }, [query, rows]);
+    const filtered = statusFilter === "all" ? rows : rows.filter((r) => r.status === statusFilter);
+    return sortRows(filtered, sort, (r, column) => VALUE[column](r));
+  }, [rows, statusFilter, sort]);
 
   return (
-    <div className="space-y-3">
-      <Input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search deliveries..."
-        aria-label="Search deliveries"
-      />
-      {shown.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-16 text-center">
-          <TruckIcon className="size-8 text-muted-foreground" />
-          <p className="text-sm font-medium">
-            {rows.length === 0 ? "No tiffin deliveries for this date." : "No deliveries match that search."}
-          </p>
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead>Order ID</TableHead>
-              <TableHead>Plan</TableHead>
-              <TableHead>Meal size</TableHead>
-              <TableHead className="text-right">Tiffins</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shown.map((row) => (
-              <TableRow key={row.deliveryPublicId}>
-                <TableCell className="whitespace-nowrap">{row.customerName}</TableCell>
-                <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
-                <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
-                <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.tiffinUnits}</TableCell>
-                <TableCell className="whitespace-nowrap">
-                  <DeliveryStatusBadge status={row.status} />
-                </TableCell>
-              </TableRow>
+    <DataTable
+      columns={COLUMNS}
+      rows={shown}
+      rowKey={(r) => r.deliveryPublicId}
+      sort={sort}
+      search={{ keys: ["customerName", "orderId", "planName", "mealSizeName", "status"], placeholder: "Search deliveries..." }}
+      pagination={pagination}
+      filters={
+        statusCounts.length > 1 ? (
+          <div className="flex flex-wrap gap-1.5">
+            <Button size="sm" variant={statusFilter === "all" ? "default" : "outline"} onClick={() => setStatusFilter("all")}>
+              All <span className="tabular-nums opacity-70">{rows.length}</span>
+            </Button>
+            {statusCounts.map(([status, n]) => (
+              <Button
+                key={status}
+                size="sm"
+                variant={statusFilter === status ? "default" : "outline"}
+                onClick={() => setStatusFilter(status)}
+              >
+                {status} <span className="tabular-nums opacity-70">{n}</span>
+              </Button>
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        ) : undefined
+      }
+      emptyIcon={TruckIcon}
+      emptyMessage="No tiffin deliveries for this date."
+      emptySearchMessage="No deliveries match that search."
+      renderRow={(row) => (
+        <>
+          <TableCell className="whitespace-nowrap">{row.customerName}</TableCell>
+          <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
+          <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
+          <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>
+          <TableCell className="text-right tabular-nums">{row.tiffinUnits}</TableCell>
+          <TableCell className="whitespace-nowrap">
+            <DeliveryStatusBadge status={row.status} />
+          </TableCell>
+        </>
       )}
-    </div>
+    />
   );
 }
 
