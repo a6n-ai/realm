@@ -407,11 +407,14 @@ export function planSeed(rows: WpRow[], snapshot: CatalogSnapshot, units: Map<st
     if (!customItems && hasVegConflict(row)) { skip(`veg conflict: product "${record.productText}" vs meta "${row.veg}"`); continue; }
     if (record.tiffinCount <= 0) { skip("zero remaining tiffins"); continue; }
     if (!record.addressLine || !record.postalCode) { skip("missing address or postal code"); continue; }
+    // The postcode field is sometimes cut short ("L6W 4H") while the autocompleted address
+    // line still ends in the full code ("..., Brampton, ON L6W 4H6, Canada").
+    const fromAddress = /\b([A-Z]\d[A-Z]) ?(\d[A-Z]\d)\b/i.exec(record.addressLine);
     try {
       record.postalCode = parseCanadianPostalCode(record.postalCode);
     } catch {
-      skip(`postal code not a full Canadian one: "${record.postalCode}"`);
-      continue;
+      if (!fromAddress) { skip(`postal code not a full Canadian one: "${record.postalCode}"`); continue; }
+      record.postalCode = parseCanadianPostalCode(`${fromAddress[1]} ${fromAddress[2]}`);
     }
     if (!matchZone(record.postalCode, snapshot.zones.filter((z) => z.active))) {
       skip(`outside every delivery zone: ${record.postalCode}`);

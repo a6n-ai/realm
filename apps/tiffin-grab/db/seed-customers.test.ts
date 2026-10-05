@@ -288,6 +288,11 @@ describe("planSeed custom meals", () => {
     expect(kept[0].mergedWpOrderIds).toEqual([]);
     expect(dropped).toHaveLength(1);
   });
+
+  it("takes the full postal code from the address line when the postcode field is cut short", () => {
+    const { results } = planSeed([row({ address1: "1 Main St, Toronto, ON M5V 2T6, Canada", postcode: "M5V 2T" })], snapshot, units);
+    expect(results[0]).toMatchObject({ kind: "planned", record: { postalCode: "M5V 2T6" } });
+  });
 });
 
 describe("mixedKindDuplicates", () => {
