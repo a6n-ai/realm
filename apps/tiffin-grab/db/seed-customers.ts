@@ -686,8 +686,10 @@ export async function renewalsOfStartedPlans(
 /** Tiffins left in our DB vs WordPress's live counter, per imported plan. A pending plan must
  * equal WordPress after a refresh; a started plan must not have gone down on WordPress since
  * (that means WordPress kept delivering after the switch: two deliveries a day). */
-export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned" }>[]): Promise<{ mismatches: number }> {
-  const inDb = await db.select({ deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount })
+export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned" }>[], sameHousehold: MigrationRecord[] = []): Promise<{ mismatches: number }> {
+  // A household's other person sits in the set-aside list, but a 2-person plan here carries both balances.
+  const householdLeft = (x: MigrationRecord) => sameHousehold.filter((d) => d.phone === x.phone && d.productText === x.productText).reduce((n, d) => n + d.tiffinCount, 0);
+  const inDb = await db.select({ deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount, persons: orders.persons })
     .from(orders).where(like(orders.deploymentId, "wc-%"));
   const byId = new Map(inDb.map((o) => [o.deploymentId, o]));
   // Same lookup as applyOne: a plan may sit under its own id or a merged renewal's.
@@ -711,8 +713,9 @@ export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned
     } else {
       // A renewal imported as its own plan counts toward the same WordPress balance.
       const here = ids.map((i) => byId.get(i)).filter((p) => p && p.status !== "cancelled").reduce((n, p) => n + p!.tiffinCount, 0);
-      if (x.tiffinCount < here) doubleDelivery.push(`${id} (${o.status}): started with ${here}, WordPress now ${x.tiffinCount}`);
-      else if (x.tiffinCount > here) moreOnWordPress.push(`${id} (${o.status}): here ${here}, WordPress ${x.tiffinCount}`);
+      const wp = x.tiffinCount + (o.persons > 1 ? householdLeft(x) : 0);
+      if (wp < here) doubleDelivery.push(`${id} (${o.status}): started with ${here}, WordPress now ${wp}`);
+      else if (wp > here) moreOnWordPress.push(`${id} (${o.status}): here ${here}, WordPress ${wp}`);
       else match++;
     }
   }
@@ -752,7 +755,7 @@ if (isDirectRun) {
     const renewals = await renewalsOfStartedPlans(planned, rows, snapshot, units);
     console.log(`\n--- Renewals of a started plan, not here yet (imported as their own plan after it ends) ---`);
     for (const { record: x } of renewals) console.log(`  wc-${x.wpOrderId} ***${x.phone.slice(-4)} "${x.productText}" left=${x.tiffinCount} from ${x.sourceStartDate}`);
-    await balanceCheck(planned);
+    await balanceCheck(planned, duplicates);
     if (!process.argv.includes("--apply")) {
       console.log(`\nDry run only — pass --apply to write.`);
       return;
@@ -762,7 +765,7 @@ if (isDirectRun) {
     const toApply = [...planned, ...renewals];
     await apply(only ? toApply.filter((r) => only.includes(r.record.wpOrderId)) : toApply, snapshot);
     console.log(`\nAfter apply:`);
-    await balanceCheck(planned);
+    await balanceCheck(planned, duplicates);
   })()
     .then(() => process.exit(0))
     .catch((err) => {
