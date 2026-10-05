@@ -4,7 +4,7 @@
 // Every read of "what does this subscriber receive" goes through resolveDeliveryMeal —
 // re-deriving the pick → default fallback here would let the label disagree with what the
 // customer sees on their calendar, which is the one failure this must not have.
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import {
@@ -12,6 +12,7 @@ import {
   deliveryCategorySwaps,
   deliveryZones,
   dishCategories,
+  dishes,
   mealSizeItems,
   mealSizes,
   orders,
@@ -38,6 +39,11 @@ export type LabelLine = {
   category: string;
   categoryLabel: string;
   dish: string;
+  /**
+   * The dish's own category when it differs from the slot (Kali Dal picked as a Sabzi side).
+   * Kitchen counts group by this — the kitchen cooks the dish, not the slot.
+   */
+  dishCategory?: { key: string; label: string };
   /** "8oz" — null when the meal size carries no weight for that slot. */
   portion: string | null;
   /** True when the customer never picked and the menu default was used. */
@@ -259,9 +265,11 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
         tuUnitSize: dishCategories.tuUnitSize,
         tuUnitLabel: dishCategories.tuUnitLabel,
         selectable: dishCategories.selectable,
+        label: dishCategories.label,
       })
       .from(dishCategories),
   ]);
+  const dishHome = await dishCategoryByDish(categories);
 
   const swapRows =
     rows.length === 0
@@ -322,6 +330,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
             category: category.category,
             categoryLabel: category.label,
             dish: pick.name,
+            dishCategory: dishHome.get(pick.dishId)?.key === category.category ? undefined : dishHome.get(pick.dishId),
             addon: addonPicks.get(category.category)?.has(i + 1) || undefined,
             portion: portionForPick(portions, category.category, i + 1),
             defaulted: pick.isDefaulted,
@@ -364,18 +373,31 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
   };
 }
 
-/** Kitchen totals: how many containers of each dish at each size. */
+/** dish id → its own category (key + label); dishes with no category are left out. */
+async function dishCategoryByDish(categories: { key: string; label: string }[]) {
+  const labelOf = new Map(categories.map((c) => [c.key, c.label]));
+  const rows = await db.select({ id: dishes.id, category: dishes.category }).from(dishes).where(isNotNull(dishes.category));
+  const out = new Map<bigint, { key: string; label: string }>();
+  for (const r of rows) {
+    const label = labelOf.get(r.category!);
+    if (label) out.set(r.id, { key: r.category!, label });
+  }
+  return out;
+}
+
+/** Kitchen totals: how many containers of each dish at each size, under the dish's own category. */
 export function countBy(labels: DeliveryLabel[]): KitchenCount[] {
   const acc = new Map<string, KitchenCount>();
   for (const label of labels) {
     for (const line of label.lines) {
-      const key = `${line.category}|${line.dish}|${line.portion ?? ""}`;
+      const category = line.dishCategory?.key ?? line.category;
+      const key = `${category}|${line.dish}|${line.portion ?? ""}`;
       const hit = acc.get(key);
       if (hit) hit.count += 1;
       else
         acc.set(key, {
-          category: line.category,
-          categoryLabel: line.categoryLabel,
+          category,
+          categoryLabel: line.dishCategory?.label ?? line.categoryLabel,
           dish: line.dish,
           portion: line.portion,
           count: 1,

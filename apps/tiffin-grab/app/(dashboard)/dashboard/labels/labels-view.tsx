@@ -39,11 +39,13 @@ export function KitchenCounts({
               <h3 className="text-base font-semibold tracking-tight">{g.label}</h3>
               <p className="text-muted-foreground text-sm tabular-nums">
                 <span className="text-foreground text-lg font-semibold">{g.containers.toLocaleString()}</span>{" "}
-                {g.pieces ? "packs" : "containers"}
-                {g.pieces ? (
+                {g.total && g.total.unit !== "oz" ? "packs" : "containers"}
+                {g.total ? (
                   <>
                     {" · "}
-                    <span className="text-foreground font-semibold">{g.pieces.amount.toLocaleString()}</span> {g.pieces.unit}
+                    <span className="text-foreground font-semibold">{g.total.amount.toLocaleString()}</span> {g.total.unit}
+                    {/* Kitchens buy and batch in pounds; oz alone is hard to picture at this scale. */}
+                    {g.total.unit === "oz" ? ` (${Math.round(g.total.amount / 16).toLocaleString()} lb)` : null}
                   </>
                 ) : null}
               </p>
