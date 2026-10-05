@@ -8,7 +8,7 @@ import { exclusiveDishIdsForPlan } from "../selections.service";
 import { maxTuPickIndex } from "../default-pick";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-const { resolveDeliveryMeal } = await import("../resolve-delivery-meal");
+const { createMealResolveCache, resolveDeliveryMeal } = await import("../resolve-delivery-meal");
 
 const FUTURE_MONDAY = (() => {
   const d = new Date(Date.now() + 56 * 86400000);
@@ -114,6 +114,17 @@ describe("resolveDeliveryMeal", () => {
     expect(sabzi.picks[0].dishPublicId).toBe(sabziLow.publicId);
     expect(sabzi.picks[0].name).toBe("Aloo Gobi");
     expect(sabzi.picks[1].dishPublicId).toBe(sabziLow.publicId);
+  });
+
+  it("resolves the same meal through a shared day cache, keeping each person's picks apart", async () => {
+    const cache = createMealResolveCache();
+    for (const person of [1, 2]) {
+      const uncached = await resolveDeliveryMeal(order, week, "mon", person, null);
+      expect(await resolveDeliveryMeal(order, week, "mon", person, null, { cache })).toEqual(uncached);
+    }
+    // Person 2 never picked, so the explicit person-1 pick must not leak through the day's bulk picks.
+    const p2 = await resolveDeliveryMeal(order, week, "mon", 2, null, { cache });
+    expect(p2.find((m) => m.category === "sabzi")!.picks[0].isDefaulted).toBe(true);
   });
 });
 

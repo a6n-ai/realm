@@ -17,6 +17,7 @@ import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
+import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import {
   addDishPortion,
   formatItemCell,
@@ -161,6 +162,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
   }[] = [];
 
   const extrasById = await loadExtraDates(db, deliveryRows.map((r) => r.deliveryId));
+  const mealCache = createMealResolveCache(addonsByOrder);
   // Rows are independent and each resolves its meal with several queries; run them
   // side by side instead of ~2 queries × every tiffin back to back. Output is sorted below.
   await withConcurrency(deliveryRows, async (row) => {
@@ -187,6 +189,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
           forDate,
           person,
           swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate),
+          mealCache,
         );
         const ordered = [...resolved].sort(
           (a, b) => (categorySort.get(a.category) ?? 0) - (categorySort.get(b.category) ?? 0),

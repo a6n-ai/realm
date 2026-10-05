@@ -15,7 +15,7 @@ import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { isContainerCategory } from "@/lib/menu/format-tu";
 import { itemsForRow, rowPlanIds, type RowPlans } from "@/lib/menu/row-plans";
-import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
+import { addonItemsForOrder, type AddonItemRow } from "@/lib/menu/order-addon-items";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -161,8 +161,10 @@ export function resolveCategoriesForDay(
   );
 }
 
-async function defaultPickContext(order: Order) {
-  const [planDishIds, exclusiveDishIds, sizeRows, addonRows, rules, [size]] = await Promise.all([
+// Everything defaultPickContext reads except the order's own add-ons: shared by every
+// order on the same plan + meal size, which is what lets MealResolveCache load it once.
+function loadSizeContext(order: Order) {
+  return Promise.all([
     // The union of every plan this meal size's OWN composition rows target — not
     // just the order's own plan. A meal size can carry two sabzi rows (one veg,
     // one non-veg), and both must be servable to the subscriber.
@@ -177,9 +179,68 @@ async function defaultPickContext(order: Order) {
       })
       .from(mealSizeItems)
       .where(eq(mealSizeItems.mealSizeId, order.mealSizeId)),
-    addonItemsForOrder(order.id),
     mealRulesService.listEnabledForOrder({ planId: order.planId, mealSizeId: order.mealSizeId }),
     db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, order.mealSizeId)).limit(1),
+  ]);
+}
+
+function loadDayItems(weekId: bigint, dayOfWeek: DayOfWeek): Promise<Item[]> {
+  return db
+    .select({ slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId, planId: dishes.planId })
+    .from(menuItems)
+    .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+    .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
+    .where(and(eq(menuItems.menuWeekId, weekId), eq(menuItems.dayOfWeek, dayOfWeek)))
+    .orderBy(asc(menuItems.position));
+}
+
+/**
+ * Request-scoped lookups for callers that resolve a whole day of tiffins (kitchen sheet,
+ * labels). Only picks and add-ons belong to one order; the rest is shared by every order
+ * on the same plan / meal size, so ~500 resolutions read each piece once instead of
+ * ~12 queries apiece. Never keep one across requests — menus and picks change.
+ */
+export type MealResolveCache = ReturnType<typeof createMealResolveCache>;
+
+export function createMealResolveCache(
+  // Every order this cache will resolve, from addonItemsByOrder; an order missing from it has none.
+  addonsByOrder?: Map<bigint, AddonItemRow[]>,
+) {
+  const memo = new Map<string, Promise<unknown>>();
+  const once = <T>(key: string, load: () => Promise<T>): Promise<T> => {
+    if (!memo.has(key)) memo.set(key, load());
+    return memo.get(key) as Promise<T>;
+  };
+  return {
+    cats: (planId: bigint) => once(`cats:${planId}`, () => dishCategoriesService.forPlan(planId)),
+    dayItems: (weekId: bigint, day: DayOfWeek) => once(`items:${weekId}:${day}`, () => loadDayItems(weekId, day)),
+    // Every order's picks for that menu day in one query, keyed `${orderId}:${personIndex}`.
+    dayPicks: (weekId: bigint, day: DayOfWeek) =>
+      once(`picks:${weekId}:${day}`, async () => {
+        const rows = await db
+          .select({ orderId: mealSelections.orderId, personIndex: mealSelections.personIndex, slot: dishCategories.key, pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
+          .from(mealSelections)
+          .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
+          .where(and(eq(mealSelections.menuWeekId, weekId), eq(mealSelections.dayOfWeek, day)));
+        const out = new Map<string, Pick_[]>();
+        for (const { orderId, personIndex, ...pick } of rows) {
+          const key = `${orderId}:${personIndex}`;
+          const list = out.get(key);
+          if (list) list.push(pick);
+          else out.set(key, [pick]);
+        }
+        return out;
+      }),
+    sizeContext: (order: Order) => once(`size:${order.planId}:${order.mealSizeId}`, () => loadSizeContext(order)),
+    addons: (orderId: bigint) =>
+      addonsByOrder ? Promise.resolve(addonsByOrder.get(orderId) ?? []) : once(`addons:${orderId}`, () => addonItemsForOrder(orderId)),
+  };
+}
+
+async function defaultPickContext(order: Order, cache?: MealResolveCache) {
+  const [[planDishIds, exclusiveDishIds, sizeRows, rules, [size]], addonRows] = await Promise.all([
+    cache ? cache.sizeContext(order) : loadSizeContext(order),
+    cache ? cache.addons(order.id) : addonItemsForOrder(order.id),
   ]);
   // Add-on rows count as picks too (same default as the meal), after the meal's own rows.
   const itemRows = [...sizeRows, ...addonRows];
@@ -219,24 +280,24 @@ export async function resolveDeliveryMeal(
   // `eatingDate` + `tripDate` pair) for a carried day so that day's swaps (for_date) are used.
   // Explicit `swaps` may be passed directly (e.g. from resolveTripDay) so they take effect
   // even when deliveryId is null.
-  options: { forDate?: string; eatingDate?: string; tripDate?: string; swaps?: SwapRow[] } = {},
+  // `cache`: bulk callers (kitchen sheet, labels) share one per request; see MealResolveCache.
+  options: { forDate?: string; eatingDate?: string; tripDate?: string; swaps?: SwapRow[]; cache?: MealResolveCache } = {},
 ): Promise<ResolvedCategory[]> {
   // forPlan, never forPlanType: buildMealsGrid decides which categories to render with
   // forPlan(order.planId), so resolving against the plan_type union made the two disagree —
   // a category on the non-veg plan but not the veg plan resolved for a veg order and was
   // then dropped by the grid. One scope, one source.
-  const cats = await dishCategoriesService.forPlan(order.planId);
-  const items = await db
-    .select({ slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId, planId: dishes.planId })
-    .from(menuItems)
-    .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
-    .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
-    .where(and(eq(menuItems.menuWeekId, week.id), eq(menuItems.dayOfWeek, dayOfWeek)))
-    .orderBy(asc(menuItems.position));
-  const picks = await db.select({ slot: dishCategories.key, pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
-    .from(mealSelections)
-    .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
-    .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id), eq(mealSelections.dayOfWeek, dayOfWeek), eq(mealSelections.personIndex, person)));
+  const { cache } = options;
+  const [cats, items, picks] = await Promise.all([
+    cache ? cache.cats(order.planId) : dishCategoriesService.forPlan(order.planId),
+    cache ? cache.dayItems(week.id, dayOfWeek) : loadDayItems(week.id, dayOfWeek),
+    cache
+      ? cache.dayPicks(week.id, dayOfWeek).then((byPerson) => byPerson.get(`${order.id}:${person}`) ?? [])
+      : db.select({ slot: dishCategories.key, pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
+        .from(mealSelections)
+        .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
+        .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id), eq(mealSelections.dayOfWeek, dayOfWeek), eq(mealSelections.personIndex, person))),
+  ]);
 
   let swaps: SwapRow[] = options.swaps ?? [];
   if (options.swaps == null && deliveryId != null) {
@@ -251,7 +312,7 @@ export async function resolveDeliveryMeal(
     swaps = tripDate && eatingDate ? rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatingDate)) : rows;
   }
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans } = await defaultPickContext(order);
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans } = await defaultPickContext(order, cache);
   const baseCounts = liveCounts ?? order.categoryCounts ?? {};
   return resolveCategoriesForDay(
     items,

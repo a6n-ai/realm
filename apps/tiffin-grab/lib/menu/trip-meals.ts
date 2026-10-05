@@ -4,7 +4,7 @@
 import { weekdayKey, parseIsoDateUtc } from "@foundry/commons";
 import { menuService } from "@/lib/services/menu.service";
 import { mondayOfIso, type DayOfWeek } from "@/lib/menu/delivery-dates";
-import { resolveDeliveryMeal, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
+import { resolveDeliveryMeal, type MealResolveCache, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
 
 /** Swaps of one trip that apply to one eating day; NULL for_date means the trip's own date. */
@@ -33,6 +33,7 @@ export async function resolveTripDay(
   dateIso: string,
   person: number,
   daySwaps: SwapRow[],
+  cache?: MealResolveCache,
 ): Promise<ResolvedCategory[]> {
   const day = weekdayKey(parseIsoDateUtc(dateIso)) as DayOfWeek;
   return resolveDeliveryMeal(
@@ -41,6 +42,6 @@ export async function resolveTripDay(
     day,
     person,
     null,
-    { forDate: dateIso, swaps: daySwaps },
+    { forDate: dateIso, swaps: daySwaps, cache },
   );
 }

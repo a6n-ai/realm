@@ -26,6 +26,7 @@ import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
+import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { withConcurrency } from "@/lib/concurrency";
@@ -293,6 +294,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
     portionsByCategory(itemsFor(r), categoriesByKey, swapsForDay(swapRows, r.delivery, date));
 
   const extrasById = await loadExtraDates(db, rows.map((r) => r.delivery.id));
+  const mealCache = createMealResolveCache(addonsByOrder);
   const labels: DeliveryLabel[] = [];
   // Rows are independent; resolve them side by side (sortForPrinting fixes the order).
   await withConcurrency(rows, async (row) => {
@@ -309,7 +311,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
       const dayWeek = forDate === dateIso ? week : await loadWeek(forDate);
       const portions = portionsFor(row, forDate);
       const resolved = dayWeek
-        ? await resolveTripDay(order, dayWeek, forDate, person, swapsForDay(swapRows, delivery, forDate))
+        ? await resolveTripDay(order, dayWeek, forDate, person, swapsForDay(swapRows, delivery, forDate), mealCache)
         : [];
       const lines: LabelLine[] = [];
       const addonPicks = addonPickIndexes(itemsFor(row), swapsForDay(swapRows, delivery, forDate), categoriesByKey);
