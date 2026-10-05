@@ -17,7 +17,8 @@ import {
   TrustBar,
   stagger,
 } from "@/components/marketing/ui";
-import { ProgrammeGrid } from "@/components/marketing/programme-grid";
+import { ClassCard } from "@/components/marketing/class-card";
+import { loadPublicClasses } from "@/lib/sessions/public";
 import { WeekCalendar } from "@/components/marketing/week-calendar";
 import { HomeSessions } from "@/components/marketing/home-sessions";
 
@@ -30,8 +31,10 @@ export const metadata = buildMetadata({
 export const dynamic = "force-dynamic";
 
 const pad = (pt: number, pb: number) => ({ "--pt": `${pt}px`, "--pb": `${pb}px` }) as CSSProperties;
+const HOME_CLASSES = 6;
 
-export default function HomePage() {
+export default async function HomePage() {
+  const classes = await loadPublicClasses();
   return (
     <>
       <section id="top" className="xl-wrap xl-hero">
@@ -50,7 +53,7 @@ export default function HomePage() {
             confidence, creativity and connection.
           </p>
           <div className="xl-row" style={stagger(3)}>
-            <Button href="/#programmes" icon="arrow-right">
+            <Button href="/classes" icon="arrow-right">
               Find your next adventure
             </Button>
             <Button href="/#calendar" variant="secondary">
@@ -73,13 +76,26 @@ export default function HomePage() {
         ]}
       />
 
-      <section id="programmes" className="xl-wrap xl-section" style={pad(88, 40)}>
+      <section id="classes" className="xl-wrap xl-section" style={pad(88, 40)}>
         <SectionHeading
-          eyebrow="Seven ways to explore"
+          eyebrow="Open for booking"
           title="Find your kind of discovery."
-          lede="A colour for every adventure. A welcoming space for every curious mind."
+          lede="Our classes with their next dates. Pick one and book a seat for each child."
         />
-        <ProgrammeGrid />
+        {classes.length === 0 ? (
+          <p className="xl-body">New classes are on their way. Private sessions run Monday to Saturday by arrangement.</p>
+        ) : (
+          <div className="xl-grid">
+            {classes.slice(0, HOME_CLASSES).map((c) => (
+              <ClassCard key={c.publicId} item={c} />
+            ))}
+          </div>
+        )}
+        <div className="xl-row" style={{ marginTop: 28 }}>
+          <Button href="/classes" icon="arrow-right">
+            See all classes
+          </Button>
+        </div>
         <div style={{ marginTop: 28 }}>
           <Notice icon={Users}>Older siblings are welcome to join too. Please share their ages when booking.</Notice>
         </div>

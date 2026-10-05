@@ -985,52 +985,8 @@ body:has(.xl):not(:has(.crm-app)) {
     color: var(--xl-sunshine);
   }
 
-  /* ---------- Filter tabs ---------- */
-
-  .xl-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .xl-tab {
-    position: relative;
-    isolation: isolate;
-    min-height: 44px;
-    padding: 8px 16px;
-    border: 0;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--action-fg);
-    font-size: var(--size-sm);
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-      background-color var(--duration-fast) ease,
-      transform 120ms var(--ease-out);
-  }
-
-  /* The selected fill is its own element so a view transition can slide it
-     from the old tab to the new one. */
-  .xl-tab-pill {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    border: 1px solid var(--action-border);
-    border-radius: inherit;
-    background: var(--action-bg);
-    view-transition-name: xl-tab-pill;
-  }
-
-  .xl-tab:active,
   .xl-chip:active {
     transform: scale(0.97);
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .xl-tab:hover:not([aria-pressed="true"]) {
-      background: var(--surface-sky);
-    }
   }
 
   /* ---------- Programme card ---------- */
@@ -1054,6 +1010,18 @@ body:has(.xl):not(:has(.crm-app)) {
     background: var(--pt);
     box-shadow: inset 0 5px 0 var(--p);
     color: var(--xl-navy-800);
+  }
+
+  .xl-card-photo {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  .xl-card-next {
+    font-size: var(--size-2xs);
+    font-weight: 700;
   }
 
   .xl-card-body {
@@ -1104,21 +1072,6 @@ body:has(.xl):not(:has(.crm-app)) {
     font-size: var(--size-body);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-  }
-
-  /* Filtering runs inside a view transition (programme-grid.tsx): cards that
-     stay slide to their new cell, the rest fade, and the tab pill travels. */
-  ::view-transition-group(*) {
-    animation-duration: 380ms;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  ::view-transition-old(*) {
-    animation-duration: 160ms;
-  }
-
-  ::view-transition-new(*) {
-    animation-duration: 260ms;
   }
 
   /* ---------- Notice ---------- */

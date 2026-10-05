@@ -7,11 +7,14 @@ export function SessionList({
   action,
   focusId,
   showDescription,
+  hidePhotos,
 }: {
   rows: PublicSessionCard[];
   action: (row: PublicSessionCard) => ReactNode;
   focusId?: string;
   showDescription?: boolean;
+  /** The class page shows its photos once at the top. */
+  hidePhotos?: boolean;
 }) {
   return (
     <ul className="xl-sessions">
@@ -29,7 +32,7 @@ export function SessionList({
               {row.spec} · <span className="xl-spots" data-tone={row.tone}>{row.spots}</span>
             </p>
             {showDescription && row.description ? <p className="xl-session-desc">{row.description}</p> : null}
-            {row.photos.length > 0 ? (
+            {!hidePhotos && row.photos.length > 0 ? (
               <ul className="xl-photos">
                 {row.photos.slice(0, 4).map((url, i) => (
                   <li key={url}>

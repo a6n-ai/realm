@@ -47,7 +47,6 @@ const nextConfig: NextConfig = {
     return [
       { source: "/about", destination: "/the-place", permanent: true },
       { source: "/programs", destination: "/whats-on", permanent: true },
-      { source: "/classes", destination: "/kids", permanent: true },
       { source: "/events", destination: "/whats-on", permanent: true },
       { source: "/parties", destination: "/birthdays", permanent: true },
     ];
