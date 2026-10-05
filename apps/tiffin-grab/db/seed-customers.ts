@@ -199,7 +199,18 @@ function parsePreferredDays(raw: string | null): { frequencyKey: "5_day" | "mwf"
   return { frequencyKey: mwf ? "mwf" : "5_day", eatingDays, includeSaturday: false, includeSunday: false };
 }
 
+// Diet staff confirmed by hand for veg-conflict rows (2026-10-04). Wins over both the
+// product name and the Veg / Non Veg meta; the meal size still comes from the product.
+const STAFF_CONFIRMED_DIET: Record<number, "veg" | "non-veg"> = {
+  15146: "veg",
+  15323: "non-veg",
+  15469: "non-veg",
+  15653: "non-veg",
+};
+
 function planKeyFor(row: WpRow): "veg" | "non-veg" {
+  const confirmed = STAFF_CONFIRMED_DIET[row.id];
+  if (confirmed) return confirmed;
   const v = (row.veg ?? "").trim().toLowerCase();
   if (v === "veg") return "veg";
   if (v === "non-veg") return "non-veg";
@@ -210,6 +221,7 @@ function planKeyFor(row: WpRow): "veg" | "non-veg" {
 // the Veg / Non Veg meta says the other. Rather than guess which is stale, they
 // are excluded and listed for manual review.
 export function hasVegConflict(row: WpRow): boolean {
+  if (STAFF_CONFIRMED_DIET[row.id]) return false;
   const col = (row.veg ?? "").trim().toLowerCase();
   if (col !== "veg" && col !== "non-veg") return false;
   const prod = (row.products ?? "").toLowerCase();
@@ -662,7 +674,14 @@ export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned
 const isDirectRun = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
 if (isDirectRun) {
   (async () => {
-    const rows = await readWordPress();
+    // A plan staff cancelled here is over, even while WordPress still lists it; dropping it
+    // lets a replacement order on the same phone import instead of being called a duplicate.
+    const cancelledHere = new Set((await db.select({ deploymentId: orders.deploymentId }).from(orders)
+      .where(and(eq(orders.status, "cancelled"), like(orders.deploymentId, "wc-%")))).map((o) => o.deploymentId));
+    const allRows = await readWordPress();
+    const rows = allRows.filter((r) => !cancelledHere.has(`wc-${r.id}`));
+    const stale = allRows.filter((r) => cancelledHere.has(`wc-${r.id}`)).map((r) => `wc-${r.id}`);
+    console.log(`Cancelled here, still active on WordPress (close them there): ${stale.length}${stale.length ? `\n  ${stale.join(", ")}` : ""}`);
     const snapshot = await loadCatalogSnapshot();
     const units = await loadCategoryUnits();
     const { results, duplicates, mixedKind } = planSeed(rows, snapshot, units);
@@ -673,7 +692,9 @@ if (isDirectRun) {
       console.log(`\nDry run only — pass --apply to write.`);
       return;
     }
-    await apply(planned, snapshot);
+    // --only=15146,15323 applies just those WordPress orders (the report still covers all).
+    const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7).split(",").map(Number);
+    await apply(only ? planned.filter((r) => only.includes(r.record.wpOrderId)) : planned, snapshot);
     console.log(`\nAfter apply:`);
     await balanceCheck(planned);
   })()
