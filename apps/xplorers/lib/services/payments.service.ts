@@ -3,10 +3,8 @@ import { UpdatableRepository } from "@foundry/database";
 import {
   canClaim,
   canVerify,
-  computeTax,
   enabledMethods,
   findMethod,
-  providerFor,
   type PaymentMethodConfig,
 } from "@foundry/payments";
 import { PAYMENTS_PLUGIN_ID } from "@foundry/payments/plugin";
@@ -18,26 +16,6 @@ import { ledgerService } from "./ledger.service";
 import { SessionUpdatableService } from "./session-service";
 
 export type PaymentRow = typeof payments.$inferSelect;
-
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
-
-function major(n: number): string {
-  return round2(n).toFixed(2);
-}
-
-export function quoteBooking(
-  priceAmount: string | number,
-  seats: number,
-  method: PaymentMethodConfig,
-): { subtotal: number; taxTotal: number; total: number } {
-  const unit = typeof priceAmount === "string" ? Number(priceAmount) : priceAmount;
-  if (!Number.isFinite(unit) || unit < 0) throw new ValidationError("Class price is invalid.");
-  const subtotal = round2(unit * seats);
-  const { taxTotal } = computeTax(subtotal, method.taxes);
-  return { subtotal, taxTotal, total: round2(subtotal + taxTotal) };
-}
 
 export type PaymentListRow = {
   publicId: string;
@@ -67,33 +45,6 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
     return enabledMethods(await getPaymentConfig()).filter(
       (m) => m.id === "cash" || m.id === "etransfer",
     );
-  }
-
-  async createForBooking(input: {
-    booking: { id: bigint; publicId: string; userId: bigint; seats: number };
-    priceAmount: string;
-    methodId: string;
-  }): Promise<PaymentRow> {
-    const cfg = await getPaymentConfig();
-    const method = findMethod(cfg, input.methodId);
-    if (!method?.enabled) throw new ValidationError("That payment method is not available.");
-    const { currency } = await getAppClock();
-    const { total } = quoteBooking(input.priceAmount, input.booking.seats, method);
-    const initiated = providerFor(method).initiate({
-      orderRef: input.booking.publicId,
-      amount: total,
-      method,
-    });
-    const reference = initiated.kind === "manual_instructions" ? initiated.reference : input.booking.publicId;
-    return this.create({
-      bookingId: input.booking.id,
-      userId: input.booking.userId,
-      status: "awaiting_payment",
-      method: method.id,
-      amount: major(total),
-      currency,
-      reference,
-    });
   }
 
   async readForFamily(
