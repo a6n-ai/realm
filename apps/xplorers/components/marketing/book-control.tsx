@@ -101,7 +101,7 @@ function FamilyBookForm({ publicId, remaining, autofocus }: { publicId: string; 
         {quoting ? "Checking…" : "See price"}
       </Button>
       {quote ? (
-        <dl className="xl-quote">
+        <dl className="xl-breakdown">
           <div>
             <dt>Subtotal</dt>
             <dd>{money(quote.subtotal, quote.currency)}</dd>
@@ -124,7 +124,7 @@ function FamilyBookForm({ publicId, remaining, autofocus }: { publicId: string; 
           </div>
         </dl>
       ) : null}
-      {preview.codeMessage ? <p className="xl-hint">{preview.codeMessage}</p> : null}
+      {preview.codeMessage ? <p className="xl-code-note">{preview.codeMessage}</p> : null}
       {preview.error ? (
         <p role="alert" className="xl-error">
           {preview.error}

@@ -1490,7 +1490,7 @@ body:has(.xl):not(:has(.crm-app)) {
     text-transform: uppercase;
   }
 
-  .xl-quote {
+  .xl-breakdown {
     display: grid;
     gap: 2px;
     min-width: 180px;
@@ -1498,22 +1498,22 @@ body:has(.xl):not(:has(.crm-app)) {
     color: var(--text-muted);
   }
 
-  .xl-quote div {
+  .xl-breakdown div {
     display: flex;
     justify-content: space-between;
     gap: 12px;
   }
 
-  .xl-quote dd {
+  .xl-breakdown dd {
     font-variant-numeric: tabular-nums;
     color: var(--text-strong);
   }
 
-  .xl-quote div:last-child {
+  .xl-breakdown div:last-child {
     font-weight: 700;
   }
 
-  .xl-hint {
+  .xl-code-note {
     max-width: 22ch;
     font-size: var(--size-xs);
     color: var(--text-muted);
