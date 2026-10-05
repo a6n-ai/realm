@@ -12,7 +12,9 @@ import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptcha } from "@/lib/auth/captcha-client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
-import { AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, EmailSuggestions, authErrorMessage } from "@foundry/auth-ui";
+import {
+  AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, EmailSuggestions, GoogleSignInButton, authErrorMessage, oauthErrorMessage,
+} from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -45,14 +47,16 @@ export function safeCallbackUrl(raw: string | null): string | null {
   }
 }
 
-export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
+export function AuthForm({ canUsePin, google = false }: { canUsePin: boolean; google?: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
   const callbackUrl = safeCallbackUrl(params.get("callbackUrl"));
+  // Better Auth sends a failed Google sign-in back here as ?error=<code>.
+  const oauthError = params.get("error");
   // A locked session opens on its PIN. Someone bounced here from a protected
   // page (callbackUrl) already knows why they're here, so they skip the
   // welcome screen and land on the form.
-  const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : callbackUrl ? "email-otp" : "welcome");
+  const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : callbackUrl || oauthError ? "email-otp" : "welcome");
   const [codeStep, setCodeStep] = useState(false);
   // Email and password forms both hit captcha'd routes; solve ahead of Send.
   useEffect(() => warmCaptcha(mode === "email-otp" || mode === "password"), [mode]);
@@ -68,7 +72,7 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
   const HEAD: Record<Exclude<Mode, "pin">, { title: string; tagline?: string }> = {
     welcome: { title: "Home-style meals, your way.", tagline: "Fresh tiffin meals, delivered on your schedule." },
     "email-otp": codeStep
-      ? { title: "Enter the code", tagline: "Not in your inbox? Check your spam folder." }
+      ? { title: "Enter the code" }
       : { title: "Welcome back", tagline: "Sign in with a code sent to your email." },
     password: { title: "Welcome back", tagline: "Sign in with your email and password." },
   };
@@ -97,6 +101,26 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
               onSendCode={(email) => authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" })}
               onVerify={(email, otp) => signIn.emailOtp({ email, otp })}
               onSuccess={landSignedIn}
+              codeHint="Not in your inbox? Check your spam folder."
+              alternatives={
+                google ? (
+                  <>
+                    <GoogleSignInButton
+                      ui={tiffinAuthUi}
+                      onSignIn={() =>
+                        signIn.social({
+                          provider: "google",
+                          callbackURL: callbackUrl ?? "/dashboard",
+                          errorCallbackURL: callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login",
+                        })
+                      }
+                    />
+                    {oauthError ? (
+                      <p role="alert" className="text-[13px] font-medium text-[#be123c] dark:text-[#fda4af]">{oauthErrorMessage(oauthError)}</p>
+                    ) : null}
+                  </>
+                ) : undefined
+              }
               extra={
                 <button type="button" onClick={() => setMode("password")} className={AUTH_LINK}>
                   Sign in with a password instead

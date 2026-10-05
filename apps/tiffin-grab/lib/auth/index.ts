@@ -5,7 +5,7 @@ import { admin as adminPlugin, captcha, emailOTP, magicLink } from "better-auth/
 import { CAPTCHA_ENDPOINTS, turnstileKeys } from "./captcha";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
-import { createOrganizationPlugin, authAuditAction } from "@foundry/auth";
+import { createOrganizationPlugin, authAuditAction, googleSocialProviders } from "@foundry/auth";
 import { Role } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
@@ -107,6 +107,9 @@ export const auth = betterAuth({
       }
     },
   },
+  // Sign-in only (disableSignUp inside): a Google address with no account is
+  // refused, same rule as email-otp and magic-link below. Off without the keys.
+  socialProviders: googleSocialProviders(),
   emailVerification: {
     // Every account has an email now, so this always fires on signup.
     sendOnSignUp: true,

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
 import { roleLanding } from "@/lib/auth/landing";
+import { googleSignInEnabled } from "@foundry/auth";
 import { AuthForm } from "./auth-form";
 
 // Reads session from the DB — must not be statically prerendered at build
@@ -20,7 +21,7 @@ export default async function LoginPage() {
   const canUsePin = locked;
   return (
     <Suspense>
-      <AuthForm canUsePin={canUsePin} />
+      <AuthForm canUsePin={canUsePin} google={googleSignInEnabled()} />
     </Suspense>
   );
 }
