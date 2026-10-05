@@ -1,6 +1,7 @@
 import { parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
+import { planWeek, type DayOfWeek } from "./delivery-days";
 
-export type DayOfWeek = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+export type { DayOfWeek };
 export type DeliveryDate = { dateIso: string; dayOfWeek: DayOfWeek; weekStartIso: string };
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -35,6 +36,44 @@ export function subscriptionDeliveryDates(input: {
     d.setUTCDate(d.getUTCDate() + 1);
   }
   return out;
+}
+
+export type DatedTrip = { dateIso: string; day: DayOfWeek; units: number; days: DayOfWeek[] };
+
+/** Every delivery a subscription will get, from the same walk materializeDeliveries runs.
+ * `shifted` is true when the start week's earlier delivery days are skipped and land after the last full week. */
+export function subscriptionTrips(input: {
+  startDate: string;
+  durationWeeks: number;
+  deliveryDays: DayOfWeek[];
+  eatingDays: DayOfWeek[];
+}): { trips: DatedTrip[]; shifted: boolean } | null {
+  const week = planWeek(input.deliveryDays, input.eatingDays);
+  if (!week?.length || input.durationWeeks < 1) return null;
+  const byDay = new Map(week.map((t) => [t.day, t]));
+  const dates = subscriptionDeliveryDates({ startDate: input.startDate, durationWeeks: input.durationWeeks, deliveryDays: week.map((t) => t.day) });
+  if (!dates.length) return null;
+  const monday = mondayOfIso(input.startDate);
+  const shifted = week.some((t) => addDaysIso(monday, WEEK.indexOf(t.day)) < input.startDate);
+  return { trips: dates.map((d) => ({ dateIso: d.dateIso, ...byDay.get(d.dayOfWeek)! })), shifted };
+}
+
+/** Trips grouped into their Mon–Sun weeks, in order. */
+export function tripsByWeek(trips: DatedTrip[]): { weekStart: string; trips: DatedTrip[] }[] {
+  const weeks = new Map<string, DatedTrip[]>();
+  for (const t of trips) {
+    const key = mondayOfIso(t.dateIso);
+    weeks.set(key, [...(weeks.get(key) ?? []), t]);
+  }
+  return [...weeks].map(([weekStart, trips]) => ({ weekStart, trips }));
+}
+
+const WEEK: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+function addDaysIso(dateIso: string, n: number): string {
+  const d = parseIsoDateUtc(dateIso);
+  d.setUTCDate(d.getUTCDate() + n);
+  return iso(d);
 }
 
 // Monday of the calendar week containing `nowMs`, in app-settings `timezone`.

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
@@ -11,6 +12,10 @@ import { DateField } from "@/components/customer/date-field";
 import { earliestTrialIso, trialDeliveryDates } from "@/lib/trial/schedule";
 import { appToday } from "@/lib/services/start-date";
 import { TrialDayPicker } from "../trial-day-picker";
+import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { subscriptionTrips, tripsByWeek, type DatedTrip } from "@/lib/menu/delivery-dates";
+import { formatMenuWeekRange } from "@/lib/format/datetime";
+import { TripTimeline } from "../trip-timeline";
 
 function dayBefore(iso: string): string {
   const d = parseIsoDateUtc(iso);
@@ -55,6 +60,27 @@ export function StepDuration({
       if (allowed.includes(weekdayKey(d))) return d.toISOString().slice(0, 10);
     }
     return minDate;
+  })();
+  const freq = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
+  const schedule = (() => {
+    if (!selections.startDate) return null;
+    try {
+      if (trial) {
+        const days = multiDay ? picks : [weekdayKey(parseIsoDateUtc(selections.startDate))];
+        if (!days.length) return null;
+        const dates = trialDeliveryDates(selections.startDate, days.length, days);
+        return { trips: dates.map((d): DatedTrip => { const day = weekdayKey(parseIsoDateUtc(d)) as DayOfWeek; return { dateIso: d, day, units: 1, days: [day] }; }), shifted: false };
+      }
+      if (!freq || !selections.eatingDays?.length) return null;
+      return subscriptionTrips({
+        startDate: selections.startDate,
+        durationWeeks: selections.durationWeeks,
+        deliveryDays: orderDeliveryDays({ frequencyKey: freq.key, weekdays: freq.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false }),
+        eatingDays: selections.eatingDays as DayOfWeek[],
+      });
+    } catch {
+      return null;
+    }
   })();
   const savings = useMemo(() => durationSavings(catalog, selections), [catalog, selections]);
   // Pre-select the earliest selectable date; a stale or now-invalid pick is replaced too.
@@ -159,7 +185,7 @@ export function StepDuration({
           </p>
         ) : null}
       </div>
-      {trial ? (multiDay && <TrialLength trial={trial} picks={picks} selections={selections} set={set} />) : (
+      {trial ? (multiDay && <TrialLength trial={trial} picks={picks} set={set} />) : (
       <div>
         <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Commitment duration</p>
         <ChoiceGroup
@@ -185,42 +211,80 @@ export function StepDuration({
         </ChoiceGroup>
       </div>
       )}
+      {schedule && <ScheduleCard trips={schedule.trips} shifted={schedule.shifted} />}
     </div>
+  );
+}
+
+const H = "text-muted-foreground text-[13px] font-semibold tracking-[0.02em]";
+
+/** The Schedule step's timeline with real dates, one calendar week at a time across the whole plan. */
+function ScheduleCard({ trips, shifted }: { trips: DatedTrip[]; shifted: boolean }) {
+  const weeks = tripsByWeek(trips);
+  const [page, setPage] = useState(0);
+  // A new start date or duration reshapes the weeks; go back to the first.
+  const shape = `${trips[0]!.dateIso}:${trips.length}`;
+  const [seen, setSeen] = useState(shape);
+  if (seen !== shape) {
+    setSeen(shape);
+    setPage(0);
+  }
+  const i = Math.min(page, weeks.length - 1);
+  const w = weeks[i]!;
+  const last = i === weeks.length - 1;
+  const short = (iso: string) => formatDateOnly(iso, { mode: "short" });
+  const navBtn = "border-border hover:bg-muted grid size-8 place-items-center rounded-full border disabled:opacity-40 disabled:hover:bg-transparent";
+  return (
+    <section aria-labelledby="start-preview" className="bg-card border-border rounded-[20px] border p-5">
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+        <h2 id="start-preview" className={H}>How your tiffins arrive</h2>
+        <p className="text-sm">
+          <strong>{short(trips[0]!.dateIso)}</strong>
+          <span className="text-muted-foreground"> to </span>
+          <strong>{short(trips.at(-1)!.dateIso)}</strong>
+        </p>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <p className="text-[13px] font-semibold" aria-live="polite">
+          Week {i + 1} of {weeks.length}
+          <span className="text-muted-foreground font-normal"> · {formatMenuWeekRange(w.weekStart)}</span>
+        </p>
+        {weeks.length > 1 && (
+          <div className="flex gap-1.5">
+            <button type="button" className={navBtn} disabled={i === 0} onClick={() => setPage(i - 1)} aria-label="Previous week">
+              <ChevronLeft className="size-4" />
+            </button>
+            <button type="button" className={navBtn} disabled={last} onClick={() => setPage(i + 1)} aria-label="Next week">
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      <TripTimeline trips={w.trips} weekStart={w.weekStart} />
+      {last && shifted && weeks.length > 1 && (
+        <p className="text-muted-foreground mt-3 text-xs text-pretty">
+          Days in your first week before your start date are added here, so you still get every tiffin.
+        </p>
+      )}
+    </section>
   );
 }
 
 function TrialLength({
   trial,
   picks,
-  selections,
   set,
 }: {
   trial: { maxDays: number; weekdays: string[] };
   picks: string[];
-  selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
 }) {
-  let dates: string[] = [];
-  if (selections.startDate && picks.length) {
-    try {
-      dates = trialDeliveryDates(selections.startDate, picks.length, picks);
-    } catch {
-      dates = [];
-    }
-  }
   return (
     <div>
       <p className="text-muted-foreground text-[13px] font-semibold tracking-[0.02em]">Trial days</p>
       <div className="mt-3">
         <TrialDayPicker sendDays={trial.weekdays} maxDays={trial.maxDays} picked={picks} onChange={(days) => set({ eatingDays: days, trialDays: days.length })} />
       </div>
-      {dates.length > 0 && (
-        <ul className="mt-3 space-y-1 text-sm">
-          {dates.map((iso) => (
-            <li key={iso}>{formatDateOnly(iso, { mode: "short" })}</li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

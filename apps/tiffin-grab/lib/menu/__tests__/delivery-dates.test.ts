@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comingWeekStartIso, mondayOfIso, subscriptionDeliveryDates, thisWeekStartIso } from "../delivery-dates";
+import { comingWeekStartIso, mondayOfIso, subscriptionDeliveryDates, subscriptionTrips, thisWeekStartIso, tripsByWeek } from "../delivery-dates";
 
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 
@@ -48,5 +48,28 @@ describe("comingWeekStartIso", () => {
     // Wed 2026-06-24 12:00 UTC, Toronto → current week Mon = 06-22, coming = 06-29
     const now = Date.UTC(2026, 5, 24, 16); // ~noon Toronto
     expect(comingWeekStartIso(now, "America/Toronto")).toBe("2026-06-29");
+  });
+});
+
+describe("subscriptionTrips", () => {
+  const eat = [...WEEKDAYS];
+  const span = (r: ReturnType<typeof subscriptionTrips>) => r && { first: r.trips[0]!.dateIso, last: r.trips.at(-1)!.dateIso, shifted: r.shifted };
+  it("Tuesday start on a Mon–Fri plan moves the missed Monday after the last week", () => {
+    const r = subscriptionTrips({ startDate: "2026-10-06", durationWeeks: 2, deliveryDays: [...WEEKDAYS], eatingDays: eat });
+    expect(span(r)).toEqual({ first: "2026-10-06", last: "2026-10-19", shifted: true });
+    expect(tripsByWeek(r!.trips).map((w) => [w.weekStart, w.trips.map((t) => t.day)])).toEqual([
+      ["2026-10-05", ["tue", "wed", "thu", "fri"]],
+      ["2026-10-12", ["mon", "tue", "wed", "thu", "fri"]],
+      ["2026-10-19", ["mon"]],
+    ]);
+  });
+  it("Monday start fills whole weeks", () => {
+    expect(span(subscriptionTrips({ startDate: "2026-10-05", durationWeeks: 2, deliveryDays: [...WEEKDAYS], eatingDays: eat })))
+      .toEqual({ first: "2026-10-05", last: "2026-10-16", shifted: false });
+  });
+  it("MWF trips: Tuesday start first delivers Wednesday, Monday trip lands at the end carrying Mon+Tue", () => {
+    const r = subscriptionTrips({ startDate: "2026-10-06", durationWeeks: 1, deliveryDays: ["mon", "wed", "fri"], eatingDays: eat });
+    expect(span(r)).toEqual({ first: "2026-10-07", last: "2026-10-12", shifted: true });
+    expect(r!.trips.at(-1)).toEqual({ dateIso: "2026-10-12", day: "mon", units: 2, days: ["mon", "tue"] });
   });
 });
