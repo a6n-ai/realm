@@ -25,8 +25,17 @@ const MARK = "disc-it";
 let sessionId: bigint;
 let occurrencePublicId: string;
 let userPublicIds: string[];
+// Discounts already active in the dev DB would also apply; park them for the test.
+let parkedDiscountIds: bigint[] = [];
 
 beforeEach(async () => {
+  parkedDiscountIds = (
+    await db
+      .update(schema.discounts)
+      .set({ active: false })
+      .where(eq(schema.discounts.active, true))
+      .returning({ id: schema.discounts.id })
+  ).map((d) => d.id);
   const fams = await db
     .insert(schema.users)
     .values([1, 2].map((i) => ({ name: `${MARK} ${i}`, email: `${MARK}-${i}@example.test`, role: "user" as const })))
@@ -71,6 +80,9 @@ afterEach(async () => {
   await db.delete(schema.studioSessionOccurrences).where(eq(schema.studioSessionOccurrences.sessionId, sessionId));
   await db.delete(schema.studioSessions).where(eq(schema.studioSessions.id, sessionId));
   if (userIds.length) await db.delete(schema.users).where(inArray(schema.users.id, userIds));
+  if (parkedDiscountIds.length) {
+    await db.update(schema.discounts).set({ active: true }).where(inArray(schema.discounts.id, parkedDiscountIds));
+  }
 });
 
 describe("createForUser with discounts", () => {
