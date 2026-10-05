@@ -37,9 +37,10 @@ import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { appToday } from "@/lib/services/start-date";
-import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialDeliveryDates, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
+import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
 import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo } from "./actions";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
+import { plannedSchedule, ScheduleCard } from "@/components/wizard/schedule-card";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
 
 const APP_NAME = "Tiffin Grab";
@@ -268,14 +269,23 @@ export function OrderForm({
   const multiDayTrial = trialMax > 1;
   const trialFrequencyName = catalog.frequencies.find((f) => f.key === trialSettings?.frequencyKey)?.name;
   const trialKey = `${trialWeekdays.join()}|${trialMax}`;
-  const startDay = startDate ? (weekdayKey(parseIsoDateUtc(startDate)) as DayOfWeek) : null;
+  // A typed date passes through partial years (0002-10-06) that the parser rejects; treat those as no date yet.
+  const startDay = (() => {
+    try {
+      return startDate ? (weekdayKey(parseIsoDateUtc(startDate)) as DayOfWeek) : null;
+    } catch {
+      return null;
+    }
+  })();
   // A one-day trial has nothing to pick: the start date is the day.
   const trialPicks = multiDayTrial ? pickedDays : startDay && trialWeekdays.includes(startDay) ? [startDay] : [];
   const trialStartOk = !isTrial || (!!startDay && trialPicks.includes(startDay));
-  const trialDates = (() => {
-    if (!isTrial || !trialStartOk) return [];
-    try { return trialDeliveryDates(startDate, trialPicks.length, trialPicks); } catch { return []; }
-  })();
+  const freqRow = deliveryFrequencies.find((f) => f.key === frequencyKey);
+  const schedule = plannedSchedule(
+    isTrial
+      ? { kind: "trial", startDate, picks: trialStartOk ? trialPicks : [] }
+      : { kind: "weekly", startDate, durationWeeks: Number(durationWeeks), frequency: freqRow ? { key: freqRow.key, weekdays: freqRow.weekdays ?? null } : null, eatingDays },
+  );
 
   // Keep the picks inside the send days and the max; default to the first send day.
   useEffect(() => {
@@ -699,15 +709,15 @@ export function OrderForm({
                   />
                 </>
               )}
-              <p className={cn("text-xs text-pretty", trialOpen && startDate && !trialStartOk ? "text-destructive" : "text-muted-foreground")}>
-                {!trialOpen
-                  ? "Set a max and send days on Meal sizes → Trial before creating a trial order."
-                  : !startDate
-                    ? `Trials go out ${trialWeekdays.map(dayName).join(", ")}. Pick a start date.`
-                    : !trialStartOk
-                      ? `Start on ${(multiDayTrial ? pickedDays : trialWeekdays).map(dayName).join(" or ")}.`
-                      : `Arrives ${trialDates.map((iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })).join(" · ")}.`}
-              </p>
+              {!(trialOpen && startDate && trialStartOk) && (
+                <p className={cn("text-xs text-pretty", trialOpen && startDate ? "text-destructive" : "text-muted-foreground")}>
+                  {!trialOpen
+                    ? "Set a max and send days on Meal sizes → Trial before creating a trial order."
+                    : !startDate
+                      ? `Trials go out ${trialWeekdays.map(dayName).join(", ")}. Pick a start date.`
+                      : `Start on ${(multiDayTrial ? pickedDays : trialWeekdays).map(dayName).join(" or ")}.`}
+                </p>
+              )}
             </fieldset>
           )}
 
@@ -765,6 +775,7 @@ export function OrderForm({
               bounds={bounds}
             />
           </fieldset>}
+          {schedule && <ScheduleCard trips={schedule.trips} shifted={schedule.shifted} />}
           </FormSection>
 
           <FormSection hidden={page === "order"} title="Delivery" hint="Where it goes, notes for the driver, and how it's dropped off.">
