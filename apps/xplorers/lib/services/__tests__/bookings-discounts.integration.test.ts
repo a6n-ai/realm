@@ -20,6 +20,8 @@ vi.mock("@/lib/services/payments.service", async (orig) => {
 const { db } = await import("@/db/client");
 const schema = await import("@/db/schema");
 const { bookingsService } = await import("../bookings.service");
+const { couponsService, discountsService } = await import("../discounts.service");
+const { paymentsService } = await import("../payments.service");
 
 const MARK = "disc-it";
 let sessionId: bigint;
@@ -128,5 +130,36 @@ describe("createForUser with discounts", () => {
     const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
     expect(pay!.amount).toBe("15.00");
     expect(b.pricing?.adjustments).toEqual([expect.objectContaining({ kind: "discount", amount: 5 })]);
+  });
+});
+
+describe("discount and coupon updates", () => {
+  it("keeps fields a partial update does not send", async () => {
+    const [cls] = await db
+      .select({ publicId: schema.studioSessions.publicId })
+      .from(schema.studioSessions)
+      .where(eq(schema.studioSessions.id, sessionId));
+    const d = await discountsService.create({ name: `${MARK} one class`, scope: "session", sessionPublicId: cls!.publicId, percentOff: "10", stackable: false });
+    const renamed = await discountsService.update(d.publicId, { name: `${MARK} renamed`, percentOff: "15" });
+    expect(renamed).toMatchObject({ scope: "session", sessionId, stackable: false, active: true, percentOff: "15.00" });
+    const off = await discountsService.update(d.publicId, { active: false });
+    expect(off).toMatchObject({ name: `${MARK} renamed`, scope: "session", active: false });
+
+    const c = await couponsService.create({ code: "DISCIT9", name: `${MARK} c`, amountOff: "5", maxRedemptions: "3" });
+    expect(await couponsService.update(c.publicId, { active: false })).toMatchObject({ code: "DISCIT9", maxRedemptions: 3, active: false });
+  });
+});
+
+describe("quoteForOccurrence", () => {
+  it("quotes a class as free when no payment method is enabled, like the booking does", async () => {
+    await db.insert(schema.discounts).values({ name: `${MARK} kids`, scope: "category", category: "kids", percentOff: "25.00" });
+    const rails = paymentsService.enabledRails;
+    paymentsService.enabledRails = async () => [];
+    try {
+      const q = await discountsService.quoteForOccurrence(occurrencePublicId, 1, null, userPublicIds[0]!);
+      expect(q).toMatchObject({ subtotal: 0, adjustments: [], total: 0 });
+    } finally {
+      paymentsService.enabledRails = rails;
+    }
   });
 });

@@ -5,9 +5,16 @@ vi.mock("@/lib/auth/session", () => ({
 }));
 const quote = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/services/discounts.service", () => ({ discountsService: { quoteForOccurrence: quote } }));
-vi.mock("@/lib/services/bookings.service", () => ({ bookingsService: {} }));
+const createForUser = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/services/bookings.service", () => ({ bookingsService: { createForUser } }));
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    throw new Error(`REDIRECT ${url}`);
+  },
+}));
+vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
-const { quoteBookingAction } = await import("../actions");
+const { createBookingAction, quoteBookingAction } = await import("../actions");
 
 describe("quoteBookingAction", () => {
   it("stops a family from guessing codes after too many tries", async () => {
@@ -23,5 +30,16 @@ describe("quoteBookingAction", () => {
     quote.mockClear();
     expect((await quoteBookingAction("occ_1", 1, "")).error).toBeUndefined();
     expect(quote).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createBookingAction", () => {
+  it("still books after the preview limit is spent; the server re-checks the code", async () => {
+    createForUser.mockResolvedValue({ paymentPublicId: "pay_1", codeError: null });
+    const fd = new FormData();
+    fd.set("occurrencePublicId", "occ_1");
+    fd.set("code", "GUESS99");
+    await expect(createBookingAction({}, fd)).rejects.toThrow("REDIRECT /me/pay/pay_1");
+    expect(createForUser).toHaveBeenCalledWith("usr_code_guess", "occ_1", 1, { code: "GUESS99" });
   });
 });

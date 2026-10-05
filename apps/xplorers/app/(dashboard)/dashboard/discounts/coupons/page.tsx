@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/purity */
 import Link from "next/link";
 import { SectionCard } from "@foundry/design-system";
+import { requirePermission } from "@/lib/auth/guards";
 import { Button } from "@foundry/ui/button";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { couponsService } from "@/lib/services/discounts.service";
@@ -8,6 +9,7 @@ import { canEditDiscounts } from "../discounts-header";
 import { CouponsManager } from "./coupons-manager";
 
 export default async function CouponsPage() {
+  await requirePermission({ discount: ["read"] });
   const [coupons, canEdit, { timezone }] = await Promise.all([couponsService.listAll(), canEditDiscounts(), getAppClock()]);
   return (
     <SectionCard

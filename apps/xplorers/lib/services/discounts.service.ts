@@ -166,9 +166,28 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
     return super.create(normalizeDiscountWrite(values, sessionId));
   }
 
+  /** Fields the patch leaves out keep their stored value, so a partial PATCH never resets scope or flags. */
   async update(publicId: string, patch: Record<string, unknown>): Promise<DiscountRow> {
-    const sessionId = await this.resolveSessionId((patch.sessionPublicId as string | undefined) ?? null);
-    return super.update(publicId, normalizeDiscountWrite(patch, sessionId));
+    const cur = await this.repo.findByPublicId(publicId);
+    if (!cur) throw new ValidationError("Discount not found.");
+    const merged = {
+      name: cur.name,
+      scope: cur.scope,
+      category: cur.category,
+      percentOff: cur.percentOff,
+      amountOff: cur.amountOff,
+      minSubtotal: cur.minSubtotal,
+      startsAt: cur.startsAt,
+      endsAt: cur.endsAt,
+      stackable: cur.stackable,
+      active: cur.active,
+      ...patch,
+    };
+    const sessionId =
+      "sessionPublicId" in patch
+        ? await this.resolveSessionId((patch.sessionPublicId as string | null) ?? null)
+        : cur.sessionId;
+    return super.update(publicId, normalizeDiscountWrite(merged, sessionId));
   }
 
   async listAll(): Promise<Array<DiscountRow & { sessionTitle: string | null; sessionPublicId: string | null }>> {
@@ -226,7 +245,12 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
       getAppClock(),
       getDiscountSettings(),
     ]);
-    const method = rails.length ? (findMethod(cfg, rails[0]!.id) ?? rails[0]!) : null;
+    // Same rule as booking: no payment rail or no price means the class is free.
+    const unit = Number(row.priceAmount);
+    if (!rails.length || !Number.isFinite(unit) || unit <= 0) {
+      return { subtotal: 0, adjustments: [], discountTotal: 0, taxTotal: 0, total: 0, codeError: null, currency };
+    }
+    const method = findMethod(cfg, rails[0]!.id) ?? rails[0]!;
     const rules = await db.transaction((tx) => this.loadPricing(tx, { code, userId: user?.id ?? null, lock: false }));
     const quote = priceBooking({
       unitPrice: row.priceAmount,
@@ -250,8 +274,25 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     return super.create(normalized);
   }
 
+  /** Fields the patch leaves out keep their stored value. */
   async update(publicId: string, patch: Record<string, unknown>): Promise<CouponRow> {
-    const normalized = normalizeCouponWrite(patch);
+    const cur = await this.repo.findByPublicId(publicId);
+    if (!cur) throw new ValidationError("Coupon not found.");
+    const normalized = normalizeCouponWrite({
+      code: cur.code,
+      name: cur.name,
+      percentOff: cur.percentOff,
+      amountOff: cur.amountOff,
+      minSubtotal: cur.minSubtotal,
+      maxRedemptions: cur.maxRedemptions,
+      maxPerUser: cur.maxPerUser,
+      allowedPaymentMethods: cur.allowedPaymentMethods,
+      startsAt: cur.startsAt,
+      expiresAt: cur.expiresAt,
+      stackable: cur.stackable,
+      active: cur.active,
+      ...patch,
+    });
     await this.assertCodeFree(normalized.code as string, publicId);
     return super.update(publicId, normalized);
   }

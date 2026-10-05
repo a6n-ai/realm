@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { normalizeCap } from "../app-settings.service";
 import { normalizeCode, normalizeCouponWrite, normalizeDiscountWrite } from "../discounts.service";
 
 describe("normalizeCode", () => {
@@ -63,5 +64,15 @@ describe("normalizeCouponWrite", () => {
 
   it("rejects non-positive limits", () => {
     expect(() => normalizeCouponWrite({ code: "ABC", name: "X", amountOff: "5", maxRedemptions: "0" })).toThrow(/limit/i);
+  });
+});
+
+describe("normalizeCap", () => {
+  it("rejects an empty cap instead of saving 0%", () => {
+    expect(() => normalizeCap("")).toThrow(/cap/i);
+    expect(() => normalizeCap("abc")).toThrow(/cap/i);
+    expect(() => normalizeCap("101")).toThrow(/cap/i);
+    expect(normalizeCap("25")).toBe(25);
+    expect(normalizeCap("0")).toBe(0);
   });
 });

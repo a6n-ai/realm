@@ -15,6 +15,7 @@ export function DiscountCapForm({ value, canEdit }: { value: number; canEdit: bo
         <Input
           id="maxDiscountPct"
           name="maxDiscountPct"
+          required
           type="number"
           min={0}
           max={100}

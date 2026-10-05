@@ -97,9 +97,18 @@ export async function getDiscountSettings(): Promise<DiscountSettings> {
   return { maxDiscountPct: row?.ds?.maxDiscountPct ?? 100 };
 }
 
-export async function setDiscountSettings(input: DiscountSettings): Promise<void> {
-  const pct = Number(input.maxDiscountPct);
-  if (!Number.isFinite(pct) || pct < 0 || pct > 100) throw new ValidationError("Cap must be between 0 and 100.");
+/** An empty field must not save as 0%, which would switch every discount off. */
+export function normalizeCap(raw: unknown): number {
+  const text = String(raw ?? "").trim();
+  const pct = Number(text);
+  if (text === "" || !Number.isFinite(pct) || pct < 0 || pct > 100) {
+    throw new ValidationError("Cap must be a number between 0 and 100.");
+  }
+  return pct;
+}
+
+export async function setDiscountSettings(input: { maxDiscountPct: unknown }): Promise<void> {
+  const pct = normalizeCap(input.maxDiscountPct);
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (!row) throw new ValidationError("App settings are not initialized.");
   await appSettingsEntity.update(row.publicId, { discountSettings: { maxDiscountPct: pct } });

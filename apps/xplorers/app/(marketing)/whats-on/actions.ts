@@ -15,7 +15,7 @@ const CODE_TRY_LIMIT = 20;
 const CODE_TRY_WINDOW_MS = 10 * 60_000;
 const TOO_MANY_TRIES = "Too many code tries. Wait a few minutes and try again.";
 
-/** Caps code guessing per family; previews and bookings share the bucket. */
+/** Caps code guessing per family through the preview. */
 function codeTriesExceeded(userPublicId: string, code: string): boolean {
   return code.trim() !== "" && isRateLimited(userPublicId, CODE_TRY_LIMIT, CODE_TRY_WINDOW_MS, "coupon-code");
 }
@@ -54,8 +54,8 @@ export async function createBookingAction(_prev: BookState, formData: FormData):
 
   const raw = formData.get("seats");
   const seats = raw == null || String(raw).trim() === "" ? 1 : Number(raw);
+  // Not rate limited: each booking is one per family per day, and the server re-checks the code.
   const code = String(formData.get("code") ?? "");
-  if (codeTriesExceeded(auth.user.id, code)) return { error: TOO_MANY_TRIES };
 
   try {
     const booking = await bookingsService.createForUser(auth.user.id, occurrencePublicId, seats, { code });
