@@ -339,4 +339,12 @@ describe("dailyLabelSheet (integration)", () => {
     expect(sheet.labels).toEqual([]);
     expect(sheet.counts).toEqual([]);
   });
+
+  it("labels a prepaid zero-total order with no payment row (WordPress migration)", async () => {
+    await db.delete(payments).where(eq(payments.orderId, order.id));
+    expect((await dailyLabelSheet(MONDAY)).labels).toEqual([]);
+
+    await db.update(orders).set({ total: "0" }).where(eq(orders.id, order.id));
+    expect((await dailyLabelSheet(MONDAY)).labels).toHaveLength(1);
+  });
 });
