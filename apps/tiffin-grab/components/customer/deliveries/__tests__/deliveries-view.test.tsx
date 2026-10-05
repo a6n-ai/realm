@@ -171,23 +171,22 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
   });
   it("strip marks the delivery day with a truck; other eating days have none", () => {
     multi();
-    const strip = within(screen.getByTestId("week-strip"));
+    const strip = within(screen.getByTestId("week-timeline"));
     expect(strip.getByRole("button", { name: /Monday, September 21, eating, Upcoming, delivery arrives/ })).toBeInTheDocument();
     expect(strip.getByRole("button", { name: /Tuesday, September 22, eating, Upcoming$/ })).toBeInTheDocument();
   });
   it("Next delivery card always shows the upcoming delivery; the tapped eating day's delivery card is below the list", () => {
     multi();
     expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21, 2 tiffins (Mon + Tue)");
-    fireEvent.click(within(screen.getByTestId("week-strip")).getByRole("button", { name: /Tuesday, September 22/ }));
+    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
     expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21");
     expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Mon, Sep 21 with Mon");
   });
-  it("tapping a day in another week updates ?week via router.replace", () => {
+  it("the next-week arrow updates ?week via router.replace", () => {
     replace.mockClear();
     multi();
-    fireEvent.click(within(screen.getByTestId("week-strip")).getByRole("button", { name: /Monday, October 5/ }));
-    expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
-    expect(replace.mock.calls[0]![0]).toContain("trip=2026-10-05");
+    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: "Next week" }));
+    expect(replace.mock.calls[0]![0]).toContain("week=2026-09-28");
   });
   it("a moved bundle shows on the Friday it arrives, not as nothing planned", () => {
     const arriving = trip({
@@ -213,7 +212,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
       trip({ date: wed, coversDates: [wed] }),
     ];
     view(thu, moved, plan, { agenda, weekStart: mon, firstWeek: mon, lastWeek: "2026-10-12", initialTrip: thu });
-    const strip = within(screen.getByTestId("week-strip"));
+    const strip = within(screen.getByTestId("week-timeline"));
     expect(strip.getByRole("button", { name: /Wednesday, September 30, eating, Upcoming, delivery arrives/ })).toBeInTheDocument();
     expect(strip.getByRole("button", { name: /Monday, September 28, eating, Upcoming, delivery arrives/ })).toBeInTheDocument();
     expect(strip.getByRole("button", { name: /Tuesday, September 29, eating, Upcoming, delivery arrives/ })).toBeInTheDocument();
@@ -222,7 +221,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
   });
   it("tapping a no-delivery day says so", () => {
     multi();
-    fireEvent.click(within(screen.getByTestId("week-strip")).getByRole("button", { name: /Saturday, September 26/ }));
+    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Saturday, September 26/ }));
     expect(screen.getByText("Nothing planned on Sat, Sep 26.")).toBeInTheDocument();
   });
   it("empty week names the next day with a Go to button", () => {
@@ -266,7 +265,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     const rows = screen.getAllByTestId("trip-row");
     expect(rows.length).toBeGreaterThan(0);
     expect(within(rows[0]!).getByText("Menu not released yet")).toBeInTheDocument();
-    expect(screen.getByTestId("week-strip")).toBeInTheDocument();
+    expect(screen.getByTestId("week-timeline")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: /Edit meal/ })[0]!);
     expect(screen.queryByRole("dialog", { name: "Edit meal" })).toBeNull();
     expect(screen.getAllByText("Menu not released yet.").length).toBeGreaterThan(0);
