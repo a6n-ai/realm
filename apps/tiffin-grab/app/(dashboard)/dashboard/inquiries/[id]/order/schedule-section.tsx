@@ -1,12 +1,10 @@
 "use client";
 
 import { cn } from "@foundry/ui/cn";
-import { eatingDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 export const dayName = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
-const list = (days: string[]) =>
-  days.length <= 1 ? days.map(dayName).join("") : `${days.slice(0, -1).map(dayName).join(", ")} and ${dayName(days[days.length - 1]!)}`;
 
 export interface ScheduleFrequency {
   key: string;
@@ -30,9 +28,6 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
   const deliveryDays = frequencies.find((f) => f.key === frequencyKey)?.weekdays ?? [];
   const enough = eatingDays.length >= bounds.min;
   const error = enough ? eatingDaysError(deliveryDays, eatingDays, bounds) : null;
-  const trips = planWeek(deliveryDays, eatingDays) ?? [];
-  // Only trips that carry more than their own day need saying; one tiffin a day is the default.
-  const combined = trips.filter((t) => t.days.length > 1);
 
   return (
     <div className="grid gap-5">
@@ -79,15 +74,9 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
           onToggle={onToggleDay}
           isDisabled={(_, on) => !on && eatingDays.length >= bounds.max}
         />
-        {error || !enough ? (
+        {(error || !enough) && (
           <p role="alert" className="text-destructive text-xs">{error ?? `Pick ${bounds.min} to ${bounds.max} eating days a week.`}</p>
-        ) : trips.length ? (
-          <p className="text-muted-foreground text-xs text-pretty">
-            {combined.length === 0
-              ? "One tiffin arrives on each eating day."
-              : combined.map((t) => `${dayName(t.day)} brings ${list(t.days)}`).join(". ") + "."}
-          </p>
-        ) : null}
+        )}
       </div>
     </div>
   );
