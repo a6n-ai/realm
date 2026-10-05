@@ -171,10 +171,6 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
     return super.update(publicId, normalizeDiscountWrite(patch, sessionId));
   }
 
-  setActive(publicId: string, active: boolean): Promise<DiscountRow> {
-    return super.update(publicId, { active });
-  }
-
   async listAll(): Promise<Array<DiscountRow & { sessionTitle: string | null; sessionPublicId: string | null }>> {
     return db
       .select({ ...getTableColumns(discounts), sessionTitle: studioSessions.title, sessionPublicId: studioSessions.publicId })
@@ -258,10 +254,6 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     const normalized = normalizeCouponWrite(patch);
     await this.assertCodeFree(normalized.code as string, publicId);
     return super.update(publicId, normalized);
-  }
-
-  setActive(publicId: string, active: boolean): Promise<CouponRow> {
-    return super.update(publicId, { active });
   }
 
   listAll(): Promise<CouponRow[]> {
