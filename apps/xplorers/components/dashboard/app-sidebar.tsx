@@ -10,6 +10,7 @@ import {
   ScrollTextIcon,
   SettingsIcon,
   ShapesIcon,
+  TicketPercentIcon,
   UserIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -42,6 +43,8 @@ export type NavItem = {
   href: string;
   icon: LucideIcon;
   permission?: string;
+  /** Other path prefixes that also mark this item active. */
+  also?: string[];
 };
 export type NavSection = { label: string; items: NavItem[] };
 
@@ -57,6 +60,13 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
   const finance: NavItem[] = [
     { title: "Payments", href: "/dashboard/finance/payments", icon: CreditCardIcon, permission: "settings:write" },
     { title: "Ledger", href: "/dashboard/finance/ledger", icon: ScrollTextIcon, permission: "settings:write" },
+    {
+      title: "Discounts",
+      href: "/dashboard/discounts",
+      icon: TicketPercentIcon,
+      permission: "discount:read",
+      also: ["/dashboard/catalog/discounts"],
+    },
   ].filter(allow);
   const admin: NavItem[] = [
     { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:write" },
@@ -94,7 +104,10 @@ export function AppSidebar({
             <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
             <SidebarMenu>
               {section.items.map((item) => {
-                const active = item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
+                const active =
+                  item.href === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : pathname.startsWith(item.href) || (item.also?.some((p) => pathname.startsWith(p)) ?? false);
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton asChild isActive={active}>

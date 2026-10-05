@@ -16,6 +16,13 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
+// One-time squashes. xplorers 0000-0006 (hand-written, hand-typed `when`, no
+// snapshots) became one drizzle-generated baseline on 2026-10-05, with prod's
+// __drizzle_migrations rows replaced to match. The base comparison is skipped
+// only while the base journal still starts at the pre-squash `when`, so every
+// later change is checked normally.
+const SQUASHED_FROM = { xplorers: 1774000000000 };
+
 const base = process.argv[2] && !/^0+$/.test(process.argv[2]) ? process.argv[2] : null;
 const now = Date.now();
 const errors = [];
@@ -40,7 +47,8 @@ for (const app of readdirSync("apps")) {
   });
 
   const baseJson = base ? gitShow(base, journalPath) : null;
-  const baseEntries = baseJson ? JSON.parse(baseJson).entries : [];
+  const parsedBase = baseJson ? JSON.parse(baseJson).entries : [];
+  const baseEntries = parsedBase[0]?.when === SQUASHED_FROM[app] ? [] : parsedBase;
   const known = new Set(baseEntries.map((e) => e.tag));
 
   baseEntries.forEach((b, i) => {

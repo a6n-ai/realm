@@ -4,16 +4,23 @@ import { notFound } from "next/navigation";
 import { CreditCardIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
-import { Role } from "@foundry/commons";
+import { formatMoney, Role } from "@foundry/commons";
+import { CODE_ERROR_MESSAGE, type CodeError } from "@/lib/discounts/quote";
 import { getSession } from "@/lib/auth/session";
 import { paymentsService } from "@/lib/services/payments.service";
 import { providerFor } from "@foundry/payments";
 import { ClaimForm } from "../claim-form";
 
-export default async function PayPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PayPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ codeError?: string }>;
+}) {
   const auth = await getSession();
   if (!auth?.user || auth.user.role !== Role.USER) notFound();
-  const { id } = await params;
+  const [{ id }, { codeError }] = await Promise.all([params, searchParams]);
   const payment = await paymentsService.readForFamily(id, auth.user.id).catch(() => null);
   if (!payment) notFound();
 
@@ -50,6 +57,29 @@ export default async function PayPage({ params }: { params: Promise<{ id: string
     <PageShell>
       <PageHeader icon={CreditCardIcon} title="Pay for your booking" subtitle={`Reference ${payment.bookingPublicId}`} />
       <SectionCard title={payment.methodConfig.label}>
+        {codeError && codeError in CODE_ERROR_MESSAGE ? (
+          <p className="mb-3 text-sm">Your code wasn&apos;t applied: {CODE_ERROR_MESSAGE[codeError as CodeError]}</p>
+        ) : null}
+        {payment.pricing && payment.pricing.adjustments.length ? (
+          <dl className="text-muted-foreground mb-3 grid gap-1 text-sm">
+            <div className="flex justify-between">
+              <dt>Subtotal</dt>
+              <dd className="tabular-nums">{formatMoney(payment.pricing.subtotal, payment.currency)}</dd>
+            </div>
+            {payment.pricing.adjustments.map((a) => (
+              <div key={a.kind + a.publicId} className="flex justify-between">
+                <dt>{a.code ? `Code ${a.code}` : a.name}</dt>
+                <dd className="tabular-nums">−{formatMoney(a.amount, payment.currency)}</dd>
+              </div>
+            ))}
+            {payment.pricing.taxTotal > 0 ? (
+              <div className="flex justify-between">
+                <dt>Tax</dt>
+                <dd className="tabular-nums">{formatMoney(payment.pricing.taxTotal, payment.currency)}</dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
         <p className="text-2xl font-semibold tabular-nums">
           {payment.currency} {payment.amount}
         </p>

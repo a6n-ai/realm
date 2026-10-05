@@ -144,6 +144,17 @@ describe("hasVegConflict", () => {
 });
 
 describe("dedupeByPhone", () => {
+  it("never sums two people on one phone as a renewal", () => {
+    const a = mapRow(row({ id: 1, firstName: "Chirag", lastName: "Pathak SD17(FM)", totalTiffins: "8" }));
+    const b = mapRow(row({ id: 2, firstName: "Bela", lastName: "Pathak SD17(FM)", totalTiffins: "8" }));
+    const { kept, dropped } = dedupeByPhone([a, b]);
+    expect(kept).toHaveLength(1);
+    expect(kept[0]).toMatchObject({ wpOrderId: 1, tiffinCount: 8, mergedWpOrderIds: [] });
+    expect(dropped.map((r) => r.wpOrderId)).toEqual([2]);
+    const renewal = dedupeByPhone([a, mapRow(row({ id: 3, firstName: "chirag", lastName: "Pathak", totalTiffins: "20" }))]);
+    expect(renewal.kept[0]).toMatchObject({ tiffinCount: 28, mergedWpOrderIds: [3] });
+  });
+
   it("adds a same-plan renewal's balance to the running plan", () => {
     const { kept, dropped } = dedupeByPhone([mapRow(row({ id: 1, totalTiffins: "5" })), mapRow(row({ id: 2, totalTiffins: "20" }))]);
     expect(kept).toHaveLength(1);
@@ -230,11 +241,11 @@ describe("planSeed custom meals", () => {
     ]);
   });
 
-  it("keeps each extra sabzi on its own diet and puts roti/rice/raita on the meal's diet", () => {
+  it("keeps each extra sabzi on its own diet; extra roti/rice join the base row and raita is veg", () => {
     const { results } = planSeed([row({ products: "4 Item Non-Veg Thali Meal (Regular)", veg: "Non-Veg", addons: "4 Rotis + 1 Veg (12oz) + 1 Raita" })], snapshot, units);
     const planned = results[0];
     expect(planned.kind === "planned" && planned.customItems).toEqual([
-      { category: "raita", planKey: "non-veg", tuAmount: 1 },
+      { category: "raita", planKey: "veg", tuAmount: 1 },
       { category: "rice", planKey: "non-veg", tuAmount: 1 },
       { category: "roti", planKey: "non-veg", tuAmount: 2.5 },
       { category: "sabzi", planKey: "non-veg", tuAmount: 1 },

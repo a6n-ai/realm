@@ -630,6 +630,9 @@ importers:
       '@foundry/commons':
         specifier: github:a6n-ai/foundry#path:packages/commons
         version: https://codeload.github.com/a6n-ai/foundry/tar.gz/20d9ec999a5760743c3cdd4ff554d0993c078044#path:packages/commons
+      '@foundry/coupons':
+        specifier: github:a6n-ai/foundry#path:packages/coupons
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/b8c70efff740df1837d705ecd894f85b607d2a58#path:packages/coupons
       '@foundry/crm':
         specifier: github:a6n-ai/foundry#path:packages/crm
         version: https://codeload.github.com/a6n-ai/foundry/tar.gz/e4981de3e9c631c57d17c57798ab65b95f3c4f90#path:packages/crm(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1928,6 +1931,10 @@ packages:
 
   '@foundry/coupons@https://codeload.github.com/a6n-ai/foundry/tar.gz/7bcae9655d25712f9bdf5412e2179ba7ef984aef#path:packages/coupons':
     resolution: {gitHosted: true, integrity: sha512-66YyDQP2+UhfaB9oUIjd65IjNL57J1p3lSN0+V7Gbsk95KsHEuKYMlH8FAzoyzPqKbNc8tYMBgJAKhtxNkT/bw==, path: packages/coupons, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/7bcae9655d25712f9bdf5412e2179ba7ef984aef}
+    version: 0.0.0
+
+  '@foundry/coupons@https://codeload.github.com/a6n-ai/foundry/tar.gz/b8c70efff740df1837d705ecd894f85b607d2a58#path:packages/coupons':
+    resolution: {gitHosted: true, integrity: sha512-0G2t7SmyhAMBCw15Bpfjy1bkF6duG2ZS2AeP+rttLx4muJHJy5Jfuatb9CgBK0YOu5Eyza2F6jnS79i7+CnKXQ==, path: packages/coupons, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/b8c70efff740df1837d705ecd894f85b607d2a58}
     version: 0.0.0
 
   '@foundry/crm@https://codeload.github.com/a6n-ai/foundry/tar.gz/20d9ec999a5760743c3cdd4ff554d0993c078044#path:packages/crm':
@@ -10176,6 +10183,8 @@ snapshots:
   '@foundry/coupons@https://codeload.github.com/a6n-ai/foundry/tar.gz/71c0dc1b3591fb7049477dfb4ff5a9c958eec4e6#path:packages/coupons': {}
 
   '@foundry/coupons@https://codeload.github.com/a6n-ai/foundry/tar.gz/7bcae9655d25712f9bdf5412e2179ba7ef984aef#path:packages/coupons': {}
+
+  '@foundry/coupons@https://codeload.github.com/a6n-ai/foundry/tar.gz/b8c70efff740df1837d705ecd894f85b607d2a58#path:packages/coupons': {}
 
   '@foundry/crm@https://codeload.github.com/a6n-ai/foundry/tar.gz/20d9ec999a5760743c3cdd4ff554d0993c078044#path:packages/crm(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
