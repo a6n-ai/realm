@@ -1,5 +1,5 @@
 export const NAV = [
-  { href: "/#programmes", label: "Programmes" },
+  { href: "/classes", label: "Classes" },
   { href: "/whats-on", label: "What's on" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/the-place", label: "Our little space" },

@@ -1,5 +1,6 @@
 import type { AttendanceMode, SessionCategory } from "@/db/schema/studio";
 import type { PublicSession } from "@/lib/services/studio-sessions.service";
+import { formatMoney } from "@foundry/commons";
 import { dayKey } from "./timezone";
 
 export type BoardTone = "muted" | "action" | "ink";
@@ -139,4 +140,65 @@ export function groupSessionsByDay(
     });
   }
   return groups;
+}
+
+/** A bookable class on the public Classes pages, with its upcoming dates. */
+export type PublicClass = {
+  publicId: string;
+  title: string;
+  category: SessionCategory;
+  audience: string | null;
+  description: string | null;
+  photos: string[];
+  price: string;
+  location: string | null;
+  /** First upcoming date, or null when nothing is scheduled. */
+  nextDate: string | null;
+  sessions: PublicSessionCard[];
+};
+
+type ClassFields = Pick<
+  PublicSession,
+  "publicId" | "title" | "category" | "audience" | "description" | "photos" | "priceDisplay" | "priceAmount" | "location"
+>;
+
+/** Classes with dates come first (soonest first); unscheduled ones follow by title. */
+function priceLabel(c: ClassFields, currency: string): string {
+  if (c.priceDisplay?.trim()) return c.priceDisplay;
+  const amount = Number(c.priceAmount);
+  return Number.isFinite(amount) && amount > 0 ? formatMoney(amount, currency) : "Free";
+}
+
+export function groupPublicClasses(
+  classes: ClassFields[],
+  sessions: PublicSession[],
+  timeZone: string,
+  currency: string,
+): PublicClass[] {
+  const byClass = new Map<string, PublicSession[]>();
+  for (const s of sessions) byClass.set(s.publicId, [...(byClass.get(s.publicId) ?? []), s]);
+
+  return classes
+    .map((c) => {
+      const upcoming = (byClass.get(c.publicId) ?? []).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+      return {
+        publicId: c.publicId,
+        title: c.title,
+        category: c.category,
+        audience: c.audience,
+        description: c.description,
+        photos: c.photos ?? [],
+        price: priceLabel(c, currency),
+        location: c.location,
+        nextDate: upcoming[0] ? formatSessionDay(upcoming[0].startsAt, timeZone) : null,
+        // Rows span several days on a class page, so the day leads the time.
+        sessions: upcoming.map((s) => {
+          const card = toPublicSessionCard(s, timeZone);
+          return { ...card, time: `${formatSessionDay(s.startsAt, timeZone)} · ${card.time}` };
+        }),
+        first: upcoming[0]?.startsAt.getTime() ?? Number.POSITIVE_INFINITY,
+      };
+    })
+    .sort((a, b) => a.first - b.first || a.title.localeCompare(b.title))
+    .map(({ first: _first, ...c }) => c);
 }

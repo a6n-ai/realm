@@ -304,6 +304,15 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .filter((session) => isPubliclyListed(session, now));
   }
 
+  /** Published, non-archived classes for the public Classes pages, dates or not. */
+  listPublicClasses(): Promise<Array<typeof studioSessions.$inferSelect>> {
+    return db
+      .select()
+      .from(studioSessions)
+      .where(and(eq(studioSessions.published, true), eq(studioSessions.archived, false)))
+      .orderBy(asc(studioSessions.title));
+  }
+
   async getPublished(occurrencePublicId: string, now = new Date()): Promise<PublicSession> {
     const timeZone = await this.timezone();
     const [row] = await db
