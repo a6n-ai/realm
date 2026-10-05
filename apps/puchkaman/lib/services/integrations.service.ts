@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import {
   DEFAULT_INTEGRATIONS_CONFIG,
   parseIntegrationsConfig,
@@ -56,8 +57,13 @@ const appService = new AppService(appRepository);
  * customer-facing concept; picking it up here silently resolved a brand
  * admin's whole dashboard (Settings -> Integrations, catalog listings) to
  * whichever franchise they'd last visited publicly, instead of the brand.
+ *
+ * Cached per request (React cache()): one public page called this about ten
+ * times through getIntegrationsConfig, each re-reading the same org rows.
+ * cache() only memoizes inside a server render, so a server action that
+ * writes config (setIntegrationsConfig) still reads fresh rows.
  */
-async function resolveActingOrg() {
+const resolveActingOrg = cache(async () => {
   const session = await getSession();
   let activeOrgId = session?.session?.activeOrganizationId ?? (await resolveRequestOrg());
 
@@ -87,7 +93,7 @@ async function resolveActingOrg() {
 
   const [defaultOrg] = await db.select().from(organization).where(eq(organization.isDefaultLocation, true)).limit(1);
   return defaultOrg ?? null;
-}
+});
 
 /**
  * Resolves Clover config for the acting organization (see {@link resolveActingOrg}).
@@ -99,8 +105,10 @@ async function resolveActingOrg() {
  * `db/seed-brand-org.ts` has been run — that script is a manual invocation,
  * not wired into deploy), fall back to reading `app` directly so Clover
  * doesn't silently read as uninstalled during that window.
+ *
+ * Cached per request like resolveActingOrg (also saves the parent-org read).
  */
-export async function getIntegrationsConfig(): Promise<IntegrationsConfig> {
+export const getIntegrationsConfig = cache(async (): Promise<IntegrationsConfig> => {
   const org = await resolveActingOrg();
   if (!org) {
     const [row] = await db.select({ cfg: app.integrationsConfig }).from(app).limit(1);
@@ -112,7 +120,7 @@ export async function getIntegrationsConfig(): Promise<IntegrationsConfig> {
     : [];
 
   return resolveIntegrationsConfig(org, parent ?? null);
-}
+});
 
 /**
  * Writes to both `app` and the resolved acting organization's row. The `app`
