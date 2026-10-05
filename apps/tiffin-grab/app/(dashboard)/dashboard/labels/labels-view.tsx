@@ -53,7 +53,7 @@ export function KitchenCounts({
                 <li key={d.dish} className="px-4 py-3">
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="min-w-0 truncate text-sm font-medium" title={d.dish}>{d.dish}</p>
-                    {d.portions.length > 1 ? (
+                    {d.portions.length > 1 && g.dishes.length > 1 ? (
                       <p className="text-muted-foreground shrink-0 text-xs tabular-nums">{d.total} total</p>
                     ) : null}
                   </div>
