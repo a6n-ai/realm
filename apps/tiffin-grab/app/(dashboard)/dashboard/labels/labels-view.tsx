@@ -4,35 +4,17 @@ import { useMemo, useState } from "react";
 import { TagIcon, UtensilsCrossedIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
-import { TableCell } from "@foundry/ui/table";
 import {
   Card,
-  DataTable,
   EmptyState,
   ListPagination,
   SearchInput,
   useSortNav,
-  type Column,
 } from "@/components/ds";
 import { sortRows } from "@/lib/list/sort";
 import type { DeliveryLabel, KitchenCount } from "@/lib/services/daily-labels.service";
 import { useTableParams } from "./use-table-params";
-
-type CountKey = "category" | "dish" | "portion" | "count";
-
-const COUNT_COLUMNS: readonly Column<CountKey>[] = [
-  { key: "category", label: "Category", sortable: true },
-  { key: "dish", label: "Dish", sortable: true },
-  { key: "portion", label: "Container", sortable: true },
-  { key: "count", label: "Count", sortable: true, align: "right" },
-];
-
-const COUNT_VALUE: Record<CountKey, (c: KitchenCount) => string | number | null> = {
-  category: (c) => c.categoryLabel,
-  dish: (c) => c.dish,
-  portion: (c) => c.portion,
-  count: (c) => c.count,
-};
+import { groupKitchenCounts } from "./kitchen-groups";
 
 export function KitchenCounts({
   counts,
@@ -41,49 +23,57 @@ export function KitchenCounts({
   counts: KitchenCount[];
   byRoute: { group: string; labels: number; planned: boolean }[];
 }) {
-  const { sort } = useTableParams(
-    COUNT_COLUMNS.map((c) => c.key),
-    { column: "count", dir: "desc" },
-  );
-  const sorted = useMemo(() => sortRows(counts, sort, (c, column) => COUNT_VALUE[column](c)), [counts, sort]);
+  const groups = useMemo(() => groupKitchenCounts(counts), [counts]);
 
   if (counts.length === 0) {
     return <EmptyState icon={UtensilsCrossedIcon} message="Nothing scheduled for this day." />;
   }
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <LabelsPerGroup byRoute={byRoute} />
-      {/* No pagination: the kitchen reads the whole day's counts in one glance. */}
-      <DataTable
-        columns={COUNT_COLUMNS}
-        rows={sorted}
-        rowKey={(c) => `${c.category}|${c.dish}|${c.portion ?? ""}`}
-        sort={sort}
-        serial={false}
-        search={{ keys: ["categoryLabel", "dish", "portion"], placeholder: "Search dishes..." }}
-        emptyIcon={UtensilsCrossedIcon}
-        emptyMessage="Nothing scheduled for this day."
-        renderRow={(c) => (
-          <>
-            <TableCell className="text-muted-foreground">{c.categoryLabel}</TableCell>
-            <TableCell className="font-medium">{c.dish}</TableCell>
-            <TableCell>{c.portion ?? "—"}</TableCell>
-            <TableCell className="text-right tabular-nums">{c.count}</TableCell>
-          </>
-        )}
-        mobileCard={(c) => (
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-medium">{c.dish}</p>
-              <p className="text-muted-foreground text-xs">
-                {c.categoryLabel}
-                {c.portion ? ` · ${c.portion}` : ""}
+      {/* One card per station: the cook reads the category total, then each dish's portions. */}
+      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {groups.map((g) => (
+          <Card key={g.category} variant="flat" className="overflow-hidden p-0">
+            <div className="flex items-baseline justify-between gap-3 border-b px-4 py-3">
+              <h3 className="text-base font-semibold tracking-tight">{g.label}</h3>
+              <p className="text-muted-foreground text-sm tabular-nums">
+                <span className="text-foreground text-lg font-semibold">{g.containers.toLocaleString()}</span>{" "}
+                {g.pieces ? "packs" : "containers"}
+                {g.pieces ? (
+                  <>
+                    {" · "}
+                    <span className="text-foreground font-semibold">{g.pieces.amount.toLocaleString()}</span> {g.pieces.unit}
+                  </>
+                ) : null}
               </p>
             </div>
-            <span className="text-sm tabular-nums">{c.count}</span>
-          </div>
-        )}
-      />
+            <ul className="divide-y">
+              {g.dishes.map((d) => (
+                <li key={d.dish} className="px-4 py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="min-w-0 truncate text-sm font-medium" title={d.dish}>{d.dish}</p>
+                    {d.portions.length > 1 ? (
+                      <p className="text-muted-foreground shrink-0 text-xs tabular-nums">{d.total} total</p>
+                    ) : null}
+                  </div>
+                  <dl className="mt-2 flex flex-wrap gap-2">
+                    {d.portions.map((p) => (
+                      <div
+                        key={p.portion ?? "-"}
+                        className="bg-muted/60 flex min-w-16 flex-col rounded-md px-2.5 py-1.5"
+                      >
+                        <dt className="text-muted-foreground text-xs">{p.portion ?? "—"}</dt>
+                        <dd className="text-xl font-semibold leading-tight tabular-nums">{p.count}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
