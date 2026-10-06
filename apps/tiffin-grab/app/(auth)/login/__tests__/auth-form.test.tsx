@@ -33,8 +33,10 @@ describe("AuthForm", () => {
         lastUser={{ firstName: "Vijay", email: "vijay@gmail.com", maskedEmail: "vi•••@gmail.com", method: "email" }}
       />,
     );
-    expect(screen.getByText(/welcome back, vijay/i)).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: /continue as vijay/i }));
+    expect(screen.getByText(/welcome back/i)).toBeDefined();
+    expect(screen.getByText("Vijay")).toBeDefined();
+    expect(screen.getByText("vijay@gmail.com")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     expect((screen.getByPlaceholderText(/you@example.com/i) as HTMLInputElement).value).toBe("vijay@gmail.com");
   });
 
@@ -46,7 +48,7 @@ describe("AuthForm", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /not you/i }));
-    expect(screen.queryByText(/welcome back, vijay/i)).toBeNull();
+    expect(screen.queryByText("Vijay")).toBeNull();
     expect((screen.getByPlaceholderText(/you@example.com/i) as HTMLInputElement).value).toBe("");
   });
 

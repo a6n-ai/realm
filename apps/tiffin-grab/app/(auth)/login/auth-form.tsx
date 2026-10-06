@@ -49,7 +49,7 @@ export function safeCallbackUrl(raw: string | null): string | null {
   }
 }
 
-export type LastUserView = { firstName: string; email: string; maskedEmail: string; method: "google" | "email" | "password" };
+export type LastUserView = { firstName: string; email: string; maskedEmail: string; method: "google" | "email" | "password"; image?: string };
 
 export function AuthForm({
   canUsePin,
@@ -94,7 +94,7 @@ export function AuthForm({
   // step in the same spot, and only the form underneath swaps.
   const HEAD: Record<Exclude<Mode, "pin">, { title: string; tagline?: string }> = {
     welcome: lastUser
-      ? { title: lastUser.firstName ? `Welcome back, ${lastUser.firstName}.` : "Welcome back.", tagline: lastUser.maskedEmail }
+      ? { title: "Welcome back!" }
       : { title: "Home-style meals, your way.", tagline: "Fresh tiffin meals, delivered on your schedule." },
     "email-otp": codeStep
       ? { title: "Enter the code" }
@@ -401,8 +401,35 @@ function ContinueAs({
   onGetStarted: () => void;
 }) {
   const [pending, setPending] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const initial = (user.firstName || user.email).charAt(0).toUpperCase();
   return (
-    <div className="mt-auto flex flex-col gap-3">
+    // Canva-style account card: who, then one obvious action, grouped under the
+    // heading (no gap pushing the buttons to the bottom of the screen).
+    <div className="flex flex-col gap-5 pt-2">
+      <div className="flex flex-col items-center gap-3 text-center">
+        {user.image && !photoFailed ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Google photo or our file store, not a static asset
+          <img
+            src={user.image}
+            alt=""
+            referrerPolicy="no-referrer"
+            onError={() => setPhotoFailed(true)}
+            className="size-20 rounded-full border border-[var(--border)] object-cover"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="flex size-20 items-center justify-center rounded-full bg-[var(--primary)] text-[28px] font-semibold text-[var(--primary-foreground)]"
+          >
+            {initial}
+          </span>
+        )}
+        <div className="flex flex-col gap-0.5">
+          {user.firstName ? <p className="text-[17px] font-semibold">{user.firstName}</p> : null}
+          <p className="text-muted-foreground text-sm [overflow-wrap:anywhere]">{user.email}</p>
+        </div>
+      </div>
       <KitButton
         variant="primary"
         className="w-full"
@@ -414,14 +441,19 @@ function ContinueAs({
           setPending(false);
         }}
       >
-        Continue as {user.firstName || user.maskedEmail}
+        Continue
       </KitButton>
+      <div className="text-muted-foreground flex items-center gap-3 text-xs" aria-hidden>
+        <span className="h-px flex-1 bg-[var(--border)]" />
+        or
+        <span className="h-px flex-1 bg-[var(--border)]" />
+      </div>
       <KitButton variant="outline" className="w-full" onClick={onOther}>
-        Use another account
+        Continue with another account
       </KitButton>
       <div className="flex flex-col items-center">
         <button type="button" onClick={onForget} className={AUTH_LINK}>
-          Not you? Forget this account
+          Not you? Remove this account
         </button>
         <button type="button" onClick={onGetStarted} className={AUTH_LINK}>
           New here? Start a subscription
