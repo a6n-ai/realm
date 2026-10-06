@@ -262,6 +262,7 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
       codeTyped: Boolean(code?.trim()),
       maxDiscountPct,
       now: Date.now(),
+      coins: null,
     });
     return { ...quote, currency };
   }

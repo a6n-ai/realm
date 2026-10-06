@@ -103,6 +103,7 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
             codeTyped: Boolean(code),
             maxDiscountPct,
             now: now.getTime(),
+            coins: null,
           })
         : null;
       const needsPay = quote != null && quote.total > 0;

@@ -8,13 +8,14 @@ export const DISCOUNT_SCOPES = ["all", "category", "session"] as const;
 export type DiscountScope = (typeof DISCOUNT_SCOPES)[number];
 export const discountScope = pgEnum("discount_scope", [...DISCOUNT_SCOPES]);
 
-/** One line taken off a booking. Positive dollars. Later kinds: "credit" | "wallet". */
+/** One line taken off a booking. Positive dollars. `wallet` lines also record the coins spent. */
 export type Adjustment = {
-  kind: "discount" | "coupon";
+  kind: "discount" | "coupon" | "wallet";
   publicId: string;
   name: string;
   code?: string;
   amount: number;
+  coins?: number;
 };
 
 /** Price snapshot written on the booking at creation. Never re-derived later. */
