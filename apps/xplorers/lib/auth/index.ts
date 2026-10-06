@@ -131,20 +131,6 @@ export const auth = betterAuth({
     nextCookies(),
   ],
   databaseHooks: {
-    user: {
-      create: {
-        after: async (user) => {
-          if (((user as { role?: string }).role ?? Role.USER) !== Role.USER) return;
-          try {
-            // Loaded lazily: wallet.service reaches app-settings → session-service → auth.
-            const { walletService } = await import("@/lib/services/wallet.service");
-            await walletService.award(BigInt(user.id as string), "signup", { type: "user", id: String(user.id) });
-          } catch (e) {
-            log.error({ err: e }, "signup coin award failed");
-          }
-        },
-      },
-    },
     session: {
       create: {
         before: async (sess) => {

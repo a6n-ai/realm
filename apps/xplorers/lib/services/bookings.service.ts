@@ -200,8 +200,6 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       },
       createdBy: actorId,
     });
-    // A priced booking that discounts brought to $0 is paid as of now.
-    if (booking.pricing && booking.status === "confirmed") await walletService.awardBookingEvents(booking.id);
     return { ...booking, paymentPublicId, codeError };
   }
 

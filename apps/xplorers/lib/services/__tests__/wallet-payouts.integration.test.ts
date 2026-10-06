@@ -102,7 +102,12 @@ afterEach(async () => {
 });
 
 describe("event payouts", () => {
+  it("has no sign-up event: the welcome bonus is the first paid booking", async () => {
+    expect(schema.APP_EVENTS).not.toContain("signup");
+  });
+
   it("pays booking, first-booking and birthday coins once, on verify", async () => {
+    // First paid booking: booking 10 + welcome (first booking) 5 + birthday 7.
     const first = await bookAndVerify(await priceClass("birthday", "20.00", 7));
     expect(await walletService.balance(userId)).toBe(22);
 
@@ -136,11 +141,11 @@ describe("event payouts", () => {
     }
   });
 
-  it("pays booking coins when a coupon makes a priced booking free", async () => {
+  it("pays nothing when a coupon makes a priced booking free (no money changed hands)", async () => {
     await db.insert(schema.coupons).values({ code: "WALLETIT1", name: `${MARK} free`, amountOff: "50.00" });
     const b = await bookingsService.createForUser(userPublicId, await priceClass("kids", "20.00", 7), 1, { code: "WALLETIT1" });
     expect(b.status).toBe("confirmed");
-    expect(await walletService.balance(userId)).toBe(15);
+    expect(await walletService.balance(userId)).toBe(0);
   });
 
   it("pays nothing for a free class", async () => {

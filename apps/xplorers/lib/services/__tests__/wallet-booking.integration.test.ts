@@ -30,6 +30,7 @@ let classIds: bigint[] = [];
 let rateIds: bigint[] = [];
 let parkedDiscountIds: bigint[] = [];
 let parkedRates: { id: bigint }[] = [];
+let parkedPayouts: { eventType: string; enabled: boolean }[] = [];
 
 async function occurrence(price: string, days: number) {
   const startsAt = new Date(Date.now() + days * 86_400_000);
@@ -59,6 +60,9 @@ async function setRate() {
 }
 
 beforeEach(async () => {
+  // Payouts would add coins on verify; these tests count coins spent only.
+  parkedPayouts = await db.select({ eventType: schema.eventPayout.eventType, enabled: schema.eventPayout.enabled }).from(schema.eventPayout);
+  await db.update(schema.eventPayout).set({ enabled: false });
   // Park anything that would change prices or rates: active discounts and other CAD rates.
   parkedDiscountIds = (
     await db.update(schema.discounts).set({ active: false }).where(eq(schema.discounts.active, true)).returning({ id: schema.discounts.id })
@@ -98,6 +102,9 @@ afterEach(async () => {
   }
   if (parkedDiscountIds.length) {
     await db.update(schema.discounts).set({ active: true }).where(inArray(schema.discounts.id, parkedDiscountIds));
+  }
+  for (const p of parkedPayouts) {
+    await db.update(schema.eventPayout).set({ enabled: p.enabled }).where(eq(schema.eventPayout.eventType, p.eventType as never));
   }
 });
 

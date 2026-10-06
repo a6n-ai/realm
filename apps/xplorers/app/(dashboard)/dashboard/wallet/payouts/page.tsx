@@ -6,9 +6,8 @@ import { EVENT_LABELS, PAYOUT_EVENTS, walletService } from "@/lib/services/walle
 import { savePayoutAction } from "../actions";
 
 const DESCRIPTIONS: Record<(typeof PAYOUT_EVENTS)[number], string> = {
-  signup: "Once per family, when they create an account.",
-  booking_paid: "Each booking, when staff verify its payment (or a discount makes it free).",
-  first_booking: "A family's first paid booking only.",
+  booking_paid: "Each booking, when staff verify its payment. Free bookings earn nothing.",
+  first_booking: "Welcome bonus: once per family, on their first paid booking.",
   birthday_booking: "A paid booking for a Birthday class.",
 };
 
