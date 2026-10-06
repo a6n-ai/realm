@@ -338,12 +338,13 @@ export const auth = betterAuth({
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
       const failed = ctx.context.returned instanceof APIError;
+      const path = signInPath(ctx.path, ctx.params);
 
       // "Welcome back, Vijay" on the next visit to /login, whatever the method.
       // Readable by the page (not httpOnly): it holds no token, see @foundry/auth last-user.
       const fresh = ctx.context.newSession;
       if (!failed && fresh) {
-        const value = encodeLastUser(ctx.path, fresh.user);
+        const value = encodeLastUser(path, fresh.user);
         if (value) {
           ctx.setCookie(LAST_USER_COOKIE, value, {
             path: "/",
@@ -394,7 +395,7 @@ export const auth = betterAuth({
       }
 
       // Every sign-in method is audited; "email" (password) keeps its old label.
-      const method = SIGN_IN_METHOD[ctx.path];
+      const method = SIGN_IN_METHOD[path];
       if (!method) return;
       const newSession = ctx.context.newSession;
 
@@ -447,6 +448,11 @@ export const auth = betterAuth({
     }),
   },
 });
+
+/** The OAuth callback is one route, "/callback/:id"; name the provider ("/callback/google") so sign-in checks can match it. */
+export function signInPath(path: string, params?: unknown): string {
+  return path === "/callback/:id" ? `/callback/${(params as { id?: string } | undefined)?.id}` : path;
+}
 
 const SIGN_IN_METHOD: Record<string, string> = {
   "/sign-in/email": "email",
