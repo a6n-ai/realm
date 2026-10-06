@@ -44,6 +44,7 @@
     "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes",
     "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui",
     "@foundry/wallet": "github:a6n-ai/foundry#path:packages/wallet",
+    "@foundry/friends": "github:a6n-ai/foundry#path:packages/friends",
     "@hookform/resolvers": "^5.4.0",
     "@react-email/components": "^1.0.12",
     "@react-email/editor": "^1.5.10",

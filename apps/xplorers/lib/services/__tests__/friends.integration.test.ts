@@ -78,9 +78,13 @@ describe("friend requests", () => {
 });
 
 describe("search", () => {
-  it("finds customers by username prefix only, hides staff and the viewer, never returns email", async () => {
-    const rows = await friendsService.search(a.publicId, "friendsit_");
+  it("finds a customer by exact username only, never staff, the viewer or email", async () => {
+    const rows = await friendsService.search(a.publicId, "@FriendsIt_Ben");
     expect(rows.map((r) => r.publicId)).toEqual([b.publicId]);
+    // No partial matches: a prefix would let someone page through customers.
+    expect(await friendsService.search(a.publicId, "friendsit_")).toEqual([]);
+    expect(await friendsService.search(a.publicId, "friendsit_staff")).toEqual([]);
+    expect(await friendsService.search(a.publicId, "friendsit_ana")).toEqual([]);
     expect(Object.keys(rows[0]!).sort()).toEqual(["displayUsername", "image", "name", "publicId", "relation"]);
     // Names are not searchable: a substring would page through every customer.
     expect(await friendsService.search(a.publicId, `${MARK} c`)).toEqual([]);

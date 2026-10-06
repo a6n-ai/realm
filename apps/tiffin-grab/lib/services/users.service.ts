@@ -1,4 +1,5 @@
 import { UpdatableRepository } from "@foundry/database";
+import { normalizeUsername } from "@foundry/friends";
 import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -212,12 +213,8 @@ class UsersService extends SessionUpdatableService<typeof users> {
         patch.username = null;
         patch.displayUsername = null;
       } else {
-        // Same shape the better-auth username plugin enforces: 3–30 of [a-z0-9_.].
-        if (!/^[a-zA-Z0-9_.]{3,30}$/.test(raw)) {
-          throw new ValidationError("Username must be 3–30 characters: letters, numbers, _ or .");
-        }
-        patch.username = raw.toLowerCase(); // normalized (unique key)
-        patch.displayUsername = raw; // original casing
+        // One rule for every app: lowercased unique key, typed casing for display.
+        Object.assign(patch, normalizeUsername(raw));
       }
     }
     try {

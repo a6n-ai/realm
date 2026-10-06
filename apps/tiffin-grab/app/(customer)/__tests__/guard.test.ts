@@ -7,6 +7,10 @@ vi.mock("@/lib/services/app-settings.service", () => ({
 vi.mock("@/lib/services/users.service", () => ({
   usersService: { read: vi.fn().mockResolvedValue({ id: 1n, name: "Demo", email: "d@x.ca", image: null, status: "active" }) },
 }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
+vi.mock("@/lib/services/friends.service", () => ({
+  friendsService: { ensureUsername: vi.fn().mockResolvedValue("demo1234"), previewInvite: vi.fn() },
+}));
 // next/navigation's redirect() throws in the real runtime; mirror that so the
 // layout's control flow (throw → never reach the JSX below) is exercised.
 vi.mock("next/navigation", () => ({

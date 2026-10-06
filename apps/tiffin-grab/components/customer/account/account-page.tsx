@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, LifeBuoy } from "lucide-react";
+import { ArrowLeft, LifeBuoy, Users } from "lucide-react";
 import { Role, type RoleValue } from "@foundry/commons";
 import { ListGroup, ListRow, PageHeader } from "@/components/customer/kit";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
@@ -114,6 +114,7 @@ export function AccountPage({
           </nav>
           <div className="space-y-2">
             <ListGroup>
+              <ListRow href="/me/friends" icon={<Users className="size-[18px]" />} label="Friends" sublabel="Find friends, share your invite link" />
               <ListRow href="/me/support" icon={<LifeBuoy className="size-[18px]" />} label="Need help? Support" sublabel="Ask us anything" />
             </ListGroup>
             <SignOutRow />
