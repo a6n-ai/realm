@@ -78,19 +78,19 @@ describe("friend requests", () => {
 });
 
 describe("search", () => {
-  it("finds customers by username prefix or name, hides staff and the viewer, never returns email", async () => {
+  it("finds customers by username prefix only, hides staff and the viewer, never returns email", async () => {
     const rows = await friendsService.search(a.publicId, "friendsit_");
     expect(rows.map((r) => r.publicId)).toEqual([b.publicId]);
     expect(Object.keys(rows[0]!).sort()).toEqual(["displayUsername", "image", "name", "publicId", "relation"]);
-    const byName = await friendsService.search(a.publicId, `${MARK} c`);
-    expect(byName.map((r) => r.publicId)).toEqual([c.publicId]);
+    // Names are not searchable: a substring would page through every customer.
+    expect(await friendsService.search(a.publicId, `${MARK} c`)).toEqual([]);
   });
 
-  it("shows the relation and ignores one-letter queries", async () => {
+  it("shows the relation and ignores queries under 3 characters", async () => {
     await friendsService.request(a.publicId, b.publicId);
     expect((await friendsService.search(a.publicId, "friendsit_ben"))[0]!.relation).toBe("outgoing");
     expect((await friendsService.search(b.publicId, "friendsit_ana"))[0]!.relation).toBe("incoming");
-    expect(await friendsService.search(a.publicId, "f")).toEqual([]);
+    expect(await friendsService.search(a.publicId, "fr")).toEqual([]);
   });
 
   it("treats % and _ as plain text", async () => {
@@ -120,6 +120,14 @@ describe("invite links", () => {
     expect(await friendsService.acceptInvite(b.publicId, (await friendsService.inviteRef(a.publicId))!)).toBe(true);
     const rows = await pairRows();
     expect(rows.map((r) => r.status)).toEqual(["accepted"]);
+  });
+
+  it("previews who invited you without writing anything", async () => {
+    const ref = (await friendsService.inviteRef(a.publicId))!;
+    expect(await friendsService.previewInvite(b.publicId, ref)).toMatchObject({ publicId: a.publicId, displayUsername: "friendsit_ana" });
+    expect(await friendsService.previewInvite(a.publicId, ref)).toBeNull();
+    expect(await friendsService.previewInvite(b.publicId, "friendsit_ana-000000000000")).toBeNull();
+    expect(await pairRows()).toHaveLength(0);
   });
 
   it("has no ref until there is a username", async () => {

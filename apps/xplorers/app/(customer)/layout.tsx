@@ -10,7 +10,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { landingPathFor } from "@/lib/auth/landing";
 import { getSession } from "@/lib/auth/session";
-import { ClaimInvite } from "@/components/customer/claim-invite";
+import { InviteBanner } from "@/components/customer/invite-banner";
 import { CustomerNav } from "@/components/customer/customer-nav";
 import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
 import { AppBrand } from "@/components/dashboard/app-brand";
@@ -44,6 +44,9 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     friendsService.ensureUsername(session.user.id).catch((e) => console.error("ensureUsername", e)),
   ]);
 
+  const ref = jar.get(REF_COOKIE)?.value;
+  const invite = ref ? await friendsService.previewInvite(session.user.id, ref) : undefined;
+
   return (
     <div className="crm-app">
       <TimezoneProvider tz={timezone}>
@@ -55,9 +58,9 @@ export default async function CustomerLayout({ children }: { children: ReactNode
             actions={<ModeToggle />}
             bottomNav={<CustomerBottomNav />}
           >
+            {invite !== undefined ? <InviteBanner inviter={invite} /> : null}
             {children}
           </CrmShell>
-          {jar.has(REF_COOKIE) ? <ClaimInvite /> : null}
           <Toaster position="top-right" />
         </TooltipProvider>
       </TimezoneProvider>

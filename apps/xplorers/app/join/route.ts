@@ -2,22 +2,17 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Role } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { REF_COOKIE, REF_MAX_AGE, REF_RE } from "@/lib/friends/ref-cookie";
-import { friendsService } from "@/lib/services/friends.service";
 
 /**
- * Invite link. A signed-in family is befriended right away; anyone else keeps
- * the ref in a cookie through sign-up, and the first /me load settles it.
+ * Invite link. Only remembers the invite: a GET must never add a friend (any
+ * site could embed this URL). The customer accepts on /me with a button.
  */
 export async function GET(req: NextRequest) {
   const ref = (req.nextUrl.searchParams.get("ref") ?? "").trim().toLowerCase();
-  const valid = REF_RE.test(ref);
   const session = await getSession();
-  if (session?.user.role === Role.USER) {
-    if (valid) await friendsService.acceptInvite(session.user.id, ref);
-    return NextResponse.redirect(new URL("/me/friends", req.url));
-  }
-  const res = NextResponse.redirect(new URL("/signup", req.url));
-  if (valid) {
+  const signedIn = Boolean(session?.user);
+  const res = NextResponse.redirect(new URL(signedIn ? "/me/friends" : "/signup", req.url));
+  if (REF_RE.test(ref) && (!signedIn || session?.user.role === Role.USER)) {
     res.cookies.set(REF_COOKIE, ref, {
       httpOnly: true,
       sameSite: "lax",

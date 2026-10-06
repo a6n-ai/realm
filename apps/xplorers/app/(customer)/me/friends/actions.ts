@@ -40,11 +40,18 @@ export async function friendAction(kind: Kind, publicId: string): Promise<{ erro
   return {};
 }
 
-/** Settles an invite link that survived sign-up in a cookie. Runs once per /me load while the cookie exists. */
-export async function claimInviteAction(): Promise<void> {
+/** The customer said yes to the invite banner. Server actions are POST-only with an origin check. */
+export async function acceptInviteAction(): Promise<{ error?: string }> {
+  const me = await viewer();
   const jar = await cookies();
   const ref = jar.get(REF_COOKIE)?.value ?? "";
   jar.delete(REF_COOKIE);
-  const s = await getSession();
-  if (s?.user.role === Role.USER && REF_RE.test(ref)) await friendsService.acceptInvite(s.user.id, ref);
+  if (REF_RE.test(ref)) await friendsService.acceptInvite(me, ref);
+  revalidatePath("/me", "layout");
+  return {};
+}
+
+export async function dismissInviteAction(): Promise<void> {
+  (await cookies()).delete(REF_COOKIE);
+  revalidatePath("/me", "layout");
 }

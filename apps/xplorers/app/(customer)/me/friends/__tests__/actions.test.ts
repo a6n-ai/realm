@@ -8,6 +8,7 @@ const svc = vi.hoisted(() => ({
     throw new NotFoundError("We couldn't find that customer");
   }),
   acceptInvite: vi.fn(async () => true),
+  previewInvite: vi.fn(async () => null),
 }));
 vi.mock("@/lib/services/friends.service", () => ({ friendsService: svc }));
 const jar = vi.hoisted(() => ({ value: "ana-0123456789ab" as string | undefined, deleted: false }));
@@ -21,7 +22,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
-const { searchFriendsAction, friendAction, claimInviteAction } = await import("../actions");
+const { searchFriendsAction, friendAction, acceptInviteAction, dismissInviteAction } = await import("../actions");
 
 describe("friends actions", () => {
   it("search returns people without contact details, and is rate-limited", async () => {
@@ -39,9 +40,17 @@ describe("friends actions", () => {
     await expect(friendAction("drop" as never, "usr_b")).rejects.toThrow();
   });
 
-  it("claims a waiting invite once and clears the cookie", async () => {
-    await claimInviteAction();
+  it("accepting a waiting invite befriends and clears the cookie", async () => {
+    await acceptInviteAction();
     expect(svc.acceptInvite).toHaveBeenCalledWith("usr_friend_search", "ana-0123456789ab");
+    expect(jar.deleted).toBe(true);
+  });
+
+  it("Not now clears the cookie without befriending", async () => {
+    svc.acceptInvite.mockClear();
+    jar.deleted = false;
+    await dismissInviteAction();
+    expect(svc.acceptInvite).not.toHaveBeenCalled();
     expect(jar.deleted).toBe(true);
   });
 });
