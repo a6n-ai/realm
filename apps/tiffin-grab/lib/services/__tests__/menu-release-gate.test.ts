@@ -208,6 +208,17 @@ describe("menuService amend", () => {
     expect(await picksFor(week.id)).toHaveLength(1);
   });
 
+  it("keeps a side pick (the day's dal under sabzi) while that dal stays on the day", async () => {
+    const { week, saved } = await releasedWeekWithPick();
+    const dal = await dishOn("Masoor Dal", "daal", "veg");
+    const [dalDish] = await db.select().from(dishes).where(eq(dishes.publicId, dal));
+    const [pick] = await db.select().from(mealSelections).where(eq(mealSelections.menuWeekId, week.id));
+    await db.insert(mealSelections).values({ ...pick, id: undefined, publicId: undefined, pickIndex: 2, dishId: dalDish.id });
+    const withDal = [...saved.items, item(dal, "daal", "mon")];
+    expect((await menuService.amendImpact({ menuWeekId: week.publicId, items: withDal })).resetPicks).toBe(0);
+    expect((await menuService.amendImpact({ menuWeekId: week.publicId, items: saved.items })).resetPicks).toBe(1);
+  });
+
   it("reports zero when the amend leaves every chosen dish in place", async () => {
     const { week, saved } = await releasedWeekWithPick();
     expect((await menuService.amendImpact({ menuWeekId: week.publicId, items: saved.items })).resetPicks).toBe(0);
