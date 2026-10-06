@@ -1,3 +1,4 @@
+import { formatMoney } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import {
   commitRedemption,
@@ -100,7 +101,46 @@ async function walletRate(): Promise<number | null> {
   }
 }
 
-export const walletService = { ...base, ensurePayoutRows, awardBookingEvents, walletRate };
+/** Plain names for wallet events, shared by the family card and the admin screens. */
+export const EVENT_LABELS: Record<AppEvent, string> = {
+  signup: "Sign-up",
+  booking_paid: "Booking paid",
+  first_booking: "First booking",
+  birthday_booking: "Birthday booking",
+  manual_adjustment: "From the team",
+};
+
+export type FamilyWallet = {
+  balance: number;
+  value: string;
+  recent: { publicId: string; when: number; coins: number; credit: boolean; label: string }[];
+};
+
+/** Balance (+ money value, + recent lines when asked) for a family, or null when the wallet is off. */
+async function coinsForFamily(userPublicId: string, recent = 0): Promise<FamilyWallet | null> {
+  const rate = await walletRate();
+  if (rate === null) return null;
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
+  if (!user) return null;
+  const [balance, { currency }, rows] = await Promise.all([
+    base.balance(user.id),
+    getAppClock(),
+    recent > 0 ? base.recentTransactions(user.id, recent) : Promise.resolve([]),
+  ]);
+  return {
+    balance,
+    value: formatMoney(balance * rate, currency),
+    recent: rows.map((r) => ({
+      publicId: r.publicId,
+      when: r.createdAt,
+      coins: r.coins,
+      credit: r.direction === "credit",
+      label: r.memo ?? (r.eventType ? EVENT_LABELS[r.eventType] : r.sourceType === "redemption" ? "Used on a booking" : "Wallet"),
+    })),
+  };
+}
+
+export const walletService = { ...base, ensurePayoutRows, awardBookingEvents, walletRate, coinsForFamily };
 
 /**
  * Spendable balance under the family's row lock, so a second booking in
@@ -141,4 +181,30 @@ export async function spendBookingCoins(
 /** Turns a booking's coin hold into a spend when its payment is verified. */
 export function settleBookingCoins(tx: Tx, args: { userId: bigint; bookingId: bigint }) {
   return settleReservation(tx, { userId: args.userId, orderId: args.bookingId, walletLedger, orders: bookings, users });
+}
+
+/**
+ * A booking's coin hold lapsed before its payment was verified, so the coins
+ * went back to the wallet while the booking kept the coin-reduced price.
+ * Take them again now (as many as the family still has) so lapsing a hold
+ * can't be used to spend the same coins twice; the rest is reported for staff.
+ */
+export async function recollectLapsedCoins(
+  tx: Tx,
+  args: { userId: bigint; bookingId: bigint; bookingPublicId: string; coins: number },
+): Promise<{ collected: number; notCollected: number }> {
+  const balance = await lockedBalance(tx, args.userId);
+  const collected = Math.max(0, Math.min(balance, args.coins));
+  if (collected > 0) {
+    await tx.insert(walletLedger).values({
+      userId: args.userId,
+      direction: "debit",
+      sourceType: "redemption_late",
+      sourceId: args.bookingPublicId,
+      orderId: args.bookingId,
+      coins: collected,
+      memo: "Wallet coins (hold lapsed before payment)",
+    });
+  }
+  return { collected, notCollected: args.coins - collected };
 }

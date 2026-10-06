@@ -143,23 +143,44 @@ describe("spending coins on bookings", () => {
     expect(await walletService.balance(userId)).toBe(0);
   });
 
-  it("still confirms a payment whose coin hold expired, without charging the coins again", async () => {
+  async function expiredHoldBooking() {
     await setRate();
     await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
     const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
     await db.update(schema.walletLedger).set({ reservedUntil: 1 }).where(eq(schema.walletLedger.orderId, b.id));
     const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
     await paymentsService.claim(pay!.publicId, userPublicId, "ref");
-    await paymentsService.verify(pay!.publicId);
+    return { b, pay: pay! };
+  }
 
-    const [booking] = await db.select().from(schema.bookings).where(eq(schema.bookings.id, b.id));
-    expect(booking!.status).toBe("confirmed");
-    expect(await walletService.balance(userId)).toBe(100);
-    const notes = await db
+  async function auditNotes(publicId: string) {
+    const rows = await db
       .select({ changes: schema.auditLog.changes })
       .from(schema.auditLog)
-      .where(and(eq(schema.auditLog.entity, "bookings"), eq(schema.auditLog.entityPublicId, b.publicId)));
-    expect(notes.some((n) => JSON.stringify(n.changes).includes("coinHoldExpired"))).toBe(true);
+      .where(and(eq(schema.auditLog.entity, "bookings"), eq(schema.auditLog.entityPublicId, publicId)));
+    return rows.map((r) => JSON.stringify(r.changes)).join(" ");
+  }
+
+  it("takes the coins again on verify when the hold lapsed but the family still has them", async () => {
+    const { b, pay } = await expiredHoldBooking();
+    expect(await walletService.balance(userId)).toBe(100);
+    await paymentsService.verify(pay.publicId);
+    const [booking] = await db.select().from(schema.bookings).where(eq(schema.bookings.id, b.id));
+    expect(booking!.status).toBe("confirmed");
+    expect(await walletService.balance(userId)).toBe(0);
+    expect(await auditNotes(b.publicId)).toContain('"collected":100');
+  });
+
+  it("confirms the payment and flags the shortfall when the lapsed coins were spent elsewhere", async () => {
+    const { b, pay } = await expiredHoldBooking();
+    await walletService.adjust({ userId, coins: -100, memo: "spent elsewhere", actorId: null });
+    await paymentsService.verify(pay.publicId);
+    const [booking] = await db.select().from(schema.bookings).where(eq(schema.bookings.id, b.id));
+    expect(booking!.status).toBe("confirmed");
+    expect(await walletService.balance(userId)).toBe(0);
+    const notes = await auditNotes(b.publicId);
+    expect(notes).toContain('"collected":0');
+    expect(notes).toContain('"notCollected":100');
   });
 
   it("ignores coins when no coin rate is set", async () => {

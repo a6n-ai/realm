@@ -14,7 +14,7 @@ import { db } from "@/db/client";
 import { bookings, payments, studioSessionOccurrences, users, type BookingPricing } from "@/db/schema";
 import { getIntegrationsConfig, getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
-import { settleBookingCoins, walletService } from "./wallet.service";
+import { recollectLapsedCoins, settleBookingCoins, walletService } from "./wallet.service";
 import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 
 const log = createLogger("payments");
@@ -88,12 +88,21 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
     const [booking] = await db.select().from(bookings).where(eq(bookings.id, row.bookingId)).limit(1);
     if (!booking) throw new ValidationError("Booking not found.");
 
-    let expiredCoins = 0;
+    type Lapsed = { coins: number; collected: number; notCollected: number };
+    let lapsed: Lapsed | null = null;
     await db.transaction(async (tx) => {
-      // Coins held at booking become spent. If the hold lapsed first, the coins
-      // already went back to the wallet: record it, never block the payment.
+      // Coins held at booking become spent. If the hold lapsed first, take the
+      // coins again so they can't fund a second booking; never block the payment.
       const settled = await settleBookingCoins(tx, { userId: row.userId, bookingId: booking.id });
-      if (settled.status === "expired") expiredCoins = settled.coins;
+      if (settled.status === "expired") {
+        const r = await recollectLapsedCoins(tx, {
+          userId: row.userId,
+          bookingId: booking.id,
+          bookingPublicId: booking.publicId,
+          coins: settled.coins,
+        });
+        lapsed = { coins: settled.coins, ...r };
+      }
       await tx
         .update(payments)
         .set({ status: "paid", capturedAt: Date.now() })
@@ -112,13 +121,15 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
       });
     });
 
-    if (expiredCoins > 0) {
-      log.warn({ bookingPublicId: booking.publicId, coins: expiredCoins }, "coin hold expired before payment verification");
+    // Assigned inside the transaction callback, which TS cannot see.
+    const lapsedCoins = lapsed as Lapsed | null;
+    if (lapsedCoins) {
+      log.warn({ bookingPublicId: booking.publicId, ...lapsedCoins }, "coin hold expired before payment verification");
       await recordAudit({
         entity: "bookings",
         entityPublicId: booking.publicId,
         operation: "update",
-        changes: { coinHoldExpired: { coins: expiredCoins, note: "coin discount was not collected" } },
+        changes: { coinHoldExpired: lapsedCoins },
         createdBy: await currentUserId(),
       });
     }
