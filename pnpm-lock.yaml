@@ -1863,14 +1863,14 @@ packages:
     version: 0.0.0
 
   '@foundry/auth-ui@https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05#path:packages/auth-ui':
-    resolution: {gitHosted: true, path: packages/auth-ui, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
+    resolution: {gitHosted: true, integrity: sha512-95cKyMP7IvW0SG4NE3WzeiT6rSqpLNOIHBTeI218doRtZio9ePFlrxsoGVY7FWqlj2W8F7cFfTtLr3QRp+bwzw==, path: packages/auth-ui, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
     version: 0.0.0
     peerDependencies:
       next: 16.3.3
       react: ^19
 
   '@foundry/auth@https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05#path:packages/auth':
-    resolution: {gitHosted: true, path: packages/auth, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
+    resolution: {gitHosted: true, integrity: sha512-95cKyMP7IvW0SG4NE3WzeiT6rSqpLNOIHBTeI218doRtZio9ePFlrxsoGVY7FWqlj2W8F7cFfTtLr3QRp+bwzw==, path: packages/auth, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
     version: 0.0.0
 
   '@foundry/clover@https://codeload.github.com/a6n-ai/foundry/tar.gz/20d9ec999a5760743c3cdd4ff554d0993c078044#path:packages/clover':
@@ -1881,7 +1881,7 @@ packages:
       react: ^19
 
   '@foundry/commons@https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05#path:packages/commons':
-    resolution: {gitHosted: true, path: packages/commons, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
+    resolution: {gitHosted: true, integrity: sha512-95cKyMP7IvW0SG4NE3WzeiT6rSqpLNOIHBTeI218doRtZio9ePFlrxsoGVY7FWqlj2W8F7cFfTtLr3QRp+bwzw==, path: packages/commons, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
     version: 0.0.0
 
   '@foundry/commons@https://codeload.github.com/a6n-ai/foundry/tar.gz/1f487af91046bb12c6fb24f696eca938f71fc35b#path:packages/commons':
@@ -1977,7 +1977,7 @@ packages:
     version: 0.0.0
 
   '@foundry/email@https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05#path:packages/email':
-    resolution: {gitHosted: true, path: packages/email, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
+    resolution: {gitHosted: true, integrity: sha512-95cKyMP7IvW0SG4NE3WzeiT6rSqpLNOIHBTeI218doRtZio9ePFlrxsoGVY7FWqlj2W8F7cFfTtLr3QRp+bwzw==, path: packages/email, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
     version: 0.0.0
     peerDependencies:
       react: 19.2.4
@@ -2069,7 +2069,7 @@ packages:
       drizzle-orm: ^0.45.2
 
   '@foundry/themes@https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05#path:packages/themes':
-    resolution: {gitHosted: true, path: packages/themes, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
+    resolution: {gitHosted: true, integrity: sha512-95cKyMP7IvW0SG4NE3WzeiT6rSqpLNOIHBTeI218doRtZio9ePFlrxsoGVY7FWqlj2W8F7cFfTtLr3QRp+bwzw==, path: packages/themes, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
     version: 0.0.0
     peerDependencies:
       react: ^19
@@ -2085,7 +2085,7 @@ packages:
     version: 0.0.0
 
   '@foundry/ui@https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05#path:packages/ui':
-    resolution: {gitHosted: true, path: packages/ui, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
+    resolution: {gitHosted: true, integrity: sha512-95cKyMP7IvW0SG4NE3WzeiT6rSqpLNOIHBTeI218doRtZio9ePFlrxsoGVY7FWqlj2W8F7cFfTtLr3QRp+bwzw==, path: packages/ui, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/1ceb0e5d07164bcb0aaf9d25c4b38e3a41c1fb05}
     version: 0.0.0
     peerDependencies:
       react: ^19
