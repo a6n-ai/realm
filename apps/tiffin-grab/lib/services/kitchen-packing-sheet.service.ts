@@ -21,11 +21,13 @@ import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import {
   addDishPortion,
+  countPackNaturalTotal,
+  countPackSlotPortions,
   formatItemCell,
   type PackingItemLine,
 } from "@/lib/menu/packing-requirement";
-import { formatTuHuman, isContainerCategory } from "@/lib/menu/format-tu";
-import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
+import { isContainerCategory } from "@/lib/menu/format-tu";
+import { portionForPick, portionsByCategory, slotTuAfterSwaps } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { withConcurrency } from "@/lib/concurrency";
@@ -46,8 +48,6 @@ export type KitchenPackingRow = {
   phone: string | null;
   /** OptimoRoute driver name after a route pull; serial alone when name is missing. */
   routeDriver: string | null;
-  /** Driver serial from dispatch (e.g. 005). */
-  routeDriverSerial: string | null;
   routeStopNumber: number | null;
   orderId: string;
   planName: string;
@@ -169,7 +169,6 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     customerName: string;
     phone: string | null;
     routeDriver: string | null;
-    routeDriverSerial: string | null;
     routeStopNumber: number | null;
     orderId: string;
     planName: string;
@@ -230,26 +229,28 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
               addDishPortion(dayDishTotals, pick.name, portion, 1);
             });
           } else {
-            // Count/bulk categories (roti/rice): one pick name, quantity = slot count.
+            // Count (roti/rice): pack size × pack count → plain total ("4 roti" × 2 → "8 rotis").
+            // Emit one pack per composition slot; identical sizes merge on ×; never show × in the cell.
             const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
             const pick = cat.picks[0]!;
             const mealItems = itemsFor(row);
-            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity, daySwaps, tuByKey);
-            const portion =
-              converter && tuTotal > 0
-                ? formatTuHuman(converter, tuTotal)
-                : (portionForPick(portions, cat.category, 1) ?? "").trim();
-            if (!portion) continue;
+            const slots = slotTuAfterSwaps(mealItems, daySwaps, tuByKey).get(cat.category) ?? [];
             const slotKey = `${cat.category}:fixed`;
-            addOrBumpLine(
-              lineBySlot,
-              slotKey,
-              pick.name,
-              portion,
-              1,
-              (categorySort.get(cat.category) ?? 0) * 100,
-            );
-            addDishPortion(dayDishTotals, pick.name, portion, 1);
+            const sort = (categorySort.get(cat.category) ?? 0) * 100;
+            const countWord = (cat.label || cat.category).trim().toLowerCase() || "unit";
+            if (converter) {
+              const wrapSlots = daySwaps.length === 0;
+              for (const packPortion of countPackSlotPortions(slots, cat.quantity, converter, wrapSlots)) {
+                addOrBumpLine(lineBySlot, slotKey, pick.name, packPortion, 1, sort, "count-total", countWord);
+              }
+              const natural = countPackNaturalTotal(slots, cat.quantity, converter, wrapSlots);
+              if (natural > 0) addDishPortion(dayDishTotals, pick.name, countWord, natural);
+            } else {
+              const portion = (portionForPick(portions, cat.category, 1) ?? "").trim();
+              if (!portion) continue;
+              addOrBumpLine(lineBySlot, slotKey, pick.name, portion, 1, sort);
+              addDishPortion(dayDishTotals, pick.name, portion, 1);
+            }
           }
         }
       }
@@ -263,7 +264,6 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       customerName: (row.fullName ?? "").trim() || "Customer",
       phone: row.customerPhone ?? null,
       routeDriver: row.routeDriverName ?? row.routeDriverSerial ?? null,
-      routeDriverSerial: row.routeDriverSerial ?? null,
       routeStopNumber: row.routeStopNumber ?? null,
       orderId: row.deploymentId,
       planName: row.planName,
@@ -285,7 +285,6 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       customerName: r.customerName,
       phone: r.phone,
       routeDriver: r.routeDriver,
-      routeDriverSerial: r.routeDriverSerial,
       routeStopNumber: r.routeStopNumber,
       orderId: r.orderId,
       planName: r.planName,
@@ -314,23 +313,35 @@ function addOrBumpLine(
   portion: string,
   qty: number,
   sort: number,
+  packStyle?: PackingItemLine["packStyle"],
+  countWord?: string,
 ): void {
+  const same = (line: PackingItemLine) =>
+    line.name === name && line.portion === portion && line.packStyle === packStyle && line.countWord === countWord;
   const hit = into.get(slotKey);
-  if (hit && hit.portion === portion && hit.name === name) {
+  if (hit && same(hit)) {
     hit.quantity += qty;
     return;
   }
   // Prefer merging any existing line with the same name+portion (persons stacking) before
   // creating a sibling — avoids duplicate Item columns for the same packing line.
   for (const line of into.values()) {
-    if (line.name === name && line.portion === portion) {
+    if (same(line)) {
       line.quantity += qty;
       return;
     }
   }
+  const next: PackingItemLine = {
+    name,
+    portion,
+    quantity: qty,
+    sort,
+    ...(packStyle ? { packStyle } : {}),
+    ...(countWord ? { countWord } : {}),
+  };
   if (hit) {
-    into.set(`${slotKey}:${into.size}`, { name, portion, quantity: qty, sort: sort + 0.01 });
+    into.set(`${slotKey}:${into.size}`, { ...next, sort: sort + 0.01 });
     return;
   }
-  into.set(slotKey, { name, portion, quantity: qty, sort });
+  into.set(slotKey, next);
 }

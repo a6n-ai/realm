@@ -65,7 +65,8 @@ describe("getKitchenPackingSheet", () => {
         frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id,
         persons: 1,
         mealSlots: ["lunch"],
-        categoryCounts: { sabzi: 2, daal: 1, rice: 1, roti: 8 },
+        // Match maharaja composition row counts (one roti row @ 2 TU = 8 pieces).
+        categoryCounts: { sabzi: 2, daal: 1, salad: 1, raita: 1, rice: 1, roti: 1 },
         durationWeeks: 1,
         startDate: MONDAY,
         tiffinCount: 5,
@@ -150,13 +151,15 @@ describe("getKitchenPackingSheet", () => {
     expect(items).toMatch(/OZ ×/);
     expect(items).toMatch(/Kali Dal/);
     expect(items).toMatch(/Jeera Rice/);
-    // Non-selectable roti: one Item cell with total converted amount (e.g. "8 roti × 1"),
-    // never N columns of "portion × 1".
-    expect(items).toMatch(/Roti — \d+(\.\d+)? roti × 1/);
+    // Count: plain totals — maharaja single roti row @ 2 TU → "8 rotis"; rice → "1 rice".
+    expect(items).toMatch(/\b8 rotis\b/);
+    expect(items).toMatch(/\b1 rice\b/);
+    expect(items).not.toMatch(/unit\s*×/i);
+    expect(items).not.toMatch(/roti\s*×/i);
     expect(items).not.toMatch(/portion/);
-    expect(sheet.rows[0]?.items.filter((c) => /Roti/.test(c))).toHaveLength(1);
-    expect(sheet.summary.find((s) => s.dish.includes("Roti"))?.portion).toMatch(/\d+(\.\d+)? roti/);
-    expect(sheet.summary.find((s) => s.dish.includes("Roti"))?.totalQuantity).toBe(1);
+    expect(sheet.rows[0]?.items.filter((c) => /roti/i.test(c))).toHaveLength(1);
+    expect(sheet.summary.find((s) => s.dish.includes("Roti"))?.portion).toBe("roti");
+    expect(sheet.summary.find((s) => s.dish.includes("Roti"))?.totalQuantity).toBe(8);
     expect(sheet.summary.some((s) => s.dish.includes("Kali Dal") && s.totalQuantity >= 1)).toBe(true);
   });
 
@@ -213,6 +216,11 @@ describe("getKitchenPackingSheet", () => {
       expect(beforeItems).toMatch(/12\s*OZ/i);
       expect(beforeItems).toMatch(/8\s*OZ/i);
       expect(beforeItems).not.toMatch(/24\s*OZ/i);
+      // Count: eight 0.25-TU roti slots → "8 rotis"; one rice → "1 rice".
+      expect(beforeItems).toMatch(/\b8 rotis\b/);
+      expect(beforeItems).toMatch(/\b1 rice\b/);
+      expect(beforeItems).not.toMatch(/unit\s*×/i);
+      expect(before.rows[0]?.items.filter((c) => /roti/i.test(c))).toHaveLength(1);
 
       const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
       await db.insert(deliveryCategorySwaps).values({
@@ -230,6 +238,45 @@ describe("getKitchenPackingSheet", () => {
       expect(afterItems).not.toMatch(/12\s*OZ/i);
       expect(afterItems).toMatch(/8\s*OZ/i);
       expect(afterItems).not.toMatch(/24\s*OZ/i);
+    } finally {
+      await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+      if (prior.length) {
+        await db.insert(mealSizeItems).values(
+          prior.map(({ id: _id, publicId: _p, ...rest }) => rest),
+        );
+      }
+    }
+  });
+
+  it("count packing: two rice slots show as 2 rice, not unit × format", async () => {
+    const { mealSizeItems } = await import("@/db/schema");
+    const snap = await loadCatalogSnapshot();
+    const size =
+      snap.mealSizes.find((m) => m.key === "maharaja_nonveg") ??
+      snap.mealSizes.find((m) => m.planKey === "non-veg")!;
+    const prior = await db.select().from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+    try {
+      await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+      await db.insert(mealSizeItems).values([
+        { mealSizeId: size.id, planId: size.planId, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 0 },
+        { mealSizeId: size.id, planId: size.planId, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 1 },
+        { mealSizeId: size.id, planId: size.planId, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 2 },
+        { mealSizeId: size.id, planId: size.planId, name: "Roti", category: "roti", tuAmount: "0.75", sortOrder: 3 },
+      ]);
+      await db
+        .update(orders)
+        .set({ categoryCounts: { sabzi: 1, rice: 2, roti: 1 } })
+        .where(eq(orders.id, order.id));
+
+      const sheet = await getKitchenPackingSheet(MONDAY);
+      const items = sheet.rows[0]?.items.join(" | ") ?? "";
+      expect(items).toMatch(/\b2 rice\b/);
+      expect(items).toMatch(/\b3 rotis\b/);
+      expect(items).not.toMatch(/unit\s*×/i);
+      expect(items).not.toMatch(/2 unit/i);
+      expect(sheet.summary.find((s) => /rice/i.test(s.dish))).toEqual(
+        expect.objectContaining({ portion: "rice", totalQuantity: 2 }),
+      );
     } finally {
       await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
       if (prior.length) {
