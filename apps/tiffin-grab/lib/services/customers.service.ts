@@ -4,6 +4,7 @@ import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
+import { auditLog, customerAddresses } from "@/db/schema";
 import { account, campaign, deliveries, inquiries, leadSources, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, users } from "@/db/schema";
 import { MENU_REMINDER_KEY } from "@/lib/notifications/menu-reminder";
 import type { SortState } from "@/lib/list/sort";
@@ -439,18 +440,55 @@ export async function upcomingAddressChanges(userId: bigint, fromIso: string) {
       addressLine: deliveries.addressLine,
       city: deliveries.city,
       postalCode: deliveries.postalCode,
-      orderAddress: sql<string>`concat_ws(', ', ${orders.addressLine}, ${orders.city}, ${orders.postalCode})`,
+      orderLine: orders.addressLine,
+      orderUnit: orders.addressUnit,
+      orderCity: orders.city,
+      orderPostalCode: orders.postalCode,
     })
     .from(deliveries)
     .innerJoin(orders, eq(orders.id, deliveries.orderId))
     .where(and(
       eq(orders.userId, userId),
       eq(deliveries.status, "scheduled"),
-      isNotNull(deliveries.addressLine),
+      // Only real one-day re-addresses carry addressId. Rows frozen with the plan's old address when
+      // the plan moved (address-propagation freezeInheriting) have a line but no addressId.
+      isNotNull(deliveries.addressId),
       gte(deliveries.deliveryDate, fromIso),
     ))
     .orderBy(asc(deliveries.deliveryDate))
     .limit(50);
+}
+
+type AddressAudit = { operation: string; changes: unknown; label: string; actor: string | null; byCustomer: boolean };
+
+/** One line for an address-book change in the staff timeline. Customers never see this. */
+export function addressEventLabel(e: AddressAudit): string {
+  const c = (e.changes ?? {}) as { label?: string; addressLine?: string; addressUnit?: string | null; city?: string; postalCode?: string; isDefault?: boolean };
+  const where = [c.addressUnit ? `${c.addressUnit} – ${c.addressLine}` : c.addressLine, c.city, c.postalCode].filter(Boolean).join(", ");
+  const name = c.label ?? e.label;
+  const what =
+    e.operation === "create" ? `Address added: "${name}" ${where}`
+    : e.operation === "delete" ? `Address removed: "${e.label}"`
+    : c.isDefault && !c.addressLine ? `"${e.label}" made the default address`
+    : `Address "${name}" changed to ${where}`;
+  return `${what} · by ${e.byCustomer ? "customer" : e.actor ?? "system"}`;
+}
+
+/** Address-book changes (staff or customer) from the audit log, archived addresses included. */
+async function addressTimeline(userId: bigint) {
+  const book = await db.select({ publicId: customerAddresses.publicId, label: customerAddresses.label })
+    .from(customerAddresses).where(eq(customerAddresses.userId, userId));
+  if (!book.length) return [];
+  const labelOf = new Map(book.map((b) => [b.publicId, b.label]));
+  const rows = await db.select({ publicId: auditLog.publicId, entityPublicId: auditLog.entityPublicId, operation: auditLog.operation, changes: auditLog.changes, at: auditLog.createdAt, by: auditLog.createdBy, actor: users.name })
+    .from(auditLog).leftJoin(users, eq(users.id, auditLog.createdBy))
+    .where(and(eq(auditLog.entity, "customer_addresses"), inArray(auditLog.entityPublicId, book.map((b) => b.publicId))));
+  return rows.map((r) => ({
+    id: `address:${r.publicId}`,
+    kind: "address" as const,
+    label: addressEventLabel({ operation: r.operation, changes: r.changes, label: labelOf.get(r.entityPublicId) ?? "", actor: r.actor, byCustomer: r.by === userId }),
+    at: Number(r.at),
+  }));
 }
 
 export async function getCustomer360(userPublicId: string) {
@@ -487,6 +525,10 @@ export async function getCustomer360(userPublicId: string) {
         deploymentId: orders.deploymentId,
         fullName: orders.fullName,
         city: orders.city,
+        addressLine: orders.addressLine,
+        addressUnit: orders.addressUnit,
+        postalCode: orders.postalCode,
+        deliveryInstructions: orders.deliveryInstructions,
         status: orders.status,
         startDate: orders.startDate,
         total: orders.total,
@@ -545,6 +587,7 @@ export async function getCustomer360(userPublicId: string) {
   const timeline = [
     ...orderRows.map((o) => ({ id: `order:${o.publicId}`, kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),
     ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${i.fullName} (${i.stage})`, at: i.createdAt })),
+    ...(await addressTimeline(user.id)),
   ].sort((a, b) => b.at - a.at);
 
   return {
