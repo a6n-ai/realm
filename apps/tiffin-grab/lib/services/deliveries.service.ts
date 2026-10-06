@@ -425,7 +425,7 @@ export async function adminSetDeliveryStatus(
             ? { optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null }
             : {}),
         };
-        label = "Not delivered";
+        label = "On hold";
         syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
         break;
       default: {

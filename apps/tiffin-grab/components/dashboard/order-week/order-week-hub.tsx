@@ -242,7 +242,7 @@ function agendaLabel(dot: string, moved: boolean): string {
   if (moved) return "Moved";
   switch (dot) {
     case "delivered": return "Delivered";
-    case "hold": return "Not delivered";
+    case "hold": return "On hold";
     case "vacation": return "Vacation";
     case "upcoming": return "Upcoming";
     default: return "Upcoming";
@@ -304,7 +304,7 @@ function DeliveryStatusSelect({
       <SelectContent>
         <SelectItem value="upcoming">{cutoffPassed ? "Awaiting confirmation" : "Upcoming"}</SelectItem>
         <SelectItem value="delivered" disabled={beforeDay}>Delivered</SelectItem>
-        <SelectItem value="not_delivered">Not delivered</SelectItem>
+        <SelectItem value="not_delivered">On hold</SelectItem>
         {value === "paused" ? <SelectItem value="paused">Paused</SelectItem> : null}
       </SelectContent>
     </Select>
