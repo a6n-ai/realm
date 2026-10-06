@@ -97,8 +97,9 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   const totalTiffins = dispatchRows.reduce((n, r) => n + r.tiffinUnits, 0);
   const loadByDriver = new Map<string, number>();
   for (const r of dispatchRows) {
-    if (!r.routeDriverSerial) continue;
+    // Some OptimoRoute drivers (T Stash) have a name but no serial — either one means routed.
     const name = r.routeDriverName ?? r.routeDriverSerial;
+    if (!name) continue;
     loadByDriver.set(name, (loadByDriver.get(name) ?? 0) + r.tiffinUnits);
   }
 
@@ -125,7 +126,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
         <PushControl
           date={date}
           stops={scheduledCount}
-          unassigned={dispatchRows.filter((r) => !r.routeDriverSerial).map((r) => r.orderNo)}
+          unassigned={dispatchRows.filter((r) => !r.routeDriverSerial && !r.routeDriverName).map((r) => r.orderNo)}
         />
       </SectionCard>
 

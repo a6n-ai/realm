@@ -46,8 +46,8 @@ function dispatchPagination(sp: URLSearchParams) {
 // per-driver grouping produced — just a flat sort instead of a grouping step.
 function sortRows(rows: DispatchRow[]): DispatchRow[] {
   return [...rows].sort((a, b) => {
-    const aKey = a.routeDriverSerial ?? UNASSIGNED;
-    const bKey = b.routeDriverSerial ?? UNASSIGNED;
+    const aKey = a.routeDriverSerial ?? a.routeDriverName ?? UNASSIGNED;
+    const bKey = b.routeDriverSerial ?? b.routeDriverName ?? UNASSIGNED;
     if (aKey === UNASSIGNED && bKey !== UNASSIGNED) return 1;
     if (bKey === UNASSIGNED && aKey !== UNASSIGNED) return -1;
     const nameCompare = (a.routeDriverName ?? aKey).localeCompare(
