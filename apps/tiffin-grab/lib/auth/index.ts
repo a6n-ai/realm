@@ -247,6 +247,12 @@ export const auth = betterAuth({
           // Google is about to verify this address. If it is still unverified,
           // drop any password and session on it first (Better Auth's own guard).
           if (ctx) await revokeUnprovenAccountAccess(ctx, String(acc.userId));
+          else {
+            // Fail closed: without a request context the guard cannot run, so
+            // refuse to link Google onto an address nobody has verified.
+            const [owner] = await db.select({ emailVerified: users.emailVerified }).from(users).where(eq(users.id, userId)).limit(1);
+            if (!owner?.emailVerified) throw new APIError("FORBIDDEN", { message: "Verify your email before connecting Google." });
+          }
           if (acc.idToken) {
             try {
               const picture = googlePicture(acc.idToken);

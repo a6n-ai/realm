@@ -46,6 +46,12 @@ describe("Google linking onto an unverified account", () => {
     expect(await credentialCount(userId)).toBe(0);
   });
 
+  it("refuses to link an unverified account when the guard cannot run", async () => {
+    const userId = await seed(false);
+    await expect(before({ providerId: "google", accountId: "g-4", userId: String(userId) } as never, null as never)).rejects.toThrow();
+    expect(await credentialCount(userId)).toBe(1);
+  });
+
   it("keeps the password of a verified owner", async () => {
     const userId = await seed(true);
     await before({ providerId: "google", accountId: "g-2", userId: String(userId) } as never, ctx);
