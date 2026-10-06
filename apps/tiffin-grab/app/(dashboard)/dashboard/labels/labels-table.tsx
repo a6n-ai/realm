@@ -16,6 +16,10 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
   const columns: Column<string>[] = useMemo(
     () => [
       { key: "customer", label: "Customer", sortable: true },
+      { key: "phone", label: "Phone", sortable: true },
+      { key: "driver", label: "Driver", sortable: true },
+      { key: "driverSerial", label: "Driver #", sortable: true, align: "right" },
+      { key: "stop", label: "Stop #", sortable: true, align: "right" },
       { key: "orderId", label: "Order ID", sortable: true },
       { key: "planName", label: "Plan", sortable: true },
       { key: "mealSize", label: "Meal size", sortable: true },
@@ -35,6 +39,14 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
       switch (column) {
         case "customer":
           return r.customerName;
+        case "phone":
+          return r.phone ?? "";
+        case "driver":
+          return r.routeDriver ?? "";
+        case "driverSerial":
+          return r.routeDriverSerial ?? "";
+        case "stop":
+          return r.routeStopNumber ?? "";
         case "orderId":
           return r.orderId;
         case "planName":
@@ -67,7 +79,10 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
         rows={shownRows}
         rowKey={(r) => `${r.deliveryPublicId}-${r.forDate}`}
         sort={sort}
-        search={{ keys: ["customerName", "orderId", "planName", "mealSizeName"], placeholder: "Search customer, order, plan..." }}
+        search={{
+          keys: ["customerName", "phone", "routeDriver", "routeDriverSerial", "orderId", "planName", "mealSizeName"],
+          placeholder: "Search customer, phone, driver, order…",
+        }}
         pagination={pagination}
         filters={
           <div className="flex flex-wrap gap-1.5">
@@ -89,6 +104,10 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
               {row.customerName}
               {row.forLabel ? <span className="text-muted-foreground"> · {row.forLabel}</span> : null}
             </TableCell>
+            <TableCell className="whitespace-nowrap tabular-nums">{row.phone ?? "—"}</TableCell>
+            <TableCell className="whitespace-nowrap">{row.routeDriver ?? "—"}</TableCell>
+            <TableCell className="whitespace-nowrap text-right tabular-nums">{row.routeDriverSerial ?? "—"}</TableCell>
+            <TableCell className="whitespace-nowrap text-right tabular-nums">{row.routeStopNumber ?? "—"}</TableCell>
             <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
             <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
             <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>

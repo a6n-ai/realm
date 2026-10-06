@@ -3,7 +3,17 @@
 import type { KitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
 import { formatPortionUnit } from "@/lib/menu/packing-requirement";
 
-const FIXED_HEADERS = ["Delivery Date", "Customer", "Order ID", "Plan Name", "Meal Size"] as const;
+const FIXED_HEADERS = [
+  "Delivery Date",
+  "Customer",
+  "Phone",
+  "Driver",
+  "Driver #",
+  "Stop #",
+  "Order ID",
+  "Plan Name",
+  "Meal Size",
+] as const;
 
 export function packingSheetAoA(sheet: KitchenPackingSheet): (string | number)[][] {
   const header = [...FIXED_HEADERS, ...sheet.itemHeaders];
@@ -12,6 +22,10 @@ export function packingSheetAoA(sheet: KitchenPackingSheet): (string | number)[]
   const rows = sheet.rows.map((r) => [
     r.deliveryDate,
     r.forLabel ? `${r.customerName} · ${r.forLabel}` : r.customerName,
+    r.phone ?? "",
+    r.routeDriver ?? "",
+    r.routeDriverSerial ?? "",
+    r.routeStopNumber ?? "",
     r.orderId,
     r.planName,
     r.mealSizeName,
@@ -51,6 +65,10 @@ export async function writeKitchenPackingWorkbook(
   packing["!cols"] = [
     { wch: 14 },
     { wch: 22 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 10 },
+    { wch: 8 },
     { wch: 16 },
     { wch: 22 },
     { wch: 22 },

@@ -12,6 +12,7 @@ import {
   mealSizes,
   orders,
   plans,
+  users,
 } from "@/db/schema";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
@@ -42,6 +43,12 @@ export type KitchenPackingRow = {
   /** "For Tue" on trips carrying several eating days, else null. */
   forLabel: string | null;
   customerName: string;
+  phone: string | null;
+  /** OptimoRoute driver name after a route pull; serial alone when name is missing. */
+  routeDriver: string | null;
+  /** Driver serial from dispatch (e.g. 005). */
+  routeDriverSerial: string | null;
+  routeStopNumber: number | null;
   orderId: string;
   planName: string;
   mealSizeName: string;
@@ -73,6 +80,10 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       orderId: orders.id,
       deploymentId: orders.deploymentId,
       fullName: orders.fullName,
+      customerPhone: users.phone,
+      routeDriverSerial: deliveries.routeDriverSerial,
+      routeDriverName: deliveries.routeDriverName,
+      routeStopNumber: deliveries.routeStopNumber,
       persons: orders.persons,
       planId: orders.planId,
       mealSizeId: orders.mealSizeId,
@@ -84,6 +95,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .leftJoin(users, eq(orders.userId, users.id))
     .where(
       and(
         eq(deliveries.deliveryDate, dateIso),
@@ -155,6 +167,10 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     forDate: string;
     forLabel: string | null;
     customerName: string;
+    phone: string | null;
+    routeDriver: string | null;
+    routeDriverSerial: string | null;
+    routeStopNumber: number | null;
     orderId: string;
     planName: string;
     mealSizeName: string;
@@ -245,6 +261,10 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       forDate,
       forLabel: covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null,
       customerName: (row.fullName ?? "").trim() || "Customer",
+      phone: row.customerPhone ?? null,
+      routeDriver: row.routeDriverName ?? row.routeDriverSerial ?? null,
+      routeDriverSerial: row.routeDriverSerial ?? null,
+      routeStopNumber: row.routeStopNumber ?? null,
       orderId: row.deploymentId,
       planName: row.planName,
       mealSizeName: row.mealSizeName,
@@ -263,6 +283,10 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       forDate: r.forDate,
       forLabel: r.forLabel,
       customerName: r.customerName,
+      phone: r.phone,
+      routeDriver: r.routeDriver,
+      routeDriverSerial: r.routeDriverSerial,
+      routeStopNumber: r.routeStopNumber,
       orderId: r.orderId,
       planName: r.planName,
       mealSizeName: r.mealSizeName,

@@ -39,6 +39,7 @@ export async function listKnownDrivers(): Promise<KnownDriver[]> {
 export type DispatchRow = {
   orderNo: string;
   customerName: string;
+  phone: string | null;
   /** Tiffins on this stop; a trip carrying several eating days is more than one per person. */
   tiffinUnits: number;
   coveredDates: string[];
@@ -60,16 +61,17 @@ export async function buildDispatchRows(date: string): Promise<DispatchRow[]> {
     const trip = trips.get(row.delivery.id)!;
     const address = effectiveAddress(row.delivery, row.order);
     return {
-    orderNo: row.delivery.publicId,
-    customerName: address.fullName,
-    tiffinUnits: trip.units,
-    coveredDates: trip.covered,
-    coverage: trip.coverage,
-    notes: stopNotes(address.addressUnit, row.driverNote, trip),
-    routeDriverSerial: row.delivery.routeDriverSerial,
-    routeDriverName: row.delivery.routeDriverName,
-    routeStopNumber: row.delivery.routeStopNumber,
-    routeSyncedAt: row.delivery.routeSyncedAt,
+      orderNo: row.delivery.publicId,
+      customerName: address.fullName,
+      phone: row.customerPhone ?? null,
+      tiffinUnits: trip.units,
+      coveredDates: trip.covered,
+      coverage: trip.coverage,
+      notes: stopNotes(address.addressUnit, row.driverNote, trip),
+      routeDriverSerial: row.delivery.routeDriverSerial,
+      routeDriverName: row.delivery.routeDriverName,
+      routeStopNumber: row.delivery.routeStopNumber,
+      routeSyncedAt: row.delivery.routeSyncedAt,
     };
   });
 }
