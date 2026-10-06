@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 // Local dev DB.
 const { db } = await import("@/db/client");
 const schema = await import("@/db/schema");
-const { listCustomersPage, customerStats } = await import("../customers.service");
+const { listCustomersPage, customerStats, getCustomer360 } = await import("../customers.service");
 
 const MARK = "cust-it";
 const byMark = { type: "filter", field: "email", operator: "like", value: `%${MARK}%` } as const;
@@ -92,5 +92,28 @@ describe("customers list", () => {
     expect(s.withBookings).toBeGreaterThanOrEqual(1);
     expect(s.newThisWeek).toBeGreaterThanOrEqual(1);
     expect(s.total).toBeGreaterThanOrEqual(s.active);
+  });
+
+  it("customer 360 has bookings, payments and ledger for that family only", async () => {
+    const [u] = await db.select({ publicId: schema.users.publicId }).from(schema.users).where(eq(schema.users.id, userId));
+    const c = await getCustomer360(u!.publicId);
+    expect(c!.profile.email).toBe(`${MARK}@example.test`);
+    expect(c!.bookings).toHaveLength(2);
+    expect(c!.bookings[0]).toMatchObject({ classTitle: `${MARK} class`, seats: 1 });
+    expect(c!.payments.map((p) => p.status).sort()).toEqual(["paid", "rejected"]);
+    expect(c!.ledger).toEqual([expect.objectContaining({ direction: "credit", amount: "20.00" })]);
+    expect(await getCustomer360("usr_missing")).toBeNull();
+  });
+
+  it("staff are not customers", async () => {
+    const [staff] = await db
+      .insert(schema.users)
+      .values({ name: `${MARK} staff`, email: `${MARK}-staff2@example.test`, role: "admin" })
+      .returning({ id: schema.users.id, publicId: schema.users.publicId });
+    try {
+      expect(await getCustomer360(staff!.publicId)).toBeNull();
+    } finally {
+      await db.delete(schema.users).where(eq(schema.users.id, staff!.id));
+    }
   });
 });

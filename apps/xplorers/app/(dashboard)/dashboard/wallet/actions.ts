@@ -52,10 +52,6 @@ export async function adjustFamilyCoinsAction(
     throw err;
   }
   revalidatePath(PATH, "layout");
+  revalidatePath("/dashboard/customers", "layout");
   return {};
-}
-
-export async function familyBalanceAction(familyPublicId: string): Promise<number> {
-  await requirePermission({ wallet: ["read"] });
-  return walletService.balance(await walletService.familyUserId(familyPublicId));
 }
