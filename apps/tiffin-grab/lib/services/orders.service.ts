@@ -1,4 +1,5 @@
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
+import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
 import { createLogger } from "@foundry/commons/logger";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -719,7 +720,10 @@ export async function createOrder(
     return {
       deploymentId,
       publicId: order.publicId,
-      awardUserId: !deferSettlement && status === "active" ? userId : null,
+      awardUserId:
+        !deferSettlement && status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "simulated_paid" })
+          ? userId
+          : null,
     };
   });
 
@@ -889,7 +893,7 @@ export async function verifyPayment(
 
     // Award coins only when the order is (still) active — waitlisted stays deferred
     // until activateOrder, which has its own award path.
-    return order.status === "active" ? { 
+    return order.status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "paid" }) ? { 
       userId: order.userId, 
       orderPublicId: order.publicId,
       userPublicId: user.publicId,
@@ -1551,8 +1555,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .from(payments)
         .where(eq(payments.orderId, updated.id))
         .limit(1);
-      const settled = !pay || pay.status === "paid" || pay.status === "simulated_paid";
-      if (settled) {
+      if (earnsOrderCoins({ total: updated.total, paymentStatus: pay?.status ?? null })) {
         try {
           await walletService.award(updated.userId, "order_activated", { type: "order", id: updated.publicId });
         } catch (e) {
