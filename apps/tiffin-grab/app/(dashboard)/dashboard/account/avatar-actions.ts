@@ -5,20 +5,13 @@ import { getSession } from "@/lib/auth/session";
 import { filesService } from "@/lib/files";
 import { usersService } from "@/lib/services/users.service";
 import { sniffImageType, extFor, MAX_AVATAR_BYTES } from "@/lib/images/validate";
+import { ownAvatarKey } from "@/lib/images/avatar-key";
 
 // Avatars go through the shared file store (S3 in prod), like dish photos. They
 // used to be written into public/uploads/avatars on the container's disk, which
 // Next never serves after build and every deploy wipes.
-const FILES_BASE = `${(process.env.FILES_PUBLIC_BASE_URL ?? "/api/files").replace(/\/+$/, "")}/`;
-
-/** Our stored key for an avatar URL; null for a Google photo or a legacy /uploads path. */
-function storedKeyFrom(url: string | null | undefined): string | null {
-  if (!url?.startsWith(FILES_BASE)) return null;
-  return url.slice(FILES_BASE.length).split("?")[0] || null;
-}
-
-function forgetOld(url: string | null | undefined) {
-  const key = storedKeyFrom(url);
+function forgetOld(url: string | null | undefined, userId: string) {
+  const key = ownAvatarKey(url, userId);
   if (key) filesService().delete(key).catch(() => undefined);
 }
 
@@ -51,7 +44,7 @@ export async function updateMyAvatar(
   if (!detail.url) return { ok: false, error: "Upload failed. Try again." };
 
   await usersService.updateProfile(session.user.id, { image: detail.url });
-  forgetOld(oldImage);
+  forgetOld(oldImage, session.user.id);
 
   revalidateAccount();
   return { ok: true, url: detail.url };
@@ -65,7 +58,7 @@ export async function removeMyAvatar(): Promise<{ ok: true } | { ok: false; erro
   const oldImage = (current as { image?: string | null }).image;
 
   await usersService.updateProfile(session.user.id, { image: null });
-  forgetOld(oldImage);
+  forgetOld(oldImage, session.user.id);
 
   revalidateAccount();
   return { ok: true };
