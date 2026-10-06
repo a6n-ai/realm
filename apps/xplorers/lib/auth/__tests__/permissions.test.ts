@@ -36,6 +36,12 @@ describe("xplorers permission map", () => {
     expect(roles.admin.authorize({ booking: ["read"] }).success).toBe(true);
   });
 
+  it("lets admin manage the wallet and member only read it", () => {
+    expect(roles.admin.authorize({ wallet: ["read", "update"] }).success).toBe(true);
+    expect(roles.member.authorize({ wallet: ["read"] }).success).toBe(true);
+    expect(roles.member.authorize({ wallet: ["update"] }).success).toBe(false);
+  });
+
   it("lets admin manage discounts and member only read them", () => {
     expect(roles.admin.authorize({ discount: ["create", "read", "update", "delete"] }).success).toBe(true);
     expect(roles.member.authorize({ discount: ["read"] }).success).toBe(true);

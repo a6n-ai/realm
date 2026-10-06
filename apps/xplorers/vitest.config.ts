@@ -4,6 +4,9 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
+    // The integration tests share one local DB and park/restore shared rows
+    // (active discounts, event payouts); run files one at a time so they can't collide.
+    fileParallelism: false,
     // app/ covers route-level tests like accept-invitation's actions — without it
     // those test files are silently skipped by `pnpm turbo test`.
     include: ["lib/**/*.test.ts", "db/**/*.test.ts", "app/**/*.test.ts", "__tests__/**/*.test.ts"],

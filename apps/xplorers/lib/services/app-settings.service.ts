@@ -113,3 +113,17 @@ export async function setDiscountSettings(input: { maxDiscountPct: unknown }): P
   if (!row) throw new ValidationError("App settings are not initialized.");
   await appSettingsEntity.update(row.publicId, { discountSettings: { maxDiscountPct: pct } });
 }
+
+export async function getMaxWalletBalance(): Promise<number | null> {
+  const [row] = await db.select({ cap: app.maxWalletBalance }).from(app).limit(1);
+  return row?.cap ?? null;
+}
+
+export async function setMaxWalletBalance(cap: number | null): Promise<void> {
+  if (cap !== null && (!Number.isInteger(cap) || cap <= 0)) {
+    throw new ValidationError("Max wallet balance must be a positive whole number, or blank for unlimited.");
+  }
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (!row) throw new ValidationError("App settings are not initialized.");
+  await appSettingsEntity.update(row.publicId, { maxWalletBalance: cap });
+}

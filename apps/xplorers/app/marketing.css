@@ -1466,6 +1466,14 @@ body:has(.xl):not(:has(.crm-app)) {
     font-weight: 700;
   }
 
+  .xl-coins-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--size-2xs);
+    color: var(--text-muted);
+  }
+
   .xl-code-note {
     max-width: 22ch;
     font-size: var(--size-xs);

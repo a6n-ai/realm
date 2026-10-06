@@ -54,6 +54,7 @@ const base = {
   codeTyped: false,
   maxDiscountPct: 100,
   now: NOW,
+  coins: null as { balance: number; rate: number } | null,
 };
 
 describe("priceBooking", () => {
@@ -159,5 +160,32 @@ describe("CODE_ERROR_MESSAGE", () => {
   it("has a plain message for every code error", () => {
     for (const msg of Object.values(CODE_ERROR_MESSAGE)) expect(msg.length).toBeGreaterThan(5);
     expect(Object.keys(CODE_ERROR_MESSAGE)).toHaveLength(9);
+  });
+});
+
+describe("priceBooking with coins", () => {
+  it("applies coins after discounts and before tax", () => {
+    const q = priceBooking({ ...base, discounts: [rule()], coins: { balance: 200, rate: 0.1 } });
+    // subtotal 100, discount 10, coins cover 20 (200 × 0.1), tax 10% of 70
+    expect(q.adjustments.at(-1)).toMatchObject({ kind: "wallet", amount: 20, coins: 200 });
+    expect(q).toMatchObject({ discountTotal: 30, taxTotal: 7, total: 77 });
+  });
+
+  it("never spends more coins than the remaining total", () => {
+    const q = priceBooking({ ...base, coins: { balance: 5000, rate: 0.1 } });
+    expect(q.adjustments.at(-1)).toMatchObject({ kind: "wallet", amount: 100, coins: 1000 });
+    expect(q.total).toBe(0);
+  });
+
+  it("is not clipped by the discount cap", () => {
+    const q = priceBooking({ ...base, discounts: [rule()], maxDiscountPct: 5, coins: { balance: 200, rate: 0.1 } });
+    expect(q.adjustments.map((a) => [a.kind, a.amount])).toEqual([
+      ["discount", 5],
+      ["wallet", 20],
+    ]);
+  });
+
+  it("adds nothing for an empty wallet", () => {
+    expect(priceBooking({ ...base, coins: { balance: 0, rate: 0.1 } }).adjustments).toEqual([]);
   });
 });

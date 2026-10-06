@@ -7,6 +7,7 @@ import { SessionList } from "@/components/marketing/session-list";
 import { Eyebrow, Notice, stagger } from "@/components/marketing/ui";
 import { getSession } from "@/lib/auth/session";
 import { bookingsService } from "@/lib/services/bookings.service";
+import { walletService } from "@/lib/services/wallet.service";
 import { loadPublicSessionCards } from "@/lib/sessions/public";
 import { Users } from "lucide-react";
 
@@ -28,6 +29,7 @@ export default async function WhatsOnPage({
   const bookedIds = new Set(
     isFamily && session?.user ? await bookingsService.listConfirmedOccurrencePublicIds(session.user.id) : [],
   );
+  const coins = isFamily && session?.user ? await walletService.coinsForFamily(session.user.id) : null;
 
   return (
     <article>
@@ -67,6 +69,7 @@ export default async function WhatsOnPage({
                     signedIn={signedIn}
                     isFamily={isFamily}
                     booked={bookedIds.has(row.publicId)}
+                    coins={coins}
                     autofocus={focusId === row.publicId}
                   />
                 )}

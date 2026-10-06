@@ -11,6 +11,7 @@ import {
   SettingsIcon,
   ShapesIcon,
   TicketPercentIcon,
+  WalletIcon,
   UserIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -67,6 +68,7 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
       permission: "discount:read",
       also: ["/dashboard/catalog/discounts"],
     },
+    { title: "Wallet", href: "/dashboard/wallet", icon: WalletIcon, permission: "wallet:read" },
   ].filter(allow);
   const admin: NavItem[] = [
     { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:write" },

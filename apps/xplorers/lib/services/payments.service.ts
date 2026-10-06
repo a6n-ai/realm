@@ -1,4 +1,5 @@
 import { ValidationError } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
 import { UpdatableRepository } from "@foundry/database";
 import {
   canClaim,
@@ -13,7 +14,10 @@ import { db } from "@/db/client";
 import { bookings, payments, studioSessionOccurrences, users, type BookingPricing } from "@/db/schema";
 import { getIntegrationsConfig, getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
-import { SessionUpdatableService } from "./session-service";
+import { recollectLapsedCoins, settleBookingCoins, walletService } from "./wallet.service";
+import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
+
+const log = createLogger("payments");
 
 export type PaymentRow = typeof payments.$inferSelect;
 
@@ -84,11 +88,30 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
     const [booking] = await db.select().from(bookings).where(eq(bookings.id, row.bookingId)).limit(1);
     if (!booking) throw new ValidationError("Booking not found.");
 
+    type Lapsed = { coins: number; collected: number; notCollected: number };
+    let lapsed: Lapsed | null = null;
     await db.transaction(async (tx) => {
-      await tx
+      // Claim the payment first: the status guard makes a second, concurrent
+      // verify of the same payment stop here before touching coins or ledgers.
+      const [claimed] = await tx
         .update(payments)
         .set({ status: "paid", capturedAt: Date.now() })
-        .where(and(eq(payments.id, row.id), eq(payments.status, "pending_verification")));
+        .where(and(eq(payments.id, row.id), eq(payments.status, "pending_verification")))
+        .returning({ id: payments.id });
+      if (!claimed) throw new ValidationError("This payment is not waiting on verification.");
+
+      // Coins held at booking become spent. If the hold lapsed first, take the
+      // coins again so they can't fund a second booking; never block the payment.
+      const settled = await settleBookingCoins(tx, { userId: row.userId, bookingId: booking.id });
+      if (settled.status === "expired") {
+        const r = await recollectLapsedCoins(tx, {
+          userId: row.userId,
+          bookingId: booking.id,
+          bookingPublicId: booking.publicId,
+          coins: settled.coins,
+        });
+        lapsed = { coins: settled.coins, ...r };
+      }
       await tx.update(bookings).set({ status: "confirmed" }).where(eq(bookings.id, booking.id));
       await ledgerService.record(tx, {
         userId: row.userId,
@@ -103,6 +126,19 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
       });
     });
 
+    // Assigned inside the transaction callback, which TS cannot see.
+    const lapsedCoins = lapsed as Lapsed | null;
+    if (lapsedCoins) {
+      log.warn({ bookingPublicId: booking.publicId, ...lapsedCoins }, "coin hold expired before payment verification");
+      await recordAudit({
+        entity: "bookings",
+        entityPublicId: booking.publicId,
+        operation: "update",
+        changes: { coinHoldExpired: lapsedCoins },
+        createdBy: await currentUserId(),
+      });
+    }
+    await walletService.awardBookingEvents(booking.id);
     return this.read(publicId);
   }
 

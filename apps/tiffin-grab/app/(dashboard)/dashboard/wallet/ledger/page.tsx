@@ -7,7 +7,10 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { SkeletonStatCards, StatGrid, parseFilterState } from "@/components/ds";
 import { pageOrder } from "@foundry/database";
-import { LedgerTable, LedgerTableSkeleton } from "./ledger-table";
+import { WalletLedgerTable, WalletLedgerTableSkeleton } from "@foundry/crm";
+import { eventLabel } from "@relay/engine/ui";
+import { formatEpoch } from "@/lib/format/datetime";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 
 const SORT_COL = {
   time: walletLedger.createdAt,
@@ -30,7 +33,7 @@ export default function WalletLedgerPage({ searchParams }: { searchParams: Searc
         <WalletStatsData />
       </Suspense>
 
-      <Suspense fallback={<LedgerTableSkeleton />}>
+      <Suspense fallback={<WalletLedgerTableSkeleton />}>
         <WalletLedgerData searchParams={searchParams} />
       </Suspense>
     </div>
@@ -126,7 +129,7 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
 
   const { page } = parseFilterState([], sp);
 
-  const [rows, [{ total }]] = await Promise.all([
+  const [rows, [{ total }], { timezone }] = await Promise.all([
     db
       .select({
         publicId: walletLedger.publicId,
@@ -152,9 +155,29 @@ async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }
       .leftJoin(users, eq(users.id, walletLedger.userId))
       .leftJoin(orders, eq(orders.id, walletLedger.orderId))
       .where(where),
+    getAppSettings(),
   ]);
 
-  return <LedgerTable rows={rows} sort={sort} total={total} page={page.page} size={page.size} />;
+  return (
+    <WalletLedgerTable
+      rows={rows.map((r) => ({
+        publicId: r.publicId,
+        when: formatEpoch(r.createdAt, { mode: "datetime", timeZone: timezone }),
+        direction: r.direction,
+        eventLabel: r.eventType ? eventLabel(r.eventType) : null,
+        sourceType: r.sourceType,
+        coins: r.coins,
+        memo: r.memo,
+        who: r.email,
+        orderLabel: r.orderPublicId,
+        orderHref: r.orderPublicId ? `/dashboard/orders/${r.orderPublicId}` : null,
+      }))}
+      sort={sort}
+      total={total}
+      page={page.page}
+      size={page.size}
+    />
+  );
 }
 
 export type { WalletSortColumn };

@@ -19,6 +19,8 @@ describe("member reaches its intended surfaces", () => {
     expect(navTitles(Role.MEMBER)).not.toContain("Ledger");
     expect(navTitles(Role.ADMIN)).toContain("Discounts");
     expect(navTitles(Role.MEMBER)).toContain("Discounts");
+    expect(navTitles(Role.ADMIN)).toContain("Wallet");
+    expect(navTitles(Role.MEMBER)).toContain("Wallet");
   });
   it("member may read settings", () => {
     expect(roleCan(Role.MEMBER, { settings: ["read"] })).toBe(true);

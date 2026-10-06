@@ -1,6 +1,7 @@
 import { ValidationError } from "@foundry/commons";
 import { resolveCoupons, type CouponCandidate, type IneligibleReason } from "@foundry/coupons";
 import { computeTax, type PaymentMethodConfig } from "@foundry/payments";
+import { capRedemption } from "@foundry/wallet";
 import type { Adjustment, BookingPricing, DiscountScope, SessionCategory } from "@/db/schema";
 
 export type DiscountRule = {
@@ -50,6 +51,8 @@ export type PriceBookingInput = {
   codeTyped: boolean;
   maxDiscountPct: number;
   now: number;
+  /** Family wallet to spend from, or null when not using coins. */
+  coins: { balance: number; rate: number } | null;
 };
 
 export const CODE_ERROR_MESSAGE: Record<CodeError, string> = {
@@ -147,6 +150,17 @@ export function priceBooking(input: PriceBookingInput): BookingQuote {
     subtotal,
     input.maxDiscountPct,
   );
+
+  // Coins are the family's own money, so the discount cap does not apply to them.
+  if (input.coins && input.coins.balance > 0 && input.coins.rate > 0) {
+    const remaining = round2(subtotal - adjustments.reduce((s, a) => s + a.amount, 0));
+    if (remaining > 0) {
+      const { coinsSpent, currencyValue } = capRedemption(input.coins.balance, input.coins.rate, remaining);
+      if (coinsSpent > 0 && currencyValue > 0) {
+        adjustments.push({ kind: "wallet", publicId: "wallet", name: "Wallet coins", amount: currencyValue, coins: coinsSpent });
+      }
+    }
+  }
 
   const discountTotal = round2(adjustments.reduce((s, a) => s + a.amount, 0));
   const taxable = round2(subtotal - discountTotal);
