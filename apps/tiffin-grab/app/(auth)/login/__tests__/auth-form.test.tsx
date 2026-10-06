@@ -19,17 +19,39 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("AuthForm", () => {
-  it("opens on the welcome screen, and Sign in leads to the email-code form", () => {
+  it("opens straight on the sign-in form, with a way to start a subscription", () => {
     render(<AuthForm canUsePin={false} />);
-    expect(screen.getByRole("button", { name: /get started/i })).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     expect(screen.getByRole("button", { name: /email me a code/i })).toBeDefined();
+    expect(screen.getByRole("button", { name: /start a subscription/i })).toBeDefined();
     expect(screen.queryByRole("button", { name: /unlock with your pin/i })).toBeNull();
+  });
+
+  it("welcomes back the last user on this device and prefills their email", () => {
+    render(
+      <AuthForm
+        canUsePin={false}
+        lastUser={{ firstName: "Vijay", email: "vijay@gmail.com", maskedEmail: "vi•••@gmail.com", method: "email" }}
+      />,
+    );
+    expect(screen.getByText(/welcome back, vijay/i)).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: /continue as vijay/i }));
+    expect((screen.getByPlaceholderText(/you@example.com/i) as HTMLInputElement).value).toBe("vijay@gmail.com");
+  });
+
+  it("forgets the last user on 'Not you?'", () => {
+    render(
+      <AuthForm
+        canUsePin={false}
+        lastUser={{ firstName: "Vijay", email: "vijay@gmail.com", maskedEmail: "vi•••@gmail.com", method: "email" }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /not you/i }));
+    expect(screen.queryByText(/welcome back, vijay/i)).toBeNull();
+    expect((screen.getByPlaceholderText(/you@example.com/i) as HTMLInputElement).value).toBe("");
   });
 
   it("switches to the password panel with an email field", () => {
     render(<AuthForm canUsePin={false} />);
-    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     fireEvent.click(screen.getByRole("button", { name: /sign in with a password instead/i }));
     expect(document.querySelector('input[autocomplete="email"]')).not.toBeNull();
     expect(document.querySelector('input[autocomplete="current-password"]')).not.toBeNull();
@@ -44,7 +66,6 @@ describe("AuthForm", () => {
 
   it("accepts a 6-digit code typed into the segmented OTP field after requesting a code", async () => {
     render(<AuthForm canUsePin={false} />);
-    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), { target: { value: "user@x.com" } });
     fireEvent.click(screen.getByRole("button", { name: /email me a code/i }));
     await waitFor(() => expect(screen.getByLabelText(/verification code/i)).toBeDefined());
@@ -59,7 +80,6 @@ describe("AuthForm messages", () => {
   async function toCodeStep(sendResult: unknown) {
     vi.mocked(authClient.emailOtp.sendVerificationOtp).mockResolvedValue(sendResult as never);
     render(<AuthForm canUsePin={false} />);
-    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), { target: { value: "who@x.com" } });
     fireEvent.click(screen.getByRole("button", { name: /email me a code/i }));
   }
@@ -87,7 +107,6 @@ describe("AuthForm messages", () => {
   it("explains a wrong password and points at reset", async () => {
     vi.mocked(signIn.email).mockResolvedValue({ error: { status: 401, message: "Invalid email or password" } } as never);
     render(<AuthForm canUsePin={false} />);
-    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
     fireEvent.click(screen.getByRole("button", { name: /sign in with a password instead/i }));
     fireEvent.change(document.querySelector('input[autocomplete="email"]')!, { target: { value: "a@b.com" } });
     fireEvent.change(document.querySelector('input[autocomplete="current-password"]')!, { target: { value: "x" } });

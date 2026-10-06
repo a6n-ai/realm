@@ -1,9 +1,10 @@
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
 import { roleLanding } from "@/lib/auth/landing";
-import { googleSignInEnabled } from "@foundry/auth";
+import { LAST_USER_COOKIE, googleSignInEnabled, maskEmail, parseLastUser } from "@foundry/auth";
 import { AuthForm } from "./auth-form";
 
 // Reads session from the DB — must not be statically prerendered at build
@@ -19,9 +20,15 @@ export default async function LoginPage() {
   // home. A locked session stays on /login to enter its PIN.
   if (session?.user && !locked) redirect(roleLanding(session.user.role));
   const canUsePin = locked;
+  const last = locked ? null : parseLastUser((await cookies()).get(LAST_USER_COOKIE)?.value);
+  const lastUser = last ? { ...last, maskedEmail: maskEmail(last.email) } : null;
   return (
     <Suspense>
-      <AuthForm canUsePin={canUsePin} googleClientId={googleSignInEnabled() ? process.env.GOOGLE_CLIENT_ID! : null} />
+      <AuthForm
+        canUsePin={canUsePin}
+        googleClientId={googleSignInEnabled() ? process.env.GOOGLE_CLIENT_ID! : null}
+        lastUser={lastUser}
+      />
     </Suspense>
   );
 }

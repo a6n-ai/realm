@@ -23,6 +23,7 @@ import { Input } from "@foundry/ui/input";
 import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
 import { verifyPinAction } from "./actions";
 import { promptGoogleOneTap } from "@/lib/auth/one-tap";
+import { LAST_USER_COOKIE } from "@/lib/auth/last-user-cookie";
 import { AuthLegal, AuthLogo, IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";
 
 // Login is the shared gateway into both the customer and staff shells, so it
@@ -48,7 +49,20 @@ export function safeCallbackUrl(raw: string | null): string | null {
   }
 }
 
-export function AuthForm({ canUsePin, googleClientId = null }: { canUsePin: boolean; googleClientId?: string | null }) {
+export type LastUserView = { firstName: string; email: string; maskedEmail: string; method: "google" | "email" | "password" };
+
+export function AuthForm({
+  canUsePin,
+  googleClientId = null,
+  lastUser: initialLastUser = null,
+}: {
+  canUsePin: boolean;
+  googleClientId?: string | null;
+  lastUser?: LastUserView | null;
+}) {
+  // Who last signed in on this device ("Continue as …"); "Not you?" forgets it.
+  const [lastUser, setLastUser] = useState(initialLastUser);
+  const [prefillEmail, setPrefillEmail] = useState("");
   const google = Boolean(googleClientId);
   const router = useRouter();
   const params = useSearchParams();
@@ -58,7 +72,10 @@ export function AuthForm({ canUsePin, googleClientId = null }: { canUsePin: bool
   // A locked session opens on its PIN. Someone bounced here from a protected
   // page (callbackUrl) already knows why they're here, so they skip the
   // welcome screen and land on the form.
-  const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : callbackUrl || oauthError ? "email-otp" : "welcome");
+  const [mode, setMode] = useState<Mode>(
+    // One screen: straight to sign-in, unless this device has someone to welcome back.
+    canUsePin ? "pin" : initialLastUser && !callbackUrl && !oauthError ? "welcome" : "email-otp",
+  );
   const [codeStep, setCodeStep] = useState(false);
   // Email and password forms both hit captcha'd routes; solve ahead of Send.
   useEffect(() => warmCaptcha(mode === "email-otp" || mode === "password"), [mode]);
@@ -76,10 +93,12 @@ export function AuthForm({ canUsePin, googleClientId = null }: { canUsePin: bool
   // Revolut-style: one screen. The mark stays put, the headline retitles per
   // step in the same spot, and only the form underneath swaps.
   const HEAD: Record<Exclude<Mode, "pin">, { title: string; tagline?: string }> = {
-    welcome: { title: "Home-style meals, your way.", tagline: "Fresh tiffin meals, delivered on your schedule." },
+    welcome: lastUser
+      ? { title: lastUser.firstName ? `Welcome back, ${lastUser.firstName}.` : "Welcome back.", tagline: lastUser.maskedEmail }
+      : { title: "Home-style meals, your way.", tagline: "Fresh tiffin meals, delivered on your schedule." },
     "email-otp": codeStep
       ? { title: "Enter the code" }
-      : { title: "Welcome back", tagline: "Sign in with a code sent to your email." },
+      : { title: "Sign in", tagline: "Use Google, or get a code by email." },
     password: { title: "Welcome back", tagline: "Sign in with your email and password." },
   };
 
@@ -111,10 +130,12 @@ export function AuthForm({ canUsePin, googleClientId = null }: { canUsePin: bool
         >
           {mode === "email-otp" ? (
             <EmailCodeSignIn
+              key={prefillEmail}
               compact
               ui={tiffinAuthUi}
+              defaultEmail={prefillEmail}
               onStepChange={(step) => setCodeStep(step === "code")}
-              onBack={callbackUrl ? undefined : () => setMode("welcome")}
+              onBack={lastUser && !callbackUrl ? () => setMode("welcome") : undefined}
               onSendCode={(email) => authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" })}
               onVerify={(email, otp) => signIn.emailOtp({ email, otp })}
               onSuccess={landSignedIn}
@@ -139,9 +160,17 @@ export function AuthForm({ canUsePin, googleClientId = null }: { canUsePin: bool
                 ) : undefined
               }
               extra={
-                <button type="button" onClick={() => setMode("password")} className={AUTH_LINK}>
-                  Sign in with a password instead
-                </button>
+                <>
+                  <button type="button" onClick={() => setMode("password")} className={AUTH_LINK}>
+                    Sign in with a password instead
+                  </button>
+                  <div className="mt-3 flex w-full flex-col gap-2 border-t border-[var(--border)] pt-4">
+                    <p className="text-muted-foreground text-center text-sm">New to Tiffin Grab?</p>
+                    <KitButton variant="outline" className="w-full" onClick={() => router.push("/subscribe")}>
+                      Start a subscription
+                    </KitButton>
+                  </div>
+                </>
               }
             />
           ) : mode === "password" ? (
@@ -149,6 +178,30 @@ export function AuthForm({ canUsePin, googleClientId = null }: { canUsePin: bool
               canUsePin={canUsePin}
               onUsePin={() => setMode("pin")}
               onUseEmailOtp={() => { setCodeStep(false); setMode("email-otp"); }}
+            />
+          ) : lastUser ? (
+            <ContinueAs
+              user={lastUser}
+              onContinue={() => {
+                if (lastUser.method === "google" && googleClientId) {
+                  // loginHint: Google opens on this account instead of the picker.
+                  return signIn.social({
+                    provider: "google",
+                    loginHint: lastUser.email,
+                    callbackURL: callbackUrl ?? "/dashboard",
+                    errorCallbackURL: "/login",
+                  });
+                }
+                setPrefillEmail(lastUser.email);
+                setMode("email-otp");
+              }}
+              onOther={() => { setPrefillEmail(""); setMode("email-otp"); }}
+              onForget={() => {
+                document.cookie = `${LAST_USER_COOKIE}=; Max-Age=0; path=/`;
+                setLastUser(null);
+                setMode("email-otp");
+              }}
+              onGetStarted={() => router.push("/subscribe")}
             />
           ) : null}
         </AuthWelcome>
@@ -328,6 +381,52 @@ function PinPanel({ onUsePassword }: { onUsePassword: () => void }) {
           Sign in with password instead
         </button>
       </form>
+    </div>
+  );
+}
+
+const KitButton = tiffinAuthUi.Button!;
+
+function ContinueAs({
+  user,
+  onContinue,
+  onOther,
+  onForget,
+  onGetStarted,
+}: {
+  user: LastUserView;
+  onContinue: () => unknown;
+  onOther: () => void;
+  onForget: () => void;
+  onGetStarted: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+  return (
+    <div className="mt-auto flex flex-col gap-3">
+      <KitButton
+        variant="primary"
+        className="w-full"
+        pending={pending}
+        onClick={async () => {
+          setPending(true);
+          // Google navigates away; the email path returns at once.
+          await onContinue();
+          setPending(false);
+        }}
+      >
+        Continue as {user.firstName || user.maskedEmail}
+      </KitButton>
+      <KitButton variant="outline" className="w-full" onClick={onOther}>
+        Use another account
+      </KitButton>
+      <div className="flex flex-col items-center">
+        <button type="button" onClick={onForget} className={AUTH_LINK}>
+          Not you? Forget this account
+        </button>
+        <button type="button" onClick={onGetStarted} className={AUTH_LINK}>
+          New here? Start a subscription
+        </button>
+      </div>
     </div>
   );
 }

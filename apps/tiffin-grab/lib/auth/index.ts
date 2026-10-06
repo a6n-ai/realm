@@ -5,7 +5,9 @@ import { admin as adminPlugin, captcha, emailOTP, magicLink } from "better-auth/
 import { CAPTCHA_ENDPOINTS, turnstileKeys } from "./captcha";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
-import { createOrganizationPlugin, authAuditAction, googleOneTapPlugins, googleSocialProviders } from "@foundry/auth";
+import {
+  LAST_USER_COOKIE, LAST_USER_MAX_AGE_S, authAuditAction, createOrganizationPlugin, encodeLastUser, googleOneTapPlugins, googleSocialProviders,
+} from "@foundry/auth";
 import { Role } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
@@ -272,6 +274,22 @@ export const auth = betterAuth({
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
       const failed = ctx.context.returned instanceof APIError;
+
+      // "Welcome back, Vijay" on the next visit to /login, whatever the method.
+      // Readable by the page (not httpOnly): it holds no token, see @foundry/auth last-user.
+      const fresh = ctx.context.newSession;
+      if (!failed && fresh) {
+        const value = encodeLastUser(ctx.path, fresh.user);
+        if (value) {
+          ctx.setCookie(LAST_USER_COOKIE, value, {
+            path: "/",
+            maxAge: LAST_USER_MAX_AGE_S,
+            sameSite: "lax",
+            httpOnly: false,
+            secure: process.env.NODE_ENV === "production",
+          });
+        }
+      }
 
       // Security audit: every mapped auth event lands in the SAME append-only
       // audit_log as the rest of the app, via the shared vocabulary in
