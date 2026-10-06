@@ -60,14 +60,14 @@ describe("createOrder with a custom meal size", () => {
     expect(Number(o.perTiffinPrice)).toBeGreaterThanOrEqual(8); // 2 TU × $4, before tier uplift
   });
 
-  it("lets the owner renew a custom size they already had", async () => {
+  it("rejects the owner renewing a custom size themselves (staff only)", async () => {
     const size = await customSize();
     const first = await createOrder(input(size.publicId), { allowCustomMeal: true });
     const [o] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, first.publicId));
     const [u] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, o.userId!));
     // Any terminal value of the orderStatus enum (check db/schema/orders.ts) so the overlap guard passes.
     await db.update(orders).set({ status: "completed" }).where(eq(orders.publicId, first.publicId));
-    await expect(createOrder(input(size.publicId), { ownerUserId: u.publicId })).resolves.toMatchObject({ publicId: expect.any(String) });
+    await expect(createOrder(input(size.publicId), { ownerUserId: u.publicId })).rejects.toThrow(/isn't available/);
   });
 
   it("rejects another customer's custom size", async () => {

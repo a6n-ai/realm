@@ -9,5 +9,5 @@ const sizes = [
 
 describe("wizard meal list", () => {
   it("public wizard shows no custom sizes", () => expect(listableMealSizes(sizes).map((s) => s.publicId)).toEqual(["a"]));
-  it("renew shows only the customer's own custom size", () => expect(listableMealSizes(sizes, "c2").map((s) => s.publicId)).toEqual(["a", "c2"]));
+  it("keepId (admin order edit) keeps only that custom size", () => expect(listableMealSizes(sizes, "c2").map((s) => s.publicId)).toEqual(["a", "c2"]));
 });
