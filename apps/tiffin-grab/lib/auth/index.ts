@@ -5,7 +5,7 @@ import { admin as adminPlugin, captcha, emailOTP, magicLink } from "better-auth/
 import { CAPTCHA_ENDPOINTS, turnstileKeys } from "./captcha";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
-import { createOrganizationPlugin, authAuditAction, googleSocialProviders } from "@foundry/auth";
+import { createOrganizationPlugin, authAuditAction, googleOneTapPlugins, googleSocialProviders } from "@foundry/auth";
 import { Role } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
@@ -201,6 +201,8 @@ export const auth = betterAuth({
     ...(turnstileKeys()
       ? [captcha({ provider: "cloudflare-turnstile", secretKey: turnstileKeys()!.secretKey, endpoints: CAPTCHA_ENDPOINTS })]
       : []),
+    // Google One Tap: sign-in only, off without the Google keys.
+    ...googleOneTapPlugins(),
     nextCookies(),
   ],
   // Audit: log session deletion as logout.

@@ -21,7 +21,7 @@ export default async function LoginPage() {
   const canUsePin = locked;
   return (
     <Suspense>
-      <AuthForm canUsePin={canUsePin} google={googleSignInEnabled()} />
+      <AuthForm canUsePin={canUsePin} googleClientId={googleSignInEnabled() ? process.env.GOOGLE_CLIENT_ID! : null} />
     </Suspense>
   );
 }

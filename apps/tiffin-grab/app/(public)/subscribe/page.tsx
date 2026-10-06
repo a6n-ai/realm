@@ -49,7 +49,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
         <SubscribeCouponsPreview coupons={coupons} />
       </div>
       <div className="mt-8">
-        <IdentityGate google={googleSignInEnabled()} oauthError={error ?? null} />
+        <IdentityGate googleClientId={googleSignInEnabled() ? process.env.GOOGLE_CLIENT_ID! : null} oauthError={error ?? null} />
       </div>
     </main>
   );

@@ -9,7 +9,8 @@ import { warmCaptcha } from "@/lib/auth/captcha-client";
 import { checkExistingAccount, createCheckoutAccount } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
 import { tiffinAuthUi } from "@/components/auth/auth-kit";
-import { CodeOtp, EmailSuggestions, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
+import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
+import { promptGoogleOneTap } from "@/lib/auth/one-tap";
 
 // Step zero of /subscribe for signed-out visitors, drawn in the wizard's own
 // language (question headline, kit Field, one hero CTA) so it reads as the
@@ -34,7 +35,14 @@ const COPY: Record<Phase, { title: string; body: string }> = {
 };
 
 
-export function IdentityGate({ google = false, oauthError = null }: { google?: boolean; oauthError?: string | null }) {
+export function IdentityGate({
+  googleClientId = null,
+  oauthError: initialOauthError = null,
+}: {
+  googleClientId?: string | null;
+  oauthError?: string | null;
+}) {
+  const [oauthError, setOauthError] = useState(initialOauthError);
   const router = useRouter();
   const reduced = useReducedMotion();
   const [phase, setPhase] = useState<Phase>("email");
@@ -145,8 +153,21 @@ export function IdentityGate({ google = false, oauthError = null }: { google?: b
       </AnimatePresence>
 
       <div className="mt-6 flex flex-col gap-5">
-        {google && phase === "email" ? (
+        {googleClientId && phase === "email" ? (
           <div className="flex flex-col gap-3">
+            {/* One Tap signs returning customers in; a new address is refused
+                (sign-in only) and pointed at the button below, which signs up. */}
+            <GoogleOneTap
+              start={() =>
+                promptGoogleOneTap(googleClientId, {
+                  onSignedIn: () => {
+                    router.replace("/me/renew", { transitionTypes: ["nav-forward"] });
+                    router.refresh();
+                  },
+                  onRefused: () => setOauthError("signup_disabled"),
+                })
+              }
+            />
             {/* requestSignUp: this is the one page that may create an account (see lib/auth). */}
             <GoogleSignInButton
               ui={tiffinAuthUi}

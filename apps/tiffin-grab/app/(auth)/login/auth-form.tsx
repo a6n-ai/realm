@@ -13,7 +13,7 @@ import { warmCaptcha } from "@/lib/auth/captcha-client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
 import {
-  AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, EmailSuggestions, GoogleSignInButton, authErrorMessage, oauthErrorMessage,
+  AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, EmailSuggestions, GoogleOneTap, GoogleSignInButton, authErrorMessage, oauthErrorMessage,
 } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import {
@@ -22,6 +22,7 @@ import {
 import { Input } from "@foundry/ui/input";
 import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
 import { verifyPinAction } from "./actions";
+import { promptGoogleOneTap } from "@/lib/auth/one-tap";
 import { AuthLegal, AuthLogo, IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";
 
 // Login is the shared gateway into both the customer and staff shells, so it
@@ -47,7 +48,8 @@ export function safeCallbackUrl(raw: string | null): string | null {
   }
 }
 
-export function AuthForm({ canUsePin, google = false }: { canUsePin: boolean; google?: boolean }) {
+export function AuthForm({ canUsePin, googleClientId = null }: { canUsePin: boolean; googleClientId?: string | null }) {
+  const google = Boolean(googleClientId);
   const router = useRouter();
   const params = useSearchParams();
   const callbackUrl = safeCallbackUrl(params.get("callbackUrl"));
@@ -85,6 +87,17 @@ export function AuthForm({ canUsePin, google = false }: { canUsePin: boolean; go
     <AuthScreen
       footer={<AuthLegal />}
     >
+      {googleClientId && mode !== "pin" ? (
+        <GoogleOneTap
+          start={() =>
+            promptGoogleOneTap(googleClientId, {
+              onSignedIn: () => void landSignedIn(),
+              // No account for that Google email: sign-up lives on /subscribe.
+              onRefused: () => router.replace("/subscribe?error=signup_disabled"),
+            })
+          }
+        />
+      ) : null}
       {mode === "pin" ? (
         <PinPanel onUsePassword={() => setMode("password")} />
       ) : (

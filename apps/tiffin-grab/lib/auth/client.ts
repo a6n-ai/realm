@@ -1,5 +1,6 @@
 import { createAuthClient } from "better-auth/react";
 import { emailOTPClient } from "better-auth/client/plugins";
+import { preventGoogleAutoSignIn } from "@foundry/auth-ui";
 import { getCaptchaToken, needsCaptcha } from "./captcha-client";
 
 export const authClient = createAuthClient({
@@ -29,5 +30,7 @@ export const signOut: typeof authClient.signOut = (...args) => {
   try {
     for (const key of Object.keys(sessionStorage)) if (key.startsWith(WIZARD_DRAFT_PREFIX)) sessionStorage.removeItem(key);
   } catch { /* storage unavailable */ }
+  // Else Google One Tap auto-select signs the user straight back in.
+  void preventGoogleAutoSignIn();
   return authClient.signOut(...args);
 };
