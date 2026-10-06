@@ -1,6 +1,7 @@
-import { isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries } from "@/db/schema";
+import { deliveries, orders, payments, users } from "@/db/schema";
+import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
 import { loadTripDetails, stopNotes } from "./trip-notes";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
@@ -71,6 +72,46 @@ export async function buildDispatchRows(date: string): Promise<DispatchRow[]> {
     routeSyncedAt: row.delivery.routeSyncedAt,
     };
   });
+}
+
+export type PaymentHeldRow = {
+  orderPublicId: string;
+  customerName: string;
+  phone: string | null;
+  paymentStatus: (typeof PAYMENT_REVIEW_STATUSES)[number];
+  amount: string;
+  reference: string | null;
+};
+
+/**
+ * Scheduled for the date but kept off labels and OptimoRoute by fulfillmentReadyOrder()
+ * because the payment is not confirmed — listed on Dispatch so staff know why a customer
+ * is missing from the route rather than assuming the push failed.
+ */
+export async function listPaymentHeld(date: string): Promise<PaymentHeldRow[]> {
+  const rows = await db
+    .select({
+      orderPublicId: orders.publicId,
+      customerName: orders.fullName,
+      phone: users.phone,
+      paymentStatus: payments.status,
+      amount: payments.amount,
+      reference: payments.reference,
+    })
+    .from(deliveries)
+    .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .innerJoin(payments, eq(payments.orderId, orders.id))
+    .leftJoin(users, eq(orders.userId, users.id))
+    .where(
+      and(
+        eq(deliveries.deliveryDate, date),
+        eq(deliveries.status, "scheduled"),
+        eq(orders.status, "active"),
+        inArray(payments.status, [...PAYMENT_REVIEW_STATUSES]),
+      ),
+    )
+    .orderBy(orders.fullName);
+  return rows as PaymentHeldRow[];
 }
 
 export { assignDriver } from "./push";

@@ -8,13 +8,15 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { previewPush } from "@/lib/services/optimoroute/push";
-import { buildDispatchRows, listKnownDrivers } from "@/lib/services/optimoroute/drivers";
+import Link from "next/link";
+import { buildDispatchRows, listKnownDrivers, listPaymentHeld } from "@/lib/services/optimoroute/drivers";
 import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
 import { DayHeader } from "./day-header";
 import { DispatchTabs } from "./dispatch-tabs";
 import { DispatchView } from "./dispatch-view";
 import { PlannedOrders } from "./routes-view";
 import { PushControl } from "./push-control";
+import { ListCard, ListCardRow } from "./list-card";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -73,9 +75,13 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
     );
   }
 
-  let dispatchRows, drivers;
+  let dispatchRows, drivers, paymentHeld;
   try {
-    [dispatchRows, drivers] = await Promise.all([buildDispatchRows(date), listKnownDrivers()]);
+    [dispatchRows, drivers, paymentHeld] = await Promise.all([
+      buildDispatchRows(date),
+      listKnownDrivers(),
+      listPaymentHeld(date),
+    ]);
   } catch (e) {
     return (
       <>
@@ -116,8 +122,35 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
       {/* Actions above the table, matching the Stale/Completions tabs — a dispatcher
           shouldn't have to scroll past the whole table to find Send/Pull. */}
       <SectionCard title="Send to OptimoRoute" variant="flat">
-        <PushControl date={date} stops={scheduledCount} />
+        <PushControl
+          date={date}
+          stops={scheduledCount}
+          unassigned={dispatchRows.filter((r) => !r.routeDriverSerial).map((r) => r.orderNo)}
+        />
       </SectionCard>
+
+      {paymentHeld.length > 0 ? (
+        <ListCard title={`Not sent: payment not confirmed (${paymentHeld.length})`}>
+          {paymentHeld.map((h) => (
+            <ListCardRow
+              key={h.orderPublicId}
+              primary={
+                <Link href={`/dashboard/orders/${h.orderPublicId}`} className="hover:underline">
+                  {h.customerName}
+                </Link>
+              }
+              secondary={[h.phone, `$${h.amount}`, h.reference ? `Ref ${h.reference}` : null]
+                .filter(Boolean)
+                .join(" · ")}
+              trailing={
+                <Badge variant={h.paymentStatus === "pending_verification" ? "secondary" : "outline"}>
+                  {h.paymentStatus === "pending_verification" ? "Needs verification" : "Awaiting payment"}
+                </Badge>
+              }
+            />
+          ))}
+        </ListCard>
+      ) : null}
 
       {/* Primary content: this is the task a dispatcher opens the page to do. */}
       <SectionCard title="Dispatch">

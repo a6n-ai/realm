@@ -17,6 +17,8 @@ import { LabelsTabs } from "./labels-tabs";
 
 type SearchParams = Promise<{ date?: string }>;
 
+const GOING_OUT = new Set(["To be delivered", "Awaiting confirmation", "Delivered"]);
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default async function LabelsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -97,7 +99,8 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
         date={date}
         counts={{
           packing: packing.rows.length,
-          deliveries: deliveries.length,
+          // Same number Dispatch shows as stops: held, paused and cancelled rows are listed but not going out.
+          deliveries: deliveries.filter((d) => GOING_OUT.has(d.status)).length,
           kitchen: sheet.counts.length,
           labels: sheet.labels.length,
         }}
