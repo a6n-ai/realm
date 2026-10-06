@@ -5,6 +5,7 @@ import { admin as adminPlugin, captcha, emailOTP, magicLink } from "better-auth/
 import { CAPTCHA_ENDPOINTS, turnstileKeys } from "./captcha";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { and, eq, isNull } from "drizzle-orm";
+import { revokeUnprovenAccountAccess } from "better-auth/db";
 import {
   LAST_USER_COOKIE, LAST_USER_MAX_AGE_S, authAuditAction, createOrganizationPlugin, encodeLastUser, googleOneTapPlugins, googleSocialProviders,
 } from "@foundry/auth";
@@ -117,11 +118,12 @@ export const auth = betterAuth({
       // Better Auth's default only links Google onto an account whose email WE
       // already verified. Checkout and admin-invite accounts often are not yet
       // (166 active customers on 2026-10-07), so Google sign-in failed for them.
-      // Linking anyway is safe only with the account.create.before hook below:
-      // /signup creates an unverified email+password account, so someone could
-      // pre-register a victim's address with their own password, and the
-      // victim's Google sign-in would then verify it for them. The hook deletes
-      // any password on an unverified account before Google links to it.
+      // Linking anyway needs the guard Better Auth runs on its own unverified-
+      // to-verified paths (email-code sign-in, magic link) but skips here,
+      // since its default never links unverified accounts: /signup makes an
+      // unverified email+password account, so a stranger could pre-register a
+      // victim's address with their own password and the victim's Google
+      // sign-in would verify it for them. See account.create.before.
       requireLocalEmailVerified: false,
     },
   },
@@ -239,16 +241,12 @@ export const auth = betterAuth({
     // leak. The photo is read from the ID token before it is dropped.
     account: {
       create: {
-        before: async (acc) => {
+        before: async (acc, ctx) => {
           if (acc.providerId !== "google") return;
           const userId = BigInt(acc.userId as string);
-          // Pre-hijack guard (see accountLinking above): a password set on an
-          // address nobody has verified was not set by a proven owner. Drop it
-          // before Google verifies the address; the real owner can reset it.
-          const [owner] = await db.select({ emailVerified: users.emailVerified }).from(users).where(eq(users.id, userId)).limit(1);
-          if (owner && !owner.emailVerified) {
-            await db.delete(account).where(and(eq(account.userId, userId), eq(account.providerId, "credential")));
-          }
+          // Google is about to verify this address. If it is still unverified,
+          // drop any password and session on it first (Better Auth's own guard).
+          if (ctx) await revokeUnprovenAccountAccess(ctx, String(acc.userId));
           if (acc.idToken) {
             try {
               const picture = googlePicture(acc.idToken);

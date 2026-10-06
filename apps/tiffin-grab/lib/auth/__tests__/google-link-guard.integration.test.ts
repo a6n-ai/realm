@@ -14,6 +14,7 @@ const { auth } = await import("@/lib/auth");
 
 const MARK = "google-link-guard";
 const before = auth.options.databaseHooks!.account!.create!.before!;
+const ctx = { context: await auth.$context } as never;
 
 async function seed(emailVerified: boolean) {
   const [u] = await db
@@ -41,13 +42,13 @@ afterEach(async () => {
 describe("Google linking onto an unverified account", () => {
   it("deletes a password nobody proved they own", async () => {
     const userId = await seed(false);
-    await before({ providerId: "google", accountId: "g-1", userId: String(userId) } as never, null as never);
+    await before({ providerId: "google", accountId: "g-1", userId: String(userId) } as never, ctx);
     expect(await credentialCount(userId)).toBe(0);
   });
 
   it("keeps the password of a verified owner", async () => {
     const userId = await seed(true);
-    await before({ providerId: "google", accountId: "g-2", userId: String(userId) } as never, null as never);
+    await before({ providerId: "google", accountId: "g-2", userId: String(userId) } as never, ctx);
     expect(await credentialCount(userId)).toBe(1);
   });
 
@@ -55,7 +56,7 @@ describe("Google linking onto an unverified account", () => {
     const userId = await seed(true);
     const out = (await before(
       { providerId: "google", accountId: "g-3", userId: String(userId), accessToken: "a", refreshToken: "r", idToken: "x.e30.y" } as never,
-      null as never,
+      ctx,
     )) as { data: Record<string, unknown> };
     expect(out.data).toMatchObject({ accessToken: null, refreshToken: null, idToken: null });
   });
