@@ -72,6 +72,7 @@ afterEach(async () => {
     await db.select({ id: schema.coupons.id }).from(schema.coupons).where(like(schema.coupons.code, "DISCIT%"))
   ).map((c) => c.id);
   if (couponIds.length) await db.delete(schema.couponRedemptions).where(inArray(schema.couponRedemptions.couponId, couponIds));
+  if (userIds.length) await db.delete(schema.walletLedger).where(inArray(schema.walletLedger.userId, userIds));
   if (userIds.length) {
     await db.delete(schema.ledgerEntries).where(inArray(schema.ledgerEntries.userId, userIds));
     await db.delete(schema.payments).where(inArray(schema.payments.userId, userIds));
