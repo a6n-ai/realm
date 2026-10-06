@@ -5,10 +5,11 @@ import {
   reserveRedemption,
   reverseAward,
   settleReservation,
+  unexpired,
   type WalletDeps,
   type WalletTx as PackageWalletTx,
 } from "@foundry/wallet";
-import { and, eq, inArray, notExists } from "drizzle-orm";
+import { and, eq, inArray, notExists, sql } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { coinRate, durationPackages, eventPayout, ledgerEntries, mealPayout, mealSizes, orders, users, walletLedger } from "@/db/schema";
@@ -222,4 +223,36 @@ export async function reverseCoinAward(
   args: { userId: bigint; eventType: BusinessEvent; source: { type: string; id: string } },
 ): Promise<{ coinsReturned: number }> {
   return reverseAward(tx, { ...args, walletLedger, users });
+}
+
+/**
+ * A coin hold lapsed before its payment was verified, so the coins went back to
+ * the wallet while the order kept the coin-reduced price. Take them again (as
+ * many as the customer still has, under their row lock) so a lapsed hold can't
+ * fund a second order; the rest is reported for staff.
+ */
+export async function recollectLapsedCoins(
+  tx: Tx,
+  args: { userId: bigint; orderId: bigint; orderRef: string; coins: number },
+): Promise<{ collected: number; notCollected: number }> {
+  await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${args.userId} FOR UPDATE`);
+  const [row] = await tx
+    .select({
+      bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
+    })
+    .from(walletLedger)
+    .where(and(eq(walletLedger.userId, args.userId), unexpired(walletLedger, Date.now())));
+  const collected = Math.max(0, Math.min(row?.bal ?? 0, args.coins));
+  if (collected > 0) {
+    await tx.insert(walletLedger).values({
+      userId: args.userId,
+      direction: "debit",
+      sourceType: "redemption_late",
+      sourceId: args.orderRef,
+      orderId: args.orderId,
+      coins: collected,
+      memo: "Coins (hold lapsed before payment)",
+    });
+  }
+  return { collected, notCollected: args.coins - collected };
 }

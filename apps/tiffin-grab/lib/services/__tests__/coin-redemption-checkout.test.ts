@@ -383,6 +383,43 @@ describe("verifyPayment — settles deferred coin redemption", () => {
     expect(await walletService.balance(owner.id)).toBe(40);
   });
 
+  // A hold that lapsed before verification returned its coins to the wallet
+  // while the order kept the coin-reduced price. Left alone, those coins could
+  // fund a second order. Verify takes them again when the customer still has them.
+  async function lapsedHoldOrder(seedCoins: number) {
+    const owner = await seedUserWithCoins(seedCoins);
+    const { deploymentId } = await createOrder(
+      await baseInput({ coins: 10, paymentMethodId: "etransfer" }),
+      { ownerUserId: owner.publicId },
+    );
+    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, order!.id));
+    await db.update(walletLedger).set({ reservedUntil: 1 }).where(eq(walletLedger.orderId, order!.id));
+    return { owner, order: order!, pay: pay! };
+  }
+
+  it("takes lapsed coins again on verify when the customer still has them", async () => {
+    const { owner, pay } = await lapsedHoldOrder(50);
+    expect(await walletService.balance(owner.id)).toBe(50);
+    await verifyPayment(pay.publicId);
+    expect(await walletService.balance(owner.id)).toBe(40);
+  });
+
+  it("records the shortfall when the lapsed coins were already spent", async () => {
+    const { owner, order, pay } = await lapsedHoldOrder(50);
+    await walletService.adjust({ userId: owner.id, coins: -50, memo: "spent elsewhere", actorId: null });
+    await verifyPayment(pay.publicId);
+    expect(await walletService.balance(owner.id)).toBe(0);
+    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.orderId, order.id));
+    expect(notes.map((n) => n.note).join(" ")).toMatch(/10 coins could not be collected/);
+  });
+
+  it("re-collects lapsed coins once when the same payment is verified twice at once", async () => {
+    const { owner, pay } = await lapsedHoldOrder(50);
+    await Promise.allSettled([verifyPayment(pay.publicId), verifyPayment(pay.publicId)]);
+    expect(await walletService.balance(owner.id)).toBe(40);
+  });
+
   // Two deferred orders, one balance. Placing a second subscription before
   // paying for the first is a supported flow. Coins used to be parked with no
   // ledger row, so both quotes saw the full balance and the clash only surfaced

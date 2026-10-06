@@ -60,6 +60,7 @@ import {
   commitCoinRedemption,
   reserveCoinRedemption,
   settleCoinReservation,
+  recollectLapsedCoins,
   reverseCoinAward,
 } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
@@ -766,7 +767,8 @@ export async function verifyPayment(
 ): Promise<void> {
   let missedStops: OptimoSyncedRow[] = [];
   const award = await db.transaction(async (tx) => {
-    const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+    // Locked so a second, concurrent verify waits, then sees "paid" and stops.
+    const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay) throw new NotFoundError("Payment not found");
     if (pay.status === "paid" || pay.status === "simulated_paid") return null;
     if (pay.status !== "awaiting_payment" && pay.status !== "pending_verification") {
@@ -832,15 +834,23 @@ export async function verifyPayment(
         });
       } else if (settled.status === "expired") {
         // The hold lapsed before payment was verified, so those coins went back
-        // to the wallet and may already be spent. Deliberately NOT re-debited
-        // (the package forbids a second redemption per order) and NOT blocking:
-        // the customer's money has arrived and must still be recorded. Leave a
-        // trail so staff can decide whether to recover the coin value.
-        log.warn({ orderId: order.publicId, coins: settled.coins }, "coin hold expired before payment verification");
+        // to the wallet. Take them again so they can't fund a second order;
+        // never block the verify: the customer's money has arrived. Whatever
+        // was already spent is left for staff on the order's activity log.
+        const { collected, notCollected } = await recollectLapsedCoins(tx, {
+          userId: order.userId,
+          orderId: order.id,
+          orderRef: order.publicId,
+          coins: settled.coins,
+        });
+        log.warn({ orderId: order.publicId, coins: settled.coins, collected, notCollected }, "coin hold expired before payment verification");
         await tx.insert(orderActivities).values({
           orderId: order.id,
           type: "payment_verified",
-          note: `Coin hold expired before verification — ${settled.coins} coins returned to the customer, coin discount of ${snap.pendingCoinRedemption.amount} was not collected`,
+          note:
+            notCollected > 0
+              ? `Coin hold expired before verification — ${collected} coins taken again, ${notCollected} coins could not be collected (coin discount of ${snap.pendingCoinRedemption.amount} not fully covered)`
+              : `Coin hold expired before verification — ${collected} coins taken again`,
           createdBy: actorInternalId,
         });
       }
