@@ -108,6 +108,13 @@ body:has(.crm-app) {
   --bad: oklch(0.582 0.216 30); /* --red */
 }
 
+/* Drawers, dialogs and menus portal into <body>, outside .crm-app, so they
+   would inherit the marketing body's text colour (black on the dark theme).
+   Setting it on body whenever a CRM shell is mounted reaches them too. */
+body:has(.crm-app) {
+  color: var(--foreground);
+}
+
 .crm-app {
   min-height: 100svh;
   background: var(--background);
