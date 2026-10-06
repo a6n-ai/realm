@@ -4,6 +4,9 @@ import { PasswordSection } from "@/components/account/sections/password-section"
 import { PinSection } from "@/components/account/sections/pin-section";
 import { EmailSection } from "@/components/account/sections/email-section";
 import { DeleteAccountSection } from "@/components/account/sections/delete-account-section";
+import { googleSignInEnabled } from "@foundry/auth";
+import { GoogleSection } from "@/components/account/sections/google-section";
+import { hasGoogleLinked } from "@/lib/auth/google-link";
 import { requireAccountUser } from "../current-user";
 
 export default function AccountSecurityPage() {
@@ -22,10 +25,12 @@ async function SecurityData() {
   // PIN is staff-only (idle-lock). It is never rendered for a customer, so there
   // is no shared control that could leak it across roles.
   const isStaff = role === Role.ADMIN || role === Role.MEMBER;
+  const google = googleSignInEnabled() ? await hasGoogleLinked(user.publicId) : null;
   return (
     <>
       {isStaff && <PinSection hasPin={Boolean(user.pinHash)} />}
       <EmailSection currentEmail={user.email} />
+      {google !== null && <GoogleSection connected={google} />}
       <PasswordSection />
     </>
   );

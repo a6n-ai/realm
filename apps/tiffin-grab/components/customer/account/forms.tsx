@@ -16,8 +16,8 @@ import { removeMyAvatar, updateMyAvatar } from "@/app/(dashboard)/dashboard/acco
 import { ChangeEmailForm } from "@/components/account/leaves/change-email-form";
 import { ChangePasswordForm } from "@/components/account/leaves/change-password-form";
 import { DeleteAccountForm } from "@/components/account/leaves/delete-account-form";
-import { GoogleConnection, PinForm } from "@foundry/auth-ui";
-import { authClient } from "@/lib/auth/client";
+import { PinForm } from "@foundry/auth-ui";
+import { GoogleConnectionField } from "@/components/account/leaves/google-connection-field";
 import { setMyPin, removeMyPin } from "@/app/(dashboard)/dashboard/account/actions";
 import { kitAuthUi } from "./auth-ui-kit";
 
@@ -309,7 +309,6 @@ export function SecurityPanel({
   staffPin: { hasPin: boolean } | null;
   google?: { connected: boolean } | null;
 }) {
-  const router = useRouter();
   return (
     <div className="space-y-4">
       {staffPin && (
@@ -322,17 +321,7 @@ export function SecurityPanel({
       </Block>
       {google ? (
         <Block title="Google" subtitle="Sign in with your Google account instead of a code.">
-          <GoogleConnection
-            connected={google.connected}
-            ui={kitAuthUi}
-            // Linking only accepts a Google account with this account's email (Better Auth default).
-            onConnect={() => authClient.linkSocial({ provider: "google", callbackURL: "/me/account?section=security" })}
-            onDisconnect={async () => {
-              const res = await authClient.unlinkAccount({ providerId: "google" });
-              if (!res.error) router.refresh();
-              return res;
-            }}
-          />
+          <GoogleConnectionField connected={google.connected} callbackURL="/me/account?section=security" ui={kitAuthUi} />
         </Block>
       ) : null}
       <Block title="Password" subtitle="Change your password. Other devices are signed out.">
