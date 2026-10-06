@@ -4,6 +4,7 @@ import {
   lockAndQuoteRedemption,
   reserveRedemption,
   reverseAward,
+  reverseRedemption,
   settleReservation,
   unexpired,
   type WalletDeps,
@@ -255,4 +256,9 @@ export async function recollectLapsedCoins(
     });
   }
   return { collected, notCollected: args.coins - collected };
+}
+
+/** Gives back the coins held or spent on an order (a hold is released, a spend is credited back). */
+export function reverseCoinRedemption(tx: Tx, args: { userId: bigint; orderId: bigint }) {
+  return reverseRedemption(tx, { ...args, walletLedger, orders, users });
 }

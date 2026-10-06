@@ -6,7 +6,7 @@ export const statement = {
   staff: ["invite", "suspend", "remove"],
   organization: ["read", "write"],
   studioSession: ["create", "read", "update", "delete"],
-  booking: ["create", "read"],
+  booking: ["create", "read", "cancel"],
   discount: ["create", "read", "update", "delete"],
   wallet: ["read", "update"],
 } as const;
@@ -22,7 +22,7 @@ export const roles = {
     audit: ["read"],
     organization: ["read", "write"],
     studioSession: ["create", "read", "update", "delete"],
-    booking: ["read"],
+    booking: ["read", "cancel"],
     discount: ["create", "read", "update", "delete"],
     wallet: ["read", "update"],
   }),

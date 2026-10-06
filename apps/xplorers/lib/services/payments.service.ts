@@ -72,6 +72,8 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
 
   async claim(publicId: string, userPublicId: string, reference: string): Promise<PaymentRow> {
     const row = await this.readForFamily(publicId, userPublicId);
+    const [booking] = await db.select({ status: bookings.status }).from(bookings).where(eq(bookings.id, row.bookingId)).limit(1);
+    if (booking?.status === "cancelled") throw new ValidationError("This booking was cancelled.");
     if (!canClaim(row.status)) throw new ValidationError("This payment cannot be claimed.");
     const trimmed = reference.trim();
     if (!trimmed) throw new ValidationError("Add the transfer reference.");

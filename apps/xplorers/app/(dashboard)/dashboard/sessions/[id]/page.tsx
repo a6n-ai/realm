@@ -11,6 +11,8 @@ import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { paymentsService } from "@/lib/services/payments.service";
 import { SessionRowActions } from "../session-row-actions";
 import { PaymentReviewButtons } from "../payment-review-buttons";
+import { CancelBookingButton } from "../cancel-booking-button";
+import { bookingsService } from "@/lib/services/bookings.service";
 
 export default async function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission({ studioSession: ["read"] } as never);
@@ -23,7 +25,11 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   const row = await studioSessionsService.readOccurrence(id, timeZone).catch(() => null);
   if (!row || row.archived) notFound();
   const canWrite = session?.user ? roleCan(session.user.role, { studioSession: ["update"] } as never) : false;
-  const payRows = await paymentsService.listForOccurrence(row.publicId);
+  const canCancel = session?.user ? roleCan(session.user.role, { booking: ["cancel"] }) : false;
+  const [payRows, bookingRows] = await Promise.all([
+    paymentsService.listForOccurrence(row.publicId),
+    bookingsService.listForOccurrence(row.publicId),
+  ]);
 
   return (
     <PageShell>
@@ -74,6 +80,24 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           <Link href={`/dashboard/sessions/new?class=${row.classPublicId}`}>Schedule another day</Link>
         </Button>
       </SectionCard>
+      {bookingRows.length > 0 ? (
+        <SectionCard title="Bookings">
+          <ul className="divide-border divide-y text-sm">
+            {bookingRows.map((b) => (
+              <li key={b.publicId} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">{b.family}</p>
+                  <p className="text-muted-foreground">
+                    {b.publicId} · {b.seats} seat{b.seats === 1 ? "" : "s"} · {b.status}
+                    {b.paymentStatus ? ` · payment ${b.paymentStatus.replaceAll("_", " ")}` : ""}
+                  </p>
+                </div>
+                {canCancel && b.status !== "cancelled" ? <CancelBookingButton bookingPublicId={b.publicId} /> : null}
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      ) : null}
       {payRows.length > 0 ? (
         <SectionCard title="Payments">
           <ul className="divide-border divide-y text-sm">

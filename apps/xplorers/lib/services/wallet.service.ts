@@ -4,12 +4,14 @@ import {
   commitRedemption,
   createWalletService,
   reserveRedemption,
+  reverseAward,
+  reverseRedemption,
   settleReservation,
   unexpired,
   type WalletDeps,
 } from "@foundry/wallet";
 import { ValidationError } from "@foundry/commons";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   APP_EVENTS,
@@ -17,6 +19,7 @@ import {
   coinRate,
   eventPayout,
   ledgerEntries,
+  payments,
   studioSessions,
   users,
   walletLedger,
@@ -237,4 +240,35 @@ export async function recollectLapsedCoins(
     });
   }
   return { collected, notCollected: args.coins - collected };
+}
+
+/**
+ * Coins for a booking being cancelled. Coins it earned come back off the wallet
+ * (the welcome bonus only if no other paid booking remains). If it was never
+ * paid, coins held for it go straight back; a paid booking's spent coins stay
+ * spent, since giving money back is a separate step.
+ */
+export async function takeBackBookingCoins(
+  tx: Tx,
+  args: { userId: bigint; userPublicId: string; bookingId: bigint; bookingPublicId: string; paid: boolean },
+): Promise<void> {
+  const booking = { type: "booking", id: args.bookingPublicId };
+  for (const eventType of ["booking_paid", "birthday_booking"] as const) {
+    await reverseAward(tx, { userId: args.userId, eventType, source: booking, walletLedger, users });
+  }
+  const [otherPaid] = await tx
+    .select({ id: payments.id })
+    .from(payments)
+    .where(and(eq(payments.userId, args.userId), eq(payments.status, "paid"), ne(payments.bookingId, args.bookingId)))
+    .limit(1);
+  if (!otherPaid) {
+    await reverseAward(tx, {
+      userId: args.userId,
+      eventType: "first_booking",
+      source: { type: "user", id: args.userPublicId },
+      walletLedger,
+      users,
+    });
+  }
+  if (!args.paid) await reverseRedemption(tx, { userId: args.userId, orderId: args.bookingId, walletLedger, orders: bookings, users });
 }

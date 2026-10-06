@@ -62,6 +62,7 @@ import {
   reserveCoinRedemption,
   settleCoinReservation,
   recollectLapsedCoins,
+  reverseCoinRedemption,
   reverseCoinAward,
 } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
@@ -1734,6 +1735,20 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const [order] = await tx.select().from(orders).where(eq(orders.id, idRow.id)).limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
       if (order.status === "cancelled") throw new ValidationError("Order is already cancelled");
+
+      // Coins first (customer lock, then order), same order as payment verify takes them.
+      // Coins the order earned are taken back. If it was never paid, coins held for it go
+      // straight back; a paid order's spent coins stay spent (money back is refundOrder).
+      if (order.userId) {
+        await reverseCoinAward(tx, {
+          userId: order.userId,
+          eventType: "order_activated",
+          source: { type: "order", id: order.publicId },
+        });
+        const [pay] = await tx.select({ status: payments.status }).from(payments).where(eq(payments.orderId, order.id)).limit(1);
+        const paid = pay?.status === "paid" || pay?.status === "simulated_paid";
+        if (!paid) await reverseCoinRedemption(tx, { userId: order.userId, orderId: order.id });
+      }
 
       const [row] = await tx.update(orders).set({ status: "cancelled", updatedBy: actorId })
         .where(eq(orders.id, order.id)).returning();
