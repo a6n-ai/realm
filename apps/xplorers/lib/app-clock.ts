@@ -17,3 +17,7 @@ export function formatAppWhen(ms: number, timeZone: string): string {
     timeStyle: "short",
   }).format(new Date(ms));
 }
+
+export function formatAppDay(ms: number, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-SG", { timeZone, dateStyle: "medium" }).format(new Date(ms));
+}

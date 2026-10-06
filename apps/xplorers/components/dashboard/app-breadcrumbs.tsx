@@ -16,6 +16,7 @@ const LABELS: Record<string, string> = {
   classes: "Classes",
   sessions: "Sessions",
   new: "New",
+  customers: "Customers",
 };
 
 export function AppBreadcrumbs() {
