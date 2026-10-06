@@ -44,7 +44,7 @@ puchkaman.ca {
 	# 410 Gone, which tells search engines to drop the URL. Short words like "bet"
 	# or "slot" are left out because they can appear in a product slug.
 	@spam path_regexp spam (?i)(casino|roulette|poker|jackpot|blackjack|baccarat|gambl|sportsbook|betting)
-	@notapp not path_regexp ^/(|(about|accept-invitation|account|api|cart|catering|checkout|contact|dashboard|eats|events|faq|forgot-password|fusion|locations|login|me|no-access|order|privacy|reviews|set-password|terms|track|unsubscribe|_next|menu|productsmenu|hero|instagram|\.well-known)(/.*)?|logo\.webp|icon\.png|favicon\.ico|robots\.txt|sitemap\.xml)$
+	@notapp not path_regexp ^/(|(about|accept-invitation|account|api|cart|catering|checkout|contact|dashboard|eats|events|faq|forgot-password|fusion|join|locations|login|me|no-access|order|privacy|reviews|set-password|signup|terms|track|unsubscribe|_next|menu|productsmenu|hero|instagram|\.well-known)(/.*)?|logo\.webp|icon\.png|favicon\.ico|robots\.txt|sitemap\.xml)$
 
 	route {
 		respond @spam 410

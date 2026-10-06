@@ -39,6 +39,7 @@
     "@foundry/storage": "github:a6n-ai/foundry#path:packages/storage",
     "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes",
     "@foundry/wallet": "github:a6n-ai/foundry#path:packages/wallet",
+    "@foundry/friends": "github:a6n-ai/foundry#path:packages/friends",
     "@relay/whatsapp": "github:a6n-ai/relay#path:packages/whatsapp",
     "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui",
     "better-auth": "1.6.30",

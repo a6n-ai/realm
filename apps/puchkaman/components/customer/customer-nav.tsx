@@ -7,6 +7,7 @@ import { cn } from "@foundry/ui/cn";
 const LINKS = [
   { href: "/me", label: "Overview" },
   { href: "/me/orders", label: "Orders" },
+  { href: "/me/friends", label: "Friends" },
   { href: "/me/account", label: "Account" },
 ];
 
