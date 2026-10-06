@@ -1,9 +1,9 @@
 "use client";
-import { Info, MapPin, Truck, Utensils } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Info, MapPin, Package, Truck, Utensils } from "lucide-react";
 import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { formatCutoff, humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, isDone, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, isDone, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow, type MoveFact } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
@@ -145,22 +145,38 @@ export function EatingRowButton({ row, selected, onSelect, plan, menuOut }: { ro
       onClick={() => onSelect(row)}
       className={cn(
         FONT, FOCUS,
-        "flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors [touch-action:manipulation] motion-reduce:transition-none",
+        "flex min-h-14 w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors [touch-action:manipulation] motion-reduce:transition-none",
         selected ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]/60",
       )}
     >
-      <Utensils aria-hidden className="size-5 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
+      <Utensils aria-hidden className="mt-0.5 size-5 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2 text-[15px] font-semibold">
-          {humanDate(row.date)}
+        <span className="flex items-center justify-between gap-2">
+          <span className="whitespace-nowrap text-[15px] font-semibold">{humanDate(row.date)}</span>
+          <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
+            {m.dot && <StatusDot decorative status={m.dot} />}
+            {m.label}
+          </span>
         </span>
         <span className={cn(HELP, "block truncate")}>{row.movedTo ? `Moved to ${humanDate(row.movedTo)}` : menuOut ? "Menu not released yet" : dish || "Default menu"}</span>
-      </span>
-      <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
-        {m.dot && <StatusDot decorative status={m.dot} />}
-        {m.label}
+        {!row.movedTo && row.trip.status !== "failed" && (row.own || moveTags(row).length > 0) && (
+          <span className="mt-1 flex flex-wrap gap-1">
+            {row.own && <Pill size="sm" tone="up">{tiffins(row.trip.units)}</Pill>}
+            {!isDone(row) && moveTags(row).map((t) => <MovePill key={t.kind} fact={t} />)}
+          </span>
+        )}
       </span>
     </button>
+  );
+}
+
+/** "Fri's tiffin moved here" (in) or "Mon's own tiffin moved to …" (out), as a pill. */
+export function MovePill({ fact }: { fact: MoveFact }) {
+  const Icon = fact.kind === "in" ? ArrowDownLeft : ArrowUpRight;
+  return (
+    <Pill size="sm" tone={fact.kind === "in" ? "brand" : "soft"} icon={<Icon aria-hidden className="size-3.5 shrink-0" />} className="whitespace-normal text-left">
+      {fact.text}
+    </Pill>
   );
 }
 
@@ -171,15 +187,14 @@ const GOES_OUT = new Set<Trip["status"]>(["upcoming", "cutoff-passed", "unconfir
 export function EatingCard({ row, tz, reason, plan, address, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
-  const covers = trip.coversDates.map(weekdayShort).join(" + ");
   const facts = row.movedTo ? [movedFact(row)]
     : trip.status === "failed" ? [`Nothing arrived. Move ${weekdayShort(row.date)}'s tiffin to another day.`]
     : isDone(row) ? [reason] : [
-    `${tiffins(trip.units)} covering ${covers}`,
-    movedInNote(row),
     trip.status === "upcoming" ? `Changes close ${formatCutoff(trip.cutoffAt, tz)}` : reason,
     !row.own && trip.status === "upcoming" ? `${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery` : null,
   ].filter(Boolean);
+  const moves = row.movedTo ? [] : moveFacts(row);
+  const arriving = !row.movedTo && GOES_OUT.has(trip.status) && trip.status !== "failed";
   return (
     <Card className="p-5 lg:p-8" aria-live="polite" data-testid="delivery-block">
       <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
@@ -191,7 +206,21 @@ export function EatingCard({ row, tz, reason, plan, address, children }: { row: 
         <Truck aria-hidden className="size-6 shrink-0" />
         {deliveryLine(row)}
       </h2>
-      <p className="mt-1 text-[15px] text-[var(--muted-foreground,#6E6558)]">{facts.join(" · ")}</p>
+      {(arriving || moves.length > 0) && (
+        <div className="mt-3 flex flex-wrap gap-2" data-testid="delivery-pills">
+          {arriving && (
+            <Pill size="sm" tone="up" icon={<Package aria-hidden className="size-3.5 shrink-0" />}>
+              {tiffins(trip.units)} {trip.status === "delivered" ? "delivered" : "on this delivery"}: {tiffinBreakdown(trip)}
+            </Pill>
+          )}
+          {moves.map((f) => <MovePill key={f.kind} fact={f} />)}
+        </div>
+      )}
+      <ul className="mt-3 space-y-1 text-[15px] text-[var(--muted-foreground,#6E6558)]">
+        {facts.map((f) => (
+          <li key={f} className="flex gap-2"><span aria-hidden className="mt-[9px] size-1.5 shrink-0 rounded-full bg-current opacity-60" />{f}</li>
+        ))}
+      </ul>
       {address && !row.movedTo && GOES_OUT.has(trip.status) && (
         <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px]" data-testid="delivery-address">
           <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
@@ -230,7 +259,7 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
   const delivery = row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [
     deliveryLine(row),
     `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
-    movedInNote(row),
+    ...moveNotes(row),
     t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null,
   ].filter(Boolean).join(" · ");
   return (

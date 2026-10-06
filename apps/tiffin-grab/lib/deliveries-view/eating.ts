@@ -13,6 +13,8 @@ export type EatingRow = {
   movedTo?: string;
   /** Eat dates of tiffins moved onto this day (null = from the pool); they share this day's meal. */
   movedFrom?: (string | null)[];
+  /** This day's own tiffin moved away, but the day still gets a tiffin (one moved in): where its own went. */
+  movedOut?: string;
 };
 
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -36,6 +38,7 @@ export function buildEatingDays(trips: Trip[]): EatingRow[] {
         orderId: trip.orderId, date: e.date, trip, dish: moved ? null : e.dishSummary, swaps: moved ? [] : e.swaps, own: e.date === trip.date,
         ...(moved ? { movedTo: outTo.get(e.date) ?? trip.movedTo ?? undefined } : {}),
         ...(movedFrom.length && !moved ? { movedFrom } : {}),
+        ...(!moved && outTo.has(e.date) ? { movedOut: outTo.get(e.date) } : {}),
       });
     }
     if (moved) continue;
@@ -77,11 +80,62 @@ export function eatingRowsInWeek(trips: Trip[], weekStart: string, weekEnd: stri
 /** Delivered or failed: the day is settled, so it reads as just that, without how it got there. */
 export const isDone = (r: EatingRow): boolean => r.trip.status === "delivered" || r.trip.status === "failed";
 
-/** "Fri's tiffin moved here, same meal" for a day carrying moved-in tiffins; null otherwise. */
-export function movedInNote(r: EatingRow): string | null {
-  if (!r.movedFrom?.length || isDone(r)) return null;
-  const names = r.movedFrom.map((d) => (d ? `${weekdayShort(d)}'s` : "a pool"));
+/**
+ * "Fri's tiffin moved here, same meal" for a day carrying moved-in tiffins; null otherwise.
+ * `history`: keep it on delivered/failed days too (staff want to see how a day got there).
+ */
+export function movedInNote(r: EatingRow, history = false): string | null {
+  if (!r.movedFrom?.length || (isDone(r) && !history)) return null;
+  const names = r.movedFrom.map((d) => (d ? `${weekdayShort(d)}'s` : "a held day's"));
   return `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} tiffins` : `${names[0]} tiffin`} moved here, same meal`;
+}
+
+/** "Thu's own tiffin moved to Tue, Oct 13" when a day's own tiffin left but another moved in. */
+export function movedOutNote(r: EatingRow, history = false): string | null {
+  if (!r.movedOut || (isDone(r) && !history)) return null;
+  return `${weekdayShort(r.date)}'s own tiffin moved to ${humanDate(r.movedOut)}`;
+}
+
+export type MoveFact = { kind: "in" | "out"; text: string };
+
+/**
+ * What this truck carries, by day: "1 Mon + 1 Tue", or "1 Thu + 1 Wed's" when a tiffin moved in.
+ * Own tiffins split evenly over the days it covers; moved-in ones are named by the day they left.
+ */
+export function tiffinBreakdown(trip: Pick<Trip, "units" | "coversDates" | "movesIn">): string {
+  const moved = new Map<string, number>();
+  for (const m of trip.movesIn ?? []) {
+    const k = m.from ? `${weekdayShort(m.from)}'s` : "held day's";
+    moved.set(k, (moved.get(k) ?? 0) + 1);
+  }
+  const own = trip.units - [...moved.values()].reduce((a, b) => a + b, 0);
+  const covers = trip.coversDates.length ? trip.coversDates : [];
+  const parts: string[] = [];
+  if (own > 0) {
+    if (covers.length > 1 && own % covers.length === 0) parts.push(...covers.map((d) => `${own / covers.length} ${weekdayShort(d)}`));
+    else parts.push(`${own} ${covers.map(weekdayShort).join(" + ")}`.trim());
+  }
+  for (const [k, n] of moved) parts.push(`${n} ${k}`);
+  return parts.join(" + ");
+}
+
+/** Short list-row tags: "Wed's in", "own → Oct 13". Empty when nothing moved on this day. */
+export function moveTags(r: EatingRow): MoveFact[] {
+  const tags: MoveFact[] = [];
+  if (r.movedFrom?.length) tags.push({ kind: "in", text: `${r.movedFrom.map((d) => (d ? `${weekdayShort(d)}'s` : "held day")).join(" + ")} in` });
+  if (r.movedOut) tags.push({ kind: "out", text: `to ${humanDate(r.movedOut).slice(5)}` });
+  return tags;
+}
+
+/** Everything that moved in and out of this day, in that order. Same wording for staff and customer. */
+export function moveFacts(r: EatingRow, history = false): MoveFact[] {
+  const inNote = movedInNote(r, history);
+  const outNote = movedOutNote(r, history);
+  return [...(inNote ? [{ kind: "in" as const, text: inNote }] : []), ...(outNote ? [{ kind: "out" as const, text: outNote }] : [])];
+}
+
+export function moveNotes(r: EatingRow, history = false): string[] {
+  return moveFacts(r, history).map((f) => f.text);
 }
 
 /** "Arrives Mon, Sep 21 with Mon" / "Delivered Mon, Sep 21" / "Moved to Wed, Sep 23": which truck feeds this eating day. */

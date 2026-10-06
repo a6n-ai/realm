@@ -90,7 +90,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(screen.getAllByTestId("trip-row")).toHaveLength(2);
     fireEvent.click(screen.getAllByTestId("trip-row")[1]!);
     expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Mon, Sep 21 with Mon");
-    expect(screen.getByText(/2 tiffins covering Mon \+ Tue/)).toBeInTheDocument();
+    expect(screen.getByText(/2 tiffins on this delivery: 1 Mon \+ 1 Tue/)).toBeInTheDocument();
   });
   it("strip marks the delivery day and next-delivery banner shows", () => {
     render(<OrderWeekHub data={data} />);
