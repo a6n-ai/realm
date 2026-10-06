@@ -110,7 +110,7 @@ export const auth = betterAuth({
   // No implicit sign-up: /login only signs in (an unknown Google address is
   // sent on to /subscribe); /subscribe passes requestSignUp, the same public
   // sign-up createCheckoutAccount already offers. Off without the keys.
-  socialProviders: googleSocialProviders(),
+  socialProviders: googleSocialProviders({ allowSignUp: true }),
   emailVerification: {
     // Every account has an email now, so this always fires on signup.
     sendOnSignUp: true,
