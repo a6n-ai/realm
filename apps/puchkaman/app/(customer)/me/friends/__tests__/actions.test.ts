@@ -36,6 +36,11 @@ describe("friends actions", () => {
     expect(await friendAction("request", "usr_staff")).toEqual({ error: "We couldn't find that customer" });
   });
 
+  it("a request reports the resulting relation so the UI can show Friends, not Requested", async () => {
+    svc.request.mockResolvedValueOnce("friends" as never);
+    expect(await friendAction("request", "usr_b")).toEqual({ relation: "friends" });
+  });
+
   it("rejects an unknown action kind", async () => {
     await expect(friendAction("drop" as never, "usr_b")).rejects.toThrow();
   });

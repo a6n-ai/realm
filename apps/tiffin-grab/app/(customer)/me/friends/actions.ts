@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { isRateLimited, NotFoundError, Role, ValidationError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { REF_COOKIE, REF_RE } from "@/lib/friends/ref-cookie";
+import type { Relation } from "@foundry/friends";
 import { friendsService } from "@/lib/services/friends.service";
 
 const SEARCH_LIMIT = 30;
@@ -27,17 +28,19 @@ export async function searchFriendsAction(q: string) {
   return { rows: await friendsService.search(me, String(q)) };
 }
 
-export async function friendAction(kind: Kind, publicId: string): Promise<{ error?: string }> {
+export async function friendAction(kind: Kind, publicId: string): Promise<{ error?: string; relation?: Relation }> {
   if (!KINDS.includes(kind)) throw new ValidationError("Unknown action");
   const me = await viewer();
+  let relation: Relation | undefined;
   try {
-    await friendsService[kind](me, String(publicId));
+    if (kind === "request") relation = await friendsService.request(me, String(publicId));
+    else await friendsService[kind](me, String(publicId));
   } catch (e) {
     if (e instanceof ValidationError || e instanceof NotFoundError) return { error: e.message };
     throw e;
   }
   revalidatePath("/me/friends");
-  return {};
+  return relation ? { relation } : {};
 }
 
 /** The customer said yes to the invite banner. Server actions are POST-only with an origin check. */

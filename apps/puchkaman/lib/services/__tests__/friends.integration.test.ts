@@ -146,9 +146,19 @@ describe("usernames", () => {
     await expect(friendsService.setUsername(b.publicId, "no spaces")).rejects.toThrow(/3–30/);
   });
 
+  it("cannot be cleared (an empty one would just be refilled on the next /me load)", async () => {
+    await expect(friendsService.setUsername(a.publicId, "  ")).rejects.toThrow(/required/i);
+    await expect(friendsService.setUsername(a.publicId, null)).rejects.toThrow(/required/i);
+  });
+
+  it("request returns friends when they had already asked", async () => {
+    await friendsService.request(b.publicId, a.publicId);
+    expect(await friendsService.request(a.publicId, b.publicId)).toBe("friends");
+  });
+
   it("ensureUsername fills a missing one and keeps an existing one", async () => {
     const name = await friendsService.ensureUsername(c.publicId);
-    expect(name).toMatch(/^friendsitcy\d{4}$/);
+    expect(name).toMatch(/^user_[a-z0-9]{8}$/);
     expect(await friendsService.ensureUsername(c.publicId)).toBe(name);
     expect(await friendsService.ensureUsername(a.publicId)).toBe("friendsit_ana");
   });
