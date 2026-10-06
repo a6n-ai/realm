@@ -62,6 +62,11 @@ const nextConfig: NextConfig = {
     // Reuse a visited dynamic page for 30s on back/forward and repeat clicks
     // instead of a fresh server round trip. Server actions still invalidate it.
     staleTimes: { dynamic: 30 },
+    // Uploads go through server actions (payment proof, support photos: up to 4 x 5 MB).
+    // Next caps action bodies at 1 MB by default, and proxy.ts buffers bodies only up to
+    // 10 MB, so anything bigger was rejected or truncated.
+    serverActions: { bodySizeLimit: "25mb" },
+    proxyClientMaxBodySize: "25mb",
   },
 };
 
