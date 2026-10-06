@@ -183,6 +183,14 @@ describe("spending coins on bookings", () => {
     expect(notes).toContain('"notCollected":100');
   });
 
+  it("re-collects lapsed coins once when the same payment is verified twice at once", async () => {
+    const { pay } = await expiredHoldBooking();
+    await walletService.adjust({ userId, coins: 50, memo: "more", actorId: null });
+    const results = await Promise.allSettled([paymentsService.verify(pay.publicId), paymentsService.verify(pay.publicId)]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(await walletService.balance(userId)).toBe(50);
+  });
+
   it("ignores coins when no coin rate is set", async () => {
     await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
     const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });

@@ -91,6 +91,15 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
     type Lapsed = { coins: number; collected: number; notCollected: number };
     let lapsed: Lapsed | null = null;
     await db.transaction(async (tx) => {
+      // Claim the payment first: the status guard makes a second, concurrent
+      // verify of the same payment stop here before touching coins or ledgers.
+      const [claimed] = await tx
+        .update(payments)
+        .set({ status: "paid", capturedAt: Date.now() })
+        .where(and(eq(payments.id, row.id), eq(payments.status, "pending_verification")))
+        .returning({ id: payments.id });
+      if (!claimed) throw new ValidationError("This payment is not waiting on verification.");
+
       // Coins held at booking become spent. If the hold lapsed first, take the
       // coins again so they can't fund a second booking; never block the payment.
       const settled = await settleBookingCoins(tx, { userId: row.userId, bookingId: booking.id });
@@ -103,10 +112,6 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
         });
         lapsed = { coins: settled.coins, ...r };
       }
-      await tx
-        .update(payments)
-        .set({ status: "paid", capturedAt: Date.now() })
-        .where(and(eq(payments.id, row.id), eq(payments.status, "pending_verification")));
       await tx.update(bookings).set({ status: "confirmed" }).where(eq(bookings.id, booking.id));
       await ledgerService.record(tx, {
         userId: row.userId,
