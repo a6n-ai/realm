@@ -13,6 +13,7 @@ import { db } from "@/db/client";
 import { bookings, payments, studioSessionOccurrences, users, type BookingPricing } from "@/db/schema";
 import { getIntegrationsConfig, getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
+import { walletService } from "./wallet.service";
 import { SessionUpdatableService } from "./session-service";
 
 export type PaymentRow = typeof payments.$inferSelect;
@@ -103,6 +104,7 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
       });
     });
 
+    await walletService.awardBookingEvents(booking.id);
     return this.read(publicId);
   }
 

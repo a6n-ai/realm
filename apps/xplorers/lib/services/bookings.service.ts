@@ -9,6 +9,7 @@ import { getAppClock, getDiscountSettings, getPaymentConfig } from "./app-settin
 import { assertCanBook, remainingSeats, RESERVED_BOOKING_STATUSES } from "./booking-policy";
 import { discountsService } from "./discounts.service";
 import { ledgerService } from "./ledger.service";
+import { walletService } from "./wallet.service";
 import { paymentsService } from "./payments.service";
 import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 import { bookingsRepository, type BookingRow } from "./bookings.repository";
@@ -186,6 +187,8 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       },
       createdBy: actorId,
     });
+    // A priced booking that discounts brought to $0 is paid as of now.
+    if (booking.pricing && booking.status === "confirmed") await walletService.awardBookingEvents(booking.id);
     return { ...booking, paymentPublicId, codeError };
   }
 
