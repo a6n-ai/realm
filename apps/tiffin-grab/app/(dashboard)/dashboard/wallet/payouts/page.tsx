@@ -3,14 +3,16 @@ import { and, asc, eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { durationPackages, eventPayout, mealPayout, mealSizes } from "@/db/schema";
-import { PayoutGrid, PayoutGridSkeleton } from "../payout-grid";
+import { EventPayoutGrid, EventPayoutGridSkeleton } from "@foundry/crm";
+import { eventLabel } from "@relay/engine/ui";
+import { savePayoutRow } from "../actions";
 import { MealPayoutGrid, type MealPayoutRow } from "../meal-payout-grid";
 import { CustomerPayoutPanel } from "../customer-payout-panel";
 import { listOrderCities } from "@/lib/services/customer-payouts.service";
 
 export default function PayoutsPage() {
   return (
-    <Suspense fallback={<PayoutGridSkeleton />}>
+    <Suspense fallback={<EventPayoutGridSkeleton />}>
       <PayoutsData />
     </Suspense>
   );
@@ -59,7 +61,11 @@ async function PayoutsData() {
 
   return (
     <div className="grid gap-6">
-      <PayoutGrid payouts={payouts} />
+      <EventPayoutGrid
+        rows={payouts.map((p) => ({ event: p.eventType, label: eventLabel(p.eventType), enabled: p.enabled, coins: p.coins }))}
+        onSave={savePayoutRow}
+        emptyMessage="No payout rows — run db:seed:wallet to seed them."
+      />
       <MealPayoutGrid
         rows={mealPayoutRows as MealPayoutRow[]}
         mealSizes={mealSizeOptions}
