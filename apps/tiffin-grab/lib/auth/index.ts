@@ -117,10 +117,11 @@ export const auth = betterAuth({
       // Better Auth's default only links Google onto an account whose email WE
       // already verified. Checkout and admin-invite accounts often are not yet
       // (166 active customers on 2026-10-07), so Google sign-in failed for them.
-      // Linking anyway is safe here: Google proves the address, Better Auth then
-      // marks it verified, an unverified account can hold no session (gate
-      // below), and no public route creates a password-bearing account another
-      // person could have pre-registered.
+      // Linking anyway is safe only with the account.create.before hook below:
+      // /signup creates an unverified email+password account, so someone could
+      // pre-register a victim's address with their own password, and the
+      // victim's Google sign-in would then verify it for them. The hook deletes
+      // any password on an unverified account before Google links to it.
       requireLocalEmailVerified: false,
     },
   },
@@ -240,6 +241,14 @@ export const auth = betterAuth({
       create: {
         before: async (acc) => {
           if (acc.providerId !== "google") return;
+          const userId = BigInt(acc.userId as string);
+          // Pre-hijack guard (see accountLinking above): a password set on an
+          // address nobody has verified was not set by a proven owner. Drop it
+          // before Google verifies the address; the real owner can reset it.
+          const [owner] = await db.select({ emailVerified: users.emailVerified }).from(users).where(eq(users.id, userId)).limit(1);
+          if (owner && !owner.emailVerified) {
+            await db.delete(account).where(and(eq(account.userId, userId), eq(account.providerId, "credential")));
+          }
           if (acc.idToken) {
             try {
               const picture = googlePicture(acc.idToken);
@@ -247,7 +256,7 @@ export const auth = betterAuth({
                 await db
                   .update(users)
                   .set({ image: picture })
-                  .where(and(eq(users.id, BigInt(acc.userId as string)), isNull(users.image)));
+                  .where(and(eq(users.id, userId), isNull(users.image)));
               }
             } catch (e) {
               log.error({ err: e }, "google photo copy failed");
