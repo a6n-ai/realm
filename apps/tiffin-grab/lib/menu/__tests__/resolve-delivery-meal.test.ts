@@ -8,7 +8,7 @@ import { exclusiveDishIdsForPlan } from "../selections.service";
 import { maxTuPickIndex } from "../default-pick";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-const { createMealResolveCache, resolveDeliveryMeal } = await import("../resolve-delivery-meal");
+const { createMealResolveCache, resolveDeliveryMeal, sideChoicesForWeek } = await import("../resolve-delivery-meal");
 
 const FUTURE_MONDAY = (() => {
   const d = new Date(Date.now() + 56 * 86400000);
@@ -81,7 +81,17 @@ describe("resolveDeliveryMeal", () => {
       const sabzi = (await resolveDeliveryMeal(order, week, "mon", 1, null)).find((m) => m.category === "sabzi")!;
       // pick 1 is the customer's own Bhindi; pick 2 (side_1) is the day's dal, not a second sabzi.
       expect(sabzi.picks.map((p) => p.name)).toEqual(["Bhindi", "Masoor Dal"]);
+
+      // Edit meal offers the dal to the side pick (and only to it), so it shows selected...
+      const choices = await sideChoicesForWeek(order, week.id);
+      expect(choices!("mon", "sabzi", 2).map((i) => i.name)).toEqual(["Masoor Dal"]);
+      expect(choices!("mon", "sabzi", 1)).toEqual([]);
+      // ...and a saved pick of it is kept as the customer's own choice.
+      await db.insert(mealSelections).values({ orderId: order.id, menuWeekId: week.id, dayOfWeek: "mon", categoryId: sabziId, personIndex: 1, pickIndex: 2, dishId: dal.id });
+      const picked = (await resolveDeliveryMeal(order, week, "mon", 1, null)).find((m) => m.category === "sabzi")!;
+      expect(picked.picks[1]).toMatchObject({ name: "Masoor Dal", isDefaulted: false });
     } finally {
+      await db.delete(mealSelections).where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.pickIndex, 2)));
       await db.delete(menuSideDefaults).where(eq(menuSideDefaults.categoryId, sabziId));
       await db.update(mealSizeItems).set({ role: "main" }).where(eq(mealSizeItems.id, second!.id));
     }
