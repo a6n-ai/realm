@@ -2,8 +2,8 @@ import { nanoid } from "nanoid";
 import { ValidationError } from "@foundry/commons";
 import { filesService, securedFilesService } from "@/lib/files";
 import type { PaymentProof } from "@/db/schema";
+import { sniffUploadImage } from "@/lib/images/validate";
 
-const ACCEPT = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 const MAX_BYTES = 5 * 1024 * 1024;
 
 const asFile = (entry: FormDataEntryValue | null): File | null =>
@@ -24,20 +24,26 @@ export async function uploadPaymentProof(
   const thumb = asFile(thumbEntry);
   if (!thumb) throw new ValidationError("Payment screenshot thumbnail missing");
 
-  if (!ACCEPT.has(orig.type)) throw new ValidationError("Only PNG, JPEG, WebP or GIF images are allowed");
   if (orig.size > MAX_BYTES) throw new ValidationError("Screenshot must be 5 MB or smaller");
-  if (!ACCEPT.has(thumb.type) || thumb.size > MAX_BYTES) throw new ValidationError("Bad thumbnail");
+  if (thumb.size > MAX_BYTES) throw new ValidationError("Bad thumbnail");
+  // Judge the bytes, not File.type (that only reflects the file name).
+  const origBytes = await bytesOf(orig);
+  const thumbBytes = await bytesOf(thumb);
+  const origType = sniffUploadImage(origBytes);
+  const thumbType = sniffUploadImage(thumbBytes);
+  if (!origType) throw new ValidationError("Only PNG, JPEG, WebP or GIF images are allowed");
+  if (!thumbType) throw new ValidationError("Bad thumbnail");
 
   const base = `payments/${paymentPublicId}/${nanoid()}`;
   const origDetail = await securedFilesService().create(
     `${base}/orig-${safe(orig.name)}`,
-    await bytesOf(orig),
-    { contentType: orig.type },
+    origBytes,
+    { contentType: origType },
   );
   const thumbDetail = await filesService().create(
     `${base}/thumb-${safe(thumb.name)}`,
-    await bytesOf(thumb),
-    { contentType: thumb.type },
+    thumbBytes,
+    { contentType: thumbType },
   );
   return {
     path: origDetail.filePath,
