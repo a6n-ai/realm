@@ -18,7 +18,6 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
       { key: "customer", label: "Customer", sortable: true },
       { key: "phone", label: "Phone", sortable: true },
       { key: "driver", label: "Driver", sortable: true },
-      { key: "driverSerial", label: "Driver #", sortable: true, align: "right" },
       { key: "stop", label: "Stop #", sortable: true, align: "right" },
       { key: "orderId", label: "Order ID", sortable: true },
       { key: "planName", label: "Plan", sortable: true },
@@ -43,8 +42,6 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
           return r.phone ?? "";
         case "driver":
           return r.routeDriver ?? "";
-        case "driverSerial":
-          return r.routeDriverSerial ?? "";
         case "stop":
           return r.routeStopNumber ?? "";
         case "orderId":
@@ -80,7 +77,7 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
         rowKey={(r) => `${r.deliveryPublicId}-${r.forDate}`}
         sort={sort}
         search={{
-          keys: ["customerName", "phone", "routeDriver", "routeDriverSerial", "orderId", "planName", "mealSizeName"],
+          keys: ["customerName", "phone", "routeDriver", "orderId", "planName", "mealSizeName"],
           placeholder: "Search customer, phone, driver, order…",
         }}
         pagination={pagination}
@@ -106,7 +103,6 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
             </TableCell>
             <TableCell className="whitespace-nowrap tabular-nums">{row.phone ?? "—"}</TableCell>
             <TableCell className="whitespace-nowrap">{row.routeDriver ?? "—"}</TableCell>
-            <TableCell className="whitespace-nowrap text-right tabular-nums">{row.routeDriverSerial ?? "—"}</TableCell>
             <TableCell className="whitespace-nowrap text-right tabular-nums">{row.routeStopNumber ?? "—"}</TableCell>
             <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
             <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
