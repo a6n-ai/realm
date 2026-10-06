@@ -158,7 +158,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
         <CardHeader><CardTitle className="text-base">All eating days</CardTitle></CardHeader>
         <CardContent>
           <PagedTable
-            columns={[{ key: "day", label: "Eating day" }, { key: "delivery", label: "Delivery" }, { key: "tiffins", label: "Tiffins", className: "text-right" }, { key: "status", label: "Status" }]}
+            columns={[{ key: "day", label: "Eating day" }, { key: "delivery", label: "Delivery" }, { key: "id", label: "Delivery ID" }, { key: "tiffins", label: "Tiffins", className: "text-right" }, { key: "status", label: "Status" }]}
             rows={scheduleRows}
             rowKey={(x) => x.date}
             selected={(x) => x.date === row?.date}
@@ -170,6 +170,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
                 <TableCell className="text-muted-foreground">
                   {x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : `with ${weekdayShort(x.deliveryDate)}, ${humanDate(x.deliveryDate)}`}
                 </TableCell>
+                <TableCell className="font-mono text-xs">{x.truck ? trips.find((t) => t.date === x.deliveryDate && t.deliveryId)?.deliveryId ?? "" : ""}</TableCell>
                 <TableCell className="text-right tabular-nums">{x.truck ? x.units : ""}</TableCell>
                 <TableCell>
                   <EatingDayStatus

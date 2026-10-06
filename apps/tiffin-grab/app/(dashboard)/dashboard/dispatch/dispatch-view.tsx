@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { TruckIcon, HistoryIcon } from "lucide-react";
 import { TableCell } from "@foundry/ui/table";
@@ -161,6 +162,13 @@ export function DispatchView({
           <>
             <TableCell className="font-medium">
               {r.customerName}
+              <Link
+                href={`/dashboard/go/${r.orderNo}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-muted-foreground block font-mono text-xs font-normal hover:underline"
+              >
+                {r.orderNo}
+              </Link>
               <span className="text-muted-foreground block text-xs">
                 {r.coverage ?? `${r.tiffinUnits} tiffin${r.tiffinUnits === 1 ? "" : "s"}`}
               </span>
@@ -225,7 +233,12 @@ export function DispatchView({
         mobileCard={(r) => (
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-medium">{r.customerName}</p>
+              <div>
+                <p className="text-sm font-medium">{r.customerName}</p>
+                <Link href={`/dashboard/go/${r.orderNo}`} onClick={(e) => e.stopPropagation()} className="text-muted-foreground font-mono text-xs hover:underline">
+                  {r.orderNo}
+                </Link>
+              </div>
               <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                 {r.routeStopNumber ?? "—"}
               </span>
