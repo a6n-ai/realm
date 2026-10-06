@@ -30,6 +30,13 @@ export function rolesByCategory(items: { category: string; sortOrder: number; ro
   return out;
 }
 
+/** The dishes a side pick may take that day besides its own category's: the fixed dish, or the source category's. */
+export function sideOptions(rule: SideRule | undefined, dayItems: SideItem[], planDishIds: Set<bigint>): SideItem[] {
+  if (!rule) return [];
+  if (rule.dish) return [rule.dish];
+  return dayItems.filter((i) => i.slot === rule.sourceCategory && planDishIds.has(i.dishId));
+}
+
 /**
  * The default dish for a side pick, or undefined to keep the normal default. A source
  * category with nothing servable on that day falls back too, so a side box is never empty.
@@ -39,10 +46,8 @@ export function sideDefault(
   dayItems: SideItem[],
   planDishIds: Set<bigint>,
 ): SideItem | undefined {
-  if (!rule) return undefined;
-  if (rule.dish) return rule.dish;
-  const source = dayItems.filter((i) => i.slot === rule.sourceCategory && planDishIds.has(i.dishId));
-  return source.find((i) => i.isDefault) ?? source[0];
+  const options = sideOptions(rule, dayItems, planDishIds);
+  return options.find((i) => i.isDefault) ?? options[0];
 }
 
 /** Standing rules, then each day's overrides on top, for one menu week. */

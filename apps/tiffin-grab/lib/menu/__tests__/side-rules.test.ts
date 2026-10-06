@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { rolesByCategory, sideDefault, sideKey, type SideRules } from "../side-rules";
+import { rolesByCategory, sideDefault, sideKey, sideOptions, type SideRules } from "../side-rules";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveCategoriesForDay } = await import("../resolve-delivery-meal");
@@ -12,7 +12,8 @@ const dish = (id: number, name: string, planId: bigint, slot: string, isDefault 
 const korma = dish(1, "Veg Korma", VEG, "sabzi", true);
 const chicken = dish(2, "Chicken Home Style", NONVEG, "sabzi");
 const masoor = dish(3, "Masoor Dal", VEG, "daal", true);
-const menu = [korma, chicken, masoor];
+const toorDal = dish(4, "Toor Dal", VEG, "daal");
+const menu = [korma, chicken, masoor, toorDal];
 const all = new Set(menu.map((m) => m.dishId));
 const cats = [
   { key: "sabzi", selectable: true, label: "Sabzi", tuUnitType: "weight" },
@@ -30,7 +31,7 @@ const fiveItemRegular = rolesByCategory([
 const sideFor = (roles: ReturnType<typeof rolesByCategory>, rules: SideRules, items = menu) =>
   (category: string, pickIndex: number) => {
     const role = roles.get(category)?.[pickIndex - 1];
-    return role && role !== "main" ? sideDefault(rules.get(sideKey(category, role)), items, all) : undefined;
+    return role && role !== "main" ? sideOptions(rules.get(sideKey(category, role)), items, all) : [];
   };
 
 const sabzi = (picks: { slot: string; pickIndex: number; dishId: bigint }[], side: ReturnType<typeof sideFor> | null, items = menu) =>
@@ -72,5 +73,16 @@ describe("side picks follow the day's side rule", () => {
 
   it("lets a customer's own pick win over the side rule", () => {
     expect(sabzi([{ slot: "sabzi", pickIndex: 2, dishId: korma.dishId }], sideFor(fiveItemRegular, dalSide))).toEqual(["Veg Korma", "Veg Korma"]);
+  });
+
+  it("keeps a side pick of another of the day's dals", () => {
+    expect(sabzi([{ slot: "sabzi", pickIndex: 2, dishId: toorDal.dishId }], sideFor(fiveItemRegular, dalSide))).toEqual(["Veg Korma", "Toor Dal"]);
+  });
+
+  it("offers every dal of the day to a side pick, the default one as its default", () => {
+    const rule = dalSide.get(sideKey("sabzi", "side_1"));
+    expect(sideOptions(rule, menu, all).map((i) => i.name)).toEqual(["Masoor Dal", "Toor Dal"]);
+    expect(sideDefault(rule, [toorDal, masoor], all)?.name).toBe("Masoor Dal");
+    expect(sideFor(fiveItemRegular, dalSide)("sabzi", 1)).toEqual([]); // the main pick has none
   });
 });
