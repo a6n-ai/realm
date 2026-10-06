@@ -1,6 +1,6 @@
 import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
 import { AuthError, ForbiddenError, NotFoundError, Role, ValidationError, type RoleValue } from "@foundry/commons";
-import { and, asc, desc, eq, ilike, inArray, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, lt, max, or, sql, type SQL } from "drizzle-orm";
 import { alias, type PgSelect } from "drizzle-orm/pg-core";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
@@ -228,6 +228,18 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
    * tickets it counted.
    */
   /** Everyone who currently owns a ticket, for the queue's owner filter. */
+  /** The customer's Support badge: each of their tickets' latest staff reply in the last 30 days
+   * (ticket publicId → ms). The browser compares it with when the customer last opened that ticket. */
+  async latestStaffReplies(userId: bigint, now = Date.now()): Promise<Record<string, number>> {
+    const rows = await db
+      .select({ id: tickets.publicId, at: max(ticketMessages.createdAt) })
+      .from(ticketMessages)
+      .innerJoin(tickets, eq(tickets.id, ticketMessages.ticketId))
+      .where(and(eq(tickets.raisedBy, userId), eq(ticketMessages.authorType, "staff"), gt(ticketMessages.createdAt, now - 30 * 864e5)))
+      .groupBy(tickets.publicId);
+    return Object.fromEntries(rows.filter((r) => r.at != null).map((r) => [r.id, Number(r.at)]));
+  }
+
   async listQueueOwners(): Promise<{ publicId: string; name: string }[]> {
     const rows = await db
       .selectDistinct({ publicId: users.publicId, name: users.name })

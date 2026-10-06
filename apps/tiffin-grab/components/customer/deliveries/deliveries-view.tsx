@@ -1,5 +1,6 @@
 "use client";
-import { Truck } from "lucide-react";
+import { LifeBuoy, Truck } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/customer/kit";
@@ -232,6 +233,14 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
                     <div className="mt-6 hidden lg:block">
                       <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} />
                     </div>
+                    <Link
+                      href={`/me/support/new?orderId=${encodeURIComponent(plan.orderId)}&date=${trip.date}`}
+                      className={cn(FOCUS, "mt-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation]")}
+                      data-testid="delivery-help"
+                    >
+                      <LifeBuoy aria-hidden className="size-4" />
+                      Need help with this delivery?
+                    </Link>
                   </EatingCard>
                 ) : null}
               </div>

@@ -1,10 +1,11 @@
 import { Suspense, cache } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LifeBuoyIcon } from "lucide-react";
-import { inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { NotFoundError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { tickets, users } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -17,11 +18,12 @@ import { attachmentHref } from "@/lib/services/ticket-attachments";
 import { Badge } from "@foundry/ui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { cn } from "@foundry/ui/cn";
 import { TicketStatusBadge, PriorityBadge, categoryLabel } from "../ticket-badges";
 import { subcategoryLabel } from "@/lib/support/ticket-taxonomy";
 import { TicketControls, ReplyBox, ReplyBoxSkeleton, TicketControlsSkeleton } from "./ticket-controls";
 import { PresenceDot } from "@/components/ds";
+import { cn } from "@foundry/ui/cn";
+import { ChatMessageList, ChatMessageListSkeleton, type ChatMessage } from "@foundry/design-system";
 
 const AUTHOR_LABEL: Record<string, string> = {
   customer: "Customer",
@@ -48,11 +50,19 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
         </Suspense>
       </SectionCard>
 
-      <SectionCard title="Conversation">
-        <Suspense fallback={<ConversationFallback />}>
-          <ConversationData params={params} />
-        </Suspense>
-      </SectionCard>
+      {/* Inbox layout: this customer's chats on the left, the open conversation on the right. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:items-start">
+        <SectionCard title="Customer's chats">
+          <Suspense fallback={<ChatListFallback />}>
+            <CustomerChatsData params={params} />
+          </Suspense>
+        </SectionCard>
+        <SectionCard title="Conversation">
+          <Suspense fallback={<ConversationFallback />}>
+            <ConversationData params={params} />
+          </Suspense>
+        </SectionCard>
+      </div>
     </PageShell>
   );
 }
@@ -152,42 +162,95 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
         : null,
     })),
   );
+  const authorIds = [...new Set(messages.map((m) => m.authorId))];
+  const names = new Map(
+    (authorIds.length ? await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, authorIds)) : [])
+      .map((u) => [u.id, u.name]),
+  );
+  const when = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: timezone });
 
+  // Staff read it like a chat: their side on the right, the customer on the left, oldest first.
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         <PresenceDot channel={channel} peerRole="customer" label="Customer" />
       </div>
+      <ChatMessageList
+        empty={<p className="text-muted-foreground text-sm">No messages yet.</p>}
+        messages={withHref.map((m): ChatMessage => ({
+          id: m.publicId,
+          kind: m.authorType === "system" ? "system" : m.authorType === "staff" ? "mine" : "theirs",
+          body: m.body,
+          meta: m.authorType === "system" ? when(m.createdAt) : `${names.get(m.authorId) ?? AUTHOR_LABEL[m.authorType] ?? m.authorType} · ${when(m.createdAt)}`,
+          attachments: m.attachments,
+        }))}
+      />
       <ReplyBox ticketId={ticket.publicId} closed={closed} channel={channel} peerRole="customer" />
-      <div className="space-y-2">
-        {withHref.map((m) => (
-          <div
-            key={m.publicId}
-            className={cn(
-              "rounded-lg border p-3",
-              m.authorType === "system" && "bg-muted/40 text-muted-foreground text-sm",
-            )}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-semibold">{AUTHOR_LABEL[m.authorType] ?? m.authorType}</span>
-              <span className="text-muted-foreground nums text-xs">
-                {formatEpoch(m.createdAt, { mode: "datetime", timeZone: timezone })}
-              </span>
-            </div>
-            <p className="mt-1 whitespace-pre-wrap text-sm">{m.body}</p>
-            {m.attachments?.length ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {m.attachments.map((a, i) => (
-                  <a key={i} href={a.href} target="_blank" rel="noreferrer">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.thumbUrl} alt={a.name} className="size-24 rounded-md border object-cover" />
-                  </a>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ))}
+    </div>
+  );
+}
+
+const DONE = new Set(["resolved", "closed"]);
+
+async function CustomerChatsData({ params }: { params: Promise<{ id: string }> }) {
+  await ensureStaff();
+  const { id } = await params;
+  let ticket;
+  try {
+    ticket = await loadTicket(id);
+  } catch (e) {
+    if (e instanceof NotFoundError) notFound();
+    throw e;
+  }
+  const [rows, { timezone }] = await Promise.all([
+    db
+      .select({ publicId: tickets.publicId, subject: tickets.subject, status: tickets.status, updatedAt: tickets.updatedAt })
+      .from(tickets)
+      .where(eq(tickets.raisedBy, ticket.raisedBy))
+      .orderBy(desc(tickets.updatedAt))
+      .limit(30),
+    getAppSettings(),
+  ]);
+  const open = rows.filter((r) => !DONE.has(r.status));
+  const past = rows.filter((r) => DONE.has(r.status));
+  const item = (r: (typeof rows)[number]) => {
+    const current = r.publicId === ticket.publicId;
+    return (
+      <li key={r.publicId}>
+        <Link
+          href={`/dashboard/tickets/${r.publicId}`}
+          aria-current={current ? "page" : undefined}
+          className={cn("block rounded-md px-3 py-2 text-sm", current ? "bg-primary/10 ring-primary/40 ring-1" : "hover:bg-muted")}
+        >
+          <span className="flex items-center justify-between gap-2">
+            <span className="truncate font-medium">{r.subject}</span>
+            <TicketStatusBadge status={r.status} />
+          </span>
+          <span className="text-muted-foreground nums block text-xs">{formatEpoch(Number(r.updatedAt), { mode: "datetime", timeZone: timezone })}</span>
+        </Link>
+      </li>
+    );
+  };
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <p className="text-muted-foreground px-1 text-xs font-semibold tracking-wider uppercase">Open · {open.length}</p>
+        {open.length ? <ul className="space-y-1">{open.map(item)}</ul> : <p className="text-muted-foreground px-1 text-sm">No open chats.</p>}
       </div>
+      {past.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-muted-foreground px-1 text-xs font-semibold tracking-wider uppercase">Past · {past.length}</p>
+          <ul className="space-y-1">{past.map(item)}</ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChatListFallback() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
     </div>
   );
 }
@@ -211,18 +274,8 @@ function ConversationFallback() {
       <div className="flex justify-end">
         <Skeleton className="h-4 w-24" />
       </div>
+      <ChatMessageListSkeleton />
       <ReplyBoxSkeleton />
-      <div className="space-y-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-lg border p-3">
-            <div className="flex items-center justify-between gap-3">
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-3 w-28" />
-            </div>
-            <Skeleton className="mt-1 h-4 w-full max-w-md" />
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

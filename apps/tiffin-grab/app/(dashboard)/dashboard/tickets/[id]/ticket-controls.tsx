@@ -12,7 +12,8 @@ import {
 import { Skeleton } from "@foundry/ui/skeleton";
 import { cn } from "@foundry/ui/cn";
 import type { RealtimeRole } from "@foundry/realtime";
-import { MessageComposer } from "@/components/ds";
+import { useMessageComposer } from "@foundry/design-system";
+import { ChatComposer } from "@/components/support/chat-composer";
 import { assignOwner, replyTicket, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
 
@@ -182,26 +183,18 @@ export function ReplyBox({
   channel?: string;
   peerRole?: RealtimeRole;
 }) {
-  return (
-    <MessageComposer
-      action={replyTicket.bind(null, ticketId)}
-      closed={closed}
-      placeholder="Reply to the customer…"
-      channel={channel}
-      peerRole={peerRole}
-      closedMessage="This ticket is closed. Staff can reopen it to continue the conversation."
-    />
-  );
+  const c = useMessageComposer({ action: replyTicket.bind(null, ticketId), channel, peerRole });
+  if (closed) {
+    return <p className="text-muted-foreground rounded-lg border border-dashed p-3 text-sm">This ticket is closed. Reopen it to continue the conversation.</p>;
+  }
+  return <ChatComposer composer={c} placeholder="Reply to the customer…" typingLabel="Customer is typing…" />;
 }
 
-// Exact loading twin: same space-y-2 wrapper, grey textarea + grey button.
+// Exact loading twin: the one-line chat bar.
 // Named export, not ReplyBox.Skeleton: the server page renders this fallback and
 // cannot dot into this "use client" module.
 export function ReplyBoxSkeleton() {
   return (
-    <div className="space-y-2">
-      <Skeleton className="h-20 w-full" />
-      <Skeleton className="h-9 w-24" />
-    </div>
+    <Skeleton className="h-[54px] w-full rounded-3xl" />
   );
 }
