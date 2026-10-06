@@ -9,7 +9,7 @@ import { getAppClock, getDiscountSettings, getPaymentConfig } from "./app-settin
 import { assertCanBook, remainingSeats, RESERVED_BOOKING_STATUSES } from "./booking-policy";
 import { discountsService } from "./discounts.service";
 import { ledgerService } from "./ledger.service";
-import { lockedBalance, spendBookingCoins, walletService } from "./wallet.service";
+import { lockedBalance, spendBookingCoins, takeBackBookingCoins, walletService } from "./wallet.service";
 import { paymentsService } from "./payments.service";
 import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 import { bookingsRepository, type BookingRow } from "./bookings.repository";
@@ -201,6 +201,75 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       createdBy: actorId,
     });
     return { ...booking, paymentPublicId, codeError };
+  }
+
+  /**
+   * Staff cancel: frees the seat and settles the family's coins (see
+   * takeBackBookingCoins). An unpaid payment is rejected so it can't be claimed.
+   * Locks payment → family → booking, the same order payment verify uses.
+   */
+  async cancel(bookingPublicId: string): Promise<void> {
+    const actorId = await currentUserId();
+    const booking = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ id: bookings.id, publicId: bookings.publicId, userId: bookings.userId, status: bookings.status, userPublicId: users.publicId })
+        .from(bookings)
+        .innerJoin(users, eq(users.id, bookings.userId))
+        .where(eq(bookings.publicId, bookingPublicId))
+        .limit(1);
+      if (!row) throw new ValidationError("Booking not found.");
+      const [pay] = await tx.select().from(payments).where(eq(payments.bookingId, row.id)).for("update").limit(1);
+      const [locked] = await tx.select({ status: bookings.status }).from(bookings).where(eq(bookings.id, row.id)).for("update").limit(1);
+      if (locked?.status === "cancelled") throw new ValidationError("This booking is already cancelled.");
+
+      const paid = pay?.status === "paid";
+      await takeBackBookingCoins(tx, {
+        userId: row.userId,
+        userPublicId: row.userPublicId,
+        bookingId: row.id,
+        bookingPublicId: row.publicId,
+        paid,
+      });
+      if (pay && !paid && pay.status !== "refunded") {
+        await tx.update(payments).set({ status: "rejected", note: "Booking cancelled", updatedBy: actorId }).where(eq(payments.id, pay.id));
+      }
+      await tx.update(bookings).set({ status: "cancelled", updatedBy: actorId }).where(eq(bookings.id, row.id));
+      return row;
+    });
+    await recordAudit({
+      entity: "bookings",
+      entityPublicId: booking.publicId,
+      operation: "update",
+      changes: { status: { from: booking.status, to: "cancelled" } },
+      createdBy: actorId,
+    });
+  }
+
+  async listForOccurrence(occurrencePublicId: string): Promise<
+    { publicId: string; seats: number; status: BookingRow["status"]; family: string; paymentStatus: string | null }[]
+  > {
+    const rows = await db
+      .select({
+        publicId: bookings.publicId,
+        seats: bookings.seats,
+        status: bookings.status,
+        name: users.name,
+        email: users.email,
+        paymentStatus: payments.status,
+      })
+      .from(bookings)
+      .innerJoin(studioSessionOccurrences, eq(studioSessionOccurrences.id, bookings.occurrenceId))
+      .innerJoin(users, eq(users.id, bookings.userId))
+      .leftJoin(payments, eq(payments.bookingId, bookings.id))
+      .where(eq(studioSessionOccurrences.publicId, occurrencePublicId))
+      .orderBy(desc(bookings.createdAt));
+    return rows.map((r) => ({
+      publicId: r.publicId,
+      seats: r.seats,
+      status: r.status,
+      family: r.name ?? r.email ?? "Family",
+      paymentStatus: r.paymentStatus,
+    }));
   }
 
   async listForUser(
