@@ -15,6 +15,13 @@
       "when": 1791188337528,
       "tag": "0001_discounts_coupons",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791306701071,
+      "tag": "0002_wallet",
+      "breakpoints": true
     }
   ]
 }
