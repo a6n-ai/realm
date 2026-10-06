@@ -41,7 +41,7 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   waitlisted: "Waitlisted",
   cancelled: "Cancelled",
   paused: "Paused",
-  completed: "Completed",
+  completed: "Over",
 };
 
 export async function getSubscriptionMix() {

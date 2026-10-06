@@ -23,7 +23,7 @@ on:
       job:
         description: "Which pass to run by hand"
         type: choice
-        options: [pull-completions]
+        options: [pull-completions, complete-plans]
         default: pull-completions
 
 concurrency:
@@ -51,5 +51,27 @@ jobs:
           echo
           if [ "${code}" != "200" ]; then
             echo "::error::pull-completions returned HTTP ${code}"
+            exit 1
+          fi
+
+  # Closes plans that are over, after the completion pull has recorded today's deliveries.
+  complete-plans:
+    needs: pull-completions
+    if: always() && (github.event_name == 'schedule' || inputs.job == 'complete-plans')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close finished plans
+        env:
+          CRON_SECRET: ${{ secrets.TIFFIN_GRAB_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/response.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://app.tiffingrab.ca/api/cron/complete-plans)
+          echo "HTTP ${code}"
+          cat /tmp/response.json
+          echo
+          if [ "${code}" != "200" ]; then
+            echo "::error::complete-plans returned HTTP ${code}"
             exit 1
           fi

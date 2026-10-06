@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { activateOrder, cancelOrder, createOrder, ordersService } = await import("../orders.service");
-const { maybeComplete, skipDelivery } = await import("../deliveries.service");
+const { completeFinishedOrders, maybeComplete, skipDelivery } = await import("../deliveries.service");
 
 async function reset() {
   await db.delete(deliveries);
@@ -20,7 +20,7 @@ async function reset() {
 }
 
 // M5V is a seeded Toronto zone -> lands "active" with materialized rows.
-async function makeOrder(durationWeeks = 1) {
+async function makeOrder(durationWeeks = 1, phone = "+16475550111") {
   const snap = await loadCatalogSnapshot();
   const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
@@ -34,7 +34,7 @@ async function makeOrder(durationWeeks = 1) {
       durationWeeks,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
-    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   return o;
@@ -165,6 +165,20 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     await expect(maybeComplete(o.id)).resolves.toBe(true);
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.status).toBe("completed");
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, o.id));
+    expect(acts.some((a) => a.type === "status_change" && a.toStatus === "completed")).toBe(true);
+  });
+
+  it("completeFinishedOrders closes only the plans that are over", async () => {
+    const done = await makeOrder();
+    await backdateAllRows(done);
+    const running = await makeOrder(1, "+16475550122"); // another customer: plans can't overlap
+
+    await expect(completeFinishedOrders()).resolves.toMatchObject({ completed: 1 });
+    const [a] = await db.select().from(orders).where(eq(orders.id, done.id));
+    const [b] = await db.select().from(orders).where(eq(orders.id, running.id));
+    expect(a.status).toBe("completed");
+    expect(b.status).toBe("active");
   });
 
   it("maybeComplete stays false when all dates are past but one original is skipped with no make-up yet", async () => {

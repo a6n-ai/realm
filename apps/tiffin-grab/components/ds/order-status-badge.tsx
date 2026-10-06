@@ -7,7 +7,7 @@ export const ORDER_STATUS_LABEL: Record<string, string> = {
   waitlisted: "Waitlisted",
   paused: "Active",
   cancelled: "Cancelled",
-  completed: "Completed",
+  completed: "Over",
   // Derived (not an orders.status enum value) — unpaid e-Transfer/cash overlay.
   payment_review: "Payment review",
   rejected: "Rejected",

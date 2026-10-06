@@ -3,7 +3,7 @@
 // `cron` mirrors .github/workflows/cron-tiffin-grab.yml (GitHub's schedule can't be read from
 // the app); change both together. Times are UTC, as GitHub runs them.
 
-export type CronJobKey = "pull-completions" | "notifications" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons";
+export type CronJobKey = "pull-completions" | "complete-plans" | "notifications" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons";
 
 export type CronJob = {
   key: CronJobKey;
@@ -25,6 +25,13 @@ export const CRON_JOBS: CronJob[] = [
     cron: "0 2 * * *",
     runnable: true,
     inputs: "date",
+  },
+  {
+    key: "complete-plans",
+    name: "Close finished plans",
+    description: "Marks a plan Over once every delivery is done and no missed day is waiting for a make-up. Runs right after the completion pull.",
+    cron: "0 2 * * *",
+    runnable: true,
   },
   {
     key: "notifications",
