@@ -7,7 +7,6 @@ import {
   CreditCardIcon,
   LayoutDashboardIcon,
   LogOutIcon,
-  ScrollTextIcon,
   SettingsIcon,
   ShapesIcon,
   TicketPercentIcon,
@@ -63,8 +62,7 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
     { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, permission: "user:list" },
   ].filter(allow);
   const finance: NavItem[] = [
-    { title: "Payments", href: "/dashboard/finance/payments", icon: CreditCardIcon, permission: "settings:write" },
-    { title: "Ledger", href: "/dashboard/finance/ledger", icon: ScrollTextIcon, permission: "settings:write" },
+    { title: "Payments", href: "/dashboard/payments", icon: CreditCardIcon, permission: "settings:write" },
     {
       title: "Discounts",
       href: "/dashboard/discounts",
