@@ -13,13 +13,15 @@ import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { PageTransition } from "@/components/motion/page-transition";
 
 const ACCOUNT_PATHS = ["/me/account"];
-const MENU_PATHS = ["/me/menu", "/me/renew", "/me/support"];
+const MENU_PATHS = ["/me/menu", "/me/renew"];
+const SUPPORT_PATHS = ["/me/support"];
 const under = (p: string, base: string) => p === base || p.startsWith(`${base}/`);
 
-type Tab = "deliveries" | "menu" | "account";
+type Tab = "deliveries" | "menu" | "support" | "account";
 
 function activeTab(p: string): Tab | null {
   if (MENU_PATHS.some((b) => under(p, b))) return "menu";
+  if (SUPPORT_PATHS.some((b) => under(p, b))) return "support";
   if (ACCOUNT_PATHS.some((b) => under(p, b))) return "account";
   if (p === "/me" || under(p, "/me")) return "deliveries";
   return null;
@@ -88,6 +90,7 @@ export function CustomerShell({ coinBalance, userPublicId, children }: { coinBal
           <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
             <NavPill href="/me" active={tab === "deliveries"}>Deliveries</NavPill>
             <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={menuPill}>Menu</MenuButton>
+            <NavPill href="/me/support" active={tab === "support"}>Support</NavPill>
             <NavPill href="/me/account" active={tab === "account"}>Account</NavPill>
           </nav>
           <div className="flex items-center justify-end gap-2">
@@ -107,6 +110,9 @@ export function CustomerShell({ coinBalance, userPublicId, children }: { coinBal
           <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={tabCls(tab === "menu")}>
             <MenuIcon aria-hidden className="size-6" />Menu
           </MenuButton>
+          <Link href="/me/support" aria-current={tab === "support" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "support"))}>
+            <LifeBuoy aria-hidden className="size-6" />Support
+          </Link>
           <Link href="/me/account" aria-current={tab === "account" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "account"))}>
             <User aria-hidden className="size-6" />Account
           </Link>
