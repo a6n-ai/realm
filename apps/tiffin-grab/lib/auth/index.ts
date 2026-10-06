@@ -4,7 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { admin as adminPlugin, captcha, emailOTP, magicLink } from "better-auth/plugins";
 import { CAPTCHA_ENDPOINTS, turnstileKeys } from "./captcha";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import {
   LAST_USER_COOKIE, LAST_USER_MAX_AGE_S, authAuditAction, createOrganizationPlugin, encodeLastUser, googleOneTapPlugins, googleSocialProviders,
 } from "@foundry/auth";
@@ -216,6 +216,27 @@ export const auth = betterAuth({
   // extra SELECT per logout; acceptable for best-effort audit.
   // Doc ref: https://www.better-auth.com/docs/concepts/database#database-hooks
   databaseHooks: {
+    // Google sign-up already copies the photo onto the new user. Linking Google to
+    // an existing account does not (updateUserInfoOnLink would also overwrite the
+    // name, which carries delivery details like "unit 1703"), so fill in the photo
+    // only, and only when the account has none.
+    account: {
+      create: {
+        after: async (acc) => {
+          if (acc.providerId !== "google" || !acc.idToken) return;
+          try {
+            const picture = googlePicture(acc.idToken);
+            if (!picture) return;
+            await db
+              .update(users)
+              .set({ image: picture })
+              .where(and(eq(users.id, BigInt(acc.userId as string)), isNull(users.image)));
+          } catch (e) {
+            log.error({ err: e }, "google photo copy failed");
+          }
+        },
+      },
+    },
     session: {
       // Login gate: only `active` accounts may get a session. Fires after the
       // credential/OTP check passes, so a deactivated/suspended/deleted user is
@@ -385,3 +406,12 @@ export const auth = betterAuth({
     }),
   },
 });
+
+// The ID token Better Auth just received and verified from Google on this
+// callback; reading its `picture` claim needs no second verification.
+function googlePicture(idToken: string): string | null {
+  const payload = idToken.split(".")[1];
+  if (!payload) return null;
+  const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { picture?: unknown };
+  return typeof claims.picture === "string" && claims.picture.startsWith("https://") ? claims.picture : null;
+}
