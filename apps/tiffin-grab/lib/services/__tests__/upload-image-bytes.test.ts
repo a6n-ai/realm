@@ -8,7 +8,7 @@ const { uploadPaymentProof } = await import("../payment-proof");
 const { uploadAttachments } = await import("../ticket-attachments");
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const file = (bytes: Uint8Array | string, name: string, type: string) => new File([bytes], name, { type });
+const file = (bytes: Uint8Array<ArrayBuffer> | string, name: string, type: string) => new File([bytes], name, { type });
 
 describe("uploads judge the bytes, not the claimed type", () => {
   beforeEach(() => (created.length = 0));
