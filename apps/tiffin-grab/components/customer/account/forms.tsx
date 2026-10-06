@@ -17,6 +17,7 @@ import { ChangeEmailForm } from "@/components/account/leaves/change-email-form";
 import { ChangePasswordForm } from "@/components/account/leaves/change-password-form";
 import { DeleteAccountForm } from "@/components/account/leaves/delete-account-form";
 import { PinForm } from "@foundry/auth-ui";
+import { GoogleConnectionField } from "@/components/account/leaves/google-connection-field";
 import { setMyPin, removeMyPin } from "@/app/(dashboard)/dashboard/account/actions";
 import { kitAuthUi } from "./auth-ui-kit";
 
@@ -299,7 +300,15 @@ export function NotificationsForm({ notifyEmail }: { notifyEmail: boolean }) {
 }
 
 /** Password, email and delete flows are the shared @foundry/auth-ui screens (stock styling, kit cards around them). */
-export function SecurityPanel({ email, staffPin }: { email: string | null; staffPin: { hasPin: boolean } | null }) {
+export function SecurityPanel({
+  email,
+  staffPin,
+  google = null,
+}: {
+  email: string | null;
+  staffPin: { hasPin: boolean } | null;
+  google?: { connected: boolean } | null;
+}) {
   return (
     <div className="space-y-4">
       {staffPin && (
@@ -310,6 +319,11 @@ export function SecurityPanel({ email, staffPin }: { email: string | null; staff
       <Block title="Email address" subtitle="Used for sign-in and account notices. We verify your current and new address.">
         <ChangeEmailForm currentEmail={email} ui={kitAuthUi} />
       </Block>
+      {google ? (
+        <Block title="Google" subtitle="Sign in with your Google account instead of a code.">
+          <GoogleConnectionField connected={google.connected} callbackURL="/me/account?section=security" ui={kitAuthUi} />
+        </Block>
+      ) : null}
       <Block title="Password" subtitle="Change your password. Other devices are signed out.">
         <ChangePasswordForm ui={kitAuthUi} />
       </Block>

@@ -2,16 +2,22 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth/session";
-import { storage } from "@/lib/storage";
+import { filesService } from "@/lib/files";
 import { usersService } from "@/lib/services/users.service";
 import { sniffImageType, extFor, MAX_AVATAR_BYTES } from "@/lib/images/validate";
+import { ownAvatarKey } from "@/lib/images/avatar-key";
 
-const AVATAR_URL_PREFIX = "/uploads/avatars/";
+// Avatars go through the shared file store (S3 in prod), like dish photos. They
+// used to be written into public/uploads/avatars on the container's disk, which
+// Next never serves after build and every deploy wipes.
+function forgetOld(url: string | null | undefined, userId: string) {
+  const key = ownAvatarKey(url, userId);
+  if (key) filesService().delete(key).catch(() => undefined);
+}
 
-function oldKeyFrom(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (!url.startsWith(AVATAR_URL_PREFIX)) return null;
-  return url.slice(AVATAR_URL_PREFIX.length);
+function revalidateAccount() {
+  revalidatePath("/dashboard/account");
+  revalidatePath("/me/account");
 }
 
 export async function updateMyAvatar(
@@ -33,18 +39,15 @@ export async function updateMyAvatar(
   const current = await usersService.read(session.user.id);
   const oldImage = (current as { image?: string | null }).image;
 
-  const key = `${session.user.id}-${crypto.randomUUID().slice(0, 8)}.${extFor(type)}`;
-  const url = await storage.put(key, bytes, type);
+  const name = `${session.user.id}-${crypto.randomUUID().slice(0, 8)}.${extFor(type)}`;
+  const detail = await filesService().create(`avatars/${name}`, bytes, { contentType: type });
+  if (!detail.url) return { ok: false, error: "Upload failed. Try again." };
 
-  await usersService.updateProfile(session.user.id, { image: url });
+  await usersService.updateProfile(session.user.id, { image: detail.url });
+  forgetOld(oldImage, session.user.id);
 
-  const oldKey = oldKeyFrom(oldImage);
-  if (oldKey) {
-    storage.delete(oldKey).catch(() => undefined);
-  }
-
-  revalidatePath("/dashboard/account");
-  return { ok: true, url };
+  revalidateAccount();
+  return { ok: true, url: detail.url };
 }
 
 export async function removeMyAvatar(): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -55,12 +58,8 @@ export async function removeMyAvatar(): Promise<{ ok: true } | { ok: false; erro
   const oldImage = (current as { image?: string | null }).image;
 
   await usersService.updateProfile(session.user.id, { image: null });
+  forgetOld(oldImage, session.user.id);
 
-  const oldKey = oldKeyFrom(oldImage);
-  if (oldKey) {
-    storage.delete(oldKey).catch(() => undefined);
-  }
-
-  revalidatePath("/dashboard/account");
+  revalidateAccount();
   return { ok: true };
 }

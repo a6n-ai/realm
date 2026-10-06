@@ -30,7 +30,7 @@ export type AccountUser = {
   hasPin: boolean;
 };
 
-function SectionBody({ k, user, role, addresses, dropOff, dropOffs }: { k: AccountSectionKey; user: AccountUser; role: RoleValue; addresses: SavedAddress[]; dropOff?: DropOffCatalog; dropOffs: Record<string, DropOffValue> }) {
+function SectionBody({ k, user, role, addresses, dropOff, dropOffs, google }: { k: AccountSectionKey; user: AccountUser; role: RoleValue; addresses: SavedAddress[]; dropOff?: DropOffCatalog; dropOffs: Record<string, DropOffValue>; google: { connected: boolean } | null }) {
   switch (k) {
     case "profile":
       return <ProfileForm image={user.image} name={user.name ?? ""} username={user.username ?? ""} />;
@@ -43,7 +43,7 @@ function SectionBody({ k, user, role, addresses, dropOff, dropOffs }: { k: Accou
     case "notifications":
       return <NotificationsForm notifyEmail={user.notifyEmail} />;
     case "security":
-      return <SecurityPanel email={user.email} staffPin={role === Role.USER ? null : { hasPin: user.hasPin }} />;
+      return <SecurityPanel email={user.email} staffPin={role === Role.USER ? null : { hasPin: user.hasPin }} google={google} />;
   }
 }
 
@@ -54,6 +54,7 @@ export function AccountPage({
   addresses = [],
   dropOff,
   dropOffs = {},
+  google = null,
 }: {
   user: AccountUser;
   role: RoleValue;
@@ -64,6 +65,8 @@ export function AccountPage({
   dropOff?: DropOffCatalog;
   /** Address public id → its drop-off's strategy public id. */
   dropOffs?: Record<string, DropOffValue>;
+  /** Google sign-in link state; null when Google is off or another section is open. */
+  google?: { connected: boolean } | null;
 }) {
   const sections = sectionsForRole(role);
   const shown = active ?? sections[0];
@@ -124,7 +127,7 @@ export function AccountPage({
               Account
             </Link>
           )}
-          <SectionBody k={shown.key} user={user} role={role} addresses={addresses} dropOff={dropOff} dropOffs={dropOffs} />
+          <SectionBody k={shown.key} user={user} role={role} addresses={addresses} dropOff={dropOff} dropOffs={dropOffs} google={google} />
         </section>
       </div>
     </div>

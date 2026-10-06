@@ -7,6 +7,8 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { dropOffCatalog } from "@/lib/catalog/drop-off";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
+import { googleSignInEnabled } from "@foundry/auth";
+import { hasGoogleLinked } from "@/lib/auth/google-link";
 
 export default async function MeAccountPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
   const [{ user, role }, sp] = await Promise.all([requireAccountUser(), searchParams]);
@@ -16,6 +18,7 @@ export default async function MeAccountPage({ searchParams }: { searchParams: Pr
   const [dropOffs, catalog] = onAddresses
     ? await Promise.all([dropOffsFor(addresses.map((a) => a.publicId)), loadCatalogSnapshot(await resolveRequestOrg())])
     : [{}, null];
+  const google = active?.key === "security" && googleSignInEnabled() ? { connected: await hasGoogleLinked(user.publicId) } : null;
   const dropOff = catalog ? dropOffCatalog(toClientCatalog(catalog).deliveryCharges, catalog.waivers) : undefined;
   return (
     <AccountPage
@@ -43,6 +46,7 @@ export default async function MeAccountPage({ searchParams }: { searchParams: Pr
         notifySms: user.notifySms ?? false,
         hasPin: Boolean(user.pinHash),
       }}
+      google={google}
     />
   );
 }
