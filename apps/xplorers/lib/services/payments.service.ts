@@ -1,4 +1,5 @@
 import { ValidationError } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
 import { UpdatableRepository } from "@foundry/database";
 import {
   canClaim,
@@ -13,8 +14,10 @@ import { db } from "@/db/client";
 import { bookings, payments, studioSessionOccurrences, users, type BookingPricing } from "@/db/schema";
 import { getIntegrationsConfig, getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
-import { walletService } from "./wallet.service";
-import { SessionUpdatableService } from "./session-service";
+import { settleBookingCoins, walletService } from "./wallet.service";
+import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
+
+const log = createLogger("payments");
 
 export type PaymentRow = typeof payments.$inferSelect;
 
@@ -85,7 +88,12 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
     const [booking] = await db.select().from(bookings).where(eq(bookings.id, row.bookingId)).limit(1);
     if (!booking) throw new ValidationError("Booking not found.");
 
+    let expiredCoins = 0;
     await db.transaction(async (tx) => {
+      // Coins held at booking become spent. If the hold lapsed first, the coins
+      // already went back to the wallet: record it, never block the payment.
+      const settled = await settleBookingCoins(tx, { userId: row.userId, bookingId: booking.id });
+      if (settled.status === "expired") expiredCoins = settled.coins;
       await tx
         .update(payments)
         .set({ status: "paid", capturedAt: Date.now() })
@@ -104,6 +112,16 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
       });
     });
 
+    if (expiredCoins > 0) {
+      log.warn({ bookingPublicId: booking.publicId, coins: expiredCoins }, "coin hold expired before payment verification");
+      await recordAudit({
+        entity: "bookings",
+        entityPublicId: booking.publicId,
+        operation: "update",
+        changes: { coinHoldExpired: { coins: expiredCoins, note: "coin discount was not collected" } },
+        createdBy: await currentUserId(),
+      });
+    }
     await walletService.awardBookingEvents(booking.id);
     return this.read(publicId);
   }

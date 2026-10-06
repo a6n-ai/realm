@@ -1,6 +1,13 @@
 import { createLogger } from "@foundry/commons/logger";
-import { createWalletService, type WalletDeps } from "@foundry/wallet";
-import { and, count, eq, ne } from "drizzle-orm";
+import {
+  commitRedemption,
+  createWalletService,
+  reserveRedemption,
+  settleReservation,
+  unexpired,
+  type WalletDeps,
+} from "@foundry/wallet";
+import { and, count, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   APP_EVENTS,
@@ -16,6 +23,8 @@ import {
 import { getAppClock, getMaxWalletBalance } from "./app-settings.service";
 
 const log = createLogger("wallet");
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** How long coins stay held for a booking whose payment is still pending. */
 export const COIN_HOLD_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -92,3 +101,44 @@ async function walletRate(): Promise<number | null> {
 }
 
 export const walletService = { ...base, ensurePayoutRows, awardBookingEvents, walletRate };
+
+/**
+ * Spendable balance under the family's row lock, so a second booking in
+ * flight waits and then sees what this one took. Lock order (user first) is
+ * the package's, so this never deadlocks against redemption code.
+ */
+export async function lockedBalance(tx: Tx, userId: bigint): Promise<number> {
+  await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+  const [row] = await tx
+    .select({
+      bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
+    })
+    .from(walletLedger)
+    .where(and(eq(walletLedger.userId, userId), unexpired(walletLedger, Date.now())));
+  return row?.bal ?? 0;
+}
+
+/** Holds coins for a booking awaiting payment, or spends them now when nothing is due. */
+export async function spendBookingCoins(
+  tx: Tx,
+  args: { userId: bigint; bookingId: bigint; coins: number; amount: number; hold: boolean },
+): Promise<void> {
+  const common = {
+    userId: args.userId,
+    coins: args.coins,
+    currencyValue: args.amount,
+    orderId: args.bookingId,
+    memo: "Wallet coins",
+    walletLedger,
+    orders: bookings,
+    users,
+    recordRedemptionDiscount,
+  };
+  if (args.hold) await reserveRedemption(tx, { ...common, ttlMs: COIN_HOLD_TTL_MS });
+  else await commitRedemption(tx, common);
+}
+
+/** Turns a booking's coin hold into a spend when its payment is verified. */
+export function settleBookingCoins(tx: Tx, args: { userId: bigint; bookingId: bigint }) {
+  return settleReservation(tx, { userId: args.userId, orderId: args.bookingId, walletLedger, orders: bookings, users });
+}

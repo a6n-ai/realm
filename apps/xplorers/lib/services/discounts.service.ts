@@ -18,6 +18,7 @@ import {
 import { priceBooking, type BookingQuote, type CouponRule, type DiscountRule } from "@/lib/discounts/quote";
 import { getAppClock, getDiscountSettings, getPaymentConfig } from "./app-settings.service";
 import { paymentsService } from "./payments.service";
+import { walletService } from "./wallet.service";
 import { SessionUpdatableService } from "./session-service";
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -228,6 +229,7 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
     seats: number,
     code: string | null,
     userPublicId: string | null,
+    useCoins = false,
   ): Promise<BookingQuote & { currency: string }> {
     const [row] = await db
       .select({ id: studioSessions.id, category: studioSessions.category, priceAmount: studioSessions.priceAmount })
@@ -251,6 +253,10 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
       return { subtotal: 0, adjustments: [], discountTotal: 0, taxTotal: 0, total: 0, codeError: null, currency };
     }
     const method = findMethod(cfg, rails[0]!.id) ?? rails[0]!;
+    // Preview only: unlocked balance. The booking re-reads it under the family's lock.
+    const rate = useCoins && user ? await walletService.walletRate() : null;
+    const balance = rate && user ? await walletService.balance(user.id) : 0;
+    const coins = rate && balance > 0 ? { balance, rate } : null;
     const rules = await db.transaction((tx) => this.loadPricing(tx, { code, userId: user?.id ?? null, lock: false }));
     const quote = priceBooking({
       unitPrice: row.priceAmount,
@@ -262,7 +268,7 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
       codeTyped: Boolean(code?.trim()),
       maxDiscountPct,
       now: Date.now(),
-      coins: null,
+      coins,
     });
     return { ...quote, currency };
   }
