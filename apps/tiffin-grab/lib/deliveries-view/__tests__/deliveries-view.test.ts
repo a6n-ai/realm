@@ -10,7 +10,7 @@ const day = (o: Partial<CalendarDayInput> & { date: string }): CalendarDayInput 
 });
 const one = (o: Partial<CalendarDayInput> & { date: string }, p: PlanContext = plan, now = NOW) => buildTrips([day(o)], now, p)[0]!;
 const ACTIONS: TripAction[] = ["pick", "swap", "move", "address"];
-const CLOSED = "Changes closed Tue 6:00 pm. This trip is being prepared.";
+const CLOSED = "Changes closed. This trip is being prepared.";
 
 describe("buildTrips status", () => {
   const rows: [string, Partial<CalendarDayInput> & { date: string }, string][] = [
@@ -100,18 +100,18 @@ describe("actionAvailability ok matrix", () => {
 describe("actionAvailability copy", () => {
   it("upcoming: sublabels state what and when", () => {
     const a = actionAvailability(one({ date: "2026-09-23" }), NOW, plan);
-    expect(a.pick.sub).toBe("Closes Tue 6:00 pm");
+    expect(a.pick.sub).toBe("Open for changes");
     expect(a.move.sub).toBe("Pick a new delivery day");
-    expect(a.address.sub).toBe("Closes Tue 6:00 pm");
+    expect(a.address.sub).toBe("Open for changes");
   });
   it("cutoff-passed uses closed copy", () => {
     const a = actionAvailability(one({ date: "2026-09-22", locked: true }), NOW, plan);
-    expect(a.pick.why).toBe("Changes closed Mon 6:00 pm. This trip is being prepared.");
-    expect(a.move.why).toBe("Changes closed Mon 6:00 pm. This trip is being prepared.");
+    expect(a.pick.why).toBe("Changes closed. This trip is being prepared.");
+    expect(a.move.why).toBe("Changes closed. This trip is being prepared.");
   });
   it("delivered copy", () => {
     const a = actionAvailability(one({ date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }), NOW, plan);
-    expect(a.pick.why).toBe("Delivered. Changes closed Sun 6:00 pm.");
+    expect(a.pick.why).toBe("Delivered. Changes closed.");
     expect(a.move.why).toBe("Already delivered.");
   });
   it("failed drop: move it, nothing to edit in place", () => {

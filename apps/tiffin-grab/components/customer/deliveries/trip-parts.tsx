@@ -2,7 +2,7 @@
 import { ArrowDownLeft, ArrowUpRight, Info, MapPin, Package, Truck, Utensils } from "lucide-react";
 import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { formatCutoff, humanDate, type Trip } from "@/lib/deliveries-view";
+import { humanDate, type Trip } from "@/lib/deliveries-view";
 import { deliveryLine, isDone, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow, type MoveFact } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 
@@ -52,7 +52,6 @@ export function rowSubline(t: Trip, tz: string): string {
   if (t.status === "combined-into" && t.mergedInto) return `Combined into ${humanDate(t.mergedInto)}`;
   if (t.coversLabel) return t.coversLabel;
   if (t.isMakeup) return "Make-up delivery";
-  if (t.status === "upcoming") return `Closes ${formatCutoff(t.cutoffAt, tz)}`;
   return humanDate(t.date);
 }
 
@@ -91,14 +90,9 @@ export function dedupeDishes(summary: string | null): string[] {
   return [...counts].map(([n, c]) => (c > 1 ? `${n} ×${c}` : n));
 }
 
-function cutoffLine(trip: Trip, tz: string): string | null {
-  return trip.status === "upcoming" ? `Changes close ${formatCutoff(trip.cutoffAt, tz)}` : null;
-}
-
 /** Header + dishes only; the desktop card slots its actions in as children. */
 export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz: string; reason: string | null; plan?: PlanTagInfo; children?: React.ReactNode }) {
   const m = statusMeta(trip);
-  const cutoff = cutoffLine(trip, tz);
   const multi = trip.eatingDays.length > 1;
   return (
     <Card className="p-5 lg:p-8" aria-live="polite">
@@ -109,7 +103,7 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
       </p>
       <h2 className="mt-1 text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">{humanDate(trip.date)}</h2>
       <p className="mt-1 text-[15px] text-[var(--muted-foreground,#6E6558)]">
-        {[trip.coversLabel, cutoff ?? reason].filter(Boolean).join(" · ") || tiffins(trip.units)}
+        {[trip.coversLabel, trip.status === "upcoming" ? null : reason].filter(Boolean).join(" · ") || tiffins(trip.units)}
       </p>
       {trip.status !== "combined-into" && (
         <ul className="mt-5 space-y-3 border-t border-[var(--border)] pt-5">
@@ -190,7 +184,7 @@ export function EatingCard({ row, tz, reason, plan, address, children }: { row: 
   const facts = row.movedTo ? [movedFact(row)]
     : trip.status === "failed" ? [`Nothing arrived. Move ${weekdayShort(row.date)}'s tiffin to another day.`]
     : isDone(row) ? [reason] : [
-    trip.status === "upcoming" ? `Changes close ${formatCutoff(trip.cutoffAt, tz)}` : reason,
+    trip.status === "upcoming" ? null : reason,
     !row.own && trip.status === "upcoming" ? `${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery` : null,
   ].filter(Boolean);
   const moves = row.movedTo ? [] : moveFacts(row);
@@ -260,7 +254,6 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
     deliveryLine(row),
     `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
     ...moveNotes(row),
-    t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null,
   ].filter(Boolean).join(" · ");
   return (
     <Sheet open={open} onClose={onClose} title={`${humanDate(row.date)} · your meal`}>
