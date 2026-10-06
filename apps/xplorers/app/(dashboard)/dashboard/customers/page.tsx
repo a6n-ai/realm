@@ -39,17 +39,17 @@ const SPEC: FacetDef[] = [
     ],
   },
   { kind: "dateRange", field: "createdAt", label: "Joined" },
-  { kind: "search", fields: ["name", "email", "phone"] },
+  { kind: "search", fields: ["name", "username", "email", "phone"] },
 ];
 
 export default function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <PageShell>
-      <PageHeader icon={UsersIcon} title="Customers" subtitle="Families who book classes and sign in at /me." />
+      <PageHeader icon={UsersIcon} title="Customers" subtitle="People who book classes and sign in at /me." />
       <Suspense fallback={<Skeleton className="h-24 w-full" />}>
         <CustomersStats />
       </Suspense>
-      <SectionCard title="All families">
+      <SectionCard title="All customers">
         <Suspense fallback={<CustomersListSkeleton />}>
           <CustomersData searchParams={searchParams} />
         </Suspense>
@@ -65,7 +65,7 @@ async function CustomersStats() {
     <StatGrid
       cols={4}
       items={[
-        { label: "Total families", value: String(s.total), icon: UsersIcon },
+        { label: "Total customers", value: String(s.total), icon: UsersIcon },
         { label: "Active", value: String(s.active), icon: UserCheckIcon },
         { label: "With bookings", value: String(s.withBookings), icon: CalendarCheckIcon },
         { label: "New this week", value: String(s.newThisWeek), icon: UserPlusIcon },

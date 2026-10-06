@@ -127,7 +127,7 @@ async function familyUserId(publicId: string): Promise<bigint> {
     .from(users)
     .where(and(eq(users.publicId, publicId), eq(users.role, "user")))
     .limit(1);
-  if (!row) throw new ValidationError("Family not found.");
+  if (!row) throw new ValidationError("Customer not found.");
   return row.id;
 }
 

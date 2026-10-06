@@ -14,7 +14,7 @@ export default async function CouponsPage() {
   return (
     <SectionCard
       title="Coupons"
-      subtitle="Codes families type when they book."
+      subtitle="Codes customers type when they book."
       action={
         canEdit ? (
           <Button asChild size="sm">

@@ -6,7 +6,7 @@ import { PaymentsTableSkeleton } from "../payments-table";
 
 export default function PendingPaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <SectionCard title="Pending verification" subtitle="Families say they paid. Check the money arrived, then verify or reject.">
+    <SectionCard title="Pending verification" subtitle="Customers say they paid. Check the money arrived, then verify or reject.">
       <Suspense fallback={<PaymentsTableSkeleton />}>
         <PaymentsData
           spec={PENDING_PAYMENTS_SPEC}

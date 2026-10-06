@@ -11,8 +11,9 @@ import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.s
 
 export type CustomerListRow = CustomerRow & { joinedLabel: string; lastBookingLabel: string };
 
-const COLUMNS: readonly Column<CustomerSortColumn | "phone" | "status">[] = [
+const COLUMNS: readonly Column<CustomerSortColumn | "username" | "phone" | "status">[] = [
   { key: "name", label: "Name", sortable: true },
+  { key: "username", label: "Username" },
   { key: "email", label: "Email", sortable: true },
   { key: "phone", label: "Phone" },
   { key: "status", label: "Status" },
@@ -50,10 +51,10 @@ export function CustomersList({
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/customers/${r.publicId}`}
         rowClassName={() => "group cursor-pointer"}
-        filters={<ListSearchFilters spec={spec} placeholder="Search families…" shortPlaceholder="Search…" />}
+        filters={<ListSearchFilters spec={spec} placeholder="Search customers…" shortPlaceholder="Search…" />}
         emptyIcon={UsersIcon}
-        emptyMessage="No families yet."
-        emptySearchMessage="No families match your search."
+        emptyMessage="No customers yet."
+        emptySearchMessage="No customers match your search."
         renderRow={(c) => (
           <>
             <TableCell className="font-medium">
@@ -61,6 +62,7 @@ export function CustomersList({
                 {c.name ?? "(no name)"}
               </Link>
             </TableCell>
+            <TableCell className="text-muted-foreground">{c.username ? `@${c.username}` : "—"}</TableCell>
             <TableCell>{c.email ?? "—"}</TableCell>
             <TableCell>{c.phone ? formatPhone(c.phone) : "—"}</TableCell>
             <TableCell>

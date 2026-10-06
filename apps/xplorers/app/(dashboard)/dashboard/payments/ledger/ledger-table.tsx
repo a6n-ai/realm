@@ -14,7 +14,7 @@ export type LedgerTableRow = LedgerPageRow & { whenLabel: string };
 const COLUMNS: readonly Column<LedgerSortColumn | "type" | "family" | "memo">[] = [
   { key: "time", label: "Time", sortable: true },
   { key: "type", label: "Type" },
-  { key: "family", label: "Family" },
+  { key: "family", label: "Customer" },
   { key: "memo", label: "Memo" },
   { key: "amount", label: "Amount", sortable: true, align: "right" },
 ];
@@ -44,7 +44,7 @@ export function LedgerTable({
         sort={sort}
         idAccessor={(r) => r.publicId}
         idLabel="Entry"
-        filters={<ListSearchFilters spec={spec} placeholder="Search family…" shortPlaceholder="Search…" />}
+        filters={<ListSearchFilters spec={spec} placeholder="Search customer…" shortPlaceholder="Search…" />}
         emptyIcon={ScrollTextIcon}
         emptyMessage="No ledger entries yet. Verified payments post here."
         emptySearchMessage="No entries match your search."

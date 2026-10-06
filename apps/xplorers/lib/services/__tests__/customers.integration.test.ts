@@ -98,6 +98,7 @@ describe("customers list", () => {
     const [u] = await db.select({ publicId: schema.users.publicId }).from(schema.users).where(eq(schema.users.id, userId));
     const c = await getCustomer360(u!.publicId);
     expect(c!.profile.email).toBe(`${MARK}@example.test`);
+    expect(c!.profile.friendCount).toBe(0);
     expect(c!.bookings).toHaveLength(2);
     expect(c!.bookings[0]).toMatchObject({ classTitle: `${MARK} class`, seats: 1 });
     expect(c!.payments.map((p) => p.status).sort()).toEqual(["paid", "rejected"]);

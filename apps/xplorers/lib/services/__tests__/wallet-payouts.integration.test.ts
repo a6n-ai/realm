@@ -128,13 +128,13 @@ describe("event payouts", () => {
     expect(await walletService.balance(userId)).toBe(25);
   });
 
-  it("only lets staff adjust family wallets", async () => {
+  it("only lets staff adjust customer wallets", async () => {
     const [staff] = await db
       .insert(schema.users)
       .values({ name: `${MARK} staff`, email: `${MARK}-staff@example.test`, role: "admin" })
       .returning({ id: schema.users.id, publicId: schema.users.publicId });
     try {
-      await expect(walletService.familyUserId(staff!.publicId)).rejects.toThrow(/family/i);
+      await expect(walletService.familyUserId(staff!.publicId)).rejects.toThrow(/customer/i);
       expect(await walletService.familyUserId(userPublicId)).toBe(userId);
     } finally {
       await db.delete(schema.users).where(eq(schema.users.id, staff!.id));

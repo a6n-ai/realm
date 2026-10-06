@@ -25,6 +25,10 @@ export const users = pgTable(
     platformRole: text("platform_role"),
     status: userStatus("status").notNull().default("active"),
     passwordSet: boolean("password_set").notNull().default(false),
+    // `username` is the lowercased unique handle; `displayUsername` keeps the
+    // typed casing (better-auth username plugin column shape; plugin not mounted).
+    username: text("username"),
+    displayUsername: text("display_username"),
     banned: boolean("banned").default(false),
     banReason: text("ban_reason"),
     banExpires: timestamp("ban_expires"),
@@ -33,6 +37,7 @@ export const users = pgTable(
   },
   (t) => [
     uniqueIndex("users_email_unique").on(t.email).where(sql`${t.email} is not null`),
+    uniqueIndex("users_username_unique").on(t.username),
     index("users_created_idx").on(t.createdAt),
   ],
 );

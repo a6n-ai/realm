@@ -267,7 +267,7 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       publicId: r.publicId,
       seats: r.seats,
       status: r.status,
-      family: r.name ?? r.email ?? "Family",
+      family: r.name ?? r.email ?? "Customer",
       paymentStatus: r.paymentStatus,
     }));
   }

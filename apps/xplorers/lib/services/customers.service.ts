@@ -3,7 +3,7 @@ import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
-import { bookings, ledgerEntries, payments, studioSessionOccurrences, studioSessions, users } from "@/db/schema";
+import { bookings, friendships, ledgerEntries, payments, studioSessionOccurrences, studioSessions, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
 
 export type CustomerSortColumn = "name" | "email" | "joined" | "bookings" | "spent" | "lastBooking";
@@ -11,6 +11,7 @@ export type CustomerSortColumn = "name" | "email" | "joined" | "bookings" | "spe
 export type CustomerRow = {
   publicId: string;
   name: string | null;
+  username: string | null;
   email: string | null;
   phone: string | null;
   status: string;
@@ -40,6 +41,7 @@ export async function listCustomersPage(
       condition,
       columnResolver({
         name: users.name,
+        username: users.username,
         email: users.email,
         phone: users.phone,
         status: users.status,
@@ -62,6 +64,7 @@ export async function listCustomersPage(
       .select({
         publicId: users.publicId,
         name: users.name,
+        username: users.displayUsername,
         email: users.email,
         phone: users.phone,
         status: users.status,
@@ -104,10 +107,12 @@ export type Customer360 = {
   profile: {
     publicId: string;
     name: string | null;
+    username: string | null;
     email: string | null;
     phone: string | null;
     status: string;
     createdAt: number;
+    friendCount: number;
   };
   bookings: {
     publicId: string;
@@ -150,10 +155,13 @@ export async function getCustomer360(publicId: string): Promise<Customer360 | nu
       id: users.id,
       publicId: users.publicId,
       name: users.name,
+      username: users.displayUsername,
       email: users.email,
       phone: users.phone,
       status: users.status,
       createdAt: users.createdAt,
+      // Spelled-out users.id: see SPENT_SQL.
+      friendCount: sql<number>`(select cast(count(*) as int) from ${friendships} fr where fr.status = 'accepted' and (fr.requester_id = users.id or fr.addressee_id = users.id))`,
     })
     .from(users)
     .where(and(eq(users.publicId, publicId), eq(users.role, "user")))

@@ -7,7 +7,7 @@ import { savePayoutAction } from "../actions";
 
 const DESCRIPTIONS: Record<(typeof PAYOUT_EVENTS)[number], string> = {
   booking_paid: "Each booking, when staff verify its payment. Free bookings earn nothing.",
-  first_booking: "Welcome bonus: once per family, on their first paid booking.",
+  first_booking: "Welcome bonus: once per customer, on their first paid booking.",
   birthday_booking: "A paid booking for a Birthday class.",
 };
 

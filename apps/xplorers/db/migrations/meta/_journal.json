@@ -29,6 +29,13 @@
       "when": 1791311634995,
       "tag": "0003_drop_signup_event",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791323318046,
+      "tag": "0004_red_jigsaw",
+      "breakpoints": true
     }
   ]
 }

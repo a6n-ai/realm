@@ -49,6 +49,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard title="Profile">
           <dl className="grid grid-cols-[8rem_1fr] gap-y-2 text-sm">
+            <dt className="text-muted-foreground">Username</dt>
+            <dd>{profile.username ? `@${profile.username}` : "—"}</dd>
             <dt className="text-muted-foreground">Email</dt>
             <dd>{profile.email ?? "—"}</dd>
             <dt className="text-muted-foreground">Phone</dt>
@@ -61,6 +63,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             </dd>
             <dt className="text-muted-foreground">Joined</dt>
             <dd className="tabular-nums">{formatAppDay(Number(profile.createdAt), timezone)}</dd>
+            <dt className="text-muted-foreground">Friends</dt>
+            <dd className="tabular-nums">{profile.friendCount}</dd>
           </dl>
         </SectionCard>
         <SectionCard

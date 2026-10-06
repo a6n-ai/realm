@@ -12,7 +12,7 @@ export function DiscountLogs({ rows, timeZone }: { rows: LedgerListRow[]; timeZo
       <TableHeader>
         <TableRow>
           <TableHead>Time</TableHead>
-          <TableHead>Family</TableHead>
+          <TableHead>Customer</TableHead>
           <TableHead>Applied</TableHead>
           <TableHead className="text-right">Amount</TableHead>
         </TableRow>

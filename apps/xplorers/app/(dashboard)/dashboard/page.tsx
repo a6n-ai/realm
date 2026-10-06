@@ -27,7 +27,7 @@ export default async function DashboardHomePage() {
       />
       <SectionCard title="Studio">
         <p className="text-muted-foreground text-sm">
-          Classes are the catalog. Sessions are the days families book. Remaining seats are computed on the server.
+          Classes are the catalog. Sessions are the days customers book. Remaining seats are computed on the server.
         </p>
         {canStudio ? (
           <div className="mt-4 flex flex-wrap gap-2">

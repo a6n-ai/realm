@@ -43,7 +43,7 @@ export default async function WalletLedgerPage({ searchParams }: { searchParams:
   return (
     <div className="grid gap-6">
       <p className="text-muted-foreground text-sm">
-        To give or take coins, open the family under{" "}
+        To give or take coins, open the customer under{" "}
         <Link href="/dashboard/customers" className="underline">
           Customers
         </Link>

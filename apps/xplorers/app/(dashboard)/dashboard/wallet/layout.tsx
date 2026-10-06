@@ -8,7 +8,7 @@ export default async function WalletLayout({ children }: { children: ReactNode }
   await requirePermission({ wallet: ["read"] });
   return (
     <PageShell>
-      <PageHeader icon={WalletIcon} title="Wallet" subtitle="Coins families earn and spend on bookings." />
+      <PageHeader icon={WalletIcon} title="Wallet" subtitle="Coins customers earn and spend on bookings." />
       <WalletTabs />
       <div className="min-w-0">{children}</div>
     </PageShell>

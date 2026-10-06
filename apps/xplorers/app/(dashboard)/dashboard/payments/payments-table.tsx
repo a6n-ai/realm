@@ -17,7 +17,7 @@ const COLUMNS: readonly Column<PaymentSortColumn | "method" | "family" | "bookin
   { key: "time", label: "Time", sortable: true },
   { key: "status", label: "Status", sortable: true },
   { key: "method", label: "Method" },
-  { key: "family", label: "Family" },
+  { key: "family", label: "Customer" },
   { key: "booking", label: "Booking" },
   { key: "reference", label: "Reference" },
   { key: "amount", label: "Amount", sortable: true, align: "right" },
@@ -53,7 +53,7 @@ export function PaymentsTable({
         sort={sort}
         idAccessor={(r) => r.publicId}
         idLabel="Payment"
-        filters={<ListSearchFilters spec={spec} placeholder="Search family or reference…" shortPlaceholder="Search…" />}
+        filters={<ListSearchFilters spec={spec} placeholder="Search customer or reference…" shortPlaceholder="Search…" />}
         emptyIcon={CreditCardIcon}
         emptyMessage={emptyMessage}
         emptySearchMessage="No payments match your search."
