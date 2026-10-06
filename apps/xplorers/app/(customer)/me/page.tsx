@@ -5,15 +5,17 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { getSession } from "@/lib/auth/session";
 import { bookingsService } from "@/lib/services/bookings.service";
+import { walletService } from "@/lib/services/wallet.service";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { formatSessionDay, formatSessionTime } from "@/lib/sessions/format";
 
 export default async function CustomerHomePage() {
   const session = await getSession();
   const firstName = session?.user.name?.split(" ")[0] || session?.user.email.split("@")[0];
-  const [bookings, timeZone] = await Promise.all([
+  const [bookings, timeZone, wallet] = await Promise.all([
     session?.user ? bookingsService.listForUser(session.user.id) : Promise.resolve([]),
     studioSessionsService.timezone(),
+    session?.user ? walletService.coinsForFamily(session.user.id, 5) : Promise.resolve(null),
   ]);
 
   return (
@@ -28,6 +30,28 @@ export default async function CustomerHomePage() {
           </Button>
         }
       />
+      {wallet ? (
+        <SectionCard title="Coins" subtitle={`${wallet.balance.toLocaleString()} coins · worth ${wallet.value}. Use them when you book.`}>
+          {wallet.recent.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No coin activity yet.</p>
+          ) : (
+            <ul className="divide-border divide-y text-sm">
+              {wallet.recent.map((r) => (
+                <li key={r.publicId} className="flex items-center justify-between gap-3 py-2">
+                  <span>
+                    {r.label}
+                    <span className="text-muted-foreground"> · {formatSessionDay(new Date(r.when), timeZone)}</span>
+                  </span>
+                  <span className="tabular-nums font-medium">
+                    {r.credit ? "+" : "−"}
+                    {r.coins}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+      ) : null}
       <SectionCard title="Bookings">
         {bookings.length === 0 ? (
           <EmptyState
