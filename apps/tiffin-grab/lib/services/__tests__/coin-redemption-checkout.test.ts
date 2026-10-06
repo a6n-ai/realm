@@ -19,7 +19,7 @@ const {
   users,
   walletLedger,
 } = await import("@/db/schema");
-const { createOrder, verifyPayment } = await import("../orders.service");
+const { cancelOrder, createOrder, verifyPayment } = await import("../orders.service");
 const { walletService } = await import("../wallet.service");
 const { setMaxCoinPctOfSubtotal, setPaymentConfig, setProvinceTaxes } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
@@ -418,6 +418,18 @@ describe("verifyPayment — settles deferred coin redemption", () => {
     const { owner, pay } = await lapsedHoldOrder(50);
     await Promise.allSettled([verifyPayment(pay.publicId), verifyPayment(pay.publicId)]);
     expect(await walletService.balance(owner.id)).toBe(40);
+  });
+
+  it("cancelling an unpaid order gives its held coins straight back", async () => {
+    const owner = await seedUserWithCoins(50);
+    const { deploymentId } = await createOrder(
+      await baseInput({ coins: 10, paymentMethodId: "etransfer" }),
+      { ownerUserId: owner.publicId },
+    );
+    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    expect(await walletService.balance(owner.id)).toBe(40);
+    await cancelOrder(order!.publicId);
+    expect(await walletService.balance(owner.id)).toBe(50);
   });
 
   // Two deferred orders, one balance. Placing a second subscription before

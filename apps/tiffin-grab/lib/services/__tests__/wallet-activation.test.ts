@@ -176,6 +176,43 @@ describe("wallet award on order activation", () => {
     expect(await walletService.balance(userId)).toBe(75);
   });
 
+  it("cancelling a paid order takes back the coins it earned", async () => {
+    const snap = await loadCatalogSnapshot();
+    // Same test phone as the order above: start after its plan so they don't overlap.
+    const startDate = nextWeekday(new Date(Date.now() + 21 * 86_400_000)).toISOString().slice(0, 10);
+    const { publicId } = await svc.createOrder({
+      planKey: snap.plans[0].key,
+      selections: {
+        mealSizeId: snap.mealSizes[0].publicId,
+        frequencyKey: "5_day",
+        persons: 1,
+        mealSlots: ["lunch"],
+        includeSaturday: false,
+        includeSunday: false,
+        durationWeeks: 1,
+        startDate,
+      },
+      contact: {
+        email: `u${Math.random().toString(36).slice(2)}@test.invalid`,
+        fullName: "Wallet Cancel Test",
+        phone: TEST_PHONE_3,
+        addressLine: "9 Etobicoke Ave",
+        city: "Etobicoke",
+        postalCode: "M9V 1A1",
+      },
+    });
+    const [orderRow] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+    expect(orderRow.status).toBe("active");
+    // Earlier tests may share this customer (same phone), so compare against this order's own award.
+    const { walletService } = await import("../wallet.service");
+    const withAward = await walletService.balance(orderRow.userId!);
+    const earned = await db.select().from(walletLedger).where(eq(walletLedger.sourceId, publicId));
+    expect(earned.map((r) => r.coins)).toEqual([75]);
+
+    await svc.cancelOrder(publicId);
+    expect(await walletService.balance(orderRow.userId!)).toBe(withAward - 75);
+  });
+
   it("activating the same order again (idempotency) does not double-pay", async () => {
     const snap = await loadCatalogSnapshot();
     const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);

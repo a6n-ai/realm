@@ -199,6 +199,42 @@ describe("spending coins on bookings", () => {
     expect(await walletService.balance(userId)).toBe(50);
   });
 
+  it("cancelling an unpaid booking frees the seat, returns held coins and blocks a later claim", async () => {
+    await setRate();
+    await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
+    const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
+    const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
+    expect(await walletService.balance(userId)).toBe(0);
+
+    await bookingsService.cancel(b.publicId);
+
+    const [booking] = await db.select().from(schema.bookings).where(eq(schema.bookings.id, b.id));
+    expect(booking!.status).toBe("cancelled");
+    expect(await walletService.balance(userId)).toBe(100);
+    const [payAfter] = await db.select().from(schema.payments).where(eq(schema.payments.id, pay!.id));
+    expect(payAfter!.status).toBe("rejected");
+    await expect(paymentsService.claim(pay!.publicId, userPublicId, "ref")).rejects.toThrow(/cancelled/i);
+    await expect(bookingsService.cancel(b.publicId)).rejects.toThrow(/already cancelled/i);
+  });
+
+  it("cancelling a paid booking takes back the coins it earned; spent coins stay spent", async () => {
+    await setRate();
+    await walletService.ensurePayoutRows();
+    await db.update(schema.eventPayout).set({ enabled: true, coins: 10 }).where(eq(schema.eventPayout.eventType, "booking_paid"));
+    await db.update(schema.eventPayout).set({ enabled: true, coins: 5 }).where(eq(schema.eventPayout.eventType, "first_booking"));
+    await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
+    const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
+    const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
+    await paymentsService.claim(pay!.publicId, userPublicId, "ref");
+    await paymentsService.verify(pay!.publicId);
+    expect(await walletService.balance(userId)).toBe(15);
+
+    await bookingsService.cancel(b.publicId);
+    expect(await walletService.balance(userId)).toBe(0);
+    const [payAfter] = await db.select().from(schema.payments).where(eq(schema.payments.id, pay!.id));
+    expect(payAfter!.status).toBe("paid");
+  });
+
   it("ignores coins when no coin rate is set", async () => {
     await walletService.adjust({ userId, coins: 100, memo: "test", actorId: null });
     const b = await bookingsService.createForUser(userPublicId, await occurrence("25.00", 7), 1, { useCoins: true });
