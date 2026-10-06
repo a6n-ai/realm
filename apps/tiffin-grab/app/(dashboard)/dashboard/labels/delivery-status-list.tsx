@@ -95,6 +95,6 @@ export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
 }
 
 function DeliveryStatusBadge({ status }: { status: LabelDeliveryStatus }) {
-  const variant = status === "Delivery failed" || status === "Cancelled" ? "destructive" : status === "Delivered" ? "secondary" : "outline";
+  const variant = status === "Not delivered" || status === "Cancelled" ? "destructive" : status === "Delivered" ? "secondary" : "outline";
   return <Badge variant={variant}>{status}</Badge>;
 }

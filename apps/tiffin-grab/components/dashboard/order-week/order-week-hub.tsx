@@ -211,7 +211,9 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
 
 const OPENS: Record<TripAction, Dlg> = { pick: "pick", move: "reschedule", address: "address", swap: "pick" };
 
-type StatusValue = "upcoming" | "delivered" | "not_delivered" | "paused";
+// "not_delivered" only comes from OptimoRoute (driver marked the drop failed); staff put a day
+// "on_hold", which the server stores the same way (skipped, tiffin back to the pool).
+type StatusValue = "upcoming" | "delivered" | "on_hold" | "not_delivered" | "paused";
 
 function statusChoice(trip: Trip): StatusValue | null {
   if (!trip.deliveryId || trip.mergedInto) return null;
@@ -223,7 +225,7 @@ function statusChoice(trip: Trip): StatusValue | null {
     case "vacation":
       return "paused";
     case "failed":
-      return "not_delivered";
+      return trip.optimoCompletionStatus === "failed" ? "not_delivered" : "on_hold";
     case "delivered":
       return "delivered";
     // Not confirmed by OptimoRoute or an admin yet: Upcoming before the cutoff, Awaiting confirmation after.
@@ -290,9 +292,9 @@ function DeliveryStatusSelect({
       value={value}
       disabled={pending}
       onValueChange={(next) => {
-        if (next === value || next === "paused") return;
+        if (next === value || next === "paused" || next === "not_delivered") return;
         startTransition(async () => {
-          const res = await setDeliveryStatusAction(deliveryId, next);
+          const res = await setDeliveryStatusAction(deliveryId, next === "on_hold" ? "not_delivered" : next);
           if ("error" in res) toast.error(res.error);
           else onDone(res.message ?? "Delivery status updated");
         });
@@ -304,7 +306,8 @@ function DeliveryStatusSelect({
       <SelectContent>
         <SelectItem value="upcoming">{cutoffPassed ? "Awaiting confirmation" : "Upcoming"}</SelectItem>
         <SelectItem value="delivered" disabled={beforeDay}>Delivered</SelectItem>
-        <SelectItem value="not_delivered">On hold</SelectItem>
+        <SelectItem value="on_hold">On hold</SelectItem>
+        {value === "not_delivered" ? <SelectItem value="not_delivered">Not delivered</SelectItem> : null}
         {value === "paused" ? <SelectItem value="paused">Paused</SelectItem> : null}
       </SelectContent>
     </Select>

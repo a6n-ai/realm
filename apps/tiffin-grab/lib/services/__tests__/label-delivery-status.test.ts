@@ -18,7 +18,7 @@ describe("labelDeliveryStatus", () => {
 
   it("keeps skipped, paused, and cancelled visible under their own words", () => {
     expect(labelDeliveryStatus({ status: "skipped", cutoffAt: AFTER, optimoCompletionStatus: null }, NOW)).toBe("On hold");
-    expect(labelDeliveryStatus({ status: "skipped", cutoffAt: AFTER, optimoCompletionStatus: "failed" }, NOW)).toBe("Delivery failed");
+    expect(labelDeliveryStatus({ status: "skipped", cutoffAt: AFTER, optimoCompletionStatus: "failed" }, NOW)).toBe("Not delivered");
     expect(labelDeliveryStatus({ status: "skipped", cutoffAt: BEFORE, optimoCompletionStatus: null }, NOW)).toBe("On hold");
     expect(labelDeliveryStatus({ status: "paused", cutoffAt: BEFORE, optimoCompletionStatus: null }, NOW)).toBe("Paused");
     expect(labelDeliveryStatus({ status: "cancelled", cutoffAt: AFTER, optimoCompletionStatus: null }, NOW)).toBe("Cancelled");
