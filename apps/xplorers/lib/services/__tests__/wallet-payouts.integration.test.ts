@@ -113,6 +113,29 @@ describe("event payouts", () => {
     expect(await walletService.balance(userId)).toBe(39);
   });
 
+  it("pays first-booking coins exactly once when two bookings are verified at once", async () => {
+    const [a, b] = [await priceClass("kids", "20.00", 7), await priceClass("kids", "20.00", 8)];
+    const ba = await bookingsService.createForUser(userPublicId, a, 1);
+    const bb = await bookingsService.createForUser(userPublicId, b, 1);
+    await paymentsService.claim(ba.paymentPublicId!, userPublicId, "r1");
+    await paymentsService.claim(bb.paymentPublicId!, userPublicId, "r2");
+    await Promise.all([paymentsService.verify(ba.paymentPublicId!), paymentsService.verify(bb.paymentPublicId!)]);
+    expect(await walletService.balance(userId)).toBe(25);
+  });
+
+  it("only lets staff adjust family wallets", async () => {
+    const [staff] = await db
+      .insert(schema.users)
+      .values({ name: `${MARK} staff`, email: `${MARK}-staff@example.test`, role: "admin" })
+      .returning({ id: schema.users.id, publicId: schema.users.publicId });
+    try {
+      await expect(walletService.familyUserId(staff!.publicId)).rejects.toThrow(/family/i);
+      expect(await walletService.familyUserId(userPublicId)).toBe(userId);
+    } finally {
+      await db.delete(schema.users).where(eq(schema.users.id, staff!.id));
+    }
+  });
+
   it("pays booking coins when a coupon makes a priced booking free", async () => {
     await db.insert(schema.coupons).values({ code: "WALLETIT1", name: `${MARK} free`, amountOff: "50.00" });
     const b = await bookingsService.createForUser(userPublicId, await priceClass("kids", "20.00", 7), 1, { code: "WALLETIT1" });

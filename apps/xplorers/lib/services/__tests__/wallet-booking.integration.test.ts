@@ -119,6 +119,7 @@ describe("spending coins on bookings", () => {
     const [pay] = await db.select().from(schema.payments).where(eq(schema.payments.bookingId, b.id));
     expect(pay!.amount).toBe("15.00");
     expect(await walletService.balance(userId)).toBe(0);
+    expect(await walletService.coinsForFamily(userPublicId)).toMatchObject({ balance: 0, held: 100 });
 
     await paymentsService.claim(pay!.publicId, userPublicId, "ref");
     await paymentsService.verify(pay!.publicId);

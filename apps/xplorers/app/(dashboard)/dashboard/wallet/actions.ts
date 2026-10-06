@@ -4,19 +4,13 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { coinRate, eventPayout, users } from "@/db/schema";
+import { coinRate, eventPayout } from "@/db/schema";
 import { requirePermission } from "@/lib/auth/guards";
-import { setMaxWalletBalance } from "@/lib/services/app-settings.service";
+import { getAppClock, setMaxWalletBalance } from "@/lib/services/app-settings.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { PAYOUT_EVENTS, walletService } from "@/lib/services/wallet.service";
 
 const PATH = "/dashboard/wallet";
-
-async function familyId(publicId: string): Promise<bigint> {
-  const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-  if (!row) throw new ValidationError("Family not found.");
-  return row.id;
-}
 
 export async function savePayoutAction(input: { event: string; enabled: boolean; coins: number }): Promise<void> {
   await requirePermission({ wallet: ["update"] });
@@ -25,7 +19,7 @@ export async function savePayoutAction(input: { event: string; enabled: boolean;
   if (!Number.isInteger(input.coins) || input.coins < 0) throw new ValidationError("Coins must be a whole number of 0 or more.");
   await db
     .update(eventPayout)
-    .set({ enabled: Boolean(input.enabled), coins: input.coins })
+    .set({ enabled: Boolean(input.enabled), coins: input.coins, updatedBy: await currentUserId() })
     .where(eq(eventPayout.eventType, event));
   revalidatePath(PATH, "layout");
 }
@@ -33,7 +27,9 @@ export async function savePayoutAction(input: { event: string; enabled: boolean;
 export async function saveCoinRateAction(input: { currency: string; valuePerCoin: number }): Promise<void> {
   await requirePermission({ wallet: ["update"] });
   if (!Number.isFinite(input.valuePerCoin) || input.valuePerCoin <= 0) throw new ValidationError("Value per coin must be more than 0.");
-  await db.insert(coinRate).values({ currency: input.currency, valuePerCoin: input.valuePerCoin.toFixed(4) });
+  const { currency } = await getAppClock();
+  if (input.currency !== currency) throw new ValidationError(`Coin rates are set in ${currency}.`);
+  await db.insert(coinRate).values({ currency, valuePerCoin: input.valuePerCoin.toFixed(4), createdBy: await currentUserId() });
   revalidatePath(PATH, "layout");
 }
 
@@ -49,7 +45,7 @@ export async function adjustFamilyCoinsAction(
 ): Promise<{ error?: string }> {
   await requirePermission({ wallet: ["update"] });
   try {
-    const userId = await familyId(familyPublicId);
+    const userId = await walletService.familyUserId(familyPublicId);
     await walletService.adjust({ userId, coins: input.coins, memo: input.memo, actorId: await currentUserId() });
   } catch (err) {
     if (err instanceof ValidationError) return { error: err.message };
@@ -61,5 +57,5 @@ export async function adjustFamilyCoinsAction(
 
 export async function familyBalanceAction(familyPublicId: string): Promise<number> {
   await requirePermission({ wallet: ["read"] });
-  return walletService.balance(await familyId(familyPublicId));
+  return walletService.balance(await walletService.familyUserId(familyPublicId));
 }

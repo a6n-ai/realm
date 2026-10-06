@@ -31,7 +31,7 @@ export default async function CustomerHomePage() {
         }
       />
       {wallet ? (
-        <SectionCard title="Coins" subtitle={`${wallet.balance.toLocaleString()} coins · worth ${wallet.value}. Use them when you book.`}>
+        <SectionCard title="Coins" subtitle={`${wallet.balance.toLocaleString()} coins · worth ${wallet.value}.${wallet.held ? ` ${wallet.held.toLocaleString()} more held for an unpaid booking until it's paid.` : ""} Use them when you book.`}>
           {wallet.recent.length === 0 ? (
             <p className="text-muted-foreground text-sm">No coin activity yet.</p>
           ) : (

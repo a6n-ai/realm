@@ -8,7 +8,8 @@ import {
   unexpired,
   type WalletDeps,
 } from "@foundry/wallet";
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { ValidationError } from "@foundry/commons";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   APP_EVENTS,
@@ -72,19 +73,23 @@ async function ensurePayoutRows(): Promise<void> {
 async function awardBookingEvents(bookingId: bigint): Promise<void> {
   try {
     const [row] = await db
-      .select({ publicId: bookings.publicId, userId: bookings.userId, category: studioSessions.category })
+      .select({
+        publicId: bookings.publicId,
+        userId: bookings.userId,
+        userPublicId: users.publicId,
+        category: studioSessions.category,
+      })
       .from(bookings)
       .innerJoin(studioSessions, eq(studioSessions.id, bookings.sessionId))
+      .innerJoin(users, eq(users.id, bookings.userId))
       .where(eq(bookings.id, bookingId))
       .limit(1);
     if (!row) return;
     const source = { type: "booking", id: row.publicId };
     await base.award(row.userId, "booking_paid", source);
-    const [earlier] = await db
-      .select({ n: count() })
-      .from(bookings)
-      .where(and(eq(bookings.userId, row.userId), eq(bookings.status, "confirmed"), ne(bookings.id, bookingId)));
-    if (Number(earlier?.n ?? 0) === 0) await base.award(row.userId, "first_booking", source);
+    // Keyed per family, so the earn index pays it exactly once even when two
+    // bookings are verified at the same moment.
+    await base.award(row.userId, "first_booking", { type: "user", id: row.userPublicId });
     if (row.category === "birthday") await base.award(row.userId, "birthday_booking", source);
   } catch (err) {
     log.error({ err, bookingId: bookingId.toString() }, "booking coin award failed");
@@ -101,6 +106,25 @@ async function walletRate(): Promise<number | null> {
   }
 }
 
+async function heldCoins(userId: bigint): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`coalesce(sum(${walletLedger.coins}), 0)::int` })
+    .from(walletLedger)
+    .where(and(eq(walletLedger.userId, userId), gt(walletLedger.reservedUntil, Date.now())));
+  return row?.n ?? 0;
+}
+
+/** Internal id of a family (role user). Staff wallets are not adjustable from the console. */
+async function familyUserId(publicId: string): Promise<bigint> {
+  const [row] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.publicId, publicId), eq(users.role, "user")))
+    .limit(1);
+  if (!row) throw new ValidationError("Family not found.");
+  return row.id;
+}
+
 /** Plain names for wallet events, shared by the family card and the admin screens. */
 export const EVENT_LABELS: Record<AppEvent, string> = {
   signup: "Sign-up",
@@ -112,6 +136,8 @@ export const EVENT_LABELS: Record<AppEvent, string> = {
 
 export type FamilyWallet = {
   balance: number;
+  /** Coins set aside for bookings still waiting on payment. */
+  held: number;
   value: string;
   recent: { publicId: string; when: number; coins: number; credit: boolean; label: string }[];
 };
@@ -122,13 +148,15 @@ async function coinsForFamily(userPublicId: string, recent = 0): Promise<FamilyW
   if (rate === null) return null;
   const [user] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
   if (!user) return null;
-  const [balance, { currency }, rows] = await Promise.all([
+  const [balance, held, { currency }, rows] = await Promise.all([
     base.balance(user.id),
+    heldCoins(user.id),
     getAppClock(),
     recent > 0 ? base.recentTransactions(user.id, recent) : Promise.resolve([]),
   ]);
   return {
     balance,
+    held,
     value: formatMoney(balance * rate, currency),
     recent: rows.map((r) => ({
       publicId: r.publicId,
@@ -140,7 +168,7 @@ async function coinsForFamily(userPublicId: string, recent = 0): Promise<FamilyW
   };
 }
 
-export const walletService = { ...base, ensurePayoutRows, awardBookingEvents, walletRate, coinsForFamily };
+export const walletService = { ...base, ensurePayoutRows, awardBookingEvents, walletRate, coinsForFamily, familyUserId };
 
 /**
  * Spendable balance under the family's row lock, so a second booking in
