@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
-import { customerAddresses, deliveries, ledgerEntries, orders, payments, users } from "@/db/schema";
+import { customerAddresses, deliveries, ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -98,5 +98,56 @@ describe("createOrder links a saved address", () => {
     const order = await orderBy(publicId);
     const [saved] = await db.select().from(customerAddresses).where(eq(customerAddresses.userId, order.userId!));
     expect(saved!.lat).toBeNull();
+  });
+});
+
+describe("the default address is the account address", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("adding an address already in the book is refused; checkout typing it again reuses it", async () => {
+    const first = await createOrder(await input());
+    const userId = (await orderBy(first.publicId)).userId!;
+    await expect(addressService.create({ userId, orgId: null }, { label: "Again", addressLine: "100 king st w", city: "Toronto", postalCode: "m5v2t6" }))
+      .rejects.toThrow('This address is already saved as "Home"');
+    const reused = await addressService.create({ userId, orgId: null }, { addressLine: "100 King St W", city: "Toronto", postalCode: "M5V 2T6" }, { ifExists: "reuse" });
+    expect(reused.label).toBe("Home");
+    expect(await db.select().from(customerAddresses).where(eq(customerAddresses.userId, userId))).toHaveLength(1);
+  });
+
+  it("editing an address into one already saved is refused", async () => {
+    const first = await createOrder(await input());
+    const userId = (await orderBy(first.publicId)).userId!;
+    const work = await addressService.create({ userId, orgId: null }, { label: "Work", addressLine: "200 Bay St", city: "Toronto", postalCode: "M5J 2J1" });
+    await expect(addressService.update({ userId, orgId: null }, work.publicId, { addressLine: "100 King St W", city: "Toronto", postalCode: "M5V 2T6" }))
+      .rejects.toThrow("already saved");
+  });
+
+  it("a new default moves the live plan's open deliveries and the profile, and logs it on the plan", async () => {
+    const { publicId } = await createOrder(await input());
+    const order = await orderBy(publicId);
+    const userId = order.userId!;
+    await db.update(orders).set({ status: "active" }).where(eq(orders.id, order.id));
+    const work = await addressService.create({ userId, orgId: null }, { label: "Work", addressLine: "200 Bay St", city: "Toronto", postalCode: "M5J 2J1" });
+    expect((await orderBy(publicId)).addressLine).toBe("100 King St W"); // adding alone moves nothing
+
+    await addressService.setDefault({ userId, orgId: null }, work.publicId);
+    const moved = await orderBy(publicId);
+    expect(moved).toMatchObject({ addressLine: "200 Bay St", postalCode: "M5J 2J1", addressId: work.id });
+    const [u] = await db.select({ line: users.addressLine, pc: users.postalCode }).from(users).where(eq(users.id, userId));
+    expect(u).toEqual({ line: "200 Bay St", pc: "M5J 2J1" });
+    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.orderId, order.id));
+    expect(notes.map((n) => n.note)).toContainEqual(expect.stringMatching(/^Delivery address changed to 200 Bay St, Toronto, M5J 2J1 \(was 100 King St W, Toronto, M5V 2T6\)\. Applies from \d{4}-\d\d-\d\d;/));
+  });
+});
+
+describe("addressEventLabel", () => {
+  it("names the change and who made it", async () => {
+    const { addressEventLabel } = await import("../customers.service");
+    expect(addressEventLabel({ operation: "update", changes: { label: "Home", addressLine: "45 Taysham Crescent", city: "Etobicoke", postalCode: "M9V 1X1" }, label: "Home", actor: "Raya Halder", byCustomer: false }))
+      .toBe('Address "Home" changed to 45 Taysham Crescent, Etobicoke, M9V 1X1 · by Raya Halder');
+    expect(addressEventLabel({ operation: "update", changes: { isDefault: true }, label: "Work", actor: null, byCustomer: true }))
+      .toBe('"Work" made the default address · by customer');
+    expect(addressEventLabel({ operation: "delete", changes: {}, label: "Old", actor: null, byCustomer: false })).toBe('Address removed: "Old" · by system');
   });
 });

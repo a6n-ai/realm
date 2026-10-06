@@ -594,7 +594,7 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
     }
     const userId = existingUser?.id ?? await provisionCustomerByPhone(tx, { fullName: contact.fullName, phone, email: x.email, addressLine: x.addressLine, city: x.city, postalCode: x.postalCode }, null);
 
-    const address = await addressService.create({ userId, orgId }, contact, { tx, coords: null });
+    const address = await addressService.create({ userId, orgId }, contact, { tx, coords: null, ifExists: "reuse" });
 
     const [order] = await tx.insert(orders).values({
       ...(await planFields()),

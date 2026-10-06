@@ -426,6 +426,7 @@ export async function createOrder(
       ? await addressService.getRow(addressScope, input.addressPublicId, tx)
       : await addressService.create(addressScope, input.contact, {
           tx,
+          ifExists: "reuse",
           coords: input.contact.lat != null && input.contact.lng != null ? { lat: input.contact.lat, lng: input.contact.lng } : null,
         });
     // Drop-off belongs to the address: the one picked under it at checkout is saved back to it,
