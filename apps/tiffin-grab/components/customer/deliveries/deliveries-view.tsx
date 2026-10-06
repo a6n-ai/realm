@@ -1,5 +1,6 @@
 "use client";
-import { Truck } from "lucide-react";
+import { LifeBuoy, Truck } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/customer/kit";
@@ -19,6 +20,7 @@ import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, EatingRowButton, InfoButton, TripInfoSheet, tiffins } from "./trip-parts";
 import { WeekTimeline } from "./week-timeline";
+import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "move"];
 const WEEK = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -227,10 +229,18 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
               <div className="min-w-0 space-y-4">
                 {row && trip && model ? (
-                  <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
+                  <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why} address={deliveryAddress(trip.addressOverride, sub)}>
                     <div className="mt-6 hidden lg:block">
                       <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} />
                     </div>
+                    <Link
+                      href={`/me/support/new?orderId=${encodeURIComponent(plan.orderId)}&date=${trip.date}`}
+                      className={cn(FOCUS, "mt-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation]")}
+                      data-testid="delivery-help"
+                    >
+                      <LifeBuoy aria-hidden className="size-4" />
+                      Need help with this delivery?
+                    </Link>
                   </EatingCard>
                 ) : null}
               </div>

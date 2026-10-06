@@ -16,6 +16,7 @@ export function BookControl({
   isFamily,
   booked,
   autofocus,
+  coins,
 }: {
   publicId: string;
   remaining: number;
@@ -23,6 +24,8 @@ export function BookControl({
   isFamily: boolean;
   booked?: boolean;
   autofocus?: boolean;
+  /** The family's wallet when it has coins and a coin rate is set. */
+  coins?: { balance: number; value: string } | null;
 }) {
   if (booked) {
     return <span className="xl-status">Booked ✓</span>;
@@ -45,21 +48,32 @@ export function BookControl({
     return <span className="xl-status">Family sign-in to book</span>;
   }
 
-  return <FamilyBookForm publicId={publicId} remaining={remaining} autofocus={autofocus} />;
+  return <FamilyBookForm publicId={publicId} remaining={remaining} autofocus={autofocus} coins={coins ?? null} />;
 }
 
 function money(n: number, currency: string) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(n);
 }
 
-function FamilyBookForm({ publicId, remaining, autofocus }: { publicId: string; remaining: number; autofocus?: boolean }) {
+function FamilyBookForm({
+  publicId,
+  remaining,
+  autofocus,
+  coins,
+}: {
+  publicId: string;
+  remaining: number;
+  autofocus?: boolean;
+  coins: { balance: number; value: string } | null;
+}) {
   const [state, formAction, pending] = useActionState<BookState, FormData>(createBookingAction, {});
   const [seats, setSeats] = useState(1);
   const [code, setCode] = useState("");
   const [preview, setPreview] = useState<QuoteState>({});
   const [quoting, startQuote] = useTransition();
 
-  const apply = () => startQuote(async () => setPreview(await quoteBookingAction(publicId, seats, code)));
+  const [useCoins, setUseCoins] = useState(false);
+  const apply = () => startQuote(async () => setPreview(await quoteBookingAction(publicId, seats, code, useCoins)));
   const quote = preview.quote;
 
   return (
@@ -97,6 +111,20 @@ function FamilyBookForm({ publicId, remaining, autofocus }: { publicId: string; 
           className="xl-input xl-input-code"
         />
       </label>
+      {coins && coins.balance > 0 ? (
+        <label className="xl-coins-toggle">
+          <input
+            type="checkbox"
+            name="useCoins"
+            checked={useCoins}
+            onChange={(e) => {
+              setUseCoins(e.target.checked);
+              setPreview({});
+            }}
+          />
+          Use my coins ({coins.balance.toLocaleString()} · {coins.value})
+        </label>
+      ) : null}
       <Button size="sm" variant="secondary" onClick={apply} disabled={quoting}>
         {quoting ? "Checking…" : "See price"}
       </Button>
@@ -108,7 +136,7 @@ function FamilyBookForm({ publicId, remaining, autofocus }: { publicId: string; 
           </div>
           {quote.adjustments.map((a) => (
             <div key={a.kind + a.publicId}>
-              <dt>{a.code ?? a.name}</dt>
+              <dt>{a.kind === "wallet" ? `Wallet coins (${a.coins})` : (a.code ?? a.name)}</dt>
               <dd>−{money(a.amount, quote.currency)}</dd>
             </div>
           ))}

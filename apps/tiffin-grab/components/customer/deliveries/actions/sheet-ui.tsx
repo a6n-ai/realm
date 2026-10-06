@@ -3,7 +3,6 @@
 import type { ButtonHTMLAttributes, ComponentProps, ComponentType, ReactNode } from "react";
 import { Button, Field, Notice, OptionCard, PillToggle, Reason, Segmented, Sheet, Skeleton } from "@/components/customer/kit";
 import { AddressFields } from "@/components/customer/address/address-fields";
-import { WeekStrip } from "../week-strip";
 import { CategorySection, ChoiceRow } from "./choice-row";
 
 /**
@@ -22,7 +21,6 @@ export type SheetUi = {
   Segmented: ComponentType<{ label: string; idPrefix: string; value: string | undefined; onChange: (v: string) => void; items: { id: string; label: string }[] }>;
   ChoiceRow: typeof ChoiceRow;
   CategorySection: typeof CategorySection;
-  WeekStrip: ComponentType<ComponentProps<typeof WeekStrip>>;
   OptionCard: ComponentType<ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }>;
   PillToggle: ComponentType<ButtonHTMLAttributes<HTMLButtonElement> & { on: boolean }>;
   Field: ComponentType<{ label: string; placeholder?: string; maxLength?: number; value: string; error?: string; onChange: (e: { target: { value: string } }) => void }>;
@@ -49,7 +47,6 @@ export const KIT_UI: SheetUi = {
   Segmented: (p) => <Segmented {...p} value={p.value ?? ""} />,
   ChoiceRow,
   CategorySection,
-  WeekStrip,
   OptionCard,
   PillToggle,
   Field,

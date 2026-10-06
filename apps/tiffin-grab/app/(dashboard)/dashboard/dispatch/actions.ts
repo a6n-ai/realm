@@ -35,6 +35,25 @@ export async function pushDayAction(date: string): Promise<PushResult> {
 }
 
 /**
+ * Pushes only the named deliveries — the Dispatch rows with no driver yet — then pulls so
+ * any that OptimoRoute already routed show their driver.
+ */
+export async function pushUnassignedAction(date: string, orderNos: string[]): Promise<PushResult> {
+  await requireStaff();
+  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (orderNos.length === 0) throw new ValidationError("No unassigned deliveries to push");
+
+  const result = await pushDay(date, await currentUserId(), orderNos);
+  try {
+    await pullRoutes(date);
+  } catch (e) {
+    console.error("pullRoutes after pushUnassigned failed", e);
+  }
+  revalidatePath("/dashboard/dispatch");
+  return result;
+}
+
+/**
  * Removes stops from OptimoRoute. Destructive, so the caller must name the exact stops —
  * there is no "remove everything stale" call. removeStops re-checks staleness against a
  * fresh read before deleting anything, so a stop that went live again is skipped.

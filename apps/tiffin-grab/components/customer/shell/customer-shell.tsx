@@ -10,16 +10,19 @@ import { signOut } from "@/lib/auth/client";
 import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet, ThemeToggle } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
+import { useSupportUnread } from "@/components/customer/support/unread";
 import { PageTransition } from "@/components/motion/page-transition";
 
 const ACCOUNT_PATHS = ["/me/account"];
-const MENU_PATHS = ["/me/menu", "/me/renew", "/me/support"];
+const MENU_PATHS = ["/me/menu", "/me/renew"];
+const SUPPORT_PATHS = ["/me/support"];
 const under = (p: string, base: string) => p === base || p.startsWith(`${base}/`);
 
-type Tab = "deliveries" | "menu" | "account";
+type Tab = "deliveries" | "menu" | "support" | "account";
 
 function activeTab(p: string): Tab | null {
   if (MENU_PATHS.some((b) => under(p, b))) return "menu";
+  if (SUPPORT_PATHS.some((b) => under(p, b))) return "support";
   if (ACCOUNT_PATHS.some((b) => under(p, b))) return "account";
   if (p === "/me" || under(p, "/me")) return "deliveries";
   return null;
@@ -52,7 +55,19 @@ function MenuButton({ active, onClick, className, children }: { active: boolean;
 const tabCls = (on: boolean) =>
   cn("flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold", on ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]");
 
-export function CustomerShell({ coinBalance, userPublicId, children }: { coinBalance: number; userPublicId: string; children: ReactNode }) {
+/** Count of tickets with an unseen staff reply; a dot-sized pill beside the Support label. */
+function UnreadBadge({ count, className }: { count: number; className?: string }) {
+  if (!count) return null;
+  return (
+    <span className={cn("grid min-w-[18px] place-items-center rounded-full bg-[var(--primary)] px-1 text-[11px] font-bold leading-[18px] text-[var(--primary-foreground,#fff)] tabular-nums", className)}>
+      {count}
+      <span className="sr-only">{count === 1 ? " new reply" : " new replies"}</span>
+    </span>
+  );
+}
+
+export function CustomerShell({ coinBalance, userPublicId, staffReplies = {}, children }: { coinBalance: number; userPublicId: string; staffReplies?: Record<string, number>; children: ReactNode }) {
+  const unread = useSupportUnread(staffReplies);
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -88,6 +103,7 @@ export function CustomerShell({ coinBalance, userPublicId, children }: { coinBal
           <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
             <NavPill href="/me" active={tab === "deliveries"}>Deliveries</NavPill>
             <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={menuPill}>Menu</MenuButton>
+            <NavPill href="/me/support" active={tab === "support"}><span className="inline-flex items-center gap-1.5">Support<UnreadBadge count={unread} /></span></NavPill>
             <NavPill href="/me/account" active={tab === "account"}>Account</NavPill>
           </nav>
           <div className="flex items-center justify-end gap-2">
@@ -107,6 +123,13 @@ export function CustomerShell({ coinBalance, userPublicId, children }: { coinBal
           <MenuButton active={tab === "menu"} onClick={() => setOpen(true)} className={tabCls(tab === "menu")}>
             <MenuIcon aria-hidden className="size-6" />Menu
           </MenuButton>
+          <Link href="/me/support" aria-current={tab === "support" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "support"))}>
+            <span className="relative">
+              <LifeBuoy aria-hidden className="size-6" />
+              <UnreadBadge count={unread} className="absolute -right-2.5 -top-1.5" />
+            </span>
+            Support
+          </Link>
           <Link href="/me/account" aria-current={tab === "account" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "account"))}>
             <User aria-hidden className="size-6" />Account
           </Link>

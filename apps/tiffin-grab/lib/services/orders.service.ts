@@ -1,4 +1,5 @@
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
+import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
 import { createLogger } from "@foundry/commons/logger";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -60,6 +61,7 @@ import {
   commitCoinRedemption,
   reserveCoinRedemption,
   settleCoinReservation,
+  recollectLapsedCoins,
   reverseCoinAward,
 } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
@@ -718,7 +720,10 @@ export async function createOrder(
     return {
       deploymentId,
       publicId: order.publicId,
-      awardUserId: !deferSettlement && status === "active" ? userId : null,
+      awardUserId:
+        !deferSettlement && status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "simulated_paid" })
+          ? userId
+          : null,
     };
   });
 
@@ -766,7 +771,8 @@ export async function verifyPayment(
 ): Promise<void> {
   let missedStops: OptimoSyncedRow[] = [];
   const award = await db.transaction(async (tx) => {
-    const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+    // Locked so a second, concurrent verify waits, then sees "paid" and stops.
+    const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay) throw new NotFoundError("Payment not found");
     if (pay.status === "paid" || pay.status === "simulated_paid") return null;
     if (pay.status !== "awaiting_payment" && pay.status !== "pending_verification") {
@@ -832,15 +838,23 @@ export async function verifyPayment(
         });
       } else if (settled.status === "expired") {
         // The hold lapsed before payment was verified, so those coins went back
-        // to the wallet and may already be spent. Deliberately NOT re-debited
-        // (the package forbids a second redemption per order) and NOT blocking:
-        // the customer's money has arrived and must still be recorded. Leave a
-        // trail so staff can decide whether to recover the coin value.
-        log.warn({ orderId: order.publicId, coins: settled.coins }, "coin hold expired before payment verification");
+        // to the wallet. Take them again so they can't fund a second order;
+        // never block the verify: the customer's money has arrived. Whatever
+        // was already spent is left for staff on the order's activity log.
+        const { collected, notCollected } = await recollectLapsedCoins(tx, {
+          userId: order.userId,
+          orderId: order.id,
+          orderRef: order.publicId,
+          coins: settled.coins,
+        });
+        log.warn({ orderId: order.publicId, coins: settled.coins, collected, notCollected }, "coin hold expired before payment verification");
         await tx.insert(orderActivities).values({
           orderId: order.id,
           type: "payment_verified",
-          note: `Coin hold expired before verification — ${settled.coins} coins returned to the customer, coin discount of ${snap.pendingCoinRedemption.amount} was not collected`,
+          note:
+            notCollected > 0
+              ? `Coin hold expired before verification — ${collected} coins taken again, ${notCollected} coins could not be collected (coin discount of ${snap.pendingCoinRedemption.amount} not fully covered)`
+              : `Coin hold expired before verification — ${collected} coins taken again`,
           createdBy: actorInternalId,
         });
       }
@@ -879,7 +893,7 @@ export async function verifyPayment(
 
     // Award coins only when the order is (still) active — waitlisted stays deferred
     // until activateOrder, which has its own award path.
-    return order.status === "active" ? { 
+    return order.status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "paid" }) ? { 
       userId: order.userId, 
       orderPublicId: order.publicId,
       userPublicId: user.publicId,
@@ -1072,6 +1086,35 @@ export async function rejectPayment(
     createdBy: actorId,
   });
   publishAnalyticsLive();
+}
+
+/** Staff fix a mistyped or missing transfer reference on one of this order's payments.
+ * Logged as an order note: a dedicated activity type would need an enum migration. */
+export async function updatePaymentReference(
+  orderPublicId: string,
+  paymentPublicId: string,
+  reference: string,
+  actorId: bigint | null = null,
+): Promise<void> {
+  const next = reference.trim() || null;
+  if (next && next.length > 120) throw new ValidationError("Keep the reference under 120 characters");
+  const [pay] = await db
+    .select({ id: payments.id, orderId: payments.orderId, reference: payments.reference })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .where(and(eq(payments.publicId, paymentPublicId), eq(orders.publicId, orderPublicId)))
+    .limit(1);
+  if (!pay) throw new NotFoundError("Payment not found");
+  if (pay.reference === next) return;
+
+  await db.update(payments).set({ reference: next }).where(eq(payments.id, pay.id));
+  const change = !pay.reference ? `set to ${next}` : next ? `changed from ${pay.reference} to ${next}` : `cleared (was ${pay.reference})`;
+  await db.insert(orderActivities).values({
+    orderId: pay.orderId,
+    type: "note",
+    note: `Payment ${paymentPublicId} reference ${change}`,
+    createdBy: actorId,
+  });
 }
 
 // Serializable claim form context for activate / Finances UI.
@@ -1512,8 +1555,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .from(payments)
         .where(eq(payments.orderId, updated.id))
         .limit(1);
-      const settled = !pay || pay.status === "paid" || pay.status === "simulated_paid";
-      if (settled) {
+      if (earnsOrderCoins({ total: updated.total, paymentStatus: pay?.status ?? null })) {
         try {
           await walletService.award(updated.userId, "order_activated", { type: "order", id: updated.publicId });
         } catch (e) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sniffImageType } from "../validate";
+import { sniffImageType, sniffUploadImage } from "../validate";
 
 describe("sniffImageType", () => {
   it("detects png / jpeg / webp by magic bytes", () => {
@@ -11,5 +11,16 @@ describe("sniffImageType", () => {
   });
   it("rejects non-images (e.g. a script) returning null", () => {
     expect(sniffImageType(new Uint8Array([0x3c, 0x3f, 0x70, 0x68, 0x70]))).toBeNull(); // <?php
+  });
+});
+
+describe("sniffUploadImage", () => {
+  it("accepts the four upload types by their bytes, GIF included", () => {
+    expect(sniffUploadImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe("image/png");
+    expect(sniffUploadImage(new TextEncoder().encode("GIF89a"))).toBe("image/gif");
+  });
+  it("rejects a non-image renamed to .png (the browser's type comes from the file name)", () => {
+    expect(sniffUploadImage(new TextEncoder().encode("%PDF-1.7"))).toBeNull();
+    expect(sniffUploadImage(new Uint8Array([]))).toBeNull();
   });
 });

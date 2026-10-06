@@ -68,7 +68,7 @@ export default async function PayPage({
             </div>
             {payment.pricing.adjustments.map((a) => (
               <div key={a.kind + a.publicId} className="flex justify-between">
-                <dt>{a.code ? `Code ${a.code}` : a.name}</dt>
+                <dt>{a.kind === "wallet" ? `Wallet coins (${a.coins})` : a.code ? `Code ${a.code}` : a.name}</dt>
                 <dd className="tabular-nums">−{formatMoney(a.amount, payment.currency)}</dd>
               </div>
             ))}

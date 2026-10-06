@@ -3,6 +3,11 @@ const REACT_FRAMEWORK_ERROR_RE =
 
 const DEFAULT_FALLBACK = "Something went wrong. Please try again.";
 
+// A page loaded before a deploy calls server action ids the new build no longer has.
+// Retrying never helps; only a reload does.
+const STALE_ACTION_RE = /Server Action .* was not found on the server|failed-to-find-server-action/i;
+const BODY_TOO_LARGE_RE = /Body exceeded .* limit/i;
+
 /**
  * Sanitizes an error caught on the client side (e.g. in button handlers, form submits,
  * or Server Action calls) so that raw Next.js/React framework errors (like minified #441)
@@ -21,6 +26,9 @@ export function sanitizeClientError(e: unknown, fallback: string = DEFAULT_FALLB
   }
 
   if (!message) return fallback;
+
+  if (STALE_ACTION_RE.test(message)) return "The app was just updated. Reload the page and try again.";
+  if (BODY_TOO_LARGE_RE.test(message)) return "That file is too big to upload. Try a smaller screenshot.";
 
   if (REACT_FRAMEWORK_ERROR_RE.test(message)) {
     return fallback;

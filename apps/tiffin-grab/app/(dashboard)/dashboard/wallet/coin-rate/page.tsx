@@ -4,8 +4,9 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { coinRate } from "@/db/schema";
 import { getMaxWalletBalance } from "@/lib/services/app-settings.service";
-import { CoinRateForm } from "../coin-rate-form";
-import { WalletCapForm } from "../wallet-cap-form";
+import { CoinRateForm, WalletCapForm } from "@foundry/crm";
+import { saveCoinRate } from "../actions";
+import { setWalletCapAction } from "./actions";
 import { CoinRateFormSkeleton } from "./coin-rate-form-skeleton";
 
 export default function CoinRatePage() {
@@ -33,8 +34,12 @@ async function CoinRateData() {
 
   return (
     <div className="grid gap-6">
-      <CoinRateForm current={latestRate ?? null} />
-      <WalletCapForm current={maxWalletBalance} />
+      <CoinRateForm
+        currency="CAD"
+        current={latestRate ? { valuePerCoin: latestRate.valuePerCoin } : null}
+        onSave={saveCoinRate}
+      />
+      <WalletCapForm current={maxWalletBalance} onSave={setWalletCapAction} />
     </div>
   );
 }

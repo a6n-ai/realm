@@ -118,16 +118,18 @@ export async function setAppSettings(input: {
   // already have spawned a make-up). Only future rows adopt the new cutoff. Use `patch` (the
   // values just written) rather than getAppSettings(), which may still serve a stale cached read.
   const now = Date.now();
-  const future = await db.select({ id: deliveries.id, deliveryDate: deliveries.deliveryDate })
+  // One write per delivery date, not per row: prod holds thousands of future rows, and a
+  // row-by-row loop could outrun the request.
+  const dates = await db.selectDistinct({ deliveryDate: deliveries.deliveryDate })
     .from(deliveries).where(gt(deliveries.cutoffAt, now));
-  for (const r of future) {
-    // Re-check cutoffAt > now (same captured `now`) on the write itself: if this row's
+  for (const { deliveryDate } of dates) {
+    // Re-check cutoffAt > now (same captured `now`) on the write itself: if a row's
     // cutoff lapsed between the SELECT and here, it may have already spawned a make-up
     // via reconcileMakeups running concurrently, making it terminal — overwriting it with
     // a new future cutoff would un-terminal-ize it and double-count a paid drop.
     await db.update(deliveries)
-      .set({ cutoffAt: cutoffMsFor(r.deliveryDate, patch.cutoffHour, patch.timezone) })
-      .where(and(eq(deliveries.id, r.id), gt(deliveries.cutoffAt, now)));
+      .set({ cutoffAt: cutoffMsFor(deliveryDate, patch.cutoffHour, patch.timezone) })
+      .where(and(eq(deliveries.deliveryDate, deliveryDate), gt(deliveries.cutoffAt, now)));
   }
 }
 

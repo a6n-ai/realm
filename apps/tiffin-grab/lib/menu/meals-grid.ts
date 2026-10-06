@@ -6,7 +6,7 @@ import { dishes, menuWeeks, plans } from "@/db/schema";
 import { mondayOfIso, thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
 import { allowedDishIdsForMealSize, rowPlansForMealSize } from "./selections.service";
 import { itemsForRow, rowDietLabel } from "./row-plans";
-import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey } from "./resolve-delivery-meal";
+import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey, sideChoicesForWeek } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { carryingTrips } from "./trip-lookup";
@@ -120,7 +120,7 @@ export async function buildMealsGrid(
 
   const { items: allItems } = await menuService.weekWithItems(releasedWeek.publicId);
   const allDishBigintIds = [...new Set(allItems.map((i) => i.dishId))];
-  const [categories, weekResolved, dishRows] = await Promise.all([
+  const [categories, weekResolved, dishRows, sideChoices] = await Promise.all([
     dishCategoriesService.forPlan(planRow.id),
     // Single source of truth for selected/resolved dish per (day, person, category, pickIndex),
     // including stale-pick re-validation and plan filtering — buildMealsGrid must not re-derive it.
@@ -132,6 +132,7 @@ export async function buildMealsGrid(
           .where(inArray(dishes.id, allDishBigintIds))
           .orderBy(asc(dishes.name))
       : Promise.resolve([]),
+    sideChoicesForWeek(order, releasedWeek.id),
   ]);
 
   const dishMap = new Map<bigint, GridDish>(dishRows.map((d) => [
@@ -207,12 +208,16 @@ export async function buildMealsGrid(
           continue;
         }
         // Selectable category: one picker cell per pickIndex, resolved pick → isDefault fallback.
+        // A side pick (5 Item's 8oz) also offers the day's side dishes (dal), first, since its
+        // default comes from there — so Edit meal shows it selected and can pick it back.
         for (let pickIndex = 1; pickIndex <= repResolved.quantity; pickIndex++) {
           const pick = resolved?.picks[pickIndex - 1];
+          const sides = (sideChoices?.(day, slot, pickIndex) ?? [])
+            .map((i): GridDish => dishMap.get(i.dishId) ?? { id: i.publicId, name: i.name, image: null, ruleId: i.dishId.toString(), planId: i.planId.toString() });
           grid.push({
             day, dateIso, slot, personIndex: p, pickIndex, selectable: true, quantity: 1,
             selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
-            dishes: itemsForRow(slotDishes, rowPlans, slot, pickIndex), locked, lockNote,
+            dishes: [...sides, ...itemsForRow(slotDishes, rowPlans, slot, pickIndex)], locked, lockNote,
             ...(planKeys && { diet: rowDietLabel(rowPlans, planKeys, slot, pickIndex) }),
           });
         }

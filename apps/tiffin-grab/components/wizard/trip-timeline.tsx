@@ -21,6 +21,11 @@ export type TimelinePick = {
   dimBefore: number;
   onPick: (day: DayOfWeek) => void;
   label: (day: DayOfWeek) => string;
+  /** Unpickable days are greyed; tapping one calls `onDisabledTap` (to say why) instead of `onPick`. */
+  disabled?: (day: DayOfWeek) => boolean;
+  onDisabledTap?: (day: DayOfWeek) => void;
+  /** A day a delivery could run on but none is scheduled yet: drawn as a dashed truck. */
+  deliveryDay?: (day: DayOfWeek) => boolean;
 };
 
 /**
@@ -108,6 +113,7 @@ export function TripTimeline({
             const joinRight = eats && i < 6 && tripOf.get(DAYS[i + 1]!) === trip;
             const tint = colorOf(trip);
             const sel = pick?.selected === d;
+            const off = pick?.disabled?.(d) ?? false;
             const head = pick ? (
               <>
                 <span className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${eats ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{SHORT[d]}</span>
@@ -136,6 +142,10 @@ export function TripTimeline({
                     >
                       <Truck className="size-4" strokeWidth={2.25} />
                     </motion.span>
+                  ) : pick?.deliveryDay?.(d) ? (
+                    <span className="bg-card text-muted-foreground relative z-10 grid size-6 place-items-center rounded-full border-[1.5px] border-dashed">
+                      <Truck className="size-3" strokeWidth={2.25} />
+                    </span>
                   ) : eats ? (
                     <span className="bg-card relative z-10 size-3.5 rounded-full border-[3px]" style={{ borderColor: dayColor?.(d) ?? tint }} />
                   ) : (
@@ -152,9 +162,10 @@ export function TripTimeline({
                 key={d}
                 type="button"
                 aria-pressed={sel}
-                aria-label={pick.label(d)}
-                onClick={() => pick.onPick(d)}
-                className={`flex min-w-0 flex-col items-center rounded-[14px] pt-1.5 [touch-action:manipulation] ${sel ? "ring-primary bg-primary/10 ring-[1.5px] ring-inset" : ""} ${i < pick.dimBefore && !sel ? "opacity-50" : ""}`}
+                aria-disabled={off || undefined}
+                aria-label={`${pick.label(d)}${off ? ", unavailable" : ""}`}
+                onClick={() => (off ? pick.onDisabledTap?.(d) : pick.onPick(d))}
+                className={`flex min-w-0 flex-col items-center rounded-[14px] pt-1.5 [touch-action:manipulation] ${sel ? "ring-primary bg-primary/10 ring-[1.5px] ring-inset" : ""} ${off && !sel ? "opacity-35" : i < pick.dimBefore && !sel ? "opacity-50" : ""}`}
               >
                 {body}
               </button>

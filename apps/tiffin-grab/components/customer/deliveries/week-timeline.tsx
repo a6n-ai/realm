@@ -23,10 +23,15 @@ interface Props {
   now: number;
   onPickDay: (iso: string) => void;
   onWeek: (monday: string) => void;
+  /** Picker mode (move sheet): days that can't be chosen, and what to do when one is tapped. */
+  isDisabled?: (iso: string) => boolean;
+  onDisabledTap?: (iso: string) => void;
+  /** Days a delivery could run on (move sheet); labelled and drawn as a dashed truck when none is scheduled. */
+  deliveryDay?: (iso: string) => boolean;
 }
 
 /** The deliveries week as the subscribe flow's trip timeline: trucks and bars in delivery-status colours, days tappable. */
-export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, agenda, now, onPickDay, onWeek }: Props) {
+export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, agenda, now, onPickDay, onWeek, isDisabled, onDisabledTap, deliveryDay }: Props) {
   const { trips, dayStatus } = weekTimeline(agenda, week, now);
   const isos = weekDays(week);
   const thisWeek = mondayOf(today);
@@ -55,11 +60,14 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
           today: week === thisWeek ? DAYS[isos.indexOf(today)]! : null,
           dimBefore,
           onPick: (d) => onPickDay(isos[DAYS.indexOf(d)]!),
+          disabled: isDisabled && ((d) => isDisabled(isos[DAYS.indexOf(d)]!)),
+          onDisabledTap: onDisabledTap && ((d) => onDisabledTap(isos[DAYS.indexOf(d)]!)),
+          deliveryDay: deliveryDay && ((d) => deliveryDay(isos[DAYS.indexOf(d)]!)),
           label: (d) => {
             const iso = isos[DAYS.indexOf(d)]!;
             const s = dayStatus[d];
             const trip = byDay.get(d);
-            return `${LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}` : ", nothing planned"}${trip ? `, delivery arrives with ${trip.units} ${trip.units === 1 ? "tiffin" : "tiffins"}` : ""}`;
+            return `${LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}` : ", nothing planned"}${trip ? `, delivery arrives with ${trip.units} ${trip.units === 1 ? "tiffin" : "tiffins"}` : ""}${deliveryDay?.(iso) ? ", delivery day" : ""}`;
           },
         }}
         legend={null}

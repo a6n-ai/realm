@@ -58,8 +58,9 @@ export type LabelDeliveryStatus = "To be delivered" | "Awaiting confirmation" | 
 /**
  * Scheduled and still before cutoff, with no driver confirmation, is waiting to go out.
  * After cutoff — or once OptimoRoute says success — the row counts as delivered while it
- * stays scheduled. A held (skipped) day is "On hold" until its cutoff — "Not delivered" on a
- * day that has not happened yet read as a failed drop. Paused and cancelled keep their own words.
+ * stays scheduled. A skipped day is "On hold" (staff or the customer held it; the tiffin went
+ * to their pool) unless OptimoRoute reported the drop failed — only then "Not delivered".
+ * Paused and cancelled keep their own words.
  */
 export function labelDeliveryStatus(
   row: { status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; optimoCompletionStatus: string | null },
@@ -69,7 +70,7 @@ export function labelDeliveryStatus(
     case "paused":
       return "Paused";
     case "skipped":
-      return row.cutoffAt <= now ? "Not delivered" : "On hold";
+      return row.optimoCompletionStatus === "failed" ? "Not delivered" : "On hold";
     case "cancelled":
       return "Cancelled";
     case "scheduled":

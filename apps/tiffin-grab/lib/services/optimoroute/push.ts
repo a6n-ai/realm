@@ -252,9 +252,15 @@ export type PushResult = {
  * Does NOT delete. Stale stops are counted and reported; removing them is its own action
  * because it takes a stop off a driver's route.
  */
-export async function pushDay(date: string, actorId: bigint | null = null): Promise<PushResult> {
+export async function pushDay(
+  date: string,
+  actorId: bigint | null = null,
+  /** Limits the push to these deliveries (e.g. the Dispatch "Push unassigned" button). */
+  onlyOrderNos?: string[],
+): Promise<PushResult> {
   const preview = await previewPush(date);
-  const targets = [...preview.create, ...preview.update];
+  const only = onlyOrderNos ? new Set(onlyOrderNos) : null;
+  const targets = [...preview.create, ...preview.update].filter((o) => !only || only.has(o.orderNo));
 
   const outcomes = await withConcurrency(targets, async (order): Promise<PushOutcome> => {
     try {

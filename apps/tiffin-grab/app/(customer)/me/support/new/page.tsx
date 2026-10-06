@@ -6,8 +6,11 @@ import { PageHeader } from "@/components/customer/kit";
 import { BackLink } from "@/components/customer/support/parts";
 import { NewTicketForm, NewTicketFormSkeleton } from "@/components/customer/support/new-ticket-form";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
+import { humanDate } from "@/lib/deliveries-view";
 
-type SearchParams = Promise<{ orderId?: string }>;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+type SearchParams = Promise<{ orderId?: string; date?: string }>;
 
 export default function NewTicketPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -25,7 +28,7 @@ async function TicketFormData({ searchParams }: { searchParams: SearchParams }) 
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const { orderId } = await searchParams;
+  const { orderId, date } = await searchParams;
   const dashboard = await getCustomerDashboard(session.user.id);
 
   const orderOptions = dashboard.orders.map((o) => ({
@@ -42,6 +45,8 @@ async function TicketFormData({ searchParams }: { searchParams: SearchParams }) 
       categories={TICKET_CATEGORIES}
       orders={orderOptions}
       defaultOrderId={preselected}
+      // A delivery card's "Need help?" passes its date; only a real YYYY-MM-DD becomes the subject.
+      defaultSubject={preselected && date && ISO_DATE.test(date) ? `Delivery on ${humanDate(date)}` : undefined}
       {...(preselected ? { defaultCategory: "order" as const } : {})}
     />
   );

@@ -22,13 +22,18 @@ function codeTriesExceeded(userPublicId: string, code: string): boolean {
 export type QuoteState = { error?: string; quote?: BookingPricing & { currency: string }; codeMessage?: string };
 
 /** Preview only. The booking re-prices on the server inside its transaction. */
-export async function quoteBookingAction(occurrencePublicId: string, seats: number, code: string): Promise<QuoteState> {
+export async function quoteBookingAction(
+  occurrencePublicId: string,
+  seats: number,
+  code: string,
+  useCoins = false,
+): Promise<QuoteState> {
   const auth = await getSession();
   if (!auth?.user || auth.user.role !== Role.USER) return { error: "Sign in as a family to continue." };
   if (!Number.isInteger(seats) || seats < 1) return { error: "Pick at least one seat." };
   if (codeTriesExceeded(auth.user.id, code)) return { error: TOO_MANY_TRIES };
   try {
-    const q = await discountsService.quoteForOccurrence(occurrencePublicId, seats, code, auth.user.id);
+    const q = await discountsService.quoteForOccurrence(occurrencePublicId, seats, code, auth.user.id, useCoins);
     return {
       quote: { ...toPricing(q), currency: q.currency },
       ...(q.codeError ? { codeMessage: CODE_ERROR_MESSAGE[q.codeError] } : {}),
@@ -57,9 +62,10 @@ export async function createBookingAction(_prev: BookState, formData: FormData):
   // Bookings share the guess bucket, but a spent bucket drops the code rather than blocking the booking.
   const typed = String(formData.get("code") ?? "");
   const code = codeTriesExceeded(auth.user.id, typed) ? null : typed;
+  const useCoins = formData.get("useCoins") === "on";
 
   try {
-    const booking = await bookingsService.createForUser(auth.user.id, occurrencePublicId, seats, { code });
+    const booking = await bookingsService.createForUser(auth.user.id, occurrencePublicId, seats, { code, useCoins });
     revalidatePath("/whats-on");
     revalidatePath("/");
     revalidatePath("/me");

@@ -38,58 +38,20 @@ const recordRedemptionDiscount: WalletDeps<BusinessEvent>["recordRedemptionDisco
     memo,
   }));
 
-// True if crediting `coins` to userId wouldn't push their balance past the
-// admin-configured wallet cap (Coin Rate page; NULL = unlimited). Hard block,
-// not a partial top-up — a blocked award credits nothing. Wired into the
-// shared package's award() via canAward below, and reused directly by the
-// tiffin-grab-specific bulk award paths (Meal Payouts, Customer Payouts).
-async function capRoom(userId: bigint, coins: number): Promise<boolean> {
-  const cap = await getMaxWalletBalance();
-  if (cap === null) return true;
-  const balance = await baseWalletService.balance(userId);
-  return balance + coins <= cap;
-}
-
-// Batch version of capRoom for the bulk award paths — one query for every
-// candidate's balance instead of N+1.
-async function filterUnderCap(userIds: bigint[], coins: number): Promise<{ ok: bigint[]; capped: bigint[] }> {
-  if (userIds.length === 0) return { ok: [], capped: [] };
-  const cap = await getMaxWalletBalance();
-  if (cap === null) return { ok: userIds, capped: [] };
-
-  const balances = await db
-    .select({
-      userId: walletLedger.userId,
-      balance: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
-    })
-    .from(walletLedger)
-    // Same predicate walletService.balance() uses — without it a live hold
-    // reads as spent here and the two disagree about the same wallet.
-    .where(and(inArray(walletLedger.userId, userIds), unexpired(walletLedger, Date.now())))
-    .groupBy(walletLedger.userId);
-  const balanceByUser = new Map(balances.map((b) => [b.userId, b.balance]));
-
-  const ok: bigint[] = [];
-  const capped: bigint[] = [];
-  for (const userId of userIds) {
-    const balance = balanceByUser.get(userId) ?? 0;
-    (balance + coins <= cap ? ok : capped).push(userId);
-  }
-  return { ok, capped };
-}
-
 // The original class-based wallet.service.ts folded balance/ledgerPage/award/
 // recentTransactions/earnSpendTotals/moneyValue/activeRate/redeem into the
 // shared @foundry/wallet package (createWalletService) — puchkaman reuses the
 // same factory. Only the tiffin-grab-specific pieces (the wallet cap, Meal
-// Payouts) stay here, layered on top via canAward + object spread below.
+// Payouts) stay here, layered on top via object spread below.
 const baseWalletService = createWalletService<BusinessEvent>({
   db,
   tables: { walletLedger, eventPayout, coinRate },
   orders,
   users,
   recordRedemptionDiscount,
-  canAward: capRoom,
+  // Wallet cap (Coin Rate page; NULL = unlimited) is enforced by the package:
+  // award() skips, adjust() refuses, filterUnderCap() splits a batch.
+  maxBalance: () => getMaxWalletBalance(),
 });
 
 // Called whenever an admin saves a Meal Payouts rule (Wallet → Payouts):
@@ -175,7 +137,7 @@ async function awardMealPayoutRule(ruleId: bigint): Promise<{ matched: number; a
   // Cap check is per order, keyed by userId — a customer with two matching
   // orders can have one go through and the second blocked once they cross
   // the ceiling, same "hard block, per-customer" semantics as everywhere else.
-  const { ok, capped } = await filterUnderCap(toAward.map((o) => o.userId), rule.coins);
+  const { ok, capped } = await baseWalletService.filterUnderCap(toAward.map((o) => o.userId), rule.coins);
   const okSet = new Set(ok);
   const toInsert = toAward.filter((o) => okSet.has(o.userId));
   if (toInsert.length === 0) return { matched: matches.length, awarded: 0, coinsPerCustomer: rule.coins, capped: capped.length };
@@ -197,8 +159,6 @@ async function awardMealPayoutRule(ruleId: bigint): Promise<{ matched: number; a
 
 export const walletService = {
   ...baseWalletService,
-  capRoom,
-  filterUnderCap,
   awardMealPayoutRule,
 };
 
@@ -263,4 +223,36 @@ export async function reverseCoinAward(
   args: { userId: bigint; eventType: BusinessEvent; source: { type: string; id: string } },
 ): Promise<{ coinsReturned: number }> {
   return reverseAward(tx, { ...args, walletLedger, users });
+}
+
+/**
+ * A coin hold lapsed before its payment was verified, so the coins went back to
+ * the wallet while the order kept the coin-reduced price. Take them again (as
+ * many as the customer still has, under their row lock) so a lapsed hold can't
+ * fund a second order; the rest is reported for staff.
+ */
+export async function recollectLapsedCoins(
+  tx: Tx,
+  args: { userId: bigint; orderId: bigint; orderRef: string; coins: number },
+): Promise<{ collected: number; notCollected: number }> {
+  await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${args.userId} FOR UPDATE`);
+  const [row] = await tx
+    .select({
+      bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
+    })
+    .from(walletLedger)
+    .where(and(eq(walletLedger.userId, args.userId), unexpired(walletLedger, Date.now())));
+  const collected = Math.max(0, Math.min(row?.bal ?? 0, args.coins));
+  if (collected > 0) {
+    await tx.insert(walletLedger).values({
+      userId: args.userId,
+      direction: "debit",
+      sourceType: "redemption_late",
+      sourceId: args.orderRef,
+      orderId: args.orderId,
+      coins: collected,
+      memo: "Coins (hold lapsed before payment)",
+    });
+  }
+  return { collected, notCollected: args.coins - collected };
 }

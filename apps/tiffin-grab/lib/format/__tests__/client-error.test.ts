@@ -39,4 +39,13 @@ describe("sanitizeClientError", () => {
     expect(sanitizeClientError(new Error(""))).toBe("Something went wrong. Please try again.");
     expect(sanitizeClientError({}, "Fallback")).toBe("Fallback");
   });
+
+  it("a stale page calling a server action from before a deploy says to reload, not to retry", () => {
+    const stale = new Error('Server Action "60c2dc1baeef59fd7b8bb92099708f43ae7689bc1f" was not found on the server. Read more: https://nextjs.org/docs/messages/failed-to-find-server-action');
+    expect(sanitizeClientError(stale, "Could not submit payment. Please try again.")).toBe("The app was just updated. Reload the page and try again.");
+  });
+
+  it("a body over the upload limit says the file is too big", () => {
+    expect(sanitizeClientError(new Error("Body exceeded 1 MB limit."), "Could not submit payment.")).toBe("That file is too big to upload. Try a smaller screenshot.");
+  });
 });

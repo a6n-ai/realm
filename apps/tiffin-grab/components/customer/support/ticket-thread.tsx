@@ -1,15 +1,16 @@
 "use client";
 
-import { Send } from "lucide-react";
-import { usePresence, useTyping } from "@foundry/realtime/client";
-import { Button, Notice, Pill, Skeleton, Textarea } from "@/components/customer/kit";
+import { usePresence } from "@foundry/realtime/client";
+import { Pill, Skeleton } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
 import { ChatMessageList, useMessageComposer, type ChatMessage, type ChatUi } from "@foundry/design-system";
 import { categoryLabel, subcategoryLabel } from "@/lib/support/ticket-taxonomy";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { TicketStatus } from "@/lib/services/tickets.service";
 import { replyTicket } from "@/app/(customer)/me/support/actions";
-import { MAX_FILES, PhotoPicker, STATUS_LABEL, STATUS_TONE } from "./parts";
+import { STATUS_LABEL, STATUS_TONE } from "./parts";
+import { ChatComposer } from "@/components/support/chat-composer";
+import { useMarkTicketSeen } from "./unread";
 
 type ThreadTicket = {
   publicId: string;
@@ -33,6 +34,7 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
   const closed = status === "resolved" || status === "closed";
   const channel = `ticket:${ticket.publicId}`;
   const supportOnline = usePresence(channel, "staff");
+  useMarkTicketSeen(ticket.publicId, messages.reduce((n, m) => Math.max(n, m.createdAt), 0));
   const fmt = (t: number) => formatEpoch(t, { timeZone: timezone, mode: "datetime", locale: "en-CA" });
   const sub = subcategoryLabel(ticket.category, ticket.subcategory ?? null);
 
@@ -75,24 +77,7 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
     return <p className="rounded-2xl border border-dashed border-[var(--border)] p-4 text-[15px] text-[var(--muted-foreground,#6E6558)]">This ticket is closed. Staff can reopen it to continue the conversation.</p>;
   }
 
-  return (
-    <form
-      className="space-y-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        c.submit();
-      }}
-    >
-      {c.peerTyping ? <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Support is typing…</p> : null}
-      <Textarea label="Reply" rows={3} placeholder="Write a reply…" value={c.body} onChange={(e) => c.onBodyChange(e.target.value)} />
-      <PhotoPicker files={c.files} inputRef={c.inputRef} onAdd={c.addFiles} onRemove={c.removeFile} disabled={c.pending} label={`Attach (up to ${MAX_FILES})`} />
-      {c.error ? <Notice tone="error">{c.error}</Notice> : null}
-      <Button type="submit" variant="primary" size="lg" pending={c.pending} className="w-full sm:w-auto">
-        <Send aria-hidden className="size-4" />
-        {c.pending ? "Sending…" : "Send reply"}
-      </Button>
-    </form>
-  );
+  return <ChatComposer composer={c} placeholder="Write a message…" typingLabel="Support is typing…" />;
 }
 
 const kitChatUi: Partial<ChatUi> = {

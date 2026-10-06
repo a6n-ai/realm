@@ -168,7 +168,15 @@ export const selectionsService = {
     const [item] = await db.select().from(menuItems).where(and(
       eq(menuItems.menuWeekId, menuWeek.id), eq(menuItems.dayOfWeek, dayOfWeek), eq(menuItems.categoryId, categoryId), eq(menuItems.dishId, dishId),
     )).limit(1);
-    if (!item) throw new ValidationError("Dish is not available for that day and slot");
+    if (!item) {
+      // A side pick (5 Item's 8oz) may also take one of the day's side dishes (dal). Dynamic
+      // import: resolve-delivery-meal imports this module.
+      const { sideChoicesForWeek } = await import("@/lib/menu/resolve-delivery-meal");
+      const sideChoices = await sideChoicesForWeek(order, menuWeek.id);
+      if (!sideChoices?.(dayOfWeek, slot, pickIndex).some((i) => i.dishId === dishId)) {
+        throw new ValidationError("Dish is not available for that day and slot");
+      }
+    }
 
     // The dish must be on a plan this order's MEAL SIZE actually composes with — not
     // necessarily the order's own plan, since a meal size can mix categories across

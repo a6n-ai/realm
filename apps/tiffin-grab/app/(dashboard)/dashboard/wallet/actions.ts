@@ -39,7 +39,7 @@ async function awardAfterSave(ruleId: bigint): Promise<MealPayoutAwardResult> {
 const PATH = "/dashboard/wallet";
 
 const payoutSchema = z.object({
-  eventType: z.enum(appEvent.enumValues),
+  event: z.enum(appEvent.enumValues),
   enabled: z.boolean(),
   coins: z.number().int().min(0),
 });
@@ -50,7 +50,7 @@ export async function savePayoutRow(input: unknown) {
   await db
     .update(eventPayout)
     .set({ enabled: data.enabled, coins: data.coins })
-    .where(eq(eventPayout.eventType, data.eventType));
+    .where(eq(eventPayout.eventType, data.event));
   revalidatePath(PATH, "layout");
 }
 

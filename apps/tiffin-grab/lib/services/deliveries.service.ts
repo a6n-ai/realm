@@ -425,7 +425,7 @@ export async function adminSetDeliveryStatus(
             ? { optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null }
             : {}),
         };
-        label = "Not delivered";
+        label = "On hold";
         syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
         break;
       default: {
@@ -527,9 +527,26 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
 
     const updated = await tx.update(orders).set({ status: "completed" })
       .where(and(eq(orders.id, orderId), eq(orders.status, "active")))
-      .returning({ id: orders.id });
-    return updated.length > 0;
+      .returning({ id: orders.id, organizationId: orders.organizationId });
+    if (updated.length === 0) return false;
+    await tx.insert(orderActivities).values({
+      orderId, type: "status_change", fromStatus: "active", toStatus: "completed",
+      note: "Plan over: every delivery is done", organizationId: updated[0]!.organizationId,
+    });
+    return true;
   });
+}
+
+/**
+ * Nightly sweep: closes every active order whose plan is over (maybeComplete's rules). Nothing
+ * else ever flips an order to completed, so without this a finished plan stays "active" forever.
+ */
+export async function completeFinishedOrders(): Promise<{ checked: number; completed: number }> {
+  const active = await db.select({ id: orders.id }).from(orders).where(eq(orders.status, "active"));
+  let completed = 0;
+  for (const o of active) if (await maybeComplete(o.id)) completed++;
+  if (completed > 0) publishAnalyticsLive();
+  return { checked: active.length, completed };
 }
 
 /** First ISO date strictly after `afterIso` whose weekday is in `deliveryDays`. */

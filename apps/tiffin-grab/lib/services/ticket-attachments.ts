@@ -2,8 +2,8 @@ import { nanoid } from "nanoid";
 import { ValidationError } from "@foundry/commons";
 import { filesSecuredAccess, filesService, securedFilesService } from "@/lib/files";
 import type { Attachment } from "@/db/schema";
+import { sniffUploadImage } from "@/lib/images/validate";
 
-const ACCEPT = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_FILES = 4;
 const HREF_TTL_SECONDS = 3600;
@@ -28,18 +28,29 @@ export async function uploadAttachments(
   if (origs.length > MAX_FILES) throw new ValidationError(`Attach up to ${MAX_FILES} images`);
   if (thumbs.length !== origs.length) throw new ValidationError("Attachment thumbnails missing");
 
-  const out: Attachment[] = [];
+  // Check every file before storing any, so one bad photo leaves no orphans. Judge the
+  // bytes, not File.type (that only reflects the file name).
+  const checked = [];
   for (let i = 0; i < origs.length; i++) {
     const orig = origs[i];
     const thumb = thumbs[i];
-    if (!ACCEPT.has(orig.type)) throw new ValidationError("Only PNG, JPEG, WebP or GIF images are allowed");
     if (orig.size > MAX_BYTES) throw new ValidationError("Each image must be 5 MB or smaller");
-    if (!ACCEPT.has(thumb.type) || thumb.size > MAX_BYTES) throw new ValidationError("Bad thumbnail");
+    if (thumb.size > MAX_BYTES) throw new ValidationError("Bad thumbnail");
+    const origBytes = await bytesOf(orig);
+    const thumbBytes = await bytesOf(thumb);
+    const origType = sniffUploadImage(origBytes);
+    const thumbType = sniffUploadImage(thumbBytes);
+    if (!origType) throw new ValidationError("Only PNG, JPEG, WebP or GIF images are allowed");
+    if (!thumbType) throw new ValidationError("Bad thumbnail");
+    checked.push({ name: orig.name, thumbName: thumb.name, origBytes, thumbBytes, origType, thumbType });
+  }
 
+  const out: Attachment[] = [];
+  for (const c of checked) {
     const base = `tickets/${ticketId}/${nanoid()}`;
-    const origDetail = await securedFilesService().create(`${base}/orig-${safe(orig.name)}`, await bytesOf(orig), { contentType: orig.type });
-    const thumbDetail = await filesService().create(`${base}/thumb-${safe(thumb.name)}`, await bytesOf(thumb), { contentType: thumb.type });
-    out.push({ path: origDetail.filePath, thumbUrl: thumbDetail.url ?? thumbDetail.filePath, name: orig.name });
+    const origDetail = await securedFilesService().create(`${base}/orig-${safe(c.name)}`, c.origBytes, { contentType: c.origType });
+    const thumbDetail = await filesService().create(`${base}/thumb-${safe(c.thumbName)}`, c.thumbBytes, { contentType: c.thumbType });
+    out.push({ path: origDetail.filePath, thumbUrl: thumbDetail.url ?? thumbDetail.filePath, name: c.name });
   }
   return out;
 }

@@ -9,6 +9,7 @@ import { getAppClock, getDiscountSettings, getPaymentConfig } from "./app-settin
 import { assertCanBook, remainingSeats, RESERVED_BOOKING_STATUSES } from "./booking-policy";
 import { discountsService } from "./discounts.service";
 import { ledgerService } from "./ledger.service";
+import { lockedBalance, spendBookingCoins, walletService } from "./wallet.service";
 import { paymentsService } from "./payments.service";
 import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 import { bookingsRepository, type BookingRow } from "./bookings.repository";
@@ -20,7 +21,7 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
     userPublicId: string,
     occurrencePublicId: string,
     seats: number,
-    opts: { methodId?: string; code?: string | null } = {},
+    opts: { methodId?: string; code?: string | null; useCoins?: boolean } = {},
   ): Promise<CreateBookingResult> {
     const actorId = await currentUserId();
     const [user] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
@@ -91,6 +92,11 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
       const rules = pricedClass
         ? await discountsService.loadPricing(tx, { code, userId: user.id, lock: true })
         : { discounts: [], coupon: null };
+      // Coins: only with a coin rate set; the balance is read under the family's lock.
+      const rate = opts.useCoins && pricedClass ? await walletService.walletRate() : null;
+      const balance = rate ? await lockedBalance(tx, user.id) : 0;
+      const coins = rate && balance > 0 ? { balance, rate } : null;
+
       const quote = pricedClass
         ? priceBooking({
             unitPrice: session.priceAmount,
@@ -102,6 +108,7 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
             codeTyped: Boolean(code),
             maxDiscountPct,
             now: now.getTime(),
+            coins,
           })
         : null;
       const needsPay = quote != null && quote.total > 0;
@@ -138,15 +145,22 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
           updatedBy: actorId,
         });
       }
-      if (quote && quote.discountTotal > 0) {
+      // Coins write their own discount ledger row through the wallet package.
+      const wallet = quote?.adjustments.find((a) => a.kind === "wallet");
+      if (wallet?.coins) {
+        await spendBookingCoins(tx, { userId: user.id, bookingId: row.id, coins: wallet.coins, amount: wallet.amount, hold: needsPay });
+      }
+      const priceCuts = quote?.adjustments.filter((a) => a.kind !== "wallet") ?? [];
+      const cutTotal = priceCuts.reduce((sum, a) => sum + a.amount, 0);
+      if (cutTotal > 0) {
         await ledgerService.record(tx, {
           userId: user.id,
           bookingId: row.id,
           direction: "credit",
           type: "discount",
-          amount: quote.discountTotal.toFixed(2),
+          amount: cutTotal.toFixed(2),
           currency,
-          memo: quote.adjustments.map((a) => a.name).join(", "),
+          memo: priceCuts.map((a) => a.name).join(", "),
         });
       }
 

@@ -12,6 +12,7 @@ import {
   mealSizes,
   orders,
   plans,
+  users,
 } from "@/db/schema";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
@@ -20,11 +21,13 @@ import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import {
   addDishPortion,
+  countPackNaturalTotal,
+  countPackSlotPortions,
   formatItemCell,
   type PackingItemLine,
 } from "@/lib/menu/packing-requirement";
-import { formatTuHuman, isContainerCategory } from "@/lib/menu/format-tu";
-import { portionForPick, portionsByCategory, sumTuForPicks } from "@/lib/menu/pick-size";
+import { isContainerCategory } from "@/lib/menu/format-tu";
+import { portionForPick, portionsByCategory, slotTuAfterSwaps } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { withConcurrency } from "@/lib/concurrency";
@@ -42,6 +45,10 @@ export type KitchenPackingRow = {
   /** "For Tue" on trips carrying several eating days, else null. */
   forLabel: string | null;
   customerName: string;
+  phone: string | null;
+  /** OptimoRoute driver name after a route pull; serial alone when name is missing. */
+  routeDriver: string | null;
+  routeStopNumber: number | null;
   orderId: string;
   planName: string;
   mealSizeName: string;
@@ -73,6 +80,10 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       orderId: orders.id,
       deploymentId: orders.deploymentId,
       fullName: orders.fullName,
+      customerPhone: users.phone,
+      routeDriverSerial: deliveries.routeDriverSerial,
+      routeDriverName: deliveries.routeDriverName,
+      routeStopNumber: deliveries.routeStopNumber,
       persons: orders.persons,
       planId: orders.planId,
       mealSizeId: orders.mealSizeId,
@@ -84,6 +95,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .leftJoin(users, eq(orders.userId, users.id))
     .where(
       and(
         eq(deliveries.deliveryDate, dateIso),
@@ -155,6 +167,9 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     forDate: string;
     forLabel: string | null;
     customerName: string;
+    phone: string | null;
+    routeDriver: string | null;
+    routeStopNumber: number | null;
     orderId: string;
     planName: string;
     mealSizeName: string;
@@ -214,26 +229,28 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
               addDishPortion(dayDishTotals, pick.name, portion, 1);
             });
           } else {
-            // Count/bulk categories (roti/rice): one pick name, quantity = slot count.
+            // Count (roti/rice): pack size × pack count → plain total ("4 roti" × 2 → "8 rotis").
+            // Emit one pack per composition slot; identical sizes merge on ×; never show × in the cell.
             const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
             const pick = cat.picks[0]!;
             const mealItems = itemsFor(row);
-            const tuTotal = sumTuForPicks(mealItems, cat.category, cat.quantity, daySwaps, tuByKey);
-            const portion =
-              converter && tuTotal > 0
-                ? formatTuHuman(converter, tuTotal)
-                : (portionForPick(portions, cat.category, 1) ?? "").trim();
-            if (!portion) continue;
+            const slots = slotTuAfterSwaps(mealItems, daySwaps, tuByKey).get(cat.category) ?? [];
             const slotKey = `${cat.category}:fixed`;
-            addOrBumpLine(
-              lineBySlot,
-              slotKey,
-              pick.name,
-              portion,
-              1,
-              (categorySort.get(cat.category) ?? 0) * 100,
-            );
-            addDishPortion(dayDishTotals, pick.name, portion, 1);
+            const sort = (categorySort.get(cat.category) ?? 0) * 100;
+            const countWord = (cat.label || cat.category).trim().toLowerCase() || "unit";
+            if (converter) {
+              const wrapSlots = daySwaps.length === 0;
+              for (const packPortion of countPackSlotPortions(slots, cat.quantity, converter, wrapSlots)) {
+                addOrBumpLine(lineBySlot, slotKey, pick.name, packPortion, 1, sort, "count-total", countWord);
+              }
+              const natural = countPackNaturalTotal(slots, cat.quantity, converter, wrapSlots);
+              if (natural > 0) addDishPortion(dayDishTotals, pick.name, countWord, natural);
+            } else {
+              const portion = (portionForPick(portions, cat.category, 1) ?? "").trim();
+              if (!portion) continue;
+              addOrBumpLine(lineBySlot, slotKey, pick.name, portion, 1, sort);
+              addDishPortion(dayDishTotals, pick.name, portion, 1);
+            }
           }
         }
       }
@@ -245,6 +262,9 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       forDate,
       forLabel: covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null,
       customerName: (row.fullName ?? "").trim() || "Customer",
+      phone: row.customerPhone ?? null,
+      routeDriver: row.routeDriverName ?? row.routeDriverSerial ?? null,
+      routeStopNumber: row.routeStopNumber ?? null,
       orderId: row.deploymentId,
       planName: row.planName,
       mealSizeName: row.mealSizeName,
@@ -263,6 +283,9 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
       forDate: r.forDate,
       forLabel: r.forLabel,
       customerName: r.customerName,
+      phone: r.phone,
+      routeDriver: r.routeDriver,
+      routeStopNumber: r.routeStopNumber,
       orderId: r.orderId,
       planName: r.planName,
       mealSizeName: r.mealSizeName,
@@ -290,23 +313,35 @@ function addOrBumpLine(
   portion: string,
   qty: number,
   sort: number,
+  packStyle?: PackingItemLine["packStyle"],
+  countWord?: string,
 ): void {
+  const same = (line: PackingItemLine) =>
+    line.name === name && line.portion === portion && line.packStyle === packStyle && line.countWord === countWord;
   const hit = into.get(slotKey);
-  if (hit && hit.portion === portion && hit.name === name) {
+  if (hit && same(hit)) {
     hit.quantity += qty;
     return;
   }
   // Prefer merging any existing line with the same name+portion (persons stacking) before
   // creating a sibling — avoids duplicate Item columns for the same packing line.
   for (const line of into.values()) {
-    if (line.name === name && line.portion === portion) {
+    if (same(line)) {
       line.quantity += qty;
       return;
     }
   }
+  const next: PackingItemLine = {
+    name,
+    portion,
+    quantity: qty,
+    sort,
+    ...(packStyle ? { packStyle } : {}),
+    ...(countWord ? { countWord } : {}),
+  };
   if (hit) {
-    into.set(`${slotKey}:${into.size}`, { name, portion, quantity: qty, sort: sort + 0.01 });
+    into.set(`${slotKey}:${into.size}`, { ...next, sort: sort + 0.01 });
     return;
   }
-  into.set(slotKey, { name, portion, quantity: qty, sort });
+  into.set(slotKey, next);
 }

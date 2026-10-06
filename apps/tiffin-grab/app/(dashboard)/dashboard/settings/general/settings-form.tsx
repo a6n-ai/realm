@@ -8,9 +8,9 @@ import { Input } from "@foundry/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { saveAppSettings } from "./actions";
+import { CURRENCIES } from "./options";
 
 const ZONES = ["America/Toronto", "America/Vancouver", "America/Edmonton", "America/Winnipeg", "America/Halifax", "Asia/Kolkata", "UTC"];
-const CURRENCIES = ["INR", "USD", "AED", "GBP", "EUR"];
 const COUNTRIES: { code: string; name: string }[] = [
   { code: "CA", name: "Canada" },
   { code: "IN", name: "India" },
@@ -67,7 +67,7 @@ export function SettingsForm({
     start(async () => {
       setError(null);
       try {
-        await saveAppSettings({
+        const res = await saveAppSettings({
           timezone: tz,
           cutoffHour: parsed,
           currency: ccy,
@@ -76,6 +76,7 @@ export function SettingsForm({
           defaultMaxPauseDaysTotal: toNullableInt(maxPauseDaysTotal),
           defaultMaxPauseStretchDays: toNullableInt(maxPauseStretchDays),
         });
+        if ("error" in res) return setError(res.error);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");

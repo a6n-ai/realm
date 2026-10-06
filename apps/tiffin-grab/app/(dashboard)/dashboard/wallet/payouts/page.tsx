@@ -3,14 +3,26 @@ import { and, asc, eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { durationPackages, eventPayout, mealPayout, mealSizes } from "@/db/schema";
-import { PayoutGrid, PayoutGridSkeleton } from "../payout-grid";
+import { EventPayoutGrid, EventPayoutGridSkeleton } from "@foundry/crm";
+import { savePayoutRow } from "../actions";
 import { MealPayoutGrid, type MealPayoutRow } from "../meal-payout-grid";
 import { CustomerPayoutPanel } from "../customer-payout-panel";
 import { listOrderCities } from "@/lib/services/customer-payouts.service";
 
+/**
+ * The only business events that pay coins (every other app_event is a
+ * notification and never awards). Coins are paid only when money was paid.
+ */
+const PAYOUT_EVENTS = {
+  order_activated: {
+    label: "Order paid",
+    description: "Each order, once its payment is received. Orders covered entirely by coins or a coupon earn nothing.",
+  },
+} as const;
+
 export default function PayoutsPage() {
   return (
-    <Suspense fallback={<PayoutGridSkeleton />}>
+    <Suspense fallback={<EventPayoutGridSkeleton />}>
       <PayoutsData />
     </Suspense>
   );
@@ -59,7 +71,13 @@ async function PayoutsData() {
 
   return (
     <div className="grid gap-6">
-      <PayoutGrid payouts={payouts} />
+      <EventPayoutGrid
+        rows={payouts
+          .filter((p) => p.eventType in PAYOUT_EVENTS)
+          .map((p) => ({ event: p.eventType, ...PAYOUT_EVENTS[p.eventType as keyof typeof PAYOUT_EVENTS], enabled: p.enabled, coins: p.coins }))}
+        onSave={savePayoutRow}
+        emptyMessage="No payout rows — run db:seed:wallet to seed them."
+      />
       <MealPayoutGrid
         rows={mealPayoutRows as MealPayoutRow[]}
         mealSizes={mealSizeOptions}

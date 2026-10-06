@@ -8,11 +8,12 @@ import { ResponsiveDialog } from "@/components/ds";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { PaymentStatusPill } from "./payment-status-pill";
+import { ReferenceEditor } from "../orders/[id]/reference-editor";
 import { PAYMENT_METHOD_OPTIONS, type PaymentRow } from "./payment-facets";
 
 const methodLabel = (m: string) => PAYMENT_METHOD_OPTIONS.find((o) => o.value === m)?.label ?? m;
 
-/** Read-only view of one payment row; `footer` carries the caller's actions (e.g. approve/reject). */
+/** One payment row (reference editable in place); `footer` carries the caller's actions (e.g. approve/reject). */
 export function PaymentDetailDialog({
   payment,
   onOpenChange,
@@ -56,7 +57,7 @@ export function PaymentDetailDialog({
             </Field>
             <Field label="Method">{methodLabel(payment.method)}</Field>
             <Field label="Reference">
-              <span className="font-mono text-xs break-all">{payment.reference ?? "-"}</span>
+              <ReferenceEditor key={payment.publicId} orderId={payment.orderPublicId} paymentId={payment.publicId} reference={payment.reference} allowAdd={payment.method !== "simulated"} label="" />
             </Field>
             <Field label="Created">{when(payment.createdAt)}</Field>
             {payment.claimedAt && <Field label="Claimed">{when(payment.claimedAt)}</Field>}

@@ -11,6 +11,7 @@ import { Badge } from "@foundry/ui/badge";
 import { getCustomer360, upcomingAddressChanges } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { walletService } from "@/lib/services/wallet.service";
+import { AdjustCoins } from "./adjust-coins";
 import { DataTableSkeleton, PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
@@ -96,7 +97,18 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
         icon={UsersIcon}
         title={data.profile.name || data.profile.email || "Customer"}
         subtitle={contact || undefined}
-        actions={<ResendInviteButton email={data.profile.email} />}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <ResendInviteButton email={data.profile.email} />
+            {isAdmin ? (
+              <AdjustCoins
+                customerPublicId={id}
+                balance={coinBalance}
+                who={data.profile.name || data.profile.email || "this customer"}
+              />
+            ) : null}
+          </div>
+        }
       />
 
       <StatGrid cols={4} items={stats} />

@@ -76,14 +76,14 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(screen.getByTestId("menu-not-released")).toHaveTextContent("Menu not released yet.");
     expect(screen.queryAllByTestId("trip-row").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Move to another day" })).toBeTruthy();
-    expect(screen.getByTestId("week-strip")).toBeInTheDocument();
+    expect(screen.getByTestId("week-timeline")).toBeInTheDocument();
   });
-  it("lists every eating day in a paginated table; a row opens its week", () => {
+  it("the eating-days table lists only the selected week; Next moves the week", () => {
     replace.mockClear();
     render(<OrderWeekHub data={data} />);
-    expect(screen.getAllByTestId("paged-row").length).toBe(3);
-    fireEvent.click(screen.getAllByTestId("paged-row")[2]!);
-    expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
+    expect(screen.getAllByTestId("paged-row").length).toBe(2);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(replace.mock.calls[0]![0]).toContain("week=2026-09-28");
   });
   it("lists eating days of the week; a Mon trip feeds Mon and Tue; Tue names the delivery", () => {
     render(<OrderWeekHub data={data} />);
@@ -94,7 +94,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
   });
   it("strip marks the delivery day and next-delivery banner shows", () => {
     render(<OrderWeekHub data={data} />);
-    expect(within(screen.getByTestId("week-strip")).getByRole("button", { name: /Mon, Sep 21, eating, delivery arrives/ })).toBeInTheDocument();
+    expect(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Monday, September 21, eating, .*delivery arrives/ })).toBeInTheDocument();
     expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21, 2 tiffins (Mon + Tue)");
   });
   it("offers the customer's three actions (Edit meal, Move, Change address), no Swap or Hold; Move opens an eating-day picker", () => {
@@ -113,7 +113,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     vi.setSystemTime(data.now);
     render(<OrderWeekHub data={d2} />);
     fireEvent.click(screen.getByRole("button", { name: "Move to another day" }));
-    const picker = within(screen.getByTestId("move-week"));
+    const picker = within(within(screen.getByRole("dialog")).getByTestId("week-timeline"));
     expect(picker.getByRole("button", { name: "Next week" })).toBeInTheDocument();
     const sat = picker.getByRole("button", { name: /Saturday, September 26/ });
     expect(sat).not.toHaveAttribute("aria-disabled");

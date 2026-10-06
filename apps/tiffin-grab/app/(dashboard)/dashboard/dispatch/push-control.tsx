@@ -7,20 +7,29 @@ import { DownloadIcon, SendIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { ListCard, ListCardRow } from "./list-card";
-import { pullRoutesAction, pushDayAction } from "./actions";
+import { pullRoutesAction, pushDayAction, pushUnassignedAction } from "./actions";
 import type { PushResult } from "@/lib/services/optimoroute/push";
 import type { PullResult } from "@/lib/services/optimoroute/pull";
 
-export function PushControl({ date, stops }: { date: string; stops: number }) {
+export function PushControl({
+  date,
+  stops,
+  unassigned,
+}: {
+  date: string;
+  stops: number;
+  /** Delivery ids with no driver yet — the "Push unassigned" targets. */
+  unassigned?: string[];
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<PushResult | null>(null);
   const [pull, setPull] = useState<PullResult | null>(null);
 
-  function run() {
+  function run(only?: string[]) {
     startTransition(async () => {
       try {
-        const res = await pushDayAction(date);
+        const res = only ? await pushUnassignedAction(date, only) : await pushDayAction(date);
         setResult(res);
         if (res.failed === 0) toast.success(`Sent ${res.pushed} stop${res.pushed === 1 ? "" : "s"}`);
         else toast.error(`${res.failed} of ${res.pushed + res.failed} stops failed`);
@@ -51,10 +60,15 @@ export function PushControl({ date, stops }: { date: string; stops: number }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={run} disabled={pending || stops === 0}>
+        <Button onClick={() => run()} disabled={pending || stops === 0}>
           <SendIcon data-icon="inline-start" />
           {pending ? "Sending…" : `Send ${stops} stop${stops === 1 ? "" : "s"}`}
         </Button>
+        {unassigned ? (
+          <Button variant="outline" onClick={() => run(unassigned)} disabled={pending || unassigned.length === 0}>
+            <SendIcon data-icon="inline-start" /> Push {unassigned.length} unassigned
+          </Button>
+        ) : null}
         <Button variant="outline" onClick={runPull} disabled={pending}>
           <DownloadIcon data-icon="inline-start" /> Pull planned routes
         </Button>

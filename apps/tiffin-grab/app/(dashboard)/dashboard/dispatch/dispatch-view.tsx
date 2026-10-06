@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { TruckIcon, HistoryIcon } from "lucide-react";
 import { TableCell } from "@foundry/ui/table";
@@ -46,8 +47,8 @@ function dispatchPagination(sp: URLSearchParams) {
 // per-driver grouping produced — just a flat sort instead of a grouping step.
 function sortRows(rows: DispatchRow[]): DispatchRow[] {
   return [...rows].sort((a, b) => {
-    const aKey = a.routeDriverSerial ?? UNASSIGNED;
-    const bKey = b.routeDriverSerial ?? UNASSIGNED;
+    const aKey = a.routeDriverSerial ?? a.routeDriverName ?? UNASSIGNED;
+    const bKey = b.routeDriverSerial ?? b.routeDriverName ?? UNASSIGNED;
     if (aKey === UNASSIGNED && bKey !== UNASSIGNED) return 1;
     if (bKey === UNASSIGNED && aKey !== UNASSIGNED) return -1;
     const nameCompare = (a.routeDriverName ?? aKey).localeCompare(
@@ -150,7 +151,10 @@ export function DispatchView({
         rowKey={(r) => r.orderNo}
         serial={false}
         pagination={{ page, size }}
-        search={{ placeholder: "Search customer or driver…", keys: ["customerName", "routeDriverName"] }}
+        search={{
+          placeholder: "Search customer, phone, or driver…",
+          keys: ["customerName", "phone", "routeDriverName", "routeDriverSerial"],
+        }}
         emptyIcon={TruckIcon}
         emptyMessage="No deliveries scheduled for this date."
         onRowClick={openHistory}
@@ -158,6 +162,13 @@ export function DispatchView({
           <>
             <TableCell className="font-medium">
               {r.customerName}
+              <Link
+                href={`/dashboard/go/${r.orderNo}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-muted-foreground block font-mono text-xs font-normal hover:underline"
+              >
+                {r.orderNo}
+              </Link>
               <span className="text-muted-foreground block text-xs">
                 {r.coverage ?? `${r.tiffinUnits} tiffin${r.tiffinUnits === 1 ? "" : "s"}`}
               </span>
@@ -222,7 +233,12 @@ export function DispatchView({
         mobileCard={(r) => (
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-medium">{r.customerName}</p>
+              <div>
+                <p className="text-sm font-medium">{r.customerName}</p>
+                <Link href={`/dashboard/go/${r.orderNo}`} onClick={(e) => e.stopPropagation()} className="text-muted-foreground font-mono text-xs hover:underline">
+                  {r.orderNo}
+                </Link>
+              </div>
               <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                 {r.routeStopNumber ?? "—"}
               </span>

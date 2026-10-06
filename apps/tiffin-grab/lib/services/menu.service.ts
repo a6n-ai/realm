@@ -398,14 +398,19 @@ export const menuService = {
     if (!week) throw new ValidationError("Week not found");
 
     const picks = await db
-      .select({ id: mealSelections.id, dayOfWeek: mealSelections.dayOfWeek, slot: dishCategories.key, orderId: mealSelections.orderId, dishPublicId: dishes.publicId })
+      .select({ id: mealSelections.id, dayOfWeek: mealSelections.dayOfWeek, slot: dishCategories.key, orderId: mealSelections.orderId, dishPublicId: dishes.publicId, dishCategory: dishes.category })
       .from(mealSelections)
       .innerJoin(dishes, eq(mealSelections.dishId, dishes.id))
       .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
       .where(eq(mealSelections.menuWeekId, week.id));
 
     const surviving = new Set(input.items.map((i) => `${i.dayOfWeek}:${i.slot}:${i.dishId}`));
-    const broken = picks.filter((p) => !surviving.has(`${p.dayOfWeek}:${p.slot}:${p.dishPublicId}`));
+    const onDay = new Set(input.items.map((i) => `${i.dayOfWeek}:${i.dishId}`));
+    // A side pick (5 Item's 8oz sabzi taking the day's dal) is stored under its own slot with a
+    // dish from another category; it survives while that dish is still on the day.
+    const side = (p: (typeof picks)[number]) => p.dishCategory != null && p.dishCategory !== p.slot;
+    const broken = picks.filter((p) =>
+      !surviving.has(`${p.dayOfWeek}:${p.slot}:${p.dishPublicId}`) && !(side(p) && onDay.has(`${p.dayOfWeek}:${p.dishPublicId}`)));
     return {
       resetPicks: broken.length,
       affectedOrders: new Set(broken.map((p) => String(p.orderId))).size,

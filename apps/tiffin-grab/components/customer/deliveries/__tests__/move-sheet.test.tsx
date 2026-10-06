@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import type { PlanView } from "../adapter";
@@ -37,9 +37,10 @@ describe("MoveSheet", () => {
   });
   it("shows the month on top and marks delivery days with a truck", () => {
     mount(MoveSheet, trip());
-    expect(screen.getByText(/^Sep \d+ – (Sep|Oct|Nov) \d+$/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Monday, September 28, delivery day/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Saturday, September 26(?!, delivery)/ })).toBeInTheDocument();
+    expect(screen.getByText(/^Sep \d+ – (Sep|Oct|Nov) \d+( · This week)?$/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Saturday, September 26(?!.*delivery)/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    expect(screen.getByRole("button", { name: /Monday, September 28, .*delivery day/ })).toBeInTheDocument();
   });
   it("every eating day can be picked; a non-delivery day previews which delivery carries it", () => {
     mount(MoveSheet, trip());
@@ -49,11 +50,12 @@ describe("MoveSheet", () => {
     expect(tue.getAttribute("aria-label")).not.toContain("delivery day");
     fireEvent.click(tue);
     expect(screen.getByText(/Tue, Sep 29 will arrive Mon, Sep 28 with Mon/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Monday, September 28, delivery day/ })).not.toHaveAttribute("aria-disabled");
+    expect(screen.getByRole("button", { name: /Monday, September 28, .*delivery day/ })).not.toHaveAttribute("aria-disabled");
   });
   it("free day: preview then move", async () => {
     a.move.mockResolvedValue({ ok: true, message: "moved" });
     const onDone = mount(MoveSheet, trip({ units: 2, coversDates: ["2026-09-23"], coversLabel: null }));
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
     expect(screen.getByText(/Your 2 tiffins will arrive on Mon, Sep 28/)).toBeInTheDocument();
     expect(screen.getByText(/Only one move is allowed per meal/)).toBeInTheDocument();
@@ -64,6 +66,7 @@ describe("MoveSheet", () => {
   it("multi-day bundle splits only the chosen day's tiffin", async () => {
     a.move.mockResolvedValue({ ok: true, message: "moved" });
     const onDone = mount(MoveSheet, trip());
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
     expect(screen.getByText(/Your 1 tiffin will arrive on Mon, Sep 28/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
@@ -88,13 +91,12 @@ describe("MoveSheet", () => {
   });
   it("opens on today's week even when the trip being moved is in a later week", () => {
     mount(MoveSheet, trip({ date: "2026-10-05", coversDates: ["2026-10-05"], cutoffAt: Date.parse("2026-10-05T18:00:00Z") }));
-    expect(screen.getByTestId("week-strip").querySelector('[data-week="2026-09-21"]')).toHaveAttribute("aria-current", "true");
+    expect(within(screen.getByTestId("week-timeline")).getByText(/^Sep 21 – Sep 27/)).toBeInTheDocument();
   });
   it("a not-yet-started plan opens on its own start week, not today's", () => {
     const futurePlan = { ...plan, ctx: { ...plan.ctx, startDate: "2026-10-05" } } as unknown as PlanView;
     render(<MoveSheet trip={trip({ date: "2026-10-05", coversDates: ["2026-10-05"], cutoffAt: Date.parse("2026-10-05T18:00:00Z") })} plan={futurePlan} open onDone={vi.fn()} />);
-    expect(screen.getByTestId("week-strip").querySelector('[data-week="2026-09-21"]')).toBeNull();
-    expect(screen.getByTestId("week-strip").querySelector('[data-week="2026-10-05"]')).toHaveAttribute("aria-current", "true");
+    expect(within(screen.getByTestId("week-timeline")).getByText(/^Oct 5 – Oct 11/)).toBeInTheDocument();
   });
   it("closed day is disabled with its reason on tap", () => {
     mount(MoveSheet, trip());
@@ -104,6 +106,7 @@ describe("MoveSheet", () => {
   it("server error stays inline", async () => {
     a.move.mockResolvedValue({ error: "That day isn't on your plan" });
     const onDone = mount(MoveSheet, trip());
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("That day isn't on your plan");

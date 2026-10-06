@@ -37,6 +37,10 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
     }
     return summary;
   },
+  "complete-plans": async () => {
+    const { completeFinishedOrders } = await import("@/lib/services/deliveries.service");
+    return completeFinishedOrders();
+  },
   "optimoroute-sync": async ({ date, mode = "push" }): Promise<Summary> => {
     const { runScheduledSync, syncDates } = await import("@/lib/services/optimoroute/sync");
     const { timezone } = await getAppSettings();

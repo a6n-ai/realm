@@ -12,8 +12,11 @@ import { ANALYTICS_LIVE } from "@/lib/realtime/inbox";
 // a burst; one refresh after the burst settles is enough.
 const DEBOUNCE_MS = 800;
 // The SSE bus is per-process, so a write made by another instance never pings
-// this stream. A slow sweep keeps an open tab from drifting in that case.
-const SWEEP_MS = 5 * 60 * 1000;
+// this stream. A slow sweep keeps an open tab from drifting in that case. Kept
+// well above 5 minutes: the database is Neon, which sleeps after 5 idle minutes,
+// so a 5-minute sweep on a screen left open kept it awake all day. One web
+// container runs today, so pings already cover every write.
+const SWEEP_MS = 30 * 60 * 1000;
 // setTimeout overflows past ~24.8 days; anything that far out is picked up by the sweep.
 const MAX_TIMER_MS = 24 * 60 * 60 * 1000;
 

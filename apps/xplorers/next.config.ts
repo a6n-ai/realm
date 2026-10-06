@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@foundry/commons",
     "@foundry/coupons",
+    "@foundry/wallet",
     "@foundry/database",
     "@foundry/routes",
     "@foundry/themes",

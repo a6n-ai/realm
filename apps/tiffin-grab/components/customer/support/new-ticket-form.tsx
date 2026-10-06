@@ -40,18 +40,21 @@ export function NewTicketForm({
   orders,
   defaultOrderId,
   defaultCategory,
+  defaultSubject,
   onCancel,
 }: {
   categories: readonly TicketCategoryValue[];
   orders: OrderOption[];
   defaultOrderId?: string;
   defaultCategory?: TicketCategoryValue;
+  /** Pre-filled subject, e.g. from a delivery card's "Need help?" link. */
+  defaultSubject?: string;
   /** Closes the enclosing sheet instead of navigating, when the form runs inside one. */
   onCancel?: () => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState(defaultSubject ?? "");
   // "" = nothing picked yet; the sub-category field stays hidden until a category exists.
   const [category, setCategory] = useState<TicketCategoryValue | "">(defaultCategory ?? "");
   const [subcategory, setSubcategory] = useState("");

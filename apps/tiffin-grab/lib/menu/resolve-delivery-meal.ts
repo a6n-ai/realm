@@ -16,7 +16,7 @@ import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { isContainerCategory } from "@/lib/menu/format-tu";
 import { itemsForRow, rowPlanIds, type RowPlans } from "@/lib/menu/row-plans";
 import { addonItemsForOrder, type AddonItemRow } from "@/lib/menu/order-addon-items";
-import { loadSideRules, rolesByCategory, sideDefault, sideKey, sideRulesForDay, type MealItemRole, type SideRules } from "@/lib/menu/side-rules";
+import { loadSideRules, rolesByCategory, sideKey, sideOptions, sideRulesForDay, type MealItemRole, type SideRules } from "@/lib/menu/side-rules";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -86,9 +86,10 @@ export function resolveCategoriesForDay(
   rules: MealRule[] = [],
   // Custom meals: pick N serves only row N's plan (see row-plans.ts). null = catalog union.
   rowPlans: RowPlans | null = null,
-  // Side picks (role side_1/side_2) of standard meals: the day's side dish, or undefined
-  // to keep the normal default. A customer's own pick still wins.
-  sideFor: ((category: string, pickIndex: number) => Item | undefined) | null = null,
+  // Side picks (role side_1/side_2) of standard meals: the dishes that pick may take besides
+  // its own category's (the day's dal). Its default is the one marked default, else the first;
+  // empty keeps the normal default. A customer's own pick still wins.
+  sideFor: ((category: string, pickIndex: number) => Item[]) | null = null,
 ): ResolvedCategory[] {
   const out: ResolvedCategory[] = [];
   for (const c of cats) {
@@ -100,8 +101,10 @@ export function resolveCategoriesForDay(
     // Missing composition rows: treat pick 1 as the largest container.
     const maxTuPi = maxTuByCategory.get(c.key) ?? 1;
     // A custom row's own diet already decides the dish, so the exclusive-dish override is off.
+    const sideItems = (pi: number) => sideFor?.(c.key, pi) ?? [];
     const rowDefault = (pi: number) => {
-      const side = sideFor?.(c.key, pi);
+      const options = sideItems(pi);
+      const side = options.find((i) => i.isDefault) ?? options[0];
       if (side) return side;
       const row = itemsForRow(slotItems, rowPlans, c.key, pi);
       return rowPlans
@@ -147,7 +150,9 @@ export function resolveCategoriesForDay(
       // If the chosen dish was removed from this day's menu (or no longer matches the plan's
       // plan membership) since the pick was made, fall back to the default dish entirely — never a
       // half-stale mix of ids/name.
-      const chosenItem = chosen ? itemsForRow(slotItems, rowPlans, c.key, pi).find((i) => i.dishId === chosen.dishId) : undefined;
+      const chosenItem = chosen
+        ? (itemsForRow(slotItems, rowPlans, c.key, pi).find((i) => i.dishId === chosen.dishId) ?? sideItems(pi).find((i) => i.dishId === chosen.dishId))
+        : undefined;
       const def = rowDefault(pi);
       const resolvedItem = chosenItem ?? def;
       picks.push({
@@ -277,19 +282,41 @@ async function defaultPickContext(order: Order, cache?: MealResolveCache) {
   };
 }
 
-/** Side picks for one day: the role of pick N, then that role's rule for the day. */
+/** Side picks for one day: the role of pick N, then the dishes that role's rule offers that day. */
 function sideResolver(
   roles: Map<string, MealItemRole[]> | null,
   rules: SideRules,
   dayItems: Item[],
   planDishIds: Set<bigint>,
-): ((category: string, pickIndex: number) => Item | undefined) | null {
+): ((category: string, pickIndex: number) => Item[]) | null {
   if (!roles || rules.size === 0) return null;
   return (category, pickIndex) => {
     const role = roles.get(category)?.[pickIndex - 1];
-    if (!role || role === "main") return undefined;
-    return sideDefault(rules.get(sideKey(category, role)), dayItems, planDishIds);
+    if (!role || role === "main") return [];
+    return sideOptions(rules.get(sideKey(category, role)), dayItems, planDishIds);
   };
+}
+
+function loadWeekItems(weekId: bigint) {
+  return db
+    .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId, planId: dishes.planId })
+    .from(menuItems)
+    .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+    .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
+    .where(eq(menuItems.menuWeekId, weekId))
+    .orderBy(asc(menuItems.position));
+}
+
+/**
+ * The extra dishes each side pick may take in a menu week (Edit meal's options, and what
+ * setSelection accepts), or null when the order's meal has no side items.
+ */
+export async function sideChoicesForWeek(order: Order, weekId: bigint): Promise<((day: DayOfWeek, category: string, pickIndex: number) => Item[]) | null> {
+  const { roles, planDishIds } = await defaultPickContext(order);
+  if (!roles) return null;
+  const [rules, items] = await Promise.all([loadSideRules(weekId), loadWeekItems(weekId)]);
+  return (day, category, pickIndex) =>
+    sideResolver(roles, sideRulesForDay(rules, day), items.filter((i) => i.dayOfWeek === day), planDishIds)?.(category, pickIndex) ?? [];
 }
 
 export async function resolveDeliveryMeal(
@@ -371,13 +398,7 @@ export async function resolveDeliveryMealsForWeek(
 ): Promise<ResolvedMealsWeek> {
   const result: ResolvedMealsWeek = new Map();
   const cats = await dishCategoriesService.forPlan(order.planId);
-  const items = await db
-    .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId, planId: dishes.planId })
-    .from(menuItems)
-    .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
-    .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
-    .where(eq(menuItems.menuWeekId, week.id))
-    .orderBy(asc(menuItems.position));
+  const items = await loadWeekItems(week.id);
   const picks = await db.select({ dayOfWeek: mealSelections.dayOfWeek, slot: dishCategories.key, personIndex: mealSelections.personIndex, pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
     .from(mealSelections)
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))

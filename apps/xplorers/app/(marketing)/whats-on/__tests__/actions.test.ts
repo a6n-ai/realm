@@ -40,6 +40,23 @@ describe("createBookingAction", () => {
     fd.set("occurrencePublicId", "occ_1");
     fd.set("code", "GUESS99");
     await expect(createBookingAction({}, fd)).rejects.toThrow("REDIRECT /me/pay/pay_1");
-    expect(createForUser).toHaveBeenCalledWith("usr_code_guess", "occ_1", 1, { code: null });
+    expect(createForUser).toHaveBeenCalledWith("usr_code_guess", "occ_1", 1, { code: null, useCoins: false });
+  });
+});
+
+describe("use my coins", () => {
+  it("passes the coins choice to the preview and the booking", async () => {
+    quote.mockClear();
+    quote.mockResolvedValue({ subtotal: 10, adjustments: [], discountTotal: 0, taxTotal: 0, total: 10, codeError: null, currency: "CAD" });
+    await quoteBookingAction("occ_2", 1, "", true);
+    expect(quote).toHaveBeenCalledWith("occ_2", 1, "", "usr_code_guess", true);
+
+    createForUser.mockClear();
+    createForUser.mockResolvedValue({ paymentPublicId: null, codeError: null });
+    const fd = new FormData();
+    fd.set("occurrencePublicId", "occ_2");
+    fd.set("useCoins", "on");
+    await expect(createBookingAction({}, fd)).rejects.toThrow("REDIRECT /me");
+    expect(createForUser).toHaveBeenCalledWith("usr_code_guess", "occ_2", 1, { code: "", useCoins: true });
   });
 });

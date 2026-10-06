@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import { weekdayShort } from "@/lib/deliveries-view/eating";
-import { dotStatus, mondayOf } from "@/lib/deliveries-view/week";
+import { mondayOf } from "@/lib/deliveries-view/week";
 import { moveLockReason, moveOptions, planEndDate } from "@/lib/deliveries-view/move";
-import type { StripDot } from "../week-strip";
+import { WeekTimeline } from "../week-timeline";
 import { formatCoversLabel } from "@/lib/menu/coverage";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
@@ -15,7 +15,7 @@ import { useSheetUi } from "./sheet-ui";
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
 export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, ui }: ActionSheetProps) {
-  const { Shell, PrimaryButton, Notice, Reason, WeekStrip, PillToggle } = useSheetUi(ui);
+  const { Shell, PrimaryButton, Notice, Reason, PillToggle } = useSheetUi(ui);
   const [now] = useState(() => Date.now());
   // Which eating day is moving: the one the customer selected, or the trip's own date if none was passed.
   const source = sourceDate ?? trip.date;
@@ -29,13 +29,6 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
   const setPicked = (d: string) => (setReason(null), setPickedRaw(d));
   const byDate = useMemo(() => new Map(options.map((o) => [o.date, o])), [options]);
   const pickable = (iso: string) => { const o = byDate.get(iso); return !!o && !o.disabledReason; };
-  // Same dots and icons as the main calendar, plus a truck on every pickable delivery day that has no trip yet.
-  const dots = useMemo(() => {
-    const out: Record<string, StripDot[]> = {};
-    for (const [date, ds] of Object.entries(agenda ?? {})) out[date] = ds.map((d) => ({ orderId: d.orderId, status: dotStatus(d, now), truck: d.truck }));
-    for (const o of options) if (!o.disabledReason && o.carriedOn === o.date && !out[o.date]?.some((x) => x.truck)) (out[o.date] ??= []).push({ orderId: "x", truck: true });
-    return out;
-  }, [agenda, options, now]);
   const end = planEndDate(plan.ctx);
   const endOption = end ? byDate.get(end) : undefined;
   const toEnd = () => {
@@ -78,17 +71,19 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
                   Move to end of plan ({humanDate(end)})
                 </PillToggle>
               )}
-              <WeekStrip
+              <WeekTimeline
                 firstWeek={mondayOf(options[0]?.date ?? plan.today)}
                 lastWeek={mondayOf(options[options.length - 1]?.date ?? plan.today)}
                 week={week ?? mondayOf(options[0]?.date ?? plan.today)}
                 today={plan.today}
                 selectedDay={picked}
-                dots={dots}
-                colorOf={() => "currentColor"}
+                agenda={agenda ?? {}}
+                now={now}
                 onPickDay={setPicked}
                 onWeek={setWeek}
-                picker={{ isDisabled: (iso) => !pickable(iso), onDisabledTap: (iso) => setReason(byDate.get(iso)?.disabledReason ?? "That day isn't available.") }}
+                isDisabled={(iso) => !pickable(iso)}
+                onDisabledTap={(iso) => setReason(byDate.get(iso)?.disabledReason ?? "That day isn't available.")}
+                deliveryDay={(iso) => !!agenda?.[iso]?.some((x) => x.truck) || (!!byDate.get(iso) && !byDate.get(iso)!.disabledReason && byDate.get(iso)!.carriedOn === iso)}
               />
               {reason && <Reason>{reason}</Reason>}
               {!chosen && <Reason>Choose a day to continue.</Reason>}
@@ -107,7 +102,7 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
                 </Notice>
               )}
               <Reason>
-                Pick the day you want to eat. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {split ? "Your other days stay on this trip." : "Days already covered stay with this trip."}
+                Pick the day you want to eat; greyed days aren&apos;t available. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {split ? "Your other days stay on this trip." : "Days already covered stay with this trip."}
               </Reason>
             </>
           )}
