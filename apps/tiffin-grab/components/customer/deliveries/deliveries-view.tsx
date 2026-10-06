@@ -19,6 +19,7 @@ import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, EatingRowButton, InfoButton, TripInfoSheet, tiffins } from "./trip-parts";
 import { WeekTimeline } from "./week-timeline";
+import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "move"];
 const WEEK = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -227,7 +228,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
               <div className="min-w-0 space-y-4">
                 {row && trip && model ? (
-                  <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}>
+                  <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why} address={deliveryAddress(trip.addressOverride, sub)}>
                     <div className="mt-6 hidden lg:block">
                       <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} />
                     </div>

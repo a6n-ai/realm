@@ -270,6 +270,8 @@ export type AgendaDay = {
   /** This date used to be its own trip, now merged into this one — render as "moved", not the trip's live status. */
   moved?: boolean;
   optimoCompletionStatus?: string | null;
+  /** The delivery row's public id (what OptimoRoute knows the stop as). */
+  deliveryId?: string;
 };
 
 /**
@@ -303,15 +305,15 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     const covers = coveredDates(d);
     const moved = movedDatesByTarget.get(d.id.toString());
     for (const date of covers) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date), optimoCompletionStatus: d.optimoCompletionStatus });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date), optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId });
     }
     // A doubled day (moved tiffin landed on an eating day) gets a second dot.
     for (const date of extrasById.get(d.id) ?? []) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true, optimoCompletionStatus: d.optimoCompletionStatus });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: false, units: d.tiffinUnits, covers, moved: true, optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId });
     }
     // The eat dates stayed put and the truck moved: mark the arrival day, or that Friday looks empty.
     if (d.status === "scheduled" && !covers.includes(d.deliveryDate)) {
-      (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers, optimoCompletionStatus: d.optimoCompletionStatus });
+      (out[d.deliveryDate] ??= []).push({ orderId, status: "scheduled", cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: true, units: d.tiffinUnits, covers, optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId });
     }
   }
   // A moved tiffin eats on its new day now; its old day keeps a "moved" dot unless another tiffin still eats there.
@@ -322,7 +324,7 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     const src = byId.get(m.fromId!)!;
     if (!m.from || m.from < from || m.from > until || out[m.from]?.some((x) => x.orderId === src.orderId)) continue;
     const t = byId.get(m.toId)?.d ?? src.d;
-    out[m.from] = [{ orderId: src.orderId, status: t.status as AgendaDay["status"], cutoffAt: Number(t.cutoffAt), deliveryDate: t.deliveryDate, truck: false, units: t.tiffinUnits, covers: coveredDates(t), moved: true, optimoCompletionStatus: t.optimoCompletionStatus }];
+    out[m.from] = [{ orderId: src.orderId, status: t.status as AgendaDay["status"], cutoffAt: Number(t.cutoffAt), deliveryDate: t.deliveryDate, truck: false, units: t.tiffinUnits, covers: coveredDates(t), moved: true, optimoCompletionStatus: t.optimoCompletionStatus, deliveryId: t.publicId }];
   }
   return out;
 }

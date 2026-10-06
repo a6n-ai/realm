@@ -1,6 +1,6 @@
 "use client";
-import { Info, Truck, Utensils } from "lucide-react";
-import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
+import { Info, MapPin, Truck, Utensils } from "lucide-react";
+import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { formatCutoff, humanDate, type Trip } from "@/lib/deliveries-view";
 import { deliveryLine, isDone, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
@@ -165,7 +165,10 @@ export function EatingRowButton({ row, selected, onSelect, plan, menuOut }: { ro
 }
 
 /** Delivery card for the selected eating day: which truck feeds it, how many tiffins, when it locks. Dishes live in the list, not here. */
-export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; children?: React.ReactNode }) {
+/** Trips that still physically go somewhere (not moved away or paused), so naming an address means something. */
+const GOES_OUT = new Set<Trip["status"]>(["upcoming", "cutoff-passed", "unconfirmed", "delivered", "locked", "failed"]);
+
+export function EatingCard({ row, tz, reason, plan, address, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
   const covers = trip.coversDates.map(weekdayShort).join(" + ");
@@ -189,6 +192,13 @@ export function EatingCard({ row, tz, reason, plan, children }: { row: EatingRow
         {deliveryLine(row)}
       </h2>
       <p className="mt-1 text-[15px] text-[var(--muted-foreground,#6E6558)]">{facts.join(" · ")}</p>
+      {address && !row.movedTo && GOES_OUT.has(trip.status) && (
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px]" data-testid="delivery-address">
+          <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
+          <span>{trip.status === "delivered" ? "Delivered to" : "Delivers to"} <span className="font-semibold">{address.text}</span></span>
+          {address.changed && <Pill tone="brand" size="sm">This delivery only</Pill>}
+        </p>
+      )}
       {children}
     </Card>
   );

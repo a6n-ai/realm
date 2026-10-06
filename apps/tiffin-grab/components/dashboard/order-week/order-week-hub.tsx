@@ -3,7 +3,7 @@
 
 import { zonedDateIso } from "@foundry/commons";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
-import { Info, Truck, Utensils } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, MapPin, Truck, Utensils } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ import { actionModel } from "@/components/customer/deliveries/action-model";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI, STATUS_TONE } from "./admin-sheet-ui";
 import { WeekTimeline } from "@/components/customer/deliveries/week-timeline";
+import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
@@ -52,7 +53,11 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
 
   const weekDaysOfPlan = plan.days.filter((x) => x.date >= weekStart && x.date <= weekEnd);
   const menuOut = weekDaysOfPlan.length > 0 && weekDaysOfPlan.every((x) => x.menuWeekId == null);
-  const scheduleRows = Object.entries(agenda).sort(([a], [b]) => a.localeCompare(b)).flatMap(([date, ds]) => ds.map((x) => ({ date, ...x })));
+  // The selected week only; the header's Previous/Next walks the plan a week at a time.
+  const scheduleRows = Object.entries(agenda)
+    .filter(([date]) => date >= weekStart && date <= weekEnd)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .flatMap(([date, ds]) => ds.map((x) => ({ date, ...x })));
   // Keep ?tab (and anything else) so a week change never drops the admin back on Overview.
   const goWeek = (m: string, tripDate?: string) => {
     const sp = new URLSearchParams(params.toString());
@@ -146,6 +151,16 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
                   {!row.own && trip.status === "upcoming" && ` · ${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery`}
                 </p>
                 )}
+                {!row.movedTo && (() => {
+                  const addr = deliveryAddress(trip.addressOverride, plan.sub);
+                  return (
+                    <p className="flex flex-wrap items-center gap-2 text-sm" data-testid="delivery-address">
+                      <MapPin className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                      <span>Delivers to <span className="font-medium">{addr.text}</span></span>
+                      {addr.changed && <Badge variant="secondary">This delivery only</Badge>}
+                    </p>
+                  );
+                })()}
                 {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
                 <Actions model={actionModel(trip, now, plan.ctx, { menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, isDeliveryDay: isAddressRow(rows, row), movedTo: row.movedTo, trial: plan.sub.trial })} onOpen={setDlg} />
               </CardContent>
@@ -155,22 +170,33 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
       )}
 
       <Card>
-        <CardHeader><CardTitle className="text-base">All eating days</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base">
+            Eating days <span className="text-muted-foreground font-normal">· {humanDate(weekStart)} – {humanDate(weekEnd)}</span>
+          </CardTitle>
+          <div className="flex gap-1.5">
+            <Button variant="outline" size="sm" disabled={weekStart <= firstWeek} onClick={() => goWeek(addDays(weekStart, -7))}><ChevronLeft data-icon="inline-start" />Previous</Button>
+            <Button variant="outline" size="sm" disabled={weekStart >= lastWeek} onClick={() => goWeek(addDays(weekStart, 7))}>Next<ChevronRight data-icon="inline-end" /></Button>
+          </div>
+        </CardHeader>
         <CardContent>
           <PagedTable
             columns={[{ key: "day", label: "Eating day" }, { key: "delivery", label: "Delivery" }, { key: "id", label: "Delivery ID" }, { key: "tiffins", label: "Tiffins", className: "text-right" }, { key: "status", label: "Status" }]}
             rows={scheduleRows}
             rowKey={(x) => x.date}
             selected={(x) => x.date === row?.date}
-            onRowClick={(x) => (mondayOf(x.date) === weekStart ? setSel(x.date) : goWeek(mondayOf(x.date), x.date))}
-            empty="No eating days scheduled."
+            onRowClick={(x) => setSel(x.date)}
+            empty="No eating days this week."
             renderRow={(x) => (
               <>
                 <TableCell className="font-medium">{humanDate(x.date)}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : `with ${weekdayShort(x.deliveryDate)}, ${humanDate(x.deliveryDate)}`}
+                  {x.truck && trips.find((t) => t.date === x.deliveryDate)?.addressOverride && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-xs" title="Sent to a different address than the plan"><MapPin className="size-3" aria-hidden />New address</span>
+                  )}
                 </TableCell>
-                <TableCell className="font-mono text-xs">{x.truck ? trips.find((t) => t.date === x.deliveryDate && t.deliveryId)?.deliveryId ?? "" : ""}</TableCell>
+                <TableCell className="font-mono text-xs">{x.truck ? x.deliveryId ?? "" : ""}</TableCell>
                 <TableCell className="text-right tabular-nums">{x.truck ? x.units : ""}</TableCell>
                 <TableCell>
                   <EatingDayStatus

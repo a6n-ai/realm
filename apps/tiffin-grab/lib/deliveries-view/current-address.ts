@@ -17,3 +17,9 @@ export function currentSavedAddressId(override: Place | null, plan: Place, addre
     null
   );
 }
+
+/** Where one delivery goes, for display: its own address when re-addressed, else the plan's. */
+export function deliveryAddress(override: Place | null | undefined, plan: Place): { text: string; changed: boolean } {
+  const p = override ?? plan;
+  return { text: `${p.addressLine}, ${p.postalCode}`, changed: !!override && key(override) !== key(plan) };
+}

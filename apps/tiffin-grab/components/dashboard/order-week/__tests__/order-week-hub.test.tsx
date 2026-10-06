@@ -78,12 +78,12 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(screen.getByRole("button", { name: "Move to another day" })).toBeTruthy();
     expect(screen.getByTestId("week-timeline")).toBeInTheDocument();
   });
-  it("lists every eating day in a paginated table; a row opens its week", () => {
+  it("the eating-days table lists only the selected week; Next moves the week", () => {
     replace.mockClear();
     render(<OrderWeekHub data={data} />);
-    expect(screen.getAllByTestId("paged-row").length).toBe(3);
-    fireEvent.click(screen.getAllByTestId("paged-row")[2]!);
-    expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
+    expect(screen.getAllByTestId("paged-row").length).toBe(2);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(replace.mock.calls[0]![0]).toContain("week=2026-09-28");
   });
   it("lists eating days of the week; a Mon trip feeds Mon and Tue; Tue names the delivery", () => {
     render(<OrderWeekHub data={data} />);
