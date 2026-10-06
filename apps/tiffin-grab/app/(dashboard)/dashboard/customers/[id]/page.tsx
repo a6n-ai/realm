@@ -25,12 +25,21 @@ import { addressScopeFor, addressService } from "@/lib/services/addresses.servic
 // Section titles — single source of truth so the skeleton twin below can never drift.
 const SECTIONS = {
   orders: "Orders",
-  addressChanges: "Upcoming delivery address changes",
+  addressChanges: "Delivery addresses",
   inquiries: "Inquiries",
   payment: "Payment",
   account: "Account",
   timeline: "Activity timeline",
 } as const;
+
+// Imported WordPress lines already end in city + postal code; don't print them twice.
+function fullAddress(line: string | null, unit: string | null, city: string | null, postalCode: string | null) {
+  const base = unit ? `${unit} – ${line ?? ""}` : (line ?? "");
+  const tail = [city, postalCode].filter((p): p is string => !!p && !base.toLowerCase().includes(p.toLowerCase()));
+  return [base, ...tail].filter(Boolean).join(", ");
+}
+
+const LIVE_PLAN = new Set(["active", "paused", "pending", "waitlisted"]);
 
 // This page is the index across a person's subscriptions — each row links into the order
 // page, which owns the calendar, meal picks, payment, and log for that one order.
@@ -119,11 +128,32 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
         <CustomerOrdersTable orders={data.orders} />
       </SectionCard>
 
-      {/* Per-day overrides the customer set from their deliveries calendar. The Account
-          card's address is only the default — this is where a given tiffin actually goes. */}
+      {/* Where tiffins actually go: each live plan's address (it follows the default saved
+          address), then single days re-addressed on the calendar. */}
       <SectionCard title={SECTIONS.addressChanges}>
+        <p className="text-muted-foreground mb-3 text-xs">
+          Plans follow the default saved address. A change applies from the next delivery whose cutoff hasn&apos;t passed.
+        </p>
+        {data.orders.filter((o) => LIVE_PLAN.has(o.status)).length === 0 ? (
+          <p className="text-muted-foreground text-sm">No live plans.</p>
+        ) : (
+          <ul className="divide-y text-sm">
+            {data.orders.filter((o) => LIVE_PLAN.has(o.status)).map((o) => (
+              <li key={o.publicId} className="flex flex-col gap-1 py-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <Link href={`/dashboard/orders/${o.publicId}`} className="font-medium underline-offset-2 hover:underline">
+                  {o.deploymentId}
+                </Link>
+                <div className="min-w-0 sm:text-right">
+                  <p className="font-medium">{fullAddress(o.addressLine, o.addressUnit, o.city, o.postalCode)}</p>
+                  {o.deliveryInstructions && <p className="text-muted-foreground text-xs">{o.deliveryInstructions}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <h3 className="mt-4 mb-1 text-sm font-medium">One-day changes</h3>
         {addressChanges.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No upcoming changes — every scheduled tiffin goes to its order address.</p>
+          <p className="text-muted-foreground text-sm">None. Every upcoming delivery goes to its plan&apos;s address.</p>
         ) : (
           <ul className="divide-y text-sm">
             {addressChanges.map((c) => (
@@ -135,9 +165,9 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
                   </Link>
                 </div>
                 <div className="min-w-0 sm:text-right">
-                  <p className="font-medium">{[c.addressLine, c.city, c.postalCode].filter(Boolean).join(", ")}</p>
+                  <p className="font-medium">{fullAddress(c.addressLine, null, c.city, c.postalCode)}</p>
                   <p className="text-muted-foreground text-xs">
-                    {c.fullName ? `For ${c.fullName} · ` : ""}instead of {c.orderAddress}
+                    {c.fullName ? `For ${c.fullName} · ` : ""}instead of {fullAddress(c.orderLine, c.orderUnit, c.orderCity, c.orderPostalCode)}
                   </p>
                 </div>
               </li>

@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { CalendarDays, LifeBuoy, LogOut, Menu as MenuIcon, Plus, RefreshCw, User, Users, UtensilsCrossed } from "lucide-react";
+import { CalendarDays, LifeBuoy, LogOut, Menu as MenuIcon, Plus, RefreshCw, User, UtensilsCrossed } from "lucide-react";
 import { useTheme } from "@foundry/themes";
 import { signOut } from "@/lib/auth/client";
 import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet, ThemeToggle } from "@/components/customer/kit";
@@ -141,9 +141,6 @@ export function CustomerShell({ coinBalance, userPublicId, staffReplies = {}, ch
           <ListRow href="/subscribe" icon={<Plus className="size-[18px]" />} label="New order" sublabel="Start another plan" />
           <ListRow href="/me/menu" icon={<UtensilsCrossed className="size-[18px]" />} label="Weekly menu" sublabel="What is being served" />
           <ListRow href="/me/renew" icon={<RefreshCw className="size-[18px]" />} label="Renew plan" sublabel="Keep your meals coming" />
-        </MenuSection>
-        <MenuSection title="Friends">
-          <ListRow href="/me/friends" icon={<Users className="size-[18px]" />} label="Friends" sublabel="Find friends, share your invite link" />
         </MenuSection>
         <MenuSection title="Appearance">
           <Segmented label="Theme" idPrefix="menu-theme" items={THEMES} value={theme ?? "system"} onChange={(t) => setTheme(t as "light" | "dark" | "system")} className="[&>button]:flex-1" />

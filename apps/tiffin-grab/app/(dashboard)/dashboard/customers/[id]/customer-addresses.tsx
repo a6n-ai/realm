@@ -8,6 +8,8 @@ import { staffArchiveAddress, staffCreateAddress, staffSetDefaultAddress, staffU
 /** Binds the staff actions to this customer — server actions can't be partially applied from a server component. */
 export function CustomerAddresses({ customerPublicId, initial }: { customerPublicId: string; initial: SavedAddress[] }) {
   return (
+    // Anchor for the activity timeline's address entries.
+    <div id="addresses" className="scroll-mt-20">
     <CustomerAddressesCard
       title="Saved addresses"
       initial={initial}
@@ -20,5 +22,6 @@ export function CustomerAddresses({ customerPublicId, initial }: { customerPubli
         archive: (publicId) => unwrapAction(staffArchiveAddress(customerPublicId, publicId)),
       }}
     />
+    </div>
   );
 }

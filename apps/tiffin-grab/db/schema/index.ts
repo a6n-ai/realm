@@ -29,4 +29,3 @@ export { reviewNudges } from "@foundry/google-reviews/db";
 export * from "./discounts";
 export * from "./delivery";
 export * from "./addresses";
-export * from "./friends";

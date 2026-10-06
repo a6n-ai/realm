@@ -47,10 +47,6 @@ export const users = pgTable(
     // own on first login. The dashboard gate redirects to /set-password while
     // this is false; setOwnPassword flips it true.
     passwordSet: boolean("password_set").notNull().default(false),
-    // `username` is the lowercased unique handle; `displayUsername` keeps the
-    // typed casing (better-auth username plugin column shape; plugin not mounted).
-    username: text("username"),
-    displayUsername: text("display_username"),
     // Set once this app's Customer Directory row has been pushed to Clover as
     // a customer — one mapping per person, not per org: Clover customer ids
     // are scoped to whichever merchant last created the record, so a person
@@ -70,7 +66,6 @@ export const users = pgTable(
   },
   (t) => [
     uniqueIndex("users_email_unique").on(t.email).where(sql`${t.email} is not null`),
-    uniqueIndex("users_username_unique").on(t.username),
     index("users_created_idx").on(t.createdAt),
   ],
 );

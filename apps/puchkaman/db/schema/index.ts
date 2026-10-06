@@ -17,4 +17,3 @@ export * from "./wallet";
 export * from "./organizations";
 export * from "./catering";
 export * from "./faqs";
-export * from "./friends";

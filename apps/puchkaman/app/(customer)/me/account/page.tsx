@@ -9,14 +9,13 @@ import { getSession } from "@/lib/auth/session";
 import { ChangePasswordForm } from "@/app/(dashboard)/dashboard/account/change-password-form";
 import { ChangeEmailForm } from "@/app/(dashboard)/dashboard/account/change-email-form";
 import { SetPasswordForm } from "@/components/customer/account/set-password-form";
-import { UsernameForm } from "@/components/customer/account/username-form";
 
 export default async function CustomerAccountPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login?callbackUrl=/me/account");
 
   const [u] = await db
-    .select({ name: users.name, email: users.email, phone: users.phone, passwordSet: users.passwordSet, displayUsername: users.displayUsername })
+    .select({ name: users.name, email: users.email, phone: users.phone, passwordSet: users.passwordSet })
     .from(users)
     .where(eq(users.publicId, session.user.id))
     .limit(1);
@@ -25,9 +24,6 @@ export default async function CustomerAccountPage() {
   return (
     <PageShell>
       <PageHeader icon={UserIcon} title="Account" subtitle="Your details and how you sign in." />
-      <SectionCard title="Username" subtitle="Your handle for friends and your invite link.">
-        <UsernameForm current={u.displayUsername ?? ""} />
-      </SectionCard>
       <SectionCard title="Details">
         <dl className="grid gap-3 text-sm">
           <div>

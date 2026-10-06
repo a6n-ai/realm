@@ -1039,7 +1039,7 @@ export async function setDeliveryAddress(
     if (pick.addressPublicId) {
       address = await addressService.getRow(scope, pick.addressPublicId, tx);
     } else if (pick.newAddress) {
-      address = await addressService.create(scope, pick.newAddress, { tx });
+      address = await addressService.create(scope, pick.newAddress, { tx, ifExists: "reuse" });
     }
     // Drop-off belongs to the address: what was picked under it is saved back, for its next
     // delivery or checkout, whether the address is new or already in the book.

@@ -127,13 +127,6 @@
       "when": 1791221923458,
       "tag": "0017_faithful_hellion",
       "breakpoints": true
-    },
-    {
-      "idx": 18,
-      "version": "7",
-      "when": 1791324620025,
-      "tag": "0018_common_namorita",
-      "breakpoints": true
     }
   ]
 }

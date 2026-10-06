@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEatingDays, deliveryLine, eatingRowsInWeek, isAddressRow, movedInNote } from "../eating";
+import { buildEatingDays, deliveryLine, eatingRowsInWeek, isAddressRow, movedInNote, moveNotes, moveTags, tiffinBreakdown } from "../eating";
 import type { Trip } from "../index";
 
 const day = (date: string, dish: string | null = null, locksWith: string | null = null) => ({ date, dishSummary: dish, swaps: [], locksWith });
@@ -113,5 +113,42 @@ describe("deliveryLine", () => {
     expect(deliveryLine(tue!)).toBe("Arrives Mon, Sep 21 with Mon");
     const [d] = buildEatingDays([trip({ status: "delivered" })]);
     expect(deliveryLine(d!)).toBe("Delivered Mon, Sep 21");
+  });
+});
+
+describe("a day whose own tiffin left while another moved in (Wed -> Thu, then Thu -> next Tue)", () => {
+  const wed = trip({ date: "2026-10-07", coversDates: ["2026-10-07"], units: 1, eatingDays: [day("2026-10-07")], status: "combined-into", movedTo: "2026-10-08", mergedInto: "2026-10-08" });
+  const thu = trip({ date: "2026-10-08", coversDates: ["2026-10-08"], units: 1, eatingDays: [day("2026-10-08", "Patta Gobhi")], movesIn: [{ from: "2026-10-07", to: "2026-10-08" }], movesOut: [{ from: "2026-10-08", to: "2026-10-13" }] });
+  const tue = trip({ date: "2026-10-13", coversDates: ["2026-10-13"], units: 1, eatingDays: [day("2026-10-13")], movesIn: [{ from: "2026-10-08", to: "2026-10-13" }] });
+  const rows = buildEatingDays([wed, thu, tue]);
+  const at = (d: string) => rows.find((r) => r.date === d)!;
+
+  it("Thu says both: Wed's tiffin came in and Thu's own went to Tue", () => {
+    expect(moveNotes(at("2026-10-08"))).toEqual(["Wed's tiffin moved here, same meal", "Thu's own tiffin moved to Tue, Oct 13"]);
+    expect(moveTags(at("2026-10-08"))).toEqual([{ kind: "in", text: "Wed's in" }, { kind: "out", text: "to Oct 13" }]);
+    expect(deliveryLine(at("2026-10-08"))).toBe("Arrives Thu, Oct 8");
+  });
+  it("each hop of the chain shows on its own day", () => {
+    expect(deliveryLine(at("2026-10-07"))).toBe("Moved to Thu, Oct 8");
+    expect(moveNotes(at("2026-10-13"))).toEqual(["Thu's tiffin moved here, same meal"]);
+    expect(moveNotes(at("2026-10-07"))).toEqual([]);
+  });
+  it("once delivered the customer just sees Delivered; staff keep how it got there", () => {
+    const done = buildEatingDays([wed, { ...thu, status: "delivered" }, tue]).find((r) => r.date === "2026-10-08")!;
+    expect(moveNotes(done)).toEqual([]);
+    expect(moveNotes(done, true)).toEqual(["Wed's tiffin moved here, same meal", "Thu's own tiffin moved to Tue, Oct 13"]);
+  });
+  it("a pool make-up reads as from the pool", () => {
+    const r = buildEatingDays([trip({ date: "2026-10-09", coversDates: ["2026-10-09"], units: 2, eatingDays: [day("2026-10-09")], movesIn: [{ from: null, to: "2026-10-09" }] })])[0]!;
+    expect(moveNotes(r)).toEqual(["a held day's tiffin moved here, same meal"]);
+    expect(moveTags(r)).toEqual([{ kind: "in", text: "held day in" }]);
+  });
+});
+
+describe("tiffinBreakdown", () => {
+  it("names each day the truck carries, moved-in tiffins by the day they left", () => {
+    expect(tiffinBreakdown({ units: 2, coversDates: ["2026-09-21", "2026-09-22"] })).toBe("1 Mon + 1 Tue");
+    expect(tiffinBreakdown({ units: 1, coversDates: ["2026-10-08"], movesIn: [{ from: "2026-10-07", to: "2026-10-08" }] })).toBe("1 Wed's");
+    expect(tiffinBreakdown({ units: 3, coversDates: ["2026-10-12"], movesIn: [{ from: "2026-10-09", to: "2026-10-12" }, { from: null, to: "2026-10-12" }] })).toBe("1 Mon + 1 Fri's + 1 held day's");
   });
 });

@@ -39,8 +39,6 @@ export default defineConfig({
       // server-side auth.api call (no request to infer one from), and magic-link
       // issuance throws on `new URL("")`.
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-      // Signs friend invite refs in the friends integration test.
-      BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "tiffin-test-secret-tiffin-test-secret",
     },
     // Integration tests share one Postgres table; run files serially so their
     // truncate-in-beforeEach does not race across parallel workers.

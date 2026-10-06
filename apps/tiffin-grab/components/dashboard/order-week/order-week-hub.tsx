@@ -3,7 +3,7 @@
 
 import { zonedDateIso } from "@foundry/commons";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
-import { ChevronLeft, ChevronRight, Info, MapPin, Truck, Utensils } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, MapPin, Package, Truck, Utensils } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
 import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { deliveryLine, eatingRowsInWeek, isAddressRow, movedInNote, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, eatingRowsInWeek, isAddressRow, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow, type MoveFact } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { movedFact, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
@@ -115,13 +115,21 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
               const on = row?.date === r.date;
               return (
                 <div key={r.date} role="listitem" className="flex items-center">
-                  <button type="button" data-testid="trip-row" aria-pressed={on} onClick={() => setSel(r.date)} className={cn("flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-left", on ? "bg-muted" : "hover:bg-muted/60")}>
-                    <Utensils aria-hidden className="text-muted-foreground size-4 shrink-0" />
+                  <button type="button" data-testid="trip-row" aria-pressed={on} onClick={() => setSel(r.date)} className={cn("flex min-w-0 flex-1 items-start gap-3 rounded-md px-3 py-2 text-left", on ? "bg-muted" : "hover:bg-muted/60")}>
+                    <Utensils aria-hidden className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">{humanDate(r.date)}</span>
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="whitespace-nowrap text-sm font-medium">{humanDate(r.date)}</span>
+                        <Badge variant="outline">{m.label}</Badge>
+                      </span>
                       <span className="text-muted-foreground block truncate text-xs">{r.movedTo ? `Moved to ${humanDate(r.movedTo)}` : menuOut ? "Menu not released yet" : r.dish ?? "Default menu"}</span>
+                      {!r.movedTo && r.trip.status !== "failed" && (r.own || moveTags(r).length > 0) && (
+                        <span className="mt-1 flex flex-wrap gap-1">
+                          {r.own && <Badge className={PILL.count}>{tiffins(r.trip.units)}</Badge>}
+                          {moveTags(r).map((t) => <MoveBadge key={t.kind} fact={t} />)}
+                        </span>
+                      )}
                     </span>
-                    <Badge variant="outline">{m.label}</Badge>
                   </button>
                   <Button variant="ghost" size="icon" aria-label={`Details for ${humanDate(r.date)}`} onClick={() => (setSel(r.date), setDlg("info"))}><Info /></Button>
                 </div>
@@ -144,12 +152,18 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
               </CardHeader>
               <CardContent className="space-y-4">
                 {row.movedTo ? <p className="text-muted-foreground text-sm">{movedFact(row)}</p> : (
-                <p className="text-muted-foreground text-sm">
-                  {tiffins(trip.units)} covering {trip.coversDates.map(weekdayShort).join(" + ")}
-                  {movedInNote(row) && ` · ${movedInNote(row)}`}
-                  {trip.status === "upcoming" && ` · changes close ${formatCutoff(trip.cutoffAt, tz)}`}
-                  {!row.own && trip.status === "upcoming" && ` · ${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery`}
-                </p>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2" data-testid="delivery-pills">
+                      {trip.status !== "failed" && (
+                        <Badge className={PILL.count}><Package aria-hidden />{tiffins(trip.units)} {trip.status === "delivered" ? "delivered" : "on this delivery"}: {tiffinBreakdown(trip)}</Badge>
+                      )}
+                      {moveFacts(row, true).map((f) => <MoveBadge key={f.kind} fact={f} />)}
+                    </div>
+                    <ul className="text-muted-foreground list-disc space-y-0.5 pl-5 text-sm">
+                      {trip.status === "upcoming" && <li>Changes close {formatCutoff(trip.cutoffAt, tz)}</li>}
+                      {!row.own && trip.status === "upcoming" && <li>{humanDate(row.date)} locks with {weekdayShort(trip.date)}&apos;s delivery</li>}
+                    </ul>
+                  </div>
                 )}
                 {!row.movedTo && (() => {
                   const addr = deliveryAddress(trip.addressOverride, plan.sub);
@@ -191,7 +205,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
               <>
                 <TableCell className="font-medium">{humanDate(x.date)}</TableCell>
                 <TableCell className="text-muted-foreground">
-                  {x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : `with ${weekdayShort(x.deliveryDate)}, ${humanDate(x.deliveryDate)}`}
+                  {x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : x.moved ? `Moved to ${humanDate(x.deliveryDate)}` : `With ${humanDate(x.deliveryDate)} delivery`}
                   {x.truck && trips.find((t) => t.date === x.deliveryDate)?.addressOverride && (
                     <span className="ml-2 inline-flex items-center gap-1 text-xs" title="Sent to a different address than the plan"><MapPin className="size-3" aria-hidden />New address</span>
                   )}
@@ -370,7 +384,7 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, movedInNote(row), t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, ...moveNotes(row, true), t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
         {(t.addressOverride || t.dropOff?.tagId) && (
           <div className="rounded-md border p-3 text-sm space-y-1">
             <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-2">Delivery Override</span>
@@ -407,6 +421,20 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
   );
 }
 
+// Same highlight as the customer's pills: count blue, moved-in brand orange, moved-out muted.
+const PILL = {
+  count: "border-transparent bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  in: "border-transparent bg-orange-500/15 text-orange-700 dark:text-orange-300",
+  out: "border-transparent bg-muted text-muted-foreground",
+} as const;
 
-
-
+/** Moved-in / moved-out fact as a badge; wraps instead of overflowing the panel. */
+function MoveBadge({ fact }: { fact: MoveFact }) {
+  const Icon = fact.kind === "in" ? ArrowDownLeft : ArrowUpRight;
+  return (
+    <Badge className={cn(PILL[fact.kind], "h-auto whitespace-normal text-left")}>
+      <Icon aria-hidden />
+      {fact.text}
+    </Badge>
+  );
+}
