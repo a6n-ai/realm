@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ScrollTextIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, DEFAULT_SIZE, PAGE_SIZES, type Column } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
@@ -85,8 +86,11 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
   }, [activities, params]);
 
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
+  // The Details column truncates; a row click shows the whole entry.
+  const [open, setOpen] = useState<ViewRow | null>(null);
 
   return (
+    <>
     <DataTable
       columns={COLUMNS}
       rows={rows}
@@ -99,6 +103,7 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
       }}
       filters={<ReuiFacetFilters spec={ORDER_ACTIVITY_FACETS} />}
       pagination={{ page, size }}
+      onRowClick={setOpen}
       emptyIcon={ScrollTextIcon}
       emptyMessage="No activity yet."
       emptySearchMessage="No activity matches your search."
@@ -107,12 +112,19 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
           <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
             {fmt(r.createdAt)}
           </TableCell>
-          <TableCell className="font-medium">{r.action}</TableCell>
+          <TableCell className="min-w-44 font-medium whitespace-normal"><span className="line-clamp-2">{r.action}</span></TableCell>
           <TableCell>
             <ActorBadge kind={r.actorKind} label={r.actorLabel} />
           </TableCell>
-          <TableCell className="max-w-[240px] truncate text-muted-foreground text-xs">
-            {r.note ?? (r.fromStatus && r.toStatus ? `${r.fromStatus} → ${r.toStatus}` : "—")}
+          <TableCell className="max-w-[320px] text-muted-foreground text-xs">
+            <span className="flex items-center gap-2">
+              <span className="min-w-0 truncate">{r.note ?? (r.fromStatus && r.toStatus ? `${r.fromStatus} → ${r.toStatus}` : "—")}</span>
+              {r.note && r.note.length > 48 && (
+                <button type="button" onClick={() => setOpen(r)} className="text-primary shrink-0 font-medium underline-offset-2 hover:underline">
+                  View
+                </button>
+              )}
+            </span>
           </TableCell>
         </>
       )}
@@ -127,6 +139,36 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
         </div>
       )}
     />
+    <Dialog open={open != null} onOpenChange={(o) => !o && setOpen(null)}>
+      <DialogContent className="sm:max-w-lg">
+        {open && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{open.action}</DialogTitle>
+              <DialogDescription>{fmt(open.createdAt)}</DialogDescription>
+            </DialogHeader>
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">By</dt>
+              <dd className="space-y-0.5">
+                <ActorBadge kind={open.actorKind} label={open.actorLabel} />
+                {open.actorEmail && <p className="text-muted-foreground text-xs">{open.actorEmail}{open.actorRole ? ` · ${open.actorRole}` : ""}</p>}
+              </dd>
+              <dt className="text-muted-foreground">Type</dt>
+              <dd className="font-mono text-xs">{open.type}</dd>
+              {open.fromStatus && open.toStatus && (
+                <>
+                  <dt className="text-muted-foreground">Status</dt>
+                  <dd>{open.fromStatus} → {open.toStatus}</dd>
+                </>
+              )}
+              <dt className="text-muted-foreground">Details</dt>
+              <dd className="whitespace-pre-wrap break-words">{open.note ?? "—"}</dd>
+            </dl>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
