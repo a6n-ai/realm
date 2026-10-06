@@ -16,6 +16,7 @@ const NAV_PERMISSIONS: Array<[string, Record<string, string[]>]> = [
   ["studioSession:update", { studioSession: ["update"] }],
   ["booking:read", { booking: ["read"] }],
   ["discount:read", { discount: ["read"] }],
+  ["wallet:read", { wallet: ["read"] }],
 ];
 
 export function grantedKeys(role: RoleValue): string[] {
