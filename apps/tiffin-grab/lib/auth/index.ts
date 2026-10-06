@@ -109,6 +109,9 @@ export const auth = betterAuth({
       }
     },
   },
+  // Google can be disconnected even when it is the only linked account: email-code
+  // sign-in needs no account row, so nobody is locked out by it.
+  account: { accountLinking: { allowUnlinkingAll: true } },
   // No implicit sign-up: /login only signs in (an unknown Google address is
   // sent on to /subscribe); /subscribe passes requestSignUp, the same public
   // sign-up createCheckoutAccount already offers. Off without the keys.
