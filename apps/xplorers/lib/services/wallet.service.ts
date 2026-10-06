@@ -66,7 +66,10 @@ async function ensurePayoutRows(): Promise<void> {
 }
 
 /**
- * Coins for a booking that just became paid (verified, or confirmed at $0).
+ * Coins for a booking whose payment was just verified — only bookings where
+ * money actually changed hands earn coins (a $0 booking paid by coupon or
+ * coins earns nothing). The first-booking (welcome) bonus is keyed per
+ * family, so it pays once, on the family's first paid booking.
  * Each award is once-only per booking through the ledger's earn index, so a
  * retry or a second caller pays nothing extra. Never throws into the caller.
  */
@@ -127,9 +130,8 @@ async function familyUserId(publicId: string): Promise<bigint> {
 
 /** Plain names for wallet events, shared by the family card and the admin screens. */
 export const EVENT_LABELS: Record<AppEvent, string> = {
-  signup: "Sign-up",
   booking_paid: "Booking paid",
-  first_booking: "First booking",
+  first_booking: "Welcome bonus (first booking)",
   birthday_booking: "Birthday booking",
   manual_adjustment: "From the team",
 };

@@ -5,7 +5,8 @@ import { ledgerDirection } from "./payments";
 import { bookings } from "./studio";
 
 /** Events that can pay coins. Adding one = new value here + drizzle-kit generate. */
-export const APP_EVENTS = ["signup", "booking_paid", "first_booking", "birthday_booking", "manual_adjustment"] as const;
+/** first_booking is the welcome bonus: once per family, on their first paid booking. */
+export const APP_EVENTS = ["booking_paid", "first_booking", "birthday_booking", "manual_adjustment"] as const;
 export type AppEvent = (typeof APP_EVENTS)[number];
 export const appEvent = pgEnum("app_event", [...APP_EVENTS]);
 

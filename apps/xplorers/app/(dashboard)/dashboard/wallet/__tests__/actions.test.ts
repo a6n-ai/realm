@@ -30,14 +30,15 @@ const { adjustFamilyCoinsAction, saveCoinRateAction, savePayoutAction } = await 
 
 describe("wallet admin actions", () => {
   it("saves a payout for a known event", async () => {
-    await savePayoutAction({ event: "signup", enabled: true, coins: 20 });
+    await savePayoutAction({ event: "first_booking", enabled: true, coins: 20 });
     expect(setCalls.at(-1)).toEqual({ enabled: true, coins: 20, updatedBy: 7n });
   });
 
   it("refuses staff grants and unknown events as payouts", async () => {
     await expect(savePayoutAction({ event: "manual_adjustment", enabled: true, coins: 1 })).rejects.toThrow(ValidationError);
     await expect(savePayoutAction({ event: "nope", enabled: true, coins: 1 })).rejects.toThrow(ValidationError);
-    await expect(savePayoutAction({ event: "signup", enabled: true, coins: -1 })).rejects.toThrow(ValidationError);
+    await expect(savePayoutAction({ event: "signup", enabled: true, coins: 1 })).rejects.toThrow(ValidationError);
+    await expect(savePayoutAction({ event: "first_booking", enabled: true, coins: -1 })).rejects.toThrow(ValidationError);
   });
 
   it("saves the coin rate in the app currency only, stamped with the staff member", async () => {
