@@ -5,6 +5,7 @@ import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { currentUserId } from "@/lib/services/session-service";
 import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/auth/landing";
+import { googleSignInEnabled } from "@foundry/auth";
 import { couponsService } from "@/lib/services/coupons.service";
 import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existing-subscriptions";
 
@@ -19,7 +20,7 @@ export const viewport: Viewport = {
   ],
 };
 
-export default async function SubscribePage() {
+export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const session = await getSession();
   if (session?.user && isStaffRole(session.user.role)) redirect("/dashboard");
 
@@ -30,6 +31,7 @@ export default async function SubscribePage() {
   if (userId != null) redirect("/me/renew");
 
   const coupons = await couponsService.listAvailable();
+  const { error } = await searchParams;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-4 sm:py-10">
@@ -47,7 +49,7 @@ export default async function SubscribePage() {
         <SubscribeCouponsPreview coupons={coupons} />
       </div>
       <div className="mt-8">
-        <IdentityGate />
+        <IdentityGate google={googleSignInEnabled()} oauthError={error ?? null} />
       </div>
     </main>
   );

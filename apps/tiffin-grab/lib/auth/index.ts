@@ -107,8 +107,9 @@ export const auth = betterAuth({
       }
     },
   },
-  // Sign-in only (disableSignUp inside): a Google address with no account is
-  // refused, same rule as email-otp and magic-link below. Off without the keys.
+  // No implicit sign-up: /login only signs in (an unknown Google address is
+  // sent on to /subscribe); /subscribe passes requestSignUp, the same public
+  // sign-up createCheckoutAccount already offers. Off without the keys.
   socialProviders: googleSocialProviders(),
   emailVerification: {
     // Every account has an email now, so this always fires on signup.

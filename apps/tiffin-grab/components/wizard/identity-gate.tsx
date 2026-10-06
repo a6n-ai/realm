@@ -8,7 +8,8 @@ import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptcha } from "@/lib/auth/captcha-client";
 import { checkExistingAccount, createCheckoutAccount } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
-import { CodeOtp, EmailSuggestions, ResendCode } from "@foundry/auth-ui";
+import { tiffinAuthUi } from "@/components/auth/auth-kit";
+import { CodeOtp, EmailSuggestions, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
 
 // Step zero of /subscribe for signed-out visitors, drawn in the wizard's own
 // language (question headline, kit Field, one hero CTA) so it reads as the
@@ -33,7 +34,7 @@ const COPY: Record<Phase, { title: string; body: string }> = {
 };
 
 
-export function IdentityGate() {
+export function IdentityGate({ google = false, oauthError = null }: { google?: boolean; oauthError?: string | null }) {
   const router = useRouter();
   const reduced = useReducedMotion();
   const [phase, setPhase] = useState<Phase>("email");
@@ -144,6 +145,23 @@ export function IdentityGate() {
       </AnimatePresence>
 
       <div className="mt-6 flex flex-col gap-5">
+        {google && phase === "email" ? (
+          <div className="flex flex-col gap-3">
+            {/* requestSignUp: this is the one page that may create an account (see lib/auth). */}
+            <GoogleSignInButton
+              ui={tiffinAuthUi}
+              onSignIn={() =>
+                signIn.social({ provider: "google", requestSignUp: true, callbackURL: "/me/renew", errorCallbackURL: "/subscribe" })
+              }
+            />
+            {oauthError ? <Notice tone={oauthError === "signup_disabled" ? "info" : "error"}>{oauthErrorMessage(oauthError)}</Notice> : null}
+            <div className="c-caption flex items-center gap-3 text-[var(--muted-foreground)]" aria-hidden>
+              <span className="h-px flex-1 bg-[var(--border)]" />
+              or
+              <span className="h-px flex-1 bg-[var(--border)]" />
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-2">
           <Field
             ref={emailRef}

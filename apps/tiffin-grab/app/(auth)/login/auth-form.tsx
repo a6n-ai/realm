@@ -60,6 +60,10 @@ export function AuthForm({ canUsePin, google = false }: { canUsePin: boolean; go
   const [codeStep, setCodeStep] = useState(false);
   // Email and password forms both hit captcha'd routes; solve ahead of Send.
   useEffect(() => warmCaptcha(mode === "email-otp" || mode === "password"), [mode]);
+  // A Google address with no account: sign-up lives on /subscribe, so continue there.
+  useEffect(() => {
+    if (oauthError === "signup_disabled") router.replace("/subscribe?error=signup_disabled");
+  }, [oauthError, router]);
 
   async function landSignedIn() {
     await clearLockSession();
