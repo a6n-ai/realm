@@ -84,7 +84,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
           <CardContent className="flex items-center gap-2 text-sm">
             <Truck className="size-4" aria-hidden />
             <span data-testid="next-delivery">
-              Next delivery: <b>{humanDate(nextTruck.deliveryDate)}</b>, {tiffins(nextTruck.units)} ({nextTruck.covers.map(weekdayShort).join(" + ")}) · changes close {formatCutoff(nextTruck.cutoffAt, tz)}
+              Next delivery: <b>{humanDate(nextTruck.deliveryDate)}</b>, {tiffins(nextTruck.units)} ({nextTruck.covers.map(weekdayShort).join(" + ")}) · changes {nextTruck.cutoffAt <= now ? "closed" : "close"} {formatCutoff(nextTruck.cutoffAt, tz)}
             </span>
           </CardContent>
         </Card>
