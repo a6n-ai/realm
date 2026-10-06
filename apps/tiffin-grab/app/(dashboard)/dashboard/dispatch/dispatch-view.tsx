@@ -150,7 +150,10 @@ export function DispatchView({
         rowKey={(r) => r.orderNo}
         serial={false}
         pagination={{ page, size }}
-        search={{ placeholder: "Search customer or driver…", keys: ["customerName", "routeDriverName"] }}
+        search={{
+          placeholder: "Search customer, phone, or driver…",
+          keys: ["customerName", "phone", "routeDriverName", "routeDriverSerial"],
+        }}
         emptyIcon={TruckIcon}
         emptyMessage="No deliveries scheduled for this date."
         onRowClick={openHistory}

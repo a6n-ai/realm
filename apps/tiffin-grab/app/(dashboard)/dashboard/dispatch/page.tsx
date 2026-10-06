@@ -12,6 +12,7 @@ import Link from "next/link";
 import { buildDispatchRows, listKnownDrivers, listPaymentHeld } from "@/lib/services/optimoroute/drivers";
 import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
 import { DayHeader } from "./day-header";
+import { DispatchExportButton } from "./dispatch-export-button";
 import { DispatchTabs } from "./dispatch-tabs";
 import { DispatchView } from "./dispatch-view";
 import { PlannedOrders } from "./routes-view";
@@ -105,7 +106,12 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <>
-      <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
+      <DayHeader
+        date={date}
+        today={today}
+        basePath="/dashboard/dispatch"
+        actions={<DispatchExportButton dateIso={date} rows={dispatchRows} />}
+      />
 
       <DispatchTabs date={date} />
 
