@@ -16,7 +16,7 @@ import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
-import { EatingCard, TripInfoSheet } from "./trip-parts";
+import { EatingCard, mealCategories, TripInfoSheet } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
@@ -202,6 +202,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
               reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}
               address={deliveryAddress(trip.addressOverride, sub)}
               onDetails={() => setInfo(row)}
+              meal={mealCategories(row, plan)}
               onEditAddress={addressRow?.av.ok ? () => setActive("address") : undefined}
             >
               <div className="mt-6 hidden lg:block">

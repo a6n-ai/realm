@@ -186,7 +186,7 @@ export function moveChips(row: EatingRow, history = false): { kind: "in" | "out"
 export const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
 
 /** The selected eating day, as the page's main card: date, dishes, then one quiet line for tiffins, delivery day and cutoff. */
-export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; children?: React.ReactNode }) {
+export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, meal, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; meal?: MealCategory[]; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
   const facts = row.movedTo ? []
@@ -247,7 +247,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
               </button>
             )}
           </div>
-          {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : (
+          {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : meal && meal.length > 0 ? <MealTiles cats={meal} /> : (
             <>
               {/* One dish per line: the main dish leads, the rest follow quieter. */}
               <ul className="space-y-0.5">
@@ -294,18 +294,49 @@ export const EXPLAIN: Record<Trip["status"], string> = {
 };
 
 /** Meal breakdown of one eating day (category, portion after swaps, dishes), with a compact delivery footer. */
+export type MealCategory = { category: string; label: string; items: { name: string; portion: string | null; defaulted: boolean }[] };
+type MealPlan = Pick<PlanView, "days" | "portionsByDate" | "categoryPortionSlots" | "categoryPortions">;
+
+/** This eating day's meal by category, each pick with its portion (swaps first, then per-slot, then the category's). */
+export function mealCategories(row: EatingRow, plan: MealPlan): MealCategory[] {
+  const source = plan.days.find((d) => d.date === row.trip.date);
+  const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
+  const portion = (category: string, i: number): string | null => {
+    const swapped = plan.portionsByDate?.[row.date]?.[category];
+    if (swapped?.length) return swapped[i] ?? swapped[swapped.length - 1] ?? null;
+    const slots = plan.categoryPortionSlots?.[category];
+    if (slots?.length) return slots[i] ?? slots[slots.length - 1] ?? null;
+    return plan.categoryPortions[category] ?? null;
+  };
+  return (meal ?? []).filter((c) => c.picks.length > 0).map((c) => ({
+    category: c.category,
+    label: c.label,
+    items: c.picks.map((p, i) => ({ name: p.name, portion: portion(c.category, i), defaulted: !!(p.isDefaulted && c.selectable) })),
+  }));
+}
+
+/** One tile per category, like the kitchen counts: label on top, then each dish with its portion. */
+export function MealTiles({ cats }: { cats: MealCategory[] }) {
+  return (
+    <ul aria-label="Meal" className="grid grid-cols-3 gap-2" data-testid="meal-tiles">
+      {cats.map((c) => (
+        <li key={c.category} className="min-w-0 rounded-xl border border-[var(--border)] bg-[var(--muted)]/50 px-3 py-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</p>
+          {c.items.map((p, i) => (
+            <div key={`${p.name}-${i}`} className="mt-1">
+              <p className="text-[14px] font-semibold leading-snug">{p.name}</p>
+              {p.portion && <p className="text-[12px] tabular-nums text-[var(--muted-foreground,#6E6558)]">{p.portion}</p>}
+            </div>
+          ))}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
   const t = row.trip;
-  const source = plan?.days.find((d) => d.date === t.date);
-  const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
-  const cats = (meal ?? []).filter((c) => c.picks.length > 0);
-  const slotPortion = (category: string, pickIndex: number): string | null => {
-    const swapped = plan?.portionsByDate?.[row.date]?.[category];
-    if (swapped?.length) return swapped[pickIndex] ?? swapped[swapped.length - 1] ?? null;
-    const slots = plan?.categoryPortionSlots?.[category];
-    if (slots?.length) return slots[pickIndex] ?? slots[slots.length - 1] ?? null;
-    return plan?.categoryPortions[category] ?? null;
-  };
+  const cats = plan ? mealCategories(row, plan) : [];
   const delivery = row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [
     deliveryLine(row),
     `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
@@ -319,18 +350,13 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
             {cats.map((c) => (
               <li key={c.category} className="px-4 py-3">
                 <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</span>
-                {c.picks.map((p, i) => {
-                  const oz = slotPortion(c.category, i);
-                  return (
-                    <span key={`${p.dishPublicId}-${i}`} className="mt-0.5 block font-semibold">
-                      {p.name}
-                      {oz ? <span className="font-normal text-[var(--muted-foreground,#6E6558)]"> · {oz}</span> : null}
-                      {p.isDefaulted && c.selectable && (
-                        <span className="ml-2 text-[13px] font-normal text-[var(--muted-foreground,#6E6558)]">default pick</span>
-                      )}
-                    </span>
-                  );
-                })}
+                {c.items.map((p, i) => (
+                  <span key={`${p.name}-${i}`} className="mt-0.5 block font-semibold">
+                    {p.name}
+                    {p.portion ? <span className="font-normal text-[var(--muted-foreground,#6E6558)]"> · {p.portion}</span> : null}
+                    {p.defaulted && <span className="ml-2 text-[13px] font-normal text-[var(--muted-foreground,#6E6558)]">default pick</span>}
+                  </span>
+                ))}
               </li>
             ))}
           </ul>

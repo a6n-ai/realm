@@ -18,7 +18,7 @@ import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib
 import { deliveryLine, eatingRowsInWeek, isAddressRow, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow, type MoveFact } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
-import { cutoffFmt, dedupeDishes, Journey, moveChips, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
+import { cutoffFmt, dedupeDishes, Journey, MealTiles, mealCategories, moveChips, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
@@ -137,7 +137,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
                       <p className="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Meal</p>
                       <Button variant="ghost" size="icon" className="-my-2 size-7" aria-label={`Details for ${humanDate(row.date)}`} onClick={() => setDlg("info")}><Info /></Button>
                     </div>
-                    {menuOut ? <p className="text-muted-foreground text-sm">Menu not released yet</p> : (
+                    {menuOut ? <p className="text-muted-foreground text-sm">Menu not released yet</p> : mealCategories(row, plan).length > 0 ? <MealTiles cats={mealCategories(row, plan)} /> : (
                       <>
                         <ul className="space-y-0.5">
                           <li className="font-medium">{first ?? "Default menu"}</li>
