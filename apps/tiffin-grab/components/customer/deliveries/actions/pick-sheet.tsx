@@ -53,9 +53,9 @@ function toTiles(blocks: MealSummaryLine[]): MealCategory[] {
     // The summary joins one dish's portions ("Mix Veg · 12oz + 8oz"); a tile is one item each.
     items: b.lines.flatMap((line): MealCategory["items"] => {
       const at = line.indexOf(" · ");
-      if (at < 0) return [{ name: line, portion: null, defaulted: false }];
+      if (at < 0) return [{ name: line, portion: null }];
       const name = line.slice(0, at);
-      return line.slice(at + 3).split(" + ").map((portion) => ({ name, portion, defaulted: false }));
+      return line.slice(at + 3).split(" + ").map((portion) => ({ name, portion }));
     }),
   }));
 }
@@ -307,14 +307,13 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       ? built
       : [{ kind: "dish", value: "fixed", label: group.label, dishId: "" }];
     const cellOff = locked || cell.locked || controlsOff;
-    const isDefault = !!selectedId && cell.isDefaulted && picked[key] == null;
     return (
       <U.ChoiceRow
         key={key}
         label={slotLabel(group, i)}
         // In the meal's accordion each item is its own section, and its header already names it.
         caption={inAccordion ? null : undefined}
-        hint={!cell.selectable ? "Included" : isDefault ? "Default pick" : undefined}
+        hint={!cell.selectable ? "Included" : undefined}
         choices={options.map((o) => ({
           value: o.value,
           label: o.label,
@@ -363,7 +362,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     return {
       title: [cell.diet ? `${cell.diet} ${group.label}` : group.label, named && !cell.diet && role ? ROLE[role] : null, group.portions[index]].filter(Boolean).join(" · "),
       summary: dish,
-      status: cell.locked ? "Locked" : changedHere ? "Changed" : group.selectable ? "Default" : "Included",
+      status: cell.locked ? "Locked" : changedHere ? "Changed" : group.selectable ? "" : "Included",
     };
   };
   const addonSummary: MealSummaryLine[] = [
@@ -747,16 +746,25 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                     {item}
                   </U.CategorySection>
                 );
-                // One row per category, except a category with several items (2 sabzis): each item is
-                // its own row, named by its role in the meal ("Sabzi · Main", "Sabzi · Side").
                 if (mealItems.length === 1) {
                   const view = itemView(group, mealItems[0]!);
                   return section(group.key, view.title, view.summary, locked ? "Locked" : view.status, renderItem(mealItems[0]!));
                 }
-                return mealItems.map((item, n) => {
-                  const view = itemView(group, item, true);
-                  return section(`${group.key}#${n}`, view.title, view.summary, locked ? "Locked" : view.status, renderItem(item));
-                });
+                // Several items of one category (2 sabzis) share one row; opening it shows each
+                // weight with its own choices ("Main · 12oz", "Side · 8oz").
+                const views = mealItems.map((item) => itemView(group, item, true));
+                const status = locked ? "Locked" : views.some((v) => v.status === "Changed") ? "Changed" : views[0]!.status;
+                return section(group.key, group.label, views.map((v) => v.summary).join(" · "), status, mealItems.map((item, n) => {
+                  const title = views[n]!.title;
+                  return (
+                    <div key={n} className="grid gap-2">
+                      <p className={`text-[12px] font-semibold uppercase tracking-[0.1em] ${muted}`}>
+                        {title.startsWith(`${group.label} · `) ? title.slice(group.label.length + 3) : title}
+                      </p>
+                      {renderItem(item)}
+                    </div>
+                  );
+                }));
               })}
               </div>
 

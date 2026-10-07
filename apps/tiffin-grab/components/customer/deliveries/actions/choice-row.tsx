@@ -38,7 +38,7 @@ export function ChoiceRow({
    * for a one-row category. `label` stays the group's accessible name. Undefined = label + hint.
    */
   caption?: string | null;
-  /** Right of the label: "Default pick", "Included". */
+  /** Right of the label: "Included". */
   hint?: string;
   choices: RowChoice[];
   value: string;

@@ -110,7 +110,6 @@ const openCat = async (name = "Curry") => {
   await waitFor(() => expect(document.querySelector("button[aria-expanded]")).not.toBeNull());
   const matching = [...document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")]
     .filter((b) => new RegExp(`^${name}`, "i").test(b.textContent ?? ""));
-  // Several items of one category are several rows: open the first closed one.
   const header = matching.find((b) => b.getAttribute("aria-expanded") === "false");
   if (header) fireEvent.click(header);
 };
@@ -141,11 +140,10 @@ describe("PickSheet", () => {
     );
     show(trip({ coversDates: [mon] }));
     await openCat();
-    // Two items of one category are two accordion rows, one open at a time.
+    // Two items of one category share one accordion row: both weights show when it opens.
     expect(await screen.findByRole("radiogroup", { name: "Curry · 12oz" })).toBeInTheDocument();
-    await openCat("Curry · 8oz");
-    expect(await screen.findByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
-    expect(screen.queryByRole("radiogroup", { name: "Curry · 12oz" })).toBeNull();
+    expect(screen.getByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
+    expect(document.querySelectorAll("button[aria-expanded]")).toHaveLength(1);
     expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
   });
 
@@ -158,9 +156,8 @@ describe("PickSheet", () => {
     );
     show(trip({ coversDates: [mon] }));
     await openCat();
-    const headers = [...document.querySelectorAll("button[aria-expanded]")].map((b) => b.textContent);
-    expect(headers[0]).toMatch(/^Curry · Main · 12oz/);
-    expect(headers[1]).toMatch(/^Curry · Side · 8oz/);
+    expect(await screen.findByText("Main · 12oz")).toBeInTheDocument();
+    expect(screen.getByText("Side · 8oz")).toBeInTheDocument();
   });
 
   it("edits one eating day per sheet — the trip's own day by default, no day tabs", async () => {
@@ -658,12 +655,9 @@ describe("PickSheet", () => {
       await openCat("Curry");
       fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal$/ })).find((r) => !r.hasAttribute("disabled") && r.getAttribute("aria-checked") !== "true")!);
       // Each swapped row keeps the real dishes — never just the category name.
-      for (const header of [...document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")].filter((b) => /^Curry/.test(b.textContent ?? ""))) {
-        if (header.getAttribute("aria-expanded") === "false") fireEvent.click(header);
-        await waitFor(() => expect(screen.getAllByRole("radio", { name: /^Daal/ }).some((r) => r.getAttribute("aria-checked") === "true")).toBe(true));
-        expect(screen.getAllByRole("radio", { name: "Paneer" })).toHaveLength(1);
-        expect(screen.queryByRole("radio", { name: "Curry" })).toBeNull();
-      }
+      await waitFor(() => expect(screen.getAllByRole("radio", { name: /^Daal/ }).filter((r) => r.getAttribute("aria-checked") === "true")).toHaveLength(2));
+      expect(screen.getAllByRole("radio", { name: "Paneer" })).toHaveLength(2);
+      expect(screen.queryByRole("radio", { name: "Curry" })).toBeNull();
     });
 
     it("an unavailable choice is a plain greyed button; its red ⓘ shows why", async () => {

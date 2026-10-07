@@ -234,7 +234,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Go to Mon, Oct 5" }));
     expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
   });
-  it("meal tiles list each dish with its portion and default pick; no (i) drawer once tiles show", () => {
+  it("meal tiles list each dish with its portion, no default marker; no (i) drawer once tiles show", () => {
     const meal = [
       { category: "sabzi", label: "Sabzi", selectable: true, quantity: 2, picks: [
         { dishId: 1n, dishPublicId: "d1", name: "Bhindi Masala", isDefaulted: true },
@@ -257,7 +257,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     expect(tiles.queryByText(/2×|3\s*×/)).toBeNull();
     expect(tiles.getAllByText(/Bhindi Masala/).length).toBe(2);
     expect(tiles.getByText("Roti · 4 roti")).toBeInTheDocument();
-    expect(tiles.getAllByText(/Default/).length).toBeGreaterThan(0);
+    expect(tiles.queryByText(/Default/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Details for Tue, Sep 22/ })).toBeNull();
   });
   it("menu not released: days still list with 'Menu not released yet', Pick disabled, Move still works", () => {

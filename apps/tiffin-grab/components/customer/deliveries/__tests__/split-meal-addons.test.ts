@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { splitMealAddons, type MealCategory } from "../trip-parts";
 
-const item = (name: string, portion: string) => ({ name, portion, defaulted: false });
+const item = (name: string, portion: string) => ({ name, portion });
 const cats: MealCategory[] = [
   { category: "sabzi", label: "Sabzi", items: [item("Paneer Makhani", "12oz"), item("Gobhi Aloo", "12oz")] },
   { category: "roti", label: "Roti", items: [item("Roti", "2 roti")] },
@@ -17,7 +17,7 @@ describe("splitMealAddons", () => {
     expect(meal.find((c) => c.category === "roti")!.items[0]!.portion).toBe("2 roti");
     expect(addons).toEqual([
       { category: "sabzi", label: "Sabzi", items: [item("Gobhi Aloo", "12oz")] },
-      { category: "roti", label: "Roti", items: [{ name: "Roti", portion: "2 roti", defaulted: false }] },
+      { category: "roti", label: "Roti", items: [{ name: "Roti", portion: "2 roti" }] },
     ]);
   });
 
