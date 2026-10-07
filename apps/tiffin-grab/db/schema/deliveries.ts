@@ -39,6 +39,12 @@ export const deliveries = pgTable("deliveries", {
   // Set once when this miss's tiffins were added to orders.pooled_tiffin_count (idempotent
   // reconcile). NULL = not yet accounted into the pool.
   pooledAt: bigint("pooled_at", { mode: "number" }),
+  // Set on a free tiffin staff gave (missed deliveries, goodwill): the reason, shown to the
+  // customer. NULL = a paid tiffin.
+  complimentaryNote: text("complimentary_note"),
+  // Optional: the missed delivery this free tiffin makes up for. One free tiffin per miss.
+  complimentaryForDeliveryId: bigint("complimentary_for_delivery_id", { mode: "bigint" })
+    .references((): AnyPgColumn => deliveries.id, { onDelete: "set null" }),
   // addressLine NULL = inherit the order's address (and its unit/instructions/strategy).
   addressId: bigint("address_id", { mode: "bigint" }).references(() => customerAddresses.id, { onDelete: "set null" }),
   fullName: text("full_name"),
@@ -78,6 +84,7 @@ export const deliveries = pgTable("deliveries", {
 }, (t) => [
   uniqueIndex("deliveries_order_date_unique").on(t.orderId, t.deliveryDate),
   uniqueIndex("deliveries_makeup_unique").on(t.makeupForDeliveryId),
+  uniqueIndex("deliveries_complimentary_for_unique").on(t.complimentaryForDeliveryId),
   // Kitchen/dispatch/cutoff scans are date-range queries; the order-leading uniques cannot serve them.
   index("deliveries_date_idx").on(t.deliveryDate),
   index("deliveries_zone_idx").on(t.zoneId),

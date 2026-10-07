@@ -11,7 +11,7 @@ import type { FacetDef } from "@/components/ds";
 export const LOG_ACTIVITY_CATEGORY_TYPES = {
   meals: ["meal_pick", "category_swap_applied", "category_swap_removed"],
   address: ["delivery_address_changed"],
-  tiffins: ["skipped", "unskipped", "pool_scheduled"],
+  tiffins: ["skipped", "unskipped", "pool_scheduled", "complimentary_granted"],
   routes: ["route_pushed", "route_completed"],
   lifecycle: ["created", "activated", "paused", "resumed", "cancelled", "status_change"],
   payments: ["payment_claimed", "payment_verified", "payment_rejected"],
@@ -51,6 +51,7 @@ export const ACTIVITY_TYPE_VALUES = [
   "route_completed",
   "category_swap_applied",
   "category_swap_removed",
+  "complimentary_granted",
 ] as const;
 
 export type ActivityTypeValue = (typeof ACTIVITY_TYPE_VALUES)[number];
@@ -76,6 +77,7 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityTypeValue, string> = {
   route_completed: "Route completed",
   category_swap_applied: "Category swap applied",
   category_swap_removed: "Category swap removed",
+  complimentary_granted: "Free tiffin given",
 };
 
 export const SETTINGS_ACTIVITY_FACETS: FacetDef[] = [

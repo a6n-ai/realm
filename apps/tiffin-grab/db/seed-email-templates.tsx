@@ -1,5 +1,6 @@
 /**
- * Seeds notification_template rows for every transactional email, rendered from
+ * Seeds notification_template rows for every transactional email (plus its in-app copy when
+ * the template defines one), rendered from
  * emails/transactional.tsx (the customer design system). `{{var}}` placeholders
  * pass through for @relay/engine to fill at send time.
  *
@@ -57,6 +58,14 @@ async function main() {
     await (overwrite
       ? insert.onConflictDoUpdate({ target, set: { subject: t.subject, body: html, html, text } })
       : insert.onConflictDoNothing({ target }));
+    if (t.inApp) {
+      const inApp = db.insert(notificationTemplate).values({
+        event: t.event as never, channel: "in_app", locale: "en", subject: t.inApp.subject, body: t.inApp.body, enabled: true,
+      });
+      await (overwrite
+        ? inApp.onConflictDoUpdate({ target, set: { subject: t.inApp.subject, body: t.inApp.body } })
+        : inApp.onConflictDoNothing({ target }));
+    }
     console.log(`${overwrite ? "wrote" : "ensured"}: ${t.event}`);
   }
   process.exit(0);

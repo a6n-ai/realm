@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isHiddenFromCustomer, orderDisplayStatus } from "../display-status";
+import { complimentaryBlocker, isHiddenFromCustomer, orderDisplayStatus } from "../display-status";
 
 describe("orderDisplayStatus", () => {
   it("overlays Active with Payment review while money is unpaid or claimed", () => {
@@ -50,5 +50,20 @@ describe("isHiddenFromCustomer", () => {
     expect(isHiddenFromCustomer(["rejected", "pending_verification"])).toBe(false);
     expect(isHiddenFromCustomer(["paid"])).toBe(false);
     expect(isHiddenFromCustomer([])).toBe(false);
+  });
+});
+
+describe("complimentaryBlocker", () => {
+  it("allows a settled active or finished plan, and a WordPress plan with no payment rows", () => {
+    expect(complimentaryBlocker("active", ["paid"])).toBeNull();
+    expect(complimentaryBlocker("completed", ["simulated_paid"])).toBeNull();
+    expect(complimentaryBlocker("active", [])).toBeNull();
+  });
+  it("refuses pending payment, rejected payment, and plans that aren't running or over", () => {
+    expect(complimentaryBlocker("active", ["awaiting_payment"])).toMatch(/pending/);
+    expect(complimentaryBlocker("active", ["paid", "pending_verification"])).toMatch(/pending/);
+    expect(complimentaryBlocker("active", ["rejected"])).toMatch(/rejected/);
+    expect(complimentaryBlocker("pending", [])).toMatch(/active plan/);
+    expect(complimentaryBlocker("cancelled", ["paid"])).toMatch(/active plan/);
   });
 });

@@ -38,6 +38,8 @@ export const appEvent = pgEnum("app_event", [
   "payment_reminder",
   // Staff verified a manual payment (payment_received is the customer's claim).
   "payment_approved",
+  // Staff gave a free tiffin on the customer's plan.
+  "order_complimentary",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({

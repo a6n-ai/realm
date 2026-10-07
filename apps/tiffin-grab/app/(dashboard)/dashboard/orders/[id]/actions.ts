@@ -22,7 +22,7 @@ import {
 } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
-import { adminSetDeliveryStatus, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
+import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 
@@ -187,5 +187,28 @@ export async function redeliverTripAction(orderId: string, deliveryPublicId: str
   if ("ok" in res) {
     revalidatePath(`/dashboard/orders/${orderId}`);
   }
+  return res;
+}
+
+export async function grantComplimentaryAction(
+  orderId: string,
+  input: { date: string; note: string; notify: boolean; forDeliveryPublicId?: string | null },
+): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireAdmin();
+    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
+    const { reopened } = await grantComplimentaryTiffin(
+      orderId,
+      {
+        date: String(input.date),
+        note: String(input.note),
+        notify: input.notify === true,
+        forDeliveryPublicId: input.forDeliveryPublicId ? String(input.forDeliveryPublicId) : null,
+      },
+      await currentUserId(),
+    );
+    return reopened ? `Plan reopened with a free tiffin on ${input.date}` : `Free tiffin added on ${input.date}`;
+  });
+  if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
   return res;
 }

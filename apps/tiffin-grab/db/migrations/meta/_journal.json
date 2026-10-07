@@ -141,6 +141,20 @@
       "when": 1791404022500,
       "tag": "0019_busy_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791408387886,
+      "tag": "0020_friendly_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791409639363,
+      "tag": "0021_awesome_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

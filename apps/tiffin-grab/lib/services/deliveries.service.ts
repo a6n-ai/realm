@@ -3,7 +3,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
 import { mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
@@ -19,6 +19,9 @@ import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { deleteOrder } from "@/lib/services/optimoroute/client";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { assertDayOutsideOtherPlans } from "./order-window";
+import { complimentaryBlocker } from "@/lib/orders/display-status";
 
 const log = createLogger("deliveries.service");
 
@@ -997,6 +1000,106 @@ export async function redeliverTrip(
   });
   await deleteFromOptimoRouteBestEffort([syncedRow!]);
   if (result.merged) await refreshStopBestEffort(targetId!);
+  publishAnalyticsLive();
+  return result;
+}
+
+const COMPLIMENTARY_NOTE_MAX = 300;
+
+/**
+ * Staff gives one free tiffin on `date` (persons units, like any plan day). Tracked in
+ * orders.complimentary_tiffins, never tiffin_count, so pricing and Bills stay untouched. A plan
+ * that is over reopens to active; complete-plans closes it again once the day is delivered.
+ * One grant per day: the date must be a free delivery weekday of this plan, before its cutoff,
+ * and outside any other running plan of the customer. `forDeliveryPublicId` optionally names the
+ * missed delivery (held, on vacation, or failed, and never moved) it makes up for, at most once.
+ */
+export async function grantComplimentaryTiffin(
+  orderPublicId: string,
+  input: { date: string; note: string; notify: boolean; forDeliveryPublicId?: string | null },
+  actorId: bigint | null,
+): Promise<{ deliveryPublicId: string; reopened: boolean }> {
+  const note = input.note.trim();
+  if (!note) throw new ValidationError("Add a reason for the complimentary tiffin");
+  if (note.length > COMPLIMENTARY_NOTE_MAX) throw new ValidationError(`Keep the reason under ${COMPLIMENTARY_NOTE_MAX} characters`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) throw new ValidationError("Pick a delivery date");
+
+  const result = await db.transaction(async (tx) => {
+    const [found] = await tx.select({ id: orders.id }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
+    if (!found) throw new ValidationError("Order not found");
+    await tx.execute(sql`select pg_advisory_xact_lock(${found.id})`);
+    const [order] = await tx.select().from(orders).where(eq(orders.id, found.id)).limit(1);
+    if (!order) throw new ValidationError("Order not found");
+    if (order.trialLength != null) throw new ValidationError("A trial can't get complimentary tiffins");
+    const pays = await tx.select({ status: payments.status }).from(payments).where(eq(payments.orderId, order.id));
+    const blocked = complimentaryBlocker(order.status, pays.map((p) => p.status));
+    if (blocked) throw new ValidationError(blocked);
+
+    const { timezone, cutoffHour } = await getAppSettings();
+    const day = weekdayKey(parseIsoDateUtc(input.date));
+    if (WEEKEND.has(day) || !(await orderDeliveryDaySet(tx, order)).has(day)) {
+      throw new ValidationError("Pick one of this plan's delivery days");
+    }
+    const cutoffAt = cutoffMsFor(input.date, cutoffHour, timezone);
+    if (Date.now() >= cutoffAt) throw new ValidationError("That day's cutoff has passed. Pick a later day.");
+    const [taken] = await tx.select({ id: deliveries.id }).from(deliveries)
+      .where(and(eq(deliveries.orderId, order.id), eq(deliveries.deliveryDate, input.date))).limit(1);
+    if (taken) throw new ValidationError("This plan already has a delivery that day. Pick another day.");
+    if (order.userId != null) await assertDayOutsideOtherPlans(tx, { userId: order.userId, date: input.date, excludeOrderId: order.id });
+
+    let missed: { id: bigint; deliveryDate: string } | null = null;
+    if (input.forDeliveryPublicId) {
+      const [m] = await tx.select().from(deliveries)
+        .where(and(eq(deliveries.publicId, input.forDeliveryPublicId), eq(deliveries.orderId, order.id))).limit(1);
+      if (!m) throw new ValidationError("That missed delivery isn't on this plan");
+      const [moved] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.makeupForDeliveryId, m.id)).limit(1);
+      if ((m.status !== "skipped" && m.status !== "paused") || m.mergedIntoDeliveryId != null || moved) {
+        throw new ValidationError("Pick a delivery that was missed and never moved to another day");
+      }
+      const [given] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.complimentaryForDeliveryId, m.id)).limit(1);
+      if (given) throw new ValidationError(`${m.deliveryDate} already has a free tiffin for it`);
+      missed = { id: m.id, deliveryDate: m.deliveryDate };
+    }
+
+    const units = Math.max(1, order.persons);
+    const [row] = await tx.insert(deliveries).values({
+      orderId: order.id,
+      deliveryDate: input.date,
+      status: "scheduled",
+      cutoffAt,
+      tiffinUnits: units,
+      coversDates: [input.date],
+      complimentaryNote: note,
+      complimentaryForDeliveryId: missed?.id ?? null,
+      organizationId: order.organizationId,
+    }).returning({ id: deliveries.id, publicId: deliveries.publicId });
+    await tx.update(orders).set({
+      complimentaryTiffins: sql`${orders.complimentaryTiffins} + ${units}`,
+      ...(order.status === "completed" ? { status: "active" as const } : {}),
+    }).where(eq(orders.id, order.id));
+
+    const reopened = order.status === "completed";
+    await tx.insert(orderActivities).values([
+      { orderId: order.id, deliveryId: row!.id, type: "complimentary_granted", note: `Complimentary tiffin on ${input.date}${missed ? ` for missed ${missed.deliveryDate}` : ""}: ${note}`, createdBy: actorId, organizationId: order.organizationId },
+      ...(reopened
+        ? [{ orderId: order.id, type: "status_change" as const, fromStatus: "completed" as const, toStatus: "active" as const, note: "Reopened for a complimentary tiffin", createdBy: actorId, organizationId: order.organizationId }]
+        : []),
+    ]);
+
+    if (input.notify && order.userId != null) {
+      const [user] = await tx.select({ name: users.name }).from(users).where(eq(users.id, order.userId)).limit(1);
+      await enqueueNotification(tx, {
+        event: "order_complimentary",
+        recipientId: order.userId,
+        title: "A free tiffin is on us",
+        body: `We added a complimentary tiffin on ${input.date}. ${note}`,
+        href: "/me/deliveries",
+        data: { order: { code: order.deploymentId, customerName: user?.name ?? "", date: input.date, reason: note } },
+        dedupeKey: `order_complimentary:${row!.publicId}`,
+      });
+    }
+    return { deliveryPublicId: row!.publicId, reopened };
+  });
   publishAnalyticsLive();
   return result;
 }

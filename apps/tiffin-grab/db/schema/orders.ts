@@ -24,6 +24,7 @@ export const orderActivityType = pgEnum("order_activity_type", [
   "payment_claimed", "payment_verified", "payment_rejected",
   "route_pushed", "route_completed",
   "category_swap_applied", "category_swap_removed",
+  "complimentary_granted",
 ]);
 
 export const orders = pgTable("orders", {
@@ -55,6 +56,9 @@ export const orders = pgTable("orders", {
   // Tiffins owed but not yet placed on a calendar date (post-cutoff skip/vacation misses).
   // Customer schedules these after the last delivery via scheduleFromPool.
   pooledTiffinCount: integer("pooled_tiffin_count").notNull().default(0),
+  // Free tiffins staff gave on top of tiffin_count (one complimentary delivery row each, times
+  // persons). Kept apart from tiffin_count so pricing and Bills never see them as paid.
+  complimentaryTiffins: integer("complimentary_tiffins").notNull().default(0),
   perTiffinPrice: numeric("per_tiffin_price", { precision: 10, scale: 2 }).notNull(),
   pricingSnapshot: jsonb("pricing_snapshot").notNull(),
   total: numeric("total", { precision: 10, scale: 2 }).notNull(),

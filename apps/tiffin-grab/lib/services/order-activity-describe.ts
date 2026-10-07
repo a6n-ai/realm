@@ -45,6 +45,8 @@ export function describeActivity(a: OrderActivityLike): string {
       return a.note ? `Category swap applied — ${a.note}` : "Category swap applied";
     case "category_swap_removed":
       return a.note ? `Category swap removed — ${a.note}` : "Category swap removed";
+    case "complimentary_granted":
+      return a.note ?? "Free tiffin given";
     default:
       return a.note ?? a.type.replaceAll("_", " ");
   }

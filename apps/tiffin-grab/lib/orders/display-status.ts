@@ -57,3 +57,15 @@ export function isHiddenFromCustomer(
 ): boolean {
   return orderDisplayStatus("active", paymentStatuses) === "rejected";
 }
+
+/**
+ * Why a plan can't get a complimentary tiffin, or null when it can: only a running or finished
+ * plan whose money is settled. WordPress-imported plans carry no payment rows (paid in
+ * WordPress), so "no payment yet" alone is not a blocker; a payment still in review is.
+ */
+export function complimentaryBlocker(orderStatus: string, paymentStatuses: readonly string[]): string | null {
+  if (orderStatus !== "active" && orderStatus !== "completed") return "Only an active plan or one that is over can get a complimentary tiffin";
+  if (paymentStatuses.some((s) => PAYMENT_REVIEW.has(s))) return "Payment is still pending on this plan. Confirm it first.";
+  if (paymentStatuses.length > 0 && paymentStatuses.every((s) => s === PAYMENT_REJECTED_STATUS)) return "This plan's payment was rejected";
+  return null;
+}
