@@ -128,6 +128,9 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
         </p>
       ) : null}
       <TicketControls
+        // Keyed by status: its selects read their initial value only, and the chat's
+        // status pills can change it underneath them.
+        key={`${ticket.status}:${ticket.priority}:${ticket.currentOwner ?? ""}`}
         ticketId={ticket.publicId}
         status={ticket.status as TicketStatus}
         priority={ticket.priority as TicketPriority}
