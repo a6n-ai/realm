@@ -24,7 +24,7 @@ const QUICK_ANSWERS = [
   { q: "Something was wrong with my meal.", a: "Report it within 2 hours of delivery, with photos, to info@tiffingrab.ca.", href: "/refund-policy#s4" },
   { q: "What if I miss a delivery?", a: "We make one attempt. If it fails because of our error, the day is credited.", href: "/delivery-policy#s5" },
   { q: "Is the food safe for allergies?", a: "Meals are made in a shared kitchen with common allergens. Not suitable for severe allergies.", href: "/terms#s6" },
-  { q: "Do you sell my data?", a: "Never. We share only what's needed, such as your address with delivery and payment details with our processor.", href: "/privacy#s3" },
+  { q: "Do you sell my data?", a: "Never. We share only what's needed, such as your address for delivery. Interac e-Transfer details stay with us so staff can confirm payment.", href: "/privacy#s3" },
 ] as const;
 
 export default function LegalHubPage() {

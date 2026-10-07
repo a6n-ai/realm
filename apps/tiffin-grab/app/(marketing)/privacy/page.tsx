@@ -21,7 +21,7 @@ const SECTIONS = [
 
 const KEY_POINTS: KeyPoint[] = [
   { text: "We collect only what we need to deliver: your name, contact details, address, and order details.", section: 1 },
-  { text: "Card payments go through a PCI-compliant processor. We never store your full card number or CVV.", section: 1 },
+  { text: "You pay by Interac e-Transfer. We keep the transfer reference so staff can confirm it. We do not store banking logins.", section: 1 },
   { text: "We never sell, rent, or trade your personal information.", section: 3 },
   { text: "We send marketing only if you opt in, and you can unsubscribe at any time.", section: 2 },
   { text: "We keep records for up to 3 years after your last order (up to 5 years for complaints).", section: 6 },
@@ -30,7 +30,7 @@ const KEY_POINTS: KeyPoint[] = [
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" intro="What personal information TiffinGrab collects, why, who sees it, how long we keep it, and how to exercise your rights under PIPEDA." updated="April 6, 2026" current="/privacy" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Privacy policy" intro="What personal information TiffinGrab collects, why, who sees it, how long we keep it, and how to exercise your rights under PIPEDA." updated="October 7, 2026" current="/privacy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
         <strong>Commitment:</strong> TiffinGrab protects personal information in line with Canada’s{" "}
         <em>Personal Information Protection and Electronic Documents Act</em> (PIPEDA) and applicable Ontario law. This
@@ -50,8 +50,13 @@ export default function PrivacyPage() {
         </Sub>
         <Sub title="1.2 Payments">
           <p className="m-0">
-            Card data is processed by our <strong>PCI-DSS compliant</strong> processor (e.g. Stripe).{" "}
-            <strong>We do not store full card numbers, CVV, or banking credentials</strong> on our servers.
+            You pay by <strong>Interac e-Transfer</strong>. We may keep the amount, the transfer reference, and a
+            screenshot you upload so staff can confirm the payment. <strong>We do not store your banking login or full
+            account number</strong> on our servers.
+          </p>
+          <p className="m-0">
+            Card payments through Stripe are coming later. When they are available, card data will be processed by
+            Stripe. We will not store full card numbers or CVV on our servers.
           </p>
         </Sub>
         <Sub title="1.3 Technical data">
@@ -90,7 +95,7 @@ export default function PrivacyPage() {
         <List
           items={[
             <><strong>Delivery:</strong> name, address, instructions to complete delivery;</>,
-            <><strong>Payments:</strong> transaction data with the processor;</>,
+            <><strong>Payments:</strong> Interac e-Transfer details stay with us so staff can confirm payment;</>,
             <><strong>Legal:</strong> when required by law or valid legal process; and</>,
             <><strong>Business transfers:</strong> a successor must honour similar protections.</>,
           ]}
@@ -100,9 +105,9 @@ export default function PrivacyPage() {
 
       <Clause n={5} title={SECTIONS[4]}>
         <p className="m-0">
-          We use reasonable technical and organizational measures, including TLS in transit, access controls on a
-          need-to-know basis, and PCI-compliant payment infrastructure. No online system is perfectly secure; we will
-          notify you of breaches as required by law.
+          We use reasonable technical and organizational measures, including TLS in transit and access controls on a
+          need-to-know basis. When card payments through Stripe are added, card data will be handled by Stripe. No
+          online system is perfectly secure; we will notify you of breaches as required by law.
         </p>
       </Clause>
 

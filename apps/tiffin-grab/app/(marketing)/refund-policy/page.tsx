@@ -25,12 +25,12 @@ const KEY_POINTS: KeyPoint[] = [
   { text: "Problem with a meal? Report it within 2 hours of delivery, with photos.", section: 4 },
   { text: "Damaged packaging gets a one-day service credit for each verified incident.", section: 5 },
   { text: "If we stop delivering to your area, you get a pro-rata refund within 14 business days.", section: 6 },
-  { text: "Approved refunds go back to your original payment method. Card refunds typically take 5–10 business days.", section: 8 },
+  { text: "Approved refunds are sent manually by staff, by Interac e-Transfer, after we review your written request.", section: 8 },
 ];
 
 export default function RefundPolicyPage() {
   return (
-    <LegalPage title="Refund & return policy" intro="When you can get a refund or credit, how to report a problem with a meal, and how long refunds take. Food is perishable, so options are limited." updated="April 6, 2026" current="/refund-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Refund & return policy" intro="When you can get a refund or credit, how to report a problem with a meal, and how long refunds take. Food is perishable, so options are limited." updated="October 7, 2026" current="/refund-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout tone="warn">
         <strong>Important:</strong> Food is perishable and time-sensitive; refund options are limited. Read this policy
         before purchasing. Submit refund requests in writing to <Mail />.
@@ -113,8 +113,8 @@ export default function RefundPolicyPage() {
       <Clause n={6} title={SECTIONS[5]}>
         <p className="m-0">
           If your address was serviceable at purchase but we later remove the area for operational reasons, you receive a{" "}
-          <strong>full pro-rata refund</strong> for undelivered days to your original payment method within{" "}
-          <strong>14 business days</strong> of written confirmation. This does not apply if the address became
+          <strong>full pro-rata refund</strong> for undelivered days, sent manually by Interac e-Transfer after staff
+          approval, within <strong>14 business days</strong> of written confirmation. This does not apply if the address became
           unserviceable due to inaccurate information from you.
         </p>
       </Clause>
@@ -127,16 +127,17 @@ export default function RefundPolicyPage() {
       </Clause>
 
       <Clause n={8} title={SECTIONS[7]}>
-        <p className="m-0">Approved refunds go to the <strong>original payment method</strong>.</p>
-        <List
-          items={[
-            <><strong>Card:</strong> typically 5–10 business days after approval (bank dependent);</>,
-            <><strong>Other methods:</strong> often 10–15 business days after approval.</>,
-          ]}
-        />
         <p className="m-0">
-          Internal processing may take up to <strong>3–4 weeks</strong> from written approval. No refund is started without
-          email confirmation from us.
+          An approved refund is sent <strong>manually by our staff</strong>. Nothing is refunded until a staff member
+          approves the request and we email you that confirmation.
+        </p>
+        <p className="m-0">
+          Today that refund is an <strong>Interac e-Transfer</strong>. When card payments through Stripe are available, an
+          approved card refund will go back to that card, and your bank sets how long it takes to appear.
+        </p>
+        <p className="m-0">
+          Review may take up to <strong>3–4 weeks</strong> from your written request. No refund is started without email
+          confirmation from us.
         </p>
       </Clause>
 
@@ -151,7 +152,7 @@ export default function RefundPolicyPage() {
             "Improper storage after delivery;",
             "Change of mind, travel, or lifestyle (except where pausing applies per Terms);",
             "Trial or weekly purchases; or",
-            "Chargebacks for legitimately delivered service (see Terms).",
+            "A payment dispute or reversal for legitimately delivered service (see Terms).",
           ]}
         />
       </Clause>
