@@ -14,12 +14,17 @@ import {
 } from "@/lib/menu/meal-validation";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
+import { addonItemsForOrder, countsWithoutAddons } from "@/lib/menu/order-addon-items";
 import type { SwapRow } from "@/lib/menu/swap-rules";
 import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
 
-export async function loadCompositionContext(mealSizeId: bigint, baseCounts: Record<string, number>): Promise<CompositionContext> {
-  const [cats, items, labels] = await Promise.all([
+/**
+ * Swap composition for an order's meal: only the meal size's own rows. Add-on rows (extra sabzi, roti…)
+ * never enter it, so no swap can take an add-on. `orderId` strips add-ons from the stored-counts fallback.
+ */
+export async function loadCompositionContext(mealSizeId: bigint, baseCounts: Record<string, number>, orderId?: bigint): Promise<CompositionContext> {
+  const [cats, items, labels, addons] = await Promise.all([
     dishCategoriesService.swapCategoriesForMealSize(mealSizeId),
     db
       .select({
@@ -32,6 +37,7 @@ export async function loadCompositionContext(mealSizeId: bigint, baseCounts: Rec
       .where(eq(mealSizeItems.mealSizeId, mealSizeId))
       .orderBy(asc(mealSizeItems.sortOrder)),
     db.select({ key: dishCategories.key, label: dishCategories.label }).from(dishCategories),
+    orderId != null ? addonItemsForOrder(orderId) : Promise.resolve([]),
   ]);
   const mealSizeItemRows: MealSizeItemRow[] = items.map((i) => ({
     category: i.category,
@@ -41,7 +47,7 @@ export async function loadCompositionContext(mealSizeId: bigint, baseCounts: Rec
   }));
   const labelMap: Record<string, string> = {};
   for (const l of labels) labelMap[l.key] = l.label;
-  const effectiveBaseCounts = items.length > 0 ? categoryCountsFromItems(items) : baseCounts;
+  const effectiveBaseCounts = items.length > 0 ? categoryCountsFromItems(items) : countsWithoutAddons(baseCounts, addons);
   return { baseCounts: effectiveBaseCounts, mealSizeItems: mealSizeItemRows, categories: cats, labels: labelMap };
 }
 
@@ -66,7 +72,7 @@ export async function listValidSwapOptionsForDelivery(
     if (!order) return [];
 
     const [composition, pairs, appliedRows] = await Promise.all([
-      loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {}),
+      loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {}, order.id),
       dishCategoriesService.swapPairsForMealSize(order.mealSizeId),
       tx
         .select({

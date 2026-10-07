@@ -58,10 +58,10 @@ export async function applyDeliverySwap(
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order) throw new ValidationError("Order not found");
 
-    const overrides = await dishCategoriesService.swapPairOverridesForMealSize(fromCategory, toCategory, order.mealSizeId);
-    if (!overrides) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory} on this plan`);
+    const rule = await dishCategoriesService.swapPairRuleForMealSize(fromCategory, toCategory, order.mealSizeId);
+    if (!rule) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory} on this plan`);
 
-    const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {});
+    const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {}, order.id);
     const existing = await tx.select({
       fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate,
@@ -80,7 +80,8 @@ export async function applyDeliverySwap(
         receiveTu: r.receiveTu,
       })),
       next: { fromCategory, toCategory, fromPicks, fromRow },
-      overrides,
+      overrides: rule.overrides,
+      naturalFallback: rule.naturalFallback,
     });
     if (!check.ok) throw new ValidationError(check.reason);
     const qtyTo = check.qtyTo;
@@ -136,7 +137,7 @@ export async function removeDeliverySwap(
       const rest = onDelivery.filter((s) => s !== target && swapAppliesTo(s.forDate, row.deliveryDate, eatingDate));
       if (rest.length > 0) {
         const [order] = await tx.select().from(orders).where(eq(orders.id, row.orderId)).limit(1);
-        const composition = order ? await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {}) : null;
+        const composition = order ? await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {}, order.id) : null;
         const broken = composition ? firstBrokenSwap(composition, rest) : null;
         if (broken && composition) {
           const label = (k: string) => composition.labels?.[k] ?? k;

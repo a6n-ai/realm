@@ -44,6 +44,7 @@ async function SwapRulesData() {
     planId: p.planId,
     planName: p.planName,
     exchangeOverrides: p.exchangeOverrides,
+    naturalFallback: p.naturalFallback,
   }));
 
   return (

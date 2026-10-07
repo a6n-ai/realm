@@ -4,7 +4,7 @@ import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { addons, categoryPlans, categorySwapPairs, dishCategories, dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { disabledCategoryMessage } from "@/lib/menu/admin-config-guards";
-import { swapPairFits, type ExchangeOverride, type SwapCategory } from "@/lib/menu/swap-rules";
+import { swapPairFits, type ExchangeOverride, type SwapCategory, type SwapPairRule } from "@/lib/menu/swap-rules";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
 import type { CatalogAddon } from "@/lib/catalog/types";
@@ -250,6 +250,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
           toCategoryId: categorySwapPairs.toCategoryId,
           planId: categorySwapPairs.planId,
           exchangeOverrides: categorySwapPairs.exchangeOverrides,
+          naturalFallback: categorySwapPairs.naturalFallback,
         })
         .from(categorySwapPairs),
       db.select({ id: dishCategories.id, key: dishCategories.key, label: dishCategories.label }).from(dishCategories),
@@ -267,6 +268,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       planId: p.planId == null ? null : (planById.get(p.planId)?.publicId ?? ""),
       planName: p.planId == null ? "All plans" : (planById.get(p.planId)?.name ?? ""),
       exchangeOverrides: p.exchangeOverrides,
+      naturalFallback: p.naturalFallback,
     }));
   }
 
@@ -282,7 +284,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     fromKey: string,
     toKey: string,
     planPublicId?: string | null,
-    opts: { exchangeOverrides?: ExchangeOverride[]; actorId?: bigint | null } = {},
+    opts: { exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean; actorId?: bigint | null } = {},
   ) {
     const [rows, planId] = await Promise.all([
       db
@@ -302,6 +304,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
         .values({
           fromCategoryId: from.id, toCategoryId: to.id, planId,
           exchangeOverrides: opts.exchangeOverrides ?? [],
+          naturalFallback: opts.naturalFallback ?? true,
           createdBy: opts.actorId ?? null, updatedBy: opts.actorId ?? null,
         })
         .returning();
@@ -320,7 +323,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     fromKey: string,
     toKey: string,
     planPublicId?: string | null,
-    opts: { exchangeOverrides?: ExchangeOverride[]; actorId?: bigint | null } = {},
+    opts: { exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean; actorId?: bigint | null } = {},
   ) {
     const [rows, planId] = await Promise.all([
       db
@@ -341,6 +344,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
           fromCategoryId: from.id, toCategoryId: to.id, planId,
           // Omitted = keep what is there; applied swaps keep their own receive_tu snapshot either way.
           ...(opts.exchangeOverrides ? { exchangeOverrides: opts.exchangeOverrides } : {}),
+          ...(opts.naturalFallback != null ? { naturalFallback: opts.naturalFallback } : {}),
           updatedBy: opts.actorId ?? null,
         })
         .where(eq(categorySwapPairs.publicId, publicId))
@@ -415,7 +419,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * several per pair per plan. Keys are `from>to`, in pair-rule order, each with its
    * exchange overrides: a plan-scoped rule's win over an all-plans rule for the same pair.
    */
-  private async allowedSwapPairKeys(mealSizeId: bigint): Promise<Map<string, ExchangeOverride[]>> {
+  private async allowedSwapPairKeys(mealSizeId: bigint): Promise<Map<string, SwapPairRule>> {
     // Custom meals swap like catalog meals (2026-10-07; reverses spec 2026-09-28 rule 6): staff were
     // posting their day-to-day edits to Slack because Edit meal offered nothing for them.
     const planIds = await this.reachablePlanIdsForMealSize(mealSizeId);
@@ -427,6 +431,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
           toCategoryId: categorySwapPairs.toCategoryId,
           planId: categorySwapPairs.planId,
           exchangeOverrides: categorySwapPairs.exchangeOverrides,
+          naturalFallback: categorySwapPairs.naturalFallback,
         })
         .from(categorySwapPairs)
         .where(or(isNull(categorySwapPairs.planId), inArray(categorySwapPairs.planId, planIds)))
@@ -436,7 +441,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     ]);
     const keyOf = new Map(cats.map((c) => [c.id, c.key]));
     const hasDish = new Set(dishCats.map((d) => `${d.category}@${d.planId}`));
-    const out = new Map<string, ExchangeOverride[]>();
+    const out = new Map<string, SwapPairRule>();
     const planScoped = new Set<string>();
     for (const p of pairs) {
       const from = keyOf.get(p.fromCategoryId);
@@ -447,7 +452,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       const key = `${from}>${to}`;
       if (planScoped.has(key)) continue;
       if (p.planId != null) planScoped.add(key);
-      if (p.planId != null || !out.has(key)) out.set(key, p.exchangeOverrides);
+      if (p.planId != null || !out.has(key)) out.set(key, { overrides: p.exchangeOverrides, naturalFallback: p.naturalFallback });
     }
     return out;
   }
@@ -457,21 +462,21 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return (await this.allowedSwapPairKeys(mealSizeId)).has(`${fromKey}>${toKey}`);
   }
 
-  /** The pair's exchange overrides on this meal size; null when the pair isn't allowed there. */
-  async swapPairOverridesForMealSize(fromKey: string, toKey: string, mealSizeId: bigint): Promise<ExchangeOverride[] | null> {
+  /** The pair's exchange rule (override lines + other amounts) on this meal size; null when the pair isn't allowed there. */
+  async swapPairRuleForMealSize(fromKey: string, toKey: string, mealSizeId: bigint): Promise<SwapPairRule | null> {
     return (await this.allowedSwapPairKeys(mealSizeId)).get(`${fromKey}>${toKey}`) ?? null;
   }
 
   /** Pairs the swap drawer may offer for one meal size — the same gate applyDeliverySwap enforces. */
   async swapPairsForMealSize(
     mealSizeId: bigint,
-  ): Promise<{ fromCategory: string; toCategory: string; exchangeOverrides: ExchangeOverride[] }[]> {
+  ): Promise<{ fromCategory: string; toCategory: string; exchangeOverrides: ExchangeOverride[]; naturalFallback: boolean }[]> {
     const [cats, allowed] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.allowedSwapPairKeys(mealSizeId)]);
-    return [...allowed].flatMap(([k, exchangeOverrides]) => {
+    return [...allowed].flatMap(([k, rule]) => {
       const [fromCategory, toCategory] = k.split(">") as [string, string];
       const from = cats.get(fromCategory);
       const to = cats.get(toCategory);
-      return from && to && swapPairFits(from, to) ? [{ fromCategory, toCategory, exchangeOverrides }] : [];
+      return from && to && swapPairFits(from, to) ? [{ fromCategory, toCategory, exchangeOverrides: rule.overrides, naturalFallback: rule.naturalFallback }] : [];
     });
   }
 

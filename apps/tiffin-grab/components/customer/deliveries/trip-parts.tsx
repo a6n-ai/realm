@@ -1,10 +1,11 @@
 "use client";
-import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Package, Truck } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Truck } from "lucide-react";
 import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, isDone, moveFacts, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, isDone, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
+import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
@@ -123,7 +124,6 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
   );
 }
 
-const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
 
 /** Delivery card for the selected eating day: which truck feeds it, how many tiffins, when it locks. Dishes live in the list, not here. */
 /** Trips that still physically go somewhere (not moved away or paused), so naming an address means something. */
@@ -186,7 +186,7 @@ export function moveChips(row: EatingRow, history = false): { kind: "in" | "out"
 export const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
 
 /** The selected eating day, as the page's main card: date, dishes, then one quiet line for tiffins, delivery day and cutoff. */
-export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; children?: React.ReactNode }) {
+export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, meal, addonTiles, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; meal?: MealCategory[]; addonTiles?: MealCategory[]; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
   const facts = row.movedTo ? []
@@ -247,7 +247,17 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
               </button>
             )}
           </div>
-          {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : (
+          {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : meal && meal.length > 0 ? (
+            <>
+              <MealTiles cats={meal} />
+              {addonTiles && addonTiles.length > 0 && (
+                <>
+                  <h4 className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">Add-ons</h4>
+                  <MealTiles cats={addonTiles} />
+                </>
+              )}
+            </>
+          ) : (
             <>
               {/* One dish per line: the main dish leads, the rest follow quieter. */}
               <ul className="space-y-0.5">
@@ -294,18 +304,68 @@ export const EXPLAIN: Record<Trip["status"], string> = {
 };
 
 /** Meal breakdown of one eating day (category, portion after swaps, dishes), with a compact delivery footer. */
+export type MealCategory = { category: string; label: string; items: { name: string; portion: string | null; defaulted: boolean }[] };
+type MealPlan = Pick<PlanView, "days" | "portionsByDate" | "categoryPortionSlots" | "categoryPortions">;
+
+/** This eating day's meal by category, each pick with its portion (swaps first, then per-slot, then the category's). */
+export function mealCategories(row: EatingRow, plan: MealPlan): MealCategory[] {
+  const source = plan.days.find((d) => d.date === row.trip.date);
+  const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
+  const portion = (category: string, i: number): string | null => {
+    const swapped = plan.portionsByDate?.[row.date]?.[category];
+    if (swapped?.length) return swapped[i] ?? swapped[swapped.length - 1] ?? null;
+    const slots = plan.categoryPortionSlots?.[category];
+    if (slots?.length) return slots[i] ?? slots[slots.length - 1] ?? null;
+    return plan.categoryPortions[category] ?? null;
+  };
+  return (meal ?? []).filter((c) => c.picks.length > 0).map((c) => ({
+    category: c.category,
+    label: c.label,
+    items: c.picks.map((p, i) => ({ name: p.name, portion: portion(c.category, i), defaulted: !!(p.isDefaulted && c.selectable) })),
+  }));
+}
+
+/**
+ * The day's meal cut in two: the meal's own tiles, and its add-ons'. A row add-on (extra sabzi) is
+ * the category's last pick(s); a folded one (extra roti) is a separate line with its own total.
+ */
+export function splitMealAddons(cats: MealCategory[], addons: SubscriptionAddon[] = []): { meal: MealCategory[]; addons: MealCategory[] } {
+  const meal = cats.map((c) => ({ ...c, items: [...c.items] }));
+  const extra = new Map<string, MealCategory>();
+  for (const a of addons) {
+    const own = meal.find((c) => c.category === a.category);
+    const tile = extra.get(a.category) ?? { category: a.category, label: own?.label ?? a.name, items: [] };
+    if (a.folded) tile.items.push({ name: own?.items[0]?.name ?? a.name, portion: a.portion, defaulted: false });
+    else if (own) tile.items.push(...own.items.splice(Math.max(0, own.items.length - a.qty)));
+    if (tile.items.length) extra.set(a.category, tile);
+  }
+  return { meal: meal.filter((c) => c.items.length > 0), addons: [...extra.values()] };
+}
+
+/** One tile per category, like the kitchen counts: label on top, then each dish with its portion. */
+export function MealTiles({ cats }: { cats: MealCategory[] }) {
+  return (
+    <ul aria-label="Meal" className="grid grid-cols-3 gap-2" data-testid="meal-tiles">
+      {cats.map((c) => (
+        <li key={c.category} className="min-w-0 rounded-xl border border-[var(--border)] bg-[var(--muted)]/50 px-3 py-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</p>
+          {c.items.map((p, i) => (
+            <div key={`${p.name}-${i}`} className="mt-1">
+              <p className="text-[14px] font-semibold leading-snug">{p.name}</p>
+              {(p.portion || p.defaulted) && (
+                <p className="text-[12px] tabular-nums text-[var(--muted-foreground,#6E6558)]">{[p.portion, p.defaulted ? "Default" : null].filter(Boolean).join(" · ")}</p>
+              )}
+            </div>
+          ))}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
   const t = row.trip;
-  const source = plan?.days.find((d) => d.date === t.date);
-  const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
-  const cats = (meal ?? []).filter((c) => c.picks.length > 0);
-  const slotPortion = (category: string, pickIndex: number): string | null => {
-    const swapped = plan?.portionsByDate?.[row.date]?.[category];
-    if (swapped?.length) return swapped[pickIndex] ?? swapped[swapped.length - 1] ?? null;
-    const slots = plan?.categoryPortionSlots?.[category];
-    if (slots?.length) return slots[pickIndex] ?? slots[slots.length - 1] ?? null;
-    return plan?.categoryPortions[category] ?? null;
-  };
+  const cats = plan ? mealCategories(row, plan) : [];
   const delivery = row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [
     deliveryLine(row),
     `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
@@ -319,18 +379,13 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
             {cats.map((c) => (
               <li key={c.category} className="px-4 py-3">
                 <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</span>
-                {c.picks.map((p, i) => {
-                  const oz = slotPortion(c.category, i);
-                  return (
-                    <span key={`${p.dishPublicId}-${i}`} className="mt-0.5 block font-semibold">
-                      {p.name}
-                      {oz ? <span className="font-normal text-[var(--muted-foreground,#6E6558)]"> · {oz}</span> : null}
-                      {p.isDefaulted && c.selectable && (
-                        <span className="ml-2 text-[13px] font-normal text-[var(--muted-foreground,#6E6558)]">default pick</span>
-                      )}
-                    </span>
-                  );
-                })}
+                {c.items.map((p, i) => (
+                  <span key={`${p.name}-${i}`} className="mt-0.5 block font-semibold">
+                    {p.name}
+                    {p.portion ? <span className="font-normal text-[var(--muted-foreground,#6E6558)]"> · {p.portion}</span> : null}
+                    {p.defaulted && <span className="ml-2 text-[13px] font-normal text-[var(--muted-foreground,#6E6558)]">default pick</span>}
+                  </span>
+                ))}
               </li>
             ))}
           </ul>

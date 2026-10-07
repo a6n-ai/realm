@@ -2,6 +2,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
+import { addonRowKeys, countAddons, isCountCategory, mealBasePortions, splitGroups } from "@/lib/menu/pick-addons";
 import {
   applyMyDeliverySwap,
   removeMyDeliverySwap,
@@ -19,6 +20,7 @@ import {
   cellKey,
   effectiveDishId,
   groupPickCells,
+  type MealSummaryLine,
   type PickCategoryGroup,
 } from "@/lib/menu/pick-groups";
 import {
@@ -40,6 +42,24 @@ const PREFIX = "pick";
 
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const muted = "text-[var(--muted-foreground,#6E6558)]";
+
+/** Category label over its dish lines: the "Your meal" summary, used for the meal and its add-ons. */
+function SummaryBlocks({ blocks }: { blocks: MealSummaryLine[] }) {
+  return (
+    <div className="mt-3 grid gap-3">
+      {blocks.map((block) => (
+        <div key={block.categoryLabel}>
+          <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{block.categoryLabel}</h4>
+          <ul className="mt-1 grid gap-0.5">
+            {block.lines.map((line, n) => (
+              <li key={`${block.categoryLabel}:${n}`} className="text-[15px]">{line}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function slotLabel(group: PickCategoryGroup, index: number): string {
   const diet = group.cells[index]?.diet;
@@ -167,7 +187,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     ? serverGrid
     : {
       ...serverGrid,
-      cells: foldProvisionalCells({ cells: serverGrid.cells, categories: serverGrid.categories, base: serverGrid.preview, provisional }),
+      cells: foldProvisionalCells({ cells: serverGrid.cells, categories: serverGrid.categories, base: serverGrid.preview, provisional, menu: serverGrid.menu }),
       portionsByDate: {
         ...serverGrid.portionsByDate,
         ...Object.fromEntries([...new Set(provisional.map((p) => p.forDate))].map((d) => [d, previewPortions(serverGrid.preview, d, provisional)])),
@@ -214,8 +234,10 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       })),
   ];
 
+  // Roti/rice add-ons fold into the meal's row server-side; split them so the meal row shows its own count.
+  const counted = serverGrid && activeDay ? countAddons(serverGrid.preview, activeDay, provisional) : { addons: [], mealPortions: {} };
   const groups = grid
-    ? groupPickCells(cells, grid.categories, grid.portionsByDate[activeDay!] ?? grid.portionsBySlot)
+    ? groupPickCells(cells, grid.categories, { ...(grid.portionsByDate[activeDay!] ?? grid.portionsBySlot), ...counted.mealPortions })
     : [];
   // Exchanged rows stay where they were (Sabzi · 12oz → Daal), instead of jumping to the new category.
   const rows = grid
@@ -223,22 +245,14 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       groups,
       swaps: visibleSwaps,
       categories: grid.categories,
-      basePortions: grid.portionsBySlot,
+      // The meal's own rows: an 8-roti row reads "8 roti" even with 3 add-on roti on the day.
+      basePortions: serverGrid?.preview.items.length ? mealBasePortions(serverGrid.preview) : grid.portionsBySlot,
       amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu),
+      folded: (key) => isCountCategory(new Map(serverGrid?.preview.tu ?? []).get(key)),
     })
     : [];
-  // A category's last N plain rows are its add-on rows (appended after the meal's own; swaps
-  // only ever give meal rows, and exchanged-in rows sit on their source row). They get their
-  // own section with dish picks only — an add-on is never swapped.
-  const addonKeys = new Set<string>();
-  for (const g of rows) {
-    const n = grid?.addonCounts?.[g.key] ?? 0;
-    const plain = g.items.filter((x) => x.kind === "cell");
-    // Only where each portion is its own row (sabzi). A count category (rice, roti) folds the
-    // meal's and the add-on's units into one row, which stays with the meal.
-    if (!n || !plain.every((x) => x.kind === "cell" && x.cell.quantity === 1)) continue;
-    for (const it of plain.slice(-n)) if (it.kind === "cell") addonKeys.add(cellKey(it.cell));
-  }
+  // Add-ons stand apart from the meal: an extra Sabzi is its own row, extra roti its own line.
+  const addonKeys = addonRowKeys(rows, grid?.addonCounts ?? {});
   const isAddonItem = (item: (typeof rows)[number]["items"][number]) => item.kind === "cell" && addonKeys.has(cellKey(item.cell));
   if (pendingToPick) {
     const into = rows
@@ -312,7 +326,17 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       />
     );
   };
-  const summary = buildMealSummary(groups, picked);
+  // The summary reads like the sheet: the meal first, then its add-ons on their own.
+  const split = splitGroups(groups, addonKeys);
+  const summary = buildMealSummary(split.meal, picked);
+  const addonSummary: MealSummaryLine[] = [
+    ...buildMealSummary(split.addons, picked),
+    ...counted.addons.map((a) => {
+      const cell = cells.find((c) => c.slot === a.category);
+      const dish = cell?.dishes.find((d) => d.id === cell.selectedDishId)?.name ?? labelOf(a.category);
+      return { categoryLabel: labelOf(a.category), lines: [a.portion ? `${dish} · ${a.portion}` : dish] };
+    }),
+  ];
   // Every pick in this meal (fixed sides too) — what meal rules are evaluated against.
   const mealPicks = cells.flatMap((c) => {
     const id = effectiveDishId(c, picked);
@@ -555,9 +579,12 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                       if (item.kind === "swapped") {
                         const row = item.swapped;
                         const rowOff = locked || swapLocked || controlsOff;
-                        const toName = row.toCells.length && !row.toCells[0]!.selectable
-                          ? row.toDishes.find((d) => d.id === row.toCells[0]!.selectedDishId)?.name ?? row.toDishes[0]?.name ?? destinationName(row.swap.toCategory)
-                          : undefined;
+                        // A swap into a folded total (roti, rice) owns no cell: name the destination's one dish.
+                        const toName = row.toCells.length
+                          ? !row.toCells[0]!.selectable
+                            ? row.toDishes.find((d) => d.id === row.toCells[0]!.selectedDishId)?.name ?? row.toDishes[0]?.name ?? destinationName(row.swap.toCategory)
+                            : undefined
+                          : destinationName(row.swap.toCategory);
                         // The row's other swap targets stay on it (greyed when refused), so a swap never shrinks the row.
                         const otherSwaps = buildSlotDropdownOptions({
                           cellIndexInCategory: 0,
@@ -666,36 +693,46 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 );
               })}
 
-              {addonKeys.size > 0 && (
+              {(addonKeys.size > 0 || counted.addons.length > 0) && (
+                // Its own highlighted block: add-ons are extras, picked from the menu, never exchanged.
+                <div className="grid gap-3 rounded-2xl border border-[var(--primary)]/40 bg-[var(--primary)]/5 p-4">
                 <U.CategorySection label="Add-ons">
+                  <p className={`-mt-2 text-[13px] ${muted}`}>Extras on your plan. Pick a dish; add-ons can&apos;t be exchanged for other items.</p>
                   {rows.flatMap((group) => {
                     const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                     return group.items
                       .filter(isAddonItem)
                       .map((item) => (item.kind === "cell" ? renderCellRow(group, item, locked, busy != null || saving, false) : null));
                   })}
+                  {/* Extra roti/rice: the same dish as the meal's, so nothing to pick — shown as included. */}
+                  {counted.addons.map((a) => {
+                    const cell = cells.find((c) => c.slot === a.category);
+                    const dish = cell?.dishes.find((d) => d.id === cell.selectedDishId)?.name ?? labelOf(a.category);
+                    return (
+                      <U.ChoiceRow
+                        key={`addon:${a.category}`}
+                        label={a.portion ? `${labelOf(a.category)} · ${a.portion}` : labelOf(a.category)}
+                        hint="Included"
+                        choices={[{ value: "fixed", label: dish, disabled: true }]}
+                        value="fixed"
+                        onChange={() => {}}
+                      />
+                    );
+                  })}
                 </U.CategorySection>
+                </div>
               )}
 
               {summary.length > 0 && (
                 <section aria-label="Your meal" className="border-t border-[var(--border,#E8E0D5)] pt-4">
                   <h3 className="text-[17px] font-semibold">Your meal</h3>
-                  <div className="mt-3 grid gap-3">
-                    {summary.map((block) => (
-                      <div key={block.categoryLabel}>
-                        <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>
-                          {block.categoryLabel}
-                        </h4>
-                        <ul className="mt-1 grid gap-0.5">
-                          {block.lines.map((line, n) => (
-                            <li key={`${block.categoryLabel}:${n}`} className="text-[15px]">
-                              {line}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
+                  <SummaryBlocks blocks={summary} />
+                  {addonSummary.length > 0 && (
+                    <>
+                      <h4 className="mt-4 text-[15px] font-semibold">Add-ons</h4>
+                      <SummaryBlocks blocks={addonSummary} />
+                    </>
+                  )}
                 </section>
               )}
             </div>

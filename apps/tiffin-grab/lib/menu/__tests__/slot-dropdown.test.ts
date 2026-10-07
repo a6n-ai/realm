@@ -170,3 +170,40 @@ describe("slot-dropdown", () => {
     expect(hasOutgoingSwapOptions("sabzi", [{ ...sabziDaal, available: false, validBundles: [] }])).toBe(false);
   });
 });
+
+describe("buildSlotDropdownOptions: Muskan's side row (2026-10-08)", () => {
+  it("a side row's dal is one button: its dish pick, not also a swap of the same dish", () => {
+    const opts = buildSlotDropdownOptions({
+      cellIndexInCategory: 1,
+      categoryKey: "sabzi",
+      dishes: [{ id: "moong", name: "Moong Dal" }, { id: "soya", name: "Soya Keema" }],
+      swapOptions: [sabziDaal],
+      onePerRow: true,
+      fromRow: 1,
+      categoryLabel: (k) => k,
+      destinationDishes: () => [{ id: "moong", name: "Moong Dal" }],
+    });
+    expect(opts.filter((o) => o.label === "Moong Dal")).toHaveLength(1);
+    expect(opts.find((o) => o.label === "Moong Dal")!.kind).toBe("dish");
+  });
+
+  it("a sized swap into a category with a choice says it opens one: 'Any sabzi · 8oz'", () => {
+    const daalSabzi: SwapOption = {
+      ...sabziDaal,
+      fromCategory: "daal",
+      toCategory: "sabzi",
+      validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "12oz", getNatural: "8oz" }],
+    };
+    const opts = buildSlotDropdownOptions({
+      cellIndexInCategory: 0,
+      categoryKey: "daal",
+      dishes: [{ id: "moong", name: "Moong Dal" }],
+      swapOptions: [daalSabzi],
+      onePerRow: true,
+      fromRow: 0,
+      categoryLabel: (k) => (k === "sabzi" ? "Sabzi" : k),
+      destinationDishes: () => [{ id: "soya", name: "Soya Keema" }],
+    });
+    expect(opts.filter((o) => o.kind === "swap").map((o) => o.label)).toEqual([expect.stringMatching(/^Any sabzi/)]);
+  });
+});

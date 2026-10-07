@@ -1,0 +1,1 @@
+ALTER TABLE "category_swap_pairs" ADD COLUMN "natural_fallback" boolean DEFAULT true NOT NULL;

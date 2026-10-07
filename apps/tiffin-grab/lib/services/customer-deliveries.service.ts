@@ -5,6 +5,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from "d
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, mealSizes, menuItems, orderActivities, orderAddons, orders, payments, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { formatTuHuman, isContainerCategory, type TuCategory } from "@/lib/menu/format-tu";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
 import type { ExchangeOverride } from "@/lib/menu/swap-rules";
@@ -79,6 +80,17 @@ export async function assertOrderUnlocked(orderPublicId: string): Promise<void> 
 
 type Delivery = typeof deliveries.$inferSelect;
 export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean; dropOff?: DropOffValue };
+/** One add-on on a plan: shown under "Add-ons", never part of the meal or its swaps. */
+export type SubscriptionAddon = {
+  name: string;
+  qty: number;
+  category: string;
+  /** Roti/rice: every qty folds into one total ("2 roti"); else each qty is its own row (a sabzi). */
+  folded: boolean;
+  /** The folded total, or one row's portion; null when the category is unknown. */
+  portion: string | null;
+};
+
 export type Subscription = {
   publicId: string;
   planName: string;
@@ -99,7 +111,7 @@ export type Subscription = {
   /** A trial order: dishes can be edited, and the plan cannot be paused or moved. */
   trial?: boolean;
   /** Add-ons on the order, each riding in every tiffin. */
-  addons?: { name: string; qty: number }[];
+  addons?: SubscriptionAddon[];
   persons: number;
   /** Per-category item counts from the meal size at checkout (e.g. sabzi: 2). */
   categoryCounts: Record<string, number>;
@@ -170,9 +182,19 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
   const addonRows = rows.length
-    ? await db.select({ orderId: orderAddons.orderId, name: orderAddons.addonName, qty: orderAddons.qty }).from(orderAddons)
+    ? await db.select({ orderId: orderAddons.orderId, name: orderAddons.addonName, qty: orderAddons.qty, category: orderAddons.category, tuAmount: orderAddons.tuAmount }).from(orderAddons)
       .where(inArray(orderAddons.orderId, rows.map((r) => r.id))).orderBy(asc(orderAddons.id))
     : [];
+  // Portions read as oz/roti, never raw TU; roti/rice add-ons fold into one total, a sabzi is a row each.
+  const addonCats = addonRows.length
+    ? new Map((await db.select({ key: dishCategories.key, selectable: dishCategories.selectable, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories))
+      .map((c) => [c.key, { selectable: c.selectable, tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]))
+    : new Map<string, TuCategory>();
+  const addonView = (a: (typeof addonRows)[number]): SubscriptionAddon => {
+    const tu = addonCats.get(a.category);
+    const folded = !!tu && !isContainerCategory(tu) && !tu.selectable;
+    return { name: a.name, qty: a.qty, category: a.category, folded, portion: tu ? formatTuHuman(tu, Number(a.tuAmount) * (folded ? a.qty : 1)) : null };
+  };
   return rows
     .filter((r) => !isHiddenFromCustomer(payByOrder.get(r.id) ?? []))
     .map((r) => {
@@ -193,7 +215,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
         mealSizeName: r.mealSizeName,
         mealSizeCustom: r.mealSizeCustom,
         trial: r.trialLength != null,
-        addons: addonRows.filter((a) => a.orderId === r.id).map(({ name, qty }) => ({ name, qty })),
+        addons: addonRows.filter((a) => a.orderId === r.id).map(addonView),
         persons: r.persons,
         categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
         tagLabel: r.tagLabel,
@@ -733,7 +755,7 @@ export type EatingDaySwaps = {
   date: string;
   appliedSwaps: AppliedSwap[];
   /** Pairs the swap sheet may offer (already filtered to this meal size and plan); same for every day of the order. */
-  swapPairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[] }[];
+  swapPairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean }[];
 };
 export type CalendarDay = {
   date: string;

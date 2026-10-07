@@ -24,6 +24,8 @@ const addSchema = z.object({
   toCategory: z.string().trim().min(1),
   planId: z.string().trim().min(1).nullable().optional(),
   exchangeOverrides: exchangeOverrides.optional(),
+  // "Other amounts": true = natural exchange, false = not allowed.
+  naturalFallback: z.boolean().optional(),
 });
 
 export async function addSwapPair(input: unknown): Promise<void> {
@@ -31,6 +33,7 @@ export async function addSwapPair(input: unknown): Promise<void> {
   const data = addSchema.parse(input);
   await dishCategoriesService.addSwapPair(data.fromCategory, data.toCategory, data.planId, {
     exchangeOverrides: data.exchangeOverrides,
+    naturalFallback: data.naturalFallback,
     actorId: await currentUserId(),
   });
   // The wizard reads this off the cached snapshot — without invalidating, a
@@ -45,6 +48,7 @@ const editSchema = z.object({
   toCategory: z.string().trim().min(1),
   planId: z.string().trim().min(1).nullable().optional(),
   exchangeOverrides: exchangeOverrides.optional(),
+  naturalFallback: z.boolean().optional(),
 });
 
 export async function editSwapPair(input: unknown): Promise<void> {
@@ -52,6 +56,7 @@ export async function editSwapPair(input: unknown): Promise<void> {
   const data = editSchema.parse(input);
   await dishCategoriesService.editSwapPair(data.id, data.fromCategory, data.toCategory, data.planId, {
     exchangeOverrides: data.exchangeOverrides,
+    naturalFallback: data.naturalFallback,
     actorId: await currentUserId(),
   });
   await invalidateCatalogSnapshot();

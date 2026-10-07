@@ -75,8 +75,10 @@ export const categorySwapPairs = pgTable(
     // Client-scoping — see dishCategories.organizationId for the pattern.
     organizationId: text("organization_id").references(() => organization.id),
     // Given portion -> received portion, in TU (see receiveTuFor in lib/menu/swap-rules.ts).
-    // A given portion with no line uses the natural exchange.
     exchangeOverrides: jsonb("exchange_overrides").$type<{ giveTu: number; receiveTu: number }[]>().notNull().default([]),
+    // "Other amounts": a given portion with no override line uses the natural exchange (true), or
+    // can't be swapped at all (false) — Roti <-> Rice, where the natural rate (1 rice = 4 roti) is too costly.
+    naturalFallback: boolean("natural_fallback").notNull().default(true),
   },
   (t) => [
     uniqueIndex("category_swap_pairs_pair_unique").on(t.fromCategoryId, t.toCategoryId, t.planId),

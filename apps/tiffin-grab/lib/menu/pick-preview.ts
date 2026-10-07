@@ -3,7 +3,7 @@
  * instantly instead of asking the server for a fresh grid on every tap, and the
  * server builds the very same preview when it is asked for one.
  */
-import type { TuCategory } from "./format-tu";
+import { isContainerCategory, type TuCategory } from "./format-tu";
 import type { GridCell } from "./meals-grid";
 import { computeAllSwapOptions, validateProposedSwap, type CompositionContext, type MealSizeItemRow as SwapItemRow, type SwapOption } from "./meal-validation";
 import { portionsByCategory, slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
@@ -23,7 +23,7 @@ export type PreviewBase = {
     categories: [string, SwapCategory][];
     labels?: Record<string, string>;
   };
-  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[] }[];
+  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean }[];
 };
 
 const keyOf = (c: GridCell) => `${c.dateIso}:${c.slot}:${c.personIndex}:${c.pickIndex}`;
@@ -38,8 +38,10 @@ export function foldProvisionalCells(args: {
   categories: { key: string; selectable: boolean }[];
   base: Pick<PreviewBase, "items" | "tu" | "appliedByDate">;
   provisional: ProvisionalSwap[];
+  /** The day's menu per category: a swap into a category the meal lacks takes that category's dishes. */
+  menu?: Record<string, Record<string, GridCell["dishes"]>>;
 }): GridCell[] {
-  const { categories, base, provisional } = args;
+  const { categories, base, provisional, menu } = args;
   let cells = args.cells.map((c) => ({ ...c }));
   if (provisional.length === 0) return cells;
   const tuByKey = new Map(base.tu);
@@ -65,8 +67,14 @@ export function foldProvisionalCells(args: {
       mine(ps.fromCategory).forEach((c, n) => { c.pickIndex = n + 1; });
 
       const existingTo = mine(ps.toCategory);
-      // Inherit dishes from existing toCategory cells, or from the spliced cells if toCategory had none.
-      const toDishes = existingTo[0]?.dishes ?? spliced[0]?.dishes ?? [];
+      // The destination's own dishes: its existing cells, else that day's menu for it. Never the
+      // source row's dishes — a custom meal with no Daal swapping Sabzi → Daal got its sabzi list,
+      // so the new Daal row read "Patta Gobhi" (Granvin, 2026-10-07).
+      const toDishes = existingTo[0]?.dishes ?? menu?.[date]?.[ps.toCategory] ?? [];
+      const fixed = !(catMeta.get(ps.toCategory)?.selectable ?? true);
+      // A count category (roti) is one folded row: received units join its total (previewPortions), not a new row.
+      const tu = tuByKey.get(ps.toCategory);
+      if (existingTo.length > 0 && tu && !isContainerCategory(tu) && tu.selectable === false) continue;
       const basePickIndex = existingTo.length > 0 ? Math.max(...existingTo.map((c) => c.pickIndex)) : 0;
       for (let n = 0; n < ps.qtyTo; n++) {
         const src = spliced[n] ?? spliced[0];
@@ -79,8 +87,9 @@ export function foldProvisionalCells(args: {
           pickIndex: basePickIndex + n + 1,
           selectable: catMeta.get(ps.toCategory)?.selectable ?? true,
           quantity: 1,
-          selectedDishId: null,
-          isDefaulted: false,
+          // A fixed destination has one dish that day; name it so the row and summary show it.
+          selectedDishId: fixed ? (toDishes[0]?.id ?? null) : null,
+          isDefaulted: fixed,
           dishes: toDishes,
           locked: src.locked,
           lockNote: src.lockNote,
@@ -105,12 +114,12 @@ export function previewPortions(
 }
 
 /**
- * The swaps open for one eating day. Unavailable ones are left out, not greyed: an exchange is
- * how a choice is stored, and "an exchange is already applied" means nothing to staff or customers.
+ * The swaps for one eating day, unavailable ones included: Edit meal greys them with their reason
+ * ("Undo your Roti → Rice swap first") instead of letting a choice vanish when another is picked.
  */
 export function previewSwapOptions(base: PreviewBase, date: string, provisional: ProvisionalSwap[]): SwapOption[] {
   const { composition, applied } = previewStack(base, date, provisional);
-  return computeAllSwapOptions({ composition, applied, pairs: base.pairs, hideUnavailable: true });
+  return computeAllSwapOptions({ composition, applied, pairs: base.pairs, hideUnavailable: false });
 }
 
 /**
@@ -124,9 +133,10 @@ export function previewOverride(
   provisional: ProvisionalSwap[],
   next: { fromCategory: string; toCategory: string; fromPicks: number; fromRow: number | null },
 ): { receiveTu: number; qtyTo: number } | null {
-  const overrides = base.pairs.find((p) => p.fromCategory === next.fromCategory && p.toCategory === next.toCategory)?.exchangeOverrides;
+  const pair = base.pairs.find((p) => p.fromCategory === next.fromCategory && p.toCategory === next.toCategory);
+  const overrides = pair?.exchangeOverrides;
   if (!overrides?.length) return null;
-  const r = validateProposedSwap({ ...previewStack(base, date, provisional), next, overrides });
+  const r = validateProposedSwap({ ...previewStack(base, date, provisional), next, overrides, naturalFallback: pair?.naturalFallback });
   return r.ok && r.receiveTu != null ? { receiveTu: r.receiveTu, qtyTo: r.qtyTo } : null;
 }
 

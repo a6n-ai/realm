@@ -11,7 +11,8 @@ import type { TuCategory } from "./format-tu";
  * alongside meal_size_items; swaps never do — swap-options reads meal_size_items only,
  * and appending keeps every swap's fromRow pointing at the same meal row.
  */
-export const ADDON_SORT_BASE = 100_000;
+import { ADDON_SORT_BASE } from "./pick-addons";
+export { ADDON_SORT_BASE };
 
 export type AddonItemRow = {
   category: string;
@@ -49,6 +50,16 @@ export async function addonItemsForOrder(orderId: bigint): Promise<AddonItemRow[
 export function countsWithAddons(base: Record<string, number>, addons: { category: string; qty: number }[]): Record<string, number> {
   const out = { ...base };
   for (const a of addons) out[a.category] = (out[a.category] ?? 0) + a.qty;
+  return out;
+}
+
+/**
+ * The meal's own counts: order.categoryCounts minus its add-ons. Swaps only ever use the meal's
+ * rows — an add-on is picked from the menu, never swapped, and never counts as a swappable item.
+ */
+export function countsWithoutAddons(counts: Record<string, number>, addons: { category: string }[]): Record<string, number> {
+  const out = { ...counts };
+  for (const a of addons) if (out[a.category] != null) out[a.category] = Math.max(0, out[a.category]! - 1);
   return out;
 }
 

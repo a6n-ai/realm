@@ -124,3 +124,21 @@ describe("customer copy shows the overridden size", () => {
     expect(computeSwapOption({ composition, applied: [], fromCategory: "daal", toCategory: "sabzi" }).rowBundles).toBeUndefined();
   });
 });
+
+describe("Other amounts: not allowed (natural_fallback = false)", () => {
+  it("an amount with a line still swaps at the line's size", () => {
+    const r = validateProposedSwap({ composition, applied: [], next: { ...daalToSabzi, fromRow: 0 }, overrides, naturalFallback: false });
+    expect(r).toMatchObject({ ok: true, receiveTu: 1 });
+  });
+
+  it("an amount with no line is refused instead of using the natural exchange", () => {
+    const r = validateProposedSwap({ composition, applied: [], next: { ...daalToSabzi, fromRow: 1 }, overrides, naturalFallback: false });
+    expect(r).toEqual({ ok: false, reason: "Not available for this amount" });
+  });
+
+  it("the option offers only the rows that have a line", () => {
+    const o = computeSwapOption({ composition, applied: [], fromCategory: "daal", toCategory: "sabzi", overrides, naturalFallback: false });
+    expect(o.rowBundles?.[0]).toMatchObject({ receiveTu: 1 });
+    expect(o.rowBundles?.[1]).toBeNull();
+  });
+});

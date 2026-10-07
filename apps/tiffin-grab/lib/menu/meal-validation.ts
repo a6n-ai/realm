@@ -23,6 +23,7 @@ import type {
 import { OPERATORS_BY_FIELD } from "./meal-rule-types";
 import { ruleText, type RuleLabels } from "./meal-rule-text";
 import {
+  NO_LINE_FOR_AMOUNT,
   applySwapsToCounts,
   capViolation,
   crossUnitPicks,
@@ -322,6 +323,8 @@ export type ValidateSwapInput = {
   next: { fromCategory: string; toCategory: string; fromPicks: number; fromRow?: number | null };
   /** The pair's exchange overrides (category_swap_pairs.exchange_overrides); none = natural exchange. */
   overrides?: ExchangeOverride[];
+  /** "Other amounts": false refuses an amount with no override line instead of using the natural exchange. */
+  naturalFallback?: boolean;
 };
 
 export type ValidateSwapResult =
@@ -349,7 +352,7 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
   if (opposing) {
     return {
       ok: false,
-      reason: `An exchange between ${labelOf(next.toCategory, composition.labels)} and ${labelOf(next.fromCategory, composition.labels)} is already applied for this day. Undo the existing exchange to change it.`,
+      reason: `Undo your ${labelOf(next.toCategory, composition.labels)} → ${labelOf(next.fromCategory, composition.labels)} swap first.`,
     };
   }
 
@@ -380,6 +383,8 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
     receiveTu = hits[0]!;
     qtyTo = next.fromPicks;
     getTu = qtyTo * receiveTu;
+  } else if (input.naturalFallback === false) {
+    return { ok: false, reason: NO_LINE_FOR_AMOUNT };
   } else if (sameUnit(from, to)) {
     qtyTo = next.fromPicks;
     getTu = giveTu;
@@ -495,8 +500,9 @@ export function computeSwapOption(args: {
   fromCategory: string;
   toCategory: string;
   overrides?: ExchangeOverride[];
+  naturalFallback?: boolean;
 }): SwapOption {
-  const { composition, applied, fromCategory, toCategory, overrides } = args;
+  const { composition, applied, fromCategory, toCategory, overrides, naturalFallback } = args;
   const from = composition.categories.get(fromCategory);
   const to = composition.categories.get(toCategory);
 
@@ -523,7 +529,7 @@ export function computeSwapOption(args: {
       fromCategory,
       toCategory,
       available: false,
-      reason: `An exchange between ${labelOf(toCategory, composition.labels)} and ${labelOf(fromCategory, composition.labels)} is already applied for this day. Undo the existing exchange to change it.`,
+      reason: `Undo your ${labelOf(toCategory, composition.labels)} → ${labelOf(fromCategory, composition.labels)} swap first.`,
       validBundles: [],
       minFromPicks: null,
       maxFromPicks: null,
@@ -566,6 +572,7 @@ export function computeSwapOption(args: {
       applied,
       next: { fromCategory, toCategory, fromPicks: q },
       overrides,
+      naturalFallback,
     });
     if (!r.ok) {
       firstFail ??= r.reason;
@@ -605,7 +612,7 @@ export function computeSwapOption(args: {
     ? Object.fromEntries(
         (rowsAfterSwaps(composition, applied).get(fromCategory) ?? []).flatMap((r) => {
           if (r.row == null) return [];
-          const v = validateProposedSwap({ composition, applied, next: { fromCategory, toCategory, fromPicks: 1, fromRow: r.row }, overrides });
+          const v = validateProposedSwap({ composition, applied, next: { fromCategory, toCategory, fromPicks: 1, fromRow: r.row }, overrides, naturalFallback });
           const bundle: SwapBundle | null = v.ok
             ? {
                 fromPicks: 1,
@@ -637,7 +644,7 @@ export function computeSwapOption(args: {
 export function computeAllSwapOptions(args: {
   composition: CompositionContext;
   applied: SwapRow[];
-  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[] }[];
+  pairs: { fromCategory: string; toCategory: string; exchangeOverrides?: ExchangeOverride[]; naturalFallback?: boolean }[];
   /** When true, omit unavailable options (customer default). */
   hideUnavailable?: boolean;
 }): SwapOption[] {
@@ -648,6 +655,7 @@ export function computeAllSwapOptions(args: {
       fromCategory: p.fromCategory,
       toCategory: p.toCategory,
       overrides: p.exchangeOverrides,
+      naturalFallback: p.naturalFallback,
     }),
   );
   return args.hideUnavailable ? options.filter((o) => o.available) : options;
