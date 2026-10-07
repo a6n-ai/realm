@@ -689,9 +689,10 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
               })}
 
               {(addonKeys.size > 0 || counted.addons.length > 0) && (
-                // Its own block under a divider: add-ons are extras, picked from the menu, never swapped.
-                <div className="border-t border-[var(--border,#E8E0D5)] pt-4">
+                // Its own highlighted block: add-ons are extras, picked from the menu, never exchanged.
+                <div className="grid gap-3 rounded-2xl border border-[var(--primary)]/40 bg-[var(--primary)]/5 p-4">
                 <U.CategorySection label="Add-ons">
+                  <p className={`-mt-2 text-[13px] ${muted}`}>Extras on your plan. Pick a dish; add-ons can&apos;t be exchanged for other items.</p>
                   {rows.flatMap((group) => {
                     const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                     return group.items

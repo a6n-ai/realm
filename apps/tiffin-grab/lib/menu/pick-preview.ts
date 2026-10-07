@@ -3,7 +3,7 @@
  * instantly instead of asking the server for a fresh grid on every tap, and the
  * server builds the very same preview when it is asked for one.
  */
-import type { TuCategory } from "./format-tu";
+import { isContainerCategory, type TuCategory } from "./format-tu";
 import type { GridCell } from "./meals-grid";
 import { computeAllSwapOptions, validateProposedSwap, type CompositionContext, type MealSizeItemRow as SwapItemRow, type SwapOption } from "./meal-validation";
 import { portionsByCategory, slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
@@ -72,6 +72,9 @@ export function foldProvisionalCells(args: {
       // so the new Daal row read "Patta Gobhi" (Granvin, 2026-10-07).
       const toDishes = existingTo[0]?.dishes ?? menu?.[date]?.[ps.toCategory] ?? [];
       const fixed = !(catMeta.get(ps.toCategory)?.selectable ?? true);
+      // A count category (roti) is one folded row: received units join its total (previewPortions), not a new row.
+      const tu = tuByKey.get(ps.toCategory);
+      if (existingTo.length > 0 && tu && !isContainerCategory(tu) && tu.selectable === false) continue;
       const basePickIndex = existingTo.length > 0 ? Math.max(...existingTo.map((c) => c.pickIndex)) : 0;
       for (let n = 0; n < ps.qtyTo; n++) {
         const src = spliced[n] ?? spliced[0];

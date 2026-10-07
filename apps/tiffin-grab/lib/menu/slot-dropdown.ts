@@ -213,8 +213,12 @@ export function buildSlotDropdownOptions(args: {
     const rowOf = ownRow ? fromRow : null;
     // One button per destination dish when there is a choice to make, else one for the destination.
     const emit = (fromPicks: number, label: string, blocked: string | undefined, row: number | null) => {
-      const each = targets?.length && label === toLabel ? targets : [{ id: null, name: label }];
+      // A sized swap into a category with a choice opens a picker: say so ("Any sabzi · 8oz").
+      const shown = targets?.length && label !== toLabel ? `Any ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label;
+      const each = targets?.length && label === toLabel ? targets : [{ id: null, name: shown }];
       for (const t of each) {
+        // Already a plain pick in this row (a side's dal): one button, not a dish and a swap of the same name.
+        if (t.id && out.some((o) => o.kind === "dish" && o.dishId === t.id)) continue;
         const why = blocked ?? ("reason" in t ? t.reason : undefined);
         out.push({
           kind: "swap",

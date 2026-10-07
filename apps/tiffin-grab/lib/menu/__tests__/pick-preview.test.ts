@@ -39,3 +39,19 @@ describe("foldProvisionalCells", () => {
     expect(out.find((c) => c.slot === "daal")!.dishes).toEqual([]);
   });
 });
+
+describe("foldProvisionalCells: count destinations", () => {
+  it("a swap into roti joins its folded row instead of adding a 'Roti 2' row", () => {
+    const rotiTu = { tuUnitType: "count" as const, tuUnitSize: 4, tuUnitLabel: "roti", selectable: false };
+    const riceCell: GridCell = { ...cell(1), slot: "rice", selectable: false, dishes: [dish("r", "Rice")], selectedDishId: "r" };
+    const rotiCell: GridCell = { ...cell(1), slot: "roti", selectable: false, quantity: 11, dishes: [dish("ro", "Roti")], selectedDishId: "ro" };
+    const out = foldProvisionalCells({
+      cells: [riceCell, rotiCell],
+      categories: [{ key: "rice", selectable: false }, { key: "roti", selectable: false }],
+      base: { items: [{ category: "rice", tuAmount: "1", sortOrder: 1 }, { category: "roti", tuAmount: "2", sortOrder: 2 }], tu: [["roti", rotiTu]], appliedByDate: {} },
+      provisional: [{ fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 1, fromRow: null, forDate: D }],
+    });
+    expect(out.filter((c) => c.slot === "roti")).toHaveLength(1);
+    expect(out.filter((c) => c.slot === "rice")).toHaveLength(0);
+  });
+});
