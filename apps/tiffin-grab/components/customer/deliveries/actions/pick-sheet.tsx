@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
-import { addonRowKeys, countAddons } from "@/lib/menu/pick-addons";
+import { addonRowKeys, countAddons, splitGroups } from "@/lib/menu/pick-addons";
 import {
   applyMyDeliverySwap,
   removeMyDeliverySwap,
@@ -20,6 +20,7 @@ import {
   cellKey,
   effectiveDishId,
   groupPickCells,
+  type MealSummaryLine,
   type PickCategoryGroup,
 } from "@/lib/menu/pick-groups";
 import {
@@ -41,6 +42,24 @@ const PREFIX = "pick";
 
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const muted = "text-[var(--muted-foreground,#6E6558)]";
+
+/** Category label over its dish lines: the "Your meal" summary, used for the meal and its add-ons. */
+function SummaryBlocks({ blocks }: { blocks: MealSummaryLine[] }) {
+  return (
+    <div className="mt-3 grid gap-3">
+      {blocks.map((block) => (
+        <div key={block.categoryLabel}>
+          <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{block.categoryLabel}</h4>
+          <ul className="mt-1 grid gap-0.5">
+            {block.lines.map((line, n) => (
+              <li key={`${block.categoryLabel}:${n}`} className="text-[15px]">{line}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function slotLabel(group: PickCategoryGroup, index: number): string {
   const diet = group.cells[index]?.diet;
@@ -305,7 +324,17 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       />
     );
   };
-  const summary = buildMealSummary(groups, picked);
+  // The summary reads like the sheet: the meal first, then its add-ons on their own.
+  const split = splitGroups(groups, addonKeys);
+  const summary = buildMealSummary(split.meal, picked);
+  const addonSummary: MealSummaryLine[] = [
+    ...buildMealSummary(split.addons, picked),
+    ...counted.addons.map((a) => {
+      const cell = cells.find((c) => c.slot === a.category);
+      const dish = cell?.dishes.find((d) => d.id === cell.selectedDishId)?.name ?? labelOf(a.category);
+      return { categoryLabel: labelOf(a.category), lines: [a.portion ? `${dish} · ${a.portion}` : dish] };
+    }),
+  ];
   // Every pick in this meal (fixed sides too) — what meal rules are evaluated against.
   const mealPicks = cells.flatMap((c) => {
     const id = effectiveDishId(c, picked);
@@ -691,22 +720,13 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
               {summary.length > 0 && (
                 <section aria-label="Your meal" className="border-t border-[var(--border,#E8E0D5)] pt-4">
                   <h3 className="text-[17px] font-semibold">Your meal</h3>
-                  <div className="mt-3 grid gap-3">
-                    {summary.map((block) => (
-                      <div key={block.categoryLabel}>
-                        <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>
-                          {block.categoryLabel}
-                        </h4>
-                        <ul className="mt-1 grid gap-0.5">
-                          {block.lines.map((line, n) => (
-                            <li key={`${block.categoryLabel}:${n}`} className="text-[15px]">
-                              {line}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
+                  <SummaryBlocks blocks={summary} />
+                  {addonSummary.length > 0 && (
+                    <>
+                      <h4 className="mt-4 text-[15px] font-semibold">Add-ons</h4>
+                      <SummaryBlocks blocks={addonSummary} />
+                    </>
+                  )}
                 </section>
               )}
             </div>

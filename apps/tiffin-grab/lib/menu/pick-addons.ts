@@ -4,7 +4,7 @@
  * picked from the menu only, and never take part in a swap.
  */
 import { isContainerCategory, type TuCategory } from "./format-tu";
-import { cellKey, type AnchoredGroup } from "./pick-groups";
+import { cellKey, type AnchoredGroup, type PickCategoryGroup } from "./pick-groups";
 import { previewPortions, type PreviewBase, type ProvisionalSwap } from "./pick-preview";
 import { portionsByCategory } from "./pick-size";
 
@@ -54,4 +54,15 @@ export function countAddons(
     addons: [...categories].map((category) => ({ category, portion: own.get(category)?.[0] ?? null })),
     mealPortions: Object.fromEntries([...categories].map((c) => [c, meal[c] ?? []])),
   };
+}
+
+/** Groups cut in two by cell: the meal's own rows, and the add-on rows (portions kept aligned to cells). */
+export function splitGroups(groups: PickCategoryGroup[], addonKeys: Set<string>): { meal: PickCategoryGroup[]; addons: PickCategoryGroup[] } {
+  const part = (keep: (key: string) => boolean) =>
+    groups.flatMap((g) => {
+      const idx = g.cells.flatMap((c, i) => (keep(cellKey(c)) ? [i] : []));
+      if (idx.length === 0) return [];
+      return [{ ...g, cells: idx.map((i) => g.cells[i]!), portions: idx.map((i) => g.portions[i] ?? null), chooseCount: g.selectable ? idx.length : g.chooseCount }];
+    });
+  return { meal: part((k) => !addonKeys.has(k)), addons: part((k) => addonKeys.has(k)) };
 }

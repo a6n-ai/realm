@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TuCategory } from "../format-tu";
 import type { GridCell } from "../meals-grid";
-import { ADDON_SORT_BASE, addonRowKeys, countAddons } from "../pick-addons";
+import { ADDON_SORT_BASE, addonRowKeys, countAddons, splitGroups } from "../pick-addons";
 
 const D = "2026-10-08";
 const roti: TuCategory = { tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "roti", selectable: false };
@@ -33,5 +33,15 @@ describe("countAddons", () => {
   });
   it("no count add-ons: nothing to split", () => {
     expect(countAddons(base([{ category: "roti", tuAmount: "8", sortOrder: 1 }]), D, [])).toEqual({ addons: [], mealPortions: {} });
+  });
+});
+
+describe("splitGroups", () => {
+  it("cuts a category's add-on cells out of the meal, keeping portions aligned", () => {
+    const sabzi = { key: "sabzi", label: "Sabzi", selectable: true, chooseCount: 2, cells: [cell("sabzi", 1), cell("sabzi", 2)], portions: ["12oz", "8oz"], dishes: [] };
+    const { meal, addons } = splitGroups([sabzi], new Set([`${D}:sabzi:1:2`]));
+    expect(meal[0]!.portions).toEqual(["12oz"]);
+    expect(addons[0]!.portions).toEqual(["8oz"]);
+    expect(addons[0]!.chooseCount).toBe(1);
   });
 });
