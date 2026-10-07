@@ -219,7 +219,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
               <div className="space-y-0.5">
                 {menuOut && <Card className="mb-2 p-4" data-testid="menu-not-released"><p className="text-[15px] font-semibold">Menu not released yet.</p><p className="text-sm text-[var(--muted-foreground,#6E6558)]">You can still move a day.</p></Card>}
                 {shown.map((r) => (
-                  <div key={r.date} className="flex items-center">
+                  <div key={r.date} className={cn("flex items-center rounded-xl pr-1", !!row && r.date === row.date && "bg-[var(--muted)]")}>
                     <div className="min-w-0 flex-1"><EatingRowButton row={r} selected={!!row && r.date === row.date} onSelect={(x) => select(x.date)} menuOut={menuOut} /></div>
                     <InfoButton label={`Details for ${humanDate(r.date)}`} onClick={() => setInfo(r)} />
                   </div>
