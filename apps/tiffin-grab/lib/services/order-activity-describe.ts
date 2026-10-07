@@ -24,7 +24,7 @@ export function describeActivity(a: OrderActivityLike): string {
     case "unskipped":
       return "Delivery un-skipped";
     case "delivery_address_changed":
-      return a.note ? `Delivery address changed — ${a.note}` : "Delivery address changed";
+      return a.note ?? "Delivery address changed";
     case "pool_scheduled":
       return "Pooled tiffin scheduled";
     case "meal_pick":
