@@ -3,7 +3,7 @@
 
 import { zonedDateIso } from "@foundry/commons";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Clock, Info, MapPin, Package, Truck, Utensils } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, MapPin, Package, Truck, Utensils } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
-import { actionAvailability, cutoffNote, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { deliveryLine, eatingRowsInWeek, isAddressRow, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow, type MoveFact } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
@@ -76,10 +76,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
         <span className="font-medium">{plan.sub.mealSizeName}</span>
         <span className="text-muted-foreground tabular-nums">
           {plan.counts.remaining} of {plan.counts.total} tiffins left
-        </span>
-        <span data-testid="cutoff-note" className="text-muted-foreground flex items-center gap-1.5 sm:ml-auto">
-          <Clock className="size-4" aria-hidden />
-          {cutoffNote(plan.ctx.cutoffHour)}
         </span>
       </div>
 

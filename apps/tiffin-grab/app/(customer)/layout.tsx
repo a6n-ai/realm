@@ -31,7 +31,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   // session already in flight, not only block the next sign-in.
   if ((user as { status?: string }).status !== "active") redirect("/login?suspended=1");
 
-  const [{ timezone }, coinBalance, staffReplies] = await Promise.all([
+  const [{ timezone, cutoffHour }, coinBalance, staffReplies] = await Promise.all([
     getAppSettings(),
     walletService.balance(user.id),
     ticketsService.latestStaffReplies(user.id),
@@ -40,7 +40,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   return (
     <div className="crm-app customer-app">
       <TimezoneProvider tz={timezone}>
-        <CustomerShell coinBalance={coinBalance} userPublicId={user.publicId} staffReplies={staffReplies}>{children}</CustomerShell>
+        <CustomerShell coinBalance={coinBalance} cutoffHour={cutoffHour} userPublicId={user.publicId} staffReplies={staffReplies}>{children}</CustomerShell>
       </TimezoneProvider>
     </div>
   );
