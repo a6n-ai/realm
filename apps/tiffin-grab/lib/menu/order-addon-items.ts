@@ -52,6 +52,16 @@ export function countsWithAddons(base: Record<string, number>, addons: { categor
   return out;
 }
 
+/**
+ * The meal's own counts: order.categoryCounts minus its add-ons. Swaps only ever use the meal's
+ * rows — an add-on is picked from the menu, never swapped, and never counts as a swappable item.
+ */
+export function countsWithoutAddons(counts: Record<string, number>, addons: { category: string }[]): Record<string, number> {
+  const out = { ...counts };
+  for (const a of addons) if (out[a.category] != null) out[a.category] = Math.max(0, out[a.category]! - 1);
+  return out;
+}
+
 /** order_addons rows for a priced order: the snapshot of what each tiffin carries and costs. */
 export function orderAddonValues(
   orderId: bigint,

@@ -197,7 +197,7 @@ export async function loadPickGrid(
 
     const appliedRecord = Object.fromEntries(appliedByDate);
     const [composition, pairs] = await Promise.all([
-      loadCompositionContext(row.mealSizeId, row.categoryCounts ?? {}),
+      loadCompositionContext(row.mealSizeId, row.categoryCounts ?? {}, row.id),
       dishCategoriesService.swapPairsForMealSize(row.mealSizeId),
     ]);
     grid.preview = {
