@@ -1,6 +1,6 @@
 "use client";
 import { ChevronDown, Info } from "lucide-react";
-import { Fragment, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Choice, ChoiceGroup } from "@/components/customer/kit";
 
 const muted = "text-[var(--muted-foreground,#6E6558)]";
@@ -13,7 +13,7 @@ export type RowChoice = {
   disabled?: boolean;
   /** Why it's greyed out — behind a red ⓘ, so every button stays the same size. */
   reason?: string;
-  /** An exchange into another category: listed after the dishes, under "Or exchange for". */
+  /** Another category's item (rice instead of roti): listed after the dishes, as just another choice. */
   swap?: boolean;
 };
 
@@ -50,10 +50,8 @@ export function ChoiceRow({
         <p className={nested ? `text-[13px] font-semibold ${muted}` : "text-[15px] font-semibold"}>{label}</p>
         {hint && <p className={`text-[13px] ${muted}`}>{hint}</p>}
       </div>
-      <ChoiceGroup label={label} value={value} onChange={onChange} className="grid gap-2 sm:grid-cols-2">
-        {[...choices.filter((c) => !c.swap), ...choices.filter((c) => c.swap)].map((c, i, all) => (
-          <Fragment key={c.value}>
-          {c.swap && !all[i - 1]?.swap && <p className={`col-span-full mt-1 text-[12px] font-semibold uppercase tracking-wide ${muted}`}>Or exchange for</p>}
+      <ChoiceGroup label={label} value={value} onChange={onChange} className="grid grid-cols-2 gap-2">
+        {[...choices.filter((c) => !c.swap), ...choices.filter((c) => c.swap)].map((c) => (
           <div key={c.value} className="relative">
             <Choice value={c.value} disabled={c.disabled} className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
               <span className="min-w-0 flex-1 text-left leading-snug">{c.label}</span>
@@ -72,7 +70,6 @@ export function ChoiceRow({
               </button>
             )}
           </div>
-          </Fragment>
         ))}
       </ChoiceGroup>
       {shown && (

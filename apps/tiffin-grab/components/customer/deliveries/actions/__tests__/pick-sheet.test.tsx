@@ -105,8 +105,10 @@ const ownDishOnSwappedRow = async (name: string) =>
 
 /** Edit meal is an accordion: open a category (closed by default) as a customer would. */
 const openCat = async (name = "Curry") => {
-  const header = (await screen.findAllByRole("button", { expanded: false })).find((b) => new RegExp(`^${name}`, "i").test(b.textContent ?? ""));
-  if (header) fireEvent.click(header);
+  await waitFor(() => expect(document.querySelector("button[aria-expanded]")).not.toBeNull());
+  const header = [...document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")]
+    .find((b) => new RegExp(`^${name}`, "i").test(b.textContent ?? ""));
+  if (header?.getAttribute("aria-expanded") === "false") fireEvent.click(header);
 };
 
 const show = (t = trip()) => {
@@ -489,8 +491,8 @@ describe("PickSheet", () => {
     const onDone = show(trip({ coversDates: [mon] }));
     await openCat();
     fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
-    // A one-row category closes on a pick; reopen it to see the choice.
-    await openCat();
+    // The category stays open after a pick, so nothing moves under the customer's finger.
+    expect(screen.getByRole("button", { expanded: true })).toHaveTextContent(/^Curry/);
     expect(await screen.findByRole("radio", { name: /^Dal$/ })).toBeChecked();
     expect(savePicks).not.toHaveBeenCalled();
 

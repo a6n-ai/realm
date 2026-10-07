@@ -309,11 +309,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
             || (o.kind === "swap" && swapLocked),
         }))}
         value={selectedId ? dishOptionValue(selectedId) : built.length ? "" : "fixed"}
-        onChange={(v) => {
-          onSlotChange(cell, i, v);
-          // A one-row category (Rice, Roti) is done once picked; Sabzi with two rows stays open.
-          if (group.items.length === 1) setOpenCat(null);
-        }}
+        // The category stays open after a pick: closing it moved the sheet under the customer's finger.
+        onChange={(v) => onSlotChange(cell, i, v)}
       />
     );
   };
