@@ -579,12 +579,14 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 const fixed = grid.categories.find((c) => c.key === group.key)?.selectable === false;
                 const ownDishes = group.dishes.length ? group.dishes : fixed ? menuDishes.slice(0, 1) : menuDishes;
                 const changed = group.cells.some((c) => !addonKeys.has(cellKey(c)) && picked[cellKey(c)] != null && picked[cellKey(c)] !== c.selectedDishId);
-                const status = group.swapped.length ? "Swapped" : locked ? "Locked" : changed ? "Changed" : group.selectable ? "Default" : "Included";
+                // Customers see choices, not swaps: a row given for rice simply reads "Rice · 1 unit", status Changed.
+                const status = locked ? "Locked" : changed || group.swapped.length ? "Changed" : group.selectable ? "Default" : "Included";
+                const swappedTo = group.swapped.map((sw) => `${labelOf(sw.swap.toCategory)}${sw.getPortion ? ` · ${sw.getPortion}` : ""}`);
                 return (
                   <U.CategorySection
                     key={group.key}
                     label={group.label}
-                    summary={summaryByLabel.get(group.label) ?? "Exchanged"}
+                    summary={[summaryByLabel.get(group.label), ...swappedTo].filter(Boolean).join(", ")}
                     status={status}
                     open={openCat === group.key}
                     onToggle={() => toggle(group.key)}
