@@ -395,6 +395,8 @@ export async function resolveDeliveryMealsForWeek(
   persons: number,
   /** Saved swaps to resolve as if already undone (Edit meal's pending removals). */
   omitSwapPublicIds: string[] = [],
+  /** Filled with each day's custom-meal row diets after that day's swaps (Edit meal's picker). */
+  rowPlansByDay?: Map<DayOfWeek, RowPlans | null>,
 ): Promise<ResolvedMealsWeek> {
   const result: ResolvedMealsWeek = new Map();
   const cats = await dishCategoriesService.forPlan(order.planId);
@@ -437,11 +439,13 @@ export async function resolveDeliveryMealsForWeek(
     const trip = carrying.get(date) ?? ownByDate.get(date);
     const daySwaps = trip == null ? [] : swapRows.filter((s) => s.deliveryId === trip.id && swapAppliesTo(s.forDate, trip.deliveryDate, date));
     const counts = applySwapsToCounts(baseCounts, daySwaps);
+    const dayRowPlans = rowPlansAfterSwaps(rowPlans, daySwaps);
+    rowPlansByDay?.set(day, dayRowPlans);
     for (let person = 1; person <= persons; person++) {
       const dayPersonPicks = picks.filter((p) => p.dayOfWeek === day && p.personIndex === person);
       result.set(
         resolvedMealsWeekKey(day, person),
-        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules, rowPlansAfterSwaps(rowPlans, daySwaps),
+        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules, dayRowPlans,
           weekSides ? sideResolver(roles, sideRulesForDay(weekSides, day), dayItems, planDishIds) : null),
       );
     }

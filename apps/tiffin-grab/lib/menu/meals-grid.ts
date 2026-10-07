@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
 import { mondayOfIso, thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
 import { allowedDishIdsForMealSize, rowPlansForMealSize } from "./selections.service";
-import { itemsForRow, rowDietLabel } from "./row-plans";
+import { itemsForRow, rowDietLabel, type RowPlans } from "./row-plans";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey, sideChoicesForWeek } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -119,12 +119,15 @@ export async function buildMealsGrid(
   if (rows.length === 0) return { empty: "no-dates" };
 
   const { items: allItems } = await menuService.weekWithItems(releasedWeek.publicId);
+  // Each day's row diets after its swaps: giving up a custom meal's first sabzi row must not hand
+  // the next row that row's diet (see rowPlansAfterSwaps).
+  const rowPlansByDay = new Map<DayOfWeek, RowPlans | null>();
   const allDishBigintIds = [...new Set(allItems.map((i) => i.dishId))];
   const [categories, weekResolved, dishRows, sideChoices] = await Promise.all([
     dishCategoriesService.forPlan(planRow.id),
     // Single source of truth for selected/resolved dish per (day, person, category, pickIndex),
     // including stale-pick re-validation and plan filtering — buildMealsGrid must not re-derive it.
-    resolveDeliveryMealsForWeek(order, releasedWeek, order.persons, omitSwapPublicIds),
+    resolveDeliveryMealsForWeek(order, releasedWeek, order.persons, omitSwapPublicIds, rowPlansByDay),
     allDishBigintIds.length > 0
       ? db
           .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, image: dishes.image, planId: dishes.planId })
@@ -159,6 +162,7 @@ export async function buildMealsGrid(
   const menu: Record<string, Record<string, GridDish[]>> = {};
   for (const { dateIso, dayOfWeek: day, locked, lockNote } of weekDatesView) {
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
+    const dayRowPlans = rowPlansByDay.has(day) ? rowPlansByDay.get(day)! : rowPlans;
     menu[dateIso] = {};
     for (const cat of categories) {
       const slot = cat.key;
@@ -217,8 +221,8 @@ export async function buildMealsGrid(
           grid.push({
             day, dateIso, slot, personIndex: p, pickIndex, selectable: true, quantity: 1,
             selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
-            dishes: [...sides, ...itemsForRow(slotDishes, rowPlans, slot, pickIndex)], locked, lockNote,
-            ...(planKeys && { diet: rowDietLabel(rowPlans, planKeys, slot, pickIndex) }),
+            dishes: [...sides, ...itemsForRow(slotDishes, dayRowPlans, slot, pickIndex)], locked, lockNote,
+            ...(planKeys && { diet: rowDietLabel(dayRowPlans, planKeys, slot, pickIndex) }),
           });
         }
       }
