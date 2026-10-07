@@ -42,7 +42,7 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
   const sub = subcategoryLabel(ticket.category, ticket.subcategory ?? null);
 
   return (
-    <div className={cn(FONT, "space-y-5")}>
+    <div className={cn(FONT, "space-y-5 pb-24 lg:pb-0")}>
       <div className="flex flex-wrap items-center gap-2">
         <Pill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Pill>
         <Pill>{categoryLabel(ticket.category)}</Pill>
@@ -70,8 +70,11 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
 
       {closed && <RateChat ticketId={ticket.publicId} rating={ticket.rating ?? null} note={ticket.ratingNote ?? null} />}
 
-      <div className="c-glass sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-[var(--border)] px-4 py-3 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0">
+      {/* Pinned to the bottom like a chat app: just above the phone tab bar (57px), at the window's foot on desktop. */}
+      <div className="c-glass fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] px-4 py-3 lg:sticky lg:inset-x-auto lg:bottom-0 lg:-mx-1 lg:rounded-t-2xl lg:border-x lg:px-3">
+        <div className="mx-auto max-w-2xl">
         <Composer ticketId={ticket.publicId} closed={closed} channel={channel} />
+        </div>
       </div>
     </div>
   );
