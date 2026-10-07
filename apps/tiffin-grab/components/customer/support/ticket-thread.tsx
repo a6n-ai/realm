@@ -6,7 +6,6 @@ import { Pill, Skeleton } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
 import { ChatMessageList, useMessageComposer, type ChatMessage, type ChatUi } from "@foundry/design-system";
 import { categoryLabel, subcategoryLabel } from "@/lib/support/ticket-taxonomy";
-import { formatEpoch } from "@/lib/format/datetime";
 import type { TicketStatus } from "@/lib/services/tickets.service";
 import { replyTicket } from "@/app/(customer)/me/support/actions";
 import { STATUS_LABEL, STATUS_TONE } from "./parts";
@@ -39,7 +38,6 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
   const channel = `ticket:${ticket.publicId}`;
   const supportOnline = usePresence(channel, "staff");
   useMarkTicketSeen(ticket.publicId, messages.reduce((n, m) => Math.max(n, m.createdAt), 0));
-  const fmt = (t: number) => formatEpoch(t, { timeZone: timezone, mode: "datetime", locale: "en-CA" });
   const sub = subcategoryLabel(ticket.category, ticket.subcategory ?? null);
   // Like a chat app: only the message pane scrolls; it opens at the newest message and follows new ones.
   const paneRef = useRef<HTMLDivElement>(null);
@@ -69,18 +67,11 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
 
       {/* The chat window: the one scrolling part. Short chats sit at its bottom, like a chat app. */}
       <div ref={paneRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[var(--border)] px-3 py-3">
-        <p className="mb-3 text-center text-[12px] text-[var(--muted-foreground,#6E6558)]">Opened {fmt(ticket.createdAt)}</p>
         <div className="mt-auto">
           <ChatMessageList
             className="space-y-2"
             ui={kitChatUi}
-            messages={messages.map((m): ChatMessage => ({
-              id: m.publicId,
-              kind: m.authorType === "system" ? "system" : m.authorType === "customer" ? "mine" : "theirs",
-              body: m.body,
-              meta: m.authorType === "system" ? fmt(m.createdAt) : `${m.authorType === "customer" ? "You" : "Support"} · ${fmt(m.createdAt)}`,
-              attachments: m.attachments,
-            }))}
+            messages={chatItems(messages, timezone)}
           />
           {closed && (
             <div className="mt-4">
@@ -107,21 +98,64 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
   return <ChatComposer composer={c} placeholder="Write a message…" typingLabel="Support is typing…" />;
 }
 
+const dayKey = (t: number, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
+const timeOf = (t: number, tz: string) => new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(t).toLowerCase();
+
+/** "Today", "Yesterday", else "Mon, Oct 5" (with the year when it isn't this year). */
+function dayLabel(t: number, tz: string): string {
+  const now = Date.now();
+  const key = dayKey(t, tz);
+  if (key === dayKey(now, tz)) return "Today";
+  if (key === dayKey(now - 864e5, tz)) return "Yesterday";
+  const sameYear = key.slice(0, 4) === dayKey(now, tz).slice(0, 4);
+  return new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) }).format(t);
+}
+
+/** WhatsApp-style: a date chip wherever the day changes, and only the time on each message. */
+function chatItems(messages: ThreadMessage[], tz: string): ChatMessage[] {
+  const out: ChatMessage[] = [];
+  let prev = "";
+  for (const m of messages) {
+    const key = dayKey(m.createdAt, tz);
+    if (key !== prev) {
+      out.push({ id: `day:${key}`, kind: "system", body: dayLabel(m.createdAt, tz), meta: "" });
+      prev = key;
+    }
+    out.push({
+      id: m.publicId,
+      kind: m.authorType === "system" ? "system" : m.authorType === "customer" ? "mine" : "theirs",
+      body: m.body,
+      meta: timeOf(m.createdAt, tz),
+      attachments: m.attachments,
+    });
+  }
+  return out;
+}
+
 const kitChatUi: Partial<ChatUi> = {
-  System: ({ message: m }) => (
-    <p className="text-center text-[11px] text-[var(--muted-foreground,#6E6558)]">
-      {m.body} · {m.meta}
-    </p>
-  ),
+  System: ({ message: m }) =>
+    m.meta ? (
+      <p className="text-center text-[11px] text-[var(--muted-foreground,#6E6558)]">
+        {m.body} · {m.meta}
+      </p>
+    ) : (
+      <p className="flex justify-center py-1">
+        <span className="rounded-full bg-[var(--muted)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground,#6E6558)]">{m.body}</span>
+      </p>
+    ),
   Bubble: ({ message: m, mine }) => (
-    <div className={cn("flex flex-col gap-0.5", mine ? "items-end" : "items-start")}>
+    <div className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
       <div
         className={cn(
           "max-w-[80%] rounded-2xl px-3 py-1.5 text-[14px] leading-snug sm:max-w-[70%]",
           mine ? "rounded-br-sm bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "rounded-bl-sm border border-[var(--border)] bg-[var(--card)]",
         )}
       >
-        <p className="whitespace-pre-wrap text-pretty">{m.body}</p>
+        <p className="whitespace-pre-wrap text-pretty">
+          {m.body}
+          {/* Time tucked into the bubble's corner, like WhatsApp. */}
+          <span className={cn("float-right ml-2 mt-1.5 text-[10px] leading-none", mine ? "text-[var(--primary-foreground,#fff)]/75" : "text-[var(--muted-foreground,#6E6558)]")}>{m.meta}</span>
+        </p>
         {m.attachments?.length ? (
           <div className="mt-2 flex flex-wrap gap-2">
             {m.attachments.map((a, i) => (
@@ -133,7 +167,6 @@ const kitChatUi: Partial<ChatUi> = {
           </div>
         ) : null}
       </div>
-      <span className="px-1 text-[11px] text-[var(--muted-foreground,#6E6558)]">{m.meta}</span>
     </div>
   ),
 };
