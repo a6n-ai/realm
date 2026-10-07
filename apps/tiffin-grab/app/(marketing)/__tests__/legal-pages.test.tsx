@@ -24,14 +24,14 @@ describe("legal pages", () => {
   });
 
   it.each([
-    ["terms", Terms, "Terms &amp; conditions", 11, "shared kitchen"],
-    ["privacy", Privacy, "Privacy policy", 9, "Privacy Commissioner of Canada"],
-    ["refund", Refund, "Refund &amp; return policy", 9, "48 hours before"],
-    ["delivery", Delivery, "Delivery policy", 8, "+1 (647) 244-9813"],
-  ])("%s renders its title, every numbered section and key wording", async (_n, Page, title, sections, phrase) => {
+    ["terms", Terms, "Terms &amp; conditions", 11, "shared kitchen", "October 7, 2026"],
+    ["privacy", Privacy, "Privacy policy", 9, "Privacy Commissioner of Canada", "October 7, 2026"],
+    ["refund", Refund, "Refund &amp; return policy", 9, "48 hours before", "October 7, 2026"],
+    ["delivery", Delivery, "Delivery policy", 8, "+1 (647) 244-9813", "April 6, 2026"],
+  ])("%s renders its title, every numbered section and key wording", async (_n, Page, title, sections, phrase, updated) => {
     const html = renderToStaticMarkup(await (Page as () => Promise<React.ReactElement> | React.ReactElement)());
     expect(html).toContain(title);
-    expect(html).toContain("Updated April 6, 2026");
+    expect(html).toContain(`Updated ${updated}`);
     expect(html).toContain("The short version");
     expect(html).not.toContain("§");
     expect((html.match(/id="s\d+"/g) ?? []).length).toBe(sections);

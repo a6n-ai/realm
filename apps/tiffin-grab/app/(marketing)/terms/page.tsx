@@ -40,7 +40,7 @@ const KEY_POINTS: KeyPoint[] = [
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms & conditions" intro="The agreement between you and TiffinGrab when you order or subscribe: who can order, how billing and plans work, allergens, and what each side is responsible for." updated="April 6, 2026" current="/terms" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Terms & conditions" intro="The agreement between you and TiffinGrab when you order or subscribe: who can order, how billing and plans work, allergens, and what each side is responsible for." updated="October 7, 2026" current="/terms" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
         <strong>Binding agreement.</strong> By using tiffingrab.ca, placing an order, or subscribing, you agree to these
         Terms with TiffinGrab. If you disagree, do not use our services. These Terms are governed by the laws of Ontario
@@ -86,7 +86,10 @@ export default function TermsPage() {
 
       <Clause n={4} title={SECTIONS[3]}>
         <Sub title="4.1 Payment">
-          <p className="m-0">Fees are due at purchase unless we agree otherwise in writing.</p>
+          <p className="m-0">
+            Fees are due at purchase unless we agree otherwise in writing. You pay by <strong>Interac e-Transfer</strong>.
+            Deliveries start once we confirm the transfer. Card payments through Stripe will be added later.
+          </p>
         </Sub>
         <Sub title="4.2 Currency & pricing">
           <p className="m-0">
@@ -100,10 +103,10 @@ export default function TermsPage() {
             if clearly disclosed at checkout; otherwise renew manually.
           </p>
         </Sub>
-        <Sub title="4.4 Failed payments & chargebacks">
+        <Sub title="4.4 Unconfirmed payments">
           <p className="m-0">
-            We may suspend delivery on failed payment until resolved. Chargebacks for legitimately delivered service breach
-            this Agreement and may result in suspension and recovery of costs.
+            We may hold deliveries until staff confirm your Interac e-Transfer. A dispute or reversal for service we
+            legitimately delivered breaches this Agreement and may result in suspension and recovery of costs.
           </p>
         </Sub>
       </Clause>
@@ -160,7 +163,7 @@ export default function TermsPage() {
 
       <Clause n={7} title={SECTIONS[6]}>
         <p className="m-0">
-          You will not submit fraudulent claims, harass staff or couriers, abuse chargebacks, break the law, or share
+          You will not submit fraudulent claims, harass staff or couriers, dispute a payment for service we delivered, break the law, or share
           account access to evade plan rules. Breach may mean immediate termination without refund.
         </p>
       </Clause>
