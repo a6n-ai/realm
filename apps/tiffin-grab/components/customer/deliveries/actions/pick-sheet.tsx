@@ -41,25 +41,8 @@ const PREFIX = "pick";
 
 
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
+const ADDONS = "__addons";
 const muted = "text-[var(--muted-foreground,#6E6558)]";
-
-/** Category label over its dish lines: the "Your meal" summary, used for the meal and its add-ons. */
-function SummaryBlocks({ blocks }: { blocks: MealSummaryLine[] }) {
-  return (
-    <div className="mt-3 grid gap-3">
-      {blocks.map((block) => (
-        <div key={block.categoryLabel}>
-          <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{block.categoryLabel}</h4>
-          <ul className="mt-1 grid gap-0.5">
-            {block.lines.map((line, n) => (
-              <li key={`${block.categoryLabel}:${n}`} className="text-[15px]">{line}</li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function slotLabel(group: PickCategoryGroup, index: number): string {
   const diet = group.cells[index]?.diet;
@@ -131,6 +114,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
   const [day, setDay] = useState(startDay && dates.includes(startDay) ? startDay : dates[0]);
   const [person, setPerson] = useState(1);
   const [picked, setPicked] = useState<Record<string, string>>({});
+  // Accordion: one category open at a time; nothing opens on its own.
+  const [openCat, setOpenCat] = useState<string | null>(null);
+  const toggle = (key: string) => setOpenCat((k) => (k === key ? null : key));
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Which rule refused the last pick, so its line stands out in the list above.
@@ -314,6 +300,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
           value: o.value,
           label: o.label,
           reason: o.reason,
+          swap: o.kind === "swap",
           disabled:
             cellOff
             || !!o.disabled
@@ -322,13 +309,18 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
             || (o.kind === "swap" && swapLocked),
         }))}
         value={selectedId ? dishOptionValue(selectedId) : built.length ? "" : "fixed"}
-        onChange={(v) => onSlotChange(cell, i, v)}
+        onChange={(v) => {
+          onSlotChange(cell, i, v);
+          // A one-row category (Rice, Roti) is done once picked; Sabzi with two rows stays open.
+          if (group.items.length === 1) setOpenCat(null);
+        }}
       />
     );
   };
   // The summary reads like the sheet: the meal first, then its add-ons on their own.
   const split = splitGroups(groups, addonKeys);
   const summary = buildMealSummary(split.meal, picked);
+  const summaryByLabel = new Map(summary.map((b) => [b.categoryLabel, b.lines.join(", ")]));
   const addonSummary: MealSummaryLine[] = [
     ...buildMealSummary(split.addons, picked),
     ...counted.addons.map((a) => {
@@ -539,6 +531,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 value={activeDay}
                 onChange={(d) => {
                   setDay(d);
+                  setOpenCat(null);
                   setError(null);
                 }}
                 items={tabs.map((d) => ({ id: d, label: shortDay(d) }))}
@@ -563,6 +556,21 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 {dayLocked && <p className={`text-[13px] ${muted}`}>Locked. Your picks for this day are final.</p>}
               </div>
 
+              {/* What the tiffin holds right now, at a glance; the categories below change it. */}
+              {summary.length > 0 && (
+                <section aria-label="Your meal" className="rounded-2xl bg-[var(--muted)]/60 px-4 py-3">
+                  <h3 className={`text-[12px] font-semibold uppercase tracking-wide ${muted}`}>Your meal</h3>
+                  <ul className="mt-1.5 grid gap-1 text-[14px]">
+                    {summary.map((b) => (
+                      <li key={b.categoryLabel}><span className="font-semibold">{b.categoryLabel}</span> <span className={muted}>·</span> {b.lines.join(", ")}</li>
+                    ))}
+                    {addonSummary.map((b) => (
+                      <li key={`addon:${b.categoryLabel}`}><span className="font-semibold">+ {b.categoryLabel}</span> <span className={muted}>·</span> {b.lines.join(", ")}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
               {rows.map((group) => {
                 const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                 const controlsOff = busy != null || saving;
@@ -573,8 +581,17 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 const menuDishes = grid.menu?.[activeDay!]?.[group.key] ?? [];
                 const fixed = grid.categories.find((c) => c.key === group.key)?.selectable === false;
                 const ownDishes = group.dishes.length ? group.dishes : fixed ? menuDishes.slice(0, 1) : menuDishes;
+                const changed = group.cells.some((c) => !addonKeys.has(cellKey(c)) && picked[cellKey(c)] != null && picked[cellKey(c)] !== c.selectedDishId);
+                const status = group.swapped.length ? "Swapped" : locked ? "Locked" : changed ? "Changed" : group.selectable ? "Default" : "Included";
                 return (
-                  <U.CategorySection key={group.key} label={group.label}>
+                  <U.CategorySection
+                    key={group.key}
+                    label={group.label}
+                    summary={summaryByLabel.get(group.label) ?? "Exchanged"}
+                    status={status}
+                    open={openCat === group.key}
+                    onToggle={() => toggle(group.key)}
+                  >
                     {mealItems.map((item) => {
                       if (item.kind === "swapped") {
                         const row = item.swapped;
@@ -695,8 +712,14 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
 
               {(addonKeys.size > 0 || counted.addons.length > 0) && (
                 // Its own highlighted block: add-ons are extras, picked from the menu, never exchanged.
-                <div className="grid gap-3 rounded-2xl border border-[var(--primary)]/40 bg-[var(--primary)]/5 p-4">
-                <U.CategorySection label="Add-ons">
+                <div className="rounded-2xl ring-1 ring-[var(--primary)]/40">
+                <U.CategorySection
+                  label="Add-ons"
+                  summary={addonSummary.map((b) => b.lines.join(", ")).join(" · ")}
+                  status="Not exchangeable"
+                  open={openCat === ADDONS}
+                  onToggle={() => toggle(ADDONS)}
+                >
                   <p className={`-mt-2 text-[13px] ${muted}`}>Extras on your plan. Pick a dish; add-ons can&apos;t be exchanged for other items.</p>
                   {rows.flatMap((group) => {
                     const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
@@ -723,18 +746,6 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 </div>
               )}
 
-              {summary.length > 0 && (
-                <section aria-label="Your meal" className="border-t border-[var(--border,#E8E0D5)] pt-4">
-                  <h3 className="text-[17px] font-semibold">Your meal</h3>
-                  <SummaryBlocks blocks={summary} />
-                  {addonSummary.length > 0 && (
-                    <>
-                      <h4 className="mt-4 text-[15px] font-semibold">Add-ons</h4>
-                      <SummaryBlocks blocks={addonSummary} />
-                    </>
-                  )}
-                </section>
-              )}
             </div>
             {error && <U.Notice tone="error">{error}</U.Notice>}
             <MealRuleNotes rules={grid?.rules ?? []} violatedRuleId={violatedRuleId} />
