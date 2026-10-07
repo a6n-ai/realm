@@ -13,7 +13,8 @@ import { warmCaptcha } from "@/lib/auth/captcha-client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
 import {
-  AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, EmailSuggestions, GoogleOneTap, GoogleSignInButton, authErrorMessage, oauthErrorMessage,
+  AUTH_LINK, AuthScreen, AuthWelcome, ContinueAs, EmailCodeSignIn, EmailSuggestions, GoogleOneTap, GoogleSignInButton, authErrorMessage,
+  oauthErrorMessage, type ContinueAsUser,
 } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import {
@@ -49,7 +50,7 @@ export function safeCallbackUrl(raw: string | null): string | null {
   }
 }
 
-export type LastUserView = { firstName: string; email: string; maskedEmail: string; method: "google" | "email" | "password"; image?: string };
+export type LastUserView = ContinueAsUser;
 
 export function AuthForm({
   canUsePin,
@@ -181,6 +182,7 @@ export function AuthForm({
             />
           ) : lastUser ? (
             <ContinueAs
+              ui={tiffinAuthUi}
               user={lastUser}
               onContinue={() => {
                 if (lastUser.method === "google" && googleClientId) {
@@ -201,7 +203,7 @@ export function AuthForm({
                 setLastUser(null);
                 setMode("email-otp");
               }}
-              onGetStarted={() => router.push("/subscribe")}
+              getStarted={{ label: "New here? Start a subscription", onClick: () => router.push("/subscribe") }}
             />
           ) : null}
         </AuthWelcome>
@@ -386,79 +388,3 @@ function PinPanel({ onUsePassword }: { onUsePassword: () => void }) {
 }
 
 const KitButton = tiffinAuthUi.Button!;
-
-function ContinueAs({
-  user,
-  onContinue,
-  onOther,
-  onForget,
-  onGetStarted,
-}: {
-  user: LastUserView;
-  onContinue: () => unknown;
-  onOther: () => void;
-  onForget: () => void;
-  onGetStarted: () => void;
-}) {
-  const [pending, setPending] = useState(false);
-  const [photoFailed, setPhotoFailed] = useState(false);
-  const initial = (user.firstName || user.email).charAt(0).toUpperCase();
-  return (
-    // Canva-style account card: who, then one obvious action, grouped under the
-    // heading (no gap pushing the buttons to the bottom of the screen).
-    <div className="flex flex-col gap-5 pt-2">
-      <div className="flex flex-col items-center gap-3 text-center">
-        {user.image && !photoFailed ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Google photo or our file store, not a static asset
-          <img
-            src={user.image}
-            alt=""
-            referrerPolicy="no-referrer"
-            onError={() => setPhotoFailed(true)}
-            className="size-20 rounded-full border border-[var(--border)] object-cover"
-          />
-        ) : (
-          <span
-            aria-hidden
-            className="flex size-20 items-center justify-center rounded-full bg-[var(--primary)] text-[28px] font-semibold text-[var(--primary-foreground)]"
-          >
-            {initial}
-          </span>
-        )}
-        <div className="flex flex-col gap-0.5">
-          {user.firstName ? <p className="text-[17px] font-semibold">{user.firstName}</p> : null}
-          <p className="text-muted-foreground text-sm [overflow-wrap:anywhere]">{user.email}</p>
-        </div>
-      </div>
-      <KitButton
-        variant="primary"
-        className="w-full"
-        pending={pending}
-        onClick={async () => {
-          setPending(true);
-          // Google navigates away; the email path returns at once.
-          await onContinue();
-          setPending(false);
-        }}
-      >
-        Continue
-      </KitButton>
-      <div className="text-muted-foreground flex items-center gap-3 text-xs" aria-hidden>
-        <span className="h-px flex-1 bg-[var(--border)]" />
-        or
-        <span className="h-px flex-1 bg-[var(--border)]" />
-      </div>
-      <KitButton variant="outline" className="w-full" onClick={onOther}>
-        Continue with another account
-      </KitButton>
-      <div className="flex flex-col items-center">
-        <button type="button" onClick={onForget} className={AUTH_LINK}>
-          Not you? Remove this account
-        </button>
-        <button type="button" onClick={onGetStarted} className={AUTH_LINK}>
-          New here? Start a subscription
-        </button>
-      </div>
-    </div>
-  );
-}
