@@ -41,7 +41,7 @@ describe("VacationSheet", () => {
     const onDone = vi.fn();
     render(<VacationSheet trip={trip} plan={mk()} open onDone={onDone} />);
     fireEvent.click(cell(/Monday, September 21/));
-    expect(screen.getByText(/stay paused until you resume/i)).toBeInTheDocument();
+    expect(screen.getByText(/until you resume/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Pause deliveries" }));
     await waitFor(() => expect(m.pause).toHaveBeenCalledWith("o", { from: "2026-09-21", until: "2026-09-21", indefinite: true }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Vacation set."));
@@ -58,8 +58,8 @@ describe("VacationSheet", () => {
     fireEvent.click(cell(/Monday, September 28/));
     fireEvent.click(screen.getByRole("switch", { name: /end date/i }));
     fireEvent.click(screen.getAllByRole("button", { name: /Friday, October 2\b/ })[1]!);
-    expect(screen.getByText(/Trips from Mon, Sep 28 to Fri, Oct 2 are paused/)).toBeInTheDocument();
-    expect(screen.getByText(/appends undelivered days after your last day/i)).toBeInTheDocument();
+    expect(screen.getByText(/Paused Mon, Sep 28 to Fri, Oct 2/)).toBeInTheDocument();
+    expect(screen.getByText(/Missed tiffins are added at the end/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Pause deliveries" }));
     await waitFor(() => expect(m.pause).toHaveBeenCalledWith("o", { from: "2026-09-28", until: "2026-10-02" }));
   });

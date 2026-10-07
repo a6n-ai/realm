@@ -1,18 +1,25 @@
 "use client";
-import { Truck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Lock, Package, Truck, Utensils, type LucideIcon } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
 import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import { weekdayShort } from "@/lib/deliveries-view/eating";
 import { mondayOf } from "@/lib/deliveries-view/week";
 import { moveLockReason, moveOptions, planEndDate } from "@/lib/deliveries-view/move";
 import { WeekTimeline } from "../week-timeline";
-import { formatCoversLabel } from "@/lib/menu/coverage";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
 import { useSheetUi } from "./sheet-ui";
 
 const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
+
+// Plain spans on theme tokens, so the admin (shadcn) and kit sheets both render them.
+const Pill = ({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) => (
+  <li className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1 text-[13px] font-medium">
+    <Icon aria-hidden className="size-3.5 shrink-0" />
+    {children}
+  </li>
+);
 
 export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, ui }: ActionSheetProps) {
   const { Shell, PrimaryButton, Notice, Reason, PillToggle } = useSheetUi(ui);
@@ -54,10 +61,10 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
   const footer = (
     <PrimaryButton
       pending={pending}
-      disabledReason={!av.ok ? (av.why ?? undefined) : !chosen ? "Choose a day to continue." : undefined}
+      disabledReason={!av.ok ? (av.why ?? undefined) : !chosen ? "Choose a day." : undefined}
       onClick={confirm}
     >
-      {chosen ? `Move to ${humanDate(chosen.date)}` : "Move trip"}
+      {chosen ? `Move to ${humanDate(chosen.date)}` : "Move"}
     </PrimaryButton>
   );
 
@@ -86,24 +93,14 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
                 deliveryDay={(iso) => !!agenda?.[iso]?.some((x) => x.truck) || (!!byDate.get(iso) && !byDate.get(iso)!.disabledReason && byDate.get(iso)!.carriedOn === iso)}
               />
               {reason && <Reason>{reason}</Reason>}
-              {!chosen && <Reason>Choose a day to continue.</Reason>}
-              {chosen?.merge ? (
-                <Notice>
-                  It rides the {humanDate(chosen.carriedOn)} delivery: {tiffins(chosen.merge.units)} on that truck.{formatCoversLabel(chosen.merge.covers) && ` ${formatCoversLabel(chosen.merge.covers)}.`}
-                </Notice>
-              ) : chosen && chosen.carriedOn !== chosen.date ? (
-                <Notice>{humanDate(chosen.date)} will arrive {humanDate(chosen.carriedOn)} with {weekdayShort(chosen.carriedOn)}. We don&apos;t deliver on {weekdayShort(chosen.date)}s, so it rides on the earlier delivery.</Notice>
-              ) : chosen ? (
-                <Notice>Your {tiffins(movingUnits)} will arrive on {humanDate(chosen.date)}.</Notice>
-              ) : null}
-              {chosen && (
-                <Notice>
-                  It becomes {weekdayShort(chosen.date)}&apos;s tiffin, with {weekdayShort(chosen.date)}&apos;s menu. Any meal you pick for {weekdayShort(chosen.date)} applies to it too. Only one move is allowed per meal. Once you move it, you can&apos;t move it again, move it back to {humanDate(source)}, or put it on hold.
-                </Notice>
-              )}
-              <Reason>
-                Pick the day you want to eat; greyed days aren&apos;t available. We choose the delivery day for you (<Truck aria-hidden className="mx-0.5 inline size-3.5 align-[-2px]" /> marks delivery days). {split ? "Your other days stay on this trip." : "Days already covered stay with this trip."}
-              </Reason>
+              {chosen ? (
+                <ul aria-label="What happens" className="flex flex-wrap gap-2">
+                  <Pill icon={Truck}>Arrives {humanDate(chosen.carriedOn)}</Pill>
+                  <Pill icon={Package}>{tiffins(chosen.merge ? chosen.merge.units : movingUnits)} that day</Pill>
+                  <Pill icon={Utensils}>{weekdayShort(chosen.date)}&apos;s menu</Pill>
+                  <Pill icon={Lock}>Can&apos;t move again</Pill>
+                </ul>
+              ) : !reason && <Reason>Pick a day. Greyed days aren&apos;t available.</Reason>}
             </>
           )}
           {error && <Notice tone="error">{error}</Notice>}

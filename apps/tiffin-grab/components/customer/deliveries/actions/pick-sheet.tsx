@@ -503,8 +503,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
         {state && "error" in state && <U.Notice tone="error">{state.error}</U.Notice>}
         {state && "grid" in state && !grid && (
           <U.Notice>
-            The menu for {dates.length > 1 ? "these days" : humanDate(dates[0])} isn&apos;t out yet. We&apos;ll use the
-            default menu.
+            Menu isn&apos;t out yet. You&apos;ll get the default menu.
           </U.Notice>
         )}
         {grid && (

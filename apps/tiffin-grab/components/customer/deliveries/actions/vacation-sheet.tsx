@@ -50,12 +50,12 @@ export function VacationSheet({ plan, open, onDone }: Omit<ActionSheetProps, "tr
 
   const cta = onVacation ? "Resume deliveries" : "Pause deliveries";
   const summary = onVacation
-    ? "Paused trips return to your schedule. Days already missed move to your pool."
+    ? "Paused trips return to your schedule. Missed days are added at the end."
     : !start_
       ? null
       : withEnd && end
-        ? `Trips from ${humanDate(start_)} to ${humanDate(end)} are paused. Trips whose cutoff already passed still go out. Resume appends undelivered days after your last day.`
-        : `No end date: deliveries stay paused until you resume. Trips whose cutoff already passed still go out.`;
+        ? `Paused ${humanDate(start_)} to ${humanDate(end)}. Missed tiffins are added at the end.`
+        : `Paused from ${humanDate(start_)} until you resume.`;
 
   return (
     <Sheet
@@ -73,10 +73,10 @@ export function VacationSheet({ plan, open, onDone }: Omit<ActionSheetProps, "tr
       >
         <div className="space-y-5 pb-2">
           {onVacation ? (
-            <p className="text-[15px]">Deliveries are paused for this plan. Resume to start them again.</p>
+            <p className="text-[15px]">Deliveries are paused.</p>
           ) : (
             <>
-              <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Away from home? Pause every trip in a date range. Skipped tiffins are added after your last delivery.</p>
+              <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Away for a few days? Pause your deliveries.</p>
               {budget.length > 0 && (
                 <ul className="space-y-1">
                   {budget.map((b) => <li key={b}><Reason>{b}</Reason></li>)}

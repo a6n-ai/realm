@@ -31,8 +31,8 @@ const mount = (C: typeof MoveSheet, t: Trip, onDone = vi.fn()) => (render(<C tri
 describe("MoveSheet", () => {
   it("needs a day first", () => {
     mount(MoveSheet, trip());
-    expect(screen.getAllByText("Choose a day to continue.").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: "Move trip" }));
+    expect(screen.getByText("Pick a day. Greyed days aren't available.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Move" }));
     expect(a.move).not.toHaveBeenCalled();
   });
   it("shows the month on top and marks delivery days with a truck", () => {
@@ -49,7 +49,7 @@ describe("MoveSheet", () => {
     expect(tue).not.toHaveAttribute("aria-disabled");
     expect(tue.getAttribute("aria-label")).not.toContain("delivery day");
     fireEvent.click(tue);
-    expect(screen.getByText(/Tue, Sep 29 will arrive Mon, Sep 28 with Mon/)).toBeInTheDocument();
+    expect(screen.getByText("Arrives Mon, Sep 28")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Monday, September 28, .*delivery day/ })).not.toHaveAttribute("aria-disabled");
   });
   it("free day: preview then move", async () => {
@@ -57,8 +57,9 @@ describe("MoveSheet", () => {
     const onDone = mount(MoveSheet, trip({ units: 2, coversDates: ["2026-09-23"], coversLabel: null }));
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
-    expect(screen.getByText(/Your 2 tiffins will arrive on Mon, Sep 28/)).toBeInTheDocument();
-    expect(screen.getByText(/Only one move is allowed per meal/)).toBeInTheDocument();
+    expect(screen.getByText("Arrives Mon, Sep 28")).toBeInTheDocument();
+    expect(screen.getByText("2 tiffins that day")).toBeInTheDocument();
+    expect(screen.getByText("Can't move again")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
     expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23");
@@ -68,7 +69,7 @@ describe("MoveSheet", () => {
     const onDone = mount(MoveSheet, trip());
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
-    expect(screen.getByText(/Your 1 tiffin will arrive on Mon, Sep 28/)).toBeInTheDocument();
+    expect(screen.getByText("1 tiffin that day")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
     expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23");
@@ -77,7 +78,7 @@ describe("MoveSheet", () => {
     a.move.mockResolvedValue({ ok: true, message: "merged" });
     const onDone = mount(MoveSheet, trip({ units: 1, coversDates: ["2026-09-23"], coversLabel: null }));
     fireEvent.click(screen.getByRole("button", { name: /Friday, September 25/ }));
-    expect(screen.getByText(/It rides the Fri, Sep 25 delivery: 3 tiffins on that truck. Covers Thu \+ Fri/)).toBeInTheDocument();
+    expect(screen.getByText("3 tiffins that day")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Fri, Sep 25" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Fri, Sep 25."));
   });

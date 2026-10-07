@@ -231,9 +231,6 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
             <Notice>{lockReason}</Notice>
           ) : (
             <>
-              <Reason>
-                Swaps apply to one eating day. Only exchanges that fit your meal are shown.
-              </Reason>
               <MealSummary meal={dayMeal} portions={plan.categoryPortions} />
               {applied.length > 0 && (
                 <section aria-label="Applied swaps" className="flex flex-col gap-2">
