@@ -1,10 +1,10 @@
-import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, like, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
-import { auditLog, customerAddresses } from "@/db/schema";
+import { auditLog, customerAddresses, orderActivities } from "@/db/schema";
 import { account, campaign, deliveries, inquiries, leadSources, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, users } from "@/db/schema";
 import { MENU_REMINDER_KEY } from "@/lib/notifications/menu-reminder";
 import type { SortState } from "@/lib/list/sort";
@@ -491,6 +491,31 @@ async function addressTimeline(userId: bigint) {
   }));
 }
 
+/** Plan and one-day address changes on this customer's orders (staff or customer). */
+async function planAddressTimeline(userId: bigint, orderRows: { id: bigint; publicId: string; deploymentId: string }[]) {
+  if (!orderRows.length) return [];
+  const byId = new Map(orderRows.map((o) => [o.id, o]));
+  const rows = await db.select({ publicId: orderActivities.publicId, orderId: orderActivities.orderId, note: orderActivities.note, at: orderActivities.createdAt, by: orderActivities.createdBy, actor: users.name })
+    .from(orderActivities).leftJoin(users, eq(users.id, orderActivities.createdBy))
+    .where(and(
+      inArray(orderActivities.orderId, orderRows.map((o) => o.id)),
+      or(
+        eq(orderActivities.type, "delivery_address_changed"),
+        and(eq(orderActivities.type, "note"), like(orderActivities.note, "Delivery address changed%")),
+      ),
+    ));
+  return rows.map((r) => {
+    const o = byId.get(r.orderId)!;
+    const who = r.by == null ? "system" : r.by === userId ? "customer" : r.actor ?? "staff";
+    return {
+      id: `plan-address:${o.publicId}:${r.publicId}`,
+      kind: "address" as const,
+      label: `${o.deploymentId}: ${r.note ?? "Delivery address changed"} · by ${who}`,
+      at: Number(r.at),
+    };
+  });
+}
+
 export async function getCustomer360(userPublicId: string) {
   const [user] = await db
     .select({
@@ -588,6 +613,7 @@ export async function getCustomer360(userPublicId: string) {
     ...orderRows.map((o) => ({ id: `order:${o.publicId}`, kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),
     ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${i.fullName} (${i.stage})`, at: i.createdAt })),
     ...(await addressTimeline(user.id)),
+    ...(await planAddressTimeline(user.id, orderRows)),
   ].sort((a, b) => b.at - a.at);
 
   return {

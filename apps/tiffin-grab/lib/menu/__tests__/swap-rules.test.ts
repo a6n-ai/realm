@@ -26,6 +26,11 @@ describe("swapPairFits", () => {
   it("rejects a missing category measured in a different unit", () => {
     expect(swapPairFits(roti, riceAbsent)).toBe(false);
   });
+  it("a custom meal may receive a missing category like-for-like, not cross-unit", () => {
+    expect(swapPairFits(curry12, cat("daal", null, { addable: true }))).toBe(true);
+    expect(swapPairFits(roti, cat("rice", null, { unitType: "count", unitLabel: "unit", addable: true }))).toBe(false);
+    expect(swapQuantities(curry12, cat("daal", null, { addable: true }), 1)).toEqual({ ok: true, qtyTo: 1 });
+  });
   it("rejects when neither side is on the meal size", () => {
     expect(swapPairFits(sabziAbsent, cat("salad", null))).toBe(false);
   });

@@ -6,6 +6,7 @@ import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { zonedDateIso } from "@foundry/commons";
 import { buildPlanContext, toCalendarInputs, type PlanView } from "@/components/customer/deliveries/adapter";
 import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
+import { portionsAfterSwaps } from "@/lib/menu/eating-day-portions";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { buildTrips, type Trip } from "@/lib/deliveries-view";
 import { addDays, defaultWeek, mondayOf, parseWeekParam, type Agenda } from "@/lib/deliveries-view/week";
@@ -81,6 +82,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     categoryLabels,
     categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
     categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
+    portionsByDate: await portionsAfterSwaps(sub.publicId, days),
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses,
     addressDropOffs: await dropOffsFor(savedAddresses.map((a) => a.publicId)),

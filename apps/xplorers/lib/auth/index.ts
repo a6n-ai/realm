@@ -5,10 +5,13 @@ import { nextCookies } from "better-auth/next-js";
 import { admin as adminPlugin } from "better-auth/plugins/admin";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { createLogger } from "@foundry/commons/logger";
-import { createOrganizationPlugin, authAuditAction } from "@foundry/auth";
+import {
+  LAST_USER_COOKIE, SIGN_IN_METHOD, authAuditAction, createOrganizationPlugin, encodeLastUser, googleAccountHooks, googleOneTapPlugins,
+  googleSocialProviders, lastUserCookieOptions, signInPath,
+} from "@foundry/auth";
 import { ac, roles } from "./permissions";
 import { Role } from "@foundry/commons";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, invitation, member, organization, session, users, verification } from "@/db/schema";
 import { recordAudit } from "@/lib/services/session-service";
@@ -94,6 +97,21 @@ export const auth = betterAuth({
       }
     },
   },
+  // Google can be disconnected even when it is the only linked account: email-code
+  // sign-in needs no account row, so nobody is locked out by it.
+  account: {
+    accountLinking: {
+      allowUnlinkingAll: true,
+      // Signup accounts start unverified, and Better Auth's default would then
+      // refuse Google for them. Linking anyway is safe only with the guard in
+      // googleAccountHooks (databaseHooks.account below): it drops a password
+      // nobody proved they own before Google verifies the address.
+      requireLocalEmailVerified: false,
+    },
+  },
+  // Google sign-up only when /signup asks (requestSignUp); /login only signs in.
+  // Off until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
+  socialProviders: googleSocialProviders({ allowSignUp: true }),
   user: {
     fields: { createdAt: "bauthCreatedAt", updatedAt: "bauthUpdatedAt" },
     additionalFields: {
@@ -128,9 +146,21 @@ export const auth = betterAuth({
         await sendStaffInvitation({ email: data.email, role: data.invitation.role, inviteUrl: url });
       },
     }),
+    // Google One Tap: sign-in only, off without the Google keys.
+    ...googleOneTapPlugins(),
     nextCookies(),
   ],
   databaseHooks: {
+    account: googleAccountHooks({
+      isEmailVerified: async (userId) => {
+        const [owner] = await db.select({ emailVerified: users.emailVerified }).from(users).where(eq(users.id, userId)).limit(1);
+        return Boolean(owner?.emailVerified);
+      },
+      setImageIfEmpty: async (userId, url) => {
+        await db.update(users).set({ image: url }).where(and(eq(users.id, userId), isNull(users.image)));
+      },
+      onError: (err, message) => log.error({ err }, message),
+    }),
     session: {
       create: {
         before: async (sess) => {
@@ -161,8 +191,18 @@ export const auth = betterAuth({
   },
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
+      const failed = ctx.context.returned instanceof APIError;
+      const path = signInPath(ctx.path, ctx.params);
+
+      // "Welcome back, Ana" on the next visit to /login, whatever the method.
+      const fresh = ctx.context.newSession;
+      if (!failed && fresh) {
+        const value = encodeLastUser(path, fresh.user);
+        if (value) ctx.setCookie(LAST_USER_COOKIE, value, lastUserCookieOptions());
+      }
+
       const auditAction = authAuditAction(ctx.path);
-      if (auditAction && !(ctx.context.returned instanceof APIError)) {
+      if (auditAction && !failed) {
         try {
           const body = ctx.body as { email?: string } | undefined;
           const sessionUser = (
@@ -180,7 +220,9 @@ export const auth = betterAuth({
         }
       }
 
-      if (ctx.path !== "/sign-in/email") return;
+      // Every sign-in method is audited; "email" (password) keeps its old label.
+      const method = SIGN_IN_METHOD[path];
+      if (!method) return;
 
       const newSession = ctx.context.newSession;
       if (newSession) {
@@ -190,7 +232,7 @@ export const auth = betterAuth({
             entity: "auth",
             entityPublicId: publicId ?? newSession.user.id,
             operation: "login",
-            changes: { method: "email" },
+            changes: { method },
             createdBy: null,
           });
         } catch (e) {
@@ -199,14 +241,14 @@ export const auth = betterAuth({
         return;
       }
 
-      if (ctx.context.returned instanceof APIError) {
+      if (failed && method !== "google") {
         try {
           const body = ctx.body as { email?: string } | undefined;
           await recordAudit({
             entity: "auth",
             entityPublicId: body?.email ?? "unknown",
             operation: "login_failed",
-            changes: { method: "email" },
+            changes: { method },
             createdBy: null,
           });
         } catch (e) {
@@ -216,3 +258,5 @@ export const auth = betterAuth({
     }),
   },
 });
+
+export { signInPath };

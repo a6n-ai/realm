@@ -11,6 +11,9 @@ import { ChangeEmailForm } from "@/components/auth/change-email-form";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import { SetPasswordForm } from "@/components/customer/account/set-password-form";
 import { UsernameForm } from "@/components/customer/account/username-form";
+import { GoogleConnectionField } from "@/components/auth/google-connection-field";
+import { googleSignInEnabled } from "@foundry/auth";
+import { hasGoogleLinked } from "@/lib/auth/google-link";
 
 export default function CustomerAccountPage() {
   return (
@@ -26,6 +29,7 @@ export default function CustomerAccountPage() {
 async function AccountData() {
   const session = await getSession();
   if (!session?.user) redirect("/login?callbackUrl=/me/account");
+  const google = googleSignInEnabled() ? { connected: await hasGoogleLinked(session.user.id) } : null;
 
   const [u] = await db
     .select({ name: users.name, email: users.email, passwordSet: users.passwordSet, displayUsername: users.displayUsername })
@@ -51,6 +55,11 @@ async function AccountData() {
           </div>
         </dl>
       </SectionCard>
+      {google ? (
+        <SectionCard title="Google" subtitle="Sign in with your Google account instead of a code or password.">
+          <GoogleConnectionField connected={google.connected} callbackURL="/me/account" />
+        </SectionCard>
+      ) : null}
       <SectionCard
         title="Sign-in"
         subtitle={

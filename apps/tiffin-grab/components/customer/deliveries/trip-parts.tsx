@@ -113,7 +113,6 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
               <li key={e.date} className="text-[15px]">
                 {multi && <span className="mb-0.5 block text-[13px] font-semibold text-[var(--muted-foreground,#6E6558)]">{humanDate(e.date)}</span>}
                 <span className="block">{dishes.length ? dishes.join(", ") : <span className="text-[var(--muted-foreground,#6E6558)]">Default menu</span>}</span>
-                {e.swaps.length > 0 && <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">Swapped: {e.swaps.join(", ")}</span>}
               </li>
             );
           })}
@@ -239,13 +238,15 @@ export const EXPLAIN: Record<Trip["status"], string> = {
   failed: "Not delivered. Move it to another day.",
 };
 
-/** Meal breakdown of one eating day (category, portion, dishes, swaps), with a compact delivery footer. */
+/** Meal breakdown of one eating day (category, portion after swaps, dishes), with a compact delivery footer. */
 export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
   const t = row.trip;
   const source = plan?.days.find((d) => d.date === t.date);
   const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
   const cats = (meal ?? []).filter((c) => c.picks.length > 0);
   const slotPortion = (category: string, pickIndex: number): string | null => {
+    const swapped = plan?.portionsByDate?.[row.date]?.[category];
+    if (swapped?.length) return swapped[pickIndex] ?? swapped[swapped.length - 1] ?? null;
     const slots = plan?.categoryPortionSlots?.[category];
     if (slots?.length) return slots[pickIndex] ?? slots[slots.length - 1] ?? null;
     return plan?.categoryPortions[category] ?? null;
@@ -280,12 +281,6 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
           </ul>
         ) : (
           <p>{dedupeDishes(row.dish).join(", ") || "Default menu. Dishes show once the menu is out."}</p>
-        )}
-        {row.swaps.length > 0 && (
-          <section aria-label="Swaps">
-            <h3 className="mb-1 text-sm font-semibold">Swapped</h3>
-            <ul className="space-y-1 text-[14px]">{row.swaps.map((x) => <li key={x}>{x}</li>)}</ul>
-          </section>
         )}
         <p className="flex items-start gap-2 text-[13px] text-[var(--muted-foreground,#6E6558)]" data-testid="info-delivery">
           <Truck aria-hidden className="mt-0.5 size-4 shrink-0" />

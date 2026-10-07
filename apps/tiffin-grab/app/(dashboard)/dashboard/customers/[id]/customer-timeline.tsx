@@ -16,6 +16,7 @@ const KIND_LABEL = { order: "Order", inquiry: "Inquiry", address: "Address" } as
 
 function entryHref(e: TimelineEntry): string {
   const id = e.id.slice(e.id.indexOf(":") + 1);
+  if (e.id.startsWith("plan-address:")) return `/dashboard/orders/${id.split(":")[0]}`;
   if (e.kind === "address") return "#addresses";
   return e.kind === "order" ? `/dashboard/orders/${id}` : `/dashboard/inquiries/${id}`;
 }

@@ -5,9 +5,9 @@ import { admin as adminPlugin, captcha, emailOTP, magicLink } from "better-auth/
 import { CAPTCHA_ENDPOINTS, turnstileKeys } from "./captcha";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { and, eq, isNull } from "drizzle-orm";
-import { revokeUnprovenAccountAccess } from "better-auth/db";
 import {
-  LAST_USER_COOKIE, LAST_USER_MAX_AGE_S, authAuditAction, createOrganizationPlugin, encodeLastUser, googleOneTapPlugins, googleSocialProviders,
+  LAST_USER_COOKIE, SIGN_IN_METHOD, authAuditAction, createOrganizationPlugin, encodeLastUser, googleAccountHooks, googleOneTapPlugins,
+  googleSocialProviders, lastUserCookieOptions, signInPath,
 } from "@foundry/auth";
 import { Role } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
@@ -239,44 +239,16 @@ export const auth = betterAuth({
     // Google's tokens are never stored: nothing here calls a Google API, so
     // keeping access/refresh/id tokens would only be credentials at rest to
     // leak. The photo is read from the ID token before it is dropped.
-    account: {
-      create: {
-        before: async (acc, ctx) => {
-          if (acc.providerId !== "google") return;
-          const userId = BigInt(acc.userId as string);
-          // Google is about to verify this address. If it is still unverified,
-          // drop any password and session on it first (Better Auth's own guard).
-          if (ctx) await revokeUnprovenAccountAccess(ctx, String(acc.userId));
-          else {
-            // Fail closed: without a request context the guard cannot run, so
-            // refuse to link Google onto an address nobody has verified.
-            const [owner] = await db.select({ emailVerified: users.emailVerified }).from(users).where(eq(users.id, userId)).limit(1);
-            if (!owner?.emailVerified) throw new APIError("FORBIDDEN", { message: "Verify your email before connecting Google." });
-          }
-          if (acc.idToken) {
-            try {
-              const picture = googlePicture(acc.idToken);
-              if (picture) {
-                await db
-                  .update(users)
-                  .set({ image: picture })
-                  .where(and(eq(users.id, userId), isNull(users.image)));
-              }
-            } catch (e) {
-              log.error({ err: e }, "google photo copy failed");
-            }
-          }
-          return { data: { ...acc, accessToken: null, refreshToken: null, idToken: null } };
-        },
+    account: googleAccountHooks({
+      isEmailVerified: async (userId) => {
+        const [owner] = await db.select({ emailVerified: users.emailVerified }).from(users).where(eq(users.id, userId)).limit(1);
+        return Boolean(owner?.emailVerified);
       },
-      update: {
-        // Each Google sign-in refreshes the tokens on the linked row; drop them again.
-        before: async (acc) => {
-          if (!("accessToken" in acc || "refreshToken" in acc || "idToken" in acc)) return;
-          return { data: { ...acc, accessToken: null, refreshToken: null, idToken: null } };
-        },
+      setImageIfEmpty: async (userId, url) => {
+        await db.update(users).set({ image: url }).where(and(eq(users.id, userId), isNull(users.image)));
       },
-    },
+      onError: (err, message) => log.error({ err }, message),
+    }),
     session: {
       // Login gate: only `active` accounts may get a session. Fires after the
       // credential/OTP check passes, so a deactivated/suspended/deleted user is
@@ -346,13 +318,7 @@ export const auth = betterAuth({
       if (!failed && fresh) {
         const value = encodeLastUser(path, fresh.user);
         if (value) {
-          ctx.setCookie(LAST_USER_COOKIE, value, {
-            path: "/",
-            maxAge: LAST_USER_MAX_AGE_S,
-            sameSite: "lax",
-            httpOnly: false,
-            secure: process.env.NODE_ENV === "production",
-          });
+          ctx.setCookie(LAST_USER_COOKIE, value, lastUserCookieOptions());
         }
       }
 
@@ -449,24 +415,4 @@ export const auth = betterAuth({
   },
 });
 
-/** The OAuth callback is one route, "/callback/:id"; name the provider ("/callback/google") so sign-in checks can match it. */
-export function signInPath(path: string, params?: unknown): string {
-  return path === "/callback/:id" ? `/callback/${(params as { id?: string } | undefined)?.id}` : path;
-}
-
-const SIGN_IN_METHOD: Record<string, string> = {
-  "/sign-in/email": "email",
-  "/sign-in/email-otp": "email_code",
-  "/magic-link/verify": "invite_link",
-  "/callback/google": "google",
-  "/one-tap/callback": "google",
-};
-
-// The ID token Better Auth just received and verified from Google on this
-// callback; reading its `picture` claim needs no second verification.
-function googlePicture(idToken: string): string | null {
-  const payload = idToken.split(".")[1];
-  if (!payload) return null;
-  const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { picture?: unknown };
-  return typeof claims.picture === "string" && claims.picture.startsWith("https://") ? claims.picture : null;
-}
+export { signInPath };

@@ -3,7 +3,7 @@
 
 import { zonedDateIso } from "@foundry/commons";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Clock, Info, MapPin, Package, Truck, Utensils } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, MapPin, Package, Truck, Utensils } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
-import { actionAvailability, cutoffNote, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { deliveryLine, eatingRowsInWeek, isAddressRow, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow, type MoveFact } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
@@ -76,10 +76,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
         <span className="font-medium">{plan.sub.mealSizeName}</span>
         <span className="text-muted-foreground tabular-nums">
           {plan.counts.remaining} of {plan.counts.total} tiffins left
-        </span>
-        <span data-testid="cutoff-note" className="text-muted-foreground flex items-center gap-1.5 sm:ml-auto">
-          <Clock className="size-4" aria-hidden />
-          {cutoffNote(plan.ctx.cutoffHour)}
         </span>
       </div>
 
@@ -380,6 +376,8 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
   const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
   const cats = (meal ?? []).filter((c) => c.picks.length > 0);
   const slotPortion = (category: string, pickIndex: number): string | null => {
+    const swapped = plan.portionsByDate?.[row.date]?.[category];
+    if (swapped?.length) return swapped[pickIndex] ?? swapped[swapped.length - 1] ?? null;
     const slots = plan.categoryPortionSlots?.[category];
     if (slots?.length) return slots[pickIndex] ?? slots[slots.length - 1] ?? null;
     return plan.categoryPortions[category] ?? null;
@@ -418,7 +416,6 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
             ))}
           </ul>
         ) : <p className="text-muted-foreground text-sm">{row.dish ?? "Default menu."}</p>}
-        {row.swaps.length > 0 && <p className="text-muted-foreground text-xs">Swapped: {row.swaps.join(", ")}</p>}
       </DialogContent>
     </Dialog>
   );

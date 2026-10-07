@@ -104,10 +104,13 @@ export function previewPortions(
   return Object.fromEntries(portionsByCategory(base.items, new Map(base.tu), swaps));
 }
 
-/** Every configured swap for one eating day, unavailable ones included (shown greyed with their reason). */
+/**
+ * The swaps open for one eating day. Unavailable ones are left out, not greyed: an exchange is
+ * how a choice is stored, and "an exchange is already applied" means nothing to staff or customers.
+ */
 export function previewSwapOptions(base: PreviewBase, date: string, provisional: ProvisionalSwap[]): SwapOption[] {
   const { composition, applied } = previewStack(base, date, provisional);
-  return computeAllSwapOptions({ composition, applied, pairs: base.pairs, hideUnavailable: false });
+  return computeAllSwapOptions({ composition, applied, pairs: base.pairs, hideUnavailable: true });
 }
 
 /**

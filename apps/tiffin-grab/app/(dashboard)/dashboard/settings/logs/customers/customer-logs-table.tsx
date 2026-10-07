@@ -18,12 +18,13 @@ import type {
   CustomerActivitySortColumn,
 } from "@/lib/services/customer-activities-list.service";
 
-const COLUMNS: readonly Column<CustomerActivitySortColumn | "customer" | "activity" | "details">[] =
+const COLUMNS: readonly Column<CustomerActivitySortColumn | "customer" | "activity" | "details" | "by">[] =
   [
     { key: "time", label: "When", sortable: true },
     { key: "customer", label: "Customer" },
     { key: "activity", label: "Activity" },
     { key: "details", label: "Details" },
+    { key: "by", label: "By" },
   ];
 
 export function CustomerLogsTable({
@@ -59,7 +60,7 @@ export function CustomerLogsTable({
         }}
         filters={<ReuiFacetFilters spec={CUSTOMER_ACTIVITY_FACETS} />}
         emptyIcon={UserRoundSearchIcon}
-        emptyMessage="No saved customer activity yet."
+        emptyMessage="No customer activity yet."
         emptySearchMessage="No customer activity matches your filters."
         renderRow={(row) => (
           <>
@@ -92,6 +93,7 @@ export function CustomerLogsTable({
             <TableCell className="text-muted-foreground max-w-[300px] truncate text-xs">
               {row.details ?? "—"}
             </TableCell>
+            <TableCell className="text-muted-foreground whitespace-nowrap text-xs">{row.by}</TableCell>
           </>
         )}
         mobileCard={(row) => (
@@ -116,6 +118,7 @@ export function CustomerLogsTable({
             {row.details ? (
               <p className="text-muted-foreground text-xs">{row.details}</p>
             ) : null}
+            <p className="text-muted-foreground text-xs">By {row.by}</p>
             <Link
               href={row.href}
               className="text-muted-foreground text-xs hover:text-foreground hover:underline"

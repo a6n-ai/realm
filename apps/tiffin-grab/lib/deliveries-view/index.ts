@@ -97,11 +97,7 @@ export function humanDate(iso: string): string {
   return `${DOW[d.getUTCDay()]}, ${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
-// The cutoff is shown once per page from live settings, never per trip: a trip's stored
-// cutoffAt is a snapshot and would show a stale hour after an admin changes it.
-export function cutoffNote(cutoffHour: number): string {
-  return `Changes close at ${cutoffHour % 12 || 12}:00 ${cutoffHour < 12 ? "am" : "pm"} the day before each delivery`;
-}
+export { cutoffNote, cutoffTime } from "./cutoff";
 
 function summarize(meal: MealLike | null | undefined): string | null {
   const names = (meal ?? []).flatMap((c) => c.picks.map((p) => p.name));

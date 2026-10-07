@@ -98,8 +98,8 @@ async function retarget(tx: AddressTx, fromAddressId: bigint, toAddressId: bigin
     if (old !== line) {
       // Staff-only plan log (customers never see order activities).
       await tx.insert(orderActivities).values({
-        orderId: o.id, type: "note", createdBy: actor, organizationId: before?.org ?? null,
-        note: `Delivery address changed to ${line} (was ${old}). ${firstMoved ? `Applies from ${firstMoved}; deliveries past their cutoff keep the old address.` : "No open deliveries left to move."}`,
+        orderId: o.id, type: "delivery_address_changed", createdBy: actor, organizationId: before?.org ?? null,
+        note: `Plan address changed to ${line} (was ${old}). ${firstMoved ? `Applies from ${firstMoved}; deliveries past their cutoff keep the old address.` : "No open deliveries left to move."}`,
       });
     }
     await freezeInheriting(tx, o.id, editableIds);

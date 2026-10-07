@@ -3,8 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
 import { requireAdmin, requireStaff } from "@/lib/auth/guards";
-import { mealPlanKey, type CustomMealItem } from "@/lib/custom-meal/composition";
-import { customMealSchema, findOrCreateCustomMealSize, priceCustomComposition } from "@/lib/services/custom-meal.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { assertOrderVisible, resolveSessionVisibleOrgIds, reassignOrder, startAllMigratedOrders, type CreateOrderInput } from "@/lib/services/orders.service";
@@ -26,22 +24,6 @@ type Interest = {
   preferredStart?: string;
   quotedPrice?: number;
 };
-
-export async function previewCustomMeal(
-  raw: unknown,
-  basePriceOverride?: number | null,
-): Promise<{ name: string; perTiffin: number } | { error: string }> {
-  await requireStaff();
-  const parsed = customMealSchema.safeParse({ items: raw, basePriceOverride });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid custom meal" };
-  try {
-    const { name, perTiffin } = await priceCustomComposition(parsed.data.items, parsed.data.basePriceOverride);
-    return { name, perTiffin };
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
-}
 
 // Step 1 of New order: save (or reuse) the lead so it is searchable in
 // Inquiries even if the order is never finished. Create converts this inquiry;
@@ -74,15 +56,9 @@ export async function createOrderFlow(input: {
   interest?: Interest;
   pickedInquiryId?: string;
   order: CreateOrderInput;
-  customMeal?: { planKey?: string; items: CustomMealItem[]; basePriceOverride?: number | null };
 }): Promise<ActionResult<{ publicId: string; deploymentId: string }>> {
   return runAction(async () => {
     await requireStaff();
-    const parsedCustom = input.customMeal ? customMealSchema.safeParse(input.customMeal) : null;
-    if (parsedCustom && !parsedCustom.success) {
-      throw new ValidationError(`Custom meal: ${parsedCustom.error.issues[0]?.message ?? "invalid"}`);
-    }
-    const customMeal = parsedCustom?.data ?? null;
     const email = input.contact.email?.trim();
     if (!email) throw new ValidationError("Email is required");
     const inquiryId = await inquiriesService.resolveForSource({
@@ -92,30 +68,15 @@ export async function createOrderFlow(input: {
       interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
       pickedId: input.pickedInquiryId,
     });
-    let order = input.order;
-    let customOpts: { allowCustomMeal?: boolean; basePriceOverride?: number } = {};
-    if (customMeal) {
-      // Priced first so an unpriced composition never leaves a custom size behind.
-      const priced = await priceCustomComposition(customMeal.items, customMeal.basePriceOverride);
-      // The client's size and plan are ignored: the composition decides both.
-      const planKey = customMeal.planKey ?? mealPlanKey(priced.items);
-      const size = await findOrCreateCustomMealSize(customMeal.items, { actorId: await currentUserId(), planKey });
-      order = { ...order, planKey, selections: { ...order.selections, mealSizeId: size.publicId } };
-      customOpts = {
-        allowCustomMeal: true,
-        ...(customMeal.basePriceOverride != null ? { basePriceOverride: customMeal.basePriceOverride } : {}),
-      };
-    }
+    // Custom meals are created by the backend only (2026-10-07); staff orders use catalog sizes.
+    const order = input.order;
     const result = await inquiriesService.convert(
       inquiryId,
       {
         ...order,
         contact: { ...order.contact, email },
       },
-      {
-        allowAdditionalOrder: true,
-        ...customOpts,
-      },
+      { allowAdditionalOrder: true },
     );
     revalidatePath("/dashboard/orders");
     revalidatePath("/dashboard/inquiries");

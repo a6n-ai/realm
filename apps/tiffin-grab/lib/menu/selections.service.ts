@@ -20,7 +20,7 @@ import { mealPickNote } from "@/lib/menu/meal-pick-note";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { type DayOfWeek } from "@/lib/menu/delivery-dates";
-import { rowPlanIds, type RowPlans } from "@/lib/menu/row-plans";
+import { rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";
 
 type Order = typeof orders.$inferSelect;
 type Week = typeof menuWeeks.$inferSelect;
@@ -194,7 +194,7 @@ export const selectionsService = {
     // Swaps on this day change how many picks a category has (daal -> sabzi = 2 sabzi); the
     // picker renders those folded counts, so validate against the same thing.
     const swaps = await db
-      .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
+      .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate })
       .from(deliveryCategorySwaps)
       .where(eq(deliveryCategorySwaps.deliveryId, deliveryRow.id))
       .orderBy(asc(deliveryCategorySwaps.id));
@@ -207,7 +207,8 @@ export const selectionsService = {
     const baseCounts = mealItems.length > 0 ? categoryCountsFromItems([...mealItems, ...(await addonItemsForOrder(order.id))]) : (order.categoryCounts ?? {});
     const max = applySwapsToCounts(baseCounts, daySwaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
-    const rowPlan = (await rowPlansForMealSize(order.mealSizeId))?.get(slot)?.[pickIndex - 1];
+    // Row diets after this day's swaps, same as the picker and the label (rowPlansAfterSwaps).
+    const rowPlan = rowPlansAfterSwaps(await rowPlansForMealSize(order.mealSizeId), daySwaps)?.get(slot)?.[pickIndex - 1];
     if (rowPlan != null && rowPlan !== dishRow.planId) throw new ValidationError("That dish doesn't match this item's diet");
 
     // Meal rules against the proposed final meal for this person/day.

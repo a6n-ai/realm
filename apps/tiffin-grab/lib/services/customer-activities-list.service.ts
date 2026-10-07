@@ -1,10 +1,10 @@
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@foundry/database";
-import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { auditLog, orderActivities, orders, users } from "@/db/schema";
+import { auditLog, customerAddresses, orderActivities, orders, users } from "@/db/schema";
 import {
   CUSTOMER_ACTIVITY_ACTION_LABELS,
   CUSTOMER_ACTIVITY_CATEGORY_ACTIONS,
@@ -26,6 +26,8 @@ export type CustomerActivityListRow = {
   customerName: string;
   customerEmail: string;
   customerPublicId: string;
+  /** Who made the change: "Customer", a staff member's name, or "System". */
+  by: string;
   href: string;
   contextLabel: string;
 };
@@ -50,7 +52,11 @@ const ORDER_ACTIONS = {
 
 const ORDER_TYPES = Object.keys(ORDER_ACTIONS) as (keyof typeof ORDER_ACTIONS)[];
 const orderActor = alias(users, "customer_activity_order_actor");
+const orderCustomer = alias(users, "customer_activity_order_customer");
 const auditActor = alias(users, "customer_activity_audit_actor");
+const auditCustomer = alias(users, "customer_activity_audit_customer");
+// Plan-level address moves (address-propagation.ts) are logged as notes with this prefix.
+const addressNote = and(eq(orderActivities.type, "note"), like(orderActivities.note, "Delivery address changed%"))!;
 const ADDRESS_FIELDS = [
   "addressLine",
   "addressUnit",
@@ -71,20 +77,29 @@ function orderTypesForActions(actions: readonly string[]): OrderActivityType[] {
   return ORDER_TYPES.filter((type) => actions.includes(ORDER_ACTIONS[type]));
 }
 
+function orderActionsSql(actions: readonly string[]): SQL {
+  const byType = inArray(orderActivities.type, orderTypesForActions(actions));
+  return actions.includes("delivery_address_changed") ? or(byType, addressNote)! : byType;
+}
+
+function byLabel(actorId: bigint | null, customerId: bigint, actorName: string | null, actorEmail: string | null): string {
+  if (actorId == null) return "System";
+  if (actorId === customerId) return "Customer";
+  return actorName ?? actorEmail ?? "Staff";
+}
+
 function orderResolver() {
   const base = columnResolver({
     createdAt: orderActivities.createdAt,
     customerName: orders.fullName,
-    customerEmail: orderActor.email,
+    customerEmail: orderCustomer.email,
     details: orderActivities.note,
     orderPublicId: orders.publicId,
     entityPublicId: orderActivities.publicId,
   });
 
   return (filter: FilterCondition) => {
-    if (filter.field === "action") {
-      return inArray(orderActivities.type, orderTypesForActions(valuesOf(filter)));
-    }
+    if (filter.field === "action") return orderActionsSql(valuesOf(filter));
     if (filter.field === "category") {
       const actions = valuesOf(filter).flatMap((category) =>
         category in CUSTOMER_ACTIVITY_CATEGORY_ACTIONS
@@ -93,7 +108,7 @@ function orderResolver() {
             ]]
           : [],
       );
-      return inArray(orderActivities.type, orderTypesForActions(actions));
+      return orderActionsSql(actions);
     }
     return base(filter);
   };
@@ -126,8 +141,8 @@ end`;
 function auditResolver() {
   const base = columnResolver({
     createdAt: auditLog.createdAt,
-    customerName: auditActor.name,
-    customerEmail: auditActor.email,
+    customerName: auditCustomer.name,
+    customerEmail: auditCustomer.email,
     orderPublicId: auditLog.entityPublicId,
     entityPublicId: auditLog.entityPublicId,
   });
@@ -213,7 +228,8 @@ function auditDetails(
 }
 
 /**
- * Saved customer actions only. The two persistent sources are merged after each
+ * Saved changes to a customer's account, plans and deliveries, whoever made them
+ * (the customer, staff, or the system); `by` says which. The two persistent sources are merged after each
  * source applies the same filters and ordering; taking offset + size from both
  * is sufficient to produce the correct global page.
  */
@@ -223,12 +239,12 @@ export async function listCustomerActivitiesPage(
   sort: SortState<CustomerActivitySortColumn> = { column: "time", dir: "desc" },
 ): Promise<Page<CustomerActivityListRow>> {
   const orderWhere = and(
-    eq(orderActor.role, "user"),
-    inArray(orderActivities.type, ORDER_TYPES),
+    eq(orderCustomer.role, "user"),
+    or(inArray(orderActivities.type, ORDER_TYPES), addressNote),
     conditionToSql(condition, orderResolver()),
   );
   const auditWhere = and(
-    eq(auditActor.role, "user"),
+    eq(auditCustomer.role, "user"),
     or(
       and(
         eq(auditLog.entity, "customer_addresses"),
@@ -259,14 +275,19 @@ export async function listCustomerActivitiesPage(
           toStatus: orderActivities.toStatus,
           createdAt: orderActivities.createdAt,
           customerName: orders.fullName,
-          customerEmail: orderActor.email,
-          customerPublicId: orderActor.publicId,
+          customerEmail: orderCustomer.email,
+          customerPublicId: orderCustomer.publicId,
+          customerId: orderCustomer.id,
+          actorId: orderActor.id,
+          actorName: orderActor.name,
+          actorEmail: orderActor.email,
           orderPublicId: orders.publicId,
           orderDeploymentId: orders.deploymentId,
         })
         .from(orderActivities)
         .innerJoin(orders, eq(orders.id, orderActivities.orderId))
-        .innerJoin(orderActor, eq(orderActor.id, orderActivities.createdBy))
+        .innerJoin(orderCustomer, eq(orderCustomer.id, orders.userId))
+        .leftJoin(orderActor, eq(orderActor.id, orderActivities.createdBy))
         .where(orderWhere)
         .orderBy(orderBy(orderActivities.createdAt))
         .limit(take),
@@ -278,12 +299,21 @@ export async function listCustomerActivitiesPage(
           operation: auditLog.operation,
           changes: auditLog.changes,
           createdAt: auditLog.createdAt,
-          customerName: auditActor.name,
-          customerEmail: auditActor.email,
-          customerPublicId: auditActor.publicId,
+          customerName: auditCustomer.name,
+          customerEmail: auditCustomer.email,
+          customerPublicId: auditCustomer.publicId,
+          customerId: auditCustomer.id,
+          actorId: auditActor.id,
+          actorName: auditActor.name,
+          actorEmail: auditActor.email,
         })
         .from(auditLog)
-        .innerJoin(auditActor, eq(auditActor.id, auditLog.createdBy))
+        .leftJoin(customerAddresses, and(eq(auditLog.entity, "customer_addresses"), eq(customerAddresses.publicId, auditLog.entityPublicId)))
+        .innerJoin(auditCustomer, or(
+          and(eq(auditLog.entity, "users"), eq(auditCustomer.publicId, auditLog.entityPublicId)),
+          eq(auditCustomer.id, customerAddresses.userId),
+        ))
+        .leftJoin(auditActor, eq(auditActor.id, auditLog.createdBy))
         .where(auditWhere)
         .orderBy(orderBy(auditLog.createdAt))
         .limit(take),
@@ -291,18 +321,24 @@ export async function listCustomerActivitiesPage(
         .select({ count: sql<number>`cast(count(*) as int)` })
         .from(orderActivities)
         .innerJoin(orders, eq(orders.id, orderActivities.orderId))
-        .innerJoin(orderActor, eq(orderActor.id, orderActivities.createdBy))
+        .innerJoin(orderCustomer, eq(orderCustomer.id, orders.userId))
+        .leftJoin(orderActor, eq(orderActor.id, orderActivities.createdBy))
         .where(orderWhere),
       db
         .select({ count: sql<number>`cast(count(*) as int)` })
         .from(auditLog)
-        .innerJoin(auditActor, eq(auditActor.id, auditLog.createdBy))
+        .leftJoin(customerAddresses, and(eq(auditLog.entity, "customer_addresses"), eq(customerAddresses.publicId, auditLog.entityPublicId)))
+        .innerJoin(auditCustomer, or(
+          and(eq(auditLog.entity, "users"), eq(auditCustomer.publicId, auditLog.entityPublicId)),
+          eq(auditCustomer.id, customerAddresses.userId),
+        ))
+        .leftJoin(auditActor, eq(auditActor.id, auditLog.createdBy))
         .where(auditWhere),
     ]);
 
   const rows: CustomerActivityListRow[] = [
     ...orderRows.map((row) => {
-      const actionKey = ORDER_ACTIONS[row.type as keyof typeof ORDER_ACTIONS];
+      const actionKey = row.type === "note" ? "delivery_address_changed" : ORDER_ACTIONS[row.type as keyof typeof ORDER_ACTIONS];
       const details =
         row.note ??
         (row.fromStatus && row.toStatus ? `${row.fromStatus} → ${row.toStatus}` : null);
@@ -316,6 +352,7 @@ export async function listCustomerActivitiesPage(
         customerName: row.customerName,
         customerEmail: row.customerEmail,
         customerPublicId: row.customerPublicId,
+        by: byLabel(row.actorId, row.customerId, row.actorName, row.actorEmail),
         href: `/dashboard/orders/${row.orderPublicId}`,
         contextLabel: row.orderDeploymentId,
       };
@@ -333,6 +370,7 @@ export async function listCustomerActivitiesPage(
         customerName: row.customerName ?? row.customerEmail,
         customerEmail: row.customerEmail,
         customerPublicId: row.customerPublicId,
+        by: byLabel(row.actorId, row.customerId, row.actorName, row.actorEmail),
         href: `/dashboard/customers/${row.customerPublicId}`,
         contextLabel: "Customer profile",
       };

@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { customerAddresses, deliveries, ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
@@ -136,8 +136,8 @@ describe("the default address is the account address", () => {
     expect(moved).toMatchObject({ addressLine: "200 Bay St", postalCode: "M5J 2J1", addressId: work.id });
     const [u] = await db.select({ line: users.addressLine, pc: users.postalCode }).from(users).where(eq(users.id, userId));
     expect(u).toEqual({ line: "200 Bay St", pc: "M5J 2J1" });
-    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.orderId, order.id));
-    expect(notes.map((n) => n.note)).toContainEqual(expect.stringMatching(/^Delivery address changed to 200 Bay St, Toronto, M5J 2J1 \(was 100 King St W, Toronto, M5V 2T6\)\. Applies from \d{4}-\d\d-\d\d;/));
+    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(and(eq(orderActivities.orderId, order.id), eq(orderActivities.type, "delivery_address_changed")));
+    expect(notes.map((n) => n.note)).toContainEqual(expect.stringMatching(/^Plan address changed to 200 Bay St, Toronto, M5J 2J1 \(was 100 King St W, Toronto, M5V 2T6\)\. Applies from \d{4}-\d\d-\d\d;/));
   });
 });
 

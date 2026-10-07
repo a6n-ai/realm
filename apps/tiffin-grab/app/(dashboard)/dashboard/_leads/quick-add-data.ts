@@ -11,7 +11,6 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
-import type { CustomMealCategory } from "../orders/custom-meal-builder";
 
 export type QuickAddSource = { key: string; label: string; subs: { key: string; label: string }[] };
 export type QuickAddCatalog = {
@@ -30,7 +29,7 @@ export type QuickAddData = {
   zones: ZoneLike[];
   catalog: QuickAddCatalog;
   enabledSlots: { key: string; label: string }[];
-  categories: CustomMealCategory[];
+  categories: { key: string; label: string }[];
 };
 
 // The full data bundle every add-popup needs. Staff-only. Fetched lazily by the

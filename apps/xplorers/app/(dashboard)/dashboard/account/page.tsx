@@ -9,6 +9,9 @@ import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { ChangeEmailForm } from "@/components/auth/change-email-form";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
+import { GoogleConnectionField } from "@/components/auth/google-connection-field";
+import { googleSignInEnabled } from "@foundry/auth";
+import { hasGoogleLinked } from "@/lib/auth/google-link";
 
 export default function AccountPage() {
   return (
@@ -24,6 +27,7 @@ export default function AccountPage() {
 async function AccountData() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
+  const google = googleSignInEnabled() ? { connected: await hasGoogleLinked(session.user.id) } : null;
 
   const [u] = await db
     .select({ name: users.name })
@@ -49,6 +53,11 @@ async function AccountData() {
           </div>
         </div>
       </SectionCard>
+      {google ? (
+        <SectionCard title="Google" subtitle="Sign in with your Google account instead of a code or password.">
+          <GoogleConnectionField connected={google.connected} callbackURL="/dashboard/account" />
+        </SectionCard>
+      ) : null}
       <SectionCard title="Password" subtitle="Change your password. This signs you out on other devices.">
         <ChangePasswordForm />
       </SectionCard>
