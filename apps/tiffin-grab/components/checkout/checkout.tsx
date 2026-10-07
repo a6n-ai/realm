@@ -95,6 +95,7 @@ function formatChargeHint(item: { chargeType: "none" | "fixed" | "percent"; char
 }
 
 const noSubscribe = () => () => {};
+const PRICE_RELOAD_KEY = "tiffin.checkout.price-reload";
 
 export function Checkout({
   defaultCountry,
@@ -220,7 +221,21 @@ export function Checkout({
     if (!selections) setSelections(s);
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
-    refreshPrice(s, undefined, null).catch(() => { setResult(null); setPriceFailed(true); });
+    refreshPrice(s, undefined, null).then(
+      () => sessionStorage.removeItem(PRICE_RELOAD_KEY),
+      () => {
+        // A tab left open across a deploy calls Server Action ids the new build no longer
+        // has; deploymentId only catches that on navigation. One reload picks up the new
+        // build (the plan is in sessionStorage); a second failure is real and shows Retry.
+        if (!sessionStorage.getItem(PRICE_RELOAD_KEY)) {
+          sessionStorage.setItem(PRICE_RELOAD_KEY, "1");
+          window.location.reload();
+          return;
+        }
+        setResult(null);
+        setPriceFailed(true);
+      },
+    );
     // The default saved address is checked against our zones straight away, like a picked one.
     // The first price above already used its postal code, so no second re-price.
     if (defaultAddress) void checkPostal(defaultAddress.postalCode, false);
@@ -430,12 +445,8 @@ export function Checkout({
     : simulated ? null
     : priceFailed ? "Couldn't load payment options. Tap Retry."
     : "Loading payment options…";
-  const retryPrice = () => {
-    if (!selections) return;
-    setPriceFailed(false);
-    void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined)
-      .catch(() => setPriceFailed(true));
-  };
+  // Reload, not re-call: after a deploy the same stale Server Action id fails every time.
+  const retryPrice = () => window.location.reload();
   const actionReason = step === 1 ? step1Reason : payReason;
   const addressLine = oneLine(contact);
   // Drop-off belongs to the picked address, so it renders under that address, not in its own section.
