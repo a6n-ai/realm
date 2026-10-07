@@ -26,6 +26,6 @@ describe("custom meals swap like catalog meals", () => {
     if (r.created) createdIds.push(r.id);
     const pairs = (await dishCategoriesService.swapPairsForMealSize(r.id)).map((p) => `${p.fromCategory}>${p.toCategory}`);
     expect(pairs).toEqual(expect.arrayContaining(["sabzi>daal", "daal>sabzi", "roti>rice", "rice>roti"]));
-    expect(await dishCategoriesService.swapPairOverridesForMealSize("roti", "rice", r.id)).not.toBeNull();
+    expect(await dishCategoriesService.swapPairRuleForMealSize("roti", "rice", r.id)).not.toBeNull();
   });
 });

@@ -58,8 +58,8 @@ export async function applyDeliverySwap(
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order) throw new ValidationError("Order not found");
 
-    const overrides = await dishCategoriesService.swapPairOverridesForMealSize(fromCategory, toCategory, order.mealSizeId);
-    if (!overrides) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory} on this plan`);
+    const rule = await dishCategoriesService.swapPairRuleForMealSize(fromCategory, toCategory, order.mealSizeId);
+    if (!rule) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory} on this plan`);
 
     const composition = await loadCompositionContext(order.mealSizeId, order.categoryCounts ?? {}, order.id);
     const existing = await tx.select({
@@ -80,7 +80,8 @@ export async function applyDeliverySwap(
         receiveTu: r.receiveTu,
       })),
       next: { fromCategory, toCategory, fromPicks, fromRow },
-      overrides,
+      overrides: rule.overrides,
+      naturalFallback: rule.naturalFallback,
     });
     if (!check.ok) throw new ValidationError(check.reason);
     const qtyTo = check.qtyTo;

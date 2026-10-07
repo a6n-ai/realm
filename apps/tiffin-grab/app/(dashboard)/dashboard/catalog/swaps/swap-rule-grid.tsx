@@ -26,6 +26,8 @@ export type SwapPairRow = {
   planId: string | null;
   planName: string;
   exchangeOverrides: ExchangeOverride[];
+  /** "Other amounts": an amount with no line uses the natural exchange (true) or can't be swapped (false). */
+  naturalFallback: boolean;
 };
 
 /** Admin enters natural units (12 oz, 8 roti); the category's unit is fixed, only the amount is overridden. */
@@ -104,8 +106,10 @@ export function SwapPairGrid({
                       {formatTuHuman(fromTu, o.giveTu)} → {formatTuHuman(toTu, o.receiveTu)}
                     </div>
                   ))}
-                  <div className="text-muted-foreground text-xs">Other amounts: natural exchange</div>
+                  <div className="text-muted-foreground text-xs">Other amounts: {pair.naturalFallback ? "natural exchange" : "not allowed"}</div>
                 </div>
+              ) : !pair.naturalFallback ? (
+                <span className="text-muted-foreground text-sm">No amounts allowed (add a line)</span>
               ) : conv ? (
                 <div className="text-sm">
                   <div className="font-medium">{conv.naturalLine}</div>
@@ -204,6 +208,7 @@ function SwapPairDialog({
   const fromTu = tuByKey.get(fromCategory);
   const toTu = tuByKey.get(toCategory);
   const conversion = naturalSwapConversion(fromTu, toTu);
+  const [naturalFallback, setNaturalFallback] = React.useState(pair?.naturalFallback ?? true);
   const [overrides, setOverrides] = React.useState<OverrideDraft[]>(() => {
     const f = pair && tuByKey.get(pair.fromCategory);
     const t = pair && tuByKey.get(pair.toCategory);
@@ -228,6 +233,7 @@ function SwapPairDialog({
       setToCategory("");
       setPlanId("");
       setOverrides([]);
+      setNaturalFallback(true);
     }
   };
 
@@ -253,10 +259,10 @@ function SwapPairDialog({
     start(async () => {
       try {
         if (mode === "add") {
-          await addSwapPair({ fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides });
+          await addSwapPair({ fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback });
           toast.success("Swap rule added");
         } else if (pair) {
-          await editSwapPair({ id: pair.id, fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides });
+          await editSwapPair({ id: pair.id, fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback });
           toast.success("Swap rule updated");
         }
         router.refresh();
@@ -346,7 +352,7 @@ function SwapPairDialog({
               <p className="text-muted-foreground text-xs">
                 {overrides.length === 0
                   ? "Natural exchange. Add a line to change what one given portion buys."
-                  : "A given amount without a line uses the natural exchange."}
+                  : "Each line sets what one given amount buys."}
               </p>
             </div>
             {overrides.map((o, i) => {
@@ -377,6 +383,19 @@ function SwapPairDialog({
             <Button size="sm" variant="outline" onClick={() => setOverrides((prev) => [...prev, { give: "", receive: "" }])}>
               <PlusIcon data-icon="inline-start" /> Add override
             </Button>
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <span className="text-sm font-medium">Other amounts</span>
+              <Select value={naturalFallback ? "natural" : "blocked"} onValueChange={(v) => setNaturalFallback(v === "natural")}>
+                <SelectTrigger className="w-48" aria-label="Other amounts"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="natural">Natural exchange</SelectItem>
+                  <SelectItem value="blocked">Not allowed</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-muted-foreground text-xs">
+                {naturalFallback ? "An amount without a line swaps at the category rate." : "Only the amounts listed above can be swapped."}
+              </span>
+            </div>
           </div>
         ) : null}
       </div>

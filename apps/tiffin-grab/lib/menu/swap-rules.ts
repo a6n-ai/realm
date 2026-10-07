@@ -148,6 +148,12 @@ export function crossUnitPicks(giveTu: number, toTu: number): number {
 /** One line of category_swap_pairs.exchange_overrides: give this portion, receive that one (TU). */
 export type ExchangeOverride = { giveTu: number; receiveTu: number };
 
+/** A pair's exchange rule: its override lines, and what an amount with no line does ("Other amounts"). */
+export type SwapPairRule = { overrides: ExchangeOverride[]; naturalFallback: boolean };
+
+/** Why an amount with no override line can't be swapped when the pair turns the natural exchange off. */
+export const NO_LINE_FOR_AMOUNT = "Not available for this amount";
+
 /** The pair's override for a given portion, or null when that portion has no line. */
 export function exchangeOverride(overrides: ExchangeOverride[] | undefined, giveTu: number): number | null {
   return overrides?.find((o) => Math.abs(o.giveTu - giveTu) < 1e-9)?.receiveTu ?? null;
