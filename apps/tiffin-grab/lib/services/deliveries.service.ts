@@ -1072,8 +1072,12 @@ export async function setDeliveryAddress(
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
+    const to = address
+      ? [address.addressUnit ? `${address.addressUnit} – ${address.addressLine}` : address.addressLine, address.city, address.postalCode].filter(Boolean).join(", ")
+      : null;
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "delivery_address_changed", createdBy: actorId,
+      note: to ? `${row.deliveryDate} delivery address changed to ${to}` : `${row.deliveryDate} drop-off changed`,
     });
     return row.id;
   });
@@ -1097,6 +1101,7 @@ export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bi
     if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "delivery_address_changed", createdBy: actorId,
+      note: `${row.deliveryDate} delivery back on the plan address`,
     });
   });
 }
