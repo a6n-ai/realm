@@ -5,3 +5,6 @@
 # skeleton-audit capture output (dev-only harness, not in CI)
 skeleton-audit/out/
 db/prod-reset-catalog-and-orders.sql
+
+# One-off ops scripts (they read prod data); never commit.
+.tmp-*
