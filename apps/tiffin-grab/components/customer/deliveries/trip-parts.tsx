@@ -173,7 +173,17 @@ export function Journey({ status, caption }: { status: Trip["status"]; caption?:
 // Only what the stops can't say: past the cutoff, nothing can change any more.
 const JOURNEY_NOTE: Partial<Record<Trip["status"], string>> = { "cutoff-passed": "Changes closed", locked: "Changes closed" };
 
-const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
+/** Dated in/out chips for a day: "In from Thu, Oct 8", "Out to Mon, Oct 12". Customer card and admin hub share them. */
+export function moveChips(row: EatingRow, history = false): { kind: "in" | "out"; text: string }[] {
+  if (row.movedTo) return [{ kind: "out", text: `Out to ${humanDate(row.movedTo)}` }];
+  if (isDone(row) && !history) return [];
+  return [
+    ...(row.movedFrom ?? []).map((d) => ({ kind: "in" as const, text: d ? `In from ${humanDate(d)}` : "In from a held day" })),
+    ...(row.movedOut ? [{ kind: "out" as const, text: `Out to ${humanDate(row.movedOut)}` }] : []),
+  ];
+}
+
+export const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
 
 /** The selected eating day, as the page's main card: date, dishes, then one quiet line for tiffins, delivery day and cutoff. */
 export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; children?: React.ReactNode }) {
@@ -183,10 +193,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
     : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
     : isDone(row) ? [reason] : [trip.status === "upcoming" ? null : reason];
   // Short in/out pills ("Thu's in", "to Oct 12") instead of sentences.
-  const moves: { kind: "in" | "out"; text: string }[] = row.movedTo ? [{ kind: "out", text: `Out to ${humanDate(row.movedTo)}` }] : isDone(row) ? [] : [
-    ...(row.movedFrom ?? []).map((d) => ({ kind: "in" as const, text: d ? `In from ${humanDate(d)}` : "In from a held day" })),
-    ...(row.movedOut ? [{ kind: "out" as const, text: `Out to ${humanDate(row.movedOut)}` }] : []),
-  ];
+  const moves = moveChips(row);
   const arriving = !row.movedTo && GOES_OUT.has(trip.status) && trip.status !== "failed";
   const [first, ...rest] = dedupeDishes(row.dish);
   const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}`;

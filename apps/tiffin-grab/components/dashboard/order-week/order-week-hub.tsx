@@ -3,7 +3,7 @@
 
 import { zonedDateIso } from "@foundry/commons";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, MapPin, Package, Truck, Utensils } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, MapPin, Pencil, Truck } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib
 import { deliveryLine, eatingRowsInWeek, isAddressRow, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow, type MoveFact } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
-import { movedFact, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
+import { cutoffFmt, dedupeDishes, Journey, moveChips, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
@@ -79,17 +79,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
         </span>
       </div>
 
-      {nextTruck && (
-        <Card className="py-3">
-          <CardContent className="flex items-center gap-2 text-sm">
-            <Truck className="size-4" aria-hidden />
-            <span data-testid="next-delivery">
-              Next delivery: <b>{humanDate(nextTruck.deliveryDate)}</b>, {tiffins(nextTruck.units)} ({nextTruck.covers.map(weekdayShort).join(" + ")})
-            </span>
-          </CardContent>
-        </Card>
-      )}
-
       <WeekTimeline
         firstWeek={firstWeek}
         lastWeek={lastWeek}
@@ -103,83 +92,76 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
       />
 
       {menuOut && (
-        <Card data-testid="menu-not-released" className="py-3"><CardContent className="space-y-0.5"><p className="text-sm font-medium">Menu not released yet.</p><p className="text-muted-foreground text-sm">Dish picks and swaps open once the kitchen releases this week&apos;s menu. Days can still be moved or re-addressed.</p></CardContent></Card>
+        <p data-testid="menu-not-released" className="text-muted-foreground text-sm"><span className="text-foreground font-medium">Menu not released yet.</span> Dish picks open once the kitchen releases this week&apos;s menu; days can still be moved or re-addressed.</p>
       )}
+
+      {/* Same order as the customer's page: delivery (date, journey, moves), then meal and destination, then actions. */}
       {rows.length === 0 ? (
         <Card><CardContent className="text-muted-foreground py-6 text-sm">No eating days this week.</CardContent></Card>
-      ) : (
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
-          <div className="space-y-1" role="list" aria-label="Eating days">
-            {rows.map((r) => {
-              const m = rowMeta(r);
-              const on = row?.date === r.date;
-              return (
-                <div key={r.date} role="listitem" className="flex items-center">
-                  <button type="button" data-testid="trip-row" aria-pressed={on} onClick={() => setSel(r.date)} className={cn("flex min-w-0 flex-1 items-start gap-3 rounded-md px-3 py-2 text-left", on ? "bg-muted" : "hover:bg-muted/60")}>
-                    <Utensils aria-hidden className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="whitespace-nowrap text-sm font-medium">{humanDate(r.date)}</span>
-                        <Badge variant="outline">{m.label}</Badge>
-                      </span>
-                      <span className="text-muted-foreground block truncate text-xs">{r.movedTo ? `Moved to ${humanDate(r.movedTo)}` : menuOut ? "Menu not released yet" : r.dish ?? "Default menu"}</span>
-                      {!r.movedTo && r.trip.status !== "failed" && (r.own || moveTags(r).length > 0) && (
-                        <span className="mt-1 flex flex-wrap gap-1">
-                          {r.own && <Badge className={PILL.count}>{tiffins(r.trip.units)}</Badge>}
-                          {moveTags(r).map((t) => <MoveBadge key={t.kind} fact={t} />)}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                  <Button variant="ghost" size="icon" aria-label={`Details for ${humanDate(r.date)}`} onClick={() => (setSel(r.date), setDlg("info"))}><Info /></Button>
+      ) : row && trip && av ? (() => {
+        const model = actionModel(trip, now, plan.ctx, { menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, isDeliveryDay: isAddressRow(rows, row), movedTo: row.movedTo, trial: plan.sub.trial });
+        const addressOk = model.rows.some((r) => r.key === "address" && r.av.ok);
+        const carried = trip.date !== row.date;
+        const meta = [
+          carried ? `${trip.status === "delivered" ? "Delivered" : "Arrives"} ${humanDate(trip.date)} with ${weekdayShort(trip.date)}` : null,
+          trip.status === "upcoming" && trip.cutoffAt ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : null,
+        ].filter(Boolean).join(" · ");
+        const chips = moveChips(row, true);
+        const [first, ...rest] = dedupeDishes(row.dish);
+        const addr = deliveryAddress(trip.addressOverride, plan.sub);
+        return (
+          <Card data-testid="delivery-block">
+            <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">Delivery</p>
+                <CardTitle className="text-2xl">{humanDate(row.date)}</CardTitle>
+                {meta && <p className="text-muted-foreground text-sm">{meta}</p>}
+              </div>
+              {editChoice && trip.deliveryId ? (
+                <DeliveryStatusSelect deliveryId={trip.deliveryId} value={editChoice} cutoffPassed={trip.cutoffAt <= now} beforeDay={trip.date > zonedDateIso(now, tz)} onDone={done} />
+              ) : (
+                <Badge variant="outline">{rowMeta(row).label}</Badge>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {!row.movedTo && <div className="max-w-xl"><Journey status={trip.status} /></div>}
+              {chips.length > 0 && (
+                <div className="flex flex-wrap gap-2" data-testid="delivery-pills">
+                  {chips.map((f) => <MoveBadge key={f.text} fact={f} />)}
                 </div>
-              );
-            })}
-          </div>
-
-          {row && trip && av && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex flex-wrap items-center gap-2" data-testid="delivery-block">
-                  <Truck className="size-5" aria-hidden />
-                  {deliveryLine(row)}
-                  {editChoice && trip.deliveryId ? (
-                    <DeliveryStatusSelect deliveryId={trip.deliveryId} value={editChoice} cutoffPassed={trip.cutoffAt <= now} beforeDay={trip.date > zonedDateIso(now, tz)} onDone={done} />
-                  ) : (
-                    <Badge variant="outline">{rowMeta(row).label}</Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {row.movedTo ? <p className="text-muted-foreground text-sm">{movedFact(row)}</p> : (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2" data-testid="delivery-pills">
-                      {trip.status !== "failed" && (
-                        <Badge className={PILL.count}><Package aria-hidden />{tiffins(trip.units)} {trip.status === "delivered" ? "delivered" : "on this delivery"}: {tiffinBreakdown(trip)}</Badge>
-                      )}
-                      {moveFacts(row, true).map((f) => <MoveBadge key={f.kind} fact={f} />)}
-                    </div>
-                    <ul className="text-muted-foreground list-disc space-y-0.5 pl-5 text-sm">
-                      {!row.own && trip.status === "upcoming" && <li>{humanDate(row.date)} locks with {weekdayShort(trip.date)}&apos;s delivery</li>}
-                    </ul>
-                  </div>
-                )}
-                {!row.movedTo && (() => {
-                  const addr = deliveryAddress(trip.addressOverride, plan.sub);
-                  return (
-                    <p className="flex flex-wrap items-center gap-2 text-sm" data-testid="delivery-address">
+              )}
+              {!row.movedTo && (
+                <div className="grid gap-6 border-t pt-5 sm:grid-cols-2">
+                  <section>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Meal</p>
+                    {menuOut ? <p className="text-muted-foreground text-sm">Menu not released yet</p> : (
+                      <>
+                        <p className="font-medium">{first ?? "Default menu"}</p>
+                        {rest.length > 0 && <p className="text-muted-foreground text-sm">{rest.join(" · ")}</p>}
+                      </>
+                    )}
+                    {trip.status !== "failed" && <p className="text-muted-foreground mt-1 text-sm">{tiffins(trip.units)}{trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}</p>}
+                  </section>
+                  <section>
+                    <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">Destination</p>
+                    <p className="flex items-center gap-2 text-sm" data-testid="delivery-address">
                       <MapPin className="text-muted-foreground size-4 shrink-0" aria-hidden />
-                      <span>Delivers to <span className="font-medium">{addr.text}</span></span>
-                      {addr.changed && <Badge variant="secondary">This delivery only</Badge>}
+                      <span className="min-w-0 flex-1">{addr.text}{addr.changed ? " (this delivery only)" : ""}</span>
+                      {addressOk && <Button variant="ghost" size="sm" aria-label="Change address" onClick={() => setDlg("address")}><Pencil data-icon="inline-start" />Edit</Button>}
                     </p>
-                  );
-                })()}
+                  </section>
+                </div>
+              )}
+              <div className="flex flex-wrap items-start justify-between gap-3 border-t pt-4">
                 {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
-                <Actions model={actionModel(trip, now, plan.ctx, { menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, isDeliveryDay: isAddressRow(rows, row), movedTo: row.movedTo, trial: plan.sub.trial })} onOpen={setDlg} />
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                <Actions model={model} onOpen={setDlg} hide={addressOk ? ["address"] : []} />
+                <Button variant="ghost" size="sm" aria-label={`Details for ${humanDate(row.date)}`} onClick={() => setDlg("info")}><Info data-icon="inline-start" />Details</Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })() : (
+        <Card><CardContent className="text-muted-foreground py-6 text-sm">Nothing planned on {sel ? humanDate(sel) : "this day"}.</CardContent></Card>
       )}
 
       <Card>
@@ -354,18 +336,19 @@ function DeliveryStatusSelect({
   );
 }
 
-function Actions({ model, onOpen }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void }) {
-  if (model.rows.length === 0) return model.closedReason ? <p className="text-muted-foreground text-sm">{model.closedReason}</p> : null;
+function Actions({ model, onOpen, hide = [] }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void; hide?: TripAction[] }) {
+  const rows = model.rows.filter((r) => !hide.includes(r.key));
+  if (rows.length === 0) return model.closedReason ? <p className="text-muted-foreground text-sm">{model.closedReason}</p> : null;
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
-        {model.rows.map((r) => (
+        {rows.map((r) => (
           <Button key={r.key} variant={r.key === model.primary ? "default" : "outline"} size="sm" disabled={!r.av.ok} onClick={() => onOpen(OPENS[r.key])}>
             {r.label}
           </Button>
         ))}
       </div>
-      {model.rows.filter((r) => !r.av.ok).map((r) => <p key={r.key} className="text-muted-foreground text-xs">{r.label}: {r.av.why}</p>)}
+      {rows.filter((r) => !r.av.ok).map((r) => <p key={r.key} className="text-muted-foreground text-xs">{r.label}: {r.av.why}</p>)}
     </div>
   );
 }
@@ -429,7 +412,7 @@ const PILL = {
 } as const;
 
 /** Moved-in / moved-out fact as a badge; wraps instead of overflowing the panel. */
-function MoveBadge({ fact }: { fact: MoveFact }) {
+function MoveBadge({ fact }: { fact: { kind: "in" | "out"; text: string } }) {
   const Icon = fact.kind === "in" ? ArrowDownLeft : ArrowUpRight;
   return (
     <Badge className={cn(PILL[fact.kind], "h-auto whitespace-normal text-left")}>

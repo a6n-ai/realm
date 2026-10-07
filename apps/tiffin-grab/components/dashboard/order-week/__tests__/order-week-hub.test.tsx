@@ -74,7 +74,6 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     const out = { ...data, plan: { ...data.plan, days: [{ date: "2026-09-21", menuWeekId: null, meal: null }] } } as unknown as OrderWeek;
     render(<OrderWeekHub data={out} />);
     expect(screen.getByTestId("menu-not-released")).toHaveTextContent("Menu not released yet.");
-    expect(screen.queryAllByTestId("trip-row").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Move to another day" })).toBeTruthy();
     expect(screen.getByTestId("week-timeline")).toBeInTheDocument();
   });
@@ -85,17 +84,18 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(replace.mock.calls[0]![0]).toContain("week=2026-09-28");
   });
-  it("lists eating days of the week; a Mon trip feeds Mon and Tue; Tue names the delivery", () => {
+  it("a Mon trip feeds Mon and Tue; picking Tue in the strip names the delivery that carries it", () => {
     render(<OrderWeekHub data={data} />);
-    expect(screen.getAllByTestId("trip-row")).toHaveLength(2);
-    fireEvent.click(screen.getAllByTestId("trip-row")[1]!);
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Mon, Sep 21 with Mon");
-    expect(screen.getByText(/2 tiffins on this delivery: 1 Mon \+ 1 Tue/)).toBeInTheDocument();
+    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
+    const block = screen.getByTestId("delivery-block");
+    expect(block).toHaveTextContent("Tue, Sep 22");
+    expect(block).toHaveTextContent("Arrives Mon, Sep 21 with Mon");
+    expect(block).toHaveTextContent("2 tiffins (1 Mon + 1 Tue)");
   });
-  it("strip marks the delivery day and next-delivery banner shows", () => {
+  it("strip marks the delivery day; no separate next-delivery banner (the card is the delivery)", () => {
     render(<OrderWeekHub data={data} />);
     expect(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Monday, September 21, eating, .*delivery arrives/ })).toBeInTheDocument();
-    expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21, 2 tiffins (Mon + Tue)");
+    expect(screen.queryByTestId("next-delivery")).toBeNull();
   });
   it("offers the customer's three actions (Edit meal, Move, Change address), no Swap or Hold; Move opens an eating-day picker", () => {
     render(<OrderWeekHub data={data} />);
@@ -123,6 +123,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
   });
   it("info button explains the trip", () => {
     render(<OrderWeekHub data={data} />);
+    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
     fireEvent.click(screen.getByRole("button", { name: "Details for Tue, Sep 22" }));
     expect(screen.getByRole("dialog", { name: /Tue, Sep 22 · meal/ })).toBeInTheDocument();
   });
