@@ -22,6 +22,7 @@ import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { assertDayOutsideOtherPlans } from "./order-window";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
+import { humanDate } from "@/lib/deliveries-view";
 
 const log = createLogger("deliveries.service");
 
@@ -1012,7 +1013,8 @@ const COMPLIMENTARY_NOTE_MAX = 300;
  * that is over reopens to active; complete-plans closes it again once the day is delivered.
  * One grant per day: the date must be a free delivery weekday of this plan, before its cutoff,
  * and outside any other running plan of the customer. `forDeliveryPublicId` optionally names the
- * missed delivery (held, on vacation, or failed, and never moved) it makes up for, at most once.
+ * past delivery of this plan it makes up for (any status but cancelled: a driver can mark a stop
+ * delivered that the customer never got), at most once.
  */
 export async function grantComplimentaryTiffin(
   orderPublicId: string,
@@ -1052,9 +1054,8 @@ export async function grantComplimentaryTiffin(
       const [m] = await tx.select().from(deliveries)
         .where(and(eq(deliveries.publicId, input.forDeliveryPublicId), eq(deliveries.orderId, order.id))).limit(1);
       if (!m) throw new ValidationError("That missed delivery isn't on this plan");
-      const [moved] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.makeupForDeliveryId, m.id)).limit(1);
-      if ((m.status !== "skipped" && m.status !== "paused") || m.mergedIntoDeliveryId != null || moved) {
-        throw new ValidationError("Pick a delivery that was missed and never moved to another day");
+      if (m.status === "cancelled" || m.mergedIntoDeliveryId != null || m.deliveryDate > zonedDateIso(Date.now(), timezone)) {
+        throw new ValidationError("Pick a past delivery of this plan");
       }
       const [given] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.complimentaryForDeliveryId, m.id)).limit(1);
       if (given) throw new ValidationError(`${m.deliveryDate} already has a free tiffin for it`);
@@ -1092,9 +1093,9 @@ export async function grantComplimentaryTiffin(
         event: "order_complimentary",
         recipientId: order.userId,
         title: "A free tiffin is on us",
-        body: `We added a complimentary tiffin on ${input.date}. ${note}`,
+        body: `We added a complimentary tiffin on ${humanDate(input.date)}. ${note}`,
         href: "/me/deliveries",
-        data: { order: { code: order.deploymentId, customerName: user?.name ?? "", date: input.date, reason: note } },
+        data: { order: { code: order.deploymentId, customerName: user?.name ?? "", date: humanDate(input.date), reason: note } },
         dedupeKey: `order_complimentary:${row!.publicId}`,
       });
     }
