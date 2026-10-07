@@ -12,6 +12,7 @@ import { STATUS_LABEL, STATUS_TONE } from "./parts";
 import { ChatComposer } from "@/components/support/chat-composer";
 import { useMarkTicketSeen } from "./unread";
 import { RateChat, StatusBanner } from "./ticket-status";
+import { withDayChips } from "@/lib/support/chat-days";
 
 type ThreadTicket = {
   publicId: string;
@@ -71,7 +72,13 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
           <ChatMessageList
             className="space-y-2"
             ui={kitChatUi}
-            messages={chatItems(messages, timezone)}
+            messages={withDayChips(messages, timezone, (m, time) => ({
+              id: m.publicId,
+              kind: m.authorType === "system" ? "system" : m.authorType === "customer" ? "mine" : "theirs",
+              body: m.body,
+              meta: time,
+              attachments: m.attachments,
+            }))}
           />
           {closed && (
             <div className="mt-4">
@@ -96,40 +103,6 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
   }
 
   return <ChatComposer composer={c} placeholder="Write a message…" typingLabel="Support is typing…" />;
-}
-
-const dayKey = (t: number, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
-const timeOf = (t: number, tz: string) => new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(t).toLowerCase();
-
-/** "Today", "Yesterday", else "Mon, Oct 5" (with the year when it isn't this year). */
-function dayLabel(t: number, tz: string): string {
-  const now = Date.now();
-  const key = dayKey(t, tz);
-  if (key === dayKey(now, tz)) return "Today";
-  if (key === dayKey(now - 864e5, tz)) return "Yesterday";
-  const sameYear = key.slice(0, 4) === dayKey(now, tz).slice(0, 4);
-  return new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) }).format(t);
-}
-
-/** WhatsApp-style: a date chip wherever the day changes, and only the time on each message. */
-function chatItems(messages: ThreadMessage[], tz: string): ChatMessage[] {
-  const out: ChatMessage[] = [];
-  let prev = "";
-  for (const m of messages) {
-    const key = dayKey(m.createdAt, tz);
-    if (key !== prev) {
-      out.push({ id: `day:${key}`, kind: "system", body: dayLabel(m.createdAt, tz), meta: "" });
-      prev = key;
-    }
-    out.push({
-      id: m.publicId,
-      kind: m.authorType === "system" ? "system" : m.authorType === "customer" ? "mine" : "theirs",
-      body: m.body,
-      meta: timeOf(m.createdAt, tz),
-      attachments: m.attachments,
-    });
-  }
-  return out;
 }
 
 const kitChatUi: Partial<ChatUi> = {

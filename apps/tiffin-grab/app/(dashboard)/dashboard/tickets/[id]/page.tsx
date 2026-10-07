@@ -23,7 +23,8 @@ import { subcategoryLabel } from "@/lib/support/ticket-taxonomy";
 import { TicketControls, ReplyBox, ReplyBoxSkeleton, StatusPills, TicketControlsSkeleton } from "./ticket-controls";
 import { PresenceDot } from "@/components/ds";
 import { cn } from "@foundry/ui/cn";
-import { ChatMessageList, ChatMessageListSkeleton, type ChatMessage } from "@foundry/design-system";
+import { ChatMessageListSkeleton } from "@foundry/design-system";
+import { ChatPane } from "./chat-pane";
 
 const AUTHOR_LABEL: Record<string, string> = {
   customer: "Customer",
@@ -177,7 +178,6 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
     (authorIds.length ? await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, authorIds)) : [])
       .map((u) => [u.id, u.name]),
   );
-  const when = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: timezone });
 
   // Staff read it like a chat: their side on the right, the customer on the left, oldest first.
   return (
@@ -186,13 +186,14 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
         <StatusPills ticketId={ticket.publicId} status={ticket.status as TicketStatus} />
         <PresenceDot channel={channel} peerRole="customer" label="Customer" />
       </div>
-      <ChatMessageList
-        empty={<p className="text-muted-foreground text-sm">No messages yet.</p>}
-        messages={withHref.map((m): ChatMessage => ({
-          id: m.publicId,
-          kind: m.authorType === "system" ? "system" : m.authorType === "staff" ? "mine" : "theirs",
+      <ChatPane
+        timezone={timezone}
+        messages={withHref.map((m) => ({
+          publicId: m.publicId,
+          authorType: m.authorType,
+          staffName: m.authorType === "staff" ? names.get(m.authorId) ?? AUTHOR_LABEL.staff : null,
           body: m.body,
-          meta: m.authorType === "system" ? when(m.createdAt) : `${names.get(m.authorId) ?? AUTHOR_LABEL[m.authorType] ?? m.authorType} · ${when(m.createdAt)}`,
+          createdAt: m.createdAt,
           attachments: m.attachments,
         }))}
       />
