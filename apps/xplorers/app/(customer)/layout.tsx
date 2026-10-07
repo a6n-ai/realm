@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import { Role } from "@foundry/commons";
 import { CrmShell } from "@foundry/crm";
 import { Toaster } from "@foundry/ui/sonner";
@@ -13,14 +14,30 @@ import { getSession } from "@/lib/auth/session";
 import { InviteBanner } from "@/components/customer/invite-banner";
 import { CustomerNav } from "@/components/customer/customer-nav";
 import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
-import { AppBrand } from "@/components/dashboard/app-brand";
-import { ModeToggle } from "@/components/mode-toggle";
+import { CustomerBrand } from "@/components/customer/customer-brand";
+import { CustomerHeaderActions } from "@/components/customer/customer-header-actions";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { friendsService } from "@/lib/services/friends.service";
+import { walletService } from "@/lib/services/wallet.service";
 import { REF_COOKIE } from "@/lib/friends/ref-cookie";
+import "@/app/customer.css";
 
 export const dynamic = "force-dynamic";
+
+const display = Bricolage_Grotesque({
+  subsets: ["latin"],
+  weight: "variable",
+  axes: ["opsz"],
+  variable: "--font-xl-display",
+});
+
+const body = DM_Sans({
+  subsets: ["latin"],
+  weight: "variable",
+  axes: ["opsz"],
+  variable: "--font-xl-body",
+});
 
 export default async function CustomerLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
@@ -36,9 +53,10 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     .limit(1);
   if (!u) redirect("/login");
   if (u.status !== "active") redirect("/login?suspended=1");
-  const [{ timezone }, jar] = await Promise.all([
+  const [{ timezone }, jar, wallet] = await Promise.all([
     getAppClock(),
     cookies(),
+    walletService.coinsForFamily(session.user.id).catch(() => null),
     // Customers are created on several paths (signup, booking, staff); the
     // first /me load is the one place all of them pass, so usernames start here.
     friendsService.ensureUsername(session.user.id).catch((e) => console.error("ensureUsername", e)),
@@ -48,14 +66,14 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   const invite = ref ? await friendsService.previewInvite(session.user.id, ref) : undefined;
 
   return (
-    <div className="crm-app">
+    <div className={`crm-app customer-app ${display.variable} ${body.variable}`}>
       <TimezoneProvider tz={timezone}>
         <TooltipProvider>
           <CrmShell
             hideSidebarOnMobile
-            brand={<AppBrand href="/me" />}
+            brand={<CustomerBrand href="/me" />}
             sidebar={<CustomerNav />}
-            actions={<ModeToggle />}
+            actions={<CustomerHeaderActions coinBalance={wallet?.balance ?? null} />}
             bottomNav={<CustomerBottomNav />}
           >
             {invite !== undefined ? <InviteBanner inviter={invite} /> : null}

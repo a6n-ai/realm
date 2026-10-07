@@ -102,6 +102,11 @@ class UsersService extends SessionUpdatableService<typeof users> {
     await super.update(publicId, { passwordSet: false });
   }
 
+  /** Self-serve profile fields (name / photo). Caller must gate to the session user. */
+  async updateProfile(publicId: string, patch: { name?: string | null; image?: string | null }): Promise<UserRow> {
+    return this.update(publicId, patch);
+  }
+
   async setStatus(publicId: string, status: UserStatusValue): Promise<UserRow> {
     if (!USER_STATUSES.includes(status)) throw new ValidationError("Unknown account status");
 

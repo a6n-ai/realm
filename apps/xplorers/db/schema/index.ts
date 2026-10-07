@@ -8,3 +8,4 @@ export * from "./payments";
 export * from "./discounts";
 export * from "./wallet";
 export * from "./friends";
+export * from "./tickets";
