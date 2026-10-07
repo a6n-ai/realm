@@ -3,7 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin,
 import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, isDone, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, isDone, moveFacts, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
@@ -183,7 +183,10 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
     : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
     : isDone(row) ? [reason] : [trip.status === "upcoming" ? null : reason];
   // Short in/out pills ("Thu's in", "to Oct 12") instead of sentences.
-  const moves = row.movedTo ? [{ kind: "out" as const, text: `to ${humanDate(row.movedTo).slice(5)}` }] : isDone(row) ? [] : moveTags(row);
+  const moves: { kind: "in" | "out"; text: string }[] = row.movedTo ? [{ kind: "out", text: `Out to ${humanDate(row.movedTo)}` }] : isDone(row) ? [] : [
+    ...(row.movedFrom ?? []).map((d) => ({ kind: "in" as const, text: d ? `In from ${humanDate(d)}` : "In from a held day" })),
+    ...(row.movedOut ? [{ kind: "out" as const, text: `Out to ${humanDate(row.movedOut)}` }] : []),
+  ];
   const arriving = !row.movedTo && GOES_OUT.has(trip.status) && trip.status !== "failed";
   const [first, ...rest] = dedupeDishes(row.dish);
   const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}`;
@@ -213,8 +216,8 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
             {moves.map((f) => {
               const Icon = f.kind === "in" ? ArrowDownLeft : ArrowUpRight;
               return (
-                <Pill key={f.kind} size="sm" tone={f.kind === "in" ? "brand" : "soft"} icon={<Icon aria-hidden className="size-3.5 shrink-0" />}>
-                  {f.kind === "in" ? f.text.replace(/ in$/, " tiffin in") : `${row.movedTo ? "Tiffin" : "Own tiffin"} ${f.text}`}
+                <Pill key={f.text} tone={f.kind === "in" ? "brand" : "soft"} icon={<Icon aria-hidden className="size-4 shrink-0" />} className="h-9 px-3.5 text-[13px]">
+                  {f.text}
                 </Pill>
               );
             })}
