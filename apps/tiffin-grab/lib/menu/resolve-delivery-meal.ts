@@ -14,7 +14,7 @@ import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
 import { swapAppliesTo } from "@/lib/menu/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { isContainerCategory } from "@/lib/menu/format-tu";
-import { itemsForRow, rowPlanIds, type RowPlans } from "@/lib/menu/row-plans";
+import { itemsForRow, rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";
 import { addonItemsForOrder, type AddonItemRow } from "@/lib/menu/order-addon-items";
 import { loadSideRules, rolesByCategory, sideKey, sideOptions, sideRulesForDay, type MealItemRole, type SideRules } from "@/lib/menu/side-rules";
 
@@ -357,7 +357,7 @@ export async function resolveDeliveryMeal(
     const tripDate = options.tripDate ?? trip?.deliveryDate;
     const eatingDate = options.eatingDate ?? options.forDate ?? tripDate;
     const rows = await db
-      .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
+      .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate })
       .from(deliveryCategorySwaps)
       .where(eq(deliveryCategorySwaps.deliveryId, deliveryId))
       .orderBy(asc(deliveryCategorySwaps.id));
@@ -376,7 +376,7 @@ export async function resolveDeliveryMeal(
     exclusiveDishIds,
     maxTuByCat,
     rules,
-    rowPlans,
+    rowPlansAfterSwaps(rowPlans, swaps),
     sideResolver(roles, sideRules, items, planDishIds),
   );
 }
@@ -422,7 +422,7 @@ export async function resolveDeliveryMealsForWeek(
   const tripIds = [...new Set([...carrying.values()].map((t) => t.id).concat(ownRows.map((r) => r.id)))];
 
   const swapRows = tripIds.length === 0 ? [] : await db
-    .select({ deliveryId: deliveryCategorySwaps.deliveryId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, forDate: deliveryCategorySwaps.forDate })
+    .select({ deliveryId: deliveryCategorySwaps.deliveryId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo, fromRow: deliveryCategorySwaps.fromRow, forDate: deliveryCategorySwaps.forDate })
     .from(deliveryCategorySwaps)
     .where(omitSwapPublicIds.length
       ? and(inArray(deliveryCategorySwaps.deliveryId, tripIds), notInArray(deliveryCategorySwaps.publicId, omitSwapPublicIds))
@@ -441,7 +441,7 @@ export async function resolveDeliveryMealsForWeek(
       const dayPersonPicks = picks.filter((p) => p.dayOfWeek === day && p.personIndex === person);
       result.set(
         resolvedMealsWeekKey(day, person),
-        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules, rowPlans,
+        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules, rowPlansAfterSwaps(rowPlans, daySwaps),
           weekSides ? sideResolver(roles, sideRulesForDay(weekSides, day), dayItems, planDishIds) : null),
       );
     }

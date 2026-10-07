@@ -4,7 +4,10 @@
  * sabzi row (base or WordPress add-on) never gets chicken, the non-veg row gets a non-veg
  * dish by default. Catalog sizes keep the reachable-plan union plus meal rules.
  */
-export type RowPlans = Map<string, bigint[]>;
+import { foldSwaps, type SlotRow, type SwapRow } from "./swap-rules";
+
+// null = a pick a swap brought in: no row of its own, so it serves the whole day's menu.
+export type RowPlans = Map<string, (bigint | null)[]>;
 
 export function rowPlanIds(
   items: { category: string; planId: bigint; sortOrder: number }[],
@@ -18,6 +21,20 @@ export function rowPlanIds(
     else out.set(it.category, [it.planId]);
   }
   return out;
+}
+
+/**
+ * Row plans after a delivery's swaps, folded like portions are (the exact row given up goes,
+ * later rows keep their own diet). Without this, giving up the non-veg 8oz sabzi row turned the
+ * remaining veg 12oz row into "pick 1" and handed it the non-veg dish.
+ */
+export function rowPlansAfterSwaps(rowPlans: RowPlans | null, swaps: SwapRow[]): RowPlans | null {
+  if (!rowPlans || swaps.length === 0) return rowPlans;
+  const slots = new Map<string, SlotRow<bigint | null>[]>();
+  for (const [category, plans] of rowPlans) slots.set(category, plans.map((value, row) => ({ row, value })));
+  // receiveTu is a portion size, never a plan: drop it so received picks stay plan-less.
+  const folded = foldSwaps(slots, swaps.map((s) => ({ ...s, receiveTu: null })), { sameUnit: () => false, receiveTu: () => null });
+  return new Map([...folded].map(([category, rows]) => [category, rows.map((r) => r.value)]));
 }
 
 export function itemsForRow<T extends { planId?: bigint | string }>(
