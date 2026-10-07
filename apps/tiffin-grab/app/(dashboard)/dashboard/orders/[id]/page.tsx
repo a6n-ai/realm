@@ -10,6 +10,7 @@ import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
 import { appToday } from "@/lib/services/start-date";
 import { earliestNewPlanStart } from "@/lib/services/order-window";
+import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
@@ -120,7 +121,9 @@ async function OrderDetail({
   // instead of five sequential round trips.
   const migratedWaiting = order.deploymentId.startsWith("wc-") && order.status === "pending";
   const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
-  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd] = await Promise.all([
+  // Ended plans get no subscription week, so their counts come straight from the delivery rows.
+  const ended = order.status === "completed" || order.status === "cancelled";
+  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts] = await Promise.all([
     dishCategoriesService.forPlanType(planType),
     loadCatalogSnapshot(order.organizationId),
     // Staff-on-behalf claim form for payments that still need a reference/screenshot.
@@ -139,6 +142,7 @@ async function OrderDetail({
       : ordersService.startChangeBlocker(order.id, order.status),
     // Moving the start must not land inside another running plan of this customer.
     order.userId != null ? earliestNewPlanStart(db, order.userId, order.id) : null,
+    ended ? orderTiffinCounts(order.publicId) : null,
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((c) => [c.key, c.label]));
   const checkoutMethodId = (order.pricingSnapshot as { paymentMethodId?: string } | null)?.paymentMethodId;
@@ -153,7 +157,7 @@ async function OrderDetail({
   }));
 
 
-  const counts = sub.week?.plan.counts ?? null;
+  const counts = sub.week?.plan.counts ?? endedCounts;
   const next = deliveryRows
     .filter((r) => r.deliveryDate >= settingsToday && r.status === "scheduled")
     .sort((x, y) => x.deliveryDate.localeCompare(y.deliveryDate))[0];
@@ -203,7 +207,9 @@ async function OrderDetail({
       label: "Tiffins left",
       value: counts ? `${counts.remaining} / ${counts.total}` : String(order.tiffinCount),
       icon: PackageIcon,
-      hint: counts ? `${counts.delivered} delivered${order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}` : "Schedule not started",
+      hint: counts
+        ? `${ended ? (order.status === "completed" ? "Plan over · " : "Cancelled · ") : ""}${counts.delivered} delivered${order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}`
+        : "Schedule not started",
     },
     notStarted
       ? { label: "Starts", value: humanDate(order.startDate), icon: TruckIcon, hint: "Not started · start date can change", pixelValue: false }
