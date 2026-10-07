@@ -313,7 +313,8 @@ html.dark .customer-app nav[aria-label="Primary"] button[aria-current="page"] > 
   background: color-mix(in srgb, var(--xl-pink-500) 22%, transparent);
 }
 
-/* Soft page entrance on PageShell sections */
+/* Soft page entrance on PageShell sections — only when View Transitions are off
+   (unsupported browsers). When VTs run, page-fade owns the route change. */
 @keyframes customer-rise {
   from {
     opacity: 0;
@@ -321,8 +322,102 @@ html.dark .customer-app nav[aria-label="Primary"] button[aria-current="page"] > 
   }
 }
 
-.customer-app section.mx-auto {
-  animation: customer-rise 420ms var(--ease-out) both;
+@supports not (view-transition-name: none) {
+  .customer-app section.mx-auto {
+    animation: customer-rise 420ms var(--ease-out) both;
+  }
+}
+
+/* —— Route transitions (PageTransition) —— */
+::view-transition {
+  pointer-events: none;
+}
+
+/* Live root: don't cross-fade the whole shell (chrome stays put). */
+::view-transition-old(root) {
+  display: none;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+
+/* Pin sticky chrome out of the page snapshot. */
+.customer-app header {
+  view-transition-name: customer-header;
+}
+.customer-app nav[aria-label="Primary"] {
+  view-transition-name: customer-bottom-nav;
+}
+.customer-app [data-slot="sidebar"] {
+  view-transition-name: customer-sidebar;
+}
+
+::view-transition-group(customer-header),
+::view-transition-group(customer-bottom-nav),
+::view-transition-group(customer-sidebar) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(customer-header),
+::view-transition-new(customer-header),
+::view-transition-old(customer-bottom-nav),
+::view-transition-new(customer-bottom-nav),
+::view-transition-old(customer-sidebar),
+::view-transition-new(customer-sidebar) {
+  animation: none;
+}
+
+::view-transition-old(.nav-forward),
+::view-transition-old(.nav-back) {
+  animation: 160ms ease-in both vt-fade-out, 400ms var(--ease-out) both vt-slide-out;
+}
+::view-transition-new(.nav-forward),
+::view-transition-new(.nav-back) {
+  animation: 240ms ease-out 80ms both vt-fade-in, 400ms var(--ease-out) both vt-slide-in;
+}
+::view-transition-old(.nav-forward) {
+  --vt-offset: -24px;
+}
+::view-transition-new(.nav-forward) {
+  --vt-offset: 24px;
+}
+::view-transition-old(.nav-back) {
+  --vt-offset: 24px;
+}
+::view-transition-new(.nav-back) {
+  --vt-offset: -24px;
+}
+::view-transition-old(.page-fade) {
+  animation: 160ms ease-in both vt-fade-out;
+}
+::view-transition-new(.page-fade) {
+  animation: 280ms var(--ease-out) 50ms both vt-fade-in, 280ms var(--ease-out) 50ms both vt-rise;
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-slide-in {
+  from {
+    translate: var(--vt-offset) 0;
+  }
+}
+@keyframes vt-slide-out {
+  to {
+    translate: var(--vt-offset) 0;
+  }
+}
+@keyframes vt-rise {
+  from {
+    translate: 0 8px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -330,6 +425,17 @@ html.dark .customer-app nav[aria-label="Primary"] button[aria-current="page"] > 
   body:has(.customer-app) [data-slot="button"]:active:not(:disabled) {
     animation: none;
     transform: none;
+  }
+
+  *,
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }
 

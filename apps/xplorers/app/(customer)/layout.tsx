@@ -16,6 +16,7 @@ import { CustomerNav } from "@/components/customer/customer-nav";
 import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
 import { CustomerBrand } from "@/components/customer/customer-brand";
 import { CustomerHeaderActions } from "@/components/customer/customer-header-actions";
+import { PageTransition } from "@/components/motion/page-transition";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { friendsService } from "@/lib/services/friends.service";
@@ -94,7 +95,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
               bottomNav={<CustomerBottomNav />}
             >
               {invite !== undefined ? <InviteBanner inviter={invite} /> : null}
-              {children}
+              <PageTransition>{children}</PageTransition>
             </CrmShell>
           )}
           <Toaster position="top-right" />

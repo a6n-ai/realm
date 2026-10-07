@@ -411,18 +411,30 @@ body:has(.crm-app) .font-pixel-circle {
   #invoice-doc { position: absolute; inset: 0; margin: 1rem; }
 }
 
-/* Native cross-fade between routes; per-slice shared-element names layer on top. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: var(--duration-base);
-  animation-timing-function: var(--ease-soft);
-}
-
-/* Page transitions (components/motion/page-transition.tsx). Same distance and ease as the
-   wizard's step slide, so subscribe → plan → checkout → activate reads as one flow. */
+/* Page transitions (components/motion/page-transition.tsx). Live root so chrome
+   (header / bottom bar) does not cross-fade with the page — only content fades. */
 ::view-transition {
   pointer-events: none;
 }
+::view-transition-old(root) {
+  display: none;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-group(customer-header),
+::view-transition-group(customer-bottom-nav) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(customer-header),
+::view-transition-new(customer-header),
+::view-transition-old(customer-bottom-nav),
+::view-transition-new(customer-bottom-nav) {
+  animation: none;
+}
+
 ::view-transition-old(.nav-forward),
 ::view-transition-old(.nav-back) {
   animation: 160ms ease-in both vt-fade-out, 400ms var(--ease-soft) both vt-slide-out;
@@ -436,10 +448,10 @@ body:has(.crm-app) .font-pixel-circle {
 ::view-transition-old(.nav-back) { --vt-offset: 24px; }
 ::view-transition-new(.nav-back) { --vt-offset: -24px; }
 ::view-transition-old(.page-fade) {
-  animation: 140ms ease-in both vt-fade-out;
+  animation: 160ms ease-in both vt-fade-out;
 }
 ::view-transition-new(.page-fade) {
-  animation: 260ms var(--ease-soft) 60ms both vt-fade-in, 260ms var(--ease-soft) 60ms both vt-rise;
+  animation: 280ms var(--ease-soft) 50ms both vt-fade-in, 280ms var(--ease-soft) 50ms both vt-rise;
 }
 @keyframes vt-fade-in { from { opacity: 0; } }
 @keyframes vt-fade-out { to { opacity: 0; } }

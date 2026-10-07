@@ -98,7 +98,10 @@ export function CustomerShell({ coinBalance, cutoffHour, userPublicId, staffRepl
 
   return (
     <div className={cn(FONT, "min-h-dvh bg-[var(--background)] text-[var(--foreground)]")}>
-      <header className="c-glass sticky top-0 z-40 border-b border-[var(--border)] pt-[env(safe-area-inset-top)]">
+      <header
+        className="c-glass sticky top-0 z-40 border-b border-[var(--border)] pt-[env(safe-area-inset-top)]"
+        style={{ viewTransitionName: "customer-header" }}
+      >
         <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto] items-center gap-3 px-4 lg:grid-cols-[1fr_auto_1fr] lg:px-6">
           <Brand />
           <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
@@ -125,7 +128,11 @@ export function CustomerShell({ coinBalance, cutoffHour, userPublicId, staffRepl
 
       <main className="mx-auto w-full max-w-[1280px] px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 lg:px-6 lg:pb-10 lg:pt-6"><PageTransition>{children}</PageTransition></main>
 
-      <nav aria-label="Primary" className="c-glass fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav
+        aria-label="Primary"
+        className="c-glass fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] pb-[env(safe-area-inset-bottom)] lg:hidden"
+        style={{ viewTransitionName: "customer-bottom-nav" }}
+      >
         <div className="relative mx-auto flex max-w-md items-stretch">
           <Link href="/me" aria-current={tab === "deliveries" ? "page" : undefined} className={cn(FOCUS, tabCls(tab === "deliveries"))}>
             <CalendarDays aria-hidden className="size-6" />Deliveries
