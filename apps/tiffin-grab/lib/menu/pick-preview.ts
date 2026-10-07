@@ -114,12 +114,12 @@ export function previewPortions(
 }
 
 /**
- * The swaps open for one eating day. Unavailable ones are left out, not greyed: an exchange is
- * how a choice is stored, and "an exchange is already applied" means nothing to staff or customers.
+ * The swaps for one eating day, unavailable ones included: Edit meal greys them with their reason
+ * ("Undo your Roti → Rice swap first") instead of letting a choice vanish when another is picked.
  */
 export function previewSwapOptions(base: PreviewBase, date: string, provisional: ProvisionalSwap[]): SwapOption[] {
   const { composition, applied } = previewStack(base, date, provisional);
-  return computeAllSwapOptions({ composition, applied, pairs: base.pairs, hideUnavailable: true });
+  return computeAllSwapOptions({ composition, applied, pairs: base.pairs, hideUnavailable: false });
 }
 
 /**

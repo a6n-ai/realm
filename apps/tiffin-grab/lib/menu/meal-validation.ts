@@ -352,7 +352,7 @@ export function validateProposedSwap(input: ValidateSwapInput): ValidateSwapResu
   if (opposing) {
     return {
       ok: false,
-      reason: `An exchange between ${labelOf(next.toCategory, composition.labels)} and ${labelOf(next.fromCategory, composition.labels)} is already applied for this day. Undo the existing exchange to change it.`,
+      reason: `Undo your ${labelOf(next.toCategory, composition.labels)} → ${labelOf(next.fromCategory, composition.labels)} swap first.`,
     };
   }
 
@@ -529,7 +529,7 @@ export function computeSwapOption(args: {
       fromCategory,
       toCategory,
       available: false,
-      reason: `An exchange between ${labelOf(toCategory, composition.labels)} and ${labelOf(fromCategory, composition.labels)} is already applied for this day. Undo the existing exchange to change it.`,
+      reason: `Undo your ${labelOf(toCategory, composition.labels)} → ${labelOf(fromCategory, composition.labels)} swap first.`,
       validBundles: [],
       minFromPicks: null,
       maxFromPicks: null,
