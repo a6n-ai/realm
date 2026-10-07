@@ -8,7 +8,6 @@ import dynamic from "next/dynamic";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
-import { Switch } from "@foundry/ui/switch";
 import { isValidPhoneNumber as isValidPhone } from "libphonenumber-js";
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
@@ -32,9 +31,6 @@ import {
 import { createOrderFlow, saveOrderLeadAction, settleNewOrderWithProofAction } from "./actions";
 import { PaymentProofField, type PaymentProofValue } from "./payment-proof-field";
 import { makeImageThumbnail } from "@/components/ds";
-import {
-  CustomMealBuilder, filledItems, type CustomMealCategory, type CustomMealValue,
-} from "./custom-meal-builder";
 import { TrialPill } from "./trial-pill";
 import { FormDrawer } from "./form-drawer";
 
@@ -106,11 +102,11 @@ export function NewOrderSheet({
   defaultCountry: CountryCode;
   sources: Src[];
   catalog: Catalog;
-  categories: CustomMealCategory[];
+  categories: { key: string; label: string }[];
   currency?: string;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
-  // Meal slots and custom-meal categories are the same enabled dish-category rows.
+  // Meal slots are the enabled dish-category rows.
   const enabledSlots: EnabledSlot[] = categories.map((c) => ({ key: c.key, label: c.label }));
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
@@ -127,7 +123,6 @@ export function NewOrderSheet({
   const [savingLead, setSavingLead] = useState(false);
   const [leadError, setLeadError] = useState<string | null>(null);
   const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
-  const [customMeal, setCustomMeal] = useState<CustomMealValue | null>(null);
   const [creating, setCreating] = useState(false);
   // Loader text while Create runs: the order first, then the screenshot approval.
   const [stage, setStage] = useState<string | null>(null);
@@ -199,7 +194,6 @@ export function NewOrderSheet({
       setLeadId(null);
       setLeadError(null);
       setFetchedPrefill(null);
-      setCustomMeal(null);
       setCreateError(null);
       setCreated(null);
       setProof({ file: null, reference: "" });
@@ -235,7 +229,7 @@ export function NewOrderSheet({
         contact: { fullName, phone, email: email.trim() },
         interest: {
           planInterest: draft.order.planKey || undefined,
-          mealSizeInterest: customMeal ? undefined : draft.order.selections.mealSizeId,
+          mealSizeInterest: draft.order.selections.mealSizeId,
           personsInterest: draft.order.selections.persons,
           frequencyKeyInterest: draft.order.selections.frequencyKey,
           eatingDaysInterest: draft.order.selections.eatingDays,
@@ -244,9 +238,6 @@ export function NewOrderSheet({
         },
         pickedInquiryId: pickedId ?? leadId ?? undefined,
         order: draft.order,
-        customMeal: customMeal
-          ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride }
-          : undefined,
       }));
       let paid: AdminOrderCreated["paid"];
       if (paidNow && proof.file) {
@@ -272,14 +263,10 @@ export function NewOrderSheet({
   }
 
   function reviewSummary({ order, preview }: { order: CreateOrderInput; preview: PricingResult | null }) {
-    const mealLabel = customMeal
-      ? "Custom meal"
-      : (catalog.mealSizes.find((m) => m.id === order.selections.mealSizeId)?.name ?? "Meal");
-    const planLabel = customMeal
-      ? (catalog.plans.find((p) => p.key === customMeal.planKey)?.name ?? customMeal.planKey)
-      : (catalog.plans.find((p) => p.key === order.planKey)?.name
-        ?? catalog.mealSizes.find((m) => m.id === order.selections.mealSizeId)?.diet
-        ?? "");
+    const mealLabel = catalog.mealSizes.find((m) => m.id === order.selections.mealSizeId)?.name ?? "Meal";
+    const planLabel = catalog.plans.find((p) => p.key === order.planKey)?.name
+      ?? catalog.mealSizes.find((m) => m.id === order.selections.mealSizeId)?.diet
+      ?? "";
     const frequencyLabel = catalog.frequencies.find((f) => f.key === order.selections.frequencyKey)?.name;
     const eating = order.selections.eatingDays ?? [];
     const trialDays = order.selections.trialDays;
@@ -311,11 +298,6 @@ export function NewOrderSheet({
               {trialDays != null && <TrialPill />}
             </p>
             {planLabel ? <p className="text-muted-foreground">{planLabel}</p> : null}
-            {customMeal && customMeal.basePriceOverride != null ? (
-              <p className="text-muted-foreground nums">
-                Staff override ${customMeal.basePriceOverride.toFixed(2)} / tiffin
-              </p>
-            ) : null}
             <p className="text-muted-foreground">
               {order.selections.persons} {order.selections.persons === 1 ? "person" : "persons"}
               {trialDays != null
@@ -558,21 +540,6 @@ export function NewOrderSheet({
                   catalog={catalog}
                   enabledSlots={enabledSlots}
                   prefill={prefill}
-                  hideMealSizePicker={customMeal != null}
-                  mealAction={
-                    <Label htmlFor="customMealToggle" className="flex shrink-0 items-center gap-2 text-sm font-normal">
-                      Custom meal
-                      <Switch
-                        id="customMealToggle"
-                        checked={customMeal != null}
-                        onCheckedChange={(on) => setCustomMeal(on ? { planKey: catalog.plans[0]?.key ?? "", items: [], basePriceOverride: null } : null)}
-                      />
-                    </Label>
-                  }
-                  mealBuilder={customMeal ? (
-                    <CustomMealBuilder plans={catalog.plans} categories={categories} value={customMeal} onChange={setCustomMeal} />
-                  ) : null}
-                  customMeal={customMeal ? { planKey: customMeal.planKey, items: filledItems(customMeal.items), basePriceOverride: customMeal.basePriceOverride } : null}
                   paymentExtra={() => (
                     <div className="grid gap-3 rounded-lg border p-3">
                       <p className="text-sm font-medium">Payment info</p>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftRightIcon, ArrowRightIcon, LayersIcon, ListChecksIcon, UtensilsCrossedIcon, UtensilsIcon } from "lucide-react";
+import { ArrowLeftRightIcon, ArrowRightIcon, LayersIcon, ListChecksIcon, UtensilsCrossedIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, PageHeader, PageShell } from "@/components/ds";
 import { catalogIndexEntries } from "./resource-config";
@@ -42,20 +42,6 @@ export default async function CatalogIndexPage() {
             <CardContent>
               <div className="font-medium">Swap Rules</div>
               <div className="text-muted-foreground text-sm">Which categories can exchange</div>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/dashboard/catalog/custom-meals" className="group" prefetch={false}>
-          <Card variant="lift" className="h-full">
-            <CardHeader className="flex flex-row items-start justify-between">
-              <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
-                <UtensilsIcon className="size-5" />
-              </span>
-              <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
-            </CardHeader>
-            <CardContent>
-              <div className="font-medium">Custom Meals</div>
-              <div className="text-muted-foreground text-sm">Price per TU by category and diet</div>
             </CardContent>
           </Card>
         </Link>

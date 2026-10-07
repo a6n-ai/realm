@@ -89,6 +89,8 @@ export type SwapCategory = {
   maxPicksPerTiffin: number | null;
   /** How many natural units one TU is (tu_unit_size); needed to show oz/roti instead of raw TU. */
   unitSize?: number;
+  /** Custom meals only: a category the meal lacks may still be received by a same-unit swap. */
+  addable?: boolean;
 };
 
 /** Same natural unit (oz ↔ oz): each given pick becomes one received pick of the same TU. */
@@ -98,8 +100,10 @@ export function sameUnit(from: SwapCategory, to: SwapCategory): boolean {
 
 // The destination must be on this meal size — a Sabzi Only meal can't swap into Salad.
 // The from side may be absent only when it was received by an earlier same-unit swap.
+// Exception: a custom meal (to.addable) may receive a missing category like-for-like, since a
+// same-unit swap keeps the given portion (12oz sabzi -> 12oz daal) and needs no row to size it.
 export function swapPairFits(from: SwapCategory, to: SwapCategory): boolean {
-  if (to.pickTu == null) return false;
+  if (to.pickTu == null) return !!to.addable && from.pickTu != null && sameUnit(from, to);
   return from.pickTu != null || sameUnit(from, to);
 }
 

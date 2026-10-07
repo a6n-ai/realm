@@ -27,9 +27,6 @@ import { dropOffsFor } from "@/lib/services/address-drop-off.service";
 import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
-import { round2 } from "@/lib/custom-meal/pricing";
-import { mealPlanKey } from "@/lib/custom-meal/composition";
-import { customMealSchema, priceCustomComposition, TRANSIENT_CUSTOM_SIZE_ID, withTransientCustomSize } from "@/lib/services/custom-meal.service";
 
 const IST = "Asia/Kolkata";
 
@@ -151,37 +148,22 @@ export async function previewPrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,
-  customMeal?: unknown,
 ): Promise<ActionResult<{ preview: PricingResult }>> {
-  return runAction(async () => ({ preview: await quotePrice(input, couponCode, requestedAmount, customMeal) }));
+  return runAction(async () => ({ preview: await quotePrice(input, couponCode, requestedAmount) }));
 }
 
 async function quotePrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,
-  customMeal?: unknown,
 ): Promise<PricingResult> {
   await requireStaff();
-  let snap = await loadCatalogSnapshot();
-  let override: number | null = null;
-  // Custom meal (New Order): price the composition as an unsaved size, mirroring
-  // createOrderFlow's plan/size substitution and createOrder's override.
-  if (customMeal != null) {
-    const parsed = customMealSchema.safeParse(customMeal);
-    if (!parsed.success) throw new ValidationError(`Custom meal: ${parsed.error.issues[0]?.message ?? "invalid"}`);
-    const priced = await priceCustomComposition(parsed.data.items, parsed.data.basePriceOverride);
-    const planKey = parsed.data.planKey ?? mealPlanKey(priced.items);
-    snap = withTransientCustomSize(snap, priced, planKey);
-    input = { ...input, planKey, selections: { ...input.selections, mealSizeId: TRANSIENT_CUSTOM_SIZE_ID } };
-    override = parsed.data.basePriceOverride ?? null;
-  }
+  const snap = await loadCatalogSnapshot();
   const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   const weekendErr = trialMeal && !trialMeal.trial ? weekendDaysError(input.selections.eatingDays ?? [], trialMeal.servesWeekends) : null;
   if (weekendErr) throw new ValidationError(weekendErr);
   const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
   const catalog = trial ? trial.catalog : buildPricingCatalog(snap, input.selections);
-  if (override != null) catalog.mealSize = { ...catalog.mealSize, basePrice: round2(override) };
   // Same tax resolution as createOrder (delivery postal code + the method's own taxes), so the
   // total staff see and copy to the customer is the total charged.
   const method = input.paymentMethodId ? findMethod(await getPaymentConfig(), input.paymentMethodId) : undefined;

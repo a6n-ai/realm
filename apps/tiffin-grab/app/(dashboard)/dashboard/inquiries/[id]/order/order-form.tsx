@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { CheckIcon, CopyIcon, Loader2Icon, MinusIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { CatalogAddon } from "@/lib/catalog/types";
@@ -64,9 +63,6 @@ function FormSection({ title, hint, action, hidden = false, children }: { title:
   );
 }
 
-// Custom meals: the server derives plan and meal size from the composition.
-const customMealFormSchema = orderFormSchema.extend({ planKey: z.string(), mealSizeId: z.string() });
-
 type Catalog = {
   plans: { key: string; name: string }[];
   mealSizes: { id: string; name: string; diet: string; trial?: boolean; servesWeekends?: boolean; addons?: CatalogAddon[] }[];
@@ -125,10 +121,6 @@ export function OrderForm({
   onCreated,
   onReview,
   paymentExtra,
-  mealAction,
-  mealBuilder,
-  hideMealSizePicker = false,
-  customMeal = null,
   page,
   onContinue,
   summary,
@@ -155,14 +147,6 @@ export function OrderForm({
   onReview?: (draft: { order: CreateOrderInput; preview: PricingResult }) => void;
   /** Extra content under the payment methods, given the selected method (e.g. an e-Transfer screenshot). */
   paymentExtra?: (paymentMethodId: string | null) => React.ReactNode;
-  /** Control in the Meal section header (New order's Custom meal switch). */
-  mealAction?: React.ReactNode;
-  /** Replaces the plan/meal picker when set (the custom meal builder). */
-  mealBuilder?: React.ReactNode;
-  /** A custom meal builder replaces the plan/meal-size pills (New Order). */
-  hideMealSizePicker?: boolean;
-  /** The builder's composition, priced server-side for the footer preview. */
-  customMeal?: { planKey: string; items: { category: string; planKey: string; tuAmount: number }[]; basePriceOverride: number | null } | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
@@ -191,8 +175,7 @@ export function OrderForm({
     : enabledSlots.slice(0, 1).map((s) => s.key);
 
   const form = useForm<OrderFormInput, unknown, OrderFormValues>({
-    // RHF re-reads options every render, so the resolver follows the toggle.
-    resolver: zodResolver(hideMealSizePicker ? customMealFormSchema : orderFormSchema),
+    resolver: zodResolver(orderFormSchema),
     defaultValues: {
       planKey: "",
       mealSizeId: "",
@@ -243,8 +226,8 @@ export function OrderForm({
   const mealsForPlan = catalog.mealSizes.filter((m) => !planKey || m.diet === planKey);
   const selectedSize = catalog.mealSizes.find((m) => m.id === mealSizeId);
   const isTrial = selectedSize?.trial === true;
-  // Custom meals have no catalog size to attach add-ons to; trials never carry them.
-  const eligibleAddons = hideMealSizePicker || isTrial ? [] : (selectedSize?.addons ?? []);
+  // Trials never carry add-ons.
+  const eligibleAddons = isTrial ? [] : (selectedSize?.addons ?? []);
   const qtyFor = (key: string) => addonSelections.find((s) => s.key === key)?.qty ?? 0;
   const setAddonQty = (key: string, qty: number) => {
     const rest = addonSelections.filter((s) => s.key !== key);
@@ -332,7 +315,7 @@ export function OrderForm({
   useEffect(() => {
     if (form.getValues("addonSelections")?.length) form.setValue("addonSelections", []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mealSizeId, hideMealSizePicker]);
+  }, [mealSizeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -382,7 +365,7 @@ export function OrderForm({
       includeSunday: trial ? false : v.eatingDays.includes("sun"),
       durationWeeks: v.durationWeeks,
       startDate: v.startDate,
-      addonSelections: trial || hideMealSizePicker ? [] : (v.addonSelections ?? []),
+      addonSelections: trial ? [] : (v.addonSelections ?? []),
       ...(trial ? { trialDays: trialPicks.length } : {}),
       addressTagId,
       deliveryTagId: dropOff.tagId,
@@ -405,10 +388,7 @@ export function OrderForm({
   };
   };
 
-  // Serialized so a fresh-but-equal object from the parent doesn't refire the preview.
-  const customKey = hideMealSizePicker && customMeal?.items.length ? JSON.stringify(customMeal) : "";
-  // A catalog-size preview is meaningless once the custom builder takes over.
-  const shownPreview = hideMealSizePicker && !customKey ? null : preview;
+  const shownPreview = preview;
   const subtotal = shownPreview?.subtotal ?? 0;
   const ceiling = repInfo?.available
     ? round2(Math.min((subtotal * repInfo.capPct) / 100, repInfo.capAmount))
@@ -421,7 +401,7 @@ export function OrderForm({
   }, []);
 
   useEffect(() => {
-    if (hideMealSizePicker ? !customKey : !mealSizeId || !planKey) return;
+    if (!mealSizeId || !planKey) return;
     let cancelled = false;
     const repCode = repInfo?.available ? repInfo.code : undefined;
     previewPrice(
@@ -444,7 +424,6 @@ export function OrderForm({
       }),
       repCode,
       discount > 0 ? discount : undefined,
-      customKey ? customMeal : undefined,
     )
       .then((r) => {
         if (cancelled) return;
@@ -463,7 +442,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, repInfo, paymentMethodId, contact.fullName, contact.phone, hideMealSizePicker, customKey, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, repInfo, paymentMethodId, contact.fullName, contact.phone, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -565,7 +544,7 @@ export function OrderForm({
   });
 
   const orderMissing = [
-    hideMealSizePicker ? !customKey && "custom meal items" : !mealSizeId && "meal size",
+    !mealSizeId && "meal size",
     !startDate && "start date",
     isTrial && !!startDate && !trialStartOk && "a start date on a trial day",
   ];
@@ -605,7 +584,7 @@ export function OrderForm({
 
           {liveDraft && <section className="grid gap-5">{summary!(liveDraft)}</section>}
 
-          <FormSection hidden={page === "payment"} title="Meal" hint={mealBuilder ? "Built item by item for this order." : "Diet, then the meal size."} action={mealAction}>
+          <FormSection hidden={page === "payment"} title="Meal" hint="Diet, then the meal size.">
             <fieldset className="grid gap-4" disabled={submitting}>
               <FormField
                 control={form.control}
@@ -625,8 +604,7 @@ export function OrderForm({
                   </FormItem>
                 )}
               />
-              {mealBuilder}
-              {!hideMealSizePicker && (
+              {(
                 <div className="grid gap-4">
                   <PlanMealPicker
                     catalog={catalog}
