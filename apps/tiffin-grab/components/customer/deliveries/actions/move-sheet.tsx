@@ -1,5 +1,5 @@
 "use client";
-import { Lock, Package, Truck, Utensils, type LucideIcon } from "lucide-react";
+import { CalendarCheck, Lock, Package, Truck, Utensils, type LucideIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
@@ -22,7 +22,7 @@ const Pill = ({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode 
 );
 
 export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, ui }: ActionSheetProps) {
-  const { Shell, PrimaryButton, Notice, Reason, PillToggle } = useSheetUi(ui);
+  const { Shell, PrimaryButton, Notice, Reason, OptionCard } = useSheetUi(ui);
   const [now] = useState(() => Date.now());
   // Which eating day is moving: the one the customer selected, or the trip's own date if none was passed.
   const source = sourceDate ?? trip.date;
@@ -74,9 +74,13 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>
               {end && (
-                <PillToggle on={picked === end} onClick={toEnd} className="justify-self-start">
-                  Move to end of plan ({humanDate(end)})
-                </PillToggle>
+                <OptionCard selected={picked === end} onClick={toEnd} className="flex w-full items-center gap-3 px-4 py-3">
+                  <CalendarCheck aria-hidden className="size-5 shrink-0 text-[var(--primary)]" />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="text-[15px] font-semibold">Move to end of plan</span>
+                    <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">{humanDate(end)}</span>
+                  </span>
+                </OptionCard>
               )}
               <WeekTimeline
                 firstWeek={mondayOf(options[0]?.date ?? plan.today)}
