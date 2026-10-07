@@ -1,5 +1,5 @@
 "use client";
-import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, ChefHat, House, Info, MapPin, Package, Truck } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Package, Truck } from "lucide-react";
 import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
@@ -130,10 +130,10 @@ const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
 const GOES_OUT = new Set<Trip["status"]>(["upcoming", "cutoff-passed", "unconfirmed", "delivered", "locked", "failed"]);
 
 /** Where the tiffin is on its way to the door. No live tracking: the stage comes from the trip's status alone. */
-const STAGE: Partial<Record<Trip["status"], number>> = { upcoming: 0, "cutoff-passed": 1, locked: 1, unconfirmed: 2, delivered: 3 };
+// We don't know when the kitchen starts cooking, only that the cutoff passed — so no "Preparing" stop.
+const STAGE: Partial<Record<Trip["status"], number>> = { upcoming: 0, "cutoff-passed": 0, locked: 0, unconfirmed: 1, delivered: 2 };
 const STOPS = [
   { label: "Scheduled", Icon: CalendarCheck },
-  { label: "Preparing", Icon: ChefHat },
   { label: "On the way", Icon: Truck },
   { label: "Delivered", Icon: House },
 ] as const;
@@ -141,14 +141,14 @@ const STOPS = [
 export function Journey({ status, caption }: { status: Trip["status"]; caption?: string | null }) {
   const at = STAGE[status];
   if (at == null) return null;
-  const done = at === 3;
+  const done = at === STOPS.length - 1;
   const tone = done ? "var(--s-delivered,#10b981)" : "var(--s-upcoming,#0ea5e9)";
   return (
     <div role="img" aria-label={`${STOPS[at]!.label} delivery`} data-testid="journey">
-      <ol aria-hidden className="relative grid grid-cols-4">
+      <ol aria-hidden className="relative grid grid-cols-3">
         {/* Track runs centre-to-centre of the first and last stop; the filled part ends at the current stop. */}
-        <span className="absolute left-[12.5%] right-[12.5%] top-5 h-[3px] -translate-y-1/2 rounded-full bg-[var(--border)]" />
-        <span className="absolute left-[12.5%] top-5 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${at * 25}%`, background: tone }} />
+        <span className="absolute left-[16.667%] right-[16.667%] top-5 h-[3px] -translate-y-1/2 rounded-full bg-[var(--border)]" />
+        <span className="absolute left-[16.667%] top-5 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${at * 33.333}%`, background: tone }} />
         {STOPS.map(({ label, Icon }, i) => {
           const now = i === at;
           const past = i < at;
@@ -165,32 +165,27 @@ export function Journey({ status, caption }: { status: Trip["status"]; caption?:
           );
         })}
       </ol>
-      {caption && <p className="mt-3 text-center text-[14px] text-[var(--muted-foreground,#6E6558)]">{caption}</p>}
+      {caption && <p className="mt-2 text-center text-[13px] text-[var(--muted-foreground,#6E6558)]">{caption}</p>}
     </div>
   );
 }
 
-const JOURNEY_NOTE: Partial<Record<Trip["status"], string>> = {
-  upcoming: "You can still change the meal or move it.",
-  "cutoff-passed": "The kitchen is cooking it. Changes are closed.",
-  locked: "The kitchen is cooking it. Changes are closed.",
-  unconfirmed: "Out for delivery.",
-  delivered: "Delivered. Enjoy your meal!",
-};
+// Only what the stops can't say: past the cutoff, nothing can change any more.
+const JOURNEY_NOTE: Partial<Record<Trip["status"], string>> = { "cutoff-passed": "Changes closed", locked: "Changes closed" };
 
 const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
 
 /** The selected eating day, as the page's main card: date, dishes, then one quiet line for tiffins, delivery day and cutoff. */
-export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; children?: React.ReactNode }) {
+export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
   const facts = row.movedTo ? [movedFact(row)]
     : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
     : isDone(row) ? [reason] : [trip.status === "upcoming" ? null : reason];
-  const moves = row.movedTo ? [] : moveFacts(row);
+  const moves = row.movedTo ? [] : moveFacts(row).filter((f) => f.kind === "out");
   const arriving = !row.movedTo && GOES_OUT.has(trip.status) && trip.status !== "failed";
   const [first, ...rest] = dedupeDishes(row.dish);
-  const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}`;
+  const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 || trip.movesIn?.length ? ` (${tiffinBreakdown(trip)})` : ""}`;
   const meta = arriving ? [
     // A day carried on another day's truck says which one.
     trip.date !== row.date ? `${trip.status === "delivered" ? "Delivered" : "Arrives"} ${humanDate(trip.date)} with ${weekdayShort(trip.date)}` : null,
@@ -241,7 +236,13 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
           {label("Destination", MUTED)}
           <p className="flex items-center gap-2 text-[15px]" data-testid="delivery-address">
             <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
-            <span className="min-w-0 truncate">{address.text}{address.changed ? " (this delivery only)" : ""}</span>
+            <span className="min-w-0 flex-1 truncate">{address.text}{address.changed ? " (this delivery only)" : ""}</span>
+            {onEditAddress && (
+              <button type="button" onClick={onEditAddress} aria-label="Change address" className={cn(FOCUS, "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-semibold text-[var(--primary)] [touch-action:manipulation]")}>
+                <Pencil aria-hidden className="size-3.5" />
+                Edit
+              </button>
+            )}
           </p>
         </div>
       )}

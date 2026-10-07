@@ -130,6 +130,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const dates = Object.keys(agenda).sort();
   const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;
   const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
+  const addressRow = model?.rows.find((r) => r.key === "address");
   const helpHref = trip ? `/me/support/new?orderId=${encodeURIComponent(plan.orderId)}&date=${trip.date}` : undefined;
   const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo));
 
@@ -201,9 +202,10 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
               reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}
               address={deliveryAddress(trip.addressOverride, sub)}
               onDetails={() => setInfo(row)}
+              onEditAddress={addressRow?.av.ok ? () => setActive("address") : undefined}
             >
               <div className="mt-6 hidden lg:block">
-                <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} helpHref={helpHref} />
+                <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} helpHref={helpHref} hide={addressRow?.av.ok ? ["address"] : []} />
               </div>
             </EatingCard>
           ) : emptyDay ? (
@@ -214,7 +216,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
       {trip && model && (model.rows.length > 0 || model.goTo) && (
         <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
-          <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} helpHref={helpHref} />
+          <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} helpHref={helpHref} hide={addressRow?.av.ok ? ["address"] : []} />
         </div>
       )}
       </>

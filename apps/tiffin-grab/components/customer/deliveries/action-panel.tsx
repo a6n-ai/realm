@@ -16,10 +16,12 @@ interface Props {
   onGoTo: (date: string) => void;
   /** "Get help" in the overflow menu. */
   helpHref?: string;
+  /** Actions offered elsewhere on the page (address edits from its own row). */
+  hide?: TripAction[];
 }
 
 /** Edit meal (or Move, for a day that wasn't delivered) is the one primary; the rest are a quiet row. Disabled actions stay tappable and answer in plain words. */
-export function TripActions({ model, layout, onAction, onGoTo, helpHref }: Props) {
+export function TripActions({ model, layout, onAction, onGoTo, helpHref, hide = [] }: Props) {
   const [reason, setReason] = useState<string | null>(null);
   const bar = layout === "bar";
   const fire = (k: TripAction, a: { ok: boolean; why: string | null }) => (a.ok ? (setReason(null), onAction(k)) : setReason(a.why));
@@ -27,7 +29,7 @@ export function TripActions({ model, layout, onAction, onGoTo, helpHref }: Props
   // Only Move sits beside the primary; the rest (address) and help live behind "•••".
   const others = model.rows.filter((r) => r.key !== model.primary && r.key !== "pick");
   const secondary = others.filter((r) => r.key === "move");
-  const overflow = others.filter((r) => r.key !== "move");
+  const overflow = others.filter((r) => r.key !== "move" && !hide.includes(r.key));
   const [menu, setMenu] = useState(false);
   const item = cn(FOCUS, "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-[var(--muted)] [touch-action:manipulation]");
   const more = (overflow.length > 0 || helpHref) && (
