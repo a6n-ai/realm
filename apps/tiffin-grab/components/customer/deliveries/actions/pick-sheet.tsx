@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/purity */
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
 import { addonRowKeys, countAddons, isCountCategory, mealBasePortions, splitGroups } from "@/lib/menu/pick-addons";
 import {
@@ -41,25 +41,8 @@ const PREFIX = "pick";
 
 
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
+const ADDONS = "__addons";
 const muted = "text-[var(--muted-foreground,#6E6558)]";
-
-/** Category label over its dish lines: the "Your meal" summary, used for the meal and its add-ons. */
-function SummaryBlocks({ blocks }: { blocks: MealSummaryLine[] }) {
-  return (
-    <div className="mt-3 grid gap-3">
-      {blocks.map((block) => (
-        <div key={block.categoryLabel}>
-          <h4 className={`text-[13px] font-semibold uppercase tracking-wide ${muted}`}>{block.categoryLabel}</h4>
-          <ul className="mt-1 grid gap-0.5">
-            {block.lines.map((line, n) => (
-              <li key={`${block.categoryLabel}:${n}`} className="text-[15px]">{line}</li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function slotLabel(group: PickCategoryGroup, index: number): string {
   const diet = group.cells[index]?.diet;
@@ -131,6 +114,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
   const [day, setDay] = useState(startDay && dates.includes(startDay) ? startDay : dates[0]);
   const [person, setPerson] = useState(1);
   const [picked, setPicked] = useState<Record<string, string>>({});
+  // Accordion: one category open at a time; nothing opens on its own.
+  const [openCat, setOpenCat] = useState<string | null>(null);
+  const toggle = (key: string) => setOpenCat((k) => (k === key ? null : key));
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Which rule refused the last pick, so its line stands out in the list above.
@@ -280,6 +266,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     locked: boolean,
     controlsOff: boolean,
     withSwaps: boolean,
+    inAccordion = true,
   ) => {
     const { cell, index: i, row: baseRow } = item;
     const selectedId = effectiveDishId(cell, picked);
@@ -304,16 +291,18 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       ? built
       : [{ kind: "dish", value: "fixed", label: group.label, dishId: "" }];
     const cellOff = locked || cell.locked || controlsOff;
-    const isDefault = !!selectedId && cell.isDefaulted && picked[key] == null;
     return (
       <U.ChoiceRow
         key={key}
         label={slotLabel(group, i)}
-        hint={!cell.selectable ? "Included" : isDefault ? "Default pick" : undefined}
+        // In the meal's accordion each item is its own section, and its header already names it.
+        caption={inAccordion ? null : undefined}
+        hint={!cell.selectable ? "Included" : undefined}
         choices={options.map((o) => ({
           value: o.value,
           label: o.label,
           reason: o.reason,
+          swap: o.kind === "swap",
           disabled:
             cellOff
             || !!o.disabled
@@ -322,13 +311,43 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
             || (o.kind === "swap" && swapLocked),
         }))}
         value={selectedId ? dishOptionValue(selectedId) : built.length ? "" : "fixed"}
+        // The category stays open after a pick: closing it moved the sheet under the customer's finger.
         onChange={(v) => onSlotChange(cell, i, v)}
       />
     );
   };
-  // The summary reads like the sheet: the meal first, then its add-ons on their own.
+  // The Add-ons row's summary: only the add-on rows, never the meal's own.
   const split = splitGroups(groups, addonKeys);
-  const summary = buildMealSummary(split.meal, picked);
+  const ROLE: Record<string, string> = { main: "Main", side_1: "Side", side_2: "Side 2" };
+  /**
+   * An accordion row's header for one meal item: "SABZI · MAIN · 12OZ" over the dish it holds now.
+   * `named`: the category has several items, so the role (or a custom meal row's diet) tells them apart.
+   */
+  const itemView = (group: (typeof rows)[number], item: (typeof rows)[number]["items"][number], several = false) => {
+    // A role only helps when it tells the items apart (Main vs Side); two "main" rows fall back to their portions.
+    const roles = grid?.rolesBySlot?.[group.key] ?? [];
+    const named = several && new Set(roles).size > 1;
+    if (item.kind === "swapped") {
+      const sw = item.swapped;
+      const role = sw.givenRow != null ? grid?.rolesBySlot?.[group.key]?.[sw.givenRow] : undefined;
+      return {
+        title: [group.label, named && role ? ROLE[role] : null, sw.givePortion].filter(Boolean).join(" · "),
+        // Customers see choices, not swaps: the row reads as what they get now.
+        summary: `${labelOf(sw.swap.toCategory)}${sw.getPortion ? ` · ${sw.getPortion}` : ""}`,
+        status: "Changed",
+      };
+    }
+    const { cell, index } = item;
+    const role = grid?.rolesBySlot?.[group.key]?.[item.row ?? index];
+    const id = effectiveDishId(cell, picked);
+    const dish = [...cell.dishes, ...group.dishes].find((d) => d.id === id)?.name ?? group.dishes[0]?.name ?? group.label;
+    const changedHere = picked[cellKey(cell)] != null && picked[cellKey(cell)] !== cell.selectedDishId;
+    return {
+      title: [cell.diet ? `${cell.diet} ${group.label}` : group.label, named && !cell.diet && role ? ROLE[role] : null, group.portions[index]].filter(Boolean).join(" · "),
+      summary: dish,
+      status: cell.locked ? "Locked" : changedHere ? "Changed" : group.selectable ? "" : "Included",
+    };
+  };
   const addonSummary: MealSummaryLine[] = [
     ...buildMealSummary(split.addons, picked),
     ...counted.addons.map((a) => {
@@ -539,6 +558,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 value={activeDay}
                 onChange={(d) => {
                   setDay(d);
+                  setOpenCat(null);
                   setError(null);
                 }}
                 items={tabs.map((d) => ({ id: d, label: shortDay(d) }))}
@@ -563,6 +583,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 {dayLocked && <p className={`text-[13px] ${muted}`}>Locked. Your picks for this day are final.</p>}
               </div>
 
+              {/* One grouped list: each category a row, dividers between, one open at a time. */}
+              <div className="divide-y divide-[var(--border,#E8E0D5)] overflow-hidden rounded-2xl border border-[var(--border,#E8E0D5)] bg-[var(--card,#fff)]">
               {rows.map((group) => {
                 const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                 const controlsOff = busy != null || saving;
@@ -573,9 +595,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 const menuDishes = grid.menu?.[activeDay!]?.[group.key] ?? [];
                 const fixed = grid.categories.find((c) => c.key === group.key)?.selectable === false;
                 const ownDishes = group.dishes.length ? group.dishes : fixed ? menuDishes.slice(0, 1) : menuDishes;
-                return (
-                  <U.CategorySection key={group.key} label={group.label}>
-                    {mealItems.map((item) => {
+                const renderItem = (item: (typeof mealItems)[number]) => {
                       if (item.kind === "swapped") {
                         const row = item.swapped;
                         const rowOff = locked || swapLocked || controlsOff;
@@ -636,6 +656,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                           <U.ChoiceRow
                             key={`${row.swap.publicId}#${row.part}`}
                             label={row.givePortion ? `${group.label} · ${row.givePortion}` : group.label}
+                            caption={null}
                             choices={choices}
                             value={into?.selectable ? (intoPick ? `to:${intoPick}` : "") : "swapped"}
                             onChange={(v) => {
@@ -688,21 +709,50 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                         );
                       }
                       return renderCellRow(group, item, locked, controlsOff, true);
-                    })}
+                };
+                const section = (key: string, label: string, summary: string, status: string, item: ReactNode) => (
+                  <U.CategorySection key={key} label={label} summary={summary} status={status} open={openCat === key} onToggle={() => toggle(key)}>
+                    {item}
                   </U.CategorySection>
                 );
+                if (mealItems.length === 1) {
+                  const view = itemView(group, mealItems[0]!);
+                  return section(group.key, view.title, view.summary, locked ? "Locked" : view.status, renderItem(mealItems[0]!));
+                }
+                // Several items of one category (2 sabzis) share one row; opening it shows each
+                // weight with its own choices ("Main · 12oz", "Side · 8oz").
+                const views = mealItems.map((item) => itemView(group, item, true));
+                const status = locked ? "Locked" : views.some((v) => v.status === "Changed") ? "Changed" : views[0]!.status;
+                return section(group.key, group.label, views.map((v) => v.summary).join(" · "), status, mealItems.map((item, n) => {
+                  const title = views[n]!.title;
+                  return (
+                    <div key={n} className="grid gap-2">
+                      <p className={`text-[12px] font-semibold uppercase tracking-[0.1em] ${muted}`}>
+                        {title.startsWith(`${group.label} · `) ? title.slice(group.label.length + 3) : title}
+                      </p>
+                      {renderItem(item)}
+                    </div>
+                  );
+                }));
               })}
+              </div>
 
               {(addonKeys.size > 0 || counted.addons.length > 0) && (
                 // Its own highlighted block: add-ons are extras, picked from the menu, never exchanged.
-                <div className="grid gap-3 rounded-2xl border border-[var(--primary)]/40 bg-[var(--primary)]/5 p-4">
-                <U.CategorySection label="Add-ons">
+                <div className="overflow-hidden rounded-2xl border border-[var(--primary)]/40 bg-[var(--card,#fff)]">
+                <U.CategorySection
+                  label="Add-ons"
+                  summary={addonSummary.map((b) => b.lines.join(", ")).join(" · ")}
+                  status="Not exchangeable"
+                  open={openCat === ADDONS}
+                  onToggle={() => toggle(ADDONS)}
+                >
                   <p className={`-mt-2 text-[13px] ${muted}`}>Extras on your plan. Pick a dish; add-ons can&apos;t be exchanged for other items.</p>
                   {rows.flatMap((group) => {
                     const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                     return group.items
                       .filter(isAddonItem)
-                      .map((item) => (item.kind === "cell" ? renderCellRow(group, item, locked, busy != null || saving, false) : null));
+                      .map((item) => (item.kind === "cell" ? renderCellRow(group, item, locked, busy != null || saving, false, false) : null));
                   })}
                   {/* Extra roti/rice: the same dish as the meal's, so nothing to pick — shown as included. */}
                   {counted.addons.map((a) => {
@@ -723,18 +773,6 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 </div>
               )}
 
-              {summary.length > 0 && (
-                <section aria-label="Your meal" className="border-t border-[var(--border,#E8E0D5)] pt-4">
-                  <h3 className="text-[17px] font-semibold">Your meal</h3>
-                  <SummaryBlocks blocks={summary} />
-                  {addonSummary.length > 0 && (
-                    <>
-                      <h4 className="mt-4 text-[15px] font-semibold">Add-ons</h4>
-                      <SummaryBlocks blocks={addonSummary} />
-                    </>
-                  )}
-                </section>
-              )}
             </div>
             {error && <U.Notice tone="error">{error}</U.Notice>}
             <MealRuleNotes rules={grid?.rules ?? []} violatedRuleId={violatedRuleId} />

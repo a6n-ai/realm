@@ -58,6 +58,7 @@ const grid = (
     portionsBySlot?: Record<string, (string | null)[]>;
     portionsByDate?: Record<string, Record<string, (string | null)[]>>;
     addonCounts?: Record<string, number>;
+    rolesBySlot?: Record<string, string[]>;
   } = {},
 ) => ({
   ok: true,
@@ -73,6 +74,7 @@ const grid = (
     mealRules: [],
     preview: { items: [], tu: [], appliedByDate: {}, composition: { baseCounts: {}, mealSizeItems: [], categories: [] }, pairs: [] },
     addonCounts: extras.addonCounts ?? {},
+    rolesBySlot: extras.rolesBySlot ?? {},
   },
 });
 const trip = (o: Partial<Trip> = {}): Trip => ({
@@ -103,6 +105,15 @@ const plan = {
 const ownDishOnSwappedRow = async (name: string) =>
   (await screen.findAllByRole("radio", { name })).find((r) => r.getAttribute("aria-checked") !== "true" && !r.hasAttribute("disabled"))!;
 
+/** Edit meal is an accordion: open a category (closed by default) as a customer would. */
+const openCat = async (name = "Curry") => {
+  await waitFor(() => expect(document.querySelector("button[aria-expanded]")).not.toBeNull());
+  const matching = [...document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")]
+    .filter((b) => new RegExp(`^${name}`, "i").test(b.textContent ?? ""));
+  const header = matching.find((b) => b.getAttribute("aria-expanded") === "false");
+  if (header) fireEvent.click(header);
+};
+
 const show = (t = trip()) => {
   const onDone = vi.fn();
   render(<PickSheet trip={t} plan={plan} open onDone={onDone} />);
@@ -128,14 +139,31 @@ describe("PickSheet", () => {
       }),
     );
     show(trip({ coversDates: [mon] }));
+    await openCat();
+    // Two items of one category share one accordion row: both weights show when it opens.
     expect(await screen.findByRole("radiogroup", { name: "Curry · 12oz" })).toBeInTheDocument();
     expect(screen.getByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
+    expect(document.querySelectorAll("button[aria-expanded]")).toHaveLength(1);
     expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
+  });
+
+  it("names two items of one category by their role when it differs: Main and Side", async () => {
+    load.mockResolvedValue(
+      grid([cell({ pickIndex: 1 }), cell({ pickIndex: 2 })], 1, {
+        portionsBySlot: { curry: ["12oz", "8oz"] },
+        rolesBySlot: { curry: ["main", "side_1"] },
+      }),
+    );
+    show(trip({ coversDates: [mon] }));
+    await openCat();
+    expect(await screen.findByText("Main · 12oz")).toBeInTheDocument();
+    expect(screen.getByText("Side · 8oz")).toBeInTheDocument();
   });
 
   it("edits one eating day per sheet — the trip's own day by default, no day tabs", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show();
+    await openCat();
     expect(await screen.findByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
     expect(load).toHaveBeenCalledWith("o1", [mon]);
     expect(screen.queryByRole("tab", { name: /Tue/ })).toBeNull();
@@ -144,6 +172,7 @@ describe("PickSheet", () => {
   it("opens on the carried eating day the customer selected, with its lock note", async () => {
     load.mockResolvedValue(grid([cell({ dateIso: tue, day: "tue", lockNote: "Locks with Monday's delivery" })]));
     render(<PickSheet trip={trip()} plan={plan} day={tue} open onDone={vi.fn()} />);
+    await openCat();
     expect(await screen.findByText("Locks with Monday's delivery")).toBeInTheDocument();
     expect(load).toHaveBeenCalledWith("o1", [tue]);
   });
@@ -151,12 +180,14 @@ describe("PickSheet", () => {
   it("says how many tiffins share the day when others moved onto it", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon], extraDates: [mon] }));
+    await openCat();
     expect(await screen.findByText("2 tiffins this day — same meal for each.")).toBeInTheDocument();
   });
 
   it("single-day trip has no day tabs", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
+    await openCat();
     await screen.findByRole("radiogroup", { name: "Curry · 8oz" });
     expect(screen.queryByRole("tab", { name: /Mon/ })).toBeNull();
   });
@@ -164,6 +195,7 @@ describe("PickSheet", () => {
   it("picks per person with the chosen person index on Done", async () => {
     load.mockResolvedValue(grid([cell({}), cell({ personIndex: 2, selectedDishId: "d1" })], 2));
     show(trip({ coversDates: [mon] }));
+    await openCat();
     fireEvent.click(await screen.findByRole("tab", { name: "Person 2" }));
     fireEvent.click(screen.getByRole("radio", { name: /^Dal$/ }));
     expect(savePicks).not.toHaveBeenCalled();
@@ -187,6 +219,7 @@ describe("PickSheet", () => {
   it("never renders Apply dishes to the whole week button in the sheet", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
+    await openCat();
     await screen.findByRole("radio", { name: /^Dal$/ });
     expect(screen.queryByRole("button", { name: /Apply dishes to the whole week/i })).toBeNull();
   });
@@ -209,6 +242,7 @@ describe("PickSheet", () => {
     }).options);
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
+    await openCat();
     const swapRadio = await screen.findByRole("radio", { name: /^Daal$/ });
     fireEvent.click(swapRadio);
     await screen.findByRole("button", { name: "Save" });
@@ -233,6 +267,7 @@ describe("PickSheet", () => {
     }).options);
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
+    await openCat();
     fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
     await screen.findByRole("button", { name: "Save" });
     expect(applySwap).not.toHaveBeenCalled();
@@ -259,6 +294,7 @@ describe("PickSheet", () => {
     }).options);
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
+    await openCat();
     fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
     await screen.findByRole("button", { name: "Save" });
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
@@ -285,8 +321,9 @@ describe("PickSheet", () => {
       ),
     );
     show(trip({ coversDates: [mon] }));
-    const riceSection = await screen.findByLabelText("Rice");
-    expect(within(riceSection).getByText("Included")).toBeInTheDocument();
+    await openCat("Rice");
+    const riceSection = await screen.findByRole("region", { name: /^Rice/ });
+    expect(within(riceSection).getAllByText("Included").length).toBeGreaterThan(0);
     const fixed = within(riceSection).getByRole("radio", { name: /Jeera Rice/ });
     expect(fixed).toBeDisabled();
     expect(fixed).toHaveAttribute("aria-checked", "true");
@@ -330,6 +367,7 @@ describe("PickSheet", () => {
       categoryLabels: { rice: "Rice", roti: "Roti" },
     } as unknown as PlanView;
     render(<PickSheet trip={trip({ coversDates: [mon] })} plan={ricePlan} open onDone={vi.fn()} />);
+    await openCat("Rice");
     expect(await screen.findByRole("radiogroup", { name: "Rice · 1 unit" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /^Jeera Rice$/ })).toBeInTheDocument();
     const swapRadio = screen.getByRole("radio", { name: /Roti · 2 roti/ });
@@ -343,32 +381,38 @@ describe("PickSheet", () => {
   it("locked day disables radios", async () => {
     load.mockResolvedValue(grid([cell({ locked: true })]));
     show(trip({ coversDates: [mon] }));
+    await openCat();
     expect(await screen.findByRole("radio", { name: /^Dal$/ })).toBeDisabled();
-    expect(screen.getByText(/Locked/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Locked/).length).toBeGreaterThan(0);
   });
 
   it("shows the server error when a pick is rejected on Done (Meal Rules / validation)", async () => {
     savePicks.mockResolvedValue({ error: "You can select only 1 sabzi exclusive to this plan in this meal." });
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ coversDates: [mon] }));
+    await openCat();
     fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
     expect(savePicks).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText(/only 1 sabzi exclusive/i)).toBeInTheDocument();
   });
 
-  it("shows Your meal summary from current selections", async () => {
+  it("the category rows are the meal: no separate Your meal block above them", async () => {
     load.mockResolvedValue(
       grid([cell({ selectedDishId: "d1", isDefaulted: false })], 1, { portionsBySlot: { curry: ["8oz"] } }),
     );
     show(trip({ coversDates: [mon] }));
-    expect(await screen.findByRole("heading", { name: "Your meal" })).toBeInTheDocument();
-    expect(screen.getByText("Paneer · 8oz")).toBeInTheDocument();
+    await openCat();
+    expect(screen.queryByRole("region", { name: "Your meal" })).toBeNull();
+    const header = document.querySelector("button[aria-expanded]")!;
+    expect(header.textContent).toMatch(/^Curry · 8oz/);
+    expect(header.textContent).toContain("Paneer");
   });
 
   it("Save closes with a toast after a change", async () => {
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
+    await openCat();
     fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
     expect(savePicks).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -379,11 +423,12 @@ describe("PickSheet", () => {
   it("closed trip shows the reason", async () => {
     load.mockResolvedValue(grid([cell({})]));
     show(trip({ cutoffAt: Date.now() - 1000 }));
+    await openCat();
     expect(screen.getByText(/Changes closed/)).toBeInTheDocument();
     expect(await screen.findByRole("radio", { name: /^Dal$/ })).toBeDisabled();
   });
 
-  it("renders 6 roti default portion in slot label and Your meal summary for a 6-roti plan", async () => {
+  it("renders 6 roti default portion in slot label for a 6-roti plan", async () => {
     load.mockResolvedValue(
       grid(
         [
@@ -423,6 +468,7 @@ describe("PickSheet", () => {
       categoryLabels: { roti: "Roti", rice: "Rice" },
     } as unknown as PlanView;
     render(<PickSheet trip={trip({ coversDates: [mon] })} plan={rotiPlan} open onDone={vi.fn()} />);
+    await openCat("Roti");
 
     // Slot heading displays 6 roti
     expect(await screen.findByRole("radiogroup", { name: "Roti · 6 roti" })).toBeInTheDocument();
@@ -430,10 +476,6 @@ describe("PickSheet", () => {
 
     // Swap option available
     expect(screen.getByRole("radio", { name: /Rice · 1 unit · uses 4 items/ })).toBeInTheDocument();
-
-    // Your meal summary displays 6 roti
-    expect(screen.getByRole("heading", { name: "Your meal" })).toBeInTheDocument();
-    expect(screen.getByText("Roti (Veg) · 6 roti")).toBeInTheDocument();
   });
 
   it("sanitizes Minified React error #441 if thrown when saving picks on Done", async () => {
@@ -445,6 +487,7 @@ describe("PickSheet", () => {
     });
 
     render(<PickSheet trip={trip({ coversDates: [mon] })} plan={plan} open onDone={vi.fn()} />);
+    await openCat();
 
     const dalRadio = await screen.findByRole("radio", { name: /^Dal$/ });
     fireEvent.click(dalRadio);
@@ -463,9 +506,11 @@ describe("PickSheet", () => {
   it("does not save picks and discards draft choices when closed via close button", async () => {
     load.mockResolvedValue(grid([cell({})]));
     const onDone = show(trip({ coversDates: [mon] }));
-    const dalRadio = await screen.findByRole("radio", { name: /^Dal$/ });
-    fireEvent.click(dalRadio);
-    expect(dalRadio).toBeChecked();
+    await openCat();
+    fireEvent.click(await screen.findByRole("radio", { name: /^Dal$/ }));
+    // The category stays open after a pick, so nothing moves under the customer's finger.
+    expect(screen.getByRole("button", { expanded: true })).toHaveTextContent(/^Curry/);
+    expect(await screen.findByRole("radio", { name: /^Dal$/ })).toBeChecked();
     expect(savePicks).not.toHaveBeenCalled();
 
     const closeBtn = screen.getByRole("button", { name: "Close" });
@@ -500,6 +545,7 @@ describe("PickSheet", () => {
     });
 
     show(trip({ coversDates: [mon] }));
+    await openCat();
 
     const swapRadio = await screen.findByRole("radio", { name: /^Daal$/ });
     fireEvent.click(swapRadio);
@@ -527,10 +573,12 @@ describe("PickSheet", () => {
       }]);
       load.mockResolvedValue(addonGrid());
       show(trip({ coversDates: [mon] }));
-      const meal = await screen.findByRole("region", { name: "Curry" });
-      const addons = screen.getByRole("region", { name: "Add-ons" });
+      await openCat();
+      const meal = await screen.findByRole("region", { name: /^Curry/ });
       expect(within(meal).getByRole("radiogroup", { name: "Curry · 12oz" })).toBeInTheDocument();
       expect(within(meal).queryByRole("radiogroup", { name: "Curry · 8oz" })).not.toBeInTheDocument();
+      await openCat("Add-ons");
+      const addons = screen.getByRole("region", { name: "Add-ons" });
       const addonRow = within(addons).getByRole("radiogroup", { name: "Curry · 8oz" });
       expect(within(addonRow).queryByRole("radio", { name: /Daal/ })).not.toBeInTheDocument();
       expect(within(addonRow).getAllByRole("radio").length).toBeGreaterThan(0);
@@ -543,14 +591,16 @@ describe("PickSheet", () => {
         { categories: [{ key: "rice", label: "Rice", selectable: false, sortOrder: 1 }], portionsBySlot: { rice: ["2 unit"] }, addonCounts: { rice: 1 } },
       ));
       show(trip({ coversDates: [mon] }));
-      expect(await screen.findByRole("region", { name: "Rice" })).toBeInTheDocument();
+      await openCat();
+      expect(await screen.findByRole("region", { name: /^Rice/ })).toBeInTheDocument();
       expect(screen.queryByRole("region", { name: "Add-ons" })).not.toBeInTheDocument();
     });
 
     it("shows no Add-ons section when the order has none", async () => {
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
-      await screen.findByRole("region", { name: "Curry" });
+      await openCat();
+      await screen.findByRole("region", { name: /^Curry/ });
       expect(screen.queryByRole("region", { name: "Add-ons" })).not.toBeInTheDocument();
     });
   });
@@ -578,11 +628,13 @@ describe("PickSheet", () => {
       swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
+      await openCat();
       const swapRadio = await screen.findByRole("radio", { name: /^Daal$/ });
       expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
       fireEvent.click(swapRadio);
       await screen.findByRole("button", { name: "Save" });
       expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+      await openCat();
       const daal = screen.getAllByRole("radio", { name: /^Daal/ });
       expect(daal.some((r) => r.getAttribute("aria-checked") === "true")).toBe(true);
       expect(await ownDishOnSwappedRow("Paneer")).toBeEnabled();
@@ -594,12 +646,12 @@ describe("PickSheet", () => {
       const g = grid([cell({ pickIndex: 1 }), cell({ pickIndex: 2 })], 1, { portionsBySlot: { curry: ["12oz", "8oz"] } });
       load.mockResolvedValue({ ...g, grid: { ...g.grid, menu: { [mon]: { curry: dishes } } } });
       show(trip({ coversDates: [mon] }));
+      await openCat();
       fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal/ }))[0]!);
+      await openCat("Curry");
       fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal$/ })).find((r) => !r.hasAttribute("disabled") && r.getAttribute("aria-checked") !== "true")!);
-      await waitFor(() =>
-        expect(screen.getAllByRole("radio", { name: /^Daal/ }).filter((r) => r.getAttribute("aria-checked") === "true")).toHaveLength(2),
-      );
-      // Both swapped rows still offer the real dishes — never just the category name.
+      // Each swapped row keeps the real dishes — never just the category name.
+      await waitFor(() => expect(screen.getAllByRole("radio", { name: /^Daal/ }).filter((r) => r.getAttribute("aria-checked") === "true")).toHaveLength(2));
       expect(screen.getAllByRole("radio", { name: "Paneer" })).toHaveLength(2);
       expect(screen.queryByRole("radio", { name: "Curry" })).toBeNull();
     });
@@ -608,6 +660,7 @@ describe("PickSheet", () => {
       swapOptions.mockReturnValue([{ ...curryToDaal, available: false, reason: "Too much Daal today.", validBundles: [] }]);
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
+      await openCat();
       const daal = await screen.findByRole("radio", { name: /^Daal$/ });
       expect(daal).toBeDisabled();
       expect(screen.queryByText("Daal: Too much Daal today.")).toBeNull();
@@ -619,7 +672,9 @@ describe("PickSheet", () => {
       swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
+      await openCat();
       fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
+      await openCat();
       fireEvent.click(await ownDishOnSwappedRow("Paneer"));
       expect(await screen.findByRole("button", { name: "Done" })).toBeInTheDocument();
       expect(load).toHaveBeenCalledTimes(1);
@@ -629,7 +684,9 @@ describe("PickSheet", () => {
       swapOptions.mockReturnValue([curryToDaal]);
       load.mockResolvedValue(grid([cell({})]));
       const onDone = show(trip({ coversDates: [mon] }));
+      await openCat();
       fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
+      await openCat();
       fireEvent.click(await ownDishOnSwappedRow("Dal"));
       await waitFor(() => expect(screen.getByRole("radio", { name: "Dal" })).toHaveAttribute("aria-checked", "true"));
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -641,6 +698,7 @@ describe("PickSheet", () => {
     it("removes a saved swap with its own eating day", async () => {
       load.mockResolvedValue(grid([cell({})]));
       render(<PickSheet trip={trip()} plan={planWithMonSwap} open onDone={vi.fn()} />);
+      await openCat();
       fireEvent.click(await ownDishOnSwappedRow("Paneer"));
       fireEvent.click(await screen.findByRole("button", { name: "Save" }));
       await waitFor(() => expect(removeSwap).toHaveBeenCalledWith("dlv1", "s1", mon));
@@ -651,7 +709,9 @@ describe("PickSheet", () => {
       load.mockResolvedValue(grid([cell({})]));
       applySwap.mockResolvedValueOnce({ error: "Not enough Curry left to give up on this day." });
       render(<PickSheet trip={trip({ coversDates: [mon] })} plan={planWithMonSwap} open onDone={vi.fn()} />);
+      await openCat();
       fireEvent.click(await ownDishOnSwappedRow("Paneer"));
+      await openCat();
       fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
       await screen.findByRole("button", { name: "Save" });
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -696,27 +756,35 @@ describe("PickSheet on a custom meal (add-on rows, no swaps)", () => {
   it("gives every sabzi row, the add-on row included, a pick of its own diet's dishes", async () => {
     load.mockResolvedValue(customGrid());
     show(trip({ coversDates: [mon] }));
+    await openCat("Sabzi");
+    await openCat("Non-Veg Sabzi");
     const nonVeg = await screen.findByRole("radiogroup", { name: "Non-Veg Sabzi · 8oz" });
     expect(within(nonVeg).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Kadai Chicken"]);
-    const veg12 = screen.getByRole("radiogroup", { name: "Veg Sabzi · 12oz" });
+    await openCat("Veg Sabzi · 12oz");
+    const veg12 = await screen.findByRole("radiogroup", { name: "Veg Sabzi · 12oz" });
     expect(within(veg12).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Patta Gobhi Matar", "Aloo Methi"]);
-    const addOn = screen.getByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
+    await openCat("Veg Sabzi · 8oz");
+    const addOn = await screen.findByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
     expect(within(addOn).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Patta Gobhi Matar", "Aloo Methi"]);
   });
 
   it("shows fixed portions in human units and no swap anywhere", async () => {
     load.mockResolvedValue(customGrid());
     show(trip({ coversDates: [mon] }));
+    await openCat("Sabzi");
+    await openCat("Roti");
     expect(await screen.findByRole("radiogroup", { name: "Roti · 8 roti" })).toBeInTheDocument();
-    expect(screen.getByRole("radiogroup", { name: "Raita · 8oz" })).toBeInTheDocument();
+    await openCat("Raita");
+    expect(await screen.findByRole("radiogroup", { name: "Raita · 8oz" })).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Edit meal" }).textContent).not.toMatch(/swap|exchange/i);
   });
 
   it("saves a veg pick on the add-on row", async () => {
     load.mockResolvedValue(customGrid());
     show(trip({ coversDates: [mon] }));
-    await screen.findByRole("radiogroup", { name: "Veg Sabzi · 12oz" });
-    const addOn = screen.getByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
+    await openCat("Sabzi");
+    await openCat("Veg Sabzi · 8oz");
+    const addOn = await screen.findByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
     fireEvent.click(within(addOn).getByRole("radio", { name: "Aloo Methi" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(savePicks).toHaveBeenCalled());

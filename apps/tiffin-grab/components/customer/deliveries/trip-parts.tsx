@@ -310,7 +310,7 @@ export const EXPLAIN: Record<Trip["status"], string> = {
 };
 
 /** Meal breakdown of one eating day (category, portion after swaps, dishes), with a compact delivery footer. */
-export type MealCategory = { category: string; label: string; items: { name: string; portion: string | null; defaulted: boolean }[] };
+export type MealCategory = { category: string; label: string; items: { name: string; portion: string | null }[] };
 type MealPlan = Pick<PlanView, "days" | "portionsByDate" | "categoryPortionSlots" | "categoryPortions">;
 
 /** This eating day's meal by category, each pick with its portion (swaps first, then per-slot, then the category's). */
@@ -327,7 +327,7 @@ export function mealCategories(row: EatingRow, plan: MealPlan): MealCategory[] {
   return (meal ?? []).filter((c) => c.picks.length > 0).map((c) => ({
     category: c.category,
     label: c.label,
-    items: c.picks.map((p, i) => ({ name: p.name, portion: portion(c.category, i), defaulted: !!(p.isDefaulted && c.selectable) })),
+    items: c.picks.map((p, i) => ({ name: p.name, portion: portion(c.category, i) })),
   }));
 }
 
@@ -341,28 +341,27 @@ export function splitMealAddons(cats: MealCategory[], addons: SubscriptionAddon[
   for (const a of addons) {
     const own = meal.find((c) => c.category === a.category);
     const tile = extra.get(a.category) ?? { category: a.category, label: own?.label ?? a.name, items: [] };
-    if (a.folded) tile.items.push({ name: own?.items[0]?.name ?? a.name, portion: a.portion, defaulted: false });
+    if (a.folded) tile.items.push({ name: own?.items[0]?.name ?? a.name, portion: a.portion });
     else if (own) tile.items.push(...own.items.splice(Math.max(0, own.items.length - a.qty)));
     if (tile.items.length) extra.set(a.category, tile);
   }
   return { meal: meal.filter((c) => c.items.length > 0), addons: [...extra.values()] };
 }
 
-/** One tile per category, like the kitchen counts: label on top, then each dish with its portion. */
+/**
+ * One tile per item the customer gets: two sabzis are two tiles ("Sabzi · 12oz", "Sabzi · 8oz").
+ * Kitchen counts group by category for totals; a customer reads their own tiffin item by item.
+ */
 export function MealTiles({ cats }: { cats: MealCategory[] }) {
+  const tiles = cats.flatMap((c) => c.items.map((it, i) => ({ key: `${c.category}:${i}`, label: c.label, ...it })));
   return (
-    <ul aria-label="Meal" className="grid grid-cols-3 gap-2" data-testid="meal-tiles">
-      {cats.map((c) => (
-        <li key={c.category} className="min-w-0 rounded-xl border border-[var(--border)] bg-[var(--muted)]/50 px-3 py-2.5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">{c.label}</p>
-          {c.items.map((p, i) => (
-            <div key={`${p.name}-${i}`} className="mt-1">
-              <p className="text-[14px] font-semibold leading-snug">{p.name}</p>
-              {(p.portion || p.defaulted) && (
-                <p className="text-[12px] tabular-nums text-[var(--muted-foreground,#6E6558)]">{[p.portion, p.defaulted ? "Default" : null].filter(Boolean).join(" · ")}</p>
-              )}
-            </div>
-          ))}
+    <ul aria-label="Meal" className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="meal-tiles">
+      {tiles.map((t) => (
+        <li key={t.key} className="min-w-0 rounded-xl bg-[var(--muted)]/60 px-3 py-2">
+          <p className="truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-foreground,#6E6558)]">
+            {t.label}{t.portion ? ` · ${t.portion}` : ""}
+          </p>
+          <p className="mt-0.5 line-clamp-2 text-[14px] font-semibold leading-snug">{t.name}</p>
         </li>
       ))}
     </ul>
@@ -389,7 +388,6 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
                   <span key={`${p.name}-${i}`} className="mt-0.5 block font-semibold">
                     {p.name}
                     {p.portion ? <span className="font-normal text-[var(--muted-foreground,#6E6558)]"> · {p.portion}</span> : null}
-                    {p.defaulted && <span className="ml-2 text-[13px] font-normal text-[var(--muted-foreground,#6E6558)]">default pick</span>}
                   </span>
                 ))}
               </li>
