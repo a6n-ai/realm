@@ -72,7 +72,7 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
         <p className="mb-3 text-center text-[12px] text-[var(--muted-foreground,#6E6558)]">Opened {fmt(ticket.createdAt)}</p>
         <div className="mt-auto">
           <ChatMessageList
-            className="space-y-3"
+            className="space-y-2"
             ui={kitChatUi}
             messages={messages.map((m): ChatMessage => ({
               id: m.publicId,
@@ -109,16 +109,16 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
 
 const kitChatUi: Partial<ChatUi> = {
   System: ({ message: m }) => (
-    <p className="text-center text-[13px] text-[var(--muted-foreground,#6E6558)]">
+    <p className="text-center text-[11px] text-[var(--muted-foreground,#6E6558)]">
       {m.body} · {m.meta}
     </p>
   ),
   Bubble: ({ message: m, mine }) => (
-    <div className={cn("flex flex-col gap-1", mine ? "items-end" : "items-start")}>
+    <div className={cn("flex flex-col gap-0.5", mine ? "items-end" : "items-start")}>
       <div
         className={cn(
-          "max-w-[88%] rounded-[20px] px-4 py-2.5 text-[15px] leading-snug sm:max-w-[75%]",
-          mine ? "rounded-br-md bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "rounded-bl-md border border-[var(--border)] bg-[var(--card)]",
+          "max-w-[80%] rounded-2xl px-3 py-1.5 text-[14px] leading-snug sm:max-w-[70%]",
+          mine ? "rounded-br-sm bg-[var(--primary)] text-[var(--primary-foreground,#fff)]" : "rounded-bl-sm border border-[var(--border)] bg-[var(--card)]",
         )}
       >
         <p className="whitespace-pre-wrap text-pretty">{m.body}</p>
@@ -127,13 +127,13 @@ const kitChatUi: Partial<ChatUi> = {
             {m.attachments.map((a, i) => (
               <a key={i} href={a.href} target="_blank" rel="noreferrer" aria-label={`Open ${a.name}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={a.thumbUrl} alt={a.name} className="size-24 rounded-xl object-cover" />
+                <img src={a.thumbUrl} alt={a.name} className="size-20 rounded-lg object-cover" />
               </a>
             ))}
           </div>
         ) : null}
       </div>
-      <span className="px-1 text-[12px] text-[var(--muted-foreground,#6E6558)]">{m.meta}</span>
+      <span className="px-1 text-[11px] text-[var(--muted-foreground,#6E6558)]">{m.meta}</span>
     </div>
   ),
 };
