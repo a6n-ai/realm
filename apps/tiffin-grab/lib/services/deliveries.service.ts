@@ -3,7 +3,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, users } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
 import { mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
@@ -21,6 +21,7 @@ import { deleteOrder } from "@/lib/services/optimoroute/client";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { assertDayOutsideOtherPlans } from "./order-window";
+import { complimentaryBlocker } from "@/lib/orders/display-status";
 
 const log = createLogger("deliveries.service");
 
@@ -1030,9 +1031,9 @@ export async function grantComplimentaryTiffin(
     const [order] = await tx.select().from(orders).where(eq(orders.id, found.id)).limit(1);
     if (!order) throw new ValidationError("Order not found");
     if (order.trialLength != null) throw new ValidationError("A trial can't get complimentary tiffins");
-    if (order.status !== "active" && order.status !== "completed") {
-      throw new ValidationError("Only an active plan or one that is over can get a complimentary tiffin");
-    }
+    const pays = await tx.select({ status: payments.status }).from(payments).where(eq(payments.orderId, order.id));
+    const blocked = complimentaryBlocker(order.status, pays.map((p) => p.status));
+    if (blocked) throw new ValidationError(blocked);
 
     const { timezone, cutoffHour } = await getAppSettings();
     const day = weekdayKey(parseIsoDateUtc(input.date));

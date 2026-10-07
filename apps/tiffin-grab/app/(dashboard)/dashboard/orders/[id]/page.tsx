@@ -13,7 +13,7 @@ import { earliestNewPlanStart } from "@/lib/services/order-window";
 import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
-import { orderDisplayStatus } from "@/lib/orders/display-status";
+import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
@@ -228,8 +228,9 @@ async function OrderDetail({
       publicId: r.publicId,
       label: `${humanDate(r.deliveryDate)} · ${r.status === "paused" ? "vacation" : r.optimoCompletionStatus === "failed" ? "not delivered" : "on hold"}`,
     }));
-  // Admin only; a trial, an unpaid or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
-  const canGiveFree = session?.user?.role === "admin" && order.trialLength == null && (order.status === "active" || order.status === "completed");
+  // Admin only; a trial, a payment-pending or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
+  const canGiveFree = session?.user?.role === "admin" && order.trialLength == null
+    && complimentaryBlocker(order.status, order.payments.map((p) => p.status)) == null;
   const headerActions = (
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}

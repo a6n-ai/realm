@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, notificationOutbox, orderActivities, orders } = await import("@/db/schema");
+const { deliveries, notificationOutbox, orderActivities, orders, payments } = await import("@/db/schema");
 const { grantComplimentaryTiffin, maybeComplete } = await import("../deliveries.service");
 const { orderTiffinCounts } = await import("../customer-deliveries.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
@@ -67,6 +67,12 @@ describe("grantComplimentaryTiffin", () => {
 
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, order.id));
     await expect(grantComplimentaryTiffin(order.publicId, { date: NEXT_MON, note: "x", notify: false }, null)).rejects.toThrow(/active plan/);
+  });
+
+  it("refuses a plan whose payment is still pending", async () => {
+    const { order } = await makeTripOrder(DEP, PREFIX);
+    await db.update(payments).set({ status: "pending_verification" }).where(eq(payments.orderId, order.id));
+    await expect(grantComplimentaryTiffin(order.publicId, { date: NEXT_MON, note: "x", notify: false }, null)).rejects.toThrow(/Payment is still pending/);
   });
 
   it("links the free tiffin to one missed delivery, once", async () => {
