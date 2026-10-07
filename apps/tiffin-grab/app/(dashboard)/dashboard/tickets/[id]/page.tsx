@@ -2,10 +2,10 @@ import { Suspense, cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LifeBuoyIcon } from "lucide-react";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { NotFoundError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { tickets, users } from "@/db/schema";
+import { mealSizes, orders, plans, tickets, users } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -21,7 +21,7 @@ import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { TicketStatusBadge, PriorityBadge, categoryLabel } from "../ticket-badges";
 import { subcategoryLabel } from "@/lib/support/ticket-taxonomy";
 import { TicketControls, ReplyBox, ReplyBoxSkeleton, StatusPills, TicketControlsSkeleton } from "./ticket-controls";
-import { PresenceDot } from "@/components/ds";
+import { OrderStatusBadge, PresenceDot } from "@/components/ds";
 import { cn } from "@foundry/ui/cn";
 import { ChatMessageListSkeleton } from "@foundry/design-system";
 import { ChatPane } from "./chat-pane";
@@ -45,19 +45,26 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
         <HeaderData params={params} />
       </Suspense>
 
-      <SectionCard title="Details">
-        <Suspense fallback={<DetailsFallback />}>
-          <DetailsData params={params} />
-        </Suspense>
-      </SectionCard>
-
-      {/* Inbox layout: this customer's chats on the left, the open conversation on the right. */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:items-start">
-        <SectionCard title="Customer's chats">
-          <Suspense fallback={<ChatListFallback />}>
-            <CustomerChatsData params={params} />
-          </Suspense>
-        </SectionCard>
+      {/* Inbox layout: who the customer is, the ticket's settings and their other chats on the
+          left; the conversation (with its status pills, the one status control) on the right. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start">
+        <div className="space-y-4">
+          <SectionCard title="Customer">
+            <Suspense fallback={<ChatListFallback />}>
+              <CustomerData params={params} />
+            </Suspense>
+          </SectionCard>
+          <SectionCard title="Ticket">
+            <Suspense fallback={<DetailsFallback />}>
+              <DetailsData params={params} />
+            </Suspense>
+          </SectionCard>
+          <SectionCard title="Customer's chats">
+            <Suspense fallback={<ChatListFallback />}>
+              <CustomerChatsData params={params} />
+            </Suspense>
+          </SectionCard>
+        </div>
         <SectionCard title="Conversation">
           <Suspense fallback={<ConversationFallback />}>
             <ConversationData params={params} />
@@ -112,8 +119,6 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <TicketStatusBadge status={ticket.status} />
-        <PriorityBadge priority={ticket.priority} />
         <Badge variant="secondary" className="capitalize">
           {categoryLabel(ticket.category)}
         </Badge>
@@ -133,7 +138,6 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
         // status pills can change it underneath them.
         key={`${ticket.status}:${ticket.priority}:${ticket.currentOwner ?? ""}`}
         ticketId={ticket.publicId}
-        status={ticket.status as TicketStatus}
         priority={ticket.priority as TicketPriority}
         ownerId={currentOwner?.publicId ?? null}
         staff={staffOptions}
@@ -198,6 +202,63 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
         }))}
       />
       <ReplyBox ticketId={ticket.publicId} closed={closed} channel={channel} peerRole="customer" />
+    </div>
+  );
+}
+
+/** Who raised the ticket, how to reach them, and the plan it's about (or their current one). */
+async function CustomerData({ params }: { params: Promise<{ id: string }> }) {
+  await ensureStaff();
+  const { id } = await params;
+  let ticket;
+  try {
+    ticket = await loadTicket(id);
+  } catch (e) {
+    if (e instanceof NotFoundError) notFound();
+    throw e;
+  }
+  const [[customer], [order]] = await Promise.all([
+    db
+      .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone, addressLine: users.addressLine, city: users.city, postalCode: users.postalCode })
+      .from(users)
+      .where(eq(users.id, ticket.raisedBy))
+      .limit(1),
+    db
+      .select({ publicId: orders.publicId, deploymentId: orders.deploymentId, status: orders.status, startDate: orders.startDate, mealSize: mealSizes.name, plan: plans.name })
+      .from(orders)
+      .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
+      .innerJoin(plans, eq(plans.id, orders.planId))
+      // The order the ticket was raised about; else the customer's latest live one.
+      .where(ticket.orderId ? eq(orders.id, ticket.orderId) : and(eq(orders.userId, ticket.raisedBy), inArray(orders.status, ["active", "paused", "pending"])))
+      .orderBy(desc(orders.createdAt))
+      .limit(1),
+  ]);
+  if (!customer) return <p className="text-muted-foreground text-sm">Customer not found.</p>;
+  const address = [customer.addressLine, customer.city, customer.postalCode].filter(Boolean).join(", ");
+  return (
+    <div className="space-y-3 text-sm">
+      <div>
+        <Link href={`/dashboard/customers/${customer.publicId}`} className="font-semibold hover:underline">
+          {customer.name ?? customer.email ?? "Customer"}
+        </Link>
+        <dl className="text-muted-foreground mt-1 space-y-0.5">
+          {customer.email ? <dd><a href={`mailto:${customer.email}`} className="hover:text-foreground hover:underline">{customer.email}</a></dd> : null}
+          {customer.phone ? <dd><a href={`tel:${customer.phone}`} className="hover:text-foreground hover:underline nums">{customer.phone}</a></dd> : null}
+          {address ? <dd>{address}</dd> : null}
+        </dl>
+      </div>
+      {order ? (
+        <Link href={`/dashboard/orders/${order.publicId}`} className="hover:bg-muted block rounded-md border p-2.5">
+          <span className="text-muted-foreground block text-xs font-semibold tracking-wider uppercase">{ticket.orderId ? "Order on this ticket" : "Current plan"}</span>
+          <span className="mt-1 flex items-center justify-between gap-2">
+            <span className="truncate font-medium">{order.mealSize}</span>
+            <OrderStatusBadge status={order.status} />
+          </span>
+          <span className="text-muted-foreground block text-xs">{[order.deploymentId, order.plan, order.startDate ? `from ${order.startDate}` : null].filter(Boolean).join(" · ")}</span>
+        </Link>
+      ) : (
+        <p className="text-muted-foreground text-xs">No live plan.</p>
+      )}
     </div>
   );
 }

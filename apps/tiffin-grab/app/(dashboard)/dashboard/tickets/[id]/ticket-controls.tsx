@@ -32,22 +32,20 @@ const UNASSIGNED = "__unassigned__";
 // Single source of truth for the control fields (label + trigger width). Both
 // the real controls below and the skeleton twin render from this, so the
 // loading state can't drift from the component.
+// Status lives only in the conversation's pills; these are the ticket's other two settings.
 const FIELDS = [
-  { key: "status", label: "Status", width: "w-48" },
   { key: "owner", label: "Owner", width: "w-44" },
   { key: "priority", label: "Priority", width: "w-36" },
 ] as const;
-const [F_STATUS, F_OWNER, F_PRIORITY] = FIELDS;
+const [F_OWNER, F_PRIORITY] = FIELDS;
 
 export function TicketControls({
   ticketId,
-  status,
   priority,
   ownerId,
   staff,
 }: {
   ticketId: string;
-  status: TicketStatus;
   priority: TicketPriority;
   ownerId: string | null;
   staff: { id: string; name: string }[];
@@ -57,37 +55,6 @@ export function TicketControls({
 
   return (
     <div className="flex flex-wrap items-end gap-4">
-      <div className="space-y-1">
-        <label className="text-muted-foreground text-xs font-medium">{F_STATUS.label}</label>
-        <Select
-          defaultValue={status}
-          disabled={pending}
-          onValueChange={(v) =>
-            start(async () => {
-              const { previous } = await setStatus(ticketId, v as TicketStatus);
-              router.refresh();
-              if (previous !== v) {
-                toast(`Status → ${v}`, {
-                  action: {
-                    label: "Undo",
-                    onClick: () =>
-                      start(async () => {
-                        await setStatus(ticketId, previous);
-                        router.refresh();
-                      }),
-                  },
-                });
-              }
-            })
-          }
-        >
-          <SelectTrigger className={F_STATUS.width}><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-
       <div className="space-y-1">
         <label className="text-muted-foreground text-xs font-medium">{F_OWNER.label}</label>
         <Select
@@ -136,23 +103,6 @@ export function TicketControls({
         </Select>
       </div>
 
-      {(status === "resolved" || status === "closed") && (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={pending}
-          className="active:scale-[0.98]"
-          onClick={() =>
-            start(async () => {
-              await setStatus(ticketId, "open");
-              router.refresh();
-              toast("Ticket reopened");
-            })
-          }
-        >
-          Reopen ticket
-        </Button>
-      )}
     </div>
   );
 }
