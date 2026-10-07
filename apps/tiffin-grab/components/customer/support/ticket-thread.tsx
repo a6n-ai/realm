@@ -11,6 +11,7 @@ import { replyTicket } from "@/app/(customer)/me/support/actions";
 import { STATUS_LABEL, STATUS_TONE } from "./parts";
 import { ChatComposer } from "@/components/support/chat-composer";
 import { useMarkTicketSeen } from "./unread";
+import { RateChat, StatusBanner } from "./ticket-status";
 
 type ThreadTicket = {
   publicId: string;
@@ -19,6 +20,8 @@ type ThreadTicket = {
   subcategory?: string | null;
   createdAt: number;
   subject?: string;
+  rating?: number | null;
+  ratingNote?: string | null;
 };
 
 type ThreadMessage = {
@@ -51,6 +54,8 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
         </span>
       </div>
 
+      <StatusBanner status={status} />
+
       <ChatMessageList
         className="space-y-3 pb-2"
         ui={kitChatUi}
@@ -63,6 +68,8 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
         }))}
       />
 
+      {closed && <RateChat ticketId={ticket.publicId} rating={ticket.rating ?? null} note={ticket.ratingNote ?? null} />}
+
       <div className="c-glass sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-[var(--border)] px-4 py-3 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0">
         <Composer ticketId={ticket.publicId} closed={closed} channel={channel} />
       </div>
@@ -74,7 +81,7 @@ function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boo
   const c = useMessageComposer({ action: (form) => replyTicket(ticketId, form), channel, peerRole: "staff" });
 
   if (closed) {
-    return <p className="rounded-2xl border border-dashed border-[var(--border)] p-4 text-[15px] text-[var(--muted-foreground,#6E6558)]">This ticket is closed. Staff can reopen it to continue the conversation.</p>;
+    return <p className="rounded-2xl border border-dashed border-[var(--border)] p-4 text-[15px] text-[var(--muted-foreground,#6E6558)]">This chat is completed. Need more help? Start a new ticket from Support.</p>;
   }
 
   return <ChatComposer composer={c} placeholder="Write a message…" typingLabel="Support is typing…" />;

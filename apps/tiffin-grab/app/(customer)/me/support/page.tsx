@@ -10,6 +10,7 @@ import { BackLink } from "@/components/customer/support/parts";
 import { NewTicketControl } from "@/components/customer/support/new-ticket-control";
 import { TicketsList, TicketsListSkeleton } from "@/components/customer/support/tickets-list";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
+import { TopicCards } from "@/components/customer/support/topic-cards";
 
 type SearchParams = Promise<{ orderId?: string }>;
 
@@ -17,9 +18,10 @@ export default function SupportPage({ searchParams }: { searchParams: SearchPara
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <BackLink href="/me/account" label="Account" />
-      <Suspense fallback={<PageHeader eyebrow="Support" title="How can we" accent="help?" subtitle="Raise a ticket and we'll help." />}>
+      <Suspense fallback={<PageHeader eyebrow="Support" title="How can we" accent="help?" subtitle="Pick a topic or start a new ticket. We reply right here." />}>
         <SupportHeader searchParams={searchParams} />
       </Suspense>
+      <TopicCards />
       <Suspense fallback={<TicketsListSkeleton />}>
         <TicketsData />
       </Suspense>
@@ -45,7 +47,7 @@ async function SupportHeader({ searchParams }: { searchParams: SearchParams }) {
       eyebrow="Support"
       title="How can we"
       accent="help?"
-      subtitle="Raise a ticket and we'll help."
+      subtitle="Pick a topic or start a new ticket. We reply right here."
       action={
         <NewTicketControl
           categories={TICKET_CATEGORIES}

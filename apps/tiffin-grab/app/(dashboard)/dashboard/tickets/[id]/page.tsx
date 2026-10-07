@@ -20,7 +20,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { TicketStatusBadge, PriorityBadge, categoryLabel } from "../ticket-badges";
 import { subcategoryLabel } from "@/lib/support/ticket-taxonomy";
-import { TicketControls, ReplyBox, ReplyBoxSkeleton, TicketControlsSkeleton } from "./ticket-controls";
+import { TicketControls, ReplyBox, ReplyBoxSkeleton, StatusPills, TicketControlsSkeleton } from "./ticket-controls";
 import { PresenceDot } from "@/components/ds";
 import { cn } from "@foundry/ui/cn";
 import { ChatMessageList, ChatMessageListSkeleton, type ChatMessage } from "@foundry/design-system";
@@ -120,6 +120,13 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
           <Badge variant="outline">{subcategoryLabel(ticket.category, ticket.subcategory)}</Badge>
         ) : null}
       </div>
+      {ticket.rating != null ? (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Customer rating: </span>
+          <span className="font-medium text-amber-500" aria-label={`${ticket.rating} out of 5 stars`}>{"★".repeat(ticket.rating)}{"☆".repeat(5 - ticket.rating)}</span>
+          {ticket.ratingNote ? <span className="text-muted-foreground"> · “{ticket.ratingNote}”</span> : null}
+        </p>
+      ) : null}
       <TicketControls
         ticketId={ticket.publicId}
         status={ticket.status as TicketStatus}
@@ -172,7 +179,8 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
   // Staff read it like a chat: their side on the right, the customer on the left, oldest first.
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <StatusPills ticketId={ticket.publicId} status={ticket.status as TicketStatus} />
         <PresenceDot channel={channel} peerRole="customer" label="Customer" />
       </div>
       <ChatMessageList
