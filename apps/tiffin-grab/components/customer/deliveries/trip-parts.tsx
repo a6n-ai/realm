@@ -5,6 +5,7 @@ import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
 import { deliveryLine, isDone, moveFacts, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
+import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
@@ -186,7 +187,7 @@ export function moveChips(row: EatingRow, history = false): { kind: "in" | "out"
 export const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
 
 /** The selected eating day, as the page's main card: date, dishes, then one quiet line for tiffins, delivery day and cutoff. */
-export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, meal, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; meal?: MealCategory[]; children?: React.ReactNode }) {
+export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, meal, addonTiles, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; meal?: MealCategory[]; addonTiles?: MealCategory[]; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
   const facts = row.movedTo ? []
@@ -247,7 +248,17 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
               </button>
             )}
           </div>
-          {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : meal && meal.length > 0 ? <MealTiles cats={meal} /> : (
+          {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : meal && meal.length > 0 ? (
+            <>
+              <MealTiles cats={meal} />
+              {addonTiles && addonTiles.length > 0 && (
+                <>
+                  <h4 className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground,#6E6558)]">Add-ons</h4>
+                  <MealTiles cats={addonTiles} />
+                </>
+              )}
+            </>
+          ) : (
             <>
               {/* One dish per line: the main dish leads, the rest follow quieter. */}
               <ul className="space-y-0.5">
@@ -313,6 +324,23 @@ export function mealCategories(row: EatingRow, plan: MealPlan): MealCategory[] {
     label: c.label,
     items: c.picks.map((p, i) => ({ name: p.name, portion: portion(c.category, i), defaulted: !!(p.isDefaulted && c.selectable) })),
   }));
+}
+
+/**
+ * The day's meal cut in two: the meal's own tiles, and its add-ons'. A row add-on (extra sabzi) is
+ * the category's last pick(s); a folded one (extra roti) is a separate line with its own total.
+ */
+export function splitMealAddons(cats: MealCategory[], addons: SubscriptionAddon[] = []): { meal: MealCategory[]; addons: MealCategory[] } {
+  const meal = cats.map((c) => ({ ...c, items: [...c.items] }));
+  const extra = new Map<string, MealCategory>();
+  for (const a of addons) {
+    const own = meal.find((c) => c.category === a.category);
+    const tile = extra.get(a.category) ?? { category: a.category, label: own?.label ?? a.name, items: [] };
+    if (a.folded) tile.items.push({ name: own?.items[0]?.name ?? a.name, portion: a.portion, defaulted: false });
+    else if (own) tile.items.push(...own.items.splice(Math.max(0, own.items.length - a.qty)));
+    if (tile.items.length) extra.set(a.category, tile);
+  }
+  return { meal: meal.filter((c) => c.items.length > 0), addons: [...extra.values()] };
 }
 
 /** One tile per category, like the kitchen counts: label on top, then each dish with its portion. */

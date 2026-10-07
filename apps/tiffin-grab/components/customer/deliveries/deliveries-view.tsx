@@ -16,7 +16,7 @@ import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
-import { EatingCard, mealCategories, TripInfoSheet } from "./trip-parts";
+import { EatingCard, mealCategories, splitMealAddons, TripInfoSheet } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
@@ -131,6 +131,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;
   const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
   const addressRow = model?.rows.find((r) => r.key === "address");
+  const tiles = row ? splitMealAddons(mealCategories(row, plan), sub.addons) : { meal: [], addons: [] };
   const helpHref = trip ? `/me/support/new?orderId=${encodeURIComponent(plan.orderId)}&date=${trip.date}` : undefined;
   const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo));
 
@@ -201,8 +202,9 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
               menuOut={menuOut && trip.date >= weekStart && trip.date <= weekEnd}
               reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}
               address={deliveryAddress(trip.addressOverride, sub)}
-              onDetails={mealCategories(row, plan).length > 0 ? undefined : () => setInfo(row)}
-              meal={mealCategories(row, plan)}
+              onDetails={tiles.meal.length > 0 ? undefined : () => setInfo(row)}
+              meal={tiles.meal}
+              addonTiles={tiles.addons}
               onEditAddress={addressRow?.av.ok ? () => setActive("address") : undefined}
             >
               <div className="mt-6 hidden lg:block">
