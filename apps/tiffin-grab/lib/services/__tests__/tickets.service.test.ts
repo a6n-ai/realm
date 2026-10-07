@@ -148,6 +148,25 @@ describe("ticketsService", () => {
     expect(row.closedAt).not.toBeNull();
   });
 
+  it("customers never see who the ticket is assigned to; staff do", async () => {
+    const customer = await seedUser("Cust Assign", "user");
+    const staff = await seedUser("Priya Sales", "admin");
+
+    actAs(customer, "user");
+    const ticket = await ticketsService.create({ subject: "Pause", category: "order", subcategory: "order_missing", body: "Please pause." });
+
+    actAs(staff, "admin");
+    await ticketsService.assign(ticket.publicId, staff.publicId);
+    await ticketsService.setPriority(ticket.publicId, "high");
+    await ticketsService.changeStatus(ticket.publicId, "resolved");
+    const staffView = (await ticketsService.listMessages(ticket.publicId)).map((m) => m.body);
+    expect(staffView.some((b) => b.includes("Priya Sales"))).toBe(true);
+
+    actAs(customer, "user");
+    const customerView = (await ticketsService.listMessages(ticket.publicId)).map((m) => m.body);
+    expect(customerView).toEqual(["Please pause.", "Status: open → resolved"]);
+  });
+
   it("a different customer cannot read or reply to another customer's ticket", async () => {
     const owner = await seedUser("Cust Owner", "user");
     const intruder = await seedUser("Cust Intruder", "user");

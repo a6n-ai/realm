@@ -214,12 +214,16 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
 
   async listMessages(publicId: string) {
     const ticket = await this.read(publicId);
-    await this.assertAccess(ticket);
-    return db
+    const actor = await this.assertAccess(ticket);
+    const rows = await db
       .select()
       .from(ticketMessages)
       .where(eq(ticketMessages.ticketId, ticket.id))
       .orderBy(asc(ticketMessages.createdAt));
+    if (actor.isStaff) return rows;
+    // Customers never learn which staff member handles them: assignment notes name the
+    // owner, and priority is internal. Only status changes stay; replies read "Support".
+    return rows.filter((m) => m.authorType !== "system" || m.body.startsWith("Status:"));
   }
 
   /**
