@@ -397,15 +397,16 @@ describe("PickSheet", () => {
     expect(await screen.findByText(/only 1 sabzi exclusive/i)).toBeInTheDocument();
   });
 
-  it("shows Your meal summary from current selections", async () => {
+  it("the category rows are the meal: no separate Your meal block above them", async () => {
     load.mockResolvedValue(
       grid([cell({ selectedDishId: "d1", isDefaulted: false })], 1, { portionsBySlot: { curry: ["8oz"] } }),
     );
     show(trip({ coversDates: [mon] }));
     await openCat();
-    const yourMeal = await screen.findByRole("region", { name: "Your meal" });
-    expect(within(yourMeal).getByText("Paneer")).toBeInTheDocument();
-    expect(within(yourMeal).getByText("Curry · 8oz")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Your meal" })).toBeNull();
+    const header = document.querySelector("button[aria-expanded]")!;
+    expect(header.textContent).toMatch(/^Curry · 8oz/);
+    expect(header.textContent).toContain("Paneer");
   });
 
   it("Save closes with a toast after a change", async () => {
@@ -427,7 +428,7 @@ describe("PickSheet", () => {
     expect(await screen.findByRole("radio", { name: /^Dal$/ })).toBeDisabled();
   });
 
-  it("renders 6 roti default portion in slot label and Your meal summary for a 6-roti plan", async () => {
+  it("renders 6 roti default portion in slot label for a 6-roti plan", async () => {
     load.mockResolvedValue(
       grid(
         [
@@ -475,11 +476,6 @@ describe("PickSheet", () => {
 
     // Swap option available
     expect(screen.getByRole("radio", { name: /Rice · 1 unit · uses 4 items/ })).toBeInTheDocument();
-
-    // Your meal summary displays 6 roti
-    const yourMeal = screen.getByRole("region", { name: "Your meal" });
-    expect(within(yourMeal).getByText("Roti (Veg)")).toBeInTheDocument();
-    expect(within(yourMeal).getByText("Roti · 6 roti")).toBeInTheDocument();
   });
 
   it("sanitizes Minified React error #441 if thrown when saving picks on Done", async () => {

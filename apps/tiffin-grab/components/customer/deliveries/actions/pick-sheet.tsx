@@ -2,7 +2,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
-import { MealTiles, type MealCategory } from "../trip-parts";
 import { addonRowKeys, countAddons, isCountCategory, mealBasePortions, splitGroups } from "@/lib/menu/pick-addons";
 import {
   applyMyDeliverySwap,
@@ -44,21 +43,6 @@ const PREFIX = "pick";
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const ADDONS = "__addons";
 const muted = "text-[var(--muted-foreground,#6E6558)]";
-
-/** Summary lines ("Paneer Makhani · 12oz") as meal tiles, one per item. */
-function toTiles(blocks: MealSummaryLine[]): MealCategory[] {
-  return blocks.map((b) => ({
-    category: b.categoryLabel,
-    label: b.categoryLabel,
-    // The summary joins one dish's portions ("Mix Veg · 12oz + 8oz"); a tile is one item each.
-    items: b.lines.flatMap((line): MealCategory["items"] => {
-      const at = line.indexOf(" · ");
-      if (at < 0) return [{ name: line, portion: null }];
-      const name = line.slice(0, at);
-      return line.slice(at + 3).split(" + ").map((portion) => ({ name, portion }));
-    }),
-  }));
-}
 
 function slotLabel(group: PickCategoryGroup, index: number): string {
   const diet = group.cells[index]?.diet;
@@ -332,9 +316,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       />
     );
   };
-  // The summary reads like the sheet: the meal first, then its add-ons on their own.
+  // The Add-ons row's summary: only the add-on rows, never the meal's own.
   const split = splitGroups(groups, addonKeys);
-  const summary = buildMealSummary(split.meal, picked);
   const ROLE: Record<string, string> = { main: "Main", side_1: "Side", side_2: "Side 2" };
   /**
    * An accordion row's header for one meal item: "SABZI · MAIN · 12OZ" over the dish it holds now.
@@ -599,20 +582,6 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 {lockNote && <p className={`text-[13px] ${muted}`}>{lockNote}</p>}
                 {dayLocked && <p className={`text-[13px] ${muted}`}>Locked. Your picks for this day are final.</p>}
               </div>
-
-              {/* What the tiffin holds right now, as the same tiles the Deliveries page uses. */}
-              {summary.length > 0 && (
-                <section aria-label="Your meal" className="grid gap-2">
-                  <h3 className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${muted}`}>Your meal</h3>
-                  <MealTiles cats={toTiles(summary)} />
-                  {addonSummary.length > 0 && (
-                    <>
-                      <h4 className={`mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${muted}`}>Add-ons</h4>
-                      <MealTiles cats={toTiles(addonSummary)} />
-                    </>
-                  )}
-                </section>
-              )}
 
               {/* One grouped list: each category a row, dividers between, one open at a time. */}
               <div className="divide-y divide-[var(--border,#E8E0D5)] overflow-hidden rounded-2xl border border-[var(--border,#E8E0D5)] bg-[var(--card,#fff)]">
