@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TuCategory } from "../format-tu";
 import type { GridCell } from "../meals-grid";
-import { ADDON_SORT_BASE, addonRowKeys, countAddons, splitGroups } from "../pick-addons";
+import { ADDON_SORT_BASE, addonRowKeys, countAddons, mealBasePortions, splitGroups } from "../pick-addons";
 
 const D = "2026-10-08";
 const roti: TuCategory = { tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "roti", selectable: false };
@@ -43,5 +43,16 @@ describe("splitGroups", () => {
     expect(meal[0]!.portions).toEqual(["12oz"]);
     expect(addons[0]!.portions).toEqual(["8oz"]);
     expect(addons[0]!.chooseCount).toBe(1);
+  });
+});
+
+describe("mealBasePortions", () => {
+  it("leaves add-on rows out, so a swap's give reads the meal's 8 roti, not 11", () => {
+    const rotiTu: TuCategory = { tuUnitType: "count", tuUnitSize: 4, tuUnitLabel: "roti", selectable: false };
+    const out = mealBasePortions({ items: [
+      { category: "roti", tuAmount: "2", sortOrder: 6 },
+      { category: "roti", tuAmount: "0.75", sortOrder: ADDON_SORT_BASE },
+    ], tu: [["roti", rotiTu]] });
+    expect(out.roti?.[0]).toMatch(/^8\b/);
   });
 });

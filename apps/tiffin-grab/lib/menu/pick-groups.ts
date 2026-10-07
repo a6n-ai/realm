@@ -217,8 +217,13 @@ export function anchorSwaps(args: {
   basePortions: Record<string, (string | null)[]>;
   /** Amounts for bulk rows (roti count) where per-row portions don't exist. */
   amounts: (s: AnchoredSwap) => { give: string; get: string } | null;
+  /**
+   * Categories that fold into one total (roti, rice): what a swap brings joins that total, so the
+   * swap owns no cell there. Without this, a 1-unit rice cell looks per-row and the swap took it.
+   */
+  folded?: (key: string) => boolean;
 }): AnchoredGroup[] {
-  const { groups, swaps, categories, basePortions, amounts } = args;
+  const { groups, swaps, categories, basePortions, amounts, folded } = args;
   const byKey = new Map<string, AnchoredGroup>(
     groups.map((g) => [g.key, { ...g, cells: [...g.cells], portions: [...g.portions], swapped: [], items: [] }]),
   );
@@ -238,7 +243,7 @@ export function anchorSwaps(args: {
   const received = new Map<string, { cells: GridCell[]; portions: (string | null)[] }>();
   for (const s of [...swaps].reverse()) {
     const to = byKey.get(s.toCategory);
-    if (!to || !perRow(s.toCategory) || to.cells.length < s.qtyTo) {
+    if (!to || !perRow(s.toCategory) || folded?.(s.toCategory) || to.cells.length < s.qtyTo) {
       received.set(s.publicId, { cells: [], portions: [] });
       continue;
     }

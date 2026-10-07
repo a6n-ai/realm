@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
-import { addonRowKeys, countAddons, splitGroups } from "@/lib/menu/pick-addons";
+import { addonRowKeys, countAddons, isCountCategory, mealBasePortions, splitGroups } from "@/lib/menu/pick-addons";
 import {
   applyMyDeliverySwap,
   removeMyDeliverySwap,
@@ -245,8 +245,10 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       groups,
       swaps: visibleSwaps,
       categories: grid.categories,
-      basePortions: grid.portionsBySlot,
+      // The meal's own rows: an 8-roti row reads "8 roti" even with 3 add-on roti on the day.
+      basePortions: serverGrid?.preview.items.length ? mealBasePortions(serverGrid.preview) : grid.portionsBySlot,
       amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu),
+      folded: (key) => isCountCategory(new Map(serverGrid?.preview.tu ?? []).get(key)),
     })
     : [];
   // Add-ons stand apart from the meal: an extra Sabzi is its own row, extra roti its own line.
@@ -577,9 +579,12 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                       if (item.kind === "swapped") {
                         const row = item.swapped;
                         const rowOff = locked || swapLocked || controlsOff;
-                        const toName = row.toCells.length && !row.toCells[0]!.selectable
-                          ? row.toDishes.find((d) => d.id === row.toCells[0]!.selectedDishId)?.name ?? row.toDishes[0]?.name ?? destinationName(row.swap.toCategory)
-                          : undefined;
+                        // A swap into a folded total (roti, rice) owns no cell: name the destination's one dish.
+                        const toName = row.toCells.length
+                          ? !row.toCells[0]!.selectable
+                            ? row.toDishes.find((d) => d.id === row.toCells[0]!.selectedDishId)?.name ?? row.toDishes[0]?.name ?? destinationName(row.swap.toCategory)
+                            : undefined
+                          : destinationName(row.swap.toCategory);
                         // The row's other swap targets stay on it (greyed when refused), so a swap never shrinks the row.
                         const otherSwaps = buildSlotDropdownOptions({
                           cellIndexInCategory: 0,

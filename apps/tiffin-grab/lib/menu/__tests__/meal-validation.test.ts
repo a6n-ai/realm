@@ -329,7 +329,7 @@ describe("Swap engine: Opposing swaps & single-item bundle suppression (Fix 1 & 
     const opt = computeSwapOption({ composition: ctx, applied, fromCategory: "rice", toCategory: "roti" });
     expect(opt.available).toBe(false);
     expect(opt.validBundles).toEqual([]);
-    expect(opt.reason).toMatch(/already applied/i);
+    expect(opt.reason).toMatch(/^Undo your .* swap first\.$/);
 
     const check = validateProposedSwap({
       composition: ctx,
@@ -337,7 +337,7 @@ describe("Swap engine: Opposing swaps & single-item bundle suppression (Fix 1 & 
       next: { fromCategory: "rice", toCategory: "roti", fromPicks: 1 },
     });
     expect(check.ok).toBe(false);
-    if (!check.ok) expect(check.reason).toMatch(/already applied/i);
+    if (!check.ok) expect(check.reason).toMatch(/^Undo your .* swap first\.$/);
 
     // computeAllSwapOptions hides it when hideUnavailable: true
     const all = computeAllSwapOptions({
@@ -372,7 +372,7 @@ describe("Swap engine: Opposing swaps & single-item bundle suppression (Fix 1 & 
     const applied = [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 }];
     const opt = computeSwapOption({ composition: ctx, applied, fromCategory: "daal", toCategory: "sabzi" });
     expect(opt.available).toBe(false);
-    expect(opt.reason).toMatch(/already applied/i);
+    expect(opt.reason).toMatch(/^Undo your .* swap first\.$/);
 
     const check = validateProposedSwap({
       composition: ctx,
@@ -380,7 +380,7 @@ describe("Swap engine: Opposing swaps & single-item bundle suppression (Fix 1 & 
       next: { fromCategory: "daal", toCategory: "sabzi", fromPicks: 1 },
     });
     expect(check.ok).toBe(false);
-    if (!check.ok) expect(check.reason).toMatch(/already applied/i);
+    if (!check.ok) expect(check.reason).toMatch(/^Undo your .* swap first\.$/);
   });
 
   // 6. Multi-item exchange: A category requiring multiple source items to reach target TU still generates required bundle.

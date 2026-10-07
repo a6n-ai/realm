@@ -91,3 +91,22 @@ describe("anchorSwaps with one swap that took two rows", () => {
     expect(daal!.cells).toHaveLength(1);
   });
 });
+
+describe("anchorSwaps into a folded total (Muskan, 2026-10-08)", () => {
+  it("Roti → Rice keeps the meal's 1-unit Rice row: the received rice joins its total, no cell is taken", () => {
+    const cats = [cat("rice", false, 0), cat("roti", false, 1)];
+    const rice = { ...cell("rice", 1, false), quantity: 1 };
+    const groups = groupPickCells([rice], cats, { rice: ["2 unit"] });
+    const roti: AnchoredSwap = { publicId: "r", fromCategory: "roti", toCategory: "rice", qtyFrom: 1, qtyTo: 1, pending: true };
+    const out = anchorSwaps({
+      groups, swaps: [roti], categories: cats,
+      basePortions: { rice: ["1 unit"], roti: ["8 roti"] },
+      amounts: () => ({ give: "8 roti", get: "1 unit" }),
+      folded: (k) => k === "rice" || k === "roti",
+    });
+    const riceGroup = out.find((g) => g.key === "rice")!;
+    const rotiGroup = out.find((g) => g.key === "roti")!;
+    expect(riceGroup.cells).toHaveLength(1);
+    expect(rotiGroup.swapped[0]).toMatchObject({ givePortion: "8 roti", getPortion: "1 unit", toCells: [] });
+  });
+});
