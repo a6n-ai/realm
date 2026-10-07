@@ -169,6 +169,17 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     expect(acts.some((a) => a.type === "status_change" && a.toStatus === "completed")).toBe(true);
   });
 
+  it("cancel rejects a completed plan and leaves its delivered rows alone", async () => {
+    const o = await makeOrder();
+    await backdateAllRows(o);
+    await maybeComplete(o.id);
+
+    await expect(cancelOrder(o.publicId)).rejects.toBeInstanceOf(ValidationError);
+    const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(order.status).toBe("completed");
+    expect((await rowsFor(o)).every((r) => r.status === "scheduled")).toBe(true);
+  });
+
   it("completeFinishedOrders closes only the plans that are over", async () => {
     const done = await makeOrder();
     await backdateAllRows(done);

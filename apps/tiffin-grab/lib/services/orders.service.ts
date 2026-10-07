@@ -1730,6 +1730,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const [order] = await tx.select().from(orders).where(eq(orders.id, idRow.id)).limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
       if (order.status === "cancelled") throw new ValidationError("Order is already cancelled");
+      // Every tiffin on a completed plan is delivered; cancelling would void delivered rows.
+      if (order.status === "completed") throw new ValidationError("This plan is over; there is nothing left to cancel");
 
       // Coins first (customer lock, then order), same order as payment verify takes them.
       // Coins the order earned are taken back. If it was never paid, coins held for it go

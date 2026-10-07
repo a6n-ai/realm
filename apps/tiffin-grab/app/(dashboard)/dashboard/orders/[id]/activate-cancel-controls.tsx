@@ -54,7 +54,7 @@ export function ActivateCancelControls({
       router.refresh();
     });
 
-  if (status === "cancelled") return null;
+  if (status === "cancelled" || status === "completed") return null;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
