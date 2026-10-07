@@ -64,4 +64,16 @@ describe("Google linking onto an unverified account", () => {
     )) as { data: Record<string, unknown> };
     expect(out.data).toMatchObject({ accessToken: null, refreshToken: null, idToken: null });
   });
+
+  it("a /signup account cannot keep a squatter's password once Google links it", async () => {
+    vi.doMock("@/lib/auth/password", async (orig) => orig());
+    const { signUpCustomer } = await import("@/app/(auth)/signup/actions");
+    const email = `${MARK}-squat@example.test`;
+    expect(await signUpCustomer({ email, name: "Squatter", password: "squatter-password-123" })).toEqual({ ok: true });
+    const [u] = await db.select({ id: users.id, emailVerified: users.emailVerified }).from(users).where(eq(users.email, email));
+    // Typing an address into /signup proves nothing about owning it.
+    expect(u!.emailVerified).toBe(false);
+    await before({ providerId: "google", accountId: "g-squat", userId: String(u!.id) } as never, ctx);
+    expect(await credentialCount(u!.id)).toBe(0);
+  });
 });

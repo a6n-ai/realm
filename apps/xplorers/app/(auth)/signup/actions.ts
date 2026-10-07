@@ -39,7 +39,10 @@ export async function signUpCustomer(input: {
           email,
           name,
           role: "user",
-          emailVerified: true,
+          // Typing an address here proves nothing about owning it; an emailed
+          // code or Google verifies it later. Marking it verified would let a
+          // squatter keep their password when the real owner links Google.
+          emailVerified: false,
           passwordSet: true,
         })
         .returning({ id: users.id });
