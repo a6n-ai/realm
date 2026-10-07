@@ -11,7 +11,8 @@ import type { TuCategory } from "./format-tu";
  * alongside meal_size_items; swaps never do — swap-options reads meal_size_items only,
  * and appending keeps every swap's fromRow pointing at the same meal row.
  */
-export const ADDON_SORT_BASE = 100_000;
+import { ADDON_SORT_BASE } from "./pick-addons";
+export { ADDON_SORT_BASE };
 
 export type AddonItemRow = {
   category: string;

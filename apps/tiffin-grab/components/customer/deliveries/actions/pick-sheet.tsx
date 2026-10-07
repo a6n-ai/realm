@@ -2,6 +2,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
+import { addonRowKeys, countAddons } from "@/lib/menu/pick-addons";
 import {
   applyMyDeliverySwap,
   removeMyDeliverySwap,
@@ -214,8 +215,10 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       })),
   ];
 
+  // Roti/rice add-ons fold into the meal's row server-side; split them so the meal row shows its own count.
+  const counted = serverGrid && activeDay ? countAddons(serverGrid.preview, activeDay, provisional) : { addons: [], mealPortions: {} };
   const groups = grid
-    ? groupPickCells(cells, grid.categories, grid.portionsByDate[activeDay!] ?? grid.portionsBySlot)
+    ? groupPickCells(cells, grid.categories, { ...(grid.portionsByDate[activeDay!] ?? grid.portionsBySlot), ...counted.mealPortions })
     : [];
   // Exchanged rows stay where they were (Sabzi · 12oz → Daal), instead of jumping to the new category.
   const rows = grid
@@ -227,18 +230,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       amounts: (s) => swapAmounts(plan.swapCategories[s.fromCategory], plan.swapCategories[s.toCategory], s.qtyFrom, s.qtyTo, s.receiveTu),
     })
     : [];
-  // A category's last N plain rows are its add-on rows (appended after the meal's own; swaps
-  // only ever give meal rows, and exchanged-in rows sit on their source row). They get their
-  // own section with dish picks only — an add-on is never swapped.
-  const addonKeys = new Set<string>();
-  for (const g of rows) {
-    const n = grid?.addonCounts?.[g.key] ?? 0;
-    const plain = g.items.filter((x) => x.kind === "cell");
-    // Only where each portion is its own row (sabzi). A count category (rice, roti) folds the
-    // meal's and the add-on's units into one row, which stays with the meal.
-    if (!n || !plain.every((x) => x.kind === "cell" && x.cell.quantity === 1)) continue;
-    for (const it of plain.slice(-n)) if (it.kind === "cell") addonKeys.add(cellKey(it.cell));
-  }
+  // Add-ons stand apart from the meal: an extra Sabzi is its own row, extra roti its own line.
+  const addonKeys = addonRowKeys(rows, grid?.addonCounts ?? {});
   const isAddonItem = (item: (typeof rows)[number]["items"][number]) => item.kind === "cell" && addonKeys.has(cellKey(item.cell));
   if (pendingToPick) {
     const into = rows
@@ -666,7 +659,9 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 );
               })}
 
-              {addonKeys.size > 0 && (
+              {(addonKeys.size > 0 || counted.addons.length > 0) && (
+                // Its own block under a divider: add-ons are extras, picked from the menu, never swapped.
+                <div className="border-t border-[var(--border,#E8E0D5)] pt-4">
                 <U.CategorySection label="Add-ons">
                   {rows.flatMap((group) => {
                     const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
@@ -674,7 +669,23 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                       .filter(isAddonItem)
                       .map((item) => (item.kind === "cell" ? renderCellRow(group, item, locked, busy != null || saving, false) : null));
                   })}
+                  {/* Extra roti/rice: the same dish as the meal's, so nothing to pick — shown as included. */}
+                  {counted.addons.map((a) => {
+                    const cell = cells.find((c) => c.slot === a.category);
+                    const dish = cell?.dishes.find((d) => d.id === cell.selectedDishId)?.name ?? labelOf(a.category);
+                    return (
+                      <U.ChoiceRow
+                        key={`addon:${a.category}`}
+                        label={a.portion ? `${labelOf(a.category)} · ${a.portion}` : labelOf(a.category)}
+                        hint="Included"
+                        choices={[{ value: "fixed", label: dish, disabled: true }]}
+                        value="fixed"
+                        onChange={() => {}}
+                      />
+                    );
+                  })}
                 </U.CategorySection>
+                </div>
               )}
 
               {summary.length > 0 && (
