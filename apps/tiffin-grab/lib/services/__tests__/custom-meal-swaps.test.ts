@@ -6,7 +6,7 @@ const { mealSizeItems, mealSizes } = await import("@/db/schema");
 const { dishCategoriesService } = await import("../dish-categories.service");
 const svc = await import("../custom-meal.service");
 
-describe("custom meals never swap", () => {
+describe("custom meals swap like catalog meals", () => {
   const createdIds: bigint[] = [];
 
   afterAll(async () => {
@@ -16,7 +16,7 @@ describe("custom meals never swap", () => {
     }
   });
 
-  it("returns no pairs even when a global sabzi>daal rule exists", async () => {
+  it("offers the same rule-driven pairs as any meal on its plan", async () => {
     const r = await svc.findOrCreateCustomMealSize([
       { category: "sabzi", planKey: "veg", tuAmount: 1 },
       { category: "daal", planKey: "veg", tuAmount: 1 },
@@ -24,7 +24,8 @@ describe("custom meals never swap", () => {
       { category: "rice", planKey: "veg", tuAmount: 1 },
     ], { actorId: null });
     if (r.created) createdIds.push(r.id);
-    expect(await dishCategoriesService.swapPairsForMealSize(r.id)).toEqual([]);
-    expect(await dishCategoriesService.swapPairOverridesForMealSize("roti", "rice", r.id)).toBeNull();
+    const pairs = (await dishCategoriesService.swapPairsForMealSize(r.id)).map((p) => `${p.fromCategory}>${p.toCategory}`);
+    expect(pairs).toEqual(expect.arrayContaining(["sabzi>daal", "daal>sabzi", "roti>rice", "rice>roti"]));
+    expect(await dishCategoriesService.swapPairOverridesForMealSize("roti", "rice", r.id)).not.toBeNull();
   });
 });

@@ -70,7 +70,7 @@ export async function priceCustomComposition(
     return { items, units, name: compositionName(items, units), perTiffin: round2(basePriceOverride) };
   }
   if (unpriced) {
-    throw new ValidationError(`Custom meal: ${units.get(unpriced.category)!.label} isn't priced for ${planLabel(unpriced.planKey)} — set it in Catalog → Custom Meals`);
+    throw new ValidationError(`Custom meal: ${units.get(unpriced.category)!.label} isn't priced for ${planLabel(unpriced.planKey)} — set it in custom_meal_pricing (backend)`);
   }
   try {
     return { items, units, name: compositionName(items, units), perTiffin: computeCustomPerTiffin(items, active) };

@@ -87,7 +87,7 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
         .from(mealSizes)
         .where(eq(mealSizes.publicId, id))
         .limit(1);
-      if (existing?.custom) throw new ValidationError("Custom meal sizes are managed under Catalog → Custom Meals, not Meal Sizes.");
+      if (existing?.custom) throw new ValidationError("Custom meal sizes are managed by the backend, not Meal Sizes.");
       mealSizeInternalId = existing?.id ?? null;
       if (resolvedPlanId == null) resolvedPlanId = existing?.planId ?? null;
       currentlyActive = existing?.active ?? true;
