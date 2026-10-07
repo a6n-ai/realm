@@ -27,6 +27,7 @@ import {
   orderPaymentLocked,
   myCalendar,
   myDeliveries,
+  myEndedPlan,
   myPausePanel,
   myPrimarySubscription,
   myAgendaDots,
@@ -64,7 +65,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     mySubscriptionWindows(userId, today),
     db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1),
   ]);
-  if (allSubs.length === 0) return <NoPlan waitlisted={waitlisted} />;
+  if (allSubs.length === 0) return <NoPlan waitlisted={waitlisted} ended={waitlisted.length ? null : await myEndedPlan(userId)} />;
   const subs = [...allSubs].sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? "") || a.publicId.localeCompare(b.publicId));
 
   // The page shows ONE plan; ?sub picks it, else the plan with the soonest upcoming delivery.

@@ -576,6 +576,55 @@ export async function myWaitlistedSubscriptions(userId: bigint): Promise<Waitlis
   return rows.map((r) => ({ ...r, status: r.status as "waitlisted" | "pending" }));
 }
 
+export type EndedPlan = {
+  publicId: string; planName: string; mealSizeName: string;
+  status: "completed" | "cancelled";
+  /** A WordPress plan whose old-site balance was corrected against OptimoRoute (2026-10-06). */
+  corrected: boolean;
+  total: number; delivered: number;
+  deliveredDates: string[];
+};
+
+// The customer's most recent plan that is over or cancelled, shown on the no-plan screen so they
+// can see why nothing is scheduled. A cancelled plan that never delivered (a duplicate or a
+// refund) is skipped: there is nothing to explain.
+export async function myEndedPlan(userId: bigint): Promise<EndedPlan | null> {
+  const candidates = await db
+    .select({ id: orders.id, publicId: orders.publicId, deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount, planName: plans.name, mealSizeName: mealSizes.name })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .where(and(eq(orders.userId, userId), inArray(orders.status, ["completed", "cancelled"])))
+    .orderBy(desc(orders.updatedAt))
+    .limit(5);
+  for (const o of candidates) {
+    const rows = await db
+      .select({ deliveryDate: deliveries.deliveryDate, status: deliveries.status, tiffinUnits: deliveries.tiffinUnits, optimoCompletionStatus: deliveries.optimoCompletionStatus })
+      .from(deliveries)
+      .where(eq(deliveries.orderId, o.id))
+      .orderBy(asc(deliveries.deliveryDate));
+    const done = rows.filter((r) => r.status === "scheduled" && r.optimoCompletionStatus === "success");
+    if (done.length === 0) continue;
+    const [correction] = o.deploymentId.startsWith("wc-")
+      ? await db.select({ id: orderActivities.id }).from(orderActivities)
+        .where(and(eq(orderActivities.orderId, o.id), or(
+          sql`${orderActivities.note} like 'WordPress balance correction%'`,
+          sql`${orderActivities.note} like 'Plan reconciliation (WordPress%'`,
+        )))
+        .limit(1)
+      : [];
+    return {
+      publicId: o.publicId, planName: o.planName, mealSizeName: o.mealSizeName,
+      status: o.status as "completed" | "cancelled",
+      corrected: correction != null,
+      total: o.tiffinCount,
+      delivered: done.reduce((n, r) => n + r.tiffinUnits, 0),
+      deliveredDates: done.map((r) => r.deliveryDate),
+    };
+  }
+  return null;
+}
+
 // Past deliveries for the History section. Bounded lookback [since, before);
 // `before` is today (exclusive) so it never overlaps the forward myDeliveries window.
 export async function myDeliveryHistory(userId: bigint, since: string, before: string): Promise<CustomerDelivery[]> {
