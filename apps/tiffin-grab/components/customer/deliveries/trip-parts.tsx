@@ -1,5 +1,5 @@
 "use client";
-import { ArrowDownLeft, ArrowUpRight, Check, House, Info, MapPin, Package, Truck } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, ChefHat, House, Info, MapPin, Package, Truck } from "lucide-react";
 import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
@@ -129,46 +129,54 @@ const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
 /** Trips that still physically go somewhere (not moved away or paused), so naming an address means something. */
 const GOES_OUT = new Set<Trip["status"]>(["upcoming", "cutoff-passed", "unconfirmed", "delivered", "locked", "failed"]);
 
-/** Where the tiffin is on its way to the door. No live tracking: the position comes from the trip's status alone. */
-const JOURNEY: Partial<Record<Trip["status"], { at: number; label: string }>> = {
-  upcoming: { at: 12, label: "Scheduled" },
-  "cutoff-passed": { at: 38, label: "Preparing" },
-  locked: { at: 38, label: "Preparing" },
-  unconfirmed: { at: 72, label: "On the way" },
-  delivered: { at: 100, label: "Delivered" },
-};
+/** Where the tiffin is on its way to the door. No live tracking: the stage comes from the trip's status alone. */
+const STAGE: Partial<Record<Trip["status"], number>> = { upcoming: 0, "cutoff-passed": 1, locked: 1, unconfirmed: 2, delivered: 3 };
+const STOPS = [
+  { label: "Scheduled", Icon: CalendarCheck },
+  { label: "Preparing", Icon: ChefHat },
+  { label: "On the way", Icon: Truck },
+  { label: "Delivered", Icon: House },
+] as const;
 
-export function Journey({ status }: { status: Trip["status"] }) {
-  const j = JOURNEY[status];
-  if (!j) return null;
-  const done = j.at === 100;
-  const blue = "var(--s-upcoming,#0ea5e9)";
-  const tone = done ? "var(--s-delivered,#10b981)" : blue;
+export function Journey({ status, caption }: { status: Trip["status"]; caption?: string | null }) {
+  const at = STAGE[status];
+  if (at == null) return null;
+  const done = at === 3;
+  const tone = done ? "var(--s-delivered,#10b981)" : "var(--s-upcoming,#0ea5e9)";
   return (
-    <div role="img" aria-label={`${j.label} delivery`} data-testid="journey" className="pb-1">
-      <div className="relative mx-5 h-11">
-        <span aria-hidden className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-[var(--border)]" />
-        <span aria-hidden className="absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${j.at}%`, background: tone }} />
-        <span aria-hidden className="absolute left-0 top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[var(--card)] ring-[1.5px] ring-[var(--border)]">
-          <Package className="size-[18px] text-[var(--primary)]" />
-        </span>
-        <span aria-hidden className="absolute right-0 top-1/2 grid size-9 -translate-y-1/2 translate-x-1/2 place-items-center rounded-full bg-[var(--card)] ring-[1.5px]" style={{ ["--tw-ring-color" as string]: done ? tone : "var(--border)" }}>
-          {done ? <Check className="size-[18px]" style={{ color: tone }} /> : <House className="size-[18px] text-[var(--muted-foreground,#6E6558)]" />}
-        </span>
-        {!done && (
-          <span aria-hidden className="absolute top-1/2 grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full text-white shadow-md transition-[left] duration-500 motion-reduce:transition-none" style={{ left: `${Math.max(j.at, 18)}%`, background: blue }}>
-            <Truck className="size-5" />
-          </span>
-        )}
-      </div>
-      <div aria-hidden className="mt-1.5 grid grid-cols-3 text-[12px] font-semibold text-[var(--muted-foreground,#6E6558)]">
-        <span>Meal</span>
-        <span className="text-center" style={{ color: tone }}>{j.label}</span>
-        <span className="text-right">Your home</span>
-      </div>
+    <div role="img" aria-label={`${STOPS[at]!.label} delivery`} data-testid="journey">
+      <ol aria-hidden className="relative grid grid-cols-4">
+        {/* Track runs centre-to-centre of the first and last stop; the filled part ends at the current stop. */}
+        <span className="absolute left-[12.5%] right-[12.5%] top-5 h-[3px] -translate-y-1/2 rounded-full bg-[var(--border)]" />
+        <span className="absolute left-[12.5%] top-5 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${at * 25}%`, background: tone }} />
+        {STOPS.map(({ label, Icon }, i) => {
+          const now = i === at;
+          const past = i < at;
+          return (
+            <li key={label} className="relative flex flex-col items-center gap-1.5">
+              <span
+                className={cn("grid place-items-center rounded-full transition-colors", now ? "size-10 text-white shadow-md" : "mt-1 size-8 ring-[1.5px]", !now && !past && "bg-[var(--card)] text-[var(--muted-foreground,#6E6558)] ring-[var(--border)]")}
+                style={now ? { background: tone } : past ? { background: "var(--card)", color: tone, ["--tw-ring-color" as string]: tone } : undefined}
+              >
+                {past ? <Check className="size-4" /> : <Icon className={now ? "size-5" : "size-4"} />}
+              </span>
+              <span className={cn("text-center text-[12px] leading-tight", now ? "font-bold" : "font-medium text-[var(--muted-foreground,#6E6558)]")} style={now ? { color: tone } : undefined}>{label}</span>
+            </li>
+          );
+        })}
+      </ol>
+      {caption && <p className="mt-3 text-center text-[14px] text-[var(--muted-foreground,#6E6558)]">{caption}</p>}
     </div>
   );
 }
+
+const JOURNEY_NOTE: Partial<Record<Trip["status"], string>> = {
+  upcoming: "You can still change the meal or move it.",
+  "cutoff-passed": "The kitchen is cooking it. Changes are closed.",
+  locked: "The kitchen is cooking it. Changes are closed.",
+  unconfirmed: "Out for delivery.",
+  delivered: "Delivered. Enjoy your meal!",
+};
 
 const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
 
@@ -198,7 +206,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
         <h2 className="text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">{humanDate(row.date)}</h2>
         {meta && <p className="mt-0.5 text-[14px] tabular-nums text-[var(--muted-foreground,#6E6558)]" data-testid="delivery-pills">{meta}</p>}
         {plan && <span className="mt-1 inline-block"><PlanTag plan={plan} /></span>}
-        {!row.movedTo && JOURNEY[trip.status] ? <div className="mt-5"><Journey status={trip.status} /></div> : (
+        {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-5"><Journey status={trip.status} caption={JOURNEY_NOTE[trip.status]} /></div> : (
           <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
             {m.dot && <StatusDot decorative status={m.dot} />}
             {eyebrow ?? m.label}

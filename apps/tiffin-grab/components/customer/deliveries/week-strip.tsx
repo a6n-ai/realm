@@ -33,7 +33,7 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agend
   const arrow = cn(FOCUS, "grid size-9 place-items-center rounded-full disabled:opacity-30 [touch-action:manipulation]");
 
   return (
-    <section aria-label="Delivery week" data-testid="week-timeline">
+    <section aria-label="Delivery week" data-testid="week-timeline" className="rounded-[20px] border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-3 pb-2 pt-3 sm:px-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground,#6E6558)]">
           {MON.format(at(week))} – {MON.format(at(addDays(week, 6)))}{week === thisWeek ? " · This week" : ""}
