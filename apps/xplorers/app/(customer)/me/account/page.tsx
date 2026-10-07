@@ -9,6 +9,7 @@ import { googleSignInEnabled } from "@foundry/auth";
 import { hasGoogleLinked } from "@/lib/auth/google-link";
 import { AccountPage } from "@/components/customer/account/account-page";
 import { sectionFromSlug } from "@/components/customer/account/sections.config";
+import { personalizationService } from "@/lib/services/personalization.service";
 
 type SearchParams = Promise<{ section?: string }>;
 
@@ -28,17 +29,20 @@ async function AccountData({ searchParams }: { searchParams: SearchParams }) {
   const active = sectionFromSlug(sp.section);
   const google = googleSignInEnabled() ? { connected: await hasGoogleLinked(session.user.id) } : null;
 
-  const [u] = await db
-    .select({
-      name: users.name,
-      email: users.email,
-      image: users.image,
-      passwordSet: users.passwordSet,
-      displayUsername: users.displayUsername,
-    })
-    .from(users)
-    .where(eq(users.publicId, session.user.id))
-    .limit(1);
+  const [[u], personalization] = await Promise.all([
+    db
+      .select({
+        name: users.name,
+        email: users.email,
+        image: users.image,
+        passwordSet: users.passwordSet,
+        displayUsername: users.displayUsername,
+      })
+      .from(users)
+      .where(eq(users.publicId, session.user.id))
+      .limit(1),
+    personalizationService.listAnswersForUser(session.user.id),
+  ]);
   if (!u) redirect("/login");
 
   return (
@@ -52,6 +56,7 @@ async function AccountData({ searchParams }: { searchParams: SearchParams }) {
       }}
       active={active}
       google={google}
+      personalization={personalization}
     />
   );
 }

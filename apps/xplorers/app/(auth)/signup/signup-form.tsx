@@ -46,7 +46,7 @@ export function SignupForm({ googleEnabled = false }: { googleEnabled?: boolean 
       router.push("/login");
       return;
     }
-    router.push("/me");
+    router.push("/me/welcome");
     router.refresh();
   }
 
@@ -66,7 +66,12 @@ export function SignupForm({ googleEnabled = false }: { googleEnabled?: boolean 
               <GoogleSignInButton
                 ui={appAuthUi}
                 onSignIn={() =>
-                  signIn.social({ provider: "google", requestSignUp: true, callbackURL: "/me", errorCallbackURL: "/signup" })
+                  signIn.social({
+                    provider: "google",
+                    requestSignUp: true,
+                    callbackURL: "/me/welcome",
+                    errorCallbackURL: "/signup",
+                  })
                 }
               />
               <div className="text-muted-foreground flex items-center gap-3 text-xs" aria-hidden>

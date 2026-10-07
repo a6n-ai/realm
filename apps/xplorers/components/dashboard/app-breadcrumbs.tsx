@@ -8,6 +8,7 @@ const LABELS: Record<string, string> = {
   settings: "Settings",
   users: "Users",
   general: "General",
+  personalization: "Personalization",
   integrations: "Integrations",
   payments: "Payments",
   requests: "Pending verification",

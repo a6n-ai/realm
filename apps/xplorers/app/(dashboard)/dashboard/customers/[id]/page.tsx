@@ -10,18 +10,21 @@ import { getSession } from "@/lib/auth/session";
 import { formatAppDay, formatAppWhen } from "@/lib/app-clock";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { getCustomer360 } from "@/lib/services/customers.service";
+import { personalizationService } from "@/lib/services/personalization.service";
 import { walletService } from "@/lib/services/wallet.service";
+import { PersonalizationAnswersList } from "@/components/personalization/answers-list";
 import { AdjustCoins } from "./adjust-coins";
 import { CustomerBookingsTable, CustomerLedgerTable, CustomerPaymentsTable } from "./customer-tables";
 
 export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission({ user: ["list"] });
   const { id } = await params;
-  const [customer, coins, { timezone, currency }, session] = await Promise.all([
+  const [customer, coins, { timezone, currency }, session, personalization] = await Promise.all([
     getCustomer360(id),
     walletService.coinsForFamily(id),
     getAppClock(),
     getSession(),
+    personalizationService.listAnswersForUser(id),
   ]);
   if (!customer) notFound();
 
@@ -85,6 +88,9 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           )}
         </SectionCard>
       </div>
+      <SectionCard title="Personalization">
+        <PersonalizationAnswersList rows={personalization} />
+      </SectionCard>
       <SectionCard title="Bookings">
         <CustomerBookingsTable
           currency={currency}

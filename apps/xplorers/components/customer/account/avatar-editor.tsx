@@ -9,7 +9,12 @@ import { Button } from "@foundry/ui/button";
 import { getCroppedBlob } from "@/lib/images/crop";
 import { removeMyAvatar, updateMyAvatar } from "@/app/(customer)/me/account/avatar-actions";
 
-const Cropper = dynamic(() => import("react-easy-crop"), { ssr: false }) as ComponentType<CropperProps>;
+// react-easy-crop's default export is a class with `defaultProps`; next/dynamic's
+// ComponentType<CropperProps> then requires every defaulted prop.
+type CropperType = (typeof import("react-easy-crop"))["default"];
+const Cropper = dynamic(() => import("react-easy-crop"), { ssr: false }) as ComponentType<
+  React.JSX.LibraryManagedAttributes<CropperType, CropperProps>
+>;
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];

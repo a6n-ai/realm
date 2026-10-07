@@ -4,6 +4,7 @@ import {
   BanknoteIcon,
   PuzzleIcon,
   SettingsIcon,
+  SparklesIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +29,13 @@ export default async function SettingsPage() {
       description: "Timezone and currency used across the app.",
       icon: SettingsIcon,
       href: "/dashboard/settings/general",
+    },
+    {
+      key: "personalization",
+      label: "Personalization",
+      description: "Signup questions — one screen each, MCQ or text.",
+      icon: SparklesIcon,
+      href: "/dashboard/settings/personalization",
     },
     {
       key: "users",

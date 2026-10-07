@@ -81,6 +81,8 @@ export async function proxy(request: NextRequest) {
   }
 
   if (resolvedOrgId) request.headers.set("x-realm-org-id", resolvedOrgId);
+  request.headers.set("x-pathname", pathname);
+  request.headers.set("x-search", request.nextUrl.search);
   const forwardedRequest = { request: { headers: request.headers } };
 
   if (pathname.startsWith("/api")) {

@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowLeftIcon, ChevronRightIcon, LifeBuoyIcon, WalletIcon } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
 import { SignOutRow } from "./sign-out-row";
+import { AboutPanel } from "./about-panel";
 import { ProfileForm } from "./profile-form";
 import { SecurityPanel } from "./security-panel";
+import type { PersonalizationAnswerRow } from "@/lib/services/personalization.service";
 import {
   ACCOUNT_SECTIONS,
   accountSectionHref,
@@ -23,10 +25,12 @@ function SectionBody({
   k,
   user,
   google,
+  personalization,
 }: {
   k: AccountSectionKey;
   user: AccountUser;
   google: { connected: boolean } | null;
+  personalization: PersonalizationAnswerRow[];
 }) {
   switch (k) {
     case "profile":
@@ -37,6 +41,8 @@ function SectionBody({
           username={user.displayUsername ?? ""}
         />
       );
+    case "about":
+      return <AboutPanel rows={personalization} />;
     case "security":
       return <SecurityPanel email={user.email} passwordSet={user.passwordSet} google={google} />;
     default: {
@@ -50,10 +56,12 @@ export function AccountPage({
   user,
   active,
   google = null,
+  personalization = [],
 }: {
   user: AccountUser;
   active: AccountSection | null;
   google?: { connected: boolean } | null;
+  personalization?: PersonalizationAnswerRow[];
 }) {
   const shown = active ?? ACCOUNT_SECTIONS[0]!;
   const who = [user.name?.trim(), user.email].filter(Boolean).join(" · ");
@@ -155,7 +163,7 @@ export function AccountPage({
               Account
             </Link>
           ) : null}
-          <SectionBody k={shown.key} user={user} google={google} />
+          <SectionBody k={shown.key} user={user} google={google} personalization={personalization} />
         </section>
       </div>
     </div>

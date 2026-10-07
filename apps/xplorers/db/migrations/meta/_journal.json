@@ -43,6 +43,13 @@
       "when": 1791367257953,
       "tag": "0005_dazzling_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791371050269,
+      "tag": "0006_nostalgic_guardian",
+      "breakpoints": true
     }
   ]
 }

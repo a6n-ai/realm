@@ -9,3 +9,4 @@ export * from "./discounts";
 export * from "./wallet";
 export * from "./friends";
 export * from "./tickets";
+export * from "./personalization";

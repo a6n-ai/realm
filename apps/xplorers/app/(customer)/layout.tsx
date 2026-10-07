@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
@@ -19,6 +19,7 @@ import { CustomerHeaderActions } from "@/components/customer/customer-header-act
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { friendsService } from "@/lib/services/friends.service";
+import { personalizationService } from "@/lib/services/personalization.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { REF_COOKIE } from "@/lib/friends/ref-cookie";
 import "@/app/customer.css";
@@ -53,14 +54,25 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     .limit(1);
   if (!u) redirect("/login");
   if (u.status !== "active") redirect("/login?suspended=1");
-  const [{ timezone }, jar, wallet] = await Promise.all([
+
+  const hdrs = await headers();
+  const pathname = hdrs.get("x-pathname") ?? "";
+  const search = hdrs.get("x-search") ?? "";
+  const onWelcome = pathname === "/me/welcome" || pathname.startsWith("/me/welcome/");
+  const editPersonalization = search.includes("edit=1");
+
+  const [{ timezone }, jar, wallet, personalizationDone] = await Promise.all([
     getAppClock(),
     cookies(),
     walletService.coinsForFamily(session.user.id).catch(() => null),
+    personalizationService.isCompleteForCustomer(),
     // Customers are created on several paths (signup, booking, staff); the
     // first /me load is the one place all of them pass, so usernames start here.
     friendsService.ensureUsername(session.user.id).catch((e) => console.error("ensureUsername", e)),
   ]);
+
+  if (!personalizationDone && !onWelcome) redirect("/me/welcome");
+  if (personalizationDone && onWelcome && !editPersonalization) redirect("/me");
 
   const ref = jar.get(REF_COOKIE)?.value;
   const invite = ref ? await friendsService.previewInvite(session.user.id, ref) : undefined;
@@ -69,16 +81,22 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     <div className={`crm-app customer-app ${display.variable} ${body.variable}`}>
       <TimezoneProvider tz={timezone}>
         <TooltipProvider>
-          <CrmShell
-            hideSidebarOnMobile
-            brand={<CustomerBrand href="/me" />}
-            sidebar={<CustomerNav />}
-            actions={<CustomerHeaderActions coinBalance={wallet?.balance ?? null} />}
-            bottomNav={<CustomerBottomNav />}
-          >
-            {invite !== undefined ? <InviteBanner inviter={invite} /> : null}
-            {children}
-          </CrmShell>
+          {onWelcome ? (
+            <div className="mx-auto min-h-dvh w-full max-w-3xl px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+              {children}
+            </div>
+          ) : (
+            <CrmShell
+              hideSidebarOnMobile
+              brand={<CustomerBrand href="/me" />}
+              sidebar={<CustomerNav />}
+              actions={<CustomerHeaderActions coinBalance={wallet?.balance ?? null} />}
+              bottomNav={<CustomerBottomNav />}
+            >
+              {invite !== undefined ? <InviteBanner inviter={invite} /> : null}
+              {children}
+            </CrmShell>
+          )}
           <Toaster position="top-right" />
         </TooltipProvider>
       </TimezoneProvider>
