@@ -57,6 +57,13 @@
       "when": 1791375604321,
       "tag": "0007_fancy_living_tribunal",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791376878430,
+      "tag": "0008_handy_giant_man",
+      "breakpoints": true
     }
   ]
 }

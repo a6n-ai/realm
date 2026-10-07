@@ -1,1 +1,7 @@
-export { fileResourceType, fileSystemNodeType, fileSystem } from "@foundry/storage/schema";
+export {
+  fileResourceType,
+  fileSystemNodeType,
+  fileSystem,
+  filesAccessPath,
+  filesSecuredAccessKey,
+} from "@foundry/storage/schema";

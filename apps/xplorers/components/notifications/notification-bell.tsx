@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { Separator } from "@foundry/ui/separator";
 import { cn } from "@foundry/ui/cn";
 import { useNotifications, type UseNotificationsOptions } from "@relay/engine/ui";
+import { HeaderTooltip } from "@/components/customer/header-tooltip";
 
 function timeAgo(ms: number): string {
   const s = Math.max(1, Math.round((Date.now() - ms) / 1000));
@@ -24,16 +25,18 @@ export function NotificationBell(props: UseNotificationsOptions = {}) {
 
   return (
     <Popover onOpenChange={(open) => open && markAllRead()}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-          <BellIcon className="size-4" />
-          {unread > 0 ? (
-            <span className="bg-[var(--xl-pink-600)] text-white absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold">
-              {unread > 9 ? "9+" : unread}
-            </span>
-          ) : null}
-        </Button>
-      </PopoverTrigger>
+      <HeaderTooltip label={unread > 0 ? `Notifications (${unread})` : "Notifications"}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+            <BellIcon className="size-4" />
+            {unread > 0 ? (
+              <span className="bg-[var(--xl-pink-600)] text-white absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold">
+                {unread > 9 ? "9+" : unread}
+              </span>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+      </HeaderTooltip>
       <PopoverContent align="end" className="z-50 w-80 overflow-hidden p-0">
         <div className="px-3 py-2 text-sm font-semibold">Notifications</div>
         <Separator />

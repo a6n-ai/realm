@@ -12,7 +12,8 @@ describe("member reaches its intended surfaces", () => {
   it("admin sees Settings; member does not", () => {
     expect(grantedKeys(Role.ADMIN)).toContain("settings:write");
     expect(navTitles(Role.ADMIN)).toContain("Settings");
-    expect(navTitles(Role.ADMIN)).toEqual(expect.arrayContaining(["Payments", "Customers"]));
+    expect(navTitles(Role.ADMIN)).toEqual(expect.arrayContaining(["Payments", "Customers", "Tickets"]));
+    expect(navTitles(Role.MEMBER)).toContain("Tickets");
     // Ledger is a tab inside Payments now, not its own nav item.
     expect(navTitles(Role.ADMIN)).not.toContain("Ledger");
     expect(grantedKeys(Role.MEMBER)).not.toContain("settings:write");

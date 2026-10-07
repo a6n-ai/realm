@@ -22,3 +22,11 @@ export function sniffImageType(b: Uint8Array): "image/jpeg" | "image/png" | "ima
 export function extFor(type: "image/jpeg" | "image/png" | "image/webp"): "jpg" | "png" | "webp" {
   return type === "image/jpeg" ? "jpg" : type === "image/png" ? "png" : "webp";
 }
+
+export type UploadImageType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+
+/** Ticket photos: judge the bytes, not File.type (that only reflects the name). */
+export function sniffUploadImage(b: Uint8Array): UploadImageType | null {
+  const gif = b.length >= 4 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38;
+  return sniffImageType(b) ?? (gif ? "image/gif" : null);
+}

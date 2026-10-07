@@ -6,6 +6,7 @@ import {
   CalendarDaysIcon,
   CreditCardIcon,
   LayoutDashboardIcon,
+  LifeBuoyIcon,
   LogOutIcon,
   SettingsIcon,
   ShapesIcon,
@@ -60,6 +61,7 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
   ].filter(allow);
   const people: NavItem[] = [
     { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, permission: "user:list" },
+    { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon },
   ].filter(allow);
   const finance: NavItem[] = [
     { title: "Payments", href: "/dashboard/payments", icon: CreditCardIcon, permission: "settings:write" },

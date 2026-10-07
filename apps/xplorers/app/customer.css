@@ -561,3 +561,120 @@ html.dark .customer-app .xl-quick-icon {
   background: var(--secondary);
   color: var(--foreground);
 }
+
+/* Support — prominent New ticket CTA */
+.customer-app .xl-support-new-ticket {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.875rem;
+  border-radius: 18px;
+  border: 1px solid var(--xl-sky-400);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 1.05rem 1.15rem;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--xl-sky-400) 28%, transparent);
+  transition:
+    transform 120ms var(--ease-out),
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+}
+.customer-app .xl-support-new-ticket:hover {
+  background: var(--xl-sky-300);
+  border-color: var(--xl-sky-400);
+}
+.customer-app .xl-support-new-ticket:active {
+  transform: scale(0.985);
+}
+.customer-app .xl-support-new-ticket-icon {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, white 55%, transparent);
+  color: var(--xl-navy-800);
+}
+
+/* Equal-height topic cards (2×2 — no Other card) */
+.customer-app .xl-support-topic {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 5.5rem;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 1rem;
+  text-align: left;
+  transition:
+    transform 120ms var(--ease-out),
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
+  cursor: pointer;
+}
+.customer-app .xl-support-topic:hover {
+  border-color: color-mix(in srgb, var(--xl-sky-400) 65%, var(--border));
+}
+.customer-app .xl-support-topic:active {
+  transform: scale(0.98);
+}
+.customer-app .xl-support-topic-icon {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.85rem;
+  color: var(--xl-navy-800);
+}
+.customer-app .xl-support-topic-sky .xl-support-topic-icon {
+  background: color-mix(in srgb, var(--xl-sky-100) 90%, white);
+}
+.customer-app .xl-support-topic-blush .xl-support-topic-icon {
+  background: color-mix(in srgb, var(--xl-pink-100) 85%, white);
+}
+.customer-app .xl-support-topic-sunshine .xl-support-topic-icon {
+  background: color-mix(in srgb, var(--xl-sunshine) 40%, white);
+}
+.customer-app .xl-support-topic-mint .xl-support-topic-icon {
+  background: color-mix(in srgb, var(--xl-mint) 45%, white);
+}
+.customer-app .xl-support-topic-sky:hover {
+  background: color-mix(in srgb, var(--xl-sky-100) 45%, white);
+}
+.customer-app .xl-support-topic-blush:hover {
+  background: color-mix(in srgb, var(--xl-pink-100) 40%, white);
+}
+.customer-app .xl-support-topic-sunshine:hover {
+  background: color-mix(in srgb, var(--xl-sunshine) 22%, white);
+}
+.customer-app .xl-support-topic-mint:hover {
+  background: color-mix(in srgb, var(--xl-mint) 28%, white);
+}
+
+html.dark .customer-app .xl-support-new-ticket {
+  box-shadow: none;
+}
+html.dark .customer-app .xl-support-new-ticket-icon {
+  background: rgb(255 255 255 / 12%);
+  color: var(--foreground);
+}
+html.dark .customer-app .xl-support-topic:hover,
+html.dark .customer-app .xl-support-topic-sky:hover,
+html.dark .customer-app .xl-support-topic-blush:hover,
+html.dark .customer-app .xl-support-topic-sunshine:hover,
+html.dark .customer-app .xl-support-topic-mint:hover {
+  background: var(--secondary);
+}
+html.dark .customer-app .xl-support-topic-icon {
+  background: var(--secondary);
+  color: var(--foreground);
+}

@@ -1,8 +1,15 @@
 import { BaseRepository, UpdatableRepository } from "@foundry/database";
-import { AuthError, ForbiddenError, Role, ValidationError, type RoleValue } from "@foundry/commons";
-import { asc, desc, eq } from "drizzle-orm";
+import {
+  AuthError,
+  ForbiddenError,
+  NotFoundError,
+  Role,
+  ValidationError,
+  type RoleValue,
+} from "@foundry/commons";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { ticketMessages, tickets, type Attachment } from "@/db/schema";
+import { ticketMessages, tickets, users, type Attachment } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 
@@ -72,6 +79,21 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     return ticket;
   }
 
+  /** Attach images to the opening customer message (create uploads after the ticket row exists). */
+  async setOpeningAttachments(publicId: string, attachments: Attachment[]): Promise<void> {
+    if (attachments.length === 0) return;
+    const ticket = await this.read(publicId);
+    await this.assertAccess(ticket);
+    const [opening] = await db
+      .select()
+      .from(ticketMessages)
+      .where(and(eq(ticketMessages.ticketId, ticket.id), eq(ticketMessages.authorType, "customer")))
+      .orderBy(asc(ticketMessages.createdAt))
+      .limit(1);
+    if (!opening) throw new NotFoundError("Opening message not found");
+    await db.update(ticketMessages).set({ attachments }).where(eq(ticketMessages.id, opening.id));
+  }
+
   async reply(publicId: string, body: string, attachments: Attachment[] = []): Promise<void> {
     const ticket = await this.read(publicId);
     const actor = await this.assertAccess(ticket);
@@ -97,6 +119,32 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       .from(tickets)
       .where(eq(tickets.raisedBy, userId))
       .orderBy(desc(tickets.createdAt));
+  }
+
+  async listForStaff() {
+    const actor = await this.actor();
+    if (!actor.isStaff) throw new ForbiddenError();
+    return db
+      .select({
+        publicId: tickets.publicId,
+        subject: tickets.subject,
+        category: tickets.category,
+        status: tickets.status,
+        priority: tickets.priority,
+        createdAt: tickets.createdAt,
+        updatedAt: tickets.updatedAt,
+        customerName: users.name,
+        customerEmail: users.email,
+      })
+      .from(tickets)
+      .innerJoin(users, eq(tickets.raisedBy, users.id))
+      .orderBy(desc(tickets.updatedAt));
+  }
+
+  async setPriority(publicId: string, priority: TicketPriority): Promise<void> {
+    const actor = await this.actor();
+    if (!actor.isStaff) throw new ForbiddenError();
+    await this.update(publicId, { priority });
   }
 
   async listMessages(publicId: string) {

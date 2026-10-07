@@ -8,6 +8,7 @@ import { db } from "@/db/client";
 import { bookings } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
 import { ticketsService, type TicketCategory } from "@/lib/services/tickets.service";
+import { uploadAttachments } from "@/lib/services/ticket-attachments";
 import { isTicketCategory, isValidPair } from "@/lib/support/ticket-taxonomy";
 
 export async function createTicket(form: FormData): Promise<void> {
@@ -47,13 +48,27 @@ export async function createTicket(form: FormData): Promise<void> {
     ...(bookingId != null ? { bookingId } : {}),
   });
 
+  const attachments = await uploadAttachments(
+    ticket.publicId,
+    form.getAll("attachment"),
+    form.getAll("attachment_thumb"),
+  );
+  if (attachments.length > 0) {
+    await ticketsService.setOpeningAttachments(ticket.publicId, attachments);
+  }
+
   revalidatePath("/me/support");
   redirect(`/me/support/${ticket.publicId}`);
 }
 
 export async function replyTicket(ticketId: string, form: FormData): Promise<void> {
   const body = String(form.get("body") ?? "");
-  await ticketsService.reply(ticketId, body);
+  const attachments = await uploadAttachments(
+    ticketId,
+    form.getAll("attachment"),
+    form.getAll("attachment_thumb"),
+  );
+  await ticketsService.reply(ticketId, body, attachments);
   revalidatePath(`/me/support/${ticketId}`);
   revalidatePath("/me/support");
 }

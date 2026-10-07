@@ -6,6 +6,7 @@ import { BackButton, PageHeader, PageShell } from "@foundry/design-system";
 import { getSession } from "@/lib/auth/session";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/services/tickets.service";
+import { attachmentHref } from "@/lib/services/ticket-attachments";
 import { TicketThread, TicketThreadSkeleton } from "@/components/customer/support/ticket-thread";
 
 export default function TicketThreadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -63,5 +64,20 @@ async function TicketThreadData({ params }: { params: Promise<{ id: string }> })
   }
 
   const { timezone } = await getAppClock();
-  return <TicketThread ticket={ticket} messages={rawMessages} timezone={timezone} />;
+  const messages = await Promise.all(
+    rawMessages.map(async (m) => ({
+      ...m,
+      attachments: m.attachments
+        ? await Promise.all(
+            m.attachments.map(async (a) => ({
+              thumbUrl: a.thumbUrl,
+              name: a.name,
+              href: await attachmentHref(a),
+            })),
+          )
+        : null,
+    })),
+  );
+
+  return <TicketThread ticket={ticket} messages={messages} timezone={timezone} />;
 }

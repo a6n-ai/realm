@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { makeImageThumbnail } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
@@ -12,6 +13,7 @@ import {
   SUBCATEGORIES,
   type TicketCategoryValue,
 } from "@/lib/support/ticket-taxonomy";
+import { PhotoPicker, useImageFiles } from "./parts";
 
 const NO_BOOKING = "__none__";
 
@@ -37,6 +39,7 @@ export function NewTicketForm({
   const [bookingId, setBookingId] = useState(defaultBookingId ?? NO_BOOKING);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const { files, inputRef, add: addFiles, setFiles } = useImageFiles(setError);
 
   function pickCategory(next: TicketCategoryValue) {
     setCategory(next);
@@ -60,6 +63,11 @@ export function NewTicketForm({
         form.set("subcategory", subcategory);
         form.set("body", trimmedBody);
         if (bookingId !== NO_BOOKING) form.set("bookingPublicId", bookingId);
+        for (const f of files) {
+          const thumb = await makeImageThumbnail(f);
+          form.append("attachment", f);
+          form.append("attachment_thumb", thumb, thumb.name);
+        }
         await createTicket(form);
       } catch (e) {
         if (e && typeof e === "object" && "digest" in e) throw e;
@@ -152,6 +160,18 @@ export function NewTicketForm({
         />
       </div>
 
+      <div className="grid gap-2">
+        <Label htmlFor="ticket-photos">Photos</Label>
+        <PhotoPicker
+          id="ticket-photos"
+          files={files}
+          inputRef={inputRef}
+          onAdd={addFiles}
+          onRemove={(i) => setFiles(files.filter((_, j) => j !== i))}
+          disabled={pending}
+        />
+      </div>
+
       {error ? (
         <p className="text-destructive text-sm" role="alert">
           {error}
@@ -160,7 +180,7 @@ export function NewTicketForm({
 
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={submit} disabled={pending}>
-          {pending ? "Sending…" : "Send ticket"}
+          {pending ? "Starting…" : "Start chat"}
         </Button>
         {onCancel ? (
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
