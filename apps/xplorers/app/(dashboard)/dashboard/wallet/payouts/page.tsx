@@ -5,11 +5,11 @@ import { requirePermission } from "@/lib/auth/guards";
 import { EVENT_LABELS, PAYOUT_EVENTS, walletService } from "@/lib/services/wallet.service";
 import { savePayoutAction } from "../actions";
 
-const DESCRIPTIONS: Record<(typeof PAYOUT_EVENTS)[number], string> = {
+const DESCRIPTIONS = {
   booking_paid: "Each booking, when staff verify its payment. Free bookings earn nothing.",
   first_booking: "Welcome bonus: once per customer, on their first paid booking.",
   birthday_booking: "A paid booking for a Birthday class.",
-};
+} as const satisfies Record<(typeof PAYOUT_EVENTS)[number], string>;
 
 export default async function WalletPayoutsPage() {
   await requirePermission({ wallet: ["read"] });

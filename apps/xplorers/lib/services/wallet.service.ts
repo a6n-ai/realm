@@ -57,8 +57,8 @@ const base = createWalletService<AppEvent>({
   maxBalance: () => getMaxWalletBalance(),
 });
 
-/** Events staff can attach coins to (manual_adjustment is staff grants, not a payout). */
-export const PAYOUT_EVENTS = APP_EVENTS.filter((e) => e !== "manual_adjustment");
+/** Events staff can attach coins to (manual_adjustment is staff grants; notify-only events are not payouts). */
+export const PAYOUT_EVENTS = ["booking_paid", "first_booking", "birthday_booking"] as const satisfies readonly AppEvent[];
 
 /** One row per payout event so the admin grid always lists them; new rows start off. */
 async function ensurePayoutRows(): Promise<void> {
@@ -131,12 +131,19 @@ async function familyUserId(publicId: string): Promise<bigint> {
   return row.id;
 }
 
-/** Plain names for wallet events, shared by the family card and the admin screens. */
+/** Plain names for app events (wallet + notifications). */
 export const EVENT_LABELS: Record<AppEvent, string> = {
   booking_paid: "Booking paid",
   first_booking: "Welcome bonus (first booking)",
   birthday_booking: "Birthday booking",
   manual_adjustment: "From the team",
+  wallet_credited: "Coins credited",
+  ticket_created: "Support ticket opened",
+  ticket_reply: "Support reply",
+  ticket_resolved: "Ticket resolved",
+  friend_request: "Friend request",
+  friend_accepted: "Friend accepted",
+  staff_invitation: "Staff invitation",
 };
 
 export type FamilyWallet = {

@@ -460,3 +460,104 @@ html.dark .customer-app [role="status"] {
   background: var(--card);
   border-color: var(--border);
 }
+
+/* Overview — soft brand tiles (not CRM StatGrid) */
+.customer-app .xl-pulse {
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  padding: 0.875rem 0.75rem;
+  transition:
+    transform 120ms var(--ease-out),
+    border-color var(--duration-fast) ease;
+}
+.customer-app .xl-pulse:is(a):active {
+  transform: scale(0.98);
+}
+.customer-app .xl-pulse-sky {
+  background: color-mix(in srgb, var(--xl-sky-100) 90%, white);
+  border-color: color-mix(in srgb, var(--xl-sky-400) 45%, var(--border));
+}
+.customer-app .xl-pulse-blush {
+  background: color-mix(in srgb, var(--xl-pink-100) 85%, white);
+  border-color: color-mix(in srgb, var(--xl-pink-600) 28%, var(--border));
+}
+.customer-app .xl-pulse-sunshine {
+  background: color-mix(in srgb, var(--xl-sunshine) 35%, white);
+  border-color: color-mix(in srgb, var(--xl-sunshine) 55%, var(--border));
+}
+.customer-app .xl-quick {
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  transition:
+    transform 120ms var(--ease-out),
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
+}
+.customer-app .xl-quick:hover {
+  border-color: color-mix(in srgb, var(--xl-sky-400) 65%, var(--border));
+  background: color-mix(in srgb, var(--xl-sky-100) 55%, white);
+}
+.customer-app .xl-quick:active {
+  transform: scale(0.97);
+}
+.customer-app .xl-quick-icon {
+  display: inline-flex;
+  size: 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--xl-sky-100) 90%, white);
+  color: var(--xl-navy-800);
+}
+.customer-app .xl-next-up {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--xl-sky-100) 70%, white),
+    var(--card) 55%,
+    color-mix(in srgb, var(--xl-pink-100) 35%, white)
+  );
+  padding: 1.25rem;
+}
+.customer-app .xl-next-up-live {
+  border-color: color-mix(in srgb, var(--xl-sky-400) 50%, var(--border));
+}
+.customer-app .xl-book-tile {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--xl-sky-100) 40%, white);
+  padding: 1rem;
+  transition:
+    transform 120ms var(--ease-out),
+    border-color var(--duration-fast) ease;
+}
+.customer-app .xl-book-tile:hover {
+  border-color: color-mix(in srgb, var(--xl-sky-400) 70%, var(--border));
+}
+.customer-app .xl-book-tile:active {
+  transform: scale(0.98);
+}
+
+html.dark .customer-app .xl-pulse-sky,
+html.dark .customer-app .xl-pulse-blush,
+html.dark .customer-app .xl-pulse-sunshine,
+html.dark .customer-app .xl-quick:hover,
+html.dark .customer-app .xl-next-up,
+html.dark .customer-app .xl-book-tile {
+  background: var(--card);
+  border-color: var(--border);
+}
+html.dark .customer-app .xl-quick-icon {
+  background: var(--secondary);
+  color: var(--foreground);
+}

@@ -1,13 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { LayoutDashboardIcon, UserIcon, UsersIcon } from "lucide-react";
+import { CalendarDaysIcon, LayoutDashboardIcon, SettingsIcon, UserIcon } from "lucide-react";
 import { BottomNav, type BottomNavItem } from "@foundry/design-system";
 
 const TABS = [
   { href: "/me", title: "Overview", icon: LayoutDashboardIcon },
-  { href: "/me/friends", title: "Friends", icon: UsersIcon },
-  { href: "/me/account", title: "Account", icon: UserIcon },
+  { href: "/me/classes", title: "Classes", icon: CalendarDaysIcon },
+  { href: "/me/friends", title: "Profile", icon: UserIcon },
+  { href: "/me/account", title: "Settings", icon: SettingsIcon },
 ] as const;
 
 export function CustomerBottomNav() {

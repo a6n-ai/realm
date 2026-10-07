@@ -6,10 +6,11 @@ import { cn } from "@foundry/ui/cn";
 
 const LINKS = [
   { href: "/me", label: "Overview" },
-  { href: "/me/friends", label: "Friends" },
+  { href: "/me/classes", label: "My classes" },
+  { href: "/me/friends", label: "Profile" },
   { href: "/me/wallet", label: "Finances" },
   { href: "/me/support", label: "Support" },
-  { href: "/me/account", label: "Account" },
+  { href: "/me/account", label: "Settings" },
 ];
 
 export function CustomerNav() {

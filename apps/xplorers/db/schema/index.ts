@@ -10,3 +10,4 @@ export * from "./wallet";
 export * from "./friends";
 export * from "./tickets";
 export * from "./personalization";
+export * from "./notifications";

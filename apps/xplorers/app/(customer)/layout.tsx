@@ -22,6 +22,7 @@ import { getAppClock } from "@/lib/services/app-settings.service";
 import { friendsService } from "@/lib/services/friends.service";
 import { personalizationService } from "@/lib/services/personalization.service";
 import { walletService } from "@/lib/services/wallet.service";
+import { getFeed } from "@/lib/notifications/feed";
 import { REF_COOKIE } from "@/lib/friends/ref-cookie";
 import "@/app/customer.css";
 
@@ -49,7 +50,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   if (session.user.role !== Role.USER) redirect("/no-access");
 
   const [u] = await db
-    .select({ name: users.name, status: users.status })
+    .select({ id: users.id, name: users.name, status: users.status })
     .from(users)
     .where(eq(users.publicId, session.user.id))
     .limit(1);
@@ -62,11 +63,12 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   const onWelcome = pathname === "/me/welcome" || pathname.startsWith("/me/welcome/");
   const editPersonalization = search.includes("edit=1");
 
-  const [{ timezone }, jar, wallet, personalizationDone] = await Promise.all([
+  const [{ timezone }, jar, wallet, personalizationDone, notificationFeed] = await Promise.all([
     getAppClock(),
     cookies(),
     walletService.coinsForFamily(session.user.id).catch(() => null),
     personalizationService.isCompleteForCustomer(),
+    getFeed(u.id).catch(() => undefined),
     // Customers are created on several paths (signup, booking, staff); the
     // first /me load is the one place all of them pass, so usernames start here.
     friendsService.ensureUsername(session.user.id).catch((e) => console.error("ensureUsername", e)),
@@ -91,7 +93,13 @@ export default async function CustomerLayout({ children }: { children: ReactNode
               hideSidebarOnMobile
               brand={<CustomerBrand href="/me" />}
               sidebar={<CustomerNav />}
-              actions={<CustomerHeaderActions coinBalance={wallet?.balance ?? null} />}
+              actions={
+                <CustomerHeaderActions
+                  coinBalance={wallet?.balance ?? 0}
+                  userPublicId={session.user.id}
+                  notificationFeed={notificationFeed}
+                />
+              }
               bottomNav={<CustomerBottomNav />}
             >
               {invite !== undefined ? <InviteBanner inviter={invite} /> : null}

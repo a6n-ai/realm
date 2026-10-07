@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
     "@foundry/storage",
     "@foundry/payments",
     "@relay/email",
+    "@relay/engine",
   ],
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
@@ -40,6 +41,7 @@ const nextConfig: NextConfig = {
       "@foundry/crm",
       "@foundry/auth-ui",
       "@foundry/ui",
+      "@relay/engine",
     ],
     // Reuse a visited dynamic page for 30s on back/forward and repeat clicks
     // instead of a fresh server round trip. Server actions still invalidate it.

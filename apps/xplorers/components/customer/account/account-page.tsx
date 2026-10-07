@@ -69,13 +69,13 @@ export function AccountPage({
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <div className={cn(active && "hidden lg:block")}>
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Account</h1>
+        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Settings</h1>
         <p className="text-muted-foreground mt-1 text-sm md:text-base">{who || "Your settings"}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-10">
         <div className={cn("space-y-6", active && "hidden lg:block")}>
-          <nav aria-label="Account sections" className="space-y-4">
+          <nav aria-label="Settings sections" className="space-y-4">
             <ul className="bg-card divide-border divide-y overflow-hidden rounded-[18px] border lg:hidden">
               {ACCOUNT_SECTIONS.map((s) => (
                 <li key={s.key}>
@@ -160,7 +160,7 @@ export function AccountPage({
               className="text-muted-foreground mb-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold lg:hidden"
             >
               <ArrowLeftIcon aria-hidden className="size-4" />
-              Account
+              Settings
             </Link>
           ) : null}
           <SectionBody k={shown.key} user={user} google={google} personalization={personalization} />

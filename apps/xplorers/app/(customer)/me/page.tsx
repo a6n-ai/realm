@@ -1,95 +1,143 @@
 import Link from "next/link";
-import { CalendarDaysIcon, CompassIcon } from "lucide-react";
-import { EmptyState, PageHeader, PageShell, SectionCard } from "@foundry/design-system";
-import { Badge } from "@foundry/ui/badge";
+import { CalendarDaysIcon, CoinsIcon, CompassIcon, SparklesIcon } from "lucide-react";
+import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { getSession } from "@/lib/auth/session";
 import { bookingsService } from "@/lib/services/bookings.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
+import { loadPublicSessionCards } from "@/lib/sessions/public";
 import { formatSessionDay, formatSessionTime } from "@/lib/sessions/format";
+import { BookingRow } from "@/components/customer/classes/booking-row";
+import { NextUpCard } from "@/components/customer/overview/next-up-card";
+import { PulseStrip } from "@/components/customer/overview/pulse-strip";
+import { QuickActions } from "@/components/customer/overview/quick-actions";
+
+const MORE_UPCOMING = 3;
+const BOOKABLE_PREVIEW = 4;
 
 export default async function CustomerHomePage() {
   const session = await getSession();
   const firstName = session?.user.name?.split(" ")[0] || session?.user.email.split("@")[0];
-  const [bookings, timeZone, wallet] = await Promise.all([
-    session?.user ? bookingsService.listForUser(session.user.id) : Promise.resolve([]),
+  const userId = session?.user?.id;
+
+  const [bookings, timeZone, wallet, publicSessions, bookedIds] = await Promise.all([
+    userId ? bookingsService.listForUser(userId) : Promise.resolve([]),
     studioSessionsService.timezone(),
-    session?.user ? walletService.coinsForFamily(session.user.id, 5) : Promise.resolve(null),
+    userId ? walletService.coinsForFamily(userId, 5) : Promise.resolve(null),
+    loadPublicSessionCards(),
+    userId ? bookingsService.listConfirmedOccurrencePublicIds(userId) : Promise.resolve([]),
   ]);
+
+  const now = Date.now();
+  const upcoming = bookings
+    .filter((b) => b.startsAt.getTime() >= now && (b.status === "confirmed" || b.status === "pending"))
+    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+  const attended = bookings.filter((b) => b.status === "confirmed" && b.startsAt.getTime() < now).length;
+  const booked = new Set(bookedIds);
+  const toBook = publicSessions.cards
+    .filter((c) => c.startsAt.getTime() >= now && c.remaining > 0 && !booked.has(c.publicId))
+    .slice(0, BOOKABLE_PREVIEW);
+  const next = upcoming[0] ?? null;
+  const rest = upcoming.slice(1, 1 + MORE_UPCOMING);
 
   return (
     <PageShell>
       <PageHeader
         icon={CompassIcon}
-        title={firstName ? `Hi, ${firstName}` : "Your space"}
-        subtitle="Your bookings, coins and class history."
+        title={firstName ? `Hi, ${firstName}` : "Overview"}
+        subtitle="Your week — next class, open seats, and shortcuts."
         actions={
           <Button asChild size="sm">
             <Link href="/whats-on">See what&apos;s on</Link>
           </Button>
         }
       />
-      {wallet ? (
+
+      <PulseStrip
+        items={[
+          {
+            label: "Upcoming",
+            value: upcoming.length,
+            hint: upcoming.length === 1 ? "class" : "classes",
+            href: "/me/classes",
+            tone: "sky",
+            icon: CalendarDaysIcon,
+          },
+          {
+            label: "Done",
+            value: attended,
+            hint: "attended",
+            href: "/me/classes",
+            tone: "blush",
+            icon: SparklesIcon,
+          },
+          {
+            label: "Coins",
+            value: wallet ? wallet.balance.toLocaleString() : "—",
+            hint: wallet ? `≈ ${wallet.value}` : "wallet",
+            href: "/me/wallet",
+            tone: "sunshine",
+            icon: CoinsIcon,
+          },
+        ]}
+      />
+
+      <QuickActions />
+
+      <NextUpCard booking={next} timeZone={timeZone} />
+
+      {rest.length > 0 ? (
         <SectionCard
-          title="Coins"
-          subtitle={`${wallet.balance.toLocaleString()} coins · worth ${wallet.value}.${wallet.held ? ` ${wallet.held.toLocaleString()} more held for an unpaid booking until it's paid.` : ""} Use them when you book.`}
+          title="Also coming up"
           action={
             <Button asChild size="sm" variant="outline">
-              <Link href="/me/wallet">Finances</Link>
+              <Link href="/me/classes">All classes</Link>
             </Button>
           }
         >
-          {wallet.recent.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No coin activity yet.</p>
-          ) : (
-            <ul className="divide-border divide-y text-sm">
-              {wallet.recent.map((r) => (
-                <li key={r.publicId} className="flex items-center justify-between gap-3 py-2">
-                  <span>
-                    {r.label}
-                    <span className="text-muted-foreground"> · {formatSessionDay(new Date(r.when), timeZone)}</span>
-                  </span>
-                  <span className="tabular-nums font-medium">
-                    {r.credit ? "+" : "−"}
-                    {r.coins}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="divide-border divide-y">
+            {rest.map((booking) => (
+              <BookingRow key={booking.publicId} booking={booking} timeZone={timeZone} />
+            ))}
+          </ul>
         </SectionCard>
       ) : null}
-      <SectionCard title="Bookings">
-        {bookings.length === 0 ? (
-          <EmptyState
-            icon={CalendarDaysIcon}
-            message="No bookings yet. Pick a class day on the public calendar."
-            action={
-              <Button asChild>
-                <Link href="/whats-on">Book a session</Link>
-              </Button>
-            }
-          />
+
+      <SectionCard
+        title="Open to book"
+        subtitle="Seats still free on the next published sessions."
+        action={
+          <Button asChild size="sm" variant="outline">
+            <Link href="/whats-on">Full calendar</Link>
+          </Button>
+        }
+      >
+        {toBook.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Nothing open right now. Check{" "}
+            <Link href="/whats-on" className="font-semibold underline underline-offset-2">
+              What&apos;s on
+            </Link>{" "}
+            later.
+          </p>
         ) : (
-          <ul className="divide-border divide-y">
-            {bookings.map((booking) => (
-              <li key={booking.publicId} className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium">{booking.sessionTitle}</p>
-                  <p className="text-muted-foreground text-sm">
-                    {formatSessionDay(booking.startsAt, timeZone)} · {formatSessionTime(booking.startsAt, timeZone)} ·{" "}
-                    {booking.seats} {booking.seats === 1 ? "seat" : "seats"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={booking.status === "confirmed" ? "default" : "outline"}>{booking.status}</Badge>
-                  {booking.status === "pending" && booking.paymentPublicId ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/me/pay/${booking.paymentPublicId}`}>Pay</Link>
-                    </Button>
-                  ) : null}
-                </div>
+          <ul className="grid gap-2.5 sm:grid-cols-2">
+            {toBook.map((card) => (
+              <li key={card.occurrenceKey}>
+                <Link href={`/whats-on?book=${card.publicId}`} className="xl-book-tile">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold tracking-tight">{card.title}</p>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                      {formatSessionDay(card.startsAt, publicSessions.timeZone)} ·{" "}
+                      {formatSessionTime(card.startsAt, publicSessions.timeZone)}
+                    </p>
+                    <p className="text-[var(--xl-navy-800)] mt-2 text-xs font-bold">{card.spots}</p>
+                  </div>
+                  <span className="bg-primary text-primary-foreground border-border inline-flex h-9 w-fit items-center rounded-[var(--radius)] border px-3 text-sm font-bold">
+                    Book
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

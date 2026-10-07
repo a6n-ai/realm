@@ -11,7 +11,7 @@ export type AccountSection = {
 };
 
 export const ACCOUNT_SECTIONS: AccountSection[] = [
-  { key: "profile", slug: "profile", label: "Profile", hint: "Photo, name, username", icon: UserIcon },
+  { key: "profile", slug: "profile", label: "Edit profile", hint: "Photo, name, username", icon: UserIcon },
   { key: "about", slug: "about", label: "About you", hint: "Personalization answers", icon: SparklesIcon },
   { key: "security", slug: "security", label: "Security", hint: "Email, password, Google", icon: ShieldIcon },
 ];
