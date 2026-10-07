@@ -41,6 +41,15 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
       { name: "customerName", label: "Customer name" },
     ],
   },
+  order_complimentary: {
+    entity: "order",
+    fields: [
+      { name: "code", label: "Order code" },
+      { name: "customerName", label: "Customer name" },
+      { name: "date", label: "Delivery date" },
+      { name: "reason", label: "Reason" },
+    ],
+  },
   payment_received: {
     entity: "payment",
     fields: [

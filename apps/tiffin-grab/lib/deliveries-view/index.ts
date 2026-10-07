@@ -40,6 +40,8 @@ export type CalendarDayInput = {
   optimoCompletionStatus?: string | null;
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
+  /** Staff's reason when this is a free tiffin; null for a paid one. */
+  complimentaryNote?: string | null;
 };
 
 export type TiffinMove = { from: string | null; to: string };
@@ -86,8 +88,9 @@ export type Trip = {
   /** This delivery's own drop-off when re-addressed (no tag = none there); ignored otherwise. */
   dropOff?: DropOffValue;
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
-  /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
   optimoCompletionStatus?: string | null;
+  /** Staff's reason when this is a free tiffin; null for a paid one. */
+  complimentaryNote?: string | null;
 };
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -149,6 +152,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         movedTo: d.movedTo ?? d.combinedInto ?? null,
         movesIn: d.movesIn ?? [],
         movesOut: d.movesOut ?? [],
+        complimentaryNote: d.complimentaryNote ?? null,
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));

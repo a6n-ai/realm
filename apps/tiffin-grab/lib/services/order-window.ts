@@ -87,6 +87,19 @@ export async function earliestNewPlanStart(
   return iso(bands.reduce((max, b) => (b.endExclusive > max ? b.endExclusive : max), bands[0]!.endExclusive));
 }
 
+/** Rejects a single day that falls inside another active/paused plan of this customer. */
+export async function assertDayOutsideOtherPlans(
+  tx: Tx | typeof db,
+  args: { userId: bigint; date: string; excludeOrderId: bigint },
+): Promise<void> {
+  const day = parseIsoDateUtc(args.date);
+  for (const b of await reservedBands(tx, args.userId, args.excludeOrderId)) {
+    if (b.start <= day && day < b.endExclusive) {
+      throw new ValidationError(`This customer has another plan running on ${args.date}. Give the tiffin on that plan instead.`);
+    }
+  }
+}
+
 /**
  * Rejects a plan window [startDate, startDate + durationWeeks*7) that overlaps any other
  * active/paused order of this customer: both would materialize deliveries on the same days.

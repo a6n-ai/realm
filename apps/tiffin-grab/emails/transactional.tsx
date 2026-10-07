@@ -339,6 +339,8 @@ export interface EmailTemplate {
   event: string;
   subject: string;
   element: ReactNode;
+  /** In-app feed copy for the same event, seeded alongside the email. */
+  inApp?: { subject: string; body: string };
 }
 
 export const TEMPLATES: EmailTemplate[] = [
@@ -527,6 +529,26 @@ export const TEMPLATES: EmailTemplate[] = [
             ["Starts", "{{payment.startDate}}"],
             ["Duration", "{{payment.durationWeeks}} weeks"],
             ["Delivery days", "{{payment.deliveryDays}}"],
+          ]}
+        />
+        <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
+      </Layout>
+    ),
+  },
+  {
+    event: "order_complimentary",
+    subject: "A free tiffin is on us",
+    inApp: { subject: "A free tiffin is on us", body: "Complimentary tiffin on {{order.date}}. {{order.reason}}" },
+    element: (
+      <Layout preview="We added a complimentary tiffin to your plan.">
+        <Eyebrow>Complimentary tiffin</Eyebrow>
+        <Title lead="This one is" accent="on us." />
+        <P>Hi {"{{order.customerName}}"}, we added a free tiffin to your plan.</P>
+        <Details
+          rows={[
+            ["Delivery", "{{order.date}}"],
+            ["Order", "{{order.code}}"],
+            ["Why", "{{order.reason}}"],
           ]}
         />
         <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>

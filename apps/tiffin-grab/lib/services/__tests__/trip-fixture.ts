@@ -26,7 +26,7 @@ export async function resetTrips(deploymentId: string, userPrefix: string) {
     if (dl.length) await db.delete(deliveryCategorySwaps).where(inArray(deliveryCategorySwaps.deliveryId, dl.map((d) => d.id)));
     await db.delete(orderActivities).where(inArray(orderActivities.orderId, ids));
     // makeup / merge links are self-references: clear before deleting
-    await db.update(deliveries).set({ makeupForDeliveryId: null, mergedIntoDeliveryId: null }).where(inArray(deliveries.orderId, ids));
+    await db.update(deliveries).set({ makeupForDeliveryId: null, mergedIntoDeliveryId: null, complimentaryForDeliveryId: null }).where(inArray(deliveries.orderId, ids));
     await db.delete(deliveries).where(inArray(deliveries.orderId, ids));
     await db.delete(payments).where(inArray(payments.orderId, ids));
     await db.delete(orders).where(inArray(orders.id, ids));

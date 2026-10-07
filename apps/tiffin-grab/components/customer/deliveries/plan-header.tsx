@@ -54,6 +54,7 @@ export function PlanHeader({ name, sub, counts, renew, color }: {
             sub.trial ? "Trial" : null,
             ...(sub.addons ?? []).map((a) => `+ ${a.name}${a.qty > 1 ? ` ×${a.qty}` : ""}`),
             `${counts.remaining} of ${counts.total} tiffins left`,
+            counts.complimentary ? `incl. ${counts.complimentary} free` : null,
           ].filter(Boolean).map((x, i) => <span key={i} className={cn("inline-flex items-center gap-1.5", MUTED)}><span aria-hidden>·</span>{x}</span>)}
         </p>
         {renew != null && <p className={cn("mt-0.5 text-[13px]", MUTED)}>Renews in {renew} {renew === 1 ? "day" : "days"}</p>}

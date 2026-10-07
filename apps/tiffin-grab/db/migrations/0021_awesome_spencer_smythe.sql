@@ -1,0 +1,3 @@
+ALTER TABLE "deliveries" ADD COLUMN "complimentary_for_delivery_id" bigint;--> statement-breakpoint
+ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_complimentary_for_delivery_id_deliveries_id_fk" FOREIGN KEY ("complimentary_for_delivery_id") REFERENCES "public"."deliveries"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "deliveries_complimentary_for_unique" ON "deliveries" USING btree ("complimentary_for_delivery_id");

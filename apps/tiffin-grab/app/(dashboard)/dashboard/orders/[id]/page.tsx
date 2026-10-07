@@ -36,6 +36,7 @@ import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { ChangePlanControl } from "./change-plan-control";
 import { StartDateControl } from "./start-date-control";
+import { ComplimentaryControl } from "./complimentary-control";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
@@ -208,7 +209,7 @@ async function OrderDetail({
       value: counts ? `${counts.remaining} / ${counts.total}` : String(order.tiffinCount),
       icon: PackageIcon,
       hint: counts
-        ? `${ended ? (order.status === "completed" ? "Plan over · " : "Cancelled · ") : ""}${counts.delivered} delivered${order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}`
+        ? `${ended ? (order.status === "completed" ? "Plan over · " : "Cancelled · ") : ""}${counts.delivered} delivered${order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}${order.complimentaryTiffins > 0 ? ` · ${order.complimentaryTiffins} free` : ""}`
         : "Schedule not started",
     },
     notStarted
@@ -218,11 +219,32 @@ async function OrderDetail({
     { label: "Balance due", value: fmt(due, settings.currency), icon: ReceiptIcon, tone: due > 0 ? "bad" : "ok", hint: toReview ? `${toReview} payment${toReview === 1 ? "" : "s"} to review` : undefined },
   ];
 
+  // Missed days a free tiffin can make up for: held/vacation/failed, never moved, not yet given one.
+  const settled = new Set(deliveryRows.flatMap((r) => [r.makeupForDeliveryId, r.complimentaryForDeliveryId]).filter((id) => id != null).map(String));
+  const missedOptions = deliveryRows
+    .filter((r) => (r.status === "skipped" || r.status === "paused") && r.mergedIntoDeliveryId == null && !settled.has(String(r.id)))
+    .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))
+    .map((r) => ({
+      publicId: r.publicId,
+      label: `${humanDate(r.deliveryDate)} · ${r.status === "paused" ? "vacation" : r.optimoCompletionStatus === "failed" ? "not delivered" : "on hold"}`,
+    }));
+  // Admin only; a trial, an unpaid or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
+  const canGiveFree = session?.user?.role === "admin" && order.trialLength == null && (order.status === "active" || order.status === "completed");
   const headerActions = (
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
       {/* A trial can only have its dishes edited (orders.service rejects a plan change). */}
+      {canGiveFree && (
+        <ComplimentaryControl
+          orderId={order.publicId}
+          ended={order.status === "completed"}
+          minDate={nextWeekday(startToday).toISOString().slice(0, 10)}
+          allowedDays={(counts?.deliveryWeekdays ?? []).filter((d) => d !== "sat" && d !== "sun")}
+          otherPlanEnd={otherPlanEnd}
+          missed={missedOptions}
+        />
+      )}
       {order.trialLength == null && <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />}
     </>
   );

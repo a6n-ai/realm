@@ -424,8 +424,10 @@ export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Pr
 }
 
 export type TiffinCounts = {
-  /** tiffinCount snapshot from checkout — persons × delivery days over the plan. */
+  /** tiffinCount snapshot from checkout (persons × delivery days) plus complimentary tiffins. */
   total: number;
+  /** Free tiffins staff gave, included in total. */
+  complimentary: number;
   /** Days past cutoff that stayed scheduled (incl. make-ups), × persons. */
   delivered: number;
   /** total − delivered: future scheduled days and tiffins not yet delivered (failed, not moved). */
@@ -454,6 +456,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       id: orders.id,
       mealSizeId: orders.mealSizeId,
       tiffinCount: orders.tiffinCount,
+      complimentaryTiffins: orders.complimentaryTiffins,
       persons: orders.persons,
       includeSaturday: orders.includeSaturday,
       includeSunday: orders.includeSunday,
@@ -494,10 +497,12 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     includeSunday: !order.eatingDays?.length && order.includeSunday,
   }).filter((d) => d !== "sat" && d !== "sun");
 
+  const total = order.tiffinCount + order.complimentaryTiffins;
   return {
-    total: order.tiffinCount,
+    total,
+    complimentary: order.complimentaryTiffins,
     delivered,
-    remaining: order.tiffinCount - delivered,
+    remaining: total - delivered,
     persons: order.persons,
     lastDeliveryDate,
     deliveryWeekdays,
@@ -590,7 +595,7 @@ export type EndedPlan = {
 // refund) is skipped: there is nothing to explain.
 export async function myEndedPlan(userId: bigint): Promise<EndedPlan | null> {
   const candidates = await db
-    .select({ id: orders.id, publicId: orders.publicId, deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount, planName: plans.name, mealSizeName: mealSizes.name })
+    .select({ id: orders.id, publicId: orders.publicId, deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount, complimentaryTiffins: orders.complimentaryTiffins, planName: plans.name, mealSizeName: mealSizes.name })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
@@ -617,7 +622,7 @@ export async function myEndedPlan(userId: bigint): Promise<EndedPlan | null> {
       publicId: o.publicId, planName: o.planName, mealSizeName: o.mealSizeName,
       status: o.status as "completed" | "cancelled",
       corrected: correction != null,
-      total: o.tiffinCount,
+      total: o.tiffinCount + o.complimentaryTiffins,
       delivered: done.reduce((n, r) => n + r.tiffinUnits, 0),
       deliveredDates: done.map((r) => r.deliveryDate),
     };
@@ -792,6 +797,8 @@ export type CalendarDay = {
   carriedMeals?: Record<string, ResolvedMeal>;
   /** Eating days this trip carries (covers_dates length); 1 for legacy single-day rows. */
   coverCount?: number;
+  /** Staff's reason when this is a free tiffin; null for a paid one. */
+  complimentaryNote?: string | null;
 };
 
 // Day-cell aggregator for the customer calendar (this week + next week). Composed entirely from
@@ -860,6 +867,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       extras: row.mergedIntoDeliveryId ? [] : (extrasById.get(row.id) ?? []),
       coversLabel: row.mergedIntoDeliveryId ? null : formatCoversLabel(covers),
       combinedInto: row.mergedIntoDeliveryId ? (targetDateById.get(row.mergedIntoDeliveryId) ?? null) : null,
+      complimentaryNote: row.complimentaryNote,
     };
   };
 

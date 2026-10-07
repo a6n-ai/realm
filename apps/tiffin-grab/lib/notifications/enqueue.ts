@@ -11,6 +11,7 @@ type Channel = (typeof notificationTables.notificationOutbox.channel.enumValues)
 const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
   order_activated: ["email", "in_app"],
   order_cancelled: ["email", "in_app"],
+  order_complimentary: ["email", "in_app"],
   menu_released: ["email", "in_app"],
   payment_received: ["email", "in_app"],
   payment_approved: ["email", "in_app"],

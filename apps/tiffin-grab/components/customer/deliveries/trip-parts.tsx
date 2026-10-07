@@ -73,7 +73,7 @@ export function TripRow({ trip, tz, selected, onSelect, plan }: { trip: Trip; tz
     >
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold">{humanDate(trip.date)}</span>
-        <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">{trip.status === "combined-into" ? rowSubline(trip, tz) : trip.coversLabel ?? tiffins(trip.units)}</span>
+        <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">{trip.status === "combined-into" ? rowSubline(trip, tz) : trip.coversLabel ?? tiffins(trip.units)}{trip.complimentaryNote ? " · Complimentary" : ""}</span>
         {plan && <span className="mt-1 block"><PlanTag plan={plan} /></span>}
       </span>
       <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
@@ -212,6 +212,12 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
         <h2 className="text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">{humanDate(row.date)}</h2>
         {meta && <p className="mt-1 text-[14px] tabular-nums text-[var(--muted-foreground,#6E6558)]" data-testid="delivery-pills">{meta}</p>}
         {plan && <span className="mt-1 inline-block"><PlanTag plan={plan} /></span>}
+        {trip.complimentaryNote && (
+          <p className="mt-2 text-[14px]" data-testid="complimentary-note">
+            <Pill tone="brand" className="mr-2 h-7 px-2.5 text-[12px]">Complimentary</Pill>
+            <span className="text-[var(--muted-foreground,#6E6558)]">{trip.complimentaryNote}</span>
+          </p>
+        )}
         {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-6"><Journey status={trip.status} caption={JOURNEY_NOTE[trip.status]} /></div> : (
           <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
             {m.dot && <StatusDot decorative status={m.dot} />}
