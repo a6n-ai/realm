@@ -386,7 +386,8 @@ describe("PickSheet", () => {
     show(trip({ coversDates: [mon] }));
     await openCat();
     const yourMeal = await screen.findByRole("region", { name: "Your meal" });
-    expect(yourMeal).toHaveTextContent("Paneer · 8oz");
+    expect(within(yourMeal).getByText("Paneer")).toBeInTheDocument();
+    expect(within(yourMeal).getByText("Curry · 8oz")).toBeInTheDocument();
   });
 
   it("Save closes with a toast after a change", async () => {
@@ -458,7 +459,9 @@ describe("PickSheet", () => {
     expect(screen.getByRole("radio", { name: /Rice · 1 unit · uses 4 items/ })).toBeInTheDocument();
 
     // Your meal summary displays 6 roti
-    expect(screen.getByRole("region", { name: "Your meal" })).toHaveTextContent("Roti (Veg) · 6 roti");
+    const yourMeal = screen.getByRole("region", { name: "Your meal" });
+    expect(within(yourMeal).getByText("Roti (Veg)")).toBeInTheDocument();
+    expect(within(yourMeal).getByText("Roti · 6 roti")).toBeInTheDocument();
   });
 
   it("sanitizes Minified React error #441 if thrown when saving picks on Done", async () => {

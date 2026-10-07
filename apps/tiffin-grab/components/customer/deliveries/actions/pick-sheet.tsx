@@ -2,6 +2,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
+import { MealTiles, type MealCategory } from "../trip-parts";
 import { addonRowKeys, countAddons, isCountCategory, mealBasePortions, splitGroups } from "@/lib/menu/pick-addons";
 import {
   applyMyDeliverySwap,
@@ -43,6 +44,21 @@ const PREFIX = "pick";
 const shortDay = (iso: string) => humanDate(iso).replace(",", "");
 const ADDONS = "__addons";
 const muted = "text-[var(--muted-foreground,#6E6558)]";
+
+/** Summary lines ("Paneer Makhani · 12oz") as meal tiles, one per item. */
+function toTiles(blocks: MealSummaryLine[]): MealCategory[] {
+  return blocks.map((b) => ({
+    category: b.categoryLabel,
+    label: b.categoryLabel,
+    // The summary joins one dish's portions ("Mix Veg · 12oz + 8oz"); a tile is one item each.
+    items: b.lines.flatMap((line): MealCategory["items"] => {
+      const at = line.indexOf(" · ");
+      if (at < 0) return [{ name: line, portion: null, defaulted: false }];
+      const name = line.slice(0, at);
+      return line.slice(at + 3).split(" + ").map((portion) => ({ name, portion, defaulted: false }));
+    }),
+  }));
+}
 
 function slotLabel(group: PickCategoryGroup, index: number): string {
   const diet = group.cells[index]?.diet;
@@ -553,21 +569,22 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 {dayLocked && <p className={`text-[13px] ${muted}`}>Locked. Your picks for this day are final.</p>}
               </div>
 
-              {/* What the tiffin holds right now, at a glance; the categories below change it. */}
+              {/* What the tiffin holds right now, as the same tiles the Deliveries page uses. */}
               {summary.length > 0 && (
-                <section aria-label="Your meal" className="rounded-2xl bg-[var(--muted)]/60 px-4 py-3">
-                  <h3 className={`text-[12px] font-semibold uppercase tracking-wide ${muted}`}>Your meal</h3>
-                  <ul className="mt-1.5 grid gap-1 text-[14px]">
-                    {summary.map((b) => (
-                      <li key={b.categoryLabel}><span className="font-semibold">{b.categoryLabel}</span> <span className={muted}>·</span> {b.lines.join(", ")}</li>
-                    ))}
-                    {addonSummary.map((b) => (
-                      <li key={`addon:${b.categoryLabel}`}><span className="font-semibold">+ {b.categoryLabel}</span> <span className={muted}>·</span> {b.lines.join(", ")}</li>
-                    ))}
-                  </ul>
+                <section aria-label="Your meal" className="grid gap-2">
+                  <h3 className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${muted}`}>Your meal</h3>
+                  <MealTiles cats={toTiles(summary)} />
+                  {addonSummary.length > 0 && (
+                    <>
+                      <h4 className={`mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${muted}`}>Add-ons</h4>
+                      <MealTiles cats={toTiles(addonSummary)} />
+                    </>
+                  )}
                 </section>
               )}
 
+              {/* One grouped list: each category a row, dividers between, one open at a time. */}
+              <div className="divide-y divide-[var(--border,#E8E0D5)] overflow-hidden rounded-2xl border border-[var(--border,#E8E0D5)] bg-[var(--card,#fff)]">
               {rows.map((group) => {
                 const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                 const controlsOff = busy != null || saving;
@@ -708,10 +725,11 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                   </U.CategorySection>
                 );
               })}
+              </div>
 
               {(addonKeys.size > 0 || counted.addons.length > 0) && (
                 // Its own highlighted block: add-ons are extras, picked from the menu, never exchanged.
-                <div className="rounded-2xl ring-1 ring-[var(--primary)]/40">
+                <div className="overflow-hidden rounded-2xl border border-[var(--primary)]/40 bg-[var(--card,#fff)]">
                 <U.CategorySection
                   label="Add-ons"
                   summary={addonSummary.map((b) => b.lines.join(", ")).join(" · ")}

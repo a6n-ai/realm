@@ -251,12 +251,12 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     multi({ plan: carried });
     fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
     const tiles = within(screen.getByTestId("meal-tiles"));
-    expect(tiles.getByText("Sabzi")).toBeInTheDocument();
+    // One tile per item: the two sabzis are two tiles, each with its own portion.
+    expect(tiles.getByText("Sabzi · 12oz")).toBeInTheDocument();
+    expect(tiles.getByText("Sabzi · 8oz")).toBeInTheDocument();
     expect(tiles.queryByText(/2×|3\s*×/)).toBeNull();
     expect(tiles.getAllByText(/Bhindi Masala/).length).toBe(2);
-    expect(tiles.getByText(/12oz/)).toBeInTheDocument();
-    expect(tiles.getByText(/8oz/)).toBeInTheDocument();
-    expect(tiles.getByText(/4 roti/)).toBeInTheDocument();
+    expect(tiles.getByText("Roti · 4 roti")).toBeInTheDocument();
     expect(tiles.getAllByText(/Default/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /Details for Tue, Sep 22/ })).toBeNull();
   });

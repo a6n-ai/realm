@@ -53,18 +53,18 @@ export function ChoiceRow({
       <ChoiceGroup label={label} value={value} onChange={onChange} className="grid grid-cols-2 gap-2">
         {[...choices.filter((c) => !c.swap), ...choices.filter((c) => c.swap)].map((c) => (
           <div key={c.value} className="relative">
-            <Choice value={c.value} disabled={c.disabled} className="min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
+            <Choice value={c.value} disabled={c.disabled} className="h-full min-h-12 w-full px-3.5 py-3 text-[15px] font-semibold">
               <span className="min-w-0 flex-1 text-left leading-snug">{c.label}</span>
-              {c.reason && <span aria-hidden className="size-5 shrink-0" />}
             </Choice>
             {c.reason && (
-              // Outside the (disabled, faded) button so it stays red and tappable.
+              // Outside the (disabled, faded) button so it stays red and tappable; it sits over the
+              // empty radio circle, which means nothing on a choice that can't be picked.
               <button
                 type="button"
                 aria-label={`Why ${c.label} is unavailable`}
                 aria-expanded={why === c.value}
                 onClick={() => setWhy((w) => (w === c.value ? null : c.value))}
-                className="text-destructive absolute top-1/2 right-9 grid size-7 -translate-y-1/2 place-items-center rounded-full"
+                className="text-destructive absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--card,#fff)]"
               >
                 <Info aria-hidden className="size-4" />
               </button>
@@ -105,16 +105,17 @@ export function CategorySection({ label, children, summary, status, open, onTogg
     );
   }
   return (
-    <section aria-label={label} className="rounded-2xl border border-[var(--border,#E8E0D5)] bg-[var(--card,#fff)]">
-      <button type="button" aria-expanded={!!open} onClick={onToggle} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [touch-action:manipulation]">
+    // A row of one grouped list (the sheet wraps the rows in a single bordered card with dividers).
+    <section aria-label={label}>
+      <button type="button" aria-expanded={!!open} onClick={onToggle} className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left [touch-action:manipulation]">
         <span className="min-w-0 flex-1">
-          <span className={`block text-[12px] font-semibold uppercase tracking-wide ${muted}`}>{label}</span>
-          {summary && <span className="block truncate text-[15px] font-semibold">{summary}</span>}
+          <span className={`block text-[11px] font-semibold uppercase tracking-wide ${muted}`}>{label}</span>
+          {summary && <span className="block truncate text-[14px] font-semibold">{summary}</span>}
         </span>
         {status && <span className={`shrink-0 text-[12px] ${muted}`}>{status}</span>}
         <ChevronDown aria-hidden className={`size-4 shrink-0 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""} ${muted}`} />
       </button>
-      {open && <div className="grid gap-5 border-t border-[var(--border,#E8E0D5)] p-4">{children}</div>}
+      {open && <div className="grid gap-4 px-4 pb-4 pt-1">{children}</div>}
     </section>
   );
 }
