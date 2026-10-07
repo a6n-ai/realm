@@ -239,7 +239,14 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
 
       {!row.movedTo && (
         <div>
-          {label("Your meal", "var(--primary)")}
+          <div className="mb-3 flex items-center gap-1">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Your meal</h3>
+            {onDetails && (
+              <button type="button" onClick={onDetails} aria-label={`Details for ${humanDate(row.date)}`} className={cn(FOCUS, "-my-3 grid size-11 place-items-center rounded-full text-[var(--muted-foreground,#6E6558)] [touch-action:manipulation]")}>
+                <Info aria-hidden className="size-4" />
+              </button>
+            )}
+          </div>
           {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : (
             <>
               <p className="text-[17px] font-semibold leading-snug">{first ?? "Default menu"}</p>
@@ -266,17 +273,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
         </div>
       )}
 
-      {(onDetails || children) && (
-        <div className="!mt-4">
-          {onDetails && (
-            <button type="button" onClick={onDetails} aria-label={`Details for ${humanDate(row.date)}`} className={cn(FOCUS, "inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation]")}>
-              <Info aria-hidden className="size-4" />
-              Details
-            </button>
-          )}
-          {children}
-        </div>
-      )}
+      {children}
     </section>
   );
 }

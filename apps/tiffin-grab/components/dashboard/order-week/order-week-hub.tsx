@@ -133,7 +133,10 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
               {!row.movedTo && (
                 <div className="grid gap-6 border-t pt-5 sm:grid-cols-2">
                   <section>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Meal</p>
+                    <div className="mb-2 flex items-center gap-1">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Meal</p>
+                      <Button variant="ghost" size="icon" className="-my-2 size-7" aria-label={`Details for ${humanDate(row.date)}`} onClick={() => setDlg("info")}><Info /></Button>
+                    </div>
                     {menuOut ? <p className="text-muted-foreground text-sm">Menu not released yet</p> : (
                       <>
                         <p className="font-medium">{first ?? "Default menu"}</p>
@@ -155,7 +158,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
               <div className="flex flex-wrap items-start justify-between gap-3 border-t pt-4">
                 {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
                 <Actions model={model} onOpen={setDlg} hide={addressOk ? ["address"] : []} />
-                <Button variant="ghost" size="sm" aria-label={`Details for ${humanDate(row.date)}`} onClick={() => setDlg("info")}><Info data-icon="inline-start" />Details</Button>
               </div>
             </CardContent>
           </Card>
