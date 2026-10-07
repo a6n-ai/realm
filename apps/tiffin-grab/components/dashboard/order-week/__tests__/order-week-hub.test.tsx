@@ -118,7 +118,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     const sat = picker.getByRole("button", { name: /Saturday, September 26/ });
     expect(sat).not.toHaveAttribute("aria-disabled");
     fireEvent.click(sat);
-    expect(screen.getByText(/Sat, Sep 26 will arrive Fri, Sep 25 with Fri|rides the Fri, Sep 25 delivery/)).toBeInTheDocument();
+    expect(screen.getByText("Arrives Fri, Sep 25")).toBeInTheDocument();
     vi.useRealTimers();
   });
   it("info button explains the trip", () => {

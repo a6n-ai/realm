@@ -182,7 +182,7 @@ export function EatingCard({ row, tz, reason, plan, address, children }: { row: 
   const { trip } = row;
   const m = rowMeta(row);
   const facts = row.movedTo ? [movedFact(row)]
-    : trip.status === "failed" ? [`Nothing arrived. Move ${weekdayShort(row.date)}'s tiffin to another day.`]
+    : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
     : isDone(row) ? [reason] : [
     trip.status === "upcoming" ? null : reason,
     !row.own && trip.status === "upcoming" ? `${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery` : null,
@@ -228,15 +228,15 @@ export function EatingCard({ row, tz, reason, plan, address, children }: { row: 
 }
 
 export const EXPLAIN: Record<Trip["status"], string> = {
-  upcoming: "Scheduled. You can still change meals or reschedule until the cutoff.",
+  upcoming: "Scheduled. Changes open until cutoff.",
   delivered: "This delivery has been made.",
-  unconfirmed: "Sent out, waiting for the driver's confirmation. Tiffins left updates once it's confirmed.",
-  "cutoff-passed": "The cutoff has passed and the kitchen is preparing it. It can no longer be changed.",
-  rescheduled: "This day was moved to another day, so nothing arrives on the original date.",
-  locked: "Closed. This day can no longer be changed.",
-  vacation: "Paused, so nothing arrives. Move its tiffin to another day.",
+  unconfirmed: "Out for delivery.",
+  "cutoff-passed": "Being prepared. Can't be changed.",
+  rescheduled: "Moved to another day.",
+  locked: "Closed for changes.",
+  vacation: "Paused. Move it to another day.",
   "combined-into": "Combined into another delivery.",
-  failed: "Delivery failed, so nothing arrived. Move its tiffin to another day.",
+  failed: "Not delivered. Move it to another day.",
 };
 
 /** Meal breakdown of one eating day (category, portion, dishes, swaps), with a compact delivery footer. */
@@ -279,7 +279,7 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
             ))}
           </ul>
         ) : (
-          <p>{dedupeDishes(row.dish).join(", ") || "Default menu. Your dishes appear once this week's menu is released."}</p>
+          <p>{dedupeDishes(row.dish).join(", ") || "Default menu. Dishes show once the menu is out."}</p>
         )}
         {row.swaps.length > 0 && (
           <section aria-label="Swaps">

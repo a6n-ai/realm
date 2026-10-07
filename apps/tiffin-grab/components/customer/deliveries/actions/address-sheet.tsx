@@ -125,7 +125,7 @@ export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps)
               )}
             </div>
 
-            <p className="text-sm text-[var(--muted-foreground)]">Only this delivery moves; drop-off changes are saved to the address. No extra charge.</p>
+            <p className="text-sm text-[var(--muted-foreground)]">This delivery only. Drop-off notes save to the address.</p>
           </>
         )}
         {error && <Notice tone="error">{error}</Notice>}

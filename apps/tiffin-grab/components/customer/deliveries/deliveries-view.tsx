@@ -169,7 +169,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       )}
 
       {locked && !claimPayment && (
-        <Notice>We&apos;re confirming your payment. Your plan is view-only until then; editing meals and moves unlock once it&apos;s approved.</Notice>
+        <Notice>Confirming your payment. You can make changes once it&apos;s approved.</Notice>
       )}
 
       {!locked && (
@@ -222,7 +222,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
             {emptyDay && <Card className="mb-4 p-4"><p className="text-[15px] font-semibold">Nothing planned on {humanDate(emptyDay)}.</p></Card>}
             <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
               <div className="space-y-0.5">
-                {menuOut && <Card className="mb-2 p-4" data-testid="menu-not-released"><p className="text-[15px] font-semibold">Menu not released yet.</p><p className="text-sm text-[var(--muted-foreground,#6E6558)]">Meals appear below once the kitchen releases this week&apos;s menu. You can still move a day.</p></Card>}
+                {menuOut && <Card className="mb-2 p-4" data-testid="menu-not-released"><p className="text-[15px] font-semibold">Menu not released yet.</p><p className="text-sm text-[var(--muted-foreground,#6E6558)]">You can still move a day.</p></Card>}
                 {shown.map((r) => (
                   <div key={r.date} className="flex items-center">
                     <div className="min-w-0 flex-1"><EatingRowButton row={r} selected={!!row && r.date === row.date} onSelect={(x) => select(x.date)} menuOut={menuOut} /></div>
