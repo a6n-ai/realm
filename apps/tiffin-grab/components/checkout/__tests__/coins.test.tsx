@@ -88,7 +88,7 @@ describe("Checkout coins control", () => {
     coinBalance = 100;
   });
 
-  it("is absent — and a sign-in prompt shows instead — when signed out (coinBalance null)", async () => {
+  it("is absent, with no sign-in prompt, when the balance is unknown (coinBalance null)", async () => {
     coinBalance = null;
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
@@ -96,7 +96,8 @@ describe("Checkout coins control", () => {
     await waitFor(() => expect(reprice).toHaveBeenCalled());
 
     expect(screen.queryByLabelText(/use coins/i)).toBeNull();
-    expect(screen.getByText(/sign in/i)).toBeTruthy();
+    // Checkout is signed-in only; telling a member to sign in reads as a broken login.
+    expect(screen.queryByText(/sign in/i)).toBeNull();
   });
 
   it("appears with a balance", async () => {

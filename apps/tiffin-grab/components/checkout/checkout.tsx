@@ -674,12 +674,8 @@ export function Checkout({
                           onPick={(code) => void applyCoupon(code)}
                         />
                       )}
-                      {coinBalance === 0 ? null : coinBalance == null ? (
-                        <p className="text-muted-foreground flex min-h-16 items-center gap-3 px-4 py-3 text-[13px]">
-                          <RowIcon><Coins aria-hidden className="size-[18px]" /></RowIcon>
-                          <span><Link href="/login" className="text-primary font-semibold">Sign in</Link> to pay with your coins.</span>
-                        </p>
-                      ) : (
+                      {/* Checkout is signed-in only; a null balance means the price load failed, not a guest. */}
+                      {coinBalance == null || coinBalance === 0 ? null : (
                         <div className="px-4 py-3.5">
                           <div className="flex items-center gap-3">
                             <RowIcon tone="wash"><Coins aria-hidden className="size-[18px]" /></RowIcon>
