@@ -370,7 +370,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * separate picks for selection; Max TU uses the simulated slot sum after swaps.
    */
   async swapCategoriesForMealSize(mealSizeId: bigint): Promise<Map<string, SwapCategory>> {
-    const [size] = await db.select({ planId: mealSizes.planId }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
+    const [size] = await db.select({ planId: mealSizes.planId, custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
     if (!size) return new Map();
     const [cats, items] = await Promise.all([
       db
@@ -388,6 +388,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     for (const i of items) if (!pickTu.has(i.category)) pickTu.set(i.category, Number(i.tuAmount));
     return new Map(cats.map((c) => [c.key, {
       key: c.key, pickTu: pickTu.get(c.key) ?? null, unitType: c.unitType, unitLabel: c.unitLabel, unitSize: Number(c.unitSize), maxPicksPerTiffin: c.maxPicksPerTiffin,
+      ...(size.custom && !pickTu.has(c.key) ? { addable: true } : {}),
     }]));
   }
 
