@@ -8,7 +8,7 @@ import { CalendarDays, Clock, LifeBuoy, LogOut, Menu as MenuIcon, Plus, RefreshC
 import { useTheme } from "@foundry/themes";
 import { signOut } from "@/lib/auth/client";
 import { cutoffNote, cutoffTime } from "@/lib/deliveries-view/cutoff";
-import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet, ThemeToggle } from "@/components/customer/kit";
+import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSupportUnread } from "@/components/customer/support/unread";
@@ -121,7 +121,6 @@ export function CustomerShell({ coinBalance, cutoffHour, userPublicId, staffRepl
               <span><span className="hidden sm:inline">Cutoff </span>{cutoffTime(cutoffHour)}</span>
             </span>
             <CoinChip href="/me/wallet" balance={coinBalance} active={under(pathname, "/me/wallet")} />
-            <ThemeToggle />
           </div>
         </div>
       </header>

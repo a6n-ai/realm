@@ -77,7 +77,7 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
 }
 
 /** Tap or click: hover-only tooltips never open on phones. */
-function Legend() {
+export function Legend() {
   return (
     <Popover.Root>
       <Popover.Trigger aria-label="What the colours mean" className={cn(FOCUS, "grid size-9 place-items-center rounded-full text-[var(--muted-foreground,#6E6558)] [touch-action:manipulation]")}>

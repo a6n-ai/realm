@@ -60,13 +60,13 @@ const multi = (over: Partial<React.ComponentProps<typeof DeliveriesView>> = {}) 
   render(<DeliveriesView plan={p1} subs={[p1.sub, p2.sub]} windows={win} trips={plan1Trips} agenda={agenda1} weekStart="2026-09-21" firstWeek="2026-09-21" lastWeek="2026-10-05" now={NOW} initialTrip={null} {...over} />);
 
 describe("DeliveriesView (one plan)", () => {
-  it("header: greets by name, bold meal-size title, pills for plan, tiffins left, renew; no hold days or vacation", () => {
+  it("header: greets by name, bold meal-size title, one summary line (status · plan · tiffins left), renew under it", () => {
     view(undefined, trips, plan, { customerName: "Hrithik Raj" });
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Hi, Hrithik.");
     expect(screen.getByTestId("plan-title")).toHaveTextContent("Large");
-    expect(screen.getByText("16 of 20 tiffins left")).toBeInTheDocument();
+    expect(screen.getByTestId("plan-summary")).toHaveTextContent(/Active.*Veg.*16 of 20 tiffins left/);
     expect(screen.queryByText(/hold day|Vacation/)).toBeNull();
-    expect(screen.getByText("renews in 11 days")).toBeInTheDocument();
+    expect(screen.getByText("Renews in 11 days")).toBeInTheDocument();
   });
   it("header: a custom meal reads 'Custom meal' with its composition underneath", () => {
     const name = "1 Rice + 8 Roti + 1× Veg Raita 8oz + 1× Non-Veg Sabzi 8oz + 1× Veg Sabzi 12oz + 1× Veg Sabzi 8oz";
@@ -75,11 +75,15 @@ describe("DeliveriesView (one plan)", () => {
     expect(screen.getByTestId("plan-title")).toHaveTextContent(/^Custom meal$/);
     expect(screen.getByTestId("plan-composition")).toHaveTextContent(name);
   });
-  it("dishes live in the list; the card below shows the delivery, not the eating info", () => {
+  it("the selected day reads as delivery (date + journey), then meal, then destination", () => {
     view();
-    expect(within(screen.getAllByTestId("trip-row")[1]!).getByText("Paneer, Jeera Rice")).toBeInTheDocument();
-    expect(within(screen.getByTestId("delivery-block")).queryByText("Paneer, Jeera Rice")).toBeNull();
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Wed, Sep 23");
+    const block = within(screen.getByTestId("delivery-block"));
+    expect(block.getByRole("heading", { level: 2 })).toHaveTextContent("Wed, Sep 23");
+    expect(block.getByRole("img", { name: "Scheduled delivery" })).toBeInTheDocument();
+    expect(block.getByText("Your meal")).toBeInTheDocument();
+    expect(block.getByText("Paneer")).toBeInTheDocument();
+    expect(block.getByText("Jeera Rice")).toBeInTheDocument();
+    expect(block.getByText("1 tiffin")).toBeInTheDocument();
   });
   it("Edit meal on the eating day opens the pick sheet in one click", () => {
     view();
@@ -124,32 +128,33 @@ describe("DeliveriesView (one plan)", () => {
   });
   it("a delivered day carried on Monday's trip just reads Delivered, without trip details", () => {
     view("2026-09-22");
-    expect(screen.getByRole("heading", { name: /Delivered Mon, Sep 21/ })).toBeInTheDocument();
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Delivered Mon, Sep 21");
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tue, Sep 22");
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Delivered Mon, Sep 21 with Mon");
+    expect(screen.getByRole("img", { name: "Delivered delivery" })).toBeInTheDocument();
     expect(screen.getByTestId("delivery-block")).not.toHaveTextContent(/tiffins covering/);
   });
-  it("selecting another row swaps the detail; rows show no delivery text, just date, dishes, status", () => {
+  it("picking another day in the week strip swaps the delivery below it", () => {
     view();
-    fireEvent.click(screen.getAllByRole("button", { name: /Fri, Sep 25/ })[0]!);
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Delivery failed");
-    expect(within(screen.getAllByTestId("trip-row")[0]!).queryByText(/Arrives|Delivered Mon/)).toBeNull();
+    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Friday, September 25/ }));
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Fri, Sep 25");
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Not delivered");
   });
   it("repeated dishes render without duplicate-key warnings", () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const day = (date: string) => ({ date, dishSummary: "Bhindi Masala, Bhindi Masala", swaps: [], locksWith: null });
     view("2026-09-23", [trip({ eatingDays: [day("2026-09-23"), day("2026-09-24")], units: 2, coversDates: ["2026-09-23", "2026-09-24"] })]);
     expect(err.mock.calls.filter((c) => String(c[0]).includes("same key"))).toEqual([]);
-    expect(screen.getAllByText("Bhindi Masala ×2").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Bhindi Masala ×2").length).toBeGreaterThanOrEqual(1);
     err.mockRestore();
   });
   it("?action opens its sheet on load", () => {
     view("2026-09-23", trips, plan, { initialAction: "move" });
     expect(screen.getByRole("dialog", { name: /^Move / })).toBeInTheDocument();
   });
-  it("the week is the whole list: no earlier/more/month links", () => {
+  it("the week strip is the navigation: no day list, no earlier/more/month links", () => {
     view();
     expect(screen.queryByRole("button", { name: /Show earlier|Show more|See all/ })).toBeNull();
-    expect(screen.getAllByTestId("trip-row")).toHaveLength(4);
+    expect(screen.queryAllByTestId("trip-row")).toHaveLength(0);
   });
 });
 
@@ -159,7 +164,6 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     const nav = screen.getByRole("navigation", { name: "Your plans" });
     expect(within(nav).getAllByRole("button")).toHaveLength(2);
     expect(within(nav).queryByText(/All plans/)).toBeNull();
-    expect(screen.getAllByTestId("trip-row")).toHaveLength(3);
   });
   it("switching plan reloads with ?sub and refreshes so the new plan's own data isn't served from cache", () => {
     replace.mockClear();
@@ -175,11 +179,10 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     expect(strip.getByRole("button", { name: /Monday, September 21, eating, Upcoming, delivery arrives/ })).toBeInTheDocument();
     expect(strip.getByRole("button", { name: /Tuesday, September 22, eating, Upcoming$/ })).toBeInTheDocument();
   });
-  it("Next delivery card always shows the upcoming delivery; the tapped eating day's delivery card is below the list", () => {
+  it("no separate next-delivery banner; a day carried on another truck names that delivery", () => {
     multi();
-    expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21, 2 tiffins (Mon + Tue)");
+    expect(screen.queryByTestId("next-delivery")).toBeNull();
     fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
-    expect(screen.getByTestId("next-delivery")).toHaveTextContent("Next delivery: Mon, Sep 21");
     expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Mon, Sep 21 with Mon");
   });
   it("the next-week arrow updates ?week via router.replace", () => {
@@ -246,6 +249,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
       days: [{ date: "2026-09-21", menuWeekId: "w1", meal: null, carriedMeals: { "2026-09-22": meal } }],
     } as unknown as PlanView;
     multi({ plan: carried });
+    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
     fireEvent.click(screen.getByRole("button", { name: /Details for Tue, Sep 22/ }));
     const d = screen.getByRole("dialog", { name: /Tue, Sep 22 · your meal/ });
     expect(within(d).getByText("Sabzi")).toBeInTheDocument();
@@ -262,9 +266,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     const out = { ...p1, days: [{ date: "2026-09-21", menuWeekId: null, meal: null }, { date: "2026-09-24", menuWeekId: null, meal: null }] } as unknown as PlanView;
     multi({ plan: out, initialTrip: "2026-09-21" });
     expect(screen.getByTestId("menu-not-released")).toHaveTextContent("Menu not released yet.");
-    const rows = screen.getAllByTestId("trip-row");
-    expect(rows.length).toBeGreaterThan(0);
-    expect(within(rows[0]!).getByText("Menu not released yet")).toBeInTheDocument();
+    expect(within(screen.getByTestId("delivery-block")).getByText("Menu not released yet")).toBeInTheDocument();
     expect(screen.getByTestId("week-timeline")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: /Edit meal/ })[0]!);
     expect(screen.queryByRole("dialog", { name: "Edit meal" })).toBeNull();

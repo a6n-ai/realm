@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-/** Customer `/me`: plan line, eating-day rows for the selected week, week strip, selected-trip card actions (inline on desktop, sticky bar on mobile) and sheets. */
+/** Customer `/me`: plan line, week strip (the day picker), the selected day's delivery block, its actions (inline on desktop, sticky bar on mobile) and sheets. */
 export class CustomerDeliveriesPage {
   constructor(readonly page: Page) {}
 
@@ -9,12 +9,17 @@ export class CustomerDeliveriesPage {
     return this.page.getByRole("heading", { level: 1 });
   }
 
+  /** Days in the strip you eat on. */
   tripRows() {
-    return this.page.getByTestId("trip-row").filter({ visible: true });
+    return this.strip().getByRole("button", { name: /, eating,/ });
   }
 
   strip() {
-    return this.page.getByTestId("week-strip");
+    return this.page.getByTestId("week-timeline");
+  }
+
+  deliveryBlock() {
+    return this.page.getByTestId("delivery-block");
   }
 
   planChips() {

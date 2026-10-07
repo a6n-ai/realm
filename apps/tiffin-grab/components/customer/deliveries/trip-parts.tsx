@@ -1,9 +1,9 @@
 "use client";
-import { ArrowDownLeft, ArrowUpRight, Info, MapPin, Package, Truck, Utensils } from "lucide-react";
-import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
+import { ArrowDownLeft, ArrowUpRight, Check, House, Info, MapPin, Package, Truck } from "lucide-react";
+import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, isDone, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow, type MoveFact } from "@/lib/deliveries-view/eating";
+import { deliveryLine, isDone, moveFacts, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
@@ -125,104 +125,131 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
 
 const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
 
-/** One eating day of the selected week: date + dishes; a truck marks the delivery day, the "i" button (beside the row) holds the rest. */
-export function EatingRowButton({ row, selected, onSelect, plan, menuOut }: { row: EatingRow; selected: boolean; onSelect: (row: EatingRow) => void; plan?: PlanTagInfo; menuOut?: boolean }) {
-  const m = rowMeta(row);
-  const dish = dedupeDishes(row.dish).join(", ");
-  return (
-    <button
-      type="button"
-      data-testid="trip-row"
-      aria-pressed={selected}
-      aria-label={`${humanDate(row.date)}${plan ? `, ${plan.label}` : ""}, ${m.label}`}
-      onClick={() => onSelect(row)}
-      className={cn(
-        FONT, FOCUS,
-        "flex min-h-14 w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors [touch-action:manipulation] motion-reduce:transition-none",
-        selected ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]/60",
-      )}
-    >
-      <Utensils aria-hidden className="mt-0.5 size-5 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center justify-between gap-2">
-          <span className="whitespace-nowrap text-[15px] font-semibold">{humanDate(row.date)}</span>
-          <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
-            {m.dot && <StatusDot decorative status={m.dot} />}
-            {m.label}
-          </span>
-        </span>
-        <span className={cn(HELP, "block truncate")}>{row.movedTo ? `Moved to ${humanDate(row.movedTo)}` : menuOut ? "Menu not released yet" : dish || "Default menu"}</span>
-        {!row.movedTo && row.trip.status !== "failed" && (row.own || moveTags(row).length > 0) && (
-          <span className="mt-1 flex flex-wrap gap-1">
-            {row.own && <Pill size="sm" tone="up">{tiffins(row.trip.units)}</Pill>}
-            {!isDone(row) && moveTags(row).map((t) => <MovePill key={t.kind} fact={t} />)}
-          </span>
-        )}
-      </span>
-    </button>
-  );
-}
-
-/** "Fri's tiffin moved here" (in) or "Mon's own tiffin moved to …" (out), as a pill. */
-export function MovePill({ fact }: { fact: MoveFact }) {
-  const Icon = fact.kind === "in" ? ArrowDownLeft : ArrowUpRight;
-  return (
-    <Pill size="sm" tone={fact.kind === "in" ? "brand" : "soft"} icon={<Icon aria-hidden className="size-3.5 shrink-0" />} className="whitespace-normal text-left">
-      {fact.text}
-    </Pill>
-  );
-}
-
 /** Delivery card for the selected eating day: which truck feeds it, how many tiffins, when it locks. Dishes live in the list, not here. */
 /** Trips that still physically go somewhere (not moved away or paused), so naming an address means something. */
 const GOES_OUT = new Set<Trip["status"]>(["upcoming", "cutoff-passed", "unconfirmed", "delivered", "locked", "failed"]);
 
-export function EatingCard({ row, tz, reason, plan, address, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; children?: React.ReactNode }) {
+/** Where the tiffin is on its way to the door. No live tracking: the position comes from the trip's status alone. */
+const JOURNEY: Partial<Record<Trip["status"], { at: number; label: string }>> = {
+  upcoming: { at: 12, label: "Scheduled" },
+  "cutoff-passed": { at: 38, label: "Preparing" },
+  locked: { at: 38, label: "Preparing" },
+  unconfirmed: { at: 72, label: "On the way" },
+  delivered: { at: 100, label: "Delivered" },
+};
+
+export function Journey({ status }: { status: Trip["status"] }) {
+  const j = JOURNEY[status];
+  if (!j) return null;
+  const done = j.at === 100;
+  const blue = "var(--s-upcoming,#0ea5e9)";
+  const tone = done ? "var(--s-delivered,#10b981)" : blue;
+  return (
+    <div role="img" aria-label={`${j.label} delivery`} data-testid="journey" className="pb-1">
+      <div className="relative mx-5 h-11">
+        <span aria-hidden className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-[var(--border)]" />
+        <span aria-hidden className="absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${j.at}%`, background: tone }} />
+        <span aria-hidden className="absolute left-0 top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[var(--card)] ring-[1.5px] ring-[var(--border)]">
+          <Package className="size-[18px] text-[var(--primary)]" />
+        </span>
+        <span aria-hidden className="absolute right-0 top-1/2 grid size-9 -translate-y-1/2 translate-x-1/2 place-items-center rounded-full bg-[var(--card)] ring-[1.5px]" style={{ ["--tw-ring-color" as string]: done ? tone : "var(--border)" }}>
+          {done ? <Check className="size-[18px]" style={{ color: tone }} /> : <House className="size-[18px] text-[var(--muted-foreground,#6E6558)]" />}
+        </span>
+        {!done && (
+          <span aria-hidden className="absolute top-1/2 grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full text-white shadow-md transition-[left] duration-500 motion-reduce:transition-none" style={{ left: `${Math.max(j.at, 18)}%`, background: blue }}>
+            <Truck className="size-5" />
+          </span>
+        )}
+      </div>
+      <div aria-hidden className="mt-1.5 grid grid-cols-3 text-[12px] font-semibold text-[var(--muted-foreground,#6E6558)]">
+        <span>Meal</span>
+        <span className="text-center" style={{ color: tone }}>{j.label}</span>
+        <span className="text-right">Your home</span>
+      </div>
+    </div>
+  );
+}
+
+const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: tz }).format(ms);
+
+/** The selected eating day, as the page's main card: date, dishes, then one quiet line for tiffins, delivery day and cutoff. */
+export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
   const facts = row.movedTo ? [movedFact(row)]
     : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
-    : isDone(row) ? [reason] : [
-    trip.status === "upcoming" ? null : reason,
-    !row.own && trip.status === "upcoming" ? `${humanDate(row.date)} locks with ${weekdayShort(trip.date)}'s delivery` : null,
-  ].filter(Boolean);
+    : isDone(row) ? [reason] : [trip.status === "upcoming" ? null : reason];
   const moves = row.movedTo ? [] : moveFacts(row);
   const arriving = !row.movedTo && GOES_OUT.has(trip.status) && trip.status !== "failed";
+  const [first, ...rest] = dedupeDishes(row.dish);
+  const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}`;
+  const meta = arriving ? [
+    // A day carried on another day's truck says which one.
+    trip.date !== row.date ? `${trip.status === "delivered" ? "Delivered" : "Arrives"} ${humanDate(trip.date)} with ${weekdayShort(trip.date)}` : null,
+    trip.status === "upcoming" && trip.cutoffAt ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : null,
+  ].filter(Boolean).join(" · ") || null : null;
+  const label = (text: string, color: string) => <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color }}>{text}</h3>;
+  const MUTED = "var(--muted-foreground,#6E6558)";
   return (
-    <Card className="p-5 lg:p-8" aria-live="polite" data-testid="delivery-block">
-      <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
-        {m.dot && <StatusDot decorative status={m.dot} />}
-        {m.label}
-        {plan && <PlanTag plan={plan} />}
-      </p>
-      <h2 className="mt-1 flex items-center gap-2 text-[24px] font-bold leading-tight tracking-[-0.03em] lg:text-[30px]">
-        <Truck aria-hidden className="size-6 shrink-0" />
-        {deliveryLine(row)}
-      </h2>
-      {(arriving || moves.length > 0) && (
-        <div className="mt-3 flex flex-wrap gap-2" data-testid="delivery-pills">
-          {arriving && (
-            <Pill size="sm" tone="up" icon={<Package aria-hidden className="size-3.5 shrink-0" />}>
-              {tiffins(trip.units)} {trip.status === "delivered" ? "delivered" : "on this delivery"}: {tiffinBreakdown(trip)}
-            </Pill>
+    <section aria-live="polite" data-testid="delivery-block" className="space-y-7">
+      {/* One question per block: delivery (blue), meal (warm), destination (neutral). Spacing separates them, not cards. */}
+      <div>
+        {label("Delivery", "var(--s-upcoming,#0ea5e9)")}
+        <h2 className="text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">{humanDate(row.date)}</h2>
+        {meta && <p className="mt-0.5 text-[14px] tabular-nums text-[var(--muted-foreground,#6E6558)]" data-testid="delivery-pills">{meta}</p>}
+        {plan && <span className="mt-1 inline-block"><PlanTag plan={plan} /></span>}
+        {!row.movedTo && JOURNEY[trip.status] ? <div className="mt-5"><Journey status={trip.status} /></div> : (
+          <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
+            {m.dot && <StatusDot decorative status={m.dot} />}
+            {eyebrow ?? m.label}
+          </p>
+        )}
+        {(facts.length > 0 || moves.length > 0) && (
+          <ul className="mt-3 space-y-1 text-[14px] text-[var(--muted-foreground,#6E6558)]">
+            {facts.map((f) => <li key={f}>{f}</li>)}
+            {moves.map((f) => {
+              const Icon = f.kind === "in" ? ArrowDownLeft : ArrowUpRight;
+              return <li key={f.kind} className="flex items-center gap-1.5"><Icon aria-hidden className="size-3.5 shrink-0" />{f.text}</li>;
+            })}
+          </ul>
+        )}
+      </div>
+
+      {!row.movedTo && (
+        <div>
+          {label("Your meal", "var(--primary)")}
+          {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : (
+            <>
+              <p className="text-[17px] font-semibold leading-snug">{first ?? "Default menu"}</p>
+              {rest.length > 0 && <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">{rest.join(" · ")}</p>}
+            </>
           )}
-          {moves.map((f) => <MovePill key={f.kind} fact={f} />)}
+          {arriving && <p className="mt-1 text-[14px] text-[var(--muted-foreground,#6E6558)]">{tiffinCount}</p>}
         </div>
       )}
-      <ul className="mt-3 space-y-1 text-[15px] text-[var(--muted-foreground,#6E6558)]">
-        {facts.map((f) => (
-          <li key={f} className="flex gap-2"><span aria-hidden className="mt-[9px] size-1.5 shrink-0 rounded-full bg-current opacity-60" />{f}</li>
-        ))}
-      </ul>
+
       {address && !row.movedTo && GOES_OUT.has(trip.status) && (
-        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px]" data-testid="delivery-address">
-          <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
-          <span>{trip.status === "delivered" ? "Delivered to" : "Delivers to"} <span className="font-semibold">{address.text}</span></span>
-          {address.changed && <Pill tone="brand" size="sm">This delivery only</Pill>}
-        </p>
+        <div>
+          {label("Destination", MUTED)}
+          <p className="flex items-center gap-2 text-[15px]" data-testid="delivery-address">
+            <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
+            <span className="min-w-0 truncate">{address.text}{address.changed ? " (this delivery only)" : ""}</span>
+          </p>
+        </div>
       )}
-      {children}
-    </Card>
+
+      {(onDetails || children) && (
+        <div>
+          {onDetails && (
+            <button type="button" onClick={onDetails} aria-label={`Details for ${humanDate(row.date)}`} className={cn(FOCUS, "inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation]")}>
+              <Info aria-hidden className="size-4" />
+              Details
+            </button>
+          )}
+          {children}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -291,10 +318,3 @@ export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow
   );
 }
 
-export function InfoButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button type="button" aria-label={label} onClick={onClick} className={cn(FOCUS, "grid size-11 shrink-0 place-items-center rounded-full text-[var(--muted-foreground,#6E6558)] hover:bg-[var(--muted)] [touch-action:manipulation]")}>
-      <Info aria-hidden className="size-5" />
-    </button>
-  );
-}

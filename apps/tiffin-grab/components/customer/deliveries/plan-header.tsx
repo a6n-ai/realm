@@ -1,6 +1,7 @@
 "use client";
 import type { Subscription, SubscriptionWindow, TiffinCounts } from "@/lib/services/customer-deliveries.service";
-import { OrderStatusBadge } from "@/components/ds";
+import { ORDER_STATUS_LABEL } from "@/components/ds/order-status-badge";
+import { cn } from "@/components/customer/kit/cn";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -12,11 +13,11 @@ export function windowLabel(w: SubscriptionWindow | undefined, today: string): s
   return w.first > today ? `Starts ${shortDate(w.first)}` : `Running · to ${shortDate(w.last)}`;
 }
 
-const Pill = ({ children, tone }: { children: React.ReactNode; tone?: "warn" }) => (
-  <span className={`inline-flex min-h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium tabular-nums ${tone === "warn" ? "bg-[var(--s-vac,#d98a00)]/15 text-[var(--foreground)]" : "bg-[var(--muted)] text-[var(--muted-foreground,#6E6558)]"}`}>{children}</span>
-);
+const MUTED = "text-[var(--muted-foreground,#6E6558)]";
+const DOT: Record<string, string> = { ok: "var(--s-delivered,#10b981)", warn: "var(--s-vac,#d98a00)", bad: "var(--s-hold,#f43f5e)" };
+const TONE: Record<string, keyof typeof DOT> = { active: "ok", upcoming: "ok", paused: "ok", waitlisted: "warn", payment_review: "warn", cancelled: "bad", rejected: "bad" };
 
-/** Greets the customer by name; the plan gets a bold size title with diet, tiffins left and renew as small pills. */
+/** Greets the customer by name; the plan gets a bold size title and one summary line (status · diet · tiffins left). */
 export function PlanHeader({ name, sub, counts, renew, color }: {
   name?: string | null;
   sub: Subscription;
@@ -34,21 +35,22 @@ export function PlanHeader({ name, sub, counts, renew, color }: {
         </h1>
       </div>
       {/* A custom meal's name is its whole composition — too long for the title on a phone. */}
-      <p className="mt-3 text-[22px] font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeCustom ? "Custom meal" : sub.mealSizeName}</p>
+      <p className="mt-2 text-[22px] font-bold leading-tight tracking-[-0.02em]" data-testid="plan-title">{sub.mealSizeCustom ? "Custom meal" : sub.mealSizeName}</p>
       {sub.mealSizeCustom && (
         <p className="mt-1 text-[15px] leading-snug text-pretty text-[var(--muted-foreground,#6E6558)]" data-testid="plan-composition">{sub.mealSizeName}</p>
       )}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <OrderStatusBadge status={sub.displayStatus} />
-        <Pill>
-          {dot && <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: dot }} />}
-          {sub.tagLabel || sub.planName}
-        </Pill>
-        {sub.trial && <Pill tone="warn">Trial</Pill>}
-        {sub.addons?.map((a) => <Pill key={a.name}>+ {a.name}{a.qty > 1 ? ` ×${a.qty}` : ""}</Pill>)}
-        <Pill>{counts.remaining} of {counts.total} tiffins left</Pill>
-        {renew != null && <Pill>renews in {renew} {renew === 1 ? "day" : "days"}</Pill>}
-      </div>
+      {/* One quiet line instead of a row of pills: status, diet, what's left; renew under it. */}
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[15px] tabular-nums" data-testid="plan-summary">
+        <span aria-hidden className="size-2 rounded-full" style={{ background: DOT[TONE[sub.displayStatus] ?? ""] ?? "var(--muted-foreground)" }} />
+        <span className="font-semibold">{ORDER_STATUS_LABEL[sub.displayStatus] ?? sub.displayStatus}</span>
+        {[
+          <span key="diet" className="inline-flex items-center gap-1.5">{dot && <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: dot }} />}{sub.tagLabel || sub.planName}</span>,
+          sub.trial ? "Trial" : null,
+          ...(sub.addons ?? []).map((a) => `+ ${a.name}${a.qty > 1 ? ` ×${a.qty}` : ""}`),
+          `${counts.remaining} of ${counts.total} tiffins left`,
+        ].filter(Boolean).map((x, i) => <span key={i} className={cn("inline-flex items-center gap-1.5", MUTED)}><span aria-hidden>·</span>{x}</span>)}
+      </p>
+      {renew != null && <p className={cn("mt-0.5 text-[13px]", MUTED)}>Renews in {renew} {renew === 1 ? "day" : "days"}</p>}
     </header>
   );
 }

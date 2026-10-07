@@ -1,6 +1,4 @@
 "use client";
-import { LifeBuoy, Truck } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/customer/kit";
@@ -18,8 +16,8 @@ import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
-import { EatingCard, EatingRowButton, InfoButton, TripInfoSheet, tiffins } from "./trip-parts";
-import { WeekTimeline } from "./week-timeline";
+import { EatingCard, TripInfoSheet } from "./trip-parts";
+import { WeekStrip } from "./week-strip";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "move"];
@@ -132,6 +130,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const dates = Object.keys(agenda).sort();
   const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;
   const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
+  const helpHref = trip ? `/me/support/new?orderId=${encodeURIComponent(plan.orderId)}&date=${trip.date}` : undefined;
   const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo));
 
   return (
@@ -169,90 +168,55 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
       {!locked && (
       <>
-      {upcoming && (
-        <button
-          type="button"
-          data-testid="next-delivery"
-          onClick={() => goTo(upcoming.deliveryDate)}
-          className={cn(FOCUS, "mb-4 flex min-h-12 w-full items-center gap-3 rounded-2xl border-[1.5px] border-[var(--border)] bg-[var(--card,#fff)] px-4 py-2.5 text-left [touch-action:manipulation]")}
-        >
-          <Truck aria-hidden className="size-5 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
-          <span className="min-w-0">
-            <span className="block text-[15px] font-semibold">Next delivery: {humanDate(upcoming.deliveryDate)}, {tiffins(upcoming.units)} ({upcoming.covers.map(weekdayShort).join(" + ")})</span>
-          </span>
-        </button>
-      )}
+      <div className={cn("grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] lg:items-start lg:gap-12", navigating && "opacity-60 transition-opacity")} aria-busy={navigating}>
+        {/* Schedule picks the day; everything below it is that day's delivery. */}
+        <div className="min-w-0">
+          <WeekStrip
+            firstWeek={firstWeek}
+            lastWeek={lastWeek}
+            week={weekStart}
+            today={today}
+            selectedDay={row?.date ?? sel}
+            agenda={agenda}
+            now={now}
+            onPickDay={pickDay}
+            onWeek={(m) => goWeek(m)}
+          />
 
-      <div className="mb-4">
-        <WeekTimeline
-          firstWeek={firstWeek}
-          lastWeek={lastWeek}
-          week={weekStart}
-          today={today}
-          selectedDay={row?.date ?? sel}
-          agenda={agenda}
-          now={now}
-          onPickDay={pickDay}
-          onWeek={(m) => goWeek(m)}
-        />
-      </div>
-
-
-      <div className={navigating ? "opacity-60 transition-opacity" : undefined} aria-busy={navigating}>
-        <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--muted-foreground,#6E6558)]">{weekTitle(weekStart)}</h2>
-        {shown.length === 0 && !emptyDay ? (
-          <Card className="space-y-3 p-6">
-            <p className="text-[15px] font-semibold">Nothing to eat this week.</p>
-            {next ? (
-              <>
-                <p className="text-sm text-[var(--muted-foreground,#6E6558)]">{next > weekStart ? "Next" : "Last"} day: {humanDate(next)}.</p>
-                <Button variant="primary" onClick={() => goTo(next)}>Go to {humanDate(next)}</Button>
-              </>
-            ) : (
-              <p className="text-sm text-[var(--muted-foreground,#6E6558)]">Nothing else is scheduled.</p>
-            )}
-          </Card>
-        ) : (
-          <>
-            {emptyDay && <Card className="mb-4 p-4"><p className="text-[15px] font-semibold">Nothing planned on {humanDate(emptyDay)}.</p></Card>}
-            <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
-              <div className="space-y-0.5">
-                {menuOut && <Card className="mb-2 p-4" data-testid="menu-not-released"><p className="text-[15px] font-semibold">Menu not released yet.</p><p className="text-sm text-[var(--muted-foreground,#6E6558)]">You can still move a day.</p></Card>}
-                {shown.map((r) => (
-                  <div key={r.date} className={cn("flex items-center rounded-xl pr-1", !!row && r.date === row.date && "bg-[var(--muted)]")}>
-                    <div className="min-w-0 flex-1"><EatingRowButton row={r} selected={!!row && r.date === row.date} onSelect={(x) => select(x.date)} menuOut={menuOut} /></div>
-                    <InfoButton label={`Details for ${humanDate(r.date)}`} onClick={() => setInfo(r)} />
-                  </div>
-                ))}
-              </div>
-
-              <div className="min-w-0 space-y-4">
-                {row && trip && model ? (
-                  <EatingCard row={row} tz={tz} reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why} address={deliveryAddress(trip.addressOverride, sub)}>
-                    <div className="mt-6 hidden lg:block">
-                      <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} />
-                    </div>
-                    <Link
-                      href={`/me/support/new?orderId=${encodeURIComponent(plan.orderId)}&date=${trip.date}`}
-                      className={cn(FOCUS, "mt-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation]")}
-                      data-testid="delivery-help"
-                    >
-                      <LifeBuoy aria-hidden className="size-4" />
-                      Need help with this delivery?
-                    </Link>
-                  </EatingCard>
-                ) : null}
-              </div>
+          {menuOut && <p className="mt-3 text-sm text-[var(--muted-foreground,#6E6558)]" data-testid="menu-not-released"><span className="font-semibold text-[var(--foreground)]">Menu not released yet.</span> You can still move a day.</p>}
+          {shown.length === 0 && (
+            <div className="mt-4 space-y-3">
+              <p className="text-[15px] font-semibold">Nothing to eat this week.</p>
+              {next ? <Button variant="primary" onClick={() => goTo(next)}>Go to {humanDate(next)}</Button> : <p className="text-sm text-[var(--muted-foreground,#6E6558)]">Nothing else is scheduled.</p>}
             </div>
-
-            {trip && model && (model.rows.length > 0 || model.goTo) && (
-              <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
-                <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} />
+          )}
+        </div>
+        <div className="min-w-0">
+          {row && trip && model ? (
+            <EatingCard
+              row={row}
+              tz={tz}
+              eyebrow={trip.date === upcoming?.deliveryDate && trip.status === "upcoming" ? "Next delivery" : null}
+              menuOut={menuOut && trip.date >= weekStart && trip.date <= weekEnd}
+              reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}
+              address={deliveryAddress(trip.addressOverride, sub)}
+              onDetails={() => setInfo(row)}
+            >
+              <div className="mt-6 hidden lg:block">
+                <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} helpHref={helpHref} />
               </div>
-            )}
-          </>
-        )}
+            </EatingCard>
+          ) : emptyDay ? (
+            <p className="text-[15px] font-semibold">Nothing planned on {humanDate(emptyDay)}.</p>
+          ) : null}
+        </div>
       </div>
+
+      {trip && model && (model.rows.length > 0 || model.goTo) && (
+        <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
+          <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} helpHref={helpHref} />
+        </div>
+      )}
       </>
       )}
 

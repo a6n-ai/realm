@@ -40,17 +40,15 @@ test("moving a trip shows on the new date and not the old", async ({ page }) => 
 
   // Old date: source trip is Moved (not a normal Upcoming eating day)
   await page.goto(`/me?week=${fromDate}&trip=${fromDate}`);
-  const oldTrip = page.getByTestId("trip-row").filter({ hasText: /Mon,\s*Sep\s*28/i });
-  await expect(oldTrip.first()).toBeVisible({ timeout: 20_000 });
-  await expect(oldTrip.first()).toContainText(/Moved/i);
-  await expect(oldTrip.first()).not.toContainText(/Upcoming/i);
+  const oldTrip = page.getByTestId("delivery-block");
+  await expect(oldTrip).toContainText(/Mon,\s*Sep\s*28/i, { timeout: 20_000 });
+  await expect(oldTrip).toContainText(/Moved/i);
 
   // New date: make-up arrives Oct 7
   await page.goto(`/me?week=2026-10-05&trip=${toDate}`);
-  const newTrip = page.getByTestId("trip-row").filter({ hasText: /Wed,\s*Oct\s*7/i });
-  await expect(newTrip.first()).toBeVisible({ timeout: 20_000 });
-  await expect(newTrip.first()).toContainText(/Make-up/i);
-  await expect(page.getByText(/Arrives Wed, Oct 7/i).first()).toBeVisible();
+  const newTrip = page.getByTestId("delivery-block");
+  await expect(newTrip).toContainText(/Wed,\s*Oct\s*7/i, { timeout: 20_000 });
+  await expect(newTrip.getByRole("img", { name: "Scheduled delivery" })).toBeVisible();
 
   await page.screenshot({ path: "e2e/.auth/move-smoke.png", fullPage: true });
 });
