@@ -127,6 +127,13 @@
       "when": 1791221923458,
       "tag": "0017_faithful_hellion",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791398722452,
+      "tag": "0018_hot_black_bolt",
+      "breakpoints": true
     }
   ]
 }

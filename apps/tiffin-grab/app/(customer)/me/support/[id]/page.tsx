@@ -11,11 +11,15 @@ import { TicketThread, TicketThreadSkeleton } from "@/components/customer/suppor
 
 export default function TicketThreadPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <BackLink href="/me/support" label="Support" />
-      <Suspense fallback={<PageHeader eyebrow="Support" title="Support ticket" />}>
-        <TicketHeader params={params} />
-      </Suspense>
+    // Fills the screen between the app header and the tab bar (desktop: the page padding), so the
+    // heading stays put and only the chat window scrolls. 177px = header 64 (+1 border) + main pt 16 + main pb 96.
+    <div className="mx-auto flex h-[calc(100dvh-177px-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-w-2xl flex-col gap-3 lg:h-[calc(100dvh-129px)]">
+      <div className="shrink-0">
+        <BackLink href="/me/support" label="Support" />
+        <Suspense fallback={<PageHeader eyebrow="Support ticket" title="Support ticket" />}>
+          <TicketHeader params={params} />
+        </Suspense>
+      </div>
       <Suspense fallback={<TicketThreadSkeleton />}>
         <TicketThreadData params={params} />
       </Suspense>
@@ -37,7 +41,7 @@ async function TicketHeader({ params }: { params: Promise<{ id: string }> }) {
   }
 
   return (
-    <PageHeader eyebrow="Support ticket" title={ticket.subject} subtitle="Reply below if you need to add more detail." />
+    <PageHeader eyebrow="Support ticket" title={ticket.subject} />
   );
 }
 

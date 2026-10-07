@@ -141,7 +141,7 @@ describe("ticketsService", () => {
     const messages = await ticketsService.listMessages(ticket.publicId);
     const system = messages.find((m) => m.authorType === "system");
     expect(system).toBeDefined();
-    expect(system?.body).toBe("Status: open → resolved");
+    expect(system?.body).toBe("Status: Open → Resolved");
 
     const [row] = await db.select().from(tickets).where(eq(tickets.id, ticket.id));
     expect(row.status).toBe("resolved");
@@ -164,7 +164,28 @@ describe("ticketsService", () => {
 
     actAs(customer, "user");
     const customerView = (await ticketsService.listMessages(ticket.publicId)).map((m) => m.body);
-    expect(customerView).toEqual(["Please pause.", "Status: open → resolved"]);
+    expect(customerView).toEqual(["Please pause.", "Status: Open → Resolved"]);
+  });
+
+  it("the customer rates a completed chat 1-5 stars; not before, not staff", async () => {
+    const customer = await seedUser("Cust Rate", "user");
+    const staff = await seedUser("Staff Rate", "admin");
+
+    actAs(customer, "user");
+    const ticket = await ticketsService.create({ subject: "Late", category: "delivery", subcategory: "late_delivery", body: "Came late." });
+    await expect(ticketsService.rate(ticket.publicId, 5)).rejects.toThrow(ValidationError);
+
+    actAs(staff, "admin");
+    await ticketsService.changeStatus(ticket.publicId, "resolved");
+    await expect(ticketsService.rate(ticket.publicId, 5)).rejects.toThrow(ForbiddenError);
+
+    actAs(customer, "user");
+    await expect(ticketsService.rate(ticket.publicId, 6)).rejects.toThrow(ValidationError);
+    await ticketsService.rate(ticket.publicId, 4, "  Quick fix  ");
+    await ticketsService.rate(ticket.publicId, 5);
+    const [row] = await db.select().from(tickets).where(eq(tickets.id, ticket.id));
+    expect(row).toMatchObject({ rating: 5, ratingNote: null });
+    expect(row.ratedAt).not.toBeNull();
   });
 
   it("a different customer cannot read or reply to another customer's ticket", async () => {

@@ -198,3 +198,42 @@ export function ReplyBoxSkeleton() {
     <Skeleton className="h-[54px] w-full rounded-3xl" />
   );
 }
+
+/**
+ * Status as one-tap pills right above the chat, so staff move it without leaving the
+ * conversation. The customer sees the same status as a plain-words banner.
+ */
+export function StatusPills({ ticketId, status }: { ticketId: string; status: TicketStatus }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <div role="radiogroup" aria-label="Chat status" className="flex flex-wrap gap-1.5">
+      {STATUSES.map((s) => {
+        const on = s.value === status;
+        return (
+          <button
+            key={s.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            disabled={pending || on}
+            onClick={() =>
+              start(async () => {
+                await setStatus(ticketId, s.value);
+                router.refresh();
+                toast(`Status → ${s.label}`);
+              })
+            }
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-default",
+              on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground",
+              pending && !on && "opacity-50",
+            )}
+          >
+            {s.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

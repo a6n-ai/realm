@@ -1,5 +1,6 @@
+import { sql } from "drizzle-orm";
 import { baseColumns, updatableColumns } from "@foundry/database";
-import { bigint, index, jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, check, index, integer, jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";
 import { organization } from "./organizations";
@@ -33,6 +34,10 @@ export const tickets = pgTable("tickets", {
   currentOwner: bigint("current_owner", { mode: "bigint" }).references(() => users.id),
   orderId: bigint("order_id", { mode: "bigint" }).references(() => orders.id),
   closedAt: bigint("closed_at", { mode: "number" }),
+  // The customer's 1-5 star feedback once the chat is resolved; NULL = not rated yet.
+  rating: integer("rating"),
+  ratingNote: text("rating_note"),
+  ratedAt: bigint("rated_at", { mode: "number" }),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
@@ -42,6 +47,7 @@ export const tickets = pgTable("tickets", {
   index("tickets_created_idx").on(t.createdAt),
   index("tickets_organization_idx").on(t.organizationId),
   index("tickets_order_idx").on(t.orderId),
+  check("tickets_rating_range", sql`${t.rating} is null or ${t.rating} between 1 and 5`),
 ]);
 
 // A message may carry image attachments uploaded with the reply.

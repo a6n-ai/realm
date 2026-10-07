@@ -51,6 +51,10 @@ export function computeOverdue(status: string, lastMessageAt: number | null, now
 
 type Actor = { id: bigint; role: RoleValue; isStaff: boolean };
 
+const STATUS_TEXT: Record<TicketStatus, string> = {
+  open: "Open", in_progress: "In progress", waiting_on_customer: "Waiting on customer", resolved: "Resolved", closed: "Closed",
+};
+
 class TicketsService extends SessionUpdatableService<typeof tickets> {
   // Resolve the acting user (internal id + role). Throws when unauthenticated —
   // every entry point needs a known actor (customer or staff).
@@ -164,8 +168,22 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     if (previous === toStatus) return { previous };
     const closing = toStatus === "resolved" || toStatus === "closed";
     await this.update(publicId, { status: toStatus, closedAt: closing ? Date.now() : null });
-    await this.message(ticket.id, actor.id, "system", `Status: ${previous} → ${toStatus}`);
+    await this.message(ticket.id, actor.id, "system", `Status: ${STATUS_TEXT[previous]} → ${STATUS_TEXT[toStatus]}`);
     return { previous };
+  }
+
+  /** The customer's 1-5 star feedback on their own chat, once staff have resolved it. Re-rating replaces it. */
+  async rate(publicId: string, stars: number, note?: string | null): Promise<void> {
+    const ticket = await this.read(publicId);
+    const actor = await this.assertAccess(ticket);
+    if (actor.isStaff) throw new ForbiddenError("Only the customer can rate their chat");
+    if (ticket.status !== "resolved" && ticket.status !== "closed") {
+      throw new ValidationError("You can rate this chat once it's completed");
+    }
+    if (!Number.isInteger(stars) || stars < 1 || stars > 5) throw new ValidationError("Pick 1 to 5 stars");
+    const trimmed = (note ?? "").trim();
+    if (trimmed.length > 1000) throw new ValidationError("Keep the note under 1000 characters");
+    await this.update(publicId, { rating: stars, ratingNote: trimmed || null, ratedAt: Date.now() });
   }
 
   async assign(publicId: string, ownerId: string): Promise<void> {
