@@ -260,7 +260,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
       )}
 
       {(onDetails || children) && (
-        <div>
+        <div className="!mt-4">
           {onDetails && (
             <button type="button" onClick={onDetails} aria-label={`Details for ${humanDate(row.date)}`} className={cn(FOCUS, "inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation]")}>
               <Info aria-hidden className="size-4" />

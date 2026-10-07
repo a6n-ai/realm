@@ -135,7 +135,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo));
 
   return (
-    <div className={`${FONT} ${hasBar ? "pb-[190px]" : "pb-8"} lg:pb-8`}>
+    <div className={`${FONT} ${hasBar ? "pb-14" : "pb-4"} lg:pb-8`}>
       <PlanHeader
         name={customerName}
         sub={sub}
