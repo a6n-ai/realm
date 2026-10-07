@@ -187,6 +187,20 @@ describe("buildSlotDropdownOptions: Muskan's side row (2026-10-08)", () => {
     expect(opts.find((o) => o.label === "Moong Dal")!.kind).toBe("dish");
   });
 
+  it("a fixed dal (no dish choice) is also one button on the side row, matched by name", () => {
+    const opts = buildSlotDropdownOptions({
+      cellIndexInCategory: 1,
+      categoryKey: "sabzi",
+      dishes: [{ id: "kadhi", name: "Kadhi (Non-Veg)" }, { id: "soya", name: "Soya Keema" }],
+      swapOptions: [{ ...sabziDaal, validBundles: [{ fromPicks: 1, toPicks: 1, giveNatural: "8oz", getNatural: "8oz" }] }],
+      onePerRow: true,
+      fromRow: 1,
+      categoryLabel: (k) => k,
+      destinationName: () => "Kadhi (Non-Veg)",
+    });
+    expect(opts.filter((o) => o.label === "Kadhi (Non-Veg)").map((o) => o.kind)).toEqual(["dish"]);
+  });
+
   it("a sized swap into a category with a choice says it opens one: 'Any sabzi · 8oz'", () => {
     const daalSabzi: SwapOption = {
       ...sabziDaal,

@@ -218,7 +218,8 @@ export function buildSlotDropdownOptions(args: {
       const each = targets?.length && label === toLabel ? targets : [{ id: null, name: shown }];
       for (const t of each) {
         // Already a plain pick in this row (a side's dal): one button, not a dish and a swap of the same name.
-        if (t.id && out.some((o) => o.kind === "dish" && o.dishId === t.id)) continue;
+        // A fixed destination (Daal) has no dish id on the swap, so match it by name.
+        if (out.some((o) => o.kind === "dish" && (t.id ? o.dishId === t.id : o.label === t.name))) continue;
         const why = blocked ?? ("reason" in t ? t.reason : undefined);
         out.push({
           kind: "swap",
