@@ -12,7 +12,7 @@ import { portionsByCategory } from "./pick-size";
 export const ADDON_SORT_BASE = 100_000;
 
 /** A category whose rows fold into one total (8 roti), not one row per container (Sabzi 12oz). */
-const isCountCategory = (tu: TuCategory | undefined) => !!tu && !isContainerCategory(tu) && tu.selectable === false;
+export const isCountCategory = (tu: TuCategory | undefined) => !!tu && !isContainerCategory(tu) && tu.selectable === false;
 
 /**
  * Cell keys of the per-row add-ons (an extra Sabzi): a category's last N plain rows, where N is
@@ -65,4 +65,9 @@ export function splitGroups(groups: PickCategoryGroup[], addonKeys: Set<string>)
       return [{ ...g, cells: idx.map((i) => g.cells[i]!), portions: idx.map((i) => g.portions[i] ?? null), chooseCount: g.selectable ? idx.length : g.chooseCount }];
     });
   return { meal: part((k) => !addonKeys.has(k)), addons: part((k) => addonKeys.has(k)) };
+}
+
+/** Base (pre-swap) portions of the meal's own rows only: what a swap gives up is never an add-on. */
+export function mealBasePortions(base: Pick<PreviewBase, "items" | "tu">): Record<string, (string | null)[]> {
+  return Object.fromEntries(portionsByCategory(base.items.filter((i) => i.sortOrder < ADDON_SORT_BASE), new Map(base.tu)));
 }
