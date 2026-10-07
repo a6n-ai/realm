@@ -341,7 +341,10 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
    * An accordion row's header for one meal item: "SABZI · MAIN · 12OZ" over the dish it holds now.
    * `named`: the category has several items, so the role (or a custom meal row's diet) tells them apart.
    */
-  const itemView = (group: (typeof rows)[number], item: (typeof rows)[number]["items"][number], named = false) => {
+  const itemView = (group: (typeof rows)[number], item: (typeof rows)[number]["items"][number], several = false) => {
+    // A role only helps when it tells the items apart (Main vs Side); two "main" rows fall back to their portions.
+    const roles = grid?.rolesBySlot?.[group.key] ?? [];
+    const named = several && new Set(roles).size > 1;
     if (item.kind === "swapped") {
       const sw = item.swapped;
       const role = sw.givenRow != null ? grid?.rolesBySlot?.[group.key]?.[sw.givenRow] : undefined;

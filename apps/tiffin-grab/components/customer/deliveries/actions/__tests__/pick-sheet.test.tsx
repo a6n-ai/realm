@@ -58,6 +58,7 @@ const grid = (
     portionsBySlot?: Record<string, (string | null)[]>;
     portionsByDate?: Record<string, Record<string, (string | null)[]>>;
     addonCounts?: Record<string, number>;
+    rolesBySlot?: Record<string, string[]>;
   } = {},
 ) => ({
   ok: true,
@@ -73,6 +74,7 @@ const grid = (
     mealRules: [],
     preview: { items: [], tu: [], appliedByDate: {}, composition: { baseCounts: {}, mealSizeItems: [], categories: [] }, pairs: [] },
     addonCounts: extras.addonCounts ?? {},
+    rolesBySlot: extras.rolesBySlot ?? {},
   },
 });
 const trip = (o: Partial<Trip> = {}): Trip => ({
@@ -145,6 +147,20 @@ describe("PickSheet", () => {
     expect(await screen.findByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "Curry · 12oz" })).toBeNull();
     expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
+  });
+
+  it("names two items of one category by their role when it differs: Main and Side", async () => {
+    load.mockResolvedValue(
+      grid([cell({ pickIndex: 1 }), cell({ pickIndex: 2 })], 1, {
+        portionsBySlot: { curry: ["12oz", "8oz"] },
+        rolesBySlot: { curry: ["main", "side_1"] },
+      }),
+    );
+    show(trip({ coversDates: [mon] }));
+    await openCat();
+    const headers = [...document.querySelectorAll("button[aria-expanded]")].map((b) => b.textContent);
+    expect(headers[0]).toMatch(/^Curry · Main · 12oz/);
+    expect(headers[1]).toMatch(/^Curry · Side · 8oz/);
   });
 
   it("edits one eating day per sheet — the trip's own day by default, no day tabs", async () => {
