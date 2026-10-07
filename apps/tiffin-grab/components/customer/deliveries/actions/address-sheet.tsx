@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/purity */
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
 import type { AddressValues } from "@foundry/commons";
 import type { SavedAddress } from "@foundry/address";
@@ -28,6 +29,14 @@ export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps)
     validDropOff(plan.dropOff, trip.addressOverride ? trip.dropOff : plan.sub.dropOff),
   );
 
+  // "New address" is its own step: the list stays clean, and Back returns to the previous pick.
+  const [step, setStep] = useState<"pick" | "new">("pick");
+  const [before, setBefore] = useState<{ picked: string | null; dropOff: DropOffValue } | null>(null);
+  const toNew = () => (setBefore({ picked, dropOff }), setPicked(null), setDropOff(NO_DROP_OFF), setStep("new"));
+  const back = () => {
+    if (before) (setPicked(before.picked), setDropOff(before.dropOff));
+    setStep("pick");
+  };
   const [draft, setDraft] = useState<AddressValues>({});
   // A new address is saved to the book too, so it gets a name there.
   const [name, setName] = useState("");
@@ -54,17 +63,43 @@ export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps)
   };
 
   const footer = (
-    <PrimaryButton pending={pending} disabledReason={!av.ok ? (av.why ?? undefined) : undefined} onClick={confirm}>
-      Deliver here
+    <PrimaryButton pending={pending} disabledReason={!av.ok ? (av.why ?? undefined) : step === "pick" && picked === null ? "Choose an address." : undefined} onClick={confirm}>
+      {step === "new" ? "Save & deliver here" : "Deliver here"}
     </PrimaryButton>
   );
 
   return (
-    <Shell open={open} onClose={() => onDone()} title={`Delivery & Address for ${day}`} footer={footer}>
+    <Shell open={open} onClose={() => onDone()} title={step === "new" ? "New address" : `Delivery & Address for ${day}`} footer={footer}>
       <div className="grid gap-4 pb-2">
         {!av.ok ? (
           <Notice>{av.why}</Notice>
         ) : (
+          step === "new" ? (
+            <div className="grid gap-4">
+              <button type="button" onClick={back} className="inline-flex min-h-11 items-center gap-1 justify-self-start text-sm font-semibold text-[var(--muted-foreground)] [touch-action:manipulation]">
+                <ChevronLeft aria-hidden className="size-4" />
+                Back to addresses
+              </button>
+              <Field
+                label="Name"
+                placeholder="Home, Office, Mom's place…"
+                maxLength={40}
+                value={name}
+                error={nameTaken(name, addresses)}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <AddressFields
+                preset="delivery"
+                idPrefix="delivery-address"
+                fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
+                values={draft}
+                resolveUrl="/api/address/resolve"
+                onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
+              />
+              <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} Pill={PillToggle} />
+              <p className="text-sm text-[var(--muted-foreground)]">Saved to your addresses. Used for this delivery only.</p>
+            </div>
+          ) : (
           <>
             <div role="radiogroup" aria-label="Delivery address" className="grid gap-2">
               <span className="text-sm font-semibold text-[var(--foreground)]">Address</span>
@@ -94,39 +129,15 @@ export function AddressSheet({ trip, plan, open, onDone, ui }: ActionSheetProps)
                   )}
                 </Fragment>
               ))}
-              <OptionCard role="radio" selected={picked === null} onClick={() => {
-                if (picked !== null) setDropOff(NO_DROP_OFF);
-                setPicked(null);
-              }} className="p-4">
+              <OptionCard onClick={toNew} className="flex items-center justify-between p-4" selected={false}>
                 <span className="font-medium">+ New address</span>
+                <ChevronRight aria-hidden className="size-4 text-[var(--muted-foreground)]" />
               </OptionCard>
-              {picked === null && (
-                <AddressDropOffPanel>
-                  <div className="grid gap-4">
-                    <Field
-                      label="Name"
-                      placeholder="Home, Office, Mom's place…"
-                      maxLength={40}
-                      value={name}
-                      error={nameTaken(name, addresses)}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                    <AddressFields
-                      preset="delivery"
-                      idPrefix="delivery-address"
-                      fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
-                      values={draft}
-                      resolveUrl="/api/address/resolve"
-                      onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
-                    />
-                    <DropOffPicker catalog={plan.dropOff} value={dropOff} onChange={setDropOff} Pill={PillToggle} />
-                  </div>
-                </AddressDropOffPanel>
-              )}
             </div>
 
             <p className="text-sm text-[var(--muted-foreground)]">This delivery only. Drop-off notes save to the address.</p>
           </>
+          )
         )}
         {error && <Notice tone="error">{error}</Notice>}
       </div>

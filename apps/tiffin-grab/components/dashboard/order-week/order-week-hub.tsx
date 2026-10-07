@@ -133,14 +133,16 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
               {!row.movedTo && (
                 <div className="grid gap-6 border-t pt-5 sm:grid-cols-2">
                   <section>
-                    <div className="mb-2 flex items-center gap-1">
+                    <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Meal</p>
                       <Button variant="ghost" size="icon" className="-my-2 size-7" aria-label={`Details for ${humanDate(row.date)}`} onClick={() => setDlg("info")}><Info /></Button>
                     </div>
                     {menuOut ? <p className="text-muted-foreground text-sm">Menu not released yet</p> : (
                       <>
-                        <p className="font-medium">{first ?? "Default menu"}</p>
-                        {rest.length > 0 && <p className="text-muted-foreground text-sm">{rest.join(" · ")}</p>}
+                        <ul className="space-y-0.5">
+                          <li className="font-medium">{first ?? "Default menu"}</li>
+                          {rest.map((d) => <li key={d} className="text-muted-foreground text-sm">{d}</li>)}
+                        </ul>
                       </>
                     )}
                     {trip.status !== "failed" && <p className="text-muted-foreground mt-1 text-sm">{tiffins(trip.units)}{trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}</p>}

@@ -239,7 +239,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
 
       {!row.movedTo && (
         <div>
-          <div className="mb-3 flex items-center gap-1">
+          <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Your meal</h3>
             {onDetails && (
               <button type="button" onClick={onDetails} aria-label={`Details for ${humanDate(row.date)}`} className={cn(FOCUS, "-my-3 grid size-11 place-items-center rounded-full text-[var(--muted-foreground,#6E6558)] [touch-action:manipulation]")}>
@@ -249,8 +249,11 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
           </div>
           {menuOut ? <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">Menu not released yet</p> : (
             <>
-              <p className="text-[17px] font-semibold leading-snug">{first ?? "Default menu"}</p>
-              {rest.length > 0 && <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">{rest.join(" · ")}</p>}
+              {/* One dish per line: the main dish leads, the rest follow quieter. */}
+              <ul className="space-y-0.5">
+                <li className="text-[17px] font-semibold leading-snug">{first ?? "Default menu"}</li>
+                {rest.map((d) => <li key={d} className="text-[15px] text-[var(--muted-foreground,#6E6558)]">{d}</li>)}
+              </ul>
             </>
           )}
           {arriving && <p className="mt-2 text-[14px] text-[var(--muted-foreground,#6E6558)]">{tiffinCount}</p>}
