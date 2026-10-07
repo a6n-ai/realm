@@ -41,54 +41,57 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
   useMarkTicketSeen(ticket.publicId, messages.reduce((n, m) => Math.max(n, m.createdAt), 0));
   const fmt = (t: number) => formatEpoch(t, { timeZone: timezone, mode: "datetime", locale: "en-CA" });
   const sub = subcategoryLabel(ticket.category, ticket.subcategory ?? null);
-  // Like a chat app: open at the newest message, and follow each new one.
-  const endRef = useRef<HTMLDivElement>(null);
+  // Like a chat app: only the message pane scrolls; it opens at the newest message and follows new ones.
+  const paneRef = useRef<HTMLDivElement>(null);
   const last = messages.at(-1)?.publicId;
   const seen = useRef<string | undefined>(undefined);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end", behavior: seen.current ? "smooth" : "instant" });
+    const pane = paneRef.current;
+    if (pane) pane.scrollTo({ top: pane.scrollHeight, behavior: seen.current ? "smooth" : "instant" });
     seen.current = last;
   }, [last]);
 
   return (
-    <div className={cn(FONT, "space-y-5 pb-24 lg:pb-0")}>
-      <div className="flex flex-wrap items-center gap-2">
+    <div className={cn(FONT, "flex min-h-0 flex-1 flex-col gap-3")}>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <Pill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Pill>
         <Pill>{categoryLabel(ticket.category)}</Pill>
         {sub ? <Pill>{sub}</Pill> : null}
-        <span className="text-[13px] text-[var(--muted-foreground,#6E6558)]">Opened {fmt(ticket.createdAt)}</span>
         <span aria-live="polite" className="inline-flex items-center gap-1.5 text-[13px] text-[var(--muted-foreground,#6E6558)]">
           <span aria-hidden className={cn("size-2 rounded-full", supportOnline ? "bg-[var(--s-delivered-fg)]" : "bg-[var(--border)]")} />
           Support {supportOnline ? "online" : "offline"}
         </span>
       </div>
 
-      <StatusBanner status={status} />
-
-      {/* Short chats sit just above the message box, the way a chat app fills from the bottom. */}
-      <div className="flex min-h-[calc(100dvh-27rem)] flex-col justify-end lg:min-h-0">
-      <ChatMessageList
-        className="space-y-3 pb-2"
-        ui={kitChatUi}
-        messages={messages.map((m): ChatMessage => ({
-          id: m.publicId,
-          kind: m.authorType === "system" ? "system" : m.authorType === "customer" ? "mine" : "theirs",
-          body: m.body,
-          meta: m.authorType === "system" ? fmt(m.createdAt) : `${m.authorType === "customer" ? "You" : "Support"} · ${fmt(m.createdAt)}`,
-          attachments: m.attachments,
-        }))}
-      />
+      <div className="shrink-0">
+        <StatusBanner status={status} />
       </div>
 
-      {closed && <RateChat ticketId={ticket.publicId} rating={ticket.rating ?? null} note={ticket.ratingNote ?? null} />}
-
-      <div ref={endRef} aria-hidden className="scroll-mb-28 lg:scroll-mb-24" />
-
-      {/* Pinned to the bottom like a chat app: just above the phone tab bar (57px), at the window's foot on desktop. */}
-      <div className="c-glass fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] px-4 py-3 lg:sticky lg:inset-x-auto lg:bottom-0 lg:-mx-1 lg:rounded-t-2xl lg:border-x lg:px-3">
-        <div className="mx-auto max-w-2xl">
-        <Composer ticketId={ticket.publicId} closed={closed} channel={channel} />
+      {/* The chat window: the one scrolling part. Short chats sit at its bottom, like a chat app. */}
+      <div ref={paneRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain rounded-2xl border border-[var(--border)] px-3 py-3">
+        <p className="mb-3 text-center text-[12px] text-[var(--muted-foreground,#6E6558)]">Opened {fmt(ticket.createdAt)}</p>
+        <div className="mt-auto">
+          <ChatMessageList
+            className="space-y-3"
+            ui={kitChatUi}
+            messages={messages.map((m): ChatMessage => ({
+              id: m.publicId,
+              kind: m.authorType === "system" ? "system" : m.authorType === "customer" ? "mine" : "theirs",
+              body: m.body,
+              meta: m.authorType === "system" ? fmt(m.createdAt) : `${m.authorType === "customer" ? "You" : "Support"} · ${fmt(m.createdAt)}`,
+              attachments: m.attachments,
+            }))}
+          />
+          {closed && (
+            <div className="mt-4">
+              <RateChat ticketId={ticket.publicId} rating={ticket.rating ?? null} note={ticket.ratingNote ?? null} />
+            </div>
+          )}
         </div>
+      </div>
+
+      <div className="shrink-0">
+        <Composer ticketId={ticket.publicId} closed={closed} channel={channel} />
       </div>
     </div>
   );
