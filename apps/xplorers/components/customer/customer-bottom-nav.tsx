@@ -20,5 +20,5 @@ export function CustomerBottomNav() {
     href: t.href,
   }));
 
-  return <BottomNav items={items} />;
+  return <BottomNav items={items} variant="glass" />;
 }

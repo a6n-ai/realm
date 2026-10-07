@@ -7,6 +7,8 @@ import { cn } from "@foundry/ui/cn";
 const LINKS = [
   { href: "/me", label: "Overview" },
   { href: "/me/friends", label: "Friends" },
+  { href: "/me/wallet", label: "Finances" },
+  { href: "/me/support", label: "Support" },
   { href: "/me/account", label: "Account" },
 ];
 
@@ -24,8 +26,10 @@ export function CustomerNav() {
             prefetch={false}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-md px-3 py-2 text-sm",
-              active ? "bg-accent text-accent-foreground font-medium" : "hover:bg-accent/50",
+              "rounded-xl px-3 py-2.5 text-sm",
+              active
+                ? "bg-secondary text-secondary-foreground font-semibold"
+                : "text-foreground/80 hover:bg-secondary/60 font-medium",
             )}
           >
             {link.label}

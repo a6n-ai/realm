@@ -1,0 +1,356 @@
+/* Customer /me shell — public-site DNA on Foundry CRM primitives.
+   Admin dashboard stays on crm.css alone; do not load this outside (customer). */
+
+.customer-app {
+  /* Hex sources — keep in sync with marketing.css / design-system/CUSTOMER.md */
+  --xl-navy-900: #16295a;
+  --xl-navy-800: #1e4aa6;
+  --xl-navy-600: #2a3b66;
+  --xl-navy-500: #4a5a82;
+  --xl-navy-400: #7c89a8;
+  --xl-pink-500: #ff2b8c;
+  --xl-pink-600: #e8177a;
+  --xl-pink-100: #fde4f0;
+  --xl-sky-400: #8fcdf3;
+  --xl-sky-300: #a6d8f8;
+  --xl-sky-200: #bfe4fb;
+  --xl-sky-100: #e3f2fd;
+  --xl-sunshine: #ffd65a;
+  --xl-mint: #86e3d9;
+  --xl-paper: #f7f9fc;
+  --xl-line-100: #eef1f7;
+  --xl-line-300: #e1e7f2;
+  --xl-line-400: #d9e1f0;
+  --xl-line-500: #c9d6ea;
+
+  --font-display: var(--font-xl-display), "Bricolage Grotesque", var(--font-xl-body), system-ui, sans-serif;
+  --font-body: var(--font-xl-body), "DM Sans", system-ui, sans-serif;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-fast: 150ms;
+
+  --radius: 0.875rem;
+  --background: var(--xl-paper);
+  --foreground: var(--xl-navy-900);
+  --card: #ffffff;
+  --card-foreground: var(--xl-navy-900);
+  --popover: #ffffff;
+  --popover-foreground: var(--xl-navy-900);
+  /* Sky CTAs like marketing .xl-btn */
+  --primary: var(--xl-sky-200);
+  --primary-foreground: var(--xl-navy-800);
+  --secondary: var(--xl-sky-100);
+  --secondary-foreground: var(--xl-navy-800);
+  --muted: #ffffff;
+  --muted-foreground: var(--xl-navy-500);
+  --accent: var(--xl-pink-100);
+  --accent-foreground: var(--xl-navy-900);
+  --destructive: #dc2626;
+  --border: var(--xl-line-300);
+  --input: var(--xl-line-500);
+  --ring: var(--xl-pink-600);
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--xl-navy-900);
+  --sidebar-primary: var(--xl-navy-800);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--xl-sky-100);
+  --sidebar-accent-foreground: var(--xl-navy-800);
+  --sidebar-border: var(--xl-line-100);
+  --sidebar-ring: var(--xl-pink-600);
+  --brand-pink: var(--xl-pink-600);
+  --brand-sunshine: var(--xl-sunshine);
+  --brand-blush: var(--xl-pink-100);
+  --brand-ink: var(--xl-navy-900);
+
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--xl-pink-600);
+  accent-color: var(--xl-navy-800);
+}
+
+/* Portals (drawers/dialogs) sit on body — redefine tokens here (parent can't inherit from .customer-app). */
+body:has(.customer-app) {
+  --xl-navy-900: #16295a;
+  --xl-navy-800: #1e4aa6;
+  --xl-navy-500: #4a5a82;
+  --xl-pink-600: #e8177a;
+  --xl-pink-100: #fde4f0;
+  --xl-sky-400: #8fcdf3;
+  --xl-sky-300: #a6d8f8;
+  --xl-sky-200: #bfe4fb;
+  --xl-sky-100: #e3f2fd;
+  --xl-sunshine: #ffd65a;
+  --xl-paper: #f7f9fc;
+  --xl-line-300: #e1e7f2;
+  --xl-line-400: #d9e1f0;
+  --xl-line-500: #c9d6ea;
+  --background: var(--xl-paper);
+  --foreground: var(--xl-navy-900);
+  --card: #ffffff;
+  --card-foreground: var(--xl-navy-900);
+  --popover: #ffffff;
+  --popover-foreground: var(--xl-navy-900);
+  --primary: var(--xl-sky-200);
+  --primary-foreground: var(--xl-navy-800);
+  --secondary: var(--xl-sky-100);
+  --secondary-foreground: var(--xl-navy-800);
+  --muted: #ffffff;
+  --muted-foreground: var(--xl-navy-500);
+  --accent: var(--xl-pink-100);
+  --accent-foreground: var(--xl-navy-900);
+  --border: var(--xl-line-300);
+  --input: var(--xl-line-500);
+  --ring: var(--xl-pink-600);
+  --radius: 0.875rem;
+  --brand-pink: var(--xl-pink-600);
+  --brand-sunshine: var(--xl-sunshine);
+  --brand-blush: var(--xl-pink-100);
+  --brand-ink: var(--xl-navy-900);
+  color: var(--foreground);
+  background: var(--background);
+}
+
+/* Dark must land on `.customer-app` itself — children inherit from it, not from body. */
+html.dark body:has(.customer-app),
+html.dark .customer-app {
+  --background: #121a2e;
+  --foreground: #f2f5fb;
+  --card: #1a243c;
+  --card-foreground: #f2f5fb;
+  --popover: #1a243c;
+  --popover-foreground: #f2f5fb;
+  --primary: #7eb8e0;
+  --primary-foreground: #121a2e;
+  --secondary: #243352;
+  --secondary-foreground: #e8eef8;
+  --muted: #1a243c;
+  --muted-foreground: #a8b4cc;
+  --accent: #3a2440;
+  --accent-foreground: #f2f5fb;
+  --border: rgb(255 255 255 / 12%);
+  --input: rgb(255 255 255 / 15%);
+  --ring: #ff6eb0;
+  --sidebar: #0e1526;
+  --sidebar-foreground: #f2f5fb;
+  --sidebar-primary: #7eb8e0;
+  --sidebar-primary-foreground: #121a2e;
+  --sidebar-accent: #243352;
+  --sidebar-accent-foreground: #e8eef8;
+  --sidebar-border: rgb(255 255 255 / 12%);
+  --sidebar-ring: #ff6eb0;
+  --xl-sky-400: #5a9ec8;
+  --xl-sky-300: #6eafd4;
+  --xl-sky-200: #7eb8e0;
+  --xl-sky-100: #243352;
+  --xl-line-400: rgb(255 255 255 / 18%);
+  --xl-pink-100: #3a2440;
+}
+
+.customer-app {
+  min-height: 100svh;
+  background:
+    radial-gradient(120% 80% at 100% -10%, color-mix(in srgb, var(--xl-pink-100) 70%, transparent), transparent 55%),
+    radial-gradient(90% 60% at -10% 0%, color-mix(in srgb, var(--xl-sky-100) 80%, transparent), transparent 50%),
+    var(--background);
+  color: var(--foreground);
+}
+
+html.dark .customer-app {
+  background: var(--background);
+}
+
+/* Type: display titles, body UI */
+.customer-app h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--xl-navy-800);
+  line-height: 1.08;
+}
+
+html.dark .customer-app h1 {
+  color: var(--foreground);
+}
+
+.customer-app h2,
+.customer-app h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--xl-navy-800);
+}
+
+html.dark .customer-app h2,
+html.dark .customer-app h3 {
+  color: var(--foreground);
+}
+
+/* Page header icon tile — soft sky, not muted gray */
+.customer-app header .bg-muted {
+  background: var(--xl-sky-100);
+  color: var(--xl-navy-800);
+  border-radius: 14px;
+}
+
+html.dark .customer-app header .bg-muted {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  color: var(--foreground);
+}
+
+/* Cards: marketing-like radius + soft edge (not sticker hard-shadow) */
+body:has(.customer-app) .card-glow {
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--xl-navy-900) 4%, transparent);
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) ease,
+    transform 120ms var(--ease-out);
+}
+
+body:has(.customer-app) .card-glow:hover {
+  border-color: color-mix(in srgb, var(--xl-sky-400) 55%, var(--border));
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--xl-navy-900) 4%, transparent),
+    0 10px 28px -16px color-mix(in srgb, var(--xl-navy-900) 22%, transparent);
+}
+
+/* Primary buttons → sky CTA (override crm navy deepen) */
+body:has(.customer-app) [data-slot="button"][data-variant="default"],
+html.dark body:has(.customer-app) [data-slot="button"][data-variant="default"] {
+  border: 1px solid var(--xl-sky-400);
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  font-weight: 700;
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    transform 120ms var(--ease-out);
+}
+
+body:has(.customer-app) [data-slot="button"][data-variant="default"]:hover,
+html.dark body:has(.customer-app) [data-slot="button"][data-variant="default"]:hover {
+  background: var(--xl-sky-300) !important;
+  border-color: var(--xl-sky-400);
+}
+
+body:has(.customer-app) [data-slot="button"][data-variant="default"]:active {
+  transform: scale(0.97);
+}
+
+body:has(.customer-app) [data-slot="button"][data-variant="outline"] {
+  border-color: var(--xl-line-400);
+  font-weight: 600;
+  transition:
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease,
+    transform 120ms var(--ease-out);
+}
+
+body:has(.customer-app) [data-slot="button"][data-variant="outline"]:hover {
+  border-color: var(--xl-sky-400);
+  background: var(--card);
+  color: var(--foreground);
+}
+
+body:has(.customer-app) [data-slot="button"]:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.customer-app :focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.customer-app ::selection {
+  background: var(--xl-pink-100);
+  color: var(--xl-navy-900);
+}
+
+/* Sidebar nav — sky active pill */
+.customer-app nav[aria-label="Your account"] a {
+  font-weight: 600;
+  border-radius: 12px;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    transform 120ms var(--ease-out);
+}
+
+.customer-app nav[aria-label="Your account"] a[aria-current="page"] {
+  background: var(--xl-sky-100);
+  color: var(--xl-navy-800);
+}
+
+html.dark .customer-app nav[aria-label="Your account"] a[aria-current="page"] {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+
+.customer-app nav[aria-label="Your account"] a:active {
+  transform: scale(0.98);
+}
+
+/* Bottom bar — primary is sky (CTA), too pale for selected tabs on glass; use brand pink. */
+.customer-app nav[aria-label="Primary"] a[aria-current="page"],
+.customer-app nav[aria-label="Primary"] button[aria-current="page"] {
+  color: var(--xl-pink-600);
+  background: color-mix(in srgb, var(--xl-pink-600) 12%, transparent);
+}
+
+.customer-app nav[aria-label="Primary"] a[aria-current="page"] > span:first-child,
+.customer-app nav[aria-label="Primary"] button[aria-current="page"] > span:first-child {
+  background: color-mix(in srgb, var(--xl-pink-600) 18%, transparent);
+}
+
+html.dark .customer-app nav[aria-label="Primary"] a[aria-current="page"],
+html.dark .customer-app nav[aria-label="Primary"] button[aria-current="page"] {
+  color: var(--xl-pink-500);
+  background: color-mix(in srgb, var(--xl-pink-500) 16%, transparent);
+}
+
+html.dark .customer-app nav[aria-label="Primary"] a[aria-current="page"] > span:first-child,
+html.dark .customer-app nav[aria-label="Primary"] button[aria-current="page"] > span:first-child {
+  background: color-mix(in srgb, var(--xl-pink-500) 22%, transparent);
+}
+
+/* Soft page entrance on PageShell sections */
+@keyframes customer-rise {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+}
+
+.customer-app section.mx-auto {
+  animation: customer-rise 420ms var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .customer-app section.mx-auto,
+  body:has(.customer-app) [data-slot="button"]:active:not(:disabled) {
+    animation: none;
+    transform: none;
+  }
+}
+
+/* Tabs underline active = navy */
+.customer-app [data-slot="tabs-trigger"][data-state="active"] {
+  color: var(--xl-navy-800);
+  font-weight: 700;
+}
+
+html.dark .customer-app [data-slot="tabs-trigger"][data-state="active"] {
+  color: var(--foreground);
+}
+
+/* Invite banner — sky edge */
+.customer-app [role="status"] {
+  border-radius: 16px;
+  border-color: var(--xl-sky-300);
+  background: color-mix(in srgb, var(--xl-sky-100) 55%, white);
+}
+
+html.dark .customer-app [role="status"] {
+  background: var(--card);
+  border-color: var(--border);
+}
