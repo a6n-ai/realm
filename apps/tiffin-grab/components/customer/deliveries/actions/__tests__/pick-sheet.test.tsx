@@ -106,9 +106,11 @@ const ownDishOnSwappedRow = async (name: string) =>
 /** Edit meal is an accordion: open a category (closed by default) as a customer would. */
 const openCat = async (name = "Curry") => {
   await waitFor(() => expect(document.querySelector("button[aria-expanded]")).not.toBeNull());
-  const header = [...document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")]
-    .find((b) => new RegExp(`^${name}`, "i").test(b.textContent ?? ""));
-  if (header?.getAttribute("aria-expanded") === "false") fireEvent.click(header);
+  const matching = [...document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")]
+    .filter((b) => new RegExp(`^${name}`, "i").test(b.textContent ?? ""));
+  // Several items of one category are several rows: open the first closed one.
+  const header = matching.find((b) => b.getAttribute("aria-expanded") === "false");
+  if (header) fireEvent.click(header);
 };
 
 const show = (t = trip()) => {
@@ -137,8 +139,11 @@ describe("PickSheet", () => {
     );
     show(trip({ coversDates: [mon] }));
     await openCat();
+    // Two items of one category are two accordion rows, one open at a time.
     expect(await screen.findByRole("radiogroup", { name: "Curry · 12oz" })).toBeInTheDocument();
-    expect(screen.getByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
+    await openCat("Curry · 8oz");
+    expect(await screen.findByRole("radiogroup", { name: "Curry · 8oz" })).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Curry · 12oz" })).toBeNull();
     expect(screen.getByRole("dialog", { name: "Edit meal" })).toBeInTheDocument();
   });
 
@@ -304,7 +309,7 @@ describe("PickSheet", () => {
     );
     show(trip({ coversDates: [mon] }));
     await openCat("Rice");
-    const riceSection = await screen.findByLabelText("Rice");
+    const riceSection = await screen.findByRole("region", { name: /^Rice/ });
     expect(within(riceSection).getAllByText("Included").length).toBeGreaterThan(0);
     const fixed = within(riceSection).getByRole("radio", { name: /Jeera Rice/ });
     expect(fixed).toBeDisabled();
@@ -560,7 +565,7 @@ describe("PickSheet", () => {
       load.mockResolvedValue(addonGrid());
       show(trip({ coversDates: [mon] }));
       await openCat();
-      const meal = await screen.findByRole("region", { name: "Curry" });
+      const meal = await screen.findByRole("region", { name: /^Curry/ });
       expect(within(meal).getByRole("radiogroup", { name: "Curry · 12oz" })).toBeInTheDocument();
       expect(within(meal).queryByRole("radiogroup", { name: "Curry · 8oz" })).not.toBeInTheDocument();
       await openCat("Add-ons");
@@ -578,7 +583,7 @@ describe("PickSheet", () => {
       ));
       show(trip({ coversDates: [mon] }));
       await openCat();
-      expect(await screen.findByRole("region", { name: "Rice" })).toBeInTheDocument();
+      expect(await screen.findByRole("region", { name: /^Rice/ })).toBeInTheDocument();
       expect(screen.queryByRole("region", { name: "Add-ons" })).not.toBeInTheDocument();
     });
 
@@ -586,7 +591,7 @@ describe("PickSheet", () => {
       load.mockResolvedValue(grid([cell({})]));
       show(trip({ coversDates: [mon] }));
       await openCat();
-      await screen.findByRole("region", { name: "Curry" });
+      await screen.findByRole("region", { name: /^Curry/ });
       expect(screen.queryByRole("region", { name: "Add-ons" })).not.toBeInTheDocument();
     });
   });
@@ -634,13 +639,15 @@ describe("PickSheet", () => {
       show(trip({ coversDates: [mon] }));
       await openCat();
       fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal/ }))[0]!);
+      await openCat("Curry");
       fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal$/ })).find((r) => !r.hasAttribute("disabled") && r.getAttribute("aria-checked") !== "true")!);
-      await waitFor(() =>
-        expect(screen.getAllByRole("radio", { name: /^Daal/ }).filter((r) => r.getAttribute("aria-checked") === "true")).toHaveLength(2),
-      );
-      // Both swapped rows still offer the real dishes — never just the category name.
-      expect(screen.getAllByRole("radio", { name: "Paneer" })).toHaveLength(2);
-      expect(screen.queryByRole("radio", { name: "Curry" })).toBeNull();
+      // Each swapped row keeps the real dishes — never just the category name.
+      for (const header of [...document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")].filter((b) => /^Curry/.test(b.textContent ?? ""))) {
+        if (header.getAttribute("aria-expanded") === "false") fireEvent.click(header);
+        await waitFor(() => expect(screen.getAllByRole("radio", { name: /^Daal/ }).some((r) => r.getAttribute("aria-checked") === "true")).toBe(true));
+        expect(screen.getAllByRole("radio", { name: "Paneer" })).toHaveLength(1);
+        expect(screen.queryByRole("radio", { name: "Curry" })).toBeNull();
+      }
     });
 
     it("an unavailable choice is a plain greyed button; its red ⓘ shows why", async () => {
@@ -698,6 +705,7 @@ describe("PickSheet", () => {
       render(<PickSheet trip={trip({ coversDates: [mon] })} plan={planWithMonSwap} open onDone={vi.fn()} />);
       await openCat();
       fireEvent.click(await ownDishOnSwappedRow("Paneer"));
+      await openCat();
       fireEvent.click(await screen.findByRole("radio", { name: /^Daal$/ }));
       await screen.findByRole("button", { name: "Save" });
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -743,11 +751,14 @@ describe("PickSheet on a custom meal (add-on rows, no swaps)", () => {
     load.mockResolvedValue(customGrid());
     show(trip({ coversDates: [mon] }));
     await openCat("Sabzi");
+    await openCat("Non-Veg Sabzi");
     const nonVeg = await screen.findByRole("radiogroup", { name: "Non-Veg Sabzi · 8oz" });
     expect(within(nonVeg).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Kadai Chicken"]);
-    const veg12 = screen.getByRole("radiogroup", { name: "Veg Sabzi · 12oz" });
+    await openCat("Veg Sabzi · 12oz");
+    const veg12 = await screen.findByRole("radiogroup", { name: "Veg Sabzi · 12oz" });
     expect(within(veg12).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Patta Gobhi Matar", "Aloo Methi"]);
-    const addOn = screen.getByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
+    await openCat("Veg Sabzi · 8oz");
+    const addOn = await screen.findByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
     expect(within(addOn).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Patta Gobhi Matar", "Aloo Methi"]);
   });
 
@@ -766,8 +777,8 @@ describe("PickSheet on a custom meal (add-on rows, no swaps)", () => {
     load.mockResolvedValue(customGrid());
     show(trip({ coversDates: [mon] }));
     await openCat("Sabzi");
-    await screen.findByRole("radiogroup", { name: "Veg Sabzi · 12oz" });
-    const addOn = screen.getByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
+    await openCat("Veg Sabzi · 8oz");
+    const addOn = await screen.findByRole("radiogroup", { name: "Veg Sabzi · 8oz" });
     fireEvent.click(within(addOn).getByRole("radio", { name: "Aloo Methi" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(savePicks).toHaveBeenCalled());

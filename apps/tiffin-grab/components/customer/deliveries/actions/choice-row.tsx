@@ -29,9 +29,15 @@ export function ChoiceRow({
   value,
   onChange,
   nested = false,
+  caption,
   children,
 }: {
   label: string;
+  /**
+   * Inside an open category the header already names it: show just this ("12oz"), or nothing (null)
+   * for a one-row category. `label` stays the group's accessible name. Undefined = label + hint.
+   */
+  caption?: string | null;
   /** Right of the label: "Default pick", "Included". */
   hint?: string;
   choices: RowChoice[];
@@ -46,10 +52,14 @@ export function ChoiceRow({
   const shown = choices.find((c) => c.value === why && c.reason);
   return (
     <div className={nested ? "ml-3 grid gap-2 border-l-2 border-[var(--border,#E8E0D5)] pl-3" : "grid gap-2"}>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className={nested ? `text-[13px] font-semibold ${muted}` : "text-[15px] font-semibold"}>{label}</p>
-        {hint && <p className={`text-[13px] ${muted}`}>{hint}</p>}
-      </div>
+      {caption === undefined ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className={nested ? `text-[13px] font-semibold ${muted}` : "text-[15px] font-semibold"}>{label}</p>
+          {hint && <p className={`text-[13px] ${muted}`}>{hint}</p>}
+        </div>
+      ) : caption ? (
+        <p className={`text-[13px] font-semibold ${muted}`}>{caption}</p>
+      ) : null}
       <ChoiceGroup label={label} value={value} onChange={onChange} className="grid grid-cols-2 gap-2">
         {[...choices.filter((c) => !c.swap), ...choices.filter((c) => c.swap)].map((c) => (
           <div key={c.value} className="relative">

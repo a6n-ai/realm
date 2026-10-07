@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/purity */
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { loadPickGrid, type PickGrid } from "@/app/(customer)/me/deliveries/pick-grid";
 import { MealTiles, type MealCategory } from "../trip-parts";
 import { addonRowKeys, countAddons, isCountCategory, mealBasePortions, splitGroups } from "@/lib/menu/pick-addons";
@@ -282,6 +282,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     locked: boolean,
     controlsOff: boolean,
     withSwaps: boolean,
+    inAccordion = true,
   ) => {
     const { cell, index: i, row: baseRow } = item;
     const selectedId = effectiveDishId(cell, picked);
@@ -311,6 +312,8 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       <U.ChoiceRow
         key={key}
         label={slotLabel(group, i)}
+        // In the meal's accordion each item is its own section, and its header already names it.
+        caption={inAccordion ? null : undefined}
         hint={!cell.selectable ? "Included" : isDefault ? "Default pick" : undefined}
         choices={options.map((o) => ({
           value: o.value,
@@ -333,7 +336,33 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
   // The summary reads like the sheet: the meal first, then its add-ons on their own.
   const split = splitGroups(groups, addonKeys);
   const summary = buildMealSummary(split.meal, picked);
-  const summaryByLabel = new Map(summary.map((b) => [b.categoryLabel, b.lines.join(", ")]));
+  const ROLE: Record<string, string> = { main: "Main", side_1: "Side", side_2: "Side 2" };
+  /**
+   * An accordion row's header for one meal item: "SABZI · MAIN · 12OZ" over the dish it holds now.
+   * `named`: the category has several items, so the role (or a custom meal row's diet) tells them apart.
+   */
+  const itemView = (group: (typeof rows)[number], item: (typeof rows)[number]["items"][number], named = false) => {
+    if (item.kind === "swapped") {
+      const sw = item.swapped;
+      const role = sw.givenRow != null ? grid?.rolesBySlot?.[group.key]?.[sw.givenRow] : undefined;
+      return {
+        title: [group.label, named && role ? ROLE[role] : null, sw.givePortion].filter(Boolean).join(" · "),
+        // Customers see choices, not swaps: the row reads as what they get now.
+        summary: `${labelOf(sw.swap.toCategory)}${sw.getPortion ? ` · ${sw.getPortion}` : ""}`,
+        status: "Changed",
+      };
+    }
+    const { cell, index } = item;
+    const role = grid?.rolesBySlot?.[group.key]?.[item.row ?? index];
+    const id = effectiveDishId(cell, picked);
+    const dish = [...cell.dishes, ...group.dishes].find((d) => d.id === id)?.name ?? group.dishes[0]?.name ?? group.label;
+    const changedHere = picked[cellKey(cell)] != null && picked[cellKey(cell)] !== cell.selectedDishId;
+    return {
+      title: [cell.diet ? `${cell.diet} ${group.label}` : group.label, named && !cell.diet && role ? ROLE[role] : null, group.portions[index]].filter(Boolean).join(" · "),
+      summary: dish,
+      status: cell.locked ? "Locked" : changedHere ? "Changed" : group.selectable ? "Default" : "Included",
+    };
+  };
   const addonSummary: MealSummaryLine[] = [
     ...buildMealSummary(split.addons, picked),
     ...counted.addons.map((a) => {
@@ -595,20 +624,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 const menuDishes = grid.menu?.[activeDay!]?.[group.key] ?? [];
                 const fixed = grid.categories.find((c) => c.key === group.key)?.selectable === false;
                 const ownDishes = group.dishes.length ? group.dishes : fixed ? menuDishes.slice(0, 1) : menuDishes;
-                const changed = group.cells.some((c) => !addonKeys.has(cellKey(c)) && picked[cellKey(c)] != null && picked[cellKey(c)] !== c.selectedDishId);
-                // Customers see choices, not swaps: a row given for rice simply reads "Rice · 1 unit", status Changed.
-                const status = locked ? "Locked" : changed || group.swapped.length ? "Changed" : group.selectable ? "Default" : "Included";
-                const swappedTo = group.swapped.map((sw) => `${labelOf(sw.swap.toCategory)}${sw.getPortion ? ` · ${sw.getPortion}` : ""}`);
-                return (
-                  <U.CategorySection
-                    key={group.key}
-                    label={group.label}
-                    summary={[summaryByLabel.get(group.label), ...swappedTo].filter(Boolean).join(", ")}
-                    status={status}
-                    open={openCat === group.key}
-                    onToggle={() => toggle(group.key)}
-                  >
-                    {mealItems.map((item) => {
+                const renderItem = (item: (typeof mealItems)[number]) => {
                       if (item.kind === "swapped") {
                         const row = item.swapped;
                         const rowOff = locked || swapLocked || controlsOff;
@@ -669,6 +685,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                           <U.ChoiceRow
                             key={`${row.swap.publicId}#${row.part}`}
                             label={row.givePortion ? `${group.label} · ${row.givePortion}` : group.label}
+                            caption={null}
                             choices={choices}
                             value={into?.selectable ? (intoPick ? `to:${intoPick}` : "") : "swapped"}
                             onChange={(v) => {
@@ -721,9 +738,22 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                         );
                       }
                       return renderCellRow(group, item, locked, controlsOff, true);
-                    })}
+                };
+                const section = (key: string, label: string, summary: string, status: string, item: ReactNode) => (
+                  <U.CategorySection key={key} label={label} summary={summary} status={status} open={openCat === key} onToggle={() => toggle(key)}>
+                    {item}
                   </U.CategorySection>
                 );
+                // One row per category, except a category with several items (2 sabzis): each item is
+                // its own row, named by its role in the meal ("Sabzi · Main", "Sabzi · Side").
+                if (mealItems.length === 1) {
+                  const view = itemView(group, mealItems[0]!);
+                  return section(group.key, view.title, view.summary, locked ? "Locked" : view.status, renderItem(mealItems[0]!));
+                }
+                return mealItems.map((item, n) => {
+                  const view = itemView(group, item, true);
+                  return section(`${group.key}#${n}`, view.title, view.summary, locked ? "Locked" : view.status, renderItem(item));
+                });
               })}
               </div>
 
@@ -742,7 +772,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                     const locked = dayLocked || (group.cells.length > 0 && group.cells.every((c) => c.locked));
                     return group.items
                       .filter(isAddonItem)
-                      .map((item) => (item.kind === "cell" ? renderCellRow(group, item, locked, busy != null || saving, false) : null));
+                      .map((item) => (item.kind === "cell" ? renderCellRow(group, item, locked, busy != null || saving, false, false) : null));
                   })}
                   {/* Extra roti/rice: the same dish as the meal's, so nothing to pick — shown as included. */}
                   {counted.addons.map((a) => {
