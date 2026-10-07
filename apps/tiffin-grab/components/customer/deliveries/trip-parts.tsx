@@ -1,9 +1,9 @@
 "use client";
 import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Package, Truck } from "lucide-react";
-import { Card, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
+import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, isDone, moveFacts, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, isDone, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
@@ -179,41 +179,50 @@ const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en-US", {
 export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
-  const facts = row.movedTo ? [movedFact(row)]
+  const facts = row.movedTo ? []
     : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
     : isDone(row) ? [reason] : [trip.status === "upcoming" ? null : reason];
-  const moves = row.movedTo ? [] : moveFacts(row).filter((f) => f.kind === "out");
+  // Short in/out pills ("Thu's in", "to Oct 12") instead of sentences.
+  const moves = row.movedTo ? [{ kind: "out" as const, text: `to ${humanDate(row.movedTo).slice(5)}` }] : isDone(row) ? [] : moveTags(row);
   const arriving = !row.movedTo && GOES_OUT.has(trip.status) && trip.status !== "failed";
   const [first, ...rest] = dedupeDishes(row.dish);
-  const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 || trip.movesIn?.length ? ` (${tiffinBreakdown(trip)})` : ""}`;
+  const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}`;
   const meta = arriving ? [
     // A day carried on another day's truck says which one.
     trip.date !== row.date ? `${trip.status === "delivered" ? "Delivered" : "Arrives"} ${humanDate(trip.date)} with ${weekdayShort(trip.date)}` : null,
     trip.status === "upcoming" && trip.cutoffAt ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : null,
   ].filter(Boolean).join(" · ") || null : null;
-  const label = (text: string, color: string) => <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color }}>{text}</h3>;
+  const label = (text: string, color: string) => <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color }}>{text}</h3>;
   const MUTED = "var(--muted-foreground,#6E6558)";
   return (
-    <section aria-live="polite" data-testid="delivery-block" className="space-y-7">
+    <section aria-live="polite" data-testid="delivery-block" className="space-y-9">
       {/* One question per block: delivery (blue), meal (warm), destination (neutral). Spacing separates them, not cards. */}
       <div>
         {label("Delivery", "var(--s-upcoming,#0ea5e9)")}
         <h2 className="text-[28px] font-bold leading-tight tracking-[-0.03em] lg:text-[34px]">{humanDate(row.date)}</h2>
-        {meta && <p className="mt-0.5 text-[14px] tabular-nums text-[var(--muted-foreground,#6E6558)]" data-testid="delivery-pills">{meta}</p>}
+        {meta && <p className="mt-1 text-[14px] tabular-nums text-[var(--muted-foreground,#6E6558)]" data-testid="delivery-pills">{meta}</p>}
         {plan && <span className="mt-1 inline-block"><PlanTag plan={plan} /></span>}
-        {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-5"><Journey status={trip.status} caption={JOURNEY_NOTE[trip.status]} /></div> : (
+        {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-6"><Journey status={trip.status} caption={JOURNEY_NOTE[trip.status]} /></div> : (
           <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
             {m.dot && <StatusDot decorative status={m.dot} />}
             {eyebrow ?? m.label}
           </p>
         )}
-        {(facts.length > 0 || moves.length > 0) && (
-          <ul className="mt-3 space-y-1 text-[14px] text-[var(--muted-foreground,#6E6558)]">
-            {facts.map((f) => <li key={f}>{f}</li>)}
+        {moves.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2" data-testid="move-pills">
             {moves.map((f) => {
               const Icon = f.kind === "in" ? ArrowDownLeft : ArrowUpRight;
-              return <li key={f.kind} className="flex items-center gap-1.5"><Icon aria-hidden className="size-3.5 shrink-0" />{f.text}</li>;
+              return (
+                <Pill key={f.kind} size="sm" tone={f.kind === "in" ? "brand" : "soft"} icon={<Icon aria-hidden className="size-3.5 shrink-0" />}>
+                  {f.kind === "in" ? f.text.replace(/ in$/, " tiffin in") : `${row.movedTo ? "Tiffin" : "Own tiffin"} ${f.text}`}
+                </Pill>
+              );
             })}
+          </div>
+        )}
+        {facts.length > 0 && (
+          <ul className="mt-3 space-y-1 text-[14px] text-[var(--muted-foreground,#6E6558)]">
+            {facts.map((f) => <li key={f}>{f}</li>)}
           </ul>
         )}
       </div>
@@ -227,7 +236,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
               {rest.length > 0 && <p className="text-[15px] text-[var(--muted-foreground,#6E6558)]">{rest.join(" · ")}</p>}
             </>
           )}
-          {arriving && <p className="mt-1 text-[14px] text-[var(--muted-foreground,#6E6558)]">{tiffinCount}</p>}
+          {arriving && <p className="mt-2 text-[14px] text-[var(--muted-foreground,#6E6558)]">{tiffinCount}</p>}
         </div>
       )}
 
