@@ -234,7 +234,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Go to Mon, Oct 5" }));
     expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
   });
-  it("info button lists each dish with its portion — never N× oz on the category header", () => {
+  it("meal tiles list each dish with its portion and default pick; no (i) drawer once tiles show", () => {
     const meal = [
       { category: "sabzi", label: "Sabzi", selectable: true, quantity: 2, picks: [
         { dishId: 1n, dishPublicId: "d1", name: "Bhindi Masala", isDefaulted: true },
@@ -250,17 +250,15 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     } as unknown as PlanView;
     multi({ plan: carried });
     fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Details for Tue, Sep 22/ }));
-    const d = screen.getByRole("dialog", { name: /Tue, Sep 22 · your meal/ });
-    expect(within(d).getByText("Sabzi")).toBeInTheDocument();
-    expect(within(d).queryByText(/2×|3\s*×/)).toBeNull();
-    expect(within(d).getAllByText(/Bhindi Masala/).length).toBe(2);
-    expect(within(d).getByText(/12oz/)).toBeInTheDocument();
-    expect(within(d).getByText(/8oz/)).toBeInTheDocument();
-    expect(within(d).getByText(/4 roti/)).toBeInTheDocument();
-    expect(within(d).getAllByText("default pick").length).toBeGreaterThan(0);
-    expect(within(d).getByTestId("info-delivery")).toHaveTextContent("Arrives Mon, Sep 21 with Mon · 2 tiffins covering Mon + Tue");
-    expect(within(d).queryByText("Delivery day")).toBeNull();
+    const tiles = within(screen.getByTestId("meal-tiles"));
+    expect(tiles.getByText("Sabzi")).toBeInTheDocument();
+    expect(tiles.queryByText(/2×|3\s*×/)).toBeNull();
+    expect(tiles.getAllByText(/Bhindi Masala/).length).toBe(2);
+    expect(tiles.getByText(/12oz/)).toBeInTheDocument();
+    expect(tiles.getByText(/8oz/)).toBeInTheDocument();
+    expect(tiles.getByText(/4 roti/)).toBeInTheDocument();
+    expect(tiles.getAllByText(/Default/).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /Details for Tue, Sep 22/ })).toBeNull();
   });
   it("menu not released: days still list with 'Menu not released yet', Pick disabled, Move still works", () => {
     const out = { ...p1, days: [{ date: "2026-09-21", menuWeekId: null, meal: null }, { date: "2026-09-24", menuWeekId: null, meal: null }] } as unknown as PlanView;

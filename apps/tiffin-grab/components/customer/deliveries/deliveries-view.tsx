@@ -201,7 +201,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
               menuOut={menuOut && trip.date >= weekStart && trip.date <= weekEnd}
               reason={trip.status === "upcoming" ? null : model.closedReason ?? model.av.pick.why}
               address={deliveryAddress(trip.addressOverride, sub)}
-              onDetails={() => setInfo(row)}
+              onDetails={mealCategories(row, plan).length > 0 ? undefined : () => setInfo(row)}
               meal={mealCategories(row, plan)}
               onEditAddress={addressRow?.av.ok ? () => setActive("address") : undefined}
             >

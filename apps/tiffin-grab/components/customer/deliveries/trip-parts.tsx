@@ -325,7 +325,9 @@ export function MealTiles({ cats }: { cats: MealCategory[] }) {
           {c.items.map((p, i) => (
             <div key={`${p.name}-${i}`} className="mt-1">
               <p className="text-[14px] font-semibold leading-snug">{p.name}</p>
-              {p.portion && <p className="text-[12px] tabular-nums text-[var(--muted-foreground,#6E6558)]">{p.portion}</p>}
+              {(p.portion || p.defaulted) && (
+                <p className="text-[12px] tabular-nums text-[var(--muted-foreground,#6E6558)]">{[p.portion, p.defaulted ? "Default" : null].filter(Boolean).join(" · ")}</p>
+              )}
             </div>
           ))}
         </li>
