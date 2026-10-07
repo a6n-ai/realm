@@ -6,7 +6,6 @@ import { usersService } from "@/lib/services/users.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { PageHeader } from "@/components/customer/kit";
-import { BackLink } from "@/components/customer/support/parts";
 import { NewTicketControl } from "@/components/customer/support/new-ticket-control";
 import { TicketsList, TicketsListSkeleton } from "@/components/customer/support/tickets-list";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
@@ -17,7 +16,6 @@ type SearchParams = Promise<{ orderId?: string }>;
 export default function SupportPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <BackLink href="/me/account" label="Account" />
       <Suspense fallback={<PageHeader eyebrow="Support" title="How can we" accent="help?" subtitle="Pick a topic or start a new ticket. We reply right here." />}>
         <SupportHeader searchParams={searchParams} />
       </Suspense>
