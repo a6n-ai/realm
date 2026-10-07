@@ -167,7 +167,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     ? serverGrid
     : {
       ...serverGrid,
-      cells: foldProvisionalCells({ cells: serverGrid.cells, categories: serverGrid.categories, base: serverGrid.preview, provisional }),
+      cells: foldProvisionalCells({ cells: serverGrid.cells, categories: serverGrid.categories, base: serverGrid.preview, provisional, menu: serverGrid.menu }),
       portionsByDate: {
         ...serverGrid.portionsByDate,
         ...Object.fromEntries([...new Set(provisional.map((p) => p.forDate))].map((d) => [d, previewPortions(serverGrid.preview, d, provisional)])),

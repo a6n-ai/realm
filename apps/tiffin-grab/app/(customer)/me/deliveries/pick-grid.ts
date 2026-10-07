@@ -207,7 +207,7 @@ export async function loadPickGrid(
       composition: { ...composition, categories: [...composition.categories] },
       pairs,
     };
-    grid.cells = foldProvisionalCells({ cells: grid.cells, categories: grid.categories, base: grid.preview, provisional });
+    grid.cells = foldProvisionalCells({ cells: grid.cells, categories: grid.categories, base: grid.preview, provisional, menu: grid.menu });
     for (const date of eatingDates) grid.portionsByDate[date] = previewPortions(grid.preview, date, provisional);
 
     return { ok: true, grid };

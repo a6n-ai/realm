@@ -38,8 +38,10 @@ export function foldProvisionalCells(args: {
   categories: { key: string; selectable: boolean }[];
   base: Pick<PreviewBase, "items" | "tu" | "appliedByDate">;
   provisional: ProvisionalSwap[];
+  /** The day's menu per category: a swap into a category the meal lacks takes that category's dishes. */
+  menu?: Record<string, Record<string, GridCell["dishes"]>>;
 }): GridCell[] {
-  const { categories, base, provisional } = args;
+  const { categories, base, provisional, menu } = args;
   let cells = args.cells.map((c) => ({ ...c }));
   if (provisional.length === 0) return cells;
   const tuByKey = new Map(base.tu);
@@ -65,8 +67,11 @@ export function foldProvisionalCells(args: {
       mine(ps.fromCategory).forEach((c, n) => { c.pickIndex = n + 1; });
 
       const existingTo = mine(ps.toCategory);
-      // Inherit dishes from existing toCategory cells, or from the spliced cells if toCategory had none.
-      const toDishes = existingTo[0]?.dishes ?? spliced[0]?.dishes ?? [];
+      // The destination's own dishes: its existing cells, else that day's menu for it. Never the
+      // source row's dishes — a custom meal with no Daal swapping Sabzi → Daal got its sabzi list,
+      // so the new Daal row read "Patta Gobhi" (Granvin, 2026-10-07).
+      const toDishes = existingTo[0]?.dishes ?? menu?.[date]?.[ps.toCategory] ?? [];
+      const fixed = !(catMeta.get(ps.toCategory)?.selectable ?? true);
       const basePickIndex = existingTo.length > 0 ? Math.max(...existingTo.map((c) => c.pickIndex)) : 0;
       for (let n = 0; n < ps.qtyTo; n++) {
         const src = spliced[n] ?? spliced[0];
@@ -79,8 +84,9 @@ export function foldProvisionalCells(args: {
           pickIndex: basePickIndex + n + 1,
           selectable: catMeta.get(ps.toCategory)?.selectable ?? true,
           quantity: 1,
-          selectedDishId: null,
-          isDefaulted: false,
+          // A fixed destination has one dish that day; name it so the row and summary show it.
+          selectedDishId: fixed ? (toDishes[0]?.id ?? null) : null,
+          isDefaulted: fixed,
           dishes: toDishes,
           locked: src.locked,
           lockNote: src.lockNote,
