@@ -1,9 +1,9 @@
 "use client";
 
-import { AuthPanel, AuthScreen } from "@foundry/auth-ui";
+import { AuthPanel, AuthScreen, GoogleSignInButton, oauthErrorMessage } from "@foundry/auth-ui";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,7 +14,7 @@ import { Input } from "@foundry/ui/input";
 import { signIn } from "@/lib/auth/client";
 import { SITE_NAME } from "@/lib/brand";
 import { signUpCustomer } from "./actions";
-import { AUTH_BUTTON, AUTH_INPUT, AuthLogo } from "@/components/auth/auth-kit";
+import { AUTH_BUTTON, AUTH_INPUT, AuthLogo, appAuthUi } from "@/components/auth/auth-kit";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
@@ -24,8 +24,10 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export function SignupForm() {
+export function SignupForm({ googleEnabled = false }: { googleEnabled?: boolean }) {
   const router = useRouter();
+  // Sent here from /login when a Google address has no account yet.
+  const oauthError = useSearchParams().get("error");
   const [error, setError] = useState<string | null>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -51,6 +53,29 @@ export function SignupForm() {
   return (
     <AuthScreen>
       <AuthPanel art={<AuthLogo />} title="Create your account" tagline={`Join ${SITE_NAME} to manage classes and bookings.`}>
+          {googleEnabled ? (
+            <div className="mb-5 flex flex-col gap-3">
+              {oauthError === "signup_disabled" ? (
+                <p role="status" className="text-muted-foreground text-sm">
+                  No account for that Google address yet. Create one with Google below.
+                </p>
+              ) : oauthError ? (
+                <p role="alert" className="text-destructive text-sm">{oauthErrorMessage(oauthError)}</p>
+              ) : null}
+              {/* requestSignUp: this is the one page that may create an account (see lib/auth). */}
+              <GoogleSignInButton
+                ui={appAuthUi}
+                onSignIn={() =>
+                  signIn.social({ provider: "google", requestSignUp: true, callbackURL: "/me", errorCallbackURL: "/signup" })
+                }
+              />
+              <div className="text-muted-foreground flex items-center gap-3 text-xs" aria-hidden>
+                <span className="bg-border h-px flex-1" />
+                or
+                <span className="bg-border h-px flex-1" />
+              </div>
+            </div>
+          ) : null}
           <Form {...form}>
             <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col">
               <div className="flex flex-1 flex-col gap-5">

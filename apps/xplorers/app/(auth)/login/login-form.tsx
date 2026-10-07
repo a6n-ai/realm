@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -8,12 +8,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { z } from "zod";
 import { emailSchema } from "@foundry/commons";
-import { AUTH_LINK, AuthScreen, AuthWelcome, EmailCodeSignIn, authErrorMessage } from "@foundry/auth-ui";
+import {
+  AUTH_LINK, AuthScreen, AuthWelcome, ContinueAs, EmailCodeSignIn, GoogleOneTap, GoogleSignInButton, authErrorMessage, oauthErrorMessage,
+  type ContinueAsUser,
+} from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { authClient, signIn } from "@/lib/auth/client";
 import { landingPathFor } from "@/lib/auth/landing";
+import { LAST_USER_COOKIE } from "@/lib/auth/last-user-cookie";
+import { promptGoogleOneTap } from "@/lib/auth/one-tap";
 import { AUTH_BUTTON, AUTH_INPUT, AuthLogo, appAuthUi } from "@/components/auth/auth-kit";
 
 const schema = z.object({
@@ -31,22 +36,41 @@ type Mode = "welcome" | "password" | "email-otp";
  * style: one screen whose logo stays put, a title that retitles per step, and
  * a body that swaps from the welcome actions to the code or password form.
  */
-export function LoginForm() {
+export function LoginForm({
+  googleClientId = null,
+  lastUser: initialLastUser = null,
+}: {
+  googleClientId?: string | null;
+  lastUser?: ContinueAsUser | null;
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const callbackUrl = params.get("callbackUrl");
+  // Better Auth sends a failed Google sign-in back here as ?error=<code>.
+  const oauthError = params.get("error");
+  // Who last signed in on this device ("Continue as …"); "Not you?" forgets it.
+  const [lastUser, setLastUser] = useState(initialLastUser);
+  const [prefillEmail, setPrefillEmail] = useState("");
   // A plain visit gets the welcome. Bounced from the console: straight to the
   // password form staff use; bounced from anywhere else: the code form.
   const [mode, setMode] = useState<Mode>(
-    !callbackUrl ? "welcome" : callbackUrl.startsWith("/dashboard") ? "password" : "email-otp",
+    oauthError ? "email-otp" : !callbackUrl ? "welcome" : callbackUrl.startsWith("/dashboard") ? "password" : "email-otp",
   );
+  // A Google address with no account: sign-up lives on /signup, so continue there.
+  useEffect(() => {
+    if (oauthError === "signup_disabled") router.replace("/signup?error=signup_disabled");
+  }, [oauthError, router]);
+  // Google returns to a fixed URL; /me sends staff on to the console.
+  const googleCallback = callbackUrl ?? "/me";
   const [codeStep, setCodeStep] = useState(false);
   // Set by onVerify, read by onSuccess: landing depends on the signed-in role.
   const role = useRef<string | undefined>(undefined);
 
   const head =
     mode === "welcome"
-      ? { title: "Welcome to Xplorers", tagline: "Customers sign in with an emailed code. Staff use a password to reach the console." }
+      ? lastUser
+        ? { title: "Welcome back!" }
+        : { title: "Welcome to Xplorers", tagline: "Customers sign in with Google or an emailed code. Staff use a password to reach the console." }
       : mode === "password"
         ? { title: "Welcome back", tagline: "Sign in with your email and password." }
         : codeStep
@@ -55,6 +79,20 @@ export function LoginForm() {
 
   return (
     <AuthScreen>
+      {googleClientId ? (
+        <GoogleOneTap
+          start={() =>
+            promptGoogleOneTap(googleClientId, {
+              onSignedIn: () => {
+                router.push(landingPathFor(undefined, callbackUrl));
+                router.refresh();
+              },
+              // No account for that Google email: sign-up lives on /signup.
+              onRefused: () => router.replace("/signup?error=signup_disabled"),
+            })
+          }
+        />
+      ) : null}
       <AuthWelcome
         ui={appAuthUi}
         art={<AuthLogo />}
@@ -65,10 +103,33 @@ export function LoginForm() {
       >
         {mode === "email-otp" ? (
           <EmailCodeSignIn
+            key={prefillEmail}
             compact
+            defaultEmail={prefillEmail}
             ui={appAuthUi}
             onStepChange={(step) => setCodeStep(step === "code")}
             onBack={callbackUrl ? undefined : () => setMode("welcome")}
+            alternatives={
+              googleClientId ? (
+                <>
+                  <GoogleSignInButton
+                    ui={appAuthUi}
+                    onSignIn={() =>
+                      signIn.social({
+                        provider: "google",
+                        callbackURL: googleCallback,
+                        errorCallbackURL: callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login",
+                      })
+                    }
+                  />
+                  {oauthError ? (
+                    <p role="alert" className="text-destructive text-sm">
+                      {oauthErrorMessage(oauthError)}
+                    </p>
+                  ) : null}
+                </>
+              ) : undefined
+            }
             onSendCode={(email) => authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" })}
             onVerify={async (email, otp) => {
               const result = await signIn.emailOtp({ email, otp });
@@ -87,6 +148,29 @@ export function LoginForm() {
           />
         ) : mode === "password" ? (
           <PasswordPanel onUseEmailOtp={() => { setCodeStep(false); setMode("email-otp"); }} />
+        ) : lastUser ? (
+          <ContinueAs
+            ui={appAuthUi}
+            user={lastUser}
+            onContinue={() => {
+              if (lastUser.method === "google" && googleClientId) {
+                // loginHint: Google opens on this account instead of the picker.
+                return signIn.social({ provider: "google", loginHint: lastUser.email, callbackURL: googleCallback, errorCallbackURL: "/login" });
+              }
+              if (lastUser.method === "password") {
+                setMode("password");
+                return;
+              }
+              setPrefillEmail(lastUser.email);
+              setMode("email-otp");
+            }}
+            onOther={() => { setPrefillEmail(""); setMode("email-otp"); }}
+            onForget={() => {
+              document.cookie = `${LAST_USER_COOKIE}=; Max-Age=0; path=/`;
+              setLastUser(null);
+            }}
+            getStarted={{ label: "New here? Create an account", onClick: () => router.push("/signup") }}
+          />
         ) : null}
       </AuthWelcome>
     </AuthScreen>
