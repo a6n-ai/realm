@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { usePresence } from "@foundry/realtime/client";
 import { Pill, Skeleton } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
@@ -40,6 +41,14 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
   useMarkTicketSeen(ticket.publicId, messages.reduce((n, m) => Math.max(n, m.createdAt), 0));
   const fmt = (t: number) => formatEpoch(t, { timeZone: timezone, mode: "datetime", locale: "en-CA" });
   const sub = subcategoryLabel(ticket.category, ticket.subcategory ?? null);
+  // Like a chat app: open at the newest message, and follow each new one.
+  const endRef = useRef<HTMLDivElement>(null);
+  const last = messages.at(-1)?.publicId;
+  const seen = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end", behavior: seen.current ? "smooth" : "instant" });
+    seen.current = last;
+  }, [last]);
 
   return (
     <div className={cn(FONT, "space-y-5 pb-24 lg:pb-0")}>
@@ -56,6 +65,8 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
 
       <StatusBanner status={status} />
 
+      {/* Short chats sit just above the message box, the way a chat app fills from the bottom. */}
+      <div className="flex min-h-[calc(100dvh-27rem)] flex-col justify-end lg:min-h-0">
       <ChatMessageList
         className="space-y-3 pb-2"
         ui={kitChatUi}
@@ -67,8 +78,11 @@ export function TicketThread({ ticket, messages, timezone }: { ticket: ThreadTic
           attachments: m.attachments,
         }))}
       />
+      </div>
 
       {closed && <RateChat ticketId={ticket.publicId} rating={ticket.rating ?? null} note={ticket.ratingNote ?? null} />}
+
+      <div ref={endRef} aria-hidden className="scroll-mb-28 lg:scroll-mb-24" />
 
       {/* Pinned to the bottom like a chat app: just above the phone tab bar (57px), at the window's foot on desktop. */}
       <div className="c-glass fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] px-4 py-3 lg:sticky lg:inset-x-auto lg:bottom-0 lg:-mx-1 lg:rounded-t-2xl lg:border-x lg:px-3">
