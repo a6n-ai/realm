@@ -1,12 +1,12 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
-import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/customer/kit";
+import { Button, Card, Notice, Toast } from "@/components/customer/kit";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 import { OrderStatusBadge } from "@/components/ds";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { buildEatingDays, deliveryLine, eatingRowsInWeek, isAddressRow, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { buildEatingDays, eatingRowsInWeek, isAddressRow, type EatingRow } from "@/lib/deliveries-view/eating";
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
 import { addDays, mondayOf, type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
@@ -21,8 +21,6 @@ import { WeekStrip } from "./week-strip";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "move"];
-const WEEK = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
-const weekTitle = (m: string) => `${WEEK.format(new Date(`${m}T00:00:00Z`))} – ${WEEK.format(new Date(`${addDays(m, 6)}T00:00:00Z`))}`;
 
 interface Props {
   /** The ONE plan on screen; switching plans reloads the page for the other plan. */
@@ -125,7 +123,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
     setActive(null);
     if (message) changed(message);
   };
-  const linkCls = "text-sm font-semibold text-[var(--muted-foreground,#6E6558)] underline underline-offset-4 [touch-action:manipulation]";
 
   const dates = Object.keys(agenda).sort();
   const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;

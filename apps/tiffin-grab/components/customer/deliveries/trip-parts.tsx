@@ -1,9 +1,9 @@
 "use client";
-import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Package, Truck } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Truck } from "lucide-react";
 import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, isDone, moveFacts, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { deliveryLine, isDone, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
 
@@ -124,7 +124,6 @@ export function TripCard({ trip, tz, reason, plan, children }: { trip: Trip; tz:
   );
 }
 
-const HELP = "text-[13px] text-[var(--muted-foreground,#6E6558)]";
 
 /** Delivery card for the selected eating day: which truck feeds it, how many tiffins, when it locks. Dishes live in the list, not here. */
 /** Trips that still physically go somewhere (not moved away or paused), so naming an address means something. */
