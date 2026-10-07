@@ -14,6 +14,8 @@ export async function verifyPaymentAction(publicId: string): Promise<{ error?: s
     throw err;
   }
   revalidatePath("/dashboard/sessions");
+  revalidatePath("/dashboard/customers", "layout");
+  revalidatePath("/dashboard/payments", "layout");
   return {};
 }
 
@@ -26,5 +28,7 @@ export async function rejectPaymentAction(publicId: string): Promise<{ error?: s
     throw err;
   }
   revalidatePath("/dashboard/sessions");
+  revalidatePath("/dashboard/customers", "layout");
+  revalidatePath("/dashboard/payments", "layout");
   return {};
 }

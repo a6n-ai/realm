@@ -9,7 +9,7 @@ export type ClaimState = { error?: string; ok?: boolean };
 
 export async function claimPaymentAction(publicId: string, _prev: ClaimState, formData: FormData): Promise<ClaimState> {
   const auth = await getSession();
-  if (!auth?.user || auth.user.role !== Role.USER) return { error: "Sign in as a family to continue." };
+  if (!auth?.user || auth.user.role !== Role.USER) return { error: "Sign in to continue." };
   const reference = String(formData.get("reference") ?? "");
   try {
     await paymentsService.claim(publicId, auth.user.id, reference);

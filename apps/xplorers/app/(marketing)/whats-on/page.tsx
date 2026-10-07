@@ -43,7 +43,7 @@ export default async function WhatsOnPage({
           </h1>
           <p className="xl-lede" style={stagger(2)}>
             Every published session, day by day. Book a seat for each child; prices are on the session. Spots update as
-            families book.
+            people book.
           </p>
         </div>
       </header>

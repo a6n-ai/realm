@@ -24,7 +24,7 @@ export default function UsersSettingsPage({ searchParams }: { searchParams: Sear
       <PageHeader
         icon={UsersIcon}
         title="Users"
-        subtitle="Staff accounts. Families sign in at /me and stay off this list unless you search for the user role."
+        subtitle="Staff accounts. Customers sign in at /me and stay off this list unless you search for the user role."
         actions={<InviteUserButton roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r }))} />}
       />
       <SectionCard title="All accounts">

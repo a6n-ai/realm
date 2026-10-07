@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { applyMyDeliverySwap, loadMySwapOptions, removeMyDeliverySwap } from "@/app/(customer)/me/deliveries/actions";
 import { Button, Chip, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
-import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import type { SwapOption } from "@/lib/menu/meal-validation";
 import { swapLabel } from "@/lib/menu/swap-rules";
 import type { ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
@@ -100,7 +100,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
 
   const av = actionAvailability(trip, now, plan.ctx).swap;
   const closed = now >= trip.cutoffAt;
-  const lockReason = !av.ok ? av.why : closed ? `Changes closed ${formatCutoff(trip.cutoffAt, plan.ctx.timezone)}. This trip is being prepared.` : null;
+  const lockReason = !av.ok ? av.why : closed ? "Changes closed. This trip is being prepared." : null;
 
   const source = plan.days.find((d) => d.date === trip.date);
   const eating = source?.eatingDays?.find((e) => e.date === day);
@@ -232,7 +232,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
           ) : (
             <>
               <Reason>
-                Swaps apply to one eating day. Change them until {formatCutoff(trip.cutoffAt, plan.ctx.timezone)}. Only exchanges that fit your meal are shown.
+                Swaps apply to one eating day. Only exchanges that fit your meal are shown.
               </Reason>
               <MealSummary meal={dayMeal} portions={plan.categoryPortions} />
               {applied.length > 0 && (

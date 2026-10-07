@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useTimezone } from "@/components/providers/timezone-provider";
+import { cutoffNote, cutoffTime } from "@/lib/deliveries-view/cutoff";
 
 // Live clock in the app-settings timezone, so staff in another zone (India) see
 // business time. Renders nothing until mounted: server and browser clocks differ,
 // so any SSR text would mismatch on hydration.
-export function AppClock() {
+export function AppClock({ cutoffHour }: { cutoffHour: number }) {
   const tz = useTimezone();
   const [now, setNow] = useState<number | null>(null);
 
@@ -30,11 +31,13 @@ export function AppClock() {
 
   return (
     <span
-      title={`Canada time (${tz})`}
+      title={`Canada time (${tz}). ${cutoffNote(cutoffHour)}.`}
       className="hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs tabular-nums text-muted-foreground sm:inline-flex"
     >
       <span role="img" aria-label="Canada time" className="text-sm leading-none">🇨🇦</span>
       {label}
+      <span aria-hidden>·</span>
+      <span>Cutoff {cutoffTime(cutoffHour)}</span>
     </span>
   );
 }

@@ -23,7 +23,7 @@ export default async function CustomerHomePage() {
       <PageHeader
         icon={CompassIcon}
         title={firstName ? `Hi, ${firstName}` : "Your space"}
-        subtitle="Your family's bookings live here."
+        subtitle="Your bookings, coins and class history."
         actions={
           <Button asChild size="sm">
             <Link href="/whats-on">See what&apos;s on</Link>

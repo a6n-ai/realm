@@ -27,7 +27,7 @@ export default async function CatalogDiscountsPage() {
       </SectionCard>
       <SectionCard
         title="All discounts"
-        subtitle="Automatic discounts apply by class; coupons apply when a family types the code."
+        subtitle="Automatic discounts apply by class; coupons apply when a customer types the code."
         action={
           canEdit ? (
             <div className="flex gap-2">

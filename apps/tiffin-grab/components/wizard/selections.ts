@@ -140,7 +140,7 @@ export function selectionsFromPriorOrder(
   const plan = catalog.plans.find((p) => p.key === planKey);
   const mealSizeId =
     prior.mealSizePublicId &&
-    listableMealSizes(catalog.mealSizes, prior.mealSizePublicId).some((m) => m.publicId === prior.mealSizePublicId && m.planKey === planKey)
+    listableMealSizes(catalog.mealSizes).some((m) => m.publicId === prior.mealSizePublicId && m.planKey === planKey)
       ? prior.mealSizePublicId
       : "";
   return {

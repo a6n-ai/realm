@@ -30,7 +30,7 @@ export interface MealSizeView {
   servesWeekends: boolean;
 }
 
-/** Sizes a picker may offer: every catalog size, plus the one custom size `keepId` names (a renewal). */
+/** Sizes a picker may offer: never custom sizes, except `keepId` (admin editing an order that already has one). Customers never see custom sizes, renewal included. */
 export function listableMealSizes<T extends { custom: boolean; publicId: string; priceable?: boolean }>(sizes: T[], keepId?: string | null): T[] {
   return sizes.filter((m) => !m.custom || (keepId != null && m.publicId === keepId && m.priceable !== false));
 }

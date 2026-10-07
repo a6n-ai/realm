@@ -1,6 +1,5 @@
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { UpdatableRepository } from "@foundry/database";
 import {
   canClaim,
   canVerify,
@@ -9,7 +8,11 @@ import {
   type PaymentMethodConfig,
 } from "@foundry/payments";
 import { PAYMENTS_PLUGIN_ID } from "@foundry/payments/plugin";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
+import type { Condition } from "@foundry/commons/model/condition";
+import type { Page, PageRequest } from "@foundry/commons/util/pagination";
+import { columnResolver, conditionToSql, pageOrder, UpdatableRepository } from "@foundry/database";
+import type { SortState } from "@/lib/list/sort";
 import { db } from "@/db/client";
 import { bookings, payments, studioSessionOccurrences, users, type BookingPricing } from "@/db/schema";
 import { getIntegrationsConfig, getPaymentConfig } from "./app-settings.service";
@@ -33,6 +36,19 @@ export type PaymentListRow = {
   customerEmail: string | null;
   bookingPublicId: string;
 };
+
+export type PaymentSortColumn = "time" | "amount" | "status";
+export type PaymentPageRow = PaymentListRow & { customerPublicId: string; occurrencePublicId: string };
+export type PaymentStats = { paidTotal: string; pending: number; rejected: number; thisWeek: number };
+
+const paymentColumns = columnResolver({
+  status: payments.status,
+  method: payments.method,
+  createdAt: payments.createdAt,
+  reference: payments.reference,
+  name: users.name,
+  email: users.email,
+});
 
 class PaymentsService extends SessionUpdatableService<typeof payments> {
   protected sensitive = true;
@@ -167,26 +183,59 @@ class PaymentsService extends SessionUpdatableService<typeof payments> {
     return rows.map((r) => ({ ...r.payment, bookingPublicId: r.bookingPublicId, seats: r.seats, pricing: r.pricing }));
   }
 
-  async listRecent(limit = 50): Promise<PaymentListRow[]> {
-    return db
-      .select({
-        publicId: payments.publicId,
-        createdAt: payments.createdAt,
-        status: payments.status,
-        method: payments.method,
-        amount: payments.amount,
-        currency: payments.currency,
-        reference: payments.reference,
-        customerName: users.name,
-        customerEmail: users.email,
-        bookingPublicId: bookings.publicId,
-      })
-      .from(payments)
-      .innerJoin(users, eq(users.id, payments.userId))
-      .innerJoin(bookings, eq(bookings.id, payments.bookingId))
-      .orderBy(desc(payments.createdAt))
-      .limit(limit);
+  async listPage(
+    condition: Condition | undefined,
+    page: PageRequest,
+    sort: SortState<PaymentSortColumn> = { column: "time", dir: "desc" },
+  ): Promise<Page<PaymentPageRow>> {
+    const where = conditionToSql(condition, paymentColumns);
+    const SORT_COL = { time: payments.createdAt, amount: payments.amount, status: payments.status } as const;
+    const [items, [{ count }]] = await Promise.all([
+      db
+        .select({
+          publicId: payments.publicId,
+          createdAt: payments.createdAt,
+          status: payments.status,
+          method: payments.method,
+          amount: payments.amount,
+          currency: payments.currency,
+          reference: payments.reference,
+          customerName: users.name,
+          customerEmail: users.email,
+          customerPublicId: users.publicId,
+          bookingPublicId: bookings.publicId,
+          occurrencePublicId: studioSessionOccurrences.publicId,
+        })
+        .from(payments)
+        .innerJoin(users, eq(users.id, payments.userId))
+        .innerJoin(bookings, eq(bookings.id, payments.bookingId))
+        .innerJoin(studioSessionOccurrences, eq(studioSessionOccurrences.id, bookings.occurrenceId))
+        .where(where)
+        .orderBy(...pageOrder(sort.dir, SORT_COL[sort.column] ?? payments.createdAt, payments.id))
+        .limit(page.size)
+        .offset(page.page * page.size),
+      db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(payments)
+        .innerJoin(users, eq(users.id, payments.userId))
+        .where(where),
+    ]);
+    return { items, page: page.page, size: page.size, total: count };
   }
+
+  async paymentStats(now = Date.now()): Promise<PaymentStats> {
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const [row] = await db
+      .select({
+        paidTotal: sql<string>`coalesce(sum(${payments.amount}) filter (where ${payments.status} = 'paid'), 0)::numeric(10,2)::text`,
+        pending: sql<number>`cast(count(*) filter (where ${payments.status} = 'pending_verification') as int)`,
+        rejected: sql<number>`cast(count(*) filter (where ${payments.status} = 'rejected') as int)`,
+        thisWeek: sql<number>`cast(count(*) filter (where ${payments.createdAt} >= ${weekAgo}) as int)`,
+      })
+      .from(payments);
+    return row!;
+  }
+
 }
 
 export const paymentsRepository = new UpdatableRepository(db, payments, payments.publicId, payments.id);

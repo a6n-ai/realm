@@ -1,14 +1,13 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import Link from "next/link";
+import { desc, eq, sql } from "drizzle-orm";
 import { parseFilterState, SectionCard } from "@foundry/design-system";
 import { WalletLedgerTable } from "@foundry/crm";
 import { db } from "@/db/client";
 import { bookings, users, walletLedger } from "@/db/schema";
-import { requirePermission, roleCan } from "@/lib/auth/guards";
-import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/guards";
 import { formatAppWhen } from "@/lib/app-clock";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { EVENT_LABELS } from "@/lib/services/wallet.service";
-import { AdjustFamily } from "./adjust-family";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -16,10 +15,8 @@ export default async function WalletLedgerPage({ searchParams }: { searchParams:
   await requirePermission({ wallet: ["read"] });
   const sp = await searchParams;
   const { page } = parseFilterState([], sp);
-  const session = await getSession();
-  const canEdit = session?.user ? roleCan(session.user.role, { wallet: ["update"] }) : false;
 
-  const [rows, [{ total }], { timezone }, families] = await Promise.all([
+  const [rows, [{ total }], { timezone }] = await Promise.all([
     db
       .select({
         publicId: walletLedger.publicId,
@@ -41,24 +38,17 @@ export default async function WalletLedgerPage({ searchParams }: { searchParams:
       .offset(page.page * page.size),
     db.select({ total: sql<number>`cast(count(*) as int)` }).from(walletLedger),
     getAppClock(),
-    canEdit
-      ? db
-          .select({ publicId: users.publicId, name: users.name, email: users.email })
-          .from(users)
-          .where(eq(users.role, "user"))
-          .orderBy(asc(users.name), asc(users.email))
-      : Promise.resolve([]),
   ]);
 
   return (
     <div className="grid gap-6">
-      {canEdit ? (
-        <SectionCard title="Give or take coins" subtitle="Every change needs a reason and shows in the ledger below.">
-          <AdjustFamily
-            families={families.map((f) => ({ publicId: f.publicId, label: f.name ? `${f.name} · ${f.email ?? ""}` : (f.email ?? f.publicId) }))}
-          />
-        </SectionCard>
-      ) : null}
+      <p className="text-muted-foreground text-sm">
+        To give or take coins, open the customer under{" "}
+        <Link href="/dashboard/customers" className="underline">
+          Customers
+        </Link>
+        .
+      </p>
       <WalletLedgerTable
         rows={rows.map((r) => ({
           publicId: r.publicId,

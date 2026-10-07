@@ -10,6 +10,7 @@ import { getSession } from "@/lib/auth/session";
 import { ChangeEmailForm } from "@/components/auth/change-email-form";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import { SetPasswordForm } from "@/components/customer/account/set-password-form";
+import { UsernameForm } from "@/components/customer/account/username-form";
 
 export default function CustomerAccountPage() {
   return (
@@ -27,7 +28,7 @@ async function AccountData() {
   if (!session?.user) redirect("/login?callbackUrl=/me/account");
 
   const [u] = await db
-    .select({ name: users.name, email: users.email, passwordSet: users.passwordSet })
+    .select({ name: users.name, email: users.email, passwordSet: users.passwordSet, displayUsername: users.displayUsername })
     .from(users)
     .where(eq(users.publicId, session.user.id))
     .limit(1);
@@ -35,6 +36,9 @@ async function AccountData() {
 
   return (
     <>
+      <SectionCard title="Username" subtitle="Your handle for friends and your invite link.">
+        <UsernameForm current={u.displayUsername ?? ""} />
+      </SectionCard>
       <SectionCard title="Details">
         <dl className="grid gap-3 text-sm">
           <div>

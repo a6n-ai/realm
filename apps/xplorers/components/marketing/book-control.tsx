@@ -45,7 +45,7 @@ export function BookControl({
   }
 
   if (!isFamily) {
-    return <span className="xl-status">Family sign-in to book</span>;
+    return <span className="xl-status">Sign in to book</span>;
   }
 
   return <FamilyBookForm publicId={publicId} remaining={remaining} autofocus={autofocus} coins={coins ?? null} />;

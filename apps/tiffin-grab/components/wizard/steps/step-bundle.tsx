@@ -24,7 +24,7 @@ export function StepBundle({
   /** When set, trial sizes appear in this step. Null hides them (trials are off). */
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
-  const meals = listableMealSizes(catalog.mealSizes, selections.mealSizeId).filter((m) => m.planKey === selections.planKey);
+  const meals = listableMealSizes(catalog.mealSizes).filter((m) => m.planKey === selections.planKey);
   const weekly = meals.filter((m) => !m.trial);
   const trials = trial ? meals.filter((m) => m.trial) : [];
 

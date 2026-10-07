@@ -237,14 +237,8 @@ export async function createOrder(
   if (!plan) throw new ValidationError("Invalid plan");
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
-  if (mealSize.custom && !allowCustomMeal) {
-    // Customers may only renew a custom meal already on their account.
-    const ownerId = ownerUserId ? await resolveUserId(db, ownerUserId) : null;
-    const [prior] = ownerId
-      ? await db.select({ id: orders.id }).from(orders).where(and(eq(orders.userId, ownerId), eq(orders.mealSizeId, mealSize.id))).limit(1)
-      : [];
-    if (!prior) throw new ValidationError("This meal isn't available. Please choose a plan.");
-  }
+  // Custom meals are staff-only, renewals included: their price is set by staff per customer.
+  if (mealSize.custom && !allowCustomMeal) throw new ValidationError("This meal isn't available. Please choose a plan.");
   if (basePriceOverride != null) {
     if (!mealSize.custom) throw new ValidationError("A price override is for custom meals only");
     if (!Number.isFinite(basePriceOverride) || basePriceOverride <= 0 || basePriceOverride > 1000) throw new ValidationError("Override must be between 0 and 1000");

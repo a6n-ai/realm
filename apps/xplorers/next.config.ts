@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     "@foundry/commons",
     "@foundry/coupons",
     "@foundry/wallet",
+    "@foundry/friends",
     "@foundry/database",
     "@foundry/routes",
     "@foundry/themes",

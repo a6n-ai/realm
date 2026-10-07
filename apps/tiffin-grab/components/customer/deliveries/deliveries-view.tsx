@@ -7,7 +7,7 @@ import { Button, Card, Notice, Toast, type DeliveryStatus } from "@/components/c
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 import { OrderStatusBadge } from "@/components/ds";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, deliveryLine, eatingRowsInWeek, isAddressRow, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
 import { addDays, mondayOf, type Agenda } from "@/lib/deliveries-view/week";
@@ -179,7 +179,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
           <Truck aria-hidden className="size-5 shrink-0 text-[var(--muted-foreground,#6E6558)]" />
           <span className="min-w-0">
             <span className="block text-[15px] font-semibold">Next delivery: {humanDate(upcoming.deliveryDate)}, {tiffins(upcoming.units)} ({upcoming.covers.map(weekdayShort).join(" + ")})</span>
-            <span className="block text-[13px] text-[var(--muted-foreground,#6E6558)]">Changes close {formatCutoff(upcoming.cutoffAt, tz)}</span>
           </span>
         </button>
       )}

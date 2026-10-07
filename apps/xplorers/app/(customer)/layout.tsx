@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Role } from "@foundry/commons";
@@ -9,12 +10,15 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { landingPathFor } from "@/lib/auth/landing";
 import { getSession } from "@/lib/auth/session";
+import { InviteBanner } from "@/components/customer/invite-banner";
 import { CustomerNav } from "@/components/customer/customer-nav";
 import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
 import { AppBrand } from "@/components/dashboard/app-brand";
 import { ModeToggle } from "@/components/mode-toggle";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { getAppClock } from "@/lib/services/app-settings.service";
+import { friendsService } from "@/lib/services/friends.service";
+import { REF_COOKIE } from "@/lib/friends/ref-cookie";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +36,16 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     .limit(1);
   if (!u) redirect("/login");
   if (u.status !== "active") redirect("/login?suspended=1");
-  const { timezone } = await getAppClock();
+  const [{ timezone }, jar] = await Promise.all([
+    getAppClock(),
+    cookies(),
+    // Customers are created on several paths (signup, booking, staff); the
+    // first /me load is the one place all of them pass, so usernames start here.
+    friendsService.ensureUsername(session.user.id).catch((e) => console.error("ensureUsername", e)),
+  ]);
+
+  const ref = jar.get(REF_COOKIE)?.value;
+  const invite = ref ? await friendsService.previewInvite(session.user.id, ref) : undefined;
 
   return (
     <div className="crm-app">
@@ -45,6 +58,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
             actions={<ModeToggle />}
             bottomNav={<CustomerBottomNav />}
           >
+            {invite !== undefined ? <InviteBanner inviter={invite} /> : null}
             {children}
           </CrmShell>
           <Toaster position="top-right" />

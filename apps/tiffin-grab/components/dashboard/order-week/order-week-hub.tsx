@@ -14,7 +14,7 @@ import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
-import { actionAvailability, formatCutoff, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { deliveryLine, eatingRowsInWeek, isAddressRow, moveFacts, moveNotes, moveTags, tiffinBreakdown, weekdayShort, type EatingRow, type MoveFact } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
@@ -84,7 +84,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
           <CardContent className="flex items-center gap-2 text-sm">
             <Truck className="size-4" aria-hidden />
             <span data-testid="next-delivery">
-              Next delivery: <b>{humanDate(nextTruck.deliveryDate)}</b>, {tiffins(nextTruck.units)} ({nextTruck.covers.map(weekdayShort).join(" + ")}) · changes close {formatCutoff(nextTruck.cutoffAt, tz)}
+              Next delivery: <b>{humanDate(nextTruck.deliveryDate)}</b>, {tiffins(nextTruck.units)} ({nextTruck.covers.map(weekdayShort).join(" + ")})
             </span>
           </CardContent>
         </Card>
@@ -160,7 +160,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
                       {moveFacts(row, true).map((f) => <MoveBadge key={f.kind} fact={f} />)}
                     </div>
                     <ul className="text-muted-foreground list-disc space-y-0.5 pl-5 text-sm">
-                      {trip.status === "upcoming" && <li>Changes close {formatCutoff(trip.cutoffAt, tz)}</li>}
                       {!row.own && trip.status === "upcoming" && <li>{humanDate(row.date)} locks with {weekdayShort(trip.date)}&apos;s delivery</li>}
                     </ul>
                   </div>
@@ -384,7 +383,7 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, ...moveNotes(row, true), t.status === "upcoming" ? `changes close ${formatCutoff(t.cutoffAt, tz)}` : null].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{humanDate(row.date)} · meal</DialogTitle><DialogDescription>{[deliveryLine(row), `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`, ...moveNotes(row, true)].filter(Boolean).join(" · ")}</DialogDescription></DialogHeader>
         {(t.addressOverride || t.dropOff?.tagId) && (
           <div className="rounded-md border p-3 text-sm space-y-1">
             <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-2">Delivery Override</span>

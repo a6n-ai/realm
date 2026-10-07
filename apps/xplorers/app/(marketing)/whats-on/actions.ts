@@ -29,7 +29,7 @@ export async function quoteBookingAction(
   useCoins = false,
 ): Promise<QuoteState> {
   const auth = await getSession();
-  if (!auth?.user || auth.user.role !== Role.USER) return { error: "Sign in as a family to continue." };
+  if (!auth?.user || auth.user.role !== Role.USER) return { error: "Sign in to continue." };
   if (!Number.isInteger(seats) || seats < 1) return { error: "Pick at least one seat." };
   if (codeTriesExceeded(auth.user.id, code)) return { error: TOO_MANY_TRIES };
   try {
@@ -54,7 +54,7 @@ export async function createBookingAction(_prev: BookState, formData: FormData):
     redirect(`/login?callbackUrl=${encodeURIComponent(callback)}`);
   }
   if (auth.user.role !== Role.USER) {
-    return { error: "Sign in as a family to continue." };
+    return { error: "Sign in to continue." };
   }
 
   const raw = formData.get("seats");

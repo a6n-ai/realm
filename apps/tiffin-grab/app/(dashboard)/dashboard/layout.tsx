@@ -84,7 +84,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   };
 
   // Independent reads; this layout blocks first byte of every /dashboard page.
-  const [{ timezone }, memberOrganizations, activity, repCoupon, notificationFeed] = await Promise.all([
+  const [{ timezone, cutoffHour }, memberOrganizations, activity, repCoupon, notificationFeed] = await Promise.all([
     getAppSettings(),
     getMemberOrganizations(session),
     newActivity(),
@@ -112,7 +112,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       center={<GlobalSearch role={role} />}
       actions={
         <>
-          <AppClock />
+          <AppClock cutoffHour={cutoffHour} />
           <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
           <NotificationBellMount userPublicId={session.user.id} initial={notificationFeed} />
           <LockButton hasPin={hasPin} />

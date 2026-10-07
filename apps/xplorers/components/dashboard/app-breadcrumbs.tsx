@@ -9,13 +9,16 @@ const LABELS: Record<string, string> = {
   users: "Users",
   general: "General",
   integrations: "Integrations",
-  payments: "Payment",
+  payments: "Payments",
+  requests: "Pending verification",
+  all: "All payments",
   finance: "Finance",
   ledger: "Ledger",
   add: "Add",
   classes: "Classes",
   sessions: "Sessions",
   new: "New",
+  customers: "Customers",
 };
 
 export function AppBreadcrumbs() {

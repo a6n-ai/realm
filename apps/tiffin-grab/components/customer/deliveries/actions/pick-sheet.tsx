@@ -9,7 +9,7 @@ import {
 import { saveMyMealSelections, type PickItem } from "@/app/(customer)/me/meals/actions";
 import { panelId } from "@/components/customer/kit";
 import { useSheetUi } from "./sheet-ui";
-import { actionAvailability, formatCutoff, humanDate } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import type { GridCell } from "@/lib/menu/meals-grid";
 import type { SwapOption } from "@/lib/menu/meal-validation";
 import { foldProvisionalCells, previewOverride, previewPortions, previewSwapOptions, type ProvisionalSwap } from "@/lib/menu/pick-preview";
@@ -95,7 +95,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
   const reason = !pickAv.ok
     ? pickAv.why
     : closed
-      ? `Changes closed ${formatCutoff(trip.cutoffAt, plan.ctx.timezone)}. This trip is being prepared.`
+      ? "Changes closed. This trip is being prepared."
       : null;
   const trial = plan.sub.trial === true;
   const swapLocked = trial || !av.swap.ok || closed;
@@ -496,7 +496,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
           <U.Notice>{reason}</U.Notice>
         ) : (
           <U.Reason>
-            Closes {formatCutoff(trip.cutoffAt, plan.ctx.timezone)}. Pick a dish for each item.
+            Pick a dish for each item.
           </U.Reason>
         )}
         {state === null && <U.Loading />}

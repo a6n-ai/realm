@@ -4,9 +4,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { CalendarDays, LifeBuoy, LogOut, Menu as MenuIcon, Plus, RefreshCw, User, UtensilsCrossed } from "lucide-react";
+import { CalendarDays, Clock, LifeBuoy, LogOut, Menu as MenuIcon, Plus, RefreshCw, User, UtensilsCrossed } from "lucide-react";
 import { useTheme } from "@foundry/themes";
 import { signOut } from "@/lib/auth/client";
+import { cutoffNote, cutoffTime } from "@/lib/deliveries-view/cutoff";
 import { CoinChip, ListRow, MenuSection, NavPill, Segmented, Sheet, ThemeToggle } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
@@ -66,7 +67,7 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
   );
 }
 
-export function CustomerShell({ coinBalance, userPublicId, staffReplies = {}, children }: { coinBalance: number; userPublicId: string; staffReplies?: Record<string, number>; children: ReactNode }) {
+export function CustomerShell({ coinBalance, cutoffHour, userPublicId, staffReplies = {}, children }: { coinBalance: number; cutoffHour: number; userPublicId: string; staffReplies?: Record<string, number>; children: ReactNode }) {
   const unread = useSupportUnread(staffReplies);
   const pathname = usePathname();
   const router = useRouter();
@@ -107,6 +108,15 @@ export function CustomerShell({ coinBalance, userPublicId, staffReplies = {}, ch
             <NavPill href="/me/account" active={tab === "account"}>Account</NavPill>
           </nav>
           <div className="flex items-center justify-end gap-2">
+            <span
+              data-testid="cutoff-chip"
+              title={cutoffNote(cutoffHour)}
+              aria-label={cutoffNote(cutoffHour)}
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 text-[13px] font-semibold tabular-nums"
+            >
+              <Clock aria-hidden className="size-4 text-[var(--primary)]" />
+              <span><span className="hidden sm:inline">Cutoff </span>{cutoffTime(cutoffHour)}</span>
+            </span>
             <CoinChip href="/me/wallet" balance={coinBalance} active={under(pathname, "/me/wallet")} />
             <ThemeToggle />
           </div>

@@ -7,12 +7,12 @@ import {
   CreditCardIcon,
   LayoutDashboardIcon,
   LogOutIcon,
-  ScrollTextIcon,
   SettingsIcon,
   ShapesIcon,
   TicketPercentIcon,
   WalletIcon,
   UserIcon,
+  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
@@ -58,9 +58,11 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
     { title: "Classes", href: "/dashboard/classes", icon: ShapesIcon, permission: "studioSession:read" },
     { title: "Sessions", href: "/dashboard/sessions", icon: CalendarDaysIcon, permission: "studioSession:read" },
   ].filter(allow);
+  const people: NavItem[] = [
+    { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, permission: "user:list" },
+  ].filter(allow);
   const finance: NavItem[] = [
-    { title: "Payments", href: "/dashboard/finance/payments", icon: CreditCardIcon, permission: "settings:write" },
-    { title: "Ledger", href: "/dashboard/finance/ledger", icon: ScrollTextIcon, permission: "settings:write" },
+    { title: "Payments", href: "/dashboard/payments", icon: CreditCardIcon, permission: "settings:write" },
     {
       title: "Discounts",
       href: "/dashboard/discounts",
@@ -78,6 +80,7 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
   return [
     { label: "Overview", items: overview },
     { label: "Studio", items: studio },
+    { label: "People", items: people },
     { label: "Finance", items: finance },
     { label: "Administration", items: admin },
   ].filter((s) => s.items.length > 0);

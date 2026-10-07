@@ -50,7 +50,7 @@ export function SignupForm() {
 
   return (
     <AuthScreen>
-      <AuthPanel art={<AuthLogo />} title="Create a family account" tagline={`Join ${SITE_NAME} to manage classes and bookings.`}>
+      <AuthPanel art={<AuthLogo />} title="Create your account" tagline={`Join ${SITE_NAME} to manage classes and bookings.`}>
           <Form {...form}>
             <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col">
               <div className="flex flex-1 flex-col gap-5">

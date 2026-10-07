@@ -46,7 +46,7 @@ export function LoginForm() {
 
   const head =
     mode === "welcome"
-      ? { title: "Welcome to Xplorers", tagline: "Families sign in with an emailed code. Staff use a password to reach the console." }
+      ? { title: "Welcome to Xplorers", tagline: "Customers sign in with an emailed code. Staff use a password to reach the console." }
       : mode === "password"
         ? { title: "Welcome back", tagline: "Sign in with your email and password." }
         : codeStep

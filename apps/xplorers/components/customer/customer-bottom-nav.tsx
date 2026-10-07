@@ -1,11 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { LayoutDashboardIcon, UserIcon } from "lucide-react";
+import { LayoutDashboardIcon, UserIcon, UsersIcon } from "lucide-react";
 import { BottomNav, type BottomNavItem } from "@foundry/design-system";
 
 const TABS = [
   { href: "/me", title: "Overview", icon: LayoutDashboardIcon },
+  { href: "/me/friends", title: "Friends", icon: UsersIcon },
   { href: "/me/account", title: "Account", icon: UserIcon },
 ] as const;
 

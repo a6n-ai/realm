@@ -97,13 +97,7 @@ export function humanDate(iso: string): string {
   return `${DOW[d.getUTCDay()]}, ${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
-/** "Tue 6:00 pm" in the plan timezone. */
-export function formatCutoff(ms: number, timezone: string): string {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-US", { timeZone: timezone, weekday: "short", hour: "numeric", minute: "2-digit", hour12: true }).formatToParts(new Date(ms)).map((x) => [x.type, x.value]),
-  );
-  return `${p.weekday} ${p.hour}:${p.minute} ${String(p.dayPeriod).toLowerCase()}`;
-}
+export { cutoffNote, cutoffTime } from "./cutoff";
 
 function summarize(meal: MealLike | null | undefined): string | null {
   const names = (meal ?? []).flatMap((c) => c.picks.map((p) => p.name));
@@ -187,7 +181,7 @@ const no = (why: string): Availability => ({ ok: false, why, sub: "" });
 const yes = (sub: string): Availability => ({ ok: true, why: null, sub });
 
 export function actionAvailability(trip: Trip, _now: number, plan: PlanContext): Record<TripAction, Availability> {
-  const closed = `Changes closed ${formatCutoff(trip.cutoffAt, plan.timezone)}`;
+  const closed = "Changes closed";
   const s = trip.status;
   const into = trip.mergedInto ? humanDate(trip.mergedInto) : "";
 
@@ -199,7 +193,7 @@ export function actionAvailability(trip: Trip, _now: number, plan: PlanContext):
   const editable = s === "upcoming";
   // A failed drop or a legacy paused day can't be edited in place; its tiffin moves to a new day.
   const notHere = s === "failed" || s === "vacation" || s === "rescheduled";
-  const pick = editable ? yes(`Closes ${formatCutoff(trip.cutoffAt, plan.timezone)}`)
+  const pick = editable ? yes("Open for changes")
     : notHere ? no("Not delivered. Move it to another day to choose meals.")
     : no(blocked(`Delivered. ${closed}.`));
   const swap = editable ? yes("Rice ↔ Roti, per eating day")
@@ -212,7 +206,7 @@ export function actionAvailability(trip: Trip, _now: number, plan: PlanContext):
     : s === "rescheduled" ? no("Already moved.")
     : no(blocked("Already delivered."));
   // Re-addressing is allowed on make-ups too (the one change they permit); never charged.
-  const address: Availability = editable ? yes(`Closes ${formatCutoff(trip.cutoffAt, plan.timezone)}`)
+  const address: Availability = editable ? yes("Open for changes")
     : no(blocked(`Delivered. ${closed}.`));
 
   return { pick, swap, move, address };

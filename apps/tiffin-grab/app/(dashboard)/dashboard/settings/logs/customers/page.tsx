@@ -17,7 +17,7 @@ export default function CustomerLogsPage({ searchParams }: { searchParams: Searc
   return (
     <SectionCard
       title="Customer activity"
-      subtitle="Only completed, saved actions are shown. Browsing and unsaved changes are excluded."
+      subtitle="Saved changes to customers, by the customer, staff or the system. Browsing and unsaved changes are excluded."
     >
       <Suspense fallback={<CustomerLogsTableSkeleton />}>
         <CustomerLogsData searchParams={searchParams} />
