@@ -75,10 +75,11 @@ describe("grantComplimentaryTiffin", () => {
     await expect(grantComplimentaryTiffin(order.publicId, { date: NEXT_MON, note: "x", notify: false }, null)).rejects.toThrow(/Payment is still pending/);
   });
 
-  it("links the free tiffin to one missed delivery, once", async () => {
+  it("links the free tiffin to one past delivery, once", async () => {
     const { order, wed, fri } = await makeTripOrder(DEP, PREFIX);
-    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, wed.id));
-    await expect(grantComplimentaryTiffin(order.publicId, { date: NEXT_MON, note: "x", notify: false, forDeliveryPublicId: fri.publicId }, null)).rejects.toThrow(/missed/);
+    // The fixture's plan is dated 2030; pull Wed into the past so it counts as a delivery that happened.
+    await db.update(deliveries).set({ deliveryDate: "2026-01-07" }).where(eq(deliveries.id, wed.id));
+    await expect(grantComplimentaryTiffin(order.publicId, { date: NEXT_MON, note: "x", notify: false, forDeliveryPublicId: fri.publicId }, null)).rejects.toThrow(/past delivery/);
 
     const { deliveryPublicId } = await grantComplimentaryTiffin(order.publicId, { date: NEXT_MON, note: "Driver missed you", notify: false, forDeliveryPublicId: wed.publicId }, null);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.publicId, deliveryPublicId));

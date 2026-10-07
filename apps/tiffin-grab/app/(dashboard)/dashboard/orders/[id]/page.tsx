@@ -219,15 +219,18 @@ async function OrderDetail({
     { label: "Balance due", value: fmt(due, settings.currency), icon: ReceiptIcon, tone: due > 0 ? "bad" : "ok", hint: toReview ? `${toReview} payment${toReview === 1 ? "" : "s"} to review` : undefined },
   ];
 
-  // Missed days a free tiffin can make up for: held/vacation/failed, never moved, not yet given one.
-  const settled = new Set(deliveryRows.flatMap((r) => [r.makeupForDeliveryId, r.complimentaryForDeliveryId]).filter((id) => id != null).map(String));
+  // Past deliveries a free tiffin can make up for, newest first, minus ones that already have one.
+  // Any status but cancelled: a driver can mark a stop delivered that the customer never got.
+  const compensated = new Set(deliveryRows.map((r) => r.complimentaryForDeliveryId).filter((id) => id != null).map(String));
+  const deliveryState = (r: (typeof deliveryRows)[number]) =>
+    r.status === "paused" ? "vacation"
+    : r.status === "skipped" ? (r.optimoCompletionStatus === "failed" ? "not delivered" : "on hold")
+    : r.optimoCompletionStatus === "success" ? "marked delivered"
+    : "not confirmed";
   const missedOptions = deliveryRows
-    .filter((r) => (r.status === "skipped" || r.status === "paused") && r.mergedIntoDeliveryId == null && !settled.has(String(r.id)))
+    .filter((r) => r.deliveryDate <= settingsToday && r.status !== "cancelled" && r.mergedIntoDeliveryId == null && !compensated.has(String(r.id)))
     .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))
-    .map((r) => ({
-      publicId: r.publicId,
-      label: `${humanDate(r.deliveryDate)} · ${r.status === "paused" ? "vacation" : r.optimoCompletionStatus === "failed" ? "not delivered" : "on hold"}`,
-    }));
+    .map((r) => ({ publicId: r.publicId, label: `${humanDate(r.deliveryDate)} · ${deliveryState(r)}` }));
   // Admin only; a trial, a payment-pending or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
   const canGiveFree = session?.user?.role === "admin" && order.trialLength == null
     && complimentaryBlocker(order.status, order.payments.map((p) => p.status)) == null;

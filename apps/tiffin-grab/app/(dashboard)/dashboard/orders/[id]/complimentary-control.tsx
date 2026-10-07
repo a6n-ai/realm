@@ -33,7 +33,7 @@ export function ComplimentaryControl({
   allowedDays: string[];
   /** First free day after the customer's other running plans, when they have any. */
   otherPlanEnd?: string | null;
-  /** This plan's missed days with no make-up or free tiffin yet. */
+  /** This plan's past deliveries without a free tiffin yet, newest first. */
   missed?: MissedOption[];
 }) {
   const router = useRouter();
@@ -91,14 +91,15 @@ export function ComplimentaryControl({
         </div>
         {missed.length > 0 && (
           <div className="grid gap-2">
-            <Label htmlFor="comp-for">Makes up for (optional)</Label>
+            <Label htmlFor="comp-for">Missed delivery (optional)</Label>
             <Select value={forId} onValueChange={setForId}>
               <SelectTrigger id="comp-for" className="w-64"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>No specific delivery</SelectItem>
+                <SelectItem value={NONE}>Not for a specific delivery</SelectItem>
                 {missed.map((m) => <SelectItem key={m.publicId} value={m.publicId}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <p className="text-muted-foreground text-xs">Links the free tiffin to the day the customer missed, so it shows in the activity log.</p>
           </div>
         )}
         <div className="grid gap-2">
