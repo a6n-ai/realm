@@ -15,6 +15,7 @@ import { buildTrips } from "@/lib/deliveries-view";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
+import { portionsAfterSwaps } from "@/lib/menu/eating-day-portions";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { addressService } from "@/lib/services/addresses.service";
@@ -116,6 +117,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     categoryLabels,
     categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
     categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
+    portionsByDate: await portionsAfterSwaps(sub.publicId, days),
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses,
     addressDropOffs,

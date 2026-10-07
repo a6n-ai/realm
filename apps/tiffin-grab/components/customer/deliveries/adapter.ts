@@ -22,6 +22,8 @@ export type PlanView = {
   categoryPortions: Record<string, string>;
   /** Per-composition-row portions (catalog order). Prefer over categoryPortions for dish lines. */
   categoryPortionSlots: Record<string, string[]>;
+  /** Eating day → portions per category after that day's swaps; days without swaps are absent. */
+  portionsByDate?: Record<string, Record<string, (string | null)[]>>;
   /** Per-category pick size, unit and cap for this meal size; with sub.categoryCounts it lets the swap sheet mirror the server rules. */
   swapCategories: Record<string, SwapCategory>;
   /** The customer's saved addresses, for the per-delivery "Change address" sheet. */

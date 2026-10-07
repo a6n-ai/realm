@@ -376,6 +376,8 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
   const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
   const cats = (meal ?? []).filter((c) => c.picks.length > 0);
   const slotPortion = (category: string, pickIndex: number): string | null => {
+    const swapped = plan.portionsByDate?.[row.date]?.[category];
+    if (swapped?.length) return swapped[pickIndex] ?? swapped[swapped.length - 1] ?? null;
     const slots = plan.categoryPortionSlots?.[category];
     if (slots?.length) return slots[pickIndex] ?? slots[slots.length - 1] ?? null;
     return plan.categoryPortions[category] ?? null;
@@ -414,7 +416,6 @@ function InfoDialog({ row, plan, tz, onClose }: { row: EatingRow; plan: OrderWee
             ))}
           </ul>
         ) : <p className="text-muted-foreground text-sm">{row.dish ?? "Default menu."}</p>}
-        {row.swaps.length > 0 && <p className="text-muted-foreground text-xs">Swapped: {row.swaps.join(", ")}</p>}
       </DialogContent>
     </Dialog>
   );
