@@ -97,7 +97,7 @@ export function StepDuration({
         set({ startDate: "" });
         setStartDateError(
           overlapBound
-            ? `Your current plan has tiffins until ${formatDateOnly(runsThrough!, { mode: "short" })}. Choose a start date after it ends`
+            ? `Current plan ends ${formatDateOnly(runsThrough!, { mode: "short" })}. Pick a later date`
             : `Earliest available start date is ${minDate}`,
         );
         return;
@@ -121,9 +121,8 @@ export function StepDuration({
     <div className="space-y-6">
       {currentPlan && overlapBound ? (
         <CurrentPlanHint>
-          Your current plan has tiffins until{" "}
-          <strong>{formatDateOnly(runsThrough!, { mode: "short" })}</strong>, so this plan starts after it, on{" "}
-          <strong>{formatDateOnly(earliest, { mode: "short" })}</strong>. Two plans can&apos;t run on the same days.
+          Current plan ends <strong>{formatDateOnly(runsThrough!, { mode: "short" })}</strong>, so this one starts{" "}
+          <strong>{formatDateOnly(earliest, { mode: "short" })}</strong>.
           {selections.startDate !== earliest ? (
             <>
               {" "}

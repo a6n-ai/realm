@@ -503,7 +503,7 @@ export function Checkout({
   const perWeek = selections.trialDays == null ? (selections.eatingDays?.length ?? 0) : 0;
   const start = startLabel(selections.startDate);
   const startNote = start && lastTiffin && selections.startDate > lastTiffin
-    ? `Starts after your current plan's last tiffin on ${startLabel(lastTiffin)}.`
+    ? `Current plan ends ${startLabel(lastTiffin)}.`
     : null;
 
   const sign = step === 2 ? 1 : -1;

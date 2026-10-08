@@ -117,8 +117,7 @@ describe("wizard current-plan soft hints", () => {
       />,
     );
     // Names the real last tiffin and why the start is not tomorrow.
-    expect(screen.getByText(/Your current plan has tiffins until/i)).toBeInTheDocument();
-    expect(screen.getByText(/Two plans can't run on the same days/i)).toBeInTheDocument();
+    expect(screen.getByText(/Current plan ends/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Jan 13/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Jan 15/).length).toBeGreaterThan(0);
     expect(document.querySelector('input[type="date"]')).toBeNull();
