@@ -5,8 +5,8 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ListChecksIcon } from "lucide-react";
-import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
+import { cn } from "@foundry/ui/cn";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, DEFAULT_SIZE, PAGE_SIZES, ResponsiveDialog, type Column } from "@/components/ds";
 import { GROUP_LABEL, type ReasonGroup } from "@/lib/services/optimoroute/reconcile-reason";
@@ -27,12 +27,13 @@ const COLUMNS: readonly Column<Key>[] = [
 
 // Order of the filter chips = the order a dispatcher works through the day.
 const GROUPS: ReasonGroup[] = ["needs_action", "on_route", "done", "not_today", "not_ours"];
-const VARIANT: Record<ReasonGroup, "destructive" | "secondary" | "outline"> = {
-  needs_action: "destructive",
-  on_route: "secondary",
-  done: "secondary",
-  not_today: "outline",
-  not_ours: "outline",
+// Same tinted-pill tokens as StageBadge, one colour per group so a scan of the column separates them.
+const PILL: Record<ReasonGroup, string> = {
+  needs_action: "bg-bad/15 text-bad",
+  on_route: "bg-primary/15 text-primary",
+  done: "bg-ok/15 text-ok",
+  not_today: "bg-muted text-muted-foreground border",
+  not_ours: "text-muted-foreground border border-dashed",
 };
 
 function pagination(sp: URLSearchParams) {
@@ -105,7 +106,7 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.key}
-        serial={false}
+        serial
         pagination={pagination(params)}
         search={{ placeholder: "Search customer, phone or delivery ID…", keys: ["customerName", "phone", "deliveryPublicId", "optimoOrderNo"] }}
         emptyIcon={ListChecksIcon}
@@ -130,7 +131,9 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
               {r.driver ? `${r.driver}${r.stopNumber != null ? ` · #${r.stopNumber}` : ""}` : "—"}
             </TableCell>
             <TableCell>
-              <Badge variant={VARIANT[r.group]}>{GROUP_LABEL[r.group]}</Badge>
+              <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", PILL[r.group])}>
+                {GROUP_LABEL[r.group]}
+              </span>
               <span className="mt-1 block text-xs">{r.reason}</span>
             </TableCell>
             <TableCell className="text-right">
