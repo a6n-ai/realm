@@ -22,7 +22,6 @@ export type LedgerOurRow = {
 export type LedgerOptimoRow = {
   id: string;
   orderNo: string | null;
-  customerName: string | null;
   phone: string;
   driver: string | null;
   stopNumber: number | null;
@@ -134,8 +133,8 @@ export function assembleLedger(input: {
       key: `opt:${o.id}`,
       deliveryPublicId: null,
       optimoOrderNo: o.orderNo,
-      customerName: o.customerName ?? o.orderNo ?? o.id,
-      phone: o.phone || null,
+      customerName: o.orderNo ?? o.id,
+      phone: null,
       orderId: null,
       tiffinUnits: null,
       ourStatus: null,
@@ -222,7 +221,6 @@ export async function buildDayLedger(date: string): Promise<DayLedger> {
     return {
       id: o.id,
       orderNo: o.data?.orderNo?.trim() || null,
-      customerName: o.data?.customField2 ?? null,
       phone: normalisePhone(o.data?.customField1 ?? o.data?.phone),
       driver: info ? (info.driverName?.trim() || info.driverSerial?.trim() || null) : null,
       stopNumber: info?.stopNumber ?? null,

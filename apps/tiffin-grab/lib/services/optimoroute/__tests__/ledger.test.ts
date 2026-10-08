@@ -14,7 +14,7 @@ const our = (id: string, phone: string | null, o: Partial<OurSide> = {}): Ledger
   tiffinUnits: 1, ourStatus: "To be delivered", side: side(o),
 });
 const opt = (id: string, orderNo: string | null, phone: string, o: Partial<LedgerOptimoRow> = {}): LedgerOptimoRow => ({
-  id, orderNo, customerName: null, phone, driver: "Driver 1", stopNumber: 1, status: "scheduled", ...o,
+  id, orderNo, phone, driver: "Driver 1", stopNumber: 1, status: "scheduled", ...o,
 });
 
 describe("assembleLedger", () => {
@@ -61,6 +61,7 @@ describe("assembleLedger", () => {
     const l = assembleLedger({ date: "x", ours: [], paymentHeld: [], optimo: [opt("o9", "Other biz 1", "9990001111")] });
     expect(l.rows).toHaveLength(1);
     expect(l.rows[0]).toMatchObject({ group: "not_ours", optimoOrderNo: "Other biz 1", onLabels: false });
+    expect(l.rows[0]).toMatchObject({ customerName: "Other biz 1", phone: null });
   });
 
   it("payment-held deliveries are listed as needs action, off labels", () => {

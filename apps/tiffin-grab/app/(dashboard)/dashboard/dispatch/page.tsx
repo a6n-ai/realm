@@ -77,6 +77,8 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   // so the three terms that sum to Labels are counted from on-label rows only.
   const onLabels = ledger.rows.filter((r) => r.onLabels);
   const n = (g: string) => onLabels.filter((r) => r.group === g).length;
+  // Scheduled rows merged into another trip are on the labels but grouped not_today.
+  const merged = n("not_today");
   const c = ledger.counts;
 
   return (
@@ -86,8 +88,8 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
 
       <p className="text-sm" aria-live="polite">
         <span className="font-semibold">Labels {ledger.labelsCount}</span>
-        {" = "}On route {n("on_route")} · Done {n("done")} · Needs action {n("needs_action")}
-        <span className="text-muted-foreground"> — Not going today {c.not_today} · Not ours on OptimoRoute {c.not_ours}</span>
+        {" = "}On route {n("on_route")} · Done {n("done")} · Needs action {n("needs_action")}{merged > 0 ? ` · Merged elsewhere ${merged}` : ""}
+        <span className="text-muted-foreground"> — Not going today {c.not_today - merged} · Not ours on OptimoRoute {c.not_ours}</span>
       </p>
 
       <SectionCard title="Send to OptimoRoute" variant="flat">

@@ -11,7 +11,7 @@ import { TableCell } from "@foundry/ui/table";
 import { DataTable, DEFAULT_SIZE, PAGE_SIZES, ResponsiveDialog, type Column } from "@/components/ds";
 import { GROUP_LABEL, type ReasonGroup } from "@/lib/services/optimoroute/reconcile-reason";
 import type { DayLedger, LedgerRow } from "@/lib/services/optimoroute/ledger";
-import { pushDeliveryAction, removeDeliveryAction } from "./actions";
+import { pushDeliveryAction, removeStopsAction } from "./actions";
 
 type Key = "delivery" | "customer" | "ours" | "optimo" | "driver" | "reason" | "actions";
 
@@ -74,9 +74,15 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
 
   function remove(r: LedgerRow) {
     startTransition(async () => {
-      const res = await removeDeliveryAction(r.optimoOrderNo ?? r.deliveryPublicId!, date);
-      if (res.ok) toast.success(`${r.customerName} removed from OptimoRoute`);
-      else toast.error(res.message);
+      try {
+        // Re-checks staleness against a fresh read, so a stop that went live again is left on the route.
+        const res = await removeStopsAction(date, [r.deliveryPublicId!]);
+        if (res.removed > 0) toast.success(`${r.customerName} removed from OptimoRoute`);
+        else if (res.skipped.length > 0) toast.info(`${r.customerName} is no longer stale, left on the route`);
+        else toast.error(`${r.customerName} could not be removed`);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Remove failed");
+      }
       setConfirmRemove(null);
       router.refresh();
     });
@@ -130,7 +136,7 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
             <TableCell className="text-right">
               {r.action === "send" && r.deliveryPublicId ? (
                 <Button size="sm" variant="outline" disabled={pending} onClick={() => send(r)}>Send</Button>
-              ) : r.action === "remove" ? (
+              ) : r.action === "remove" && r.deliveryPublicId && r.optimoOrderNo === r.deliveryPublicId ? (
                 <Button size="sm" variant="outline" disabled={pending} onClick={() => setConfirmRemove(r)}>Remove…</Button>
               ) : null}
             </TableCell>
