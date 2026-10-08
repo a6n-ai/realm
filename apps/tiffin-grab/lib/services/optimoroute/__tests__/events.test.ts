@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-const { inWindow, handleEvents } = await import("../events");
+const { inWindow, handleEvents, shouldResetTag } = await import("../events");
+const { OptimoRouteError } = await import("../client");
 
 describe("inWindow", () => {
   const w = { start: "07:00", end: "23:00" };
@@ -48,5 +49,31 @@ describe("handleEvents", () => {
     const ev = { event: "success", unixTimestamp: 1, orderNo: "dlv_A", orderId: "oid1" };
     expect(await handleEvents([ev], deps)).toEqual({ applied: 1, ignored: 0 });
     expect(await handleEvents([ev], deps)).toEqual({ applied: 0, ignored: 1 });
+  });
+
+  it("applies once per order, using the last event in the batch", async () => {
+    await handleEvents(
+      [
+        { event: "failed", unixTimestamp: 1, orderNo: "dlv_A", orderId: "oid1" },
+        { event: "success", unixTimestamp: 2, orderNo: "dlv_A", orderId: "oid1" },
+      ],
+      deps,
+    );
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(apply.mock.calls[0][1]).toMatchObject({ status: "success" });
+  });
+
+  it("falls back to the event's status when the completion record has none", async () => {
+    (deps as { completionsFor: unknown }).completionsFor = vi.fn(async () => new Map([["oid1", {}]]));
+    await handleEvents([{ event: "success", unixTimestamp: 5, orderNo: "dlv_A", orderId: "oid1" }], deps);
+    expect(apply.mock.calls[0][1]).toMatchObject({ status: "success", endTime: { unixTimestamp: 5 } });
+  });
+});
+
+describe("shouldResetTag", () => {
+  it("resets only for a rejected (200, non-retryable) tag", () => {
+    expect(shouldResetTag(new OptimoRouteError("bad tag", 200, false))).toBe(true);
+    expect(shouldResetTag(new OptimoRouteError("down", 503, true))).toBe(false);
+    expect(shouldResetTag(new Error("network"))).toBe(false);
   });
 });

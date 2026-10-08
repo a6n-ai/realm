@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { inArray } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
@@ -6,7 +7,7 @@ import { getRedis } from "@/lib/redis";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-labels.service";
-import { getCompletionDetails, getEvents, type OptimoCompletionDetail, type OptimoEvent } from "./client";
+import { getCompletionDetails, getEvents, OptimoRouteError, type OptimoCompletionDetail, type OptimoEvent } from "./client";
 import { applyCompletion, movedSourceIds, tiffinsMoved, type ApplyResult } from "./completions";
 import { getOptimoRouteConfig } from "./config";
 
@@ -18,6 +19,7 @@ import { getOptimoRouteConfig } from "./config";
 const log = createLogger("optimoroute.events");
 const TAG_KEY = "optimo:events:tag";
 const LOCK_KEY = "optimo:events:lock";
+const OWNER = randomUUID();
 const LOCK_MS = 90_000;
 const INTERVAL_MS = 30_000;
 const MAX_BACKOFF_MS = 5 * 60_000;
@@ -27,6 +29,11 @@ export function inWindow(nowMs: number, timezone: string, window: { start: strin
   const hhmm = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
     .format(nowMs);
   return hhmm >= window.start && hhmm < window.end;
+}
+
+/** Only a success=false body (HTTP 200, not retryable) means OptimoRoute rejected the tag. */
+export function shouldResetTag(err: unknown): boolean {
+  return err instanceof OptimoRouteError && !err.retryable && err.status === 200;
 }
 
 export type HandleDeps = {
@@ -62,7 +69,10 @@ export async function handleEvents(events: OptimoEvent[], deps: HandleDeps = rea
   const relevant = events.filter((e) => ACTIONABLE.has(e.event) && e.orderNo && e.orderId);
   const rows = await deps.loadRows([...new Set(relevant.map((e) => e.orderNo!))]);
   const byPublicId = new Map(rows.map((r) => [r.delivery.publicId, r]));
-  const ours = relevant.filter((e) => byPublicId.has(e.orderNo!));
+  // The driver's last word per order wins; applying an earlier event first would act on a stale row.
+  const last = new Map<string, OptimoEvent>();
+  for (const e of relevant) if (byPublicId.has(e.orderNo!)) last.set(e.orderNo!, e);
+  const ours = [...last.values()];
   let ignored = events.length - ours.length;
   if (ours.length === 0) return { applied: 0, ignored };
 
@@ -75,7 +85,12 @@ export async function handleEvents(events: OptimoEvent[], deps: HandleDeps = rea
   for (const e of ours) {
     const row = byPublicId.get(e.orderNo!)!;
     // Prefer the completion record (has the note and end time); fall back to the event's own word.
-    const completion = completions.get(e.orderId!) ?? { status: e.event as "success" | "failed", endTime: { unixTimestamp: e.unixTimestamp } };
+    const rec = completions.get(e.orderId!);
+    const completion = {
+      ...rec,
+      status: rec?.status ?? (e.event as "success" | "failed"),
+      endTime: rec?.endTime ?? { unixTimestamp: e.unixTimestamp },
+    };
     const result = await deps.apply(row, completion, tiffinsMoved(row, movedIds), null);
     if (result.kind === "outcome") applied += 1;
     else ignored += 1;
@@ -86,8 +101,8 @@ export async function handleEvents(events: OptimoEvent[], deps: HandleDeps = rea
 /** One poll: lock, window check, drain the feed from the stored tag. */
 export async function pollOnce(): Promise<"locked" | "outside" | { applied: number; ignored: number }> {
   const redis = getRedis();
-  const got = await redis.set(LOCK_KEY, String(process.pid), "PX", LOCK_MS, "NX");
-  if (got !== "OK" && (await redis.get(LOCK_KEY)) !== String(process.pid)) return "locked";
+  const got = await redis.set(LOCK_KEY, OWNER, "PX", LOCK_MS, "NX");
+  if (got !== "OK" && (await redis.get(LOCK_KEY)) !== OWNER) return "locked";
   await redis.pexpire(LOCK_KEY, LOCK_MS);
 
   const [{ timezone }, cfg] = await Promise.all([getAppSettings(), getOptimoRouteConfig()]);
@@ -101,7 +116,7 @@ export async function pollOnce(): Promise<"locked" | "outside" | { applied: numb
     try {
       page = await getEvents(tag);
     } catch (e) {
-      if (tag) {
+      if (tag && shouldResetTag(e)) {
         // A tag OptimoRoute no longer knows: start over. Replays are harmless (see top).
         log.warn({ err: e }, "get_events rejected the stored tag; resetting");
         await redis.del(TAG_KEY);
