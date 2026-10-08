@@ -121,4 +121,9 @@ describe("pushOneDelivery / removeOneDelivery", () => {
     expect(activities).toHaveLength(1);
     expect(activities[0].note).toBe("Removed from OptimoRoute (manual)");
   });
+
+  it("removeOneDelivery refuses an orderNo that is not one of our deliveries", async () => {
+    await expect(removeOneDelivery("Other Biz 1", DATE, 1n)).rejects.toThrow("Not one of our deliveries");
+    expect(deleted).toEqual([]);
+  });
 });

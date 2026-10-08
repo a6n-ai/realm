@@ -237,6 +237,70 @@ export async function deleteOrder(orderNo: string): Promise<void> {
   }
 }
 
+export type OptimoScheduleInfo = {
+  driverSerial?: string;
+  driverName?: string;
+  stopNumber?: number;
+  scheduledAtDt?: string;
+};
+
+export type OptimoSearchOrder = {
+  id: string;
+  data?: { orderNo?: string; phone?: string; customField1?: string; customField2?: string };
+  /** null when the order exists but OptimoRoute has not put it on a route ("unscheduled"). */
+  scheduleInformation?: OptimoScheduleInfo | null;
+};
+
+/** Every order on the (shared) account for one date, planned or not. get_routes only sees planned stops. */
+export async function searchOrdersForDate(date: string): Promise<OptimoSearchOrder[]> {
+  const out: OptimoSearchOrder[] = [];
+  let afterTag: string | undefined;
+  // ponytail: 20 pages × 500 = 10k orders/day ceiling; raise if the shared account ever gets there.
+  for (let page = 0; page < 20; page++) {
+    const data = await request<{ success?: boolean; message?: string; orders?: OptimoSearchOrder[]; after_tag?: string }>(
+      "/search_orders",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dateRange: { from: date, to: date },
+          includeOrderData: true,
+          includeScheduleInformation: true,
+          ...(afterTag ? { after_tag: afterTag } : {}),
+        }),
+      },
+    );
+    if (data.success !== true) {
+      throw new OptimoRouteError(data.message || "search_orders returned success=false", 200, false);
+    }
+    out.push(...(data.orders ?? []));
+    if (!data.after_tag) break;
+    afterTag = data.after_tag;
+  }
+  return out;
+}
+
+export type OptimoEvent = {
+  event: string;
+  unixTimestamp: number;
+  orderNo?: string;
+  orderId?: string;
+  driverName?: string;
+  driverSerial?: string;
+};
+
+/** Driver-app events for live routes since `afterTag` ("" = from the start). OptimoRoute's stand-in for webhooks. */
+export async function getEvents(afterTag: string): Promise<{ events: OptimoEvent[]; tag: string; remaining: number }> {
+  const data = await request<{ success?: boolean; message?: string; code?: string; events?: OptimoEvent[]; tag?: string; remainingEvents?: number }>(
+    `/get_events?after_tag=${encodeURIComponent(afterTag)}`,
+    { method: "GET" },
+  );
+  if (data.success !== true) {
+    throw new OptimoRouteError(data.message || data.code || "get_events returned success=false", 200, false);
+  }
+  return { events: data.events ?? [], tag: data.tag ?? afterTag, remaining: data.remainingEvents ?? 0 };
+}
+
 /** OptimoRoute calls default to MAX_CONCURRENCY — its rate limit, not ours. */
 export function withConcurrency<T, R>(
   items: T[],

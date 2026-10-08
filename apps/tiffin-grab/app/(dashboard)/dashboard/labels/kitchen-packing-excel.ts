@@ -6,6 +6,7 @@ import { formatPortionUnit } from "@/lib/menu/packing-requirement";
 const FIXED_HEADERS = [
   "Delivery Date",
   "Customer",
+  "Delivery ID",
   "Phone",
   "Driver",
   "Stop #",
@@ -21,6 +22,7 @@ export function packingSheetAoA(sheet: KitchenPackingSheet): (string | number)[]
   const rows = sheet.rows.map((r) => [
     r.deliveryDate,
     r.forLabel ? `${r.customerName} · ${r.forLabel}` : r.customerName,
+    r.deliveryPublicId,
     r.phone ?? "",
     r.routeDriver ?? "",
     r.routeStopNumber ?? "",
@@ -63,6 +65,7 @@ export async function writeKitchenPackingWorkbook(
   packing["!cols"] = [
     { wch: 14 },
     { wch: 22 },
+    { wch: 16 },
     { wch: 14 },
     { wch: 18 },
     { wch: 8 },
