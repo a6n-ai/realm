@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completionAction, leaveReason, reportsUnmatched } from "../completions";
+import { completionAction, leaveReason, phoneMatches, reportsUnmatched } from "../completions";
 
 const scheduled = { status: "scheduled" as const, optimoCompletionStatus: null };
 const skipped = { status: "skipped" as const, optimoCompletionStatus: null };
@@ -51,5 +51,37 @@ describe("reportsUnmatched", () => {
     expect(reportsUnmatched("skipped")).toBe(false);
     expect(reportsUnmatched("paused")).toBe(false);
     expect(reportsUnmatched("cancelled")).toBe(false);
+  });
+});
+
+describe("phoneMatches", () => {
+  const stop = (key: string, orderNo: string, phone = "416") => ({ key, orderNo, phone });
+
+  it("matches one unclaimed stop to one unmatched row", () => {
+    const m = phoneMatches([{ key: "D1", phone: "416" }], [stop("s1", "legacy")]);
+    expect(m.get("D1")).toEqual({ kind: "match", stopKey: "s1" });
+  });
+
+  it("never borrows a stop already claimed by a sibling's orderNo", () => {
+    const m = phoneMatches(
+      [{ key: "D1", phone: "416" }, { key: "D2", phone: "416" }],
+      [stop("s1", "D1")],
+    );
+    expect(m.has("D1")).toBe(false);
+    expect(m.has("D2")).toBe(false);
+  });
+
+  it("is ambiguous when two of our unmatched rows share the phone", () => {
+    const m = phoneMatches(
+      [{ key: "D1", phone: "416" }, { key: "D2", phone: "416" }],
+      [stop("s1", "legacy")],
+    );
+    expect(m.get("D1")).toEqual({ kind: "ambiguous", candidateCount: 1 });
+    expect(m.get("D2")).toEqual({ kind: "ambiguous", candidateCount: 1 });
+  });
+
+  it("is ambiguous when two stops share the phone", () => {
+    const m = phoneMatches([{ key: "D1", phone: "416" }], [stop("s1", "a"), stop("s2", "b")]);
+    expect(m.get("D1")).toEqual({ kind: "ambiguous", candidateCount: 2 });
   });
 });

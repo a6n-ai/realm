@@ -91,7 +91,15 @@ export async function handleEvents(events: OptimoEvent[], deps: HandleDeps = rea
       status: rec?.status ?? (e.event as "success" | "failed"),
       endTime: rec?.endTime ?? { unixTimestamp: e.unixTimestamp },
     };
-    const result = await deps.apply(row, completion, tiffinsMoved(row, movedIds), null);
+    let result: ApplyResult;
+    try {
+      result = await deps.apply(row, completion, tiffinsMoved(row, movedIds), null);
+    } catch (err) {
+      // One poison event must not stop the page, or the cursor never advances and it replays forever.
+      log.error({ err, orderNo: e.orderNo }, "applying an OptimoRoute event failed");
+      ignored += 1;
+      continue;
+    }
     if (result.kind === "outcome") applied += 1;
     else ignored += 1;
   }

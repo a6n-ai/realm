@@ -53,7 +53,12 @@ export function reconcileReason(ours: OurSide, optimo: OptimoSide): Reason {
     return { group: "not_today", text: HERE[ours.status] };
   }
 
-  if (ours.mergedIntoDate) return { group: "not_today", text: `Merged into the ${ours.mergedIntoDate} trip` };
+  if (ours.mergedIntoDate) {
+    if (optimo && !closed) {
+      return { group: "needs_action", text: `Merged into the ${ours.mergedIntoDate} trip but still on OptimoRoute`, action: "review" };
+    }
+    return { group: "not_today", text: `Merged into the ${ours.mergedIntoDate} trip` };
+  }
   if (ours.optimoCompletionStatus === "success") return { group: "done", text: "Delivered" };
 
   if (!optimo) {

@@ -1,3 +1,4 @@
+import { ValidationError } from "@foundry/commons";
 import { and, desc, eq, inArray, ilike } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, users } from "@/db/schema";
@@ -9,6 +10,7 @@ import {
   createOrder,
   deleteOrder,
   getRoutes,
+  searchOrdersForDate,
   withConcurrency,
   type OptimoOrderPayload,
 } from "./client";
@@ -334,6 +336,9 @@ export async function pushOneDelivery(orderNo: string, date: string, actorId: bi
  * hand needs to delete a specific stop regardless of what today's diff says.
  */
 export async function removeOneDelivery(orderNo: string, date: string, actorId: bigint | null = null): Promise<void> {
+  // The OptimoRoute account is shared with another business: only ever delete a stop that is ours.
+  const [ours] = await db.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.publicId, orderNo)).limit(1);
+  if (!ours) throw new ValidationError("Not one of our deliveries");
   await deleteOrder(orderNo);
   await recordPushActivities(
     date,
@@ -370,12 +375,22 @@ export async function removeStops(
     return { date, removed: 0, failed: 0, skipped: [], outcomes: [] };
   }
 
-  const preview = await previewPush(date);
-  const staleNow = new Set(preview.remove.map((r) => r.orderNo));
+  // Read the same source the ledger does (search_orders, which includes unscheduled orders;
+  // get_routes would miss them). Removable = on OptimoRoute now, one of our deliveries, and
+  // not planned for this date any more.
+  const [onOptimo, planned, known] = await Promise.all([
+    searchOrdersForDate(date),
+    buildPlannedOrders(date),
+    db.select({ publicId: deliveries.publicId }).from(deliveries).where(inArray(deliveries.publicId, orderNos)),
+  ]);
+  const onOptimoNos = new Set(onOptimo.map((o) => o.data?.orderNo?.trim()).filter((n): n is string => !!n));
+  const plannedNos = new Set(planned.map((o) => o.orderNo));
+  const ourNos = new Set(known.map((k) => k.publicId));
   const requested = new Set(orderNos);
+  const isStale = (o: string) => onOptimoNos.has(o) && ourNos.has(o) && !plannedNos.has(o);
 
-  const targets = [...requested].filter((o) => staleNow.has(o));
-  const skipped = [...requested].filter((o) => !staleNow.has(o));
+  const targets = [...requested].filter(isStale);
+  const skipped = [...requested].filter((o) => !isStale(o));
 
   const outcomes = await withConcurrency(targets, async (orderNo): Promise<PushOutcome> => {
     try {

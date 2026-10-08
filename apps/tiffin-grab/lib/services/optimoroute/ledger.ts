@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orderActivities } from "@/db/schema";
+import { deliveries, orderActivities, orders } from "@/db/schema";
 import { labelDeliveryStatus, loadDayDeliveries } from "@/lib/services/daily-labels.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { getCompletionDetails, searchOrdersForDate } from "./client";
@@ -63,7 +63,10 @@ export function assembleLedger(input: {
   ours: LedgerOurRow[];
   paymentHeld: PaymentHeldRow[];
   optimo: LedgerOptimoRow[];
+  /** OptimoRoute orderNos that are one of our delivery publicIds (any date or status) but not scheduled here. */
+  knownStale?: { orderNo: string; customerName: string }[];
 }): DayLedger {
+  const staleNos = new Set((input.knownStale ?? []).map((k) => k.orderNo));
   const byOrderNo = new Map(input.optimo.filter((o) => o.orderNo).map((o) => [o.orderNo!, o]));
   const ourIds = new Set(input.ours.map((o) => o.deliveryPublicId));
   const claimed = new Set<string>();
@@ -74,7 +77,7 @@ export function assembleLedger(input: {
   // Phone fallback only over stops nobody claimed by orderNo and that are not one of our ids.
   const byPhone = new Map<string, LedgerOptimoRow[]>();
   for (const o of input.optimo) {
-    if (claimed.has(o.id) || (o.orderNo && ourIds.has(o.orderNo)) || !o.phone) continue;
+    if (claimed.has(o.id) || (o.orderNo && (ourIds.has(o.orderNo) || staleNos.has(o.orderNo))) || !o.phone) continue;
     byPhone.set(o.phone, [...(byPhone.get(o.phone) ?? []), o]);
   }
 
@@ -127,8 +130,29 @@ export function assembleLedger(input: {
     });
   }
 
+  for (const k of input.knownStale ?? []) {
+    const stop = byOrderNo.get(k.orderNo);
+    rows.push({
+      key: `stale:${k.orderNo}`,
+      deliveryPublicId: k.orderNo,
+      optimoOrderNo: k.orderNo,
+      customerName: k.customerName,
+      phone: null,
+      orderId: null,
+      tiffinUnits: null,
+      ourStatus: null,
+      optimoStatus: stop?.status ?? null,
+      driver: stop?.driver ?? null,
+      stopNumber: stop?.stopNumber ?? null,
+      group: "needs_action",
+      reason: "Stale — on OptimoRoute but not scheduled here",
+      action: "remove",
+      onLabels: false,
+    });
+  }
+
   for (const o of input.optimo) {
-    if (claimed.has(o.id) || (o.orderNo && ourIds.has(o.orderNo))) continue;
+    if (claimed.has(o.id) || (o.orderNo && (ourIds.has(o.orderNo) || staleNos.has(o.orderNo)))) continue;
     rows.push({
       key: `opt:${o.id}`,
       deliveryPublicId: null,
@@ -228,5 +252,19 @@ export async function buildDayLedger(date: string): Promise<DayLedger> {
     };
   });
 
-  return assembleLedger({ date, ours, paymentHeld, optimo });
+  // Stops naming one of our deliveries that is not scheduled here (cancelled order, moved date, payment
+  // in review) are still ours and removable; only orderNos absent from deliveries are "Not ours".
+  const ourIds = new Set(ours.map((o) => o.deliveryPublicId));
+  const unmatchedNos = [...new Set(optimo.map((o) => o.orderNo).filter((n): n is string => !!n && !ourIds.has(n)))];
+  const knownStale = unmatchedNos.length
+    ? (
+        await db
+          .select({ publicId: deliveries.publicId, fullName: orders.fullName })
+          .from(deliveries)
+          .innerJoin(orders, eq(orders.id, deliveries.orderId))
+          .where(inArray(deliveries.publicId, unmatchedNos))
+      ).map((k) => ({ orderNo: k.publicId, customerName: k.fullName }))
+    : [];
+
+  return assembleLedger({ date, ours, paymentHeld, optimo, knownStale });
 }

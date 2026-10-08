@@ -57,6 +57,24 @@ describe("assembleLedger", () => {
     expect(l.rows.filter((r) => r.group === "not_ours")).toHaveLength(0);
   });
 
+  it("a stop naming our delivery that is not scheduled here is Stale with Remove, not Not ours", () => {
+    const l = assembleLedger({
+      date: "x",
+      ours: [our("d1", "4165550001")],
+      paymentHeld: [],
+      optimo: [opt("o1", "gone-1", "4165550001"), opt("o2", "Other biz 1", "4165559999")],
+      knownStale: [{ orderNo: "gone-1", customerName: "Gone Customer" }],
+    });
+    expect(l.rows.find((r) => r.optimoOrderNo === "gone-1")).toMatchObject({
+      group: "needs_action", action: "remove", deliveryPublicId: "gone-1", customerName: "Gone Customer",
+      reason: "Stale — on OptimoRoute but not scheduled here", onLabels: false,
+    });
+    // not phone-matched onto d1, and not also listed as Not ours
+    expect(l.rows.find((r) => r.deliveryPublicId === "d1")?.group).toBe("needs_action");
+    expect(l.rows.filter((r) => r.group === "not_ours").map((r) => r.optimoOrderNo)).toEqual(["Other biz 1"]);
+    expect(l.rows.filter((r) => r.optimoOrderNo === "gone-1")).toHaveLength(1);
+  });
+
   it("stops that match nothing of ours are Not ours", () => {
     const l = assembleLedger({ date: "x", ours: [], paymentHeld: [], optimo: [opt("o9", "Other biz 1", "9990001111")] });
     expect(l.rows).toHaveLength(1);

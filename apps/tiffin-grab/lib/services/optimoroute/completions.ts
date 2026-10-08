@@ -207,15 +207,17 @@ export async function pullCompletions(
   ]);
 
   const stopByOrderNo = new Map<string, OptimoStop>();
-  const stopsByPhone = new Map<string, OptimoStop[]>();
+  const phoneByStopId = new Map<string, string>();
   for (const stop of stops) {
     stopByOrderNo.set(stop.orderNo!, stop);
     const phone = normalisePhone(orderDetails.get(stop.id!)?.customField1);
-    if (!phone) continue;
-    const existing = stopsByPhone.get(phone);
-    if (existing) existing.push(stop);
-    else stopsByPhone.set(phone, [stop]);
+    if (phone) phoneByStopId.set(stop.id!, phone);
   }
+  const byPhone = phoneMatches(
+    rows.map((r) => ({ key: r.delivery.publicId, phone: normalisePhone(r.customerPhone) })),
+    stops.map((s) => ({ key: s.id!, orderNo: s.orderNo!, phone: phoneByStopId.get(s.id!) ?? "" })),
+  );
+  const stopById = new Map(stops.map((s) => [s.id!, s]));
 
   const outcomes: CompletionOutcome[] = [];
   const ambiguous: CompletionAmbiguous[] = [];
@@ -224,16 +226,16 @@ export async function pullCompletions(
   const unmatched: { deliveryPublicId: string; customerName: string }[] = [];
 
   for (const row of rows) {
-    const phone = normalisePhone(row.customerPhone);
     let stop = stopByOrderNo.get(row.delivery.publicId);
     if (!stop) {
-      const candidates = phone ? stopsByPhone.get(phone) : undefined;
-      if (candidates && candidates.length === 1) {
-        stop = candidates[0];
-      } else if (candidates && candidates.length > 1) {
-        ambiguous.push({ phone, deliveryPublicId: row.delivery.publicId, candidateCount: candidates.length });
+      const hit = byPhone.get(row.delivery.publicId);
+      if (hit?.kind === "match") {
+        stop = stopById.get(hit.stopKey);
+      } else if (hit?.kind === "ambiguous") {
+        ambiguous.push({ phone: normalisePhone(row.customerPhone), deliveryPublicId: row.delivery.publicId, candidateCount: hit.candidateCount });
         continue;
-      } else {
+      }
+      if (!stop) {
         if (reportsUnmatched(row.delivery.status)) {
           unmatched.push({ deliveryPublicId: row.delivery.publicId, customerName: row.order.fullName });
         }
@@ -250,6 +252,34 @@ export async function pullCompletions(
 
   if (outcomes.length) publishAnalyticsLive();
   return { date, outcomes, ambiguous, pendingCount, unmatched, settled };
+}
+
+export type PhoneMatch = { kind: "match"; stopKey: string } | { kind: "ambiguous"; candidateCount: number };
+
+/**
+ * Phone fallback for rows with no orderNo hit, strictly 1:1: stops already claimed by an exact
+ * orderNo match are out, and a phone only matches when exactly one unclaimed stop and exactly one
+ * of our orderNo-unmatched rows share it. Anything else is ambiguous, never a guess.
+ */
+export function phoneMatches(
+  rows: { key: string; phone: string }[],
+  stops: { key: string; orderNo: string; phone: string }[],
+): Map<string, PhoneMatch> {
+  const rowKeys = new Set(rows.map((r) => r.key));
+  const free = stops.filter((s) => s.phone && !rowKeys.has(s.orderNo));
+  const rowsByPhone = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.phone || stops.some((s) => s.orderNo === r.key)) continue;
+    rowsByPhone.set(r.phone, (rowsByPhone.get(r.phone) ?? 0) + 1);
+  }
+  const out = new Map<string, PhoneMatch>();
+  for (const r of rows) {
+    if (!r.phone || stops.some((s) => s.orderNo === r.key)) continue;
+    const candidates = free.filter((s) => s.phone === r.phone);
+    if (candidates.length === 1 && rowsByPhone.get(r.phone) === 1) out.set(r.key, { kind: "match", stopKey: candidates[0]!.key });
+    else if (candidates.length > 0) out.set(r.key, { kind: "ambiguous", candidateCount: candidates.length });
+  }
+  return out;
 }
 
 export function tiffinsMoved(row: DayDeliveryRow, movedIds: Set<bigint>): boolean {

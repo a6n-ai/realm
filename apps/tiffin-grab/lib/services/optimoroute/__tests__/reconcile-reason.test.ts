@@ -37,6 +37,8 @@ describe("reconcileReason", () => {
     ["vacation", ours({ status: "paused" }), null, "not_today", "Vacation", undefined],
     ["cancelled", ours({ status: "cancelled" }), null, "not_today", "Cancelled", undefined],
     ["merged", ours({ mergedIntoDate: "2026-10-07" }), null, "not_today", "Merged into the 2026-10-07 trip", undefined],
+    ["merged but still on OptimoRoute", ours({ mergedIntoDate: "2026-10-07" }), stop(), "needs_action", "Merged into the 2026-10-07 trip but still on OptimoRoute", "review"],
+    ["merged and its stop is closed", ours({ mergedIntoDate: "2026-10-07" }), stop({ status: "success" }), "not_today", "Merged into the 2026-10-07 trip", undefined],
     ["moved", ours({ status: "skipped", moved: true }), null, "not_today", "Moved to a make-up day", undefined],
   ] as const)("%s", (_name, o, s, group, text, action) => {
     expect(reconcileReason(o, s)).toEqual({ group, text, ...(action ? { action } : {}) });

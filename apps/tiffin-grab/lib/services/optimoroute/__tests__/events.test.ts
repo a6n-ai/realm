@@ -51,6 +51,19 @@ describe("handleEvents", () => {
     expect(await handleEvents([ev], deps)).toEqual({ applied: 0, ignored: 1 });
   });
 
+  it("a throwing apply is logged and counted ignored; the next event still applies", async () => {
+    apply.mockRejectedValueOnce(new Error("db down")).mockResolvedValueOnce({ kind: "outcome" });
+    const r = await handleEvents(
+      [
+        { event: "success", unixTimestamp: 1, orderNo: "dlv_A", orderId: "oid1" },
+        { event: "success", unixTimestamp: 2, orderNo: "dlv_B", orderId: "oid1" },
+      ],
+      deps,
+    );
+    expect(apply).toHaveBeenCalledTimes(2);
+    expect(r).toEqual({ applied: 1, ignored: 1 });
+  });
+
   it("applies once per order, using the last event in the batch", async () => {
     await handleEvents(
       [
