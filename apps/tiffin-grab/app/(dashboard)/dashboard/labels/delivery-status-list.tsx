@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { TruckIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
@@ -10,10 +11,11 @@ import { sortRows } from "@/lib/list/sort";
 import type { DayDeliveryStatusRow, LabelDeliveryStatus } from "@/lib/services/daily-labels.service";
 import { useTableParams } from "./use-table-params";
 
-type Key = "customer" | "orderId" | "planName" | "mealSize" | "tiffins" | "status";
+type Key = "customer" | "deliveryId" | "orderId" | "planName" | "mealSize" | "tiffins" | "status";
 
 const COLUMNS: readonly Column<Key>[] = [
   { key: "customer", label: "Customer", sortable: true },
+  { key: "deliveryId", label: "Delivery ID", sortable: true },
   { key: "orderId", label: "Order ID", sortable: true },
   { key: "planName", label: "Plan", sortable: true },
   { key: "mealSize", label: "Meal size", sortable: true },
@@ -23,6 +25,7 @@ const COLUMNS: readonly Column<Key>[] = [
 
 const VALUE: Record<Key, (r: DayDeliveryStatusRow) => string | number> = {
   customer: (r) => r.customerName,
+  deliveryId: (r) => r.deliveryPublicId,
   orderId: (r) => r.orderId,
   planName: (r) => r.planName,
   mealSize: (r) => r.mealSizeName,
@@ -54,7 +57,7 @@ export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
       rows={shown}
       rowKey={(r) => r.deliveryPublicId}
       sort={sort}
-      search={{ keys: ["customerName", "orderId", "planName", "mealSizeName", "status"], placeholder: "Search deliveries..." }}
+      search={{ keys: ["customerName", "deliveryPublicId", "orderId", "planName", "mealSizeName", "status"], placeholder: "Search deliveries..." }}
       pagination={pagination}
       filters={
         statusCounts.length > 1 ? (
@@ -81,6 +84,9 @@ export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
       renderRow={(row) => (
         <>
           <TableCell className="whitespace-nowrap">{row.customerName}</TableCell>
+          <TableCell className="font-mono text-xs">
+            <Link href={`/dashboard/go/${row.deliveryPublicId}`} className="hover:underline">{row.deliveryPublicId}</Link>
+          </TableCell>
           <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
           <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
           <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>

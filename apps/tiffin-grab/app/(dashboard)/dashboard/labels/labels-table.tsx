@@ -23,6 +23,7 @@ type ColDef = {
 
 const META_COLS: ColDef[] = [
   { key: "customer", label: "Customer", defaultWidth: 168, minWidth: 110, sticky: "customer" },
+  { key: "deliveryId", label: "Delivery ID", defaultWidth: 132, minWidth: 96 },
   { key: "phone", label: "Phone", defaultWidth: 136, minWidth: 110 },
   { key: "driver", label: "Driver", defaultWidth: 112, minWidth: 80 },
   { key: "stop", label: "Stop #", align: "right", defaultWidth: 72, minWidth: 56 },
@@ -40,6 +41,8 @@ function cellValue(r: KitchenPackingRow, column: ColKey, itemHeaders: string[]):
   switch (column) {
     case "customer":
       return r.forLabel ? `${r.customerName} · ${r.forLabel}` : r.customerName;
+    case "deliveryId":
+      return r.deliveryPublicId;
     case "phone":
       return r.phone ?? "";
     case "driver":
@@ -347,7 +350,7 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
                           className={cn(
                             "overflow-hidden text-ellipsis whitespace-nowrap",
                             c.align === "right" && "text-right tabular-nums",
-                            c.key === "orderId" && "font-mono text-xs",
+                            (c.key === "orderId" || c.key === "deliveryId") && "font-mono text-xs",
                             c.key === "phone" && "tabular-nums",
                             isCustomer && "bg-background sticky z-10 font-medium shadow-[1px_0_0_0_var(--border)]",
                           )}

@@ -49,6 +49,7 @@ describe("packingSheetAoA", () => {
     expect(aoa[2]).toEqual([
       "Delivery Date",
       "Customer",
+      "Delivery ID",
       "Phone",
       "Driver",
       "Stop #",
@@ -61,6 +62,7 @@ describe("packingSheetAoA", () => {
     expect(aoa[3]).toEqual([
       "2026-10-23",
       "Ada",
+      "d1",
       "4165550100",
       "Alex",
       3,
@@ -70,6 +72,13 @@ describe("packingSheetAoA", () => {
       "Alpha Dish — 12 OZ × 1",
       "—",
     ]);
+  });
+
+  it("puts a Delivery ID column after Customer so same-day deliveries for one customer are told apart", () => {
+    const aoa = packingSheetAoA(sheet);
+    expect(aoa[2]!.slice(0, 3)).toEqual(["Delivery Date", "Customer", "Delivery ID"]);
+    expect(aoa[3]![2]).toBe("d1");
+    expect(aoa[4]![2]).toBe("d2");
   });
 });
 

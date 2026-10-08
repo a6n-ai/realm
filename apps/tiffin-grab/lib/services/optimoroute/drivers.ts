@@ -77,6 +77,7 @@ export async function buildDispatchRows(date: string): Promise<DispatchRow[]> {
 }
 
 export type PaymentHeldRow = {
+  deliveryPublicId: string;
   orderPublicId: string;
   customerName: string;
   phone: string | null;
@@ -93,6 +94,7 @@ export type PaymentHeldRow = {
 export async function listPaymentHeld(date: string): Promise<PaymentHeldRow[]> {
   const rows = await db
     .select({
+      deliveryPublicId: deliveries.publicId,
       orderPublicId: orders.publicId,
       customerName: orders.fullName,
       phone: users.phone,

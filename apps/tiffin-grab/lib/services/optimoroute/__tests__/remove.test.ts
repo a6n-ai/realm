@@ -9,14 +9,16 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const deleted: string[] = [];
 let failFor = new Set<string>();
 let onOptimo: string[] = [];
+let unplanned = false;
 
 vi.mock("../client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../client")>();
   return {
     ...actual,
-    getRoutes: async () => [
+    getRoutes: async () => unplanned ? [] : [
       { driverName: "Driver 1", stops: onOptimo.map((orderNo, i) => ({ orderNo, stopNumber: i + 1 })) },
     ],
+    searchOrdersForDate: async () => onOptimo.map((orderNo, i) => ({ id: `o${i}`, data: { orderNo } })),
     createOrder: async () => {},
     deleteOrder: async (orderNo: string) => {
       if (failFor.has(orderNo)) throw new Error("OptimoRoute refused the delete");
@@ -57,6 +59,7 @@ describe("removeStops (integration)", () => {
     deleted.length = 0;
     failFor = new Set();
     onOptimo = [];
+    unplanned = false;
     await reset();
 
     const snap = await loadCatalogSnapshot();
@@ -136,11 +139,41 @@ describe("removeStops (integration)", () => {
 
   it("removes only what was named, not everything stale", async () => {
     await db.update(deliveries).set({ status: "paused" }).where(eq(deliveries.id, deliveryId));
-    onOptimo = [livePublicId, "43 Yatharth Aggarwal"];
+    const [other] = await db
+      .insert(deliveries)
+      .values({ orderId, deliveryDate: "2099-01-01", status: "skipped", cutoffAt: Date.now() + 1e9 })
+      .returning();
+    onOptimo = [livePublicId, other.publicId]; // other is ours but on another date: still removable from this day's stops
+
+    const result = await removeStops(DATE, [other.publicId]);
+    expect(deleted).toEqual([other.publicId]);
+    expect(result.removed).toBe(1);
+  });
+
+  it("never deletes another business's stop, even when asked by name", async () => {
+    onOptimo = ["43 Yatharth Aggarwal"];
 
     const result = await removeStops(DATE, ["43 Yatharth Aggarwal"]);
-    expect(deleted).toEqual(["43 Yatharth Aggarwal"]);
-    expect(result.removed).toBe(1);
+    expect(result.removed).toBe(0);
+    expect(result.skipped).toEqual(["43 Yatharth Aggarwal"]);
+    expect(deleted).toEqual([]);
+  });
+
+  it("removes an unscheduled stale stop that get_routes cannot see", async () => {
+    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, deliveryId));
+    onOptimo = [livePublicId];
+    unplanned = true; // get_routes lists nothing; only search_orders sees the order
+    const result = await removeStops(DATE, [livePublicId]);
+    expect(result.skipped).toEqual([]);
+    expect(deleted).toEqual([livePublicId]);
+  });
+
+  it("skips a stop that is no longer on OptimoRoute", async () => {
+    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, deliveryId));
+    onOptimo = [];
+    const result = await removeStops(DATE, [livePublicId]);
+    expect(result.skipped).toEqual([livePublicId]);
+    expect(deleted).toEqual([]);
   });
 
   it("logs the removal against the delivery it belongs to", async () => {

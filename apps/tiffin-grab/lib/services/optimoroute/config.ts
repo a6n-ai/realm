@@ -41,6 +41,13 @@ export const optimoRouteConfigSchema = z.object({
    * time, silently re-sorting every label.
    */
   driverCodes: z.record(z.string(), z.string()).default({}),
+  /**
+   * Local (app timezone) hours the get_events poller runs. Outside them nothing is polled,
+   * so the DB and OptimoRoute stay quiet overnight. "HH:MM", start < end.
+   */
+  eventsWindow: z
+    .object({ start: z.string().regex(/^\d{2}:\d{2}$/), end: z.string().regex(/^\d{2}:\d{2}$/) })
+    .default({ start: "07:00", end: "23:00" }),
 });
 export type OptimoRouteConfig = z.infer<typeof optimoRouteConfigSchema>;
 
