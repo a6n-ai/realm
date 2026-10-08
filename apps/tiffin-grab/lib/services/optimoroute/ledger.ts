@@ -79,6 +79,13 @@ export function assembleLedger(input: {
     byPhone.set(o.phone, [...(byPhone.get(o.phone) ?? []), o]);
   }
 
+  // Phone fallback is strictly 1:1: one unclaimed stop and one of our orderNo-unmatched rows.
+  const ourUnmatchedByPhone = new Map<string, number>();
+  for (const o of input.ours) {
+    const p = normalisePhone(o.phone);
+    if (p && !byOrderNo.has(o.deliveryPublicId)) ourUnmatchedByPhone.set(p, (ourUnmatchedByPhone.get(p) ?? 0) + 1);
+  }
+
   const rows: LedgerRow[] = [];
   for (const o of input.ours) {
     let stop = byOrderNo.get(o.deliveryPublicId) ?? null;
@@ -86,14 +93,14 @@ export function assembleLedger(input: {
     const phone = normalisePhone(o.phone);
     if (!stop && phone) {
       const candidates = byPhone.get(phone) ?? [];
-      if (candidates.length > 1) {
-        rows.push(row(o, null, { group: "needs_action", text: "Several OptimoRoute stops share this phone", action: "review" }));
-        continue;
-      }
-      if (candidates.length === 1) {
+      if (candidates.length === 1 && ourUnmatchedByPhone.get(phone) === 1) {
         stop = candidates[0]!;
         matchedBy = "phone";
         claimed.add(stop.id);
+      } else if (candidates.length > 0) {
+        for (const c of candidates) claimed.add(c.id);
+        rows.push(row(o, null, { group: "needs_action", text: "Several OptimoRoute stops share this phone", action: "review" }));
+        continue;
       }
     }
     const optimoSide: OptimoSide = stop

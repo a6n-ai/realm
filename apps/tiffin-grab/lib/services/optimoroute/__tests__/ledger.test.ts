@@ -42,6 +42,19 @@ describe("assembleLedger", () => {
     const row = two.rows.find((r) => r.deliveryPublicId === "d1")!;
     expect(row.group).toBe("needs_action");
     expect(row.reason).toBe("Several OptimoRoute stops share this phone");
+    expect(two.rows.filter((r) => r.group === "not_ours")).toHaveLength(0);
+  });
+
+  it("two of our rows sharing a phone with one legacy stop are both flagged, stop not shown twice", () => {
+    const l = assembleLedger({
+      date: "x",
+      ours: [our("d1", "4165550001"), our("d2", "4165550001")],
+      paymentHeld: [],
+      optimo: [opt("o1", "Legacy 43", "4165550001")],
+    });
+    expect(l.rows).toHaveLength(2);
+    expect(l.rows.every((r) => r.reason === "Several OptimoRoute stops share this phone")).toBe(true);
+    expect(l.rows.filter((r) => r.group === "not_ours")).toHaveLength(0);
   });
 
   it("stops that match nothing of ours are Not ours", () => {
