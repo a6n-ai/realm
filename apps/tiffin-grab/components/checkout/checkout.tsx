@@ -108,6 +108,7 @@ export function Checkout({
   savedAddresses = [],
   addressDropOffs = {},
   suggestedCoupons = [],
+  lastTiffin = null,
 }: {
   defaultCountry: Country;
   closeHref?: string;
@@ -120,6 +121,8 @@ export function Checkout({
   addressDropOffs?: Record<string, DropOffValue>;
   /** Live coupons a customer has to type in (auto-apply ones are excluded); shown as tap-to-apply chips. */
   suggestedCoupons?: AvailableCoupon[];
+  /** Last tiffin of the customer's running plan(s), so a later start date explains itself. */
+  lastTiffin?: string | null;
 }) {
   const router = useRouter();
   const dropOff = dropOffCatalog(catalog?.deliveryCharges, catalog?.waivers);
@@ -499,6 +502,9 @@ export function Checkout({
   // A trial stores its picked days in eatingDays too; that isn't a weekly rate.
   const perWeek = selections.trialDays == null ? (selections.eatingDays?.length ?? 0) : 0;
   const start = startLabel(selections.startDate);
+  const startNote = start && lastTiffin && selections.startDate > lastTiffin
+    ? `Starts after your current plan's last tiffin on ${startLabel(lastTiffin)}.`
+    : null;
 
   const sign = step === 2 ? 1 : -1;
   const slide = reduce ? 0 : 24;
@@ -506,7 +512,7 @@ export function Checkout({
   const reveal = { initial: { opacity: 0, y: reduce ? 0 : 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0 }, transition: spring };
 
   const summary = (plain = false) => (
-    <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} editHref={editHref}>
+    <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref}>
       {applied.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-1.5" aria-label="Applied coupons">
           {applied.map((c) => (
@@ -554,6 +560,7 @@ export function Checkout({
                 total={result?.total}
                 onOpen={() => setSummaryOpen(true)}
               />
+              {startNote && <p className="text-muted-foreground -mt-3 mb-6 px-1 text-[13px] text-pretty">{startNote}</p>}
 
               {step === 1 ? (
                 <div className="space-y-10">

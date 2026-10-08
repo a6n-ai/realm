@@ -7,10 +7,8 @@ import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
-import {
-  myEarliestNewPlanStartDate,
-  mySubscriptionsSummary,
-} from "@/lib/services/customer-deliveries.service";
+import { myRenewalWindow, mySubscriptionsSummary } from "@/lib/services/customer-deliveries.service";
+import { appToday, earliestPlanStart } from "@/lib/services/start-date";
 import { PageShell } from "@/components/ds";
 import { Wizard } from "@/components/wizard/wizard";
 import { selectionsFromPriorOrder } from "@/components/wizard/selections";
@@ -22,7 +20,7 @@ export default async function RenewPlanPage() {
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
-  const [catalog, trialSettings, [lastOrder], earliestStartDate, subs] = await Promise.all([
+  const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs] = await Promise.all([
     loadCatalogSnapshot(),
     resolveRequestOrg().then(getTrialSettings),
     db
@@ -42,14 +40,14 @@ export default async function RenewPlanPage() {
       .where(eq(orders.userId, userId))
       .orderBy(desc(orders.createdAt))
       .limit(1),
-    myEarliestNewPlanStartDate(userId),
+    myRenewalWindow(userId),
     mySubscriptionsSummary(userId),
   ]);
   const client = toClientCatalog(catalog);
   const mealSizePublicId = lastOrder
     ? catalog.mealSizes.find((m) => m.id === lastOrder.mealSizeId)?.publicId
     : undefined;
-  const initial = selectionsFromPriorOrder(
+  const prior = selectionsFromPriorOrder(
     client,
     lastOrder
       ? {
@@ -64,6 +62,12 @@ export default async function RenewPlanPage() {
         }
       : null,
   );
+  // A renewal keeps its length and lands on its start date already picked: the first day
+  // the plan starts on after the running plan's last tiffin (or tomorrow when none runs).
+  const priorPlan = client.plans.find((p) => p.key === prior.planKey);
+  const initial = priorPlan
+    ? { ...prior, startDate: earliestPlanStart(appToday(client.timezone), priorPlan.allowedStartDays, earliestStartDate) }
+    : prior;
   const live = subs.filter((s) => LIVE.has(s.status));
   const currentRow =
     live.find((s) => s.status === "active") ??
@@ -100,6 +104,7 @@ export default async function RenewPlanPage() {
           initial={initial}
           currentPlan={current}
           minStartDate={earliestStartDate}
+          lastTiffin={lastTiffin}
           existingStartDates={live.map((s) => s.startDate).filter(Boolean)}
           trial={
             trialSettings.maxDays != null && trialSettings.maxDays >= 1 && trialSettings.weekdays.length > 0

@@ -26,3 +26,22 @@ export function validateStartDate(startDate: string, allowedStartDays: string[],
     throw new ValidationError("This plan cannot start on the selected day");
   }
 }
+
+/**
+ * Earliest start a weekly plan can take: the next weekday after `today`, or `minStartDate`
+ * when later (the day after a running plan), moved forward to a day the plan starts on.
+ */
+export function earliestPlanStart(today: Date, allowedStartDays: readonly string[], minStartDate: string | null = null): string {
+  const tomorrow = nextWeekday(today).toISOString().slice(0, 10);
+  const from = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
+  return firstStartOnOrAfter(from, allowedStartDays);
+}
+
+/** First day on/after `fromIso` whose weekday is in `allowed` (`fromIso` itself if none within two weeks). */
+export function firstStartOnOrAfter(fromIso: string, allowed: readonly string[]): string {
+  const d = parseIsoDateUtc(fromIso);
+  for (let i = 0; i < 14; i++, d.setUTCDate(d.getUTCDate() + 1)) {
+    if (allowed.includes(weekdayKey(d))) return d.toISOString().slice(0, 10);
+  }
+  return fromIso;
+}

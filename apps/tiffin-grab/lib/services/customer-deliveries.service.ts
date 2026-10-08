@@ -25,7 +25,7 @@ import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
 import { toDropOffValues } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
-import { earliestNewPlanStart } from "./order-window";
+import { earliestNewPlanStart, lastRunningTiffinDate } from "./order-window";
 import { getAppSettings } from "./app-settings.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "./session-service";
@@ -526,6 +526,12 @@ export async function myTiffinCounts(userId: bigint, orderPublicId: string): Pro
 // Returns null when the customer has no active/paused orders (no constraint to apply).
 export async function myEarliestNewPlanStartDate(userId: bigint): Promise<string | null> {
   return earliestNewPlanStart(db, userId);
+}
+
+/** When a new plan may start and why: the running plans' last tiffin date (null when nothing runs). */
+export async function myRenewalWindow(userId: bigint): Promise<{ earliestStart: string | null; lastTiffin: string | null }> {
+  const [earliestStart, lastTiffin] = await Promise.all([earliestNewPlanStart(db, userId), lastRunningTiffinDate(db, userId)]);
+  return { earliestStart, lastTiffin };
 }
 
 /** Original delivery id -> the day its tiffin moved to (the picked eat day for a single-day trip, else the make-up's delivery date). */

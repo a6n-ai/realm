@@ -13,6 +13,7 @@ import { Checkout } from "@/components/checkout/checkout";
 import { addressService } from "@/lib/services/addresses.service";
 import { dropOffsFor } from "@/lib/services/address-drop-off.service";
 import { couponsService } from "@/lib/services/coupons.service";
+import { myRenewalWindow } from "@/lib/services/customer-deliveries.service";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function CheckoutPage() {
   const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
   // Auto-apply coupons land on their own; only codes a customer must type are worth suggesting.
   const suggestedCoupons = (await couponsService.listAvailable()).filter((c) => !c.autoApply);
+  const { lastTiffin } = await myRenewalWindow(userId);
 
   // Simulated payment is local-only; prod with no rail enabled can't take an order.
   if (process.env.NODE_ENV === "production" && (await listCheckoutPaymentMethods()).length === 0) {
@@ -51,7 +53,7 @@ export default async function CheckoutPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-10">
-      <Checkout defaultCountry={defaultCountry} closeHref="/me" prefill={prefill} catalog={catalog} savedAddresses={savedAddresses} addressDropOffs={addressDropOffs} suggestedCoupons={suggestedCoupons} />
+      <Checkout defaultCountry={defaultCountry} closeHref="/me" prefill={prefill} catalog={catalog} savedAddresses={savedAddresses} addressDropOffs={addressDropOffs} suggestedCoupons={suggestedCoupons} lastTiffin={lastTiffin} />
     </main>
   );
 }

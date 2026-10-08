@@ -25,6 +25,7 @@ export function OrderSummary({
   addons,
   baseline,
   deliveryType,
+  startNote,
   plain = false,
   children,
 }: {
@@ -39,6 +40,8 @@ export function OrderSummary({
   baseline?: string | null;
   /** e.g. "3-day delivery · Mon Wed Fri". */
   deliveryType?: string | null;
+  /** Why the start date is not sooner, e.g. after a running plan. */
+  startNote?: string | null;
   /** Inside a sheet that already has the card surface and the "Your order" title. */
   plain?: boolean;
   children?: ReactNode;
@@ -85,6 +88,7 @@ export function OrderSummary({
           </p>
         ) : null}
         {start && <p className="text-muted-foreground">Starts {start}</p>}
+        {start && startNote && <p className="text-muted-foreground text-[13px] text-pretty">{startNote}</p>}
       </div>
 
       <Divider className="my-4" />

@@ -35,6 +35,7 @@ export function Wizard({
   origin = "subscribe",
   initial = initialSelections,
   minStartDate = null,
+  lastTiffin = null,
   exitHref,
   trial = null,
 }: {
@@ -46,6 +47,8 @@ export function Wizard({
   initial?: WizardSelections;
   /** First date a new/renewed plan may start (overlap with a live plan). */
   minStartDate?: string | null;
+  /** Last tiffin of the customer's running plan(s): why the start date is not tomorrow. */
+  lastTiffin?: string | null;
   exitHref?: string;
   /** Open trial offer. Trial sizes then sit on Bundle and skip Schedule. */
   trial?: { maxDays: number; weekdays: string[] } | null;
@@ -191,6 +194,7 @@ export function Wizard({
               sameWeekConflict={sameWeekConflict}
               currentPlan={currentPlan}
               minStartDate={minStartDate}
+              lastTiffin={lastTiffin}
               trial={trialSelected && trial ? { ...trial, weekdays: trialSendDays(trial.weekdays, servesWeekends(catalog, selections)) } : null}
             />
           )}
