@@ -4,7 +4,7 @@ import { deliveries, orderActivities } from "@/db/schema";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/services/daily-labels.service";
 import { skipDelivery } from "@/lib/services/deliveries.service";
-import { getCompletionDetails, getOrderDetails, getRoutes, type OptimoStop } from "./client";
+import { getCompletionDetails, getOrderDetails, getRoutes, type OptimoCompletionDetail, type OptimoStop } from "./client";
 import { normalisePhone } from "./push";
 import { tripDetail } from "./trip-notes";
 
@@ -69,6 +69,8 @@ export type PullCompletionsResult = {
    *  outcome. Left untouched (falls back to the time-based default), listed by name so
    *  staff know which customers to check rather than just a bare count. */
   unmatched: { deliveryPublicId: string; customerName: string }[];
+  /** Rows already settled (or not ours to change) — listed so a re-pull shows what is done. */
+  settled: { deliveryPublicId: string; customerName: string; reason: string }[];
 };
 
 /** What this pull should do with one of our rows, given OptimoRoute's word for the matched stop. */
@@ -84,6 +86,108 @@ export function completionAction(
   if (optimoStatus === "success") return row.status === "skipped" ? "restore" : "confirm";
   if (optimoStatus === "failed") return row.status === "scheduled" ? "skip" : "leave";
   return "pending";
+}
+
+/** Plain words for a row the pull left as it was — shown so staff see it was looked at. */
+export function leaveReason(
+  row: { status: "scheduled" | "paused" | "skipped" | "cancelled"; optimoCompletionStatus: string | null },
+  moved: boolean,
+): string {
+  if (moved) return "Tiffins moved to another day";
+  if (row.status === "paused") return "Vacation — not revived from a route";
+  if (row.status === "cancelled") return "Cancelled — not revived from a route";
+  if (row.status === "scheduled" && row.optimoCompletionStatus === "success") return "Already confirmed delivered";
+  if (row.status === "skipped" && row.optimoCompletionStatus === "failed") return "Already marked not delivered";
+  return row.status === "skipped" ? "On hold" : "Left as it is";
+}
+
+/** A held/paused/cancelled day is never pushed, so having no stop is expected, not a gap. */
+export function reportsUnmatched(status: "scheduled" | "paused" | "skipped" | "cancelled"): boolean {
+  return status === "scheduled";
+}
+
+export type ApplyResult =
+  | { kind: "outcome"; outcome: CompletionOutcome }
+  | { kind: "pending" }
+  | { kind: "leave"; reason: string };
+
+/** The one place an OptimoRoute status becomes a delivery change. Pull and the event poller both call it. */
+export async function applyCompletion(
+  row: DayDeliveryRow,
+  completion: OptimoCompletionDetail | undefined,
+  moved: boolean,
+  actorId: bigint | null,
+): Promise<ApplyResult> {
+  const optimoStatus = completion?.status ?? null;
+  const action = completionAction(row.delivery, optimoStatus, moved);
+  if (action === "pending") return { kind: "pending" };
+  if (action === "leave") return { kind: "leave", reason: leaveReason(row.delivery, moved) };
+
+  const trip = tripDetail(row);
+  const completedAtMs = completion?.endTime?.unixTimestamp ? completion.endTime.unixTimestamp * 1000 : Date.now();
+  const note = optimoStatus === "success" ? null : (completion?.form?.note?.trim() || null);
+
+  if (action === "confirm" || action === "restore") {
+    await db.update(deliveries).set({
+      ...(action === "restore" ? { status: "scheduled" as const } : {}),
+      optimoCompletionStatus: "success",
+      optimoCompletedAt: completedAtMs,
+      optimoCompletionNote: null,
+    }).where(eq(deliveries.id, row.delivery.id));
+    await db.insert(orderActivities).values({
+      orderId: row.order.id,
+      deliveryId: row.delivery.id,
+      type: action === "restore" ? "unskipped" : "route_completed",
+      note: "Confirmed delivered via OptimoRoute",
+      createdBy: actorId,
+    });
+    return {
+      kind: "outcome",
+      outcome: {
+        deliveryPublicId: row.delivery.publicId,
+        customerName: row.order.fullName,
+        optimoStatus,
+        action: "confirmed",
+        tiffinUnits: trip.units,
+        coverage: trip.coverage,
+      },
+    };
+  }
+
+  let skipError: string | undefined;
+  let skipped = false;
+  try {
+    // skipDelivery's cutoff lock stops a customer changing a day too late. An explicit
+    // OptimoRoute failure is the dispatcher case, and it can arrive after that lock.
+    await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
+    skipped = true;
+  } catch (e) {
+    skipError = e instanceof Error ? e.message : "Unknown error";
+  }
+  await db.update(deliveries).set({
+    optimoCompletionStatus: optimoStatus,
+    optimoCompletedAt: completedAtMs,
+    optimoCompletionNote: note,
+  }).where(eq(deliveries.id, row.delivery.id));
+  await db.insert(orderActivities).values({
+    orderId: row.order.id,
+    deliveryId: row.delivery.id,
+    type: "route_completed",
+    note: `OptimoRoute reported delivery failed${note ? `: ${note}` : ""}${skipError ? ` (skip not applied: ${skipError})` : ""}`,
+    createdBy: actorId,
+  });
+  return {
+    kind: "outcome",
+    outcome: {
+      deliveryPublicId: row.delivery.publicId,
+      customerName: row.order.fullName,
+      optimoStatus,
+      action: skipped ? "skipped" : "skip_failed",
+      skipError,
+      tiffinUnits: trip.units,
+      coverage: trip.coverage,
+    },
+  };
 }
 
 export async function pullCompletions(
@@ -113,9 +217,9 @@ export async function pullCompletions(
     else stopsByPhone.set(phone, [stop]);
   }
 
-  const now = Date.now();
   const outcomes: CompletionOutcome[] = [];
   const ambiguous: CompletionAmbiguous[] = [];
+  const settled: PullCompletionsResult["settled"] = [];
   let pendingCount = 0;
   const unmatched: { deliveryPublicId: string; customerName: string }[] = [];
 
@@ -130,96 +234,30 @@ export async function pullCompletions(
         ambiguous.push({ phone, deliveryPublicId: row.delivery.publicId, candidateCount: candidates.length });
         continue;
       } else {
-        unmatched.push({ deliveryPublicId: row.delivery.publicId, customerName: row.order.fullName });
+        if (reportsUnmatched(row.delivery.status)) {
+          unmatched.push({ deliveryPublicId: row.delivery.publicId, customerName: row.order.fullName });
+        }
         continue;
       }
     }
 
-    const completion = completions.get(stop.id!);
-    const optimoStatus = completion?.status ?? null;
-    const trip = tripDetail(row);
-    const moved = tiffinsMoved(row, movedIds);
-    const action = completionAction(row.delivery, optimoStatus, moved);
-
-    if (action === "pending") {
-      pendingCount += 1;
-      continue;
-    }
-    if (action === "leave") continue;
-
-    const completedAtMs = completion?.endTime?.unixTimestamp ? completion.endTime.unixTimestamp * 1000 : now;
-    const note = optimoStatus === "success" ? null : (completion?.form?.note?.trim() || null);
-
-    if (action === "confirm" || action === "restore") {
-      await db.update(deliveries).set({
-        ...(action === "restore" ? { status: "scheduled" as const } : {}),
-        optimoCompletionStatus: "success",
-        optimoCompletedAt: completedAtMs,
-        optimoCompletionNote: null,
-      }).where(eq(deliveries.id, row.delivery.id));
-      await db.insert(orderActivities).values({
-        orderId: row.order.id,
-        deliveryId: row.delivery.id,
-        type: action === "restore" ? "unskipped" : "route_completed",
-        note: "Confirmed delivered via OptimoRoute",
-        createdBy: actorId,
-      });
-      outcomes.push({
-        deliveryPublicId: row.delivery.publicId,
-        customerName: row.order.fullName,
-        optimoStatus,
-        action: "confirmed",
-        tiffinUnits: trip.units,
-        coverage: trip.coverage,
-      });
-      continue;
-    }
-
-    let skipError: string | undefined;
-    let skipped = false;
-    try {
-      // skipDelivery's cutoff lock stops a customer changing a day too late. An explicit
-      // OptimoRoute failure is the dispatcher case, and it can arrive after that lock.
-      await skipDelivery(row.delivery.publicId, actorId, { bypassCutoffLock: true });
-      skipped = true;
-    } catch (e) {
-      skipError = e instanceof Error ? e.message : "Unknown error";
-    }
-
-    await db.update(deliveries).set({
-      optimoCompletionStatus: optimoStatus,
-      optimoCompletedAt: completedAtMs,
-      optimoCompletionNote: note,
-    }).where(eq(deliveries.id, row.delivery.id));
-    await db.insert(orderActivities).values({
-      orderId: row.order.id,
-      deliveryId: row.delivery.id,
-      type: "route_completed",
-      note: `OptimoRoute reported delivery failed${note ? `: ${note}` : ""}${skipError ? ` (skip not applied: ${skipError})` : ""}`,
-      createdBy: actorId,
-    });
-
-    outcomes.push({
-      deliveryPublicId: row.delivery.publicId,
-      customerName: row.order.fullName,
-      optimoStatus,
-      action: skipped ? "skipped" : "skip_failed",
-      skipError,
-      tiffinUnits: trip.units,
-      coverage: trip.coverage,
-    });
+    const result = await applyCompletion(row, completions.get(stop.id!), tiffinsMoved(row, movedIds), actorId);
+    if (result.kind === "pending") pendingCount += 1;
+    else if (result.kind === "leave") {
+      settled.push({ deliveryPublicId: row.delivery.publicId, customerName: row.order.fullName, reason: result.reason });
+    } else outcomes.push(result.outcome);
   }
 
   if (outcomes.length) publishAnalyticsLive();
-  return { date, outcomes, ambiguous, pendingCount, unmatched };
+  return { date, outcomes, ambiguous, pendingCount, unmatched, settled };
 }
 
-function tiffinsMoved(row: DayDeliveryRow, movedIds: Set<bigint>): boolean {
+export function tiffinsMoved(row: DayDeliveryRow, movedIds: Set<bigint>): boolean {
   return row.delivery.mergedIntoDeliveryId != null || row.delivery.tiffinUnits === 0 || movedIds.has(row.delivery.id);
 }
 
 /** Source rows that already spawned a make-up. Restoring one would count its tiffins twice. */
-async function movedSourceIds(deliveryIds: bigint[]): Promise<Set<bigint>> {
+export async function movedSourceIds(deliveryIds: bigint[]): Promise<Set<bigint>> {
   if (deliveryIds.length === 0) return new Set();
   const children = await db
     .select({ sourceId: deliveries.makeupForDeliveryId })

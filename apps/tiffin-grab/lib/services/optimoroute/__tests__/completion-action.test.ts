@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completionAction } from "../completions";
+import { completionAction, leaveReason, reportsUnmatched } from "../completions";
 
 const scheduled = { status: "scheduled" as const, optimoCompletionStatus: null };
 const skipped = { status: "skipped" as const, optimoCompletionStatus: null };
@@ -31,5 +31,25 @@ describe("completionAction", () => {
     expect(completionAction(skipped, "success", true)).toBe("leave");
     expect(completionAction({ status: "paused", optimoCompletionStatus: null }, "success", false)).toBe("leave");
     expect(completionAction({ status: "cancelled", optimoCompletionStatus: null }, "failed", false)).toBe("leave");
+  });
+});
+
+describe("leaveReason", () => {
+  it("says why a row was left alone", () => {
+    expect(leaveReason({ status: "scheduled", optimoCompletionStatus: "success" }, false)).toBe("Already confirmed delivered");
+    expect(leaveReason({ status: "skipped", optimoCompletionStatus: "failed" }, false)).toBe("Already marked not delivered");
+    expect(leaveReason({ status: "skipped", optimoCompletionStatus: null }, true)).toBe("Tiffins moved to another day");
+    expect(leaveReason({ status: "paused", optimoCompletionStatus: null }, false)).toBe("Vacation — not revived from a route");
+    expect(leaveReason({ status: "cancelled", optimoCompletionStatus: null }, false)).toBe("Cancelled — not revived from a route");
+    expect(leaveReason({ status: "skipped", optimoCompletionStatus: null }, false)).toBe("On hold");
+  });
+});
+
+describe("reportsUnmatched", () => {
+  it("only a scheduled day missing from OptimoRoute is a gap", () => {
+    expect(reportsUnmatched("scheduled")).toBe(true);
+    expect(reportsUnmatched("skipped")).toBe(false);
+    expect(reportsUnmatched("paused")).toBe(false);
+    expect(reportsUnmatched("cancelled")).toBe(false);
   });
 });
