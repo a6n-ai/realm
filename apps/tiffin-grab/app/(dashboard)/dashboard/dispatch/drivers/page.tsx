@@ -7,6 +7,8 @@ import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { DayHeader } from "../day-header";
 import { DispatchTabs } from "../dispatch-tabs";
 import { DriverRoster } from "../driver-roster";
+import { DispatchView } from "../dispatch-view";
+import { DispatchExportButton } from "../dispatch-export-button";
 
 type SearchParams = Promise<{ date?: string }>;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -41,6 +43,9 @@ export default async function DriversPage({ searchParams }: { searchParams: Sear
       <DayHeader date={date} today={today} basePath="/dashboard/dispatch/drivers" />
       <DispatchTabs date={date} />
       <DriverRoster drivers={drivers} rows={dispatchRows} />
+      <SectionCard title="Assign drivers" action={<DispatchExportButton dateIso={date} rows={dispatchRows} />}>
+        <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
+      </SectionCard>
     </PageShell>
   );
 }

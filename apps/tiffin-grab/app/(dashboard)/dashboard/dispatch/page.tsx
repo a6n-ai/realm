@@ -1,23 +1,16 @@
 import { Suspense } from "react";
-import { TruckIcon, ChevronDownIcon } from "lucide-react";
+import { TruckIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { Badge } from "@foundry/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
-import { previewPush } from "@/lib/services/optimoroute/push";
-import Link from "next/link";
-import { buildDispatchRows, listKnownDrivers, listPaymentHeld } from "@/lib/services/optimoroute/drivers";
-import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
+import { buildDayLedger } from "@/lib/services/optimoroute/ledger";
+import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { DayHeader } from "./day-header";
-import { DispatchExportButton } from "./dispatch-export-button";
 import { DispatchTabs } from "./dispatch-tabs";
-import { DispatchView } from "./dispatch-view";
-import { PlannedOrders } from "./routes-view";
-import { PushControl } from "./push-control";
-import { ListCard, ListCardRow } from "./list-card";
+import { LedgerTable } from "./ledger-table";
+import { DayActions } from "./day-actions";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -62,13 +55,14 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
     );
   }
 
-  let preview;
+  let ledger;
   try {
-    preview = await previewPush(date);
+    ledger = await buildDayLedger(date);
   } catch (e) {
     return (
       <>
         <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
+        <DispatchTabs date={date} />
         <SectionCard title="OptimoRoute unreachable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
         </SectionCard>
@@ -76,121 +70,33 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
     );
   }
 
-  let dispatchRows, drivers, paymentHeld;
-  try {
-    [dispatchRows, drivers, paymentHeld] = await Promise.all([
-      buildDispatchRows(date),
-      listKnownDrivers(),
-      listPaymentHeld(date),
-    ]);
-  } catch (e) {
-    return (
-      <>
-        <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
-        <SectionCard title="Dispatch data unavailable">
-          <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
-        </SectionCard>
-      </>
-    );
-  }
-
-  const scheduledCount = preview.create.length + preview.update.length;
-  const totalTiffins = dispatchRows.reduce((n, r) => n + r.tiffinUnits, 0);
-  const loadByDriver = new Map<string, number>();
-  for (const r of dispatchRows) {
-    // Some OptimoRoute drivers (T Stash) have a name but no serial — either one means routed.
-    const name = r.routeDriverName ?? r.routeDriverSerial;
-    if (!name) continue;
-    loadByDriver.set(name, (loadByDriver.get(name) ?? 0) + r.tiffinUnits);
-  }
+  const unassigned = ledger.rows
+    .filter((r) => r.onLabels && r.deliveryPublicId && (r.action === "send" || (r.group === "needs_action" && !r.driver)))
+    .map((r) => r.deliveryPublicId!);
+  // Off-label rows (e.g. held after a failed delivery) are in the ledger counts but not in Labels,
+  // so the three terms that sum to Labels are counted from on-label rows only.
+  const onLabels = ledger.rows.filter((r) => r.onLabels);
+  const n = (g: string) => onLabels.filter((r) => r.group === g).length;
+  const c = ledger.counts;
 
   return (
     <>
-      <DayHeader
-        date={date}
-        today={today}
-        basePath="/dashboard/dispatch"
-        actions={<DispatchExportButton dateIso={date} rows={dispatchRows} />}
-      />
-
+      <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
       <DispatchTabs date={date} />
 
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="secondary">{preview.create.length} to create</Badge>
-        <Badge variant="secondary">{preview.update.length} to update</Badge>
-        <Badge variant="outline">{preview.remove.length} stale</Badge>
-        <Badge variant="outline">{scheduledCount} stop{scheduledCount === 1 ? "" : "s"}</Badge>
-        <Badge variant="outline">{totalTiffins} tiffin{totalTiffins === 1 ? "" : "s"}</Badge>
-        {[...loadByDriver.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })).map(([name, n]) => (
-          <Badge key={name} variant="secondary">{name}: {n} tiffin{n === 1 ? "" : "s"}</Badge>
-        ))}
-      </div>
+      <p className="text-sm" aria-live="polite">
+        <span className="font-semibold">Labels {ledger.labelsCount}</span>
+        {" = "}On route {n("on_route")} · Done {n("done")} · Needs action {n("needs_action")}
+        <span className="text-muted-foreground"> — Not going today {c.not_today} · Not ours on OptimoRoute {c.not_ours}</span>
+      </p>
 
-      {/* Actions above the table, matching the Stale/Completions tabs — a dispatcher
-          shouldn't have to scroll past the whole table to find Send/Pull. */}
       <SectionCard title="Send to OptimoRoute" variant="flat">
-        <PushControl
-          date={date}
-          stops={scheduledCount}
-          unassigned={dispatchRows.filter((r) => !r.routeDriverSerial && !r.routeDriverName).map((r) => r.orderNo)}
-        />
+        <DayActions date={date} labelsCount={ledger.labelsCount} unassigned={unassigned} />
       </SectionCard>
 
-      {paymentHeld.length > 0 ? (
-        <ListCard title={`Not sent: payment not confirmed (${paymentHeld.length})`}>
-          {paymentHeld.map((h) => (
-            <ListCardRow
-              key={h.orderPublicId}
-              primary={
-                <Link href={`/dashboard/orders/${h.orderPublicId}`} className="hover:underline">
-                  {h.customerName}
-                </Link>
-              }
-              secondary={[h.phone, `$${h.amount}`, h.reference ? `Ref ${h.reference}` : null]
-                .filter(Boolean)
-                .join(" · ")}
-              trailing={
-                <Badge variant={h.paymentStatus === "pending_verification" ? "secondary" : "outline"}>
-                  {h.paymentStatus === "pending_verification" ? "Needs verification" : "Awaiting payment"}
-                </Badge>
-              }
-            />
-          ))}
-        </ListCard>
-      ) : null}
-
-      {/* Primary content: this is the task a dispatcher opens the page to do. */}
-      <SectionCard title="Dispatch">
-        <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
+      <SectionCard title="Day">
+        <LedgerTable date={date} ledger={ledger} />
       </SectionCard>
-
-      {/*
-        Reference detail, not the primary task — collapsed by default.
-        SectionCard's `title` is string-only (see @foundry/design-system/src/section-card.tsx),
-        so the clickable header is built here directly instead of through SectionCard, matching
-        its header/title classes so the collapsed card still reads as one of the page's cards.
-      */}
-      <Collapsible className="group/collapsible">
-        <Card variant="flat" className="p-5">
-          {/* hover:bg-muted matches the app's other full-width clickable rows (menu-grid, account nav) so the disclosure reads as interactive, not just a static heading */}
-          <CollapsibleTrigger className="-mx-2 -my-1 mb-2 flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1 text-left transition-colors hover:bg-muted md:mb-3">
-            <h2 className="text-base font-semibold tracking-tight text-balance md:text-lg">
-              Stop details
-            </h2>
-            <ChevronDownIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-4">
-            <div>
-              <p className="mb-2 text-sm font-medium">New stops ({preview.create.length})</p>
-              <PlannedOrders rows={preview.create} />
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-medium">Already on the route ({preview.update.length})</p>
-              <PlannedOrders rows={preview.update} />
-            </div>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
     </>
   );
 }
@@ -201,15 +107,11 @@ DispatchData.Skeleton = function DispatchDataSkeleton() {
       <SectionCard title="Day" variant="flat">
         <Skeleton className="h-9 w-64" />
       </SectionCard>
-      <div className="flex gap-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-6 w-24 rounded-full" />
-        ))}
-      </div>
+      <Skeleton className="h-5 w-96" />
       <SectionCard title="Send to OptimoRoute" variant="flat">
         <Skeleton className="h-16 w-full" />
       </SectionCard>
-      <SectionCard title="Dispatch">
+      <SectionCard title="Day">
         <Skeleton className="h-40 w-full" />
       </SectionCard>
     </>
