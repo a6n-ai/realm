@@ -4,4 +4,8 @@ export async function register() {
     const { startOutboxListener } = await import("./lib/notifications/outbox-listener");
     startOutboxListener();
   }
+  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.OPTIMO_EVENTS === "on") {
+    const { startOptimoEventPoller } = await import("./lib/services/optimoroute/events");
+    startOptimoEventPoller();
+  }
 }
