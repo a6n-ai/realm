@@ -1,6 +1,6 @@
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
@@ -9,7 +9,7 @@ import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
-import { MAX_TIFFINS_PER_TRIP, countsToCoverage, coveredDates, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
+import { countsToCoverage, coveredDates, dateCounts, mergeBlockReason, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { findZone } from "@/lib/catalog/zone-match";
@@ -22,7 +22,7 @@ import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { assertDayOutsideOtherPlans } from "./order-window";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
-import { humanDate } from "@/lib/deliveries-view";
+import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
 
 const log = createLogger("deliveries.service");
 
@@ -406,6 +406,11 @@ export async function adminSetDeliveryStatus(
       : row.optimoCompletionStatus === "success" ? "delivered"
       : "upcoming";
     if (current === status) return;
+    // A staff hold is final for that day: the stop was pulled and the kitchen planned without it.
+    // The tiffin gets a new day via Move. An OptimoRoute failure can still be corrected.
+    if (row.status === "skipped" && row.optimoCompletionStatus !== "failed") {
+      throw new ValidationError("An on-hold tiffin can't go back to this day. Release it to a new day instead.");
+    }
 
     if (status === "delivered" && row.deliveryDate > zonedDateIso(now, (await getAppSettings()).timezone)) {
       throw new ValidationError("This delivery's day hasn't come yet, so it can't be marked Delivered.");
@@ -827,6 +832,15 @@ export async function rescheduleDelivery(
     if (row.status === "scheduled") {
       assertMutable(row);
     }
+    const { timezone, cutoffHour } = await getAppSettings();
+    const awaitingReconcile = row.status === "skipped" && holdAwaitingReconcile(
+      { cutoffAt: row.cutoffAt, date: row.deliveryDate, optimoCompletionStatus: row.optimoCompletionStatus },
+      Date.now(),
+      timezone,
+    );
+    if (awaitingReconcile) {
+      throw new ValidationError(`This tiffin is on hold. Release it to a new day after midnight, once ${humanDate(row.deliveryDate)}'s deliveries are reconciled.`);
+    }
 
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order || order.status === "cancelled" || order.status === "completed") {
@@ -849,7 +863,6 @@ export async function rescheduleDelivery(
     const weekendErr = weekendDaysError([weekdayKey(parseIsoDateUtc(eatingDateIso)) as DayOfWeek], await mealSizeServesWeekends(order.mealSizeId, tx));
     if (weekendErr) throw new ValidationError(weekendErr);
 
-    const { timezone, cutoffHour } = await getAppSettings();
     const today = zonedDateIso(Date.now(), timezone);
     if (carriedOn < today) throw new ValidationError("Reschedule date cannot be in the past");
     const newCutoff = cutoffMsFor(carriedOn, cutoffHour, timezone);

@@ -181,10 +181,36 @@ export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripS
   return out;
 }
 
+/**
+ * A day put on hold after its cutoff may still go out: the label is printed and the stop may be
+ * on the route. Its tiffin stays on that day until the day is over and the completion pull has
+ * had its say (a driver success puts the day back to delivered). An OptimoRoute failure is
+ * already reconciled.
+ */
+export function holdAwaitingReconcile(
+  d: { cutoffAt: number; date: string; optimoCompletionStatus?: string | null },
+  now: number,
+  timezone: string,
+): boolean {
+  return d.optimoCompletionStatus !== "failed" && now >= d.cutoffAt && d.date >= zonedDateIso(now, timezone);
+}
+
 const no = (why: string): Availability => ({ ok: false, why, sub: "" });
 const yes = (sub: string): Availability => ({ ok: true, why: null, sub });
 
-export function actionAvailability(trip: Trip, _now: number, plan: PlanContext): Record<TripAction, Availability> {
+function moveAvailability(trip: Trip, now: number, plan: PlanContext, blocked: (delivered: string) => string): Availability {
+  if (trip.status === "upcoming" && trip.isMakeup) return no("Already moved once. Only one move is allowed.");
+  if (trip.status === "upcoming") return yes("Pick a new delivery day");
+  if (trip.status === "failed" && holdAwaitingReconcile(trip, now, plan.timezone)) {
+    return no(`On hold. Release it to a new day after midnight, once ${humanDate(trip.date)}'s deliveries are reconciled.`);
+  }
+  if (trip.status === "failed") return yes("Pick a new day for this tiffin");
+  if (trip.status === "vacation") return yes("Pick a new delivery day");
+  if (trip.status === "rescheduled") return no("Already moved.");
+  return no(blocked("Already delivered."));
+}
+
+export function actionAvailability(trip: Trip, now: number, plan: PlanContext): Record<TripAction, Availability> {
   const closed = "Changes closed";
   const s = trip.status;
   const into = trip.mergedInto ? humanDate(trip.mergedInto) : "";
@@ -203,12 +229,7 @@ export function actionAvailability(trip: Trip, _now: number, plan: PlanContext):
   const swap = editable ? yes("Rice ↔ Roti, per eating day")
     : notHere ? no("Not delivered. Move it to another day to swap items.")
     : no(blocked(`Delivered. ${closed}.`));
-  const move = editable && trip.isMakeup ? no("Already moved once. Only one move is allowed.")
-    : editable ? yes("Pick a new delivery day")
-    : s === "failed" ? yes("Pick a new day for this tiffin")
-    : s === "vacation" ? yes("Pick a new delivery day")
-    : s === "rescheduled" ? no("Already moved.")
-    : no(blocked("Already delivered."));
+  const move = moveAvailability(trip, now, plan, blocked);
   // Re-addressing is allowed on make-ups too (the one change they permit); never charged.
   const address: Availability = editable ? yes("Open for changes")
     : no(blocked(`Delivered. ${closed}.`));

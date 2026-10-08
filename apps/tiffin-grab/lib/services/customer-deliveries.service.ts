@@ -868,6 +868,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       coversLabel: row.mergedIntoDeliveryId ? null : formatCoversLabel(covers),
       combinedInto: row.mergedIntoDeliveryId ? (targetDateById.get(row.mergedIntoDeliveryId) ?? null) : null,
       complimentaryNote: row.complimentaryNote,
+      cutoffAt: Number(row.cutoffAt),
     };
   };
 

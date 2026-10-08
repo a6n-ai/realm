@@ -60,13 +60,21 @@ describe("adminSetDeliveryStatus", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("marks a past delivery not delivered, and puts a skipped one back to delivered", async () => {
+  it("puts a past delivery on hold, and never releases it", async () => {
     const order = await makeOrder();
     const row = await seedDelivery(order.id, { optimoCompletionStatus: "success", optimoCompletedAt: 5 });
 
     await adminSetDeliveryStatus(row.publicId, "not_delivered", 1n);
     const [skipped] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
     expect([skipped.status, skipped.optimoCompletionStatus]).toEqual(["skipped", null]);
+
+    await expect(adminSetDeliveryStatus(row.publicId, "delivered", 1n)).rejects.toThrow("can't go back to this day");
+    await expect(adminSetDeliveryStatus(row.publicId, "upcoming", 1n)).rejects.toThrow("can't go back to this day");
+  });
+
+  it("corrects an OptimoRoute failure back to delivered", async () => {
+    const order = await makeOrder();
+    const row = await seedDelivery(order.id, { status: "skipped", optimoCompletionStatus: "failed", optimoCompletedAt: 5 });
 
     await adminSetDeliveryStatus(row.publicId, "delivered", 1n);
     const [delivered] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));

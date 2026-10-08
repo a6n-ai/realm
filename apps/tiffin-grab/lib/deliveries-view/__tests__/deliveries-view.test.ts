@@ -120,6 +120,14 @@ describe("actionAvailability copy", () => {
     expect(a.pick.why).toBe("Not delivered. Move it to another day to choose meals.");
     expect(a.swap.why).toBe("Not delivered. Move it to another day to swap items.");
   });
+  it("held after cutoff: stays put until the day is reconciled", () => {
+    const held = { date: "2026-09-22", status: "skipped" as const, locked: true, cutoffAt: NOW - 1 };
+    expect(actionAvailability(one(held), NOW, plan).move.why).toBe("On hold. Release it to a new day after midnight, once Tue, Sep 22's deliveries are reconciled.");
+    // Same hold the morning after: the day is over, so it can move.
+    expect(actionAvailability(one(held, plan, NOW + 2 * 86_400_000), NOW + 2 * 86_400_000, plan).move.ok).toBe(true);
+    // OptimoRoute already reported the failure: reconciled, movable right away.
+    expect(actionAvailability(one({ ...held, optimoCompletionStatus: "failed" }), NOW, plan).move.ok).toBe(true);
+  });
   it("a moved-away day can't move again", () => {
     const a = actionAvailability(one({ date: "2026-09-25", status: "skipped", rescheduled: true }), NOW, plan);
     expect(a.move.why).toBe("Already moved.");
