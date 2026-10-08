@@ -93,7 +93,7 @@ describe("checkout contact locking", () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify({ ...selections, frequencyKey: "f3" }));
     const catalog = {
       plans: [{ key: "veg", name: "Veg" }],
-      mealSizes: [{ publicId: "msz_1", name: "Regular" }],
+      mealSizes: [{ publicId: "msz_1", name: "Regular", planKey: "veg", custom: false }],
       frequencies: [{ key: "f3", name: "3 Days/Wk (Mon, Wed, Fri)", weekdays: ["mon", "wed", "fri"] }],
     } as unknown as ClientCatalogSnapshot;
     render(<Checkout defaultCountry="CA" prefill={MEMBER} catalog={catalog} />);

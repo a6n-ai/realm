@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { initialSelections, selectionsFromPriorOrder } from "../selections";
+import { initialSelections, selectionsFromPriorOrder, reconcileSelections } from "../selections";
 
 const catalog: ClientCatalogSnapshot = {
   plans: [
@@ -107,5 +107,25 @@ describe("selectionsFromPriorOrder", () => {
       includeSaturday: false, includeSunday: false, durationWeeks: 2, frequencyKey: "5_day",
     };
     expect(selectionsFromPriorOrder({ ...catalog, mealSizes: [...catalog.mealSizes, custom] }, prior).mealSizeId).toBe("");
+  });
+});
+
+describe("reconcileSelections", () => {
+  const durations = [{ publicId: "d4", weeks: 4 }, { publicId: "d12", weeks: 12 }, { publicId: "d2", weeks: 2 }, { publicId: "d1", weeks: 1 }, { publicId: "d6", weeks: 6 }, { publicId: "d8", weeks: 8 }];
+  const weeks = (n: number) => reconcileSelections({ durations }, { ...initialSelections, durationWeeks: n }).durationWeeks;
+
+  it("snaps an imported length to the nearest offered one, shorter on a tie", () => {
+    expect([3, 5, 7, 10, 11, 0].map(weeks)).toEqual([2, 4, 6, 8, 12, 1]);
+  });
+
+  it("keeps an offered length and returns an equal cart", () => {
+    const s = { ...initialSelections, durationWeeks: 12 };
+    expect(reconcileSelections({ durations }, s)).toEqual(s);
+  });
+
+  it("clears a retired meal size and frequency, and drops unknown add-ons and drop-offs", () => {
+    const s = { ...initialSelections, planKey: "veg", mealSizeId: "gone", frequencyKey: "old", addonSelections: [{ key: "x", qty: 1 }], deliveryTagId: "t", deliveryStrategyIds: ["s"], addressTagId: "a" };
+    const r = reconcileSelections({ plans: [{ publicId: "p", key: "veg", name: "Veg", description: null, planType: "tiffin", offeredSlots: ["sabzi"], allowedStartDays: [] }], mealSizes: [], frequencies: [], durations }, s);
+    expect(r).toMatchObject({ planKey: "veg", mealSizeId: "", frequencyKey: "", addonSelections: [], deliveryTagId: null, deliveryStrategyIds: [], addressTagId: null, mealSlots: ["sabzi"] });
   });
 });

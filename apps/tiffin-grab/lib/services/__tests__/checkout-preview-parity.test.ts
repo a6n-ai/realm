@@ -11,6 +11,11 @@ const { discounts, coupons, couponRedemptions, deliveries, ledgerEntries, orderA
   await import("@/db/schema");
 const { createOrder } = await import("../orders.service");
 const { reprice } = await import("@/app/(public)/subscribe/actions");
+const priced = async (...args: Parameters<typeof reprice>) => {
+  const r = await reprice(...args);
+  if ("error" in r) throw new Error(r.error);
+  return r;
+};
 const { setPaymentConfig, setProvinceTaxes } = await import("../app-settings.service");
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
@@ -71,7 +76,7 @@ describe("checkout preview matches the placed order", () => {
 
   it("quotes the same total it charges, tax included, for an Ontario address", async () => {
     const input = await inputFor("M5V 2T6");
-    const preview = await reprice(input.selections, undefined, input.planKey, null, undefined, input.contact.postalCode);
+    const preview = await priced(input.selections, undefined, input.planKey, null, undefined, input.contact.postalCode);
 
     expect(preview.pricing.taxTotal).toBeGreaterThan(0);
 
@@ -86,8 +91,8 @@ describe("checkout preview matches the placed order", () => {
     // address, these two would come out identical.
     const on = await inputFor("M5V 2T6");
     const ab = await inputFor("T2P 1J9");
-    const onPreview = await reprice(on.selections, undefined, on.planKey, null, undefined, on.contact.postalCode);
-    const abPreview = await reprice(ab.selections, undefined, ab.planKey, null, undefined, ab.contact.postalCode);
+    const onPreview = await priced(on.selections, undefined, on.planKey, null, undefined, on.contact.postalCode);
+    const abPreview = await priced(ab.selections, undefined, ab.planKey, null, undefined, ab.contact.postalCode);
 
     expect(onPreview.pricing.taxTotal).toBeGreaterThan(abPreview.pricing.taxTotal);
     expect(abPreview.pricing.taxTotal).toBeCloseTo(abPreview.pricing.subtotal * 0.05, 2);
@@ -100,7 +105,7 @@ describe("checkout preview matches the placed order", () => {
 
   it("shows no tax until an address is known, so the quote never overstates it", async () => {
     const input = await inputFor("M5V 2T6");
-    const preview = await reprice(input.selections, undefined, input.planKey, null, undefined, undefined);
+    const preview = await priced(input.selections, undefined, input.planKey, null, undefined, undefined);
     expect(preview.pricing.taxTotal).toBe(0);
   });
 
@@ -108,7 +113,7 @@ describe("checkout preview matches the placed order", () => {
     await setProvinceTaxes({ ON: [{ name: "HST", ratePct: 5 }] });
     await sharedCache("app-settings").evictAll();
     const input = await inputFor("M5V 2T6");
-    const preview = await reprice(input.selections, undefined, input.planKey, null, undefined, input.contact.postalCode);
+    const preview = await priced(input.selections, undefined, input.planKey, null, undefined, input.contact.postalCode);
     expect(preview.pricing.taxTotal).toBeCloseTo(preview.pricing.subtotal * 0.05, 2);
   });
 });
@@ -122,7 +127,7 @@ describe("coupons apply after catalog discounts", () => {
     await invalidateCatalogSnapshot();
     await db.insert(coupons).values({ code: "HUGE", kind: "fixed", name: "Huge", valueAmount: "100000", stackable: true });
     const input = { ...(await inputFor("M5V 2T6")), couponCode: "HUGE" };
-    const preview = await reprice(input.selections, "HUGE", input.planKey, null, undefined, input.contact.postalCode);
+    const preview = await priced(input.selections, "HUGE", input.planKey, null, undefined, input.contact.postalCode);
     const sum = (l: { amount: number }[]) => Math.round(l.reduce((s, a) => s + a.amount, 0) * 100) / 100;
 
     expect(sum(preview.pricing.adjustments)).toBeLessThanOrEqual(preview.pricing.subtotal);

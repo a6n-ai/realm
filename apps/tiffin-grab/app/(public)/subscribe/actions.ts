@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { capRedemption } from "@foundry/wallet";
 import { enabledMethods, findMethod } from "@foundry/payments";
-import { emailSchema } from "@foundry/commons";
+import { emailSchema, ValidationError } from "@foundry/commons";
 import { findZone } from "@/lib/catalog/zone-match";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -78,7 +78,24 @@ export async function listCheckoutPaymentMethods(): Promise<CheckoutPaymentMetho
   }));
 }
 
-export async function reprice(
+export type RepriceOutcome = RepriceResult | { error: string };
+
+/**
+ * A cart the catalog can't price (a stale length, a retired meal size) comes back as
+ * `{ error }` with the reason: Next.js hides a thrown message in production, which left
+ * checkout showing only "Couldn't load payment options".
+ */
+export async function reprice(...args: Parameters<typeof quote>): Promise<RepriceOutcome> {
+  try {
+    return await quote(...args);
+  } catch (err) {
+    if (!(err instanceof ValidationError)) throw err;
+    console.warn("reprice: unpriceable cart", err.message, JSON.stringify(args[0]));
+    return { error: err.message };
+  }
+}
+
+async function quote(
   selections: PricingSelections,
   couponCode?: string,
   planKey?: string,
