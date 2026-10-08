@@ -87,6 +87,16 @@ export async function earliestNewPlanStart(
   return iso(bands.reduce((max, b) => (b.endExclusive > max ? b.endExclusive : max), bands[0]!.endExclusive));
 }
 
+/** The last tiffin date across the customer's running (active/paused) plans, or null when none is scheduled. */
+export async function lastRunningTiffinDate(tx: Tx | typeof db, userId: bigint): Promise<string | null> {
+  const [row] = await tx
+    .select({ last: sql<string | null>`max(${deliveries.deliveryDate})` })
+    .from(deliveries)
+    .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .where(and(eq(orders.userId, userId), inArray(orders.status, [...DAY_RESERVING_STATUSES]), ne(deliveries.status, "cancelled")));
+  return row?.last ?? null;
+}
+
 /** Rejects a single day that falls inside another active/paused plan of this customer. */
 export async function assertDayOutsideOtherPlans(
   tx: Tx | typeof db,

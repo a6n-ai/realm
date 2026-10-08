@@ -12,7 +12,7 @@ import { reprice } from "@/app/(public)/subscribe/actions";
 import { BottomBar, Button, Sheet } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, initialSelections, nextBlockedReason, offeredAddons, pickedAddons, selectionIsTrial, servesWeekends, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { adjacentWizardStep, firstBlockedStep, initialSelections, nextBlockedReason, offeredAddons, pickedAddons, selectionIsTrial, servesWeekends, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -35,6 +35,7 @@ export function Wizard({
   origin = "subscribe",
   initial = initialSelections,
   minStartDate = null,
+  lastTiffin = null,
   exitHref,
   trial = null,
 }: {
@@ -46,6 +47,8 @@ export function Wizard({
   initial?: WizardSelections;
   /** First date a new/renewed plan may start (overlap with a live plan). */
   minStartDate?: string | null;
+  /** Last tiffin of the customer's running plan(s): why the start date is not tomorrow. */
+  lastTiffin?: string | null;
   exitHref?: string;
   /** Open trial offer. Trial sizes then sit on Bundle and skip Schedule. */
   trial?: { maxDays: number; weekdays: string[] } | null;
@@ -58,7 +61,7 @@ export function Wizard({
       try { sessionStorage.setItem(WIZARD_STEP_KEY, String(next)); } catch { /* storage unavailable */ }
       return next;
     });
-  const [selections, setSelections] = useState<WizardSelections>(initial);
+  const [selections, setSelections] = useState<WizardSelections>(() => reconcileSelections(catalog, initial));
   const [result, setResult] = useState<PricingResult | null>(null);
   const prevStep = useRef(0);
   const direction = step >= prevStep.current ? "forward" : "back";
@@ -78,8 +81,12 @@ export function Wizard({
       let savedStep = Number(sessionStorage.getItem(WIZARD_STEP_KEY));
       const savedTrial = trial != null && catalog.mealSizes.some((m) => m.publicId === saved.mealSizeId && m.trial);
       if (savedTrial && savedStep === 2) savedStep = 3;
+      const restored = reconcileSelections(catalog, { ...initial, ...saved });
+      // A field the catalog dropped since the cart was saved: reopen on the step that asks for it.
+      const blockedAt = firstBlockedStep(catalog, restored);
+      if (blockedAt != null && blockedAt < savedStep) savedStep = blockedAt;
       /* eslint-disable react-hooks/set-state-in-effect */
-      setSelections({ ...initial, ...saved });
+      setSelections(restored);
       if (Number.isInteger(savedStep) && savedStep >= 0 && savedStep < STEPS.length) {
         prevStep.current = savedStep;
         setStepState(savedStep);
@@ -100,7 +107,7 @@ export function Wizard({
     if (!selections.mealSizeId || (trialPick ? selections.trialDays == null || !selections.startDate : !selections.frequencyKey)) { setTimeout(() => setResult(null), 0); return; }
     let active = true;
     reprice(selections, undefined, selections.planKey ?? undefined)
-      .then((r) => { if (active) setResult(r.pricing); })
+      .then((r) => { if (active) setResult("error" in r ? null : r.pricing); })
       .catch(() => { if (active) setResult(null); });
     return () => { active = false; };
   }, [selections, trial, catalog]);
@@ -187,6 +194,7 @@ export function Wizard({
               sameWeekConflict={sameWeekConflict}
               currentPlan={currentPlan}
               minStartDate={minStartDate}
+              lastTiffin={lastTiffin}
               trial={trialSelected && trial ? { ...trial, weekdays: trialSendDays(trial.weekdays, servesWeekends(catalog, selections)) } : null}
             />
           )}

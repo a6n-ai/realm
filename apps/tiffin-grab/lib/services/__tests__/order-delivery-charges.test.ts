@@ -7,6 +7,12 @@ import { loadCatalogSnapshot, invalidateCatalogSnapshot } from "@/lib/catalog/lo
 import { deliveryService } from "../delivery.service";
 import { reprice } from "@/app/(public)/subscribe/actions";
 
+const priced = async (...args: Parameters<typeof reprice>) => {
+  const r = await reprice(...args);
+  if ("error" in r) throw new Error(r.error);
+  return r;
+};
+
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { createOrder } = await import("../orders.service");
 
@@ -177,11 +183,11 @@ describe("Order Delivery Charges (Integration)", () => {
     };
 
     // Reprice with House + Lobby: Base $2 + Lobby $1 + House $0 = $3 delivery
-    const r1 = await reprice({ ...selBase, deliveryStrategyIds: [dtLobby.id], addressTagId: atHouse.id });
+    const r1 = await priced({ ...selBase, deliveryStrategyIds: [dtLobby.id], addressTagId: atHouse.id });
     expect(r1.pricing.deliveryCharge?.totalDeliveryCharge).toBe(3);
 
     // Reprice changed to Apartment + Lobby: Base $2 + Lobby $1 + Apt $3 = $6 delivery
-    const r2 = await reprice({ ...selBase, deliveryStrategyIds: [dtLobby.id], addressTagId: atApt.id });
+    const r2 = await priced({ ...selBase, deliveryStrategyIds: [dtLobby.id], addressTagId: atApt.id });
     expect(r2.pricing.deliveryCharge?.totalDeliveryCharge).toBe(6);
     expect(r2.pricing.subtotal).toBe(r1.pricing.subtotal + 3);
   });

@@ -1,6 +1,7 @@
 import type { PricingSelections } from "@/lib/pricing";
 import { listableMealSizes, mealSizeAddons, type CatalogAddon, type ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { eatingDaysError, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 
 export interface WizardSelections extends PricingSelections {
   planKey: string | null;
@@ -82,6 +83,7 @@ export function nextBlockedReason(step: number, catalog: ClientCatalogSnapshot, 
   if (s.mealSizeId === "") return "Pick a meal size on the Bundle step to continue.";
   if (selectionIsTrial(catalog, s) && (s.trialDays == null || s.trialDays < 1)) return "Choose how many trial days to continue.";
   if (!s.startDate) return "Choose a start date to continue.";
+  if (!selectionIsTrial(catalog, s) && catalog.durations?.length && !catalog.durations.some((d) => d.weeks === s.durationWeeks)) return "Choose a plan length to continue.";
   return null;
 }
 
@@ -95,6 +97,61 @@ export function scheduleError(catalog: ClientCatalogSnapshot, s: WizardSelection
 /** Unknown size (not picked yet) doesn't block weekends; createOrder re-checks the real one. */
 export function servesWeekends(catalog: ClientCatalogSnapshot, s: WizardSelections): boolean {
   return catalog.mealSizes?.find((m) => m.publicId === s.mealSizeId)?.servesWeekends ?? true;
+}
+
+/** The offered length closest to `weeks`; a tie takes the shorter, so the price never rises unseen. */
+export function nearestOfferedWeeks(offered: readonly { weeks: number }[], weeks: number): number | null {
+  let best: number | null = null;
+  for (const { weeks: w } of offered) {
+    if (best == null || Math.abs(w - weeks) < Math.abs(best - weeks) || (Math.abs(w - weeks) === Math.abs(best - weeks) && w < best)) best = w;
+  }
+  return best;
+}
+
+/**
+ * A renewal copies its prior order and a saved cart outlives catalog edits, so either can name
+ * something the catalog no longer offers: an imported 3/5/7-week length, a retired meal size,
+ * an add-on or drop-off that was switched off. Pricing then throws and checkout dead-ends on
+ * "Couldn't load payment options". Run every cart through this before it is priced: a stale
+ * length snaps to the nearest offered one, a stale add-on/drop-off drops out, and a stale meal
+ * size or frequency clears so the wizard asks for it again.
+ */
+export function reconcileSelections(catalog: Partial<ClientCatalogSnapshot>, s: WizardSelections): WizardSelections {
+  const next = { ...s };
+  const plan = catalog.plans?.find((p) => p.key === s.planKey);
+  if (catalog.plans && s.planKey != null && !plan) next.planKey = null;
+  if (catalog.mealSizes && next.mealSizeId !== "") {
+    const ok = listableMealSizes(catalog.mealSizes, next.mealSizeId).some((m) => m.publicId === next.mealSizeId && m.planKey === next.planKey);
+    if (!ok) next.mealSizeId = "";
+  }
+  if (catalog.frequencies && next.frequencyKey !== "" && !catalog.frequencies.some((f) => f.key === next.frequencyKey && f.weekdays?.length)) {
+    next.frequencyKey = "";
+  }
+  if (catalog.durations?.length && !catalog.durations.some((d) => d.weeks === next.durationWeeks)) {
+    next.durationWeeks = nearestOfferedWeeks(catalog.durations, next.durationWeeks) ?? next.durationWeeks;
+  }
+  if (!Number.isInteger(next.persons) || next.persons < 1) next.persons = FIXED_PERSONS;
+  if (plan && !next.mealSlots?.length) next.mealSlots = plan.offeredSlots;
+  if (catalog.plans && next.addonSelections?.length) {
+    const offered = new Map(offeredAddons(catalog as ClientCatalogSnapshot, next).map((a) => [a.key, a]));
+    next.addonSelections = next.addonSelections.flatMap(({ key, qty }) => {
+      const a = offered.get(key);
+      return a && Number.isInteger(qty) && qty >= 1 ? [{ key, qty: Math.min(qty, a.maxQty) }] : [];
+    });
+  }
+  if (next.deliveryTagId || next.deliveryStrategyIds?.length) {
+    const v = validDropOff(dropOffCatalog(catalog.deliveryCharges, catalog.waivers), { tagId: next.deliveryTagId ?? null, strategyIds: next.deliveryStrategyIds ?? [] });
+    next.deliveryTagId = v.tagId;
+    next.deliveryStrategyIds = v.strategyIds;
+  }
+  if (next.addressTagId && !catalog.deliveryCharges?.addressTags.some((a) => a.id === next.addressTagId)) next.addressTagId = null;
+  return next;
+}
+
+/** The first wizard step a cart still has to fill in, or null when it can be priced. */
+export function firstBlockedStep(catalog: ClientCatalogSnapshot, s: WizardSelections): number | null {
+  for (let step = 0; step <= 3; step++) if (nextBlockedReason(step, catalog, s) != null) return step;
+  return null;
 }
 
 // Validates against the live catalog rather than a hardcoded plan list — a

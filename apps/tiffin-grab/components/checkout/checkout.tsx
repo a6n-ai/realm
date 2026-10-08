@@ -20,7 +20,7 @@ import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { pickedAddons, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
+import { firstBlockedStep, pickedAddons, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { OrderSummary, money, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Progress } from "@/components/wizard/progress";
@@ -97,6 +97,9 @@ function formatChargeHint(item: { chargeType: "none" | "fixed" | "percent"; char
 const noSubscribe = () => () => {};
 const PRICE_RELOAD_KEY = "tiffin.checkout.price-reload";
 
+/** reprice answered with a reason (stale cart), as opposed to failing outright. */
+class UnpriceableCart extends Error {}
+
 export function Checkout({
   defaultCountry,
   closeHref = "/me",
@@ -105,6 +108,7 @@ export function Checkout({
   savedAddresses = [],
   addressDropOffs = {},
   suggestedCoupons = [],
+  lastTiffin = null,
 }: {
   defaultCountry: Country;
   closeHref?: string;
@@ -117,13 +121,16 @@ export function Checkout({
   addressDropOffs?: Record<string, DropOffValue>;
   /** Live coupons a customer has to type in (auto-apply ones are excluded); shown as tap-to-apply chips. */
   suggestedCoupons?: AvailableCoupon[];
+  /** Last tiffin of the customer's running plan(s), so a later start date explains itself. */
+  lastTiffin?: string | null;
 }) {
   const router = useRouter();
   const dropOff = dropOffCatalog(catalog?.deliveryCharges, catalog?.waivers);
   const defaultAddress = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0] ?? null;
   /** The wizard's saved plan, plus the default address's own drop-off unless this order already chose one. */
   const seed = (raw: string): WizardSelections => {
-    const parsed = JSON.parse(raw) as WizardSelections;
+    const saved = JSON.parse(raw) as WizardSelections;
+    const parsed = catalog ? reconcileSelections(catalog, saved) : saved;
     const own = defaultAddress ? addressDropOffs[defaultAddress.publicId] : undefined;
     const ownPick = own && !parsed.deliveryTagId ? validDropOff(dropOff, own) : null;
     return ownPick ? { ...parsed, deliveryTagId: ownPick.tagId, deliveryStrategyIds: ownPick.strategyIds } : parsed;
@@ -158,6 +165,8 @@ export function Checkout({
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   // Payment methods arrive with the price; if that load fails the payment step offers a retry.
   const [priceFailed, setPriceFailed] = useState(false);
+  // The server's reason this cart can't be priced; Retry can't fix it, Edit plan can.
+  const [priceError, setPriceError] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   // The address sheet's working copy; null = closed. Saved into `contact` only on "Use this address".
   const [editor, setEditor] = useState<AddressDraft | null>(null);
@@ -187,6 +196,11 @@ export function Checkout({
     // Postal code drives province sales tax, so the receipt must be re-priced
     // with it — otherwise the preview total would omit tax the order charges.
     const r = await reprice(s, code, s.planKey ?? undefined, methodId, coins, postalCode || undefined);
+    if ("error" in r) {
+      setPriceError(r.error);
+      throw new UnpriceableCart(r.error);
+    }
+    setPriceError(null);
     setResult(r.pricing);
     setApplied(r.appliedCoupons);
     setPaymentMethods(r.paymentMethods);
@@ -216,6 +230,16 @@ export function Checkout({
     if (!raw) { router.replace("/subscribe"); return; }
     if (prefill == null) { router.replace("/subscribe"); return; }
     const s = selections ?? seed(raw);
+    const storedOriginKey = sessionStorage.getItem(WIZARD_ORIGIN_KEY);
+    // The catalog dropped something this cart needs (a meal size, a frequency): it can't be
+    // priced, so send the customer to the wizard step that asks for it instead of a dead end.
+    const blockedAt = catalog ? firstBlockedStep(catalog, s) : null;
+    if (blockedAt != null) {
+      sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(s));
+      sessionStorage.setItem(WIZARD_STEP_KEY, String(blockedAt));
+      router.replace(storedOriginKey === "renew" ? "/me/renew" : storedOriginKey === "trial" ? "/me/trial" : "/subscribe");
+      return;
+    }
     // A full page load seeds here: sessionStorage is only readable on the client, after hydration.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!selections) setSelections(s);
@@ -223,7 +247,8 @@ export function Checkout({
     if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
     refreshPrice(s, undefined, null).then(
       () => sessionStorage.removeItem(PRICE_RELOAD_KEY),
-      () => {
+      (err) => {
+        if (err instanceof UnpriceableCart) { sessionStorage.removeItem(PRICE_RELOAD_KEY); setResult(null); return; }
         // A tab left open across a deploy calls Server Action ids the new build no longer
         // has; deploymentId only catches that on navigation. One reload picks up the new
         // build (the plan is in sessionStorage); a second failure is real and shows Retry.
@@ -443,6 +468,7 @@ export function Checkout({
   const simulated = !realPayments && result != null && process.env.NODE_ENV !== "production";
   const payReason = realPayments ? (paymentMethodId ? null : "Choose a payment method to confirm.")
     : simulated ? null
+    : priceError ? `${priceError}. Tap Edit plan to fix it.`
     : priceFailed ? "Couldn't load payment options. Tap Retry."
     : "Loading payment options…";
   // Reload, not re-call: after a deploy the same stale Server Action id fails every time.
@@ -476,6 +502,9 @@ export function Checkout({
   // A trial stores its picked days in eatingDays too; that isn't a weekly rate.
   const perWeek = selections.trialDays == null ? (selections.eatingDays?.length ?? 0) : 0;
   const start = startLabel(selections.startDate);
+  const startNote = start && lastTiffin && selections.startDate > lastTiffin
+    ? `Current plan ends ${startLabel(lastTiffin)}.`
+    : null;
 
   const sign = step === 2 ? 1 : -1;
   const slide = reduce ? 0 : 24;
@@ -483,7 +512,7 @@ export function Checkout({
   const reveal = { initial: { opacity: 0, y: reduce ? 0 : 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0 }, transition: spring };
 
   const summary = (plain = false) => (
-    <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} editHref={editHref}>
+    <OrderSummary plain={plain} selections={selections} result={result} mealName={meal?.name} addons={pickedAddons(catalog, selections)} baseline={baseline} deliveryType={deliveryType} startNote={startNote} editHref={editHref}>
       {applied.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-1.5" aria-label="Applied coupons">
           {applied.map((c) => (
@@ -531,6 +560,7 @@ export function Checkout({
                 total={result?.total}
                 onOpen={() => setSummaryOpen(true)}
               />
+              {startNote && <p className="text-muted-foreground -mt-3 mb-6 px-1 text-[13px] text-pretty">{startNote}</p>}
 
               {step === 1 ? (
                 <div className="space-y-10">
@@ -626,6 +656,11 @@ export function Checkout({
                     ) : (
                       simulated ? (
                         <p className="text-muted-foreground mt-3 text-sm">Simulated, no real charge (local only).</p>
+                      ) : priceError ? (
+                        <div role="alert" className="mt-3 flex items-center justify-between gap-3">
+                          <p className="text-destructive text-sm text-pretty">{priceError}</p>
+                          <Button pill variant="quiet" className="!min-h-11 !shrink-0 !px-5" onClick={() => router.push(editHref, { transitionTypes: ["nav-back"] })}>Edit plan</Button>
+                        </div>
                       ) : priceFailed ? (
                         <div role="alert" className="mt-3 flex items-center justify-between gap-3">
                           <p className="text-destructive text-sm">Couldn&apos;t load payment options.</p>

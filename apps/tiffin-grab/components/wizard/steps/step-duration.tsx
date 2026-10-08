@@ -9,7 +9,7 @@ import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
 import { earliestTrialIso } from "@/lib/trial/schedule";
-import { appToday } from "@/lib/services/start-date";
+import { appToday, firstStartOnOrAfter } from "@/lib/services/start-date";
 import { TrialDayPicker } from "../trial-day-picker";
 import { plannedSchedule, ScheduleCard } from "../schedule-card";
 
@@ -27,6 +27,7 @@ export function StepDuration({
   sameWeekConflict = false,
   currentPlan = null,
   minStartDate = null,
+  lastTiffin = null,
   trial = null,
 }: {
   catalog: ClientCatalogSnapshot;
@@ -36,6 +37,7 @@ export function StepDuration({
   sameWeekConflict?: boolean;
   currentPlan?: CurrentPlanSummary | null;
   minStartDate?: string | null;
+  lastTiffin?: string | null;
   /** Set when the chosen size is a trial: day count replaces the week commitment. */
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
@@ -49,14 +51,10 @@ export function StepDuration({
   const tomorrow = trial ? earliestTrialIso(today, trial.weekdays) : nextWeekday(today).toISOString().slice(0, 10);
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const overlapBound = minStartDate != null && minDate === minStartDate;
+  // The day the customer reads as "my plan ends": the real last tiffin when known.
+  const runsThrough = lastTiffin ?? (minStartDate ? dayBefore(minStartDate) : null);
   // First day on/after minDate that the plan actually delivers on.
-  const earliest = (() => {
-    const d = parseIsoDateUtc(minDate);
-    for (let i = 0; i < 14; i++, d.setUTCDate(d.getUTCDate() + 1)) {
-      if (allowed.includes(weekdayKey(d))) return d.toISOString().slice(0, 10);
-    }
-    return minDate;
-  })();
+  const earliest = firstStartOnOrAfter(minDate, allowed);
   const freq = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
   const schedule = plannedSchedule(
     trial
@@ -99,7 +97,7 @@ export function StepDuration({
         set({ startDate: "" });
         setStartDateError(
           overlapBound
-            ? `You have a plan running through ${formatDateOnly(dayBefore(minDate), { mode: "short" })} — choose a start date after it ends`
+            ? `Current plan ends ${formatDateOnly(runsThrough!, { mode: "short" })}. Pick a later date`
             : `Earliest available start date is ${minDate}`,
         );
         return;
@@ -123,9 +121,8 @@ export function StepDuration({
     <div className="space-y-6">
       {currentPlan && overlapBound ? (
         <CurrentPlanHint>
-          Your current plan runs through{" "}
-          <strong>{formatDateOnly(dayBefore(minDate), { mode: "short" })}</strong>. This renewal can
-          start on or after <strong>{formatDateOnly(minDate, { mode: "short" })}</strong>.
+          Current plan ends <strong>{formatDateOnly(runsThrough!, { mode: "short" })}</strong>, so this one starts{" "}
+          <strong>{formatDateOnly(earliest, { mode: "short" })}</strong>.
           {selections.startDate !== earliest ? (
             <>
               {" "}
