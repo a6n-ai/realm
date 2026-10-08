@@ -26,4 +26,28 @@ describe("customer activity log facets", () => {
     expect(category?.kind).toBe("multi");
     expect(action?.kind).toBe("multi");
   });
+
+  it("exposes customer vs admin actor filter and customer-name search", () => {
+    const actor = CUSTOMER_ACTIVITY_FACETS.find(
+      (facet) => facet.kind !== "search" && facet.field === "actorKind",
+    );
+    const search = CUSTOMER_ACTIVITY_FACETS.find((facet) => facet.kind === "search");
+    expect(actor?.kind).toBe("pills");
+    if (actor?.kind === "pills") {
+      expect(actor.options.map((option) => option.value)).toEqual([
+        "customer",
+        "staff",
+        "system",
+      ]);
+      expect(actor.options.map((option) => option.label)).toEqual([
+        "Customer",
+        "Admin",
+        "System",
+      ]);
+    }
+    expect(search?.kind).toBe("search");
+    if (search?.kind === "search") {
+      expect(search.fields).toContain("customerName");
+    }
+  });
 });

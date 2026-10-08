@@ -14,6 +14,7 @@ import {
 import { formatEpoch } from "@/lib/format/datetime";
 import type { SortState } from "@/lib/list/sort";
 import type {
+  CustomerActivityActorKind,
   CustomerActivityListRow,
   CustomerActivitySortColumn,
 } from "@/lib/services/customer-activities-list.service";
@@ -26,6 +27,20 @@ const COLUMNS: readonly Column<CustomerActivitySortColumn | "customer" | "activi
     { key: "details", label: "Details" },
     { key: "by", label: "By" },
   ];
+
+function ActorBadge({ kind, label }: { kind: CustomerActivityActorKind; label: string }) {
+  if (kind === "system") {
+    return <span className="text-muted-foreground">{label}</span>;
+  }
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span className="text-foreground">{label}</span>
+      <Badge variant={kind === "staff" ? "secondary" : "outline"} className="text-[10px]">
+        {kind === "staff" ? "Admin" : "Customer"}
+      </Badge>
+    </span>
+  );
+}
 
 export function CustomerLogsTable({
   rows,
@@ -54,7 +69,7 @@ export function CustomerLogsTable({
         serial={false}
         sort={sort as SortState<(typeof COLUMNS)[number]["key"]>}
         search={{
-          placeholder: "Search customer, email, order, or details…",
+          placeholder: "Search customer name or email…",
           shortPlaceholder: "Search customer…",
           debounceMs: 250,
         }}
@@ -93,7 +108,9 @@ export function CustomerLogsTable({
             <TableCell className="text-muted-foreground max-w-[300px] truncate text-xs">
               {row.details ?? "—"}
             </TableCell>
-            <TableCell className="text-muted-foreground whitespace-nowrap text-xs">{row.by}</TableCell>
+            <TableCell className="whitespace-nowrap text-xs">
+              <ActorBadge kind={row.actorKind} label={row.by} />
+            </TableCell>
           </>
         )}
         mobileCard={(row) => (
@@ -118,7 +135,9 @@ export function CustomerLogsTable({
             {row.details ? (
               <p className="text-muted-foreground text-xs">{row.details}</p>
             ) : null}
-            <p className="text-muted-foreground text-xs">By {row.by}</p>
+            <div className="text-xs">
+              <ActorBadge kind={row.actorKind} label={row.by} />
+            </div>
             <Link
               href={row.href}
               className="text-muted-foreground text-xs hover:text-foreground hover:underline"

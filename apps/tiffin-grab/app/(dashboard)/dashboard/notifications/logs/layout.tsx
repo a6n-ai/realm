@@ -12,6 +12,7 @@ export default function LogsLayout({ children }: { children: ReactNode }) {
         ariaLabel="Logs sections"
         tabs={[
           { href: "/dashboard/notifications/logs", label: "Sends" },
+          { href: "/dashboard/notifications/logs/activity", label: "Activity" },
           { href: "/dashboard/notifications/logs/suppressed", label: "Suppressed" },
         ]}
       />

@@ -7,26 +7,33 @@ import {
   listCustomerActivitiesPage,
   type CustomerActivitySortColumn,
 } from "@/lib/services/customer-activities-list.service";
-import { CustomerLogsTable, CustomerLogsTableSkeleton } from "./customer-logs-table";
+import {
+  CustomerLogsTable,
+  CustomerLogsTableSkeleton,
+} from "@/app/(dashboard)/dashboard/settings/logs/customers/customer-logs-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const SORT_COLUMNS = ["time"] as const satisfies readonly CustomerActivitySortColumn[];
 
-export default function CustomerLogsPage({ searchParams }: { searchParams: SearchParams }) {
+export default function NotificationActivityLogsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   return (
     <SectionCard
       title="Customer activity"
       subtitle="Address changes, meal picks, holds, reschedules, and other saved customer actions — by the customer, admin, or system."
     >
       <Suspense fallback={<CustomerLogsTableSkeleton />}>
-        <CustomerLogsData searchParams={searchParams} />
+        <ActivityData searchParams={searchParams} />
       </Suspense>
     </SectionCard>
   );
 }
 
-async function CustomerLogsData({ searchParams }: { searchParams: SearchParams }) {
+async function ActivityData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const params = await searchParams;
   const sort = parseSort(params, SORT_COLUMNS, { column: "time", dir: "desc" });

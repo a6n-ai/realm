@@ -1,7 +1,7 @@
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@foundry/database";
-import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, like, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { auditLog, customerAddresses, orderActivities, orders, users } from "@/db/schema";
@@ -13,8 +13,11 @@ import {
   type CustomerActivityCategory,
 } from "@/lib/customer-activity/log-facets";
 import type { SortState } from "@/lib/list/sort";
+import { describeActivityActor } from "@/lib/services/order-activity-describe";
 
 export type CustomerActivitySortColumn = "time";
+
+export type CustomerActivityActorKind = "system" | "staff" | "customer";
 
 export type CustomerActivityListRow = {
   publicId: string;
@@ -26,8 +29,9 @@ export type CustomerActivityListRow = {
   customerName: string;
   customerEmail: string;
   customerPublicId: string;
-  /** Who made the change: "Customer", a staff member's name, or "System". */
+  /** Display name for who made the change. */
   by: string;
+  actorKind: CustomerActivityActorKind;
   href: string;
   contextLabel: string;
 };
@@ -82,10 +86,15 @@ function orderActionsSql(actions: readonly string[]): SQL {
   return actions.includes("delivery_address_changed") ? or(byType, addressNote)! : byType;
 }
 
-function byLabel(actorId: bigint | null, customerId: bigint, actorName: string | null, actorEmail: string | null): string {
-  if (actorId == null) return "System";
-  if (actorId === customerId) return "Customer";
-  return actorName ?? actorEmail ?? "Staff";
+function actorKindSql(
+  kind: string,
+  createdBy: typeof orderActivities.createdBy | typeof auditLog.createdBy,
+  actorRole: typeof orderActor.role | typeof auditActor.role,
+): SQL | undefined {
+  if (kind === "system") return isNull(createdBy);
+  if (kind === "staff") return inArray(actorRole, ["admin", "member"]);
+  if (kind === "customer") return eq(actorRole, "user");
+  return undefined;
 }
 
 function orderResolver() {
@@ -109,6 +118,9 @@ function orderResolver() {
           : [],
       );
       return orderActionsSql(actions);
+    }
+    if (filter.field === "actorKind") {
+      return actorKindSql(valuesOf(filter)[0]!, orderActivities.createdBy, orderActor.role);
     }
     return base(filter);
   };
@@ -150,6 +162,9 @@ function auditResolver() {
   return (filter: FilterCondition) => {
     if (filter.field === "action") return inArray(auditAction, valuesOf(filter));
     if (filter.field === "category") return inArray(auditCategory, valuesOf(filter));
+    if (filter.field === "actorKind") {
+      return actorKindSql(valuesOf(filter)[0]!, auditLog.createdBy, auditActor.role);
+    }
     if (filter.field === "details") {
       return sql`${auditLog.changes}::text ilike ${filter.value as string}`;
     }
@@ -277,10 +292,10 @@ export async function listCustomerActivitiesPage(
           customerName: orders.fullName,
           customerEmail: orderCustomer.email,
           customerPublicId: orderCustomer.publicId,
-          customerId: orderCustomer.id,
           actorId: orderActor.id,
           actorName: orderActor.name,
           actorEmail: orderActor.email,
+          actorRole: orderActor.role,
           orderPublicId: orders.publicId,
           orderDeploymentId: orders.deploymentId,
         })
@@ -302,10 +317,10 @@ export async function listCustomerActivitiesPage(
           customerName: auditCustomer.name,
           customerEmail: auditCustomer.email,
           customerPublicId: auditCustomer.publicId,
-          customerId: auditCustomer.id,
           actorId: auditActor.id,
           actorName: auditActor.name,
           actorEmail: auditActor.email,
+          actorRole: auditActor.role,
         })
         .from(auditLog)
         .leftJoin(customerAddresses, and(eq(auditLog.entity, "customer_addresses"), eq(customerAddresses.publicId, auditLog.entityPublicId)))
@@ -342,6 +357,12 @@ export async function listCustomerActivitiesPage(
       const details =
         row.note ??
         (row.fromStatus && row.toStatus ? `${row.fromStatus} → ${row.toStatus}` : null);
+      const who = describeActivityActor({
+        createdBy: row.actorId,
+        actorName: row.actorName,
+        actorEmail: row.actorEmail,
+        actorRole: row.actorRole,
+      });
       return {
         publicId: `order:${row.publicId}`,
         category: categoryForCustomerAction(actionKey),
@@ -352,7 +373,8 @@ export async function listCustomerActivitiesPage(
         customerName: row.customerName,
         customerEmail: row.customerEmail,
         customerPublicId: row.customerPublicId,
-        by: byLabel(row.actorId, row.customerId, row.actorName, row.actorEmail),
+        by: who.label,
+        actorKind: who.kind,
         href: `/dashboard/orders/${row.orderPublicId}`,
         contextLabel: row.orderDeploymentId,
       };
@@ -360,6 +382,12 @@ export async function listCustomerActivitiesPage(
     ...auditRows.map((row) => {
       const changes = row.changes as Changes;
       const actionKey = auditActionFor(row.entity, row.operation, changes);
+      const who = describeActivityActor({
+        createdBy: row.actorId,
+        actorName: row.actorName,
+        actorEmail: row.actorEmail,
+        actorRole: row.actorRole,
+      });
       return {
         publicId: `audit:${row.publicId}`,
         category: categoryForCustomerAction(actionKey),
@@ -370,7 +398,8 @@ export async function listCustomerActivitiesPage(
         customerName: row.customerName ?? row.customerEmail,
         customerEmail: row.customerEmail,
         customerPublicId: row.customerPublicId,
-        by: byLabel(row.actorId, row.customerId, row.actorName, row.actorEmail),
+        by: who.label,
+        actorKind: who.kind,
         href: `/dashboard/customers/${row.customerPublicId}`,
         contextLabel: "Customer profile",
       };

@@ -79,6 +79,16 @@ export const CUSTOMER_ACTIVITY_FACETS: FacetDef[] = [
       label: CUSTOMER_ACTIVITY_ACTION_LABELS[action],
     })),
   },
+  {
+    kind: "pills",
+    field: "actorKind",
+    label: "By",
+    options: [
+      { value: "customer", label: "Customer" },
+      { value: "staff", label: "Admin" },
+      { value: "system", label: "System" },
+    ],
+  },
   { kind: "dateRange", field: "createdAt", label: "When" },
   {
     kind: "search",
