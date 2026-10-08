@@ -328,7 +328,7 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
                 </TableRow>
               ) : (
                 displayRows.map((row, i) => (
-                  <TableRow key={`${row.deliveryPublicId}-${row.forDate}`}>
+                  <TableRow key={`${row.deliveryPublicId}-${row.forDate}-${serialOffset + i}`}>
                     <TableCell
                       className="bg-background sticky left-0 z-10 text-right tabular-nums text-muted-foreground shadow-[1px_0_0_0_var(--border)]"
                       style={{ width: SERIAL_WIDTH, minWidth: SERIAL_WIDTH, maxWidth: SERIAL_WIDTH }}
@@ -381,7 +381,7 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
 
       <div aria-busy={loading} className={cn("space-y-3 transition-opacity md:hidden", loading && "opacity-60")}>
         {displayRows.map((row, i) => (
-          <div key={`${row.deliveryPublicId}-${row.forDate}`} className="bg-card rounded-lg border p-4">
+          <div key={`${row.deliveryPublicId}-${row.forDate}-${serialOffset + i}`} className="bg-card rounded-lg border p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-muted-foreground text-xs tabular-nums">#{serialOffset + i + 1}</p>

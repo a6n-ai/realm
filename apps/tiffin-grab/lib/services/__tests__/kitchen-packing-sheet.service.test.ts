@@ -6,7 +6,7 @@ import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers"
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-const { getKitchenPackingSheet } = await import("../kitchen-packing-sheet.service");
+const { getKitchenPackingSheet, extraTiffinLabel } = await import("../kitchen-packing-sheet.service");
 const { selectionsService } = await import("@/lib/menu/selections.service");
 
 const MONDAY = (() => {
@@ -301,5 +301,13 @@ describe("getKitchenPackingSheet", () => {
       .where(eq(payments.orderId, order.id));
     const sheet = await getKitchenPackingSheet(MONDAY);
     expect(sheet.rows).toEqual([]);
+  });
+});
+
+describe("extraTiffinLabel", () => {
+  it("names where a repeat tiffin came from", () => {
+    expect(extraTiffinLabel("2026-10-07")).toBe("Extra · moved from Wed, Oct 7");
+    expect(extraTiffinLabel(null)).toBe("Extra · from pool");
+    expect(extraTiffinLabel(undefined)).toBe("Extra");
   });
 });

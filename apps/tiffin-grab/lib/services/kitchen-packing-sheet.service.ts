@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import {
   deliveries,
   deliveryCategorySwaps,
+  deliveryMoves,
   dishCategories,
   mealSizeItems,
   mealSizes,
@@ -37,12 +38,20 @@ const ROW_CONCURRENCY = 6;
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+/** NULL from date = a pooled tiffin scheduled onto this trip; undefined = no move row found. */
+export function extraTiffinLabel(fromEatDate: string | null | undefined): string {
+  if (fromEatDate === undefined) return "Extra";
+  if (fromEatDate === null) return "Extra · from pool";
+  const day = parseIsoDateUtc(fromEatDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  return `Extra · moved from ${day}`;
+}
+
 export type KitchenPackingRow = {
   deliveryPublicId: string;
   deliveryDate: string;
   /** Eating day of this row; carried days get their own row on the trip's delivery date. */
   forDate: string;
-  /** "For Tue" on trips carrying several eating days, else null. */
+  /** "For Tue" on trips carrying several eating days, "Extra · moved from Wed, Oct 7" on a moved-in repeat tiffin, else null. */
   forLabel: string | null;
   customerName: string;
   phone: string | null;
@@ -177,6 +186,15 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
   }[] = [];
 
   const extrasById = await loadExtraDates(db, deliveryRows.map((r) => r.deliveryId));
+  const movesInById = new Map<bigint, { toEatDate: string; fromEatDate: string | null }[]>();
+  if (deliveryRows.length) {
+    const moves = await db
+      .select({ deliveryId: deliveryMoves.toDeliveryId, toEatDate: deliveryMoves.toEatDate, fromEatDate: deliveryMoves.fromEatDate })
+      .from(deliveryMoves)
+      .where(inArray(deliveryMoves.toDeliveryId, deliveryRows.map((r) => r.deliveryId)))
+      .orderBy(asc(deliveryMoves.id));
+    for (const m of moves) (movesInById.get(m.deliveryId) ?? movesInById.set(m.deliveryId, []).get(m.deliveryId)!).push(m);
+  }
   const mealCache = createMealResolveCache(addonsByOrder);
   // Rows are independent and each resolves its meal with several queries; run them
   // side by side instead of ~2 queries × every tiffin back to back. Output is sorted below.
@@ -184,7 +202,14 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     const covered = coveredDates({ deliveryDate: row.deliveryDate, coversDates: row.coversDates });
     // A day a moved-in tiffin doubled up on repeats here — one pass per physical tiffin, not per date.
     const occurrences = occurrenceDates({ deliveryDate: row.deliveryDate, coversDates: row.coversDates }, extrasById.get(row.deliveryId));
+    const seenByDate = new Map<string, number>();
     for (const forDate of occurrences) {
+    // Second+ tiffin for the same eating day: name it so staff don't read it as a duplicate.
+    const nth = seenByDate.get(forDate) ?? 0;
+    seenByDate.set(forDate, nth + 1);
+    const extraLabel = nth === 0 ? null : extraTiffinLabel(
+      (movesInById.get(row.deliveryId) ?? []).filter((m) => m.toEatDate === forDate)[nth - 1]?.fromEatDate,
+    );
     // Slot key → line. Selectable picks keep pickIndex so sabzi 12oz and 8oz stay separate.
     const lineBySlot = new Map<string, PackingItemLine>();
     const portions = portionsByCategory(
@@ -260,7 +285,8 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     rowAcc.push({
       deliveryPublicId: row.deliveryPublicId,
       forDate,
-      forLabel: covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null,
+      forLabel: [covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null, extraLabel]
+        .filter(Boolean).join(" · ") || null,
       customerName: (row.fullName ?? "").trim() || "Customer",
       phone: row.customerPhone ?? null,
       routeDriver: row.routeDriverName ?? row.routeDriverSerial ?? null,
