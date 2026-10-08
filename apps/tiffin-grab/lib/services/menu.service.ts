@@ -550,8 +550,8 @@ export const menuService = {
     return publishedCache.getOrSet(`${weekStart ?? "current"}:${organizationId ?? "-"}`, async () => {
       const base = eq(menuWeeks.status, "released");
       // Explicit weekStart → same exact-match path as getReleasedWeek (Menu/Deliveries agree).
-      // No weekStart → soonest released on/after this Monday (app TZ), else latest released
-      // (marketing/PDF "current poster" only — not customer calendar).
+      // No weekStart → this Monday's released week (app TZ), else null. No fallback to
+      // another week (marketing/PDF "current poster" only — not customer calendar).
       let weekId: bigint | undefined;
       let resolvedWeekStart: string | undefined;
       if (weekStart) {

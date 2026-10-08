@@ -67,6 +67,8 @@ async function makeDelivery(orderId: bigint, date: string, over: { status?: "sch
     status: over.status ?? "scheduled",
     cutoffAt: NOW - 1,
     tiffinUnits: over.tiffinUnits ?? 1,
+    // Delivered means confirmed (OptimoRoute or an admin); a passed cutoff alone earns nothing.
+    optimoCompletionStatus: (over.status ?? "scheduled") === "scheduled" ? "success" : null,
   });
 }
 

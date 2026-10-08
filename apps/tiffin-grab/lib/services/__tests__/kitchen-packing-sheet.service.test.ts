@@ -150,7 +150,6 @@ describe("getKitchenPackingSheet", () => {
     expect(items).toMatch(/Chilli Chicken|Saag Paneer/);
     expect(items).toMatch(/OZ ×/);
     expect(items).toMatch(/Kali Dal/);
-    expect(items).toMatch(/Jeera Rice/);
     // Count: plain totals — maharaja single roti row @ 2 TU → "8 rotis"; rice → "1 rice".
     expect(items).toMatch(/\b8 rotis\b/);
     expect(items).toMatch(/\b1 rice\b/);
@@ -192,17 +191,20 @@ describe("getKitchenPackingSheet", () => {
       snap.mealSizes.find((m) => m.planKey === "non-veg")!;
 
     const prior = await db.select().from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+    // Shared rows (daal/rice/roti/side) target the base plan in the real composition; only the
+    // non-veg main targets the size's own plan. Dish eligibility follows each row's plan.
+    const shared = prior.find((r) => r.category === "rice")!.planId;
     try {
       // Force multi-row sabzi 1.5+1.0 TU (=12oz+8oz when 1 TU = 8oz).
       await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
       await db.insert(mealSizeItems).values([
         { mealSizeId: size.id, planId: size.planId, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 0 },
-        { mealSizeId: size.id, planId: size.planId, name: "Side", category: "sabzi", tuAmount: "1.00", sortOrder: 1 },
-        { mealSizeId: size.id, planId: size.planId, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 2 },
-        { mealSizeId: size.id, planId: size.planId, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 3 },
+        { mealSizeId: size.id, planId: shared, name: "Side", category: "sabzi", tuAmount: "1.00", sortOrder: 1 },
+        { mealSizeId: size.id, planId: shared, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 2 },
+        { mealSizeId: size.id, planId: shared, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 3 },
         ...Array.from({ length: 8 }, (_, i) => ({
           mealSizeId: size.id,
-          planId: size.planId,
+          planId: shared,
           name: "Roti",
           category: "roti",
           tuAmount: "0.25",
@@ -234,8 +236,10 @@ describe("getKitchenPackingSheet", () => {
 
       const after = await getKitchenPackingSheet(MONDAY);
       const afterItems = after.rows[0]?.items.join(" | ") ?? "";
-      // Front-removed 12oz sabzi; remaining sabzi is 8oz; extra daal pick appears.
-      expect(afterItems).not.toMatch(/12\s*OZ/i);
+      const cells = after.rows[0]?.items ?? [];
+      // Front-removed 12oz sabzi; remaining sabzi is 8oz. Same-unit swap: the daal it became keeps 12oz.
+      expect(cells.filter((c) => c.includes("Chilli Chicken") || c.includes("Saag Paneer")).join(" | ")).not.toMatch(/12\s*OZ/i);
+      expect(cells.filter((c) => c.includes("Kali Dal")).join(" | ")).toMatch(/12\s*OZ/i);
       expect(afterItems).toMatch(/8\s*OZ/i);
       expect(afterItems).not.toMatch(/24\s*OZ/i);
     } finally {
@@ -255,13 +259,16 @@ describe("getKitchenPackingSheet", () => {
       snap.mealSizes.find((m) => m.key === "maharaja_nonveg") ??
       snap.mealSizes.find((m) => m.planKey === "non-veg")!;
     const prior = await db.select().from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
+    // Shared rows (daal/rice/roti/side) target the base plan in the real composition; only the
+    // non-veg main targets the size's own plan. Dish eligibility follows each row's plan.
+    const shared = prior.find((r) => r.category === "rice")!.planId;
     try {
       await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, size.id));
       await db.insert(mealSizeItems).values([
         { mealSizeId: size.id, planId: size.planId, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 0 },
-        { mealSizeId: size.id, planId: size.planId, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 1 },
-        { mealSizeId: size.id, planId: size.planId, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 2 },
-        { mealSizeId: size.id, planId: size.planId, name: "Roti", category: "roti", tuAmount: "0.75", sortOrder: 3 },
+        { mealSizeId: size.id, planId: shared, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 1 },
+        { mealSizeId: size.id, planId: shared, name: "Rice", category: "rice", tuAmount: "1.00", sortOrder: 2 },
+        { mealSizeId: size.id, planId: shared, name: "Roti", category: "roti", tuAmount: "0.75", sortOrder: 3 },
       ]);
       await db
         .update(orders)

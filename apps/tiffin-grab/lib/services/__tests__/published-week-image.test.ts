@@ -28,7 +28,7 @@ describe("menuService.getPublishedWeek — dish image + publicId", () => {
     const [week] = await db.insert(menuWeeks).values({ weekStart: "2099-06-01", status: "released", orderCutoff: 0 }).returning();
     await db.insert(menuItems).values({ menuWeekId: week!.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: dish!.id, position: 0 });
 
-    const week_ = await menuService.getPublishedWeek();
+    const week_ = await menuService.getPublishedWeek("2099-06-01");
     expect(week_).not.toBeNull();
     const item = week_!.items.find((i) => i.dishName === "TEST_DISH_A");
     expect(item?.image).toMatchObject({ url: IMG.url });

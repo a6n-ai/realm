@@ -98,7 +98,8 @@ async function makeDelivery(orderId: bigint, over: Partial<{ status: string; cut
     status: (over.status ?? "scheduled") as never,
     cutoffAt: over.cutoffAt ?? now - DAY,
     tiffinUnits: over.tiffinUnits ?? 1,
-    optimoCompletionStatus: over.optimo ?? null,
+    // Delivered means confirmed: default to an OptimoRoute success unless the case says otherwise.
+    optimoCompletionStatus: over.optimo === undefined ? "success" : over.optimo,
   });
 }
 
@@ -204,7 +205,7 @@ describe("complaints per 100 tiffins", () => {
     const u = await makeUser("f@x.test");
     const o = await makeOrder(u.id);
     const rows = [
-      { status: "scheduled" as const, cutoffAt: now - DAY, tiffinUnits: 2, optimo: null }, // past cutoff → counts
+      { status: "scheduled" as const, cutoffAt: now - DAY, tiffinUnits: 2, optimo: null }, // past cutoff, unconfirmed → no
       { status: "scheduled" as const, cutoffAt: now + DAY, tiffinUnits: 1, optimo: "success" }, // confirmed early → counts
       { status: "scheduled" as const, cutoffAt: now + DAY, tiffinUnits: 5, optimo: null }, // future, unconfirmed → no
       { status: "skipped" as const, cutoffAt: now - DAY, tiffinUnits: 3, optimo: null }, // skipped → no
@@ -226,7 +227,7 @@ describe("complaints per 100 tiffins", () => {
     );
 
     const k = await getComplaintKpis(NO_FILTERS);
-    expect(expected).toBe(3);
+    expect(expected).toBe(1);
     expect(k.deliveredTiffins).toBe(expected);
   });
 });

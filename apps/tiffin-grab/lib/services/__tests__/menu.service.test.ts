@@ -59,9 +59,9 @@ describe("menuService (integration)", () => {
     const i2 = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d2.publicId, position: 1 });
     await menuService.reorderItems({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", orderedItemIds: [i2!.publicId, i1!.publicId] });
 
-    expect(await menuService.getPublishedWeek()).toBeNull();
+    expect(await menuService.getPublishedWeek("2099-01-19")).toBeNull();
     await menuService.release(w.publicId);
-    const pub = await menuService.getPublishedWeek();
+    const pub = await menuService.getPublishedWeek("2099-01-19");
     expect(pub!.weekStart).toBe("2099-01-19");
     expect(pub!.slots.map((s) => s.key)).toEqual(["sabzi"]);
     const mon = pub!.items.filter((x) => x.dayOfWeek === "mon").sort((a, b) => a.position - b.position);

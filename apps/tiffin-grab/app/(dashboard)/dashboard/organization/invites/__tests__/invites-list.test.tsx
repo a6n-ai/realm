@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { render as rtlRender, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { toast } from "sonner";
+import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { InvitesList } from "../invites-list";
+
+// Dates render in the app-settings zone, so the list needs the provider the dashboard layout mounts.
+const render = (ui: ReactElement) => rtlRender(<TimezoneProvider tz="America/Toronto">{ui}</TimezoneProvider>);
 
 vi.mock("../../members/actions", () => ({ cancelInvitation: vi.fn(), resendInvite: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
