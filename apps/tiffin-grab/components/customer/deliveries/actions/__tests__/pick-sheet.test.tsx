@@ -656,6 +656,19 @@ describe("PickSheet", () => {
       expect(screen.queryByRole("radio", { name: "Curry" })).toBeNull();
     });
 
+    it("a swapped main never takes the side row's extra dishes (the day's dal) as its own", async () => {
+      swapOptions.mockReturnValue([curryToDaal]);
+      const moong = { id: "moong", name: "Moong Dal", image: null };
+      const g = grid([cell({ pickIndex: 1 }), cell({ pickIndex: 2, dishes: [moong, ...dishes], selectedDishId: "moong" })], 1, { portionsBySlot: { curry: ["12oz", "8oz"] } });
+      load.mockResolvedValue({ ...g, grid: { ...g.grid, menu: { [mon]: { curry: dishes } } } });
+      show(trip({ coversDates: [mon] }));
+      await openCat();
+      fireEvent.click((await screen.findAllByRole("radio", { name: /^Daal/ }))[0]!);
+      await screen.findByRole("button", { name: "Save" });
+      // Only the side row offers it; the swapped main keeps Paneer / Dal.
+      expect(screen.getAllByRole("radio", { name: "Moong Dal" })).toHaveLength(1);
+    });
+
     it("an unavailable choice is a plain greyed button; its red ⓘ shows why", async () => {
       swapOptions.mockReturnValue([{ ...curryToDaal, available: false, reason: "Too much Daal today.", validBundles: [] }]);
       load.mockResolvedValue(grid([cell({})]));

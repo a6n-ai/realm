@@ -5,6 +5,7 @@ import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import type { CalendarDay } from "@/lib/services/customer-deliveries.service";
 import type { TuCategory } from "./format-tu";
 import { addonItemsForOrder } from "./order-addon-items";
+import { isCountCategory } from "./pick-addons";
 import { portionsByCategory } from "./pick-size";
 
 export type PortionsByDate = Record<string, Record<string, (string | null)[]>>;
@@ -30,5 +31,11 @@ export async function portionsAfterSwaps(orderPublicId: string, days: CalendarDa
   const tu = new Map<string, TuCategory>(planCats.map((c) => [c.key, {
     tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel, selectable: c.selectable,
   }]));
-  return Object.fromEntries(swapped.map((e) => [e.date, Object.fromEntries(portionsByCategory(items, tu, e.appliedSwaps))]));
+  // A folded total (roti) shows the meal's own count: its add-on (3 extra roti) is a tile of its own.
+  const folded = new Set(addonItems.map((a) => a.category).filter((c) => isCountCategory(tu.get(c))));
+  return Object.fromEntries(swapped.map((e) => {
+    const all = portionsByCategory(items, tu, e.appliedSwaps);
+    const meal = folded.size ? portionsByCategory(sizeItems, tu, e.appliedSwaps) : all;
+    return [e.date, Object.fromEntries([...all].map(([c, p]) => [c, folded.has(c) ? (meal.get(c) ?? []) : p]))];
+  }));
 }

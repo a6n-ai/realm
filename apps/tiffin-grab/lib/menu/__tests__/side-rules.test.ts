@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { rolesByCategory, sideDefault, sideKey, sideOptions, type SideRules } from "../side-rules";
+import { rolesAfterSwaps, rolesByCategory, sideDefault, sideKey, sideOptions, type SideRules } from "../side-rules";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveCategoriesForDay } = await import("../resolve-delivery-meal");
@@ -84,5 +84,21 @@ describe("side picks follow the day's side rule", () => {
     expect(sideOptions(rule, menu, all).map((i) => i.name)).toEqual(["Masoor Dal", "Toor Dal"]);
     expect(sideDefault(rule, [toorDal, masoor], all)?.name).toBe("Masoor Dal");
     expect(sideFor(fiveItemRegular, dalSide)("sabzi", 1)).toEqual([]); // the main pick has none
+  });
+});
+
+describe("rolesAfterSwaps (Muskan, 2026-10-08)", () => {
+  const maharaja = new Map([["sabzi", ["main", "side_1"] as ("main" | "side_1")[]], ["daal", ["main"] as "main"[]]]);
+  const swap = { fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1 };
+
+  it("the 8oz side stays a side when the 12oz main is swapped for dal", () => {
+    expect(rolesAfterSwaps(maharaja, [{ ...swap, fromRow: 0 }])?.get("sabzi")).toEqual(["side_1"]);
+    // What the swap brings is a main: no side rule applies to it.
+    expect(rolesAfterSwaps(maharaja, [{ ...swap, fromRow: 0 }])?.get("daal")).toEqual(["main", "main"]);
+  });
+
+  it("swapping the side away leaves the main a main; no swaps changes nothing", () => {
+    expect(rolesAfterSwaps(maharaja, [{ ...swap, fromRow: 1 }])?.get("sabzi")).toEqual(["main"]);
+    expect(rolesAfterSwaps(maharaja, [])).toBe(maharaja);
   });
 });

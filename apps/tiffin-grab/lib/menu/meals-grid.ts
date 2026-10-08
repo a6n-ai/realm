@@ -7,6 +7,7 @@ import { mondayOfIso, thisWeekStartIso, type DayOfWeek, type DeliveryDate } from
 import { allowedDishIdsForMealSize, rowPlansForMealSize } from "./selections.service";
 import { itemsForRow, rowDietLabel, type RowPlans } from "./row-plans";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey, sideChoicesForWeek } from "./resolve-delivery-meal";
+import type { SwapRow } from "./swap-rules";
 import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { carryingTrips } from "./trip-lookup";
@@ -122,12 +123,13 @@ export async function buildMealsGrid(
   // Each day's row diets after its swaps: giving up a custom meal's first sabzi row must not hand
   // the next row that row's diet (see rowPlansAfterSwaps).
   const rowPlansByDay = new Map<DayOfWeek, RowPlans | null>();
+  const swapsByDay = new Map<DayOfWeek, SwapRow[]>();
   const allDishBigintIds = [...new Set(allItems.map((i) => i.dishId))];
   const [categories, weekResolved, dishRows, sideChoices] = await Promise.all([
     dishCategoriesService.forPlan(planRow.id),
     // Single source of truth for selected/resolved dish per (day, person, category, pickIndex),
     // including stale-pick re-validation and plan filtering — buildMealsGrid must not re-derive it.
-    resolveDeliveryMealsForWeek(order, releasedWeek, order.persons, omitSwapPublicIds, rowPlansByDay),
+    resolveDeliveryMealsForWeek(order, releasedWeek, order.persons, omitSwapPublicIds, rowPlansByDay, swapsByDay),
     allDishBigintIds.length > 0
       ? db
           .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, image: dishes.image, planId: dishes.planId })
@@ -135,7 +137,7 @@ export async function buildMealsGrid(
           .where(inArray(dishes.id, allDishBigintIds))
           .orderBy(asc(dishes.name))
       : Promise.resolve([]),
-    sideChoicesForWeek(order, releasedWeek.id),
+    sideChoicesForWeek(order, releasedWeek.id, (day) => swapsByDay.get(day) ?? []),
   ]);
 
   const dishMap = new Map<bigint, GridDish>(dishRows.map((d) => [

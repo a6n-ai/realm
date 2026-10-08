@@ -7,6 +7,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { dishCategories, dishes, menuDaySides, menuSideDefaults } from "@/db/schema";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";
+import { foldSwaps, type SwapRow } from "@/lib/menu/swap-rules";
 
 export type MealItemRole = "main" | "side_1" | "side_2";
 
@@ -28,6 +29,18 @@ export function rolesByCategory(items: { category: string; sortOrder: number; ro
     out.set(it.category, list);
   }
   return out;
+}
+
+/**
+ * Roles after a day's swaps, folded like row diets (rowPlansAfterSwaps): the row given up goes and
+ * later rows keep their role. Without this, swapping the 12oz main away made the 8oz side "pick 1",
+ * read as a main, and it lost its dal default. A pick a swap brings in is a main.
+ */
+export function rolesAfterSwaps(roles: Map<string, MealItemRole[]> | null, swaps: SwapRow[]): Map<string, MealItemRole[]> | null {
+  if (!roles || swaps.length === 0) return roles;
+  const slots = new Map([...roles].map(([category, list]) => [category, list.map((value: MealItemRole | null, row) => ({ row, value }))]));
+  const folded = foldSwaps(slots, swaps.map((s) => ({ ...s, receiveTu: null })), { sameUnit: () => false, receiveTu: () => null });
+  return new Map([...folded].map(([category, rows]) => [category, rows.map((r) => r.value ?? "main")]));
 }
 
 /** The dishes a side pick may take that day besides its own category's: the fixed dish, or the source category's. */

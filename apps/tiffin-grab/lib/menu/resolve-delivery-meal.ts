@@ -16,7 +16,7 @@ import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { isContainerCategory } from "@/lib/menu/format-tu";
 import { itemsForRow, rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";
 import { addonItemsForOrder, type AddonItemRow } from "@/lib/menu/order-addon-items";
-import { loadSideRules, rolesByCategory, sideKey, sideOptions, sideRulesForDay, type MealItemRole, type SideRules } from "@/lib/menu/side-rules";
+import { loadSideRules, rolesAfterSwaps, rolesByCategory, sideKey, sideOptions, sideRulesForDay, type MealItemRole, type SideRules } from "@/lib/menu/side-rules";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -311,12 +311,17 @@ function loadWeekItems(weekId: bigint) {
  * The extra dishes each side pick may take in a menu week (Edit meal's options, and what
  * setSelection accepts), or null when the order's meal has no side items.
  */
-export async function sideChoicesForWeek(order: Order, weekId: bigint): Promise<((day: DayOfWeek, category: string, pickIndex: number) => Item[]) | null> {
+export async function sideChoicesForWeek(
+  order: Order,
+  weekId: bigint,
+  /** Each day's applied swaps: pickIndex N is the Nth row left after them, not the meal's Nth. */
+  swapsFor: (day: DayOfWeek) => SwapRow[] = () => [],
+): Promise<((day: DayOfWeek, category: string, pickIndex: number) => Item[]) | null> {
   const { roles, planDishIds } = await defaultPickContext(order);
   if (!roles) return null;
   const [rules, items] = await Promise.all([loadSideRules(weekId), loadWeekItems(weekId)]);
   return (day, category, pickIndex) =>
-    sideResolver(roles, sideRulesForDay(rules, day), items.filter((i) => i.dayOfWeek === day), planDishIds)?.(category, pickIndex) ?? [];
+    sideResolver(rolesAfterSwaps(roles, swapsFor(day)), sideRulesForDay(rules, day), items.filter((i) => i.dayOfWeek === day), planDishIds)?.(category, pickIndex) ?? [];
 }
 
 export async function resolveDeliveryMeal(
@@ -377,7 +382,7 @@ export async function resolveDeliveryMeal(
     maxTuByCat,
     rules,
     rowPlansAfterSwaps(rowPlans, swaps),
-    sideResolver(roles, sideRules, items, planDishIds),
+    sideResolver(rolesAfterSwaps(roles, swaps), sideRules, items, planDishIds),
   );
 }
 
@@ -397,6 +402,8 @@ export async function resolveDeliveryMealsForWeek(
   omitSwapPublicIds: string[] = [],
   /** Filled with each day's custom-meal row diets after that day's swaps (Edit meal's picker). */
   rowPlansByDay?: Map<DayOfWeek, RowPlans | null>,
+  /** Filled with each day's applied swaps (Edit meal's side choices follow them). */
+  swapsByDay?: Map<DayOfWeek, SwapRow[]>,
 ): Promise<ResolvedMealsWeek> {
   const result: ResolvedMealsWeek = new Map();
   const cats = await dishCategoriesService.forPlan(order.planId);
@@ -441,12 +448,13 @@ export async function resolveDeliveryMealsForWeek(
     const counts = applySwapsToCounts(baseCounts, daySwaps);
     const dayRowPlans = rowPlansAfterSwaps(rowPlans, daySwaps);
     rowPlansByDay?.set(day, dayRowPlans);
+    swapsByDay?.set(day, daySwaps);
     for (let person = 1; person <= persons; person++) {
       const dayPersonPicks = picks.filter((p) => p.dayOfWeek === day && p.personIndex === person);
       result.set(
         resolvedMealsWeekKey(day, person),
         resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat, rules, dayRowPlans,
-          weekSides ? sideResolver(roles, sideRulesForDay(weekSides, day), dayItems, planDishIds) : null),
+          weekSides ? sideResolver(rolesAfterSwaps(roles, daySwaps), sideRulesForDay(weekSides, day), dayItems, planDishIds) : null),
       );
     }
   }

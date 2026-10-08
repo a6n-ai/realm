@@ -333,7 +333,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
       return {
         title: [group.label, named && role ? ROLE[role] : null, sw.givePortion].filter(Boolean).join(" · "),
         // Customers see choices, not swaps: the row reads as what they get now.
-        summary: `${labelOf(sw.swap.toCategory)}${sw.getPortion ? ` · ${sw.getPortion}` : ""}`,
+        summary: `${destinationName(sw.swap.toCategory) ?? labelOf(sw.swap.toCategory)}${sw.getPortion && sw.getPortion !== sw.givePortion ? ` · ${sw.getPortion}` : ""}`,
         status: "Changed",
       };
     }
@@ -594,7 +594,11 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
                 // (no choice) only ever had the day's one dish, so undoing a swap offers just that one.
                 const menuDishes = grid.menu?.[activeDay!]?.[group.key] ?? [];
                 const fixed = grid.categories.find((c) => c.key === group.key)?.selectable === false;
-                const ownDishes = group.dishes.length ? group.dishes : fixed ? menuDishes.slice(0, 1) : menuDishes;
+                // Only the category's own menu: a side row's extras (the day's dal) are not the main's, so a
+                // swapped main never offers Moong Dal both as its own dish and as what it became.
+                const menuIds = new Set(menuDishes.map((d) => d.id));
+                const own = menuIds.size ? group.dishes.filter((d) => menuIds.has(d.id)) : group.dishes;
+                const ownDishes = own.length ? own : fixed ? menuDishes.slice(0, 1) : menuDishes;
                 const renderItem = (item: (typeof mealItems)[number]) => {
                       if (item.kind === "swapped") {
                         const row = item.swapped;
