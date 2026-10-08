@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { TruckIcon } from "lucide-react";
-import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, type Column } from "@/components/ds";
+import { DataTable, TonePill, type Column } from "@/components/ds";
+import { labelStatusTone } from "@/lib/deliveries/label-status-tone";
 import { sortRows } from "@/lib/list/sort";
 import type { DayDeliveryStatusRow, LabelDeliveryStatus } from "@/lib/services/daily-labels.service";
 import { useTableParams } from "./use-table-params";
@@ -101,6 +101,5 @@ export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
 }
 
 function DeliveryStatusBadge({ status }: { status: LabelDeliveryStatus }) {
-  const variant = status === "Not delivered" || status === "Cancelled" ? "destructive" : status === "Delivered" ? "secondary" : "outline";
-  return <Badge variant={variant}>{status}</Badge>;
+  return <TonePill tone={labelStatusTone(status)}>{status}</TonePill>;
 }

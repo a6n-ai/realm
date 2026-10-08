@@ -6,9 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ListChecksIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { cn } from "@foundry/ui/cn";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, DEFAULT_SIZE, PAGE_SIZES, ResponsiveDialog, type Column } from "@/components/ds";
+import { DataTable, DEFAULT_SIZE, PAGE_SIZES, ResponsiveDialog, TonePill, type Column, type Tone } from "@/components/ds";
+import { labelStatusTone } from "@/lib/deliveries/label-status-tone";
 import { GROUP_LABEL, type ReasonGroup } from "@/lib/services/optimoroute/reconcile-reason";
 import type { DayLedger, LedgerRow } from "@/lib/services/optimoroute/ledger";
 import { pushDeliveryAction, removeStopsAction } from "./actions";
@@ -27,13 +27,13 @@ const COLUMNS: readonly Column<Key>[] = [
 
 // Order of the filter chips = the order a dispatcher works through the day.
 const GROUPS: ReasonGroup[] = ["needs_action", "on_route", "done", "not_today", "not_ours"];
-// Same tinted-pill tokens as StageBadge, one colour per group so a scan of the column separates them.
-const PILL: Record<ReasonGroup, string> = {
-  needs_action: "bg-bad/15 text-bad",
-  on_route: "bg-primary/15 text-primary",
-  done: "bg-ok/15 text-ok",
-  not_today: "bg-muted text-muted-foreground border",
-  not_ours: "text-muted-foreground border border-dashed",
+// One colour per group so a scan of the column separates them.
+const GROUP_TONE: Record<ReasonGroup, Tone> = {
+  needs_action: "bad",
+  on_route: "brand",
+  done: "ok",
+  not_today: "neutral",
+  not_ours: "faint",
 };
 
 function pagination(sp: URLSearchParams) {
@@ -125,15 +125,15 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
               {r.phone ? <span className="text-muted-foreground block text-xs">{r.phone}</span> : null}
               {r.orderId ? <span className="text-muted-foreground block text-xs">{r.orderId}</span> : null}
             </TableCell>
-            <TableCell className="text-xs">{r.ourStatus ?? "—"}</TableCell>
+            <TableCell>
+              {r.ourStatus ? <TonePill tone={labelStatusTone(r.ourStatus)}>{r.ourStatus}</TonePill> : "—"}
+            </TableCell>
             <TableCell className="text-xs">{r.optimoStatus ?? "Not on OptimoRoute"}</TableCell>
             <TableCell className="text-xs tabular-nums">
               {r.driver ? `${r.driver}${r.stopNumber != null ? ` · #${r.stopNumber}` : ""}` : "—"}
             </TableCell>
             <TableCell>
-              <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", PILL[r.group])}>
-                {GROUP_LABEL[r.group]}
-              </span>
+              <TonePill tone={GROUP_TONE[r.group]}>{GROUP_LABEL[r.group]}</TonePill>
               <span className="mt-1 block text-xs">{r.reason}</span>
             </TableCell>
             <TableCell className="text-right">

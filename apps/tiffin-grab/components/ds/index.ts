@@ -2,6 +2,7 @@
 // two app-local business badges (they hardcode this app's status/stage enums).
 export * from "@foundry/design-system";
 export * from "./stage-badge";
+export * from "./tone-pill";
 export * from "./order-status-badge";
 export * from "./user-avatar";
 export * from "./row-action-tooltip-button";

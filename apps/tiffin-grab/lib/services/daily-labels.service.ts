@@ -174,7 +174,8 @@ export function driverNote(dropOff: string | null, instructions: string | null |
  */
 const SCHEDULED_ONLY = ["scheduled"] as const;
 /** The status section keeps a past day visible. The packing sheet stays scheduled-only. */
-const STATUS_DAY_STATUSES = ["scheduled", "paused", "skipped", "cancelled"] as const;
+/** Every status shown on Daily labels and the Dispatch Day table — one list so the two pages cannot drift. */
+export const STATUS_DAY_STATUSES = ["scheduled", "paused", "skipped", "cancelled"] as const;
 
 export type DayDeliveryStatusRow = {
   deliveryPublicId: string;

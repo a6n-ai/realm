@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders } from "@/db/schema";
-import { labelDeliveryStatus, loadDayDeliveries } from "@/lib/services/daily-labels.service";
+import { labelDeliveryStatus, loadDayDeliveries, STATUS_DAY_STATUSES } from "@/lib/services/daily-labels.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { getCompletionDetails, searchOrdersForDate } from "./client";
 import { movedSourceIds, tiffinsMoved } from "./completions";
@@ -198,7 +198,7 @@ export function assembleLedger(input: {
 
 /** Loads both sides for a date and assembles the ledger. Three OptimoRoute calls at most (search pages + completions). */
 export async function buildDayLedger(date: string): Promise<DayLedger> {
-  const dayRows = await loadDayDeliveries(date, ["scheduled", "paused", "skipped", "cancelled"]);
+  const dayRows = await loadDayDeliveries(date, STATUS_DAY_STATUSES);
   const ids = dayRows.map((r) => r.delivery.id);
   const mergedIds = dayRows.map((r) => r.delivery.mergedIntoDeliveryId).filter((v): v is bigint => v != null);
 
