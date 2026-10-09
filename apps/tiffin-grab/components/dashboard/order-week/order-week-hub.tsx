@@ -26,7 +26,7 @@ import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
 import { actionModel } from "@/components/customer/deliveries/action-model";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
-import { WeekTimeline } from "@/components/customer/deliveries/week-timeline";
+import { WeekStrip } from "@/components/customer/deliveries/week-strip";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;
@@ -84,7 +84,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
         </span>
       </div>
 
-      <WeekTimeline
+      <WeekStrip
         firstWeek={firstWeek}
         lastWeek={lastWeek}
         week={weekStart}
