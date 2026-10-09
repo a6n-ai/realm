@@ -13,7 +13,7 @@ import {
 import { db } from "@/db/client";
 import { payments, users } from "@/db/schema";
 import {
-  getIntegrationsConfig,
+  getIntegrationsConfigFresh,
   getPaymentConfig,
   setIntegrationsConfig,
 } from "@/lib/services/app-settings.service";
@@ -21,7 +21,8 @@ import {
 const log = createLogger("payments.stripe");
 
 export const stripeDeps: ConnectDeps = {
-  store: { get: getIntegrationsConfig, set: setIntegrationsConfig },
+  // get is uncached; set evicts the shared cache (appSettingsEntity.update).
+  store: { get: getIntegrationsConfigFresh, set: setIntegrationsConfig },
   masterKey: () => process.env.INTEGRATIONS_ENCRYPTION_KEY,
   hasOpenPayments: async () => {
     const [row] = await db

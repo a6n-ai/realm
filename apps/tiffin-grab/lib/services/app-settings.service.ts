@@ -201,6 +201,12 @@ export async function getPaymentConfig(): Promise<PaymentConfig> {
   });
 }
 
+// Uncached: read-modify-write callers must not start from a stale (other-instance) cache.
+export async function getPaymentConfigFresh(): Promise<PaymentConfig> {
+  const [row] = await db.select({ pc: app.paymentConfig }).from(app).limit(1);
+  return parsePaymentConfig(row?.pc ?? undefined);
+}
+
 export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
   // parse-then-store: normalizes field defaults and rejects a malformed blob before it lands.
   const parsed = parsePaymentConfig(cfg);
@@ -246,6 +252,12 @@ export async function getIntegrationsConfig(): Promise<IntegrationsConfig> {
     const [row] = await db.select({ cfg: app.integrationsConfig }).from(app).limit(1);
     return parseIntegrationsConfig(row?.cfg ?? undefined);
   });
+}
+
+// Uncached: Stripe writers are read-modify-write; a stale blob would resurrect wiped keys.
+export async function getIntegrationsConfigFresh(): Promise<IntegrationsConfig> {
+  const [row] = await db.select({ cfg: app.integrationsConfig }).from(app).limit(1);
+  return parseIntegrationsConfig(row?.cfg ?? undefined);
 }
 
 export async function setIntegrationsConfig(cfg: IntegrationsConfig): Promise<void> {

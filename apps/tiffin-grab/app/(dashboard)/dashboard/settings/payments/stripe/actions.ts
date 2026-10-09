@@ -13,7 +13,7 @@ import {
 import { requirePermission } from "@/lib/auth/guards";
 import { runAction } from "@/app/(customer)/me/action-result";
 import { stripeDeps, stripeRuntime, webhookUrl } from "@/lib/payments/stripe";
-import { ensurePaymentCatalog, getPaymentConfig, setPaymentConfig } from "@/lib/services/app-settings.service";
+import { ensurePaymentCatalog, getPaymentConfigFresh, setPaymentConfig } from "@/lib/services/app-settings.service";
 
 const PATH = "/dashboard/settings/payments";
 
@@ -30,9 +30,12 @@ function isStripeKeyRejected(e: unknown): boolean {
 }
 
 async function setStripeMethodEnabled(enabled: boolean) {
-  const cfg = await getPaymentConfig();
+  const cfg = await getPaymentConfigFresh();
   const method = findMethod(cfg, "stripe");
-  if (!method) throw new ValidationError("Stripe is not installed");
+  if (!method) {
+    if (!enabled) return;
+    throw new ValidationError("Stripe is not installed");
+  }
   if (method.enabled === enabled) return;
   const next = { ...cfg, methods: cfg.methods.map((m) => (m.id === "stripe" ? { ...m, enabled } : m)) };
   const error = paymentConfigSaveError(next);
@@ -45,6 +48,11 @@ export async function setStripeEnabledAction(enabled: boolean) {
     await requirePermission({ settings: ["write"] });
     if (enabled && !(await stripeRuntime())) throw new ValidationError("Connect Stripe first");
     await setStripeMethodEnabled(enabled);
+    // A concurrent Disconnect between the check and the write must not leave Card enabled.
+    if (enabled && !(await stripeRuntime())) {
+      await setStripeMethodEnabled(false);
+      throw new ValidationError("Connect Stripe first");
+    }
     refresh();
   });
 }
@@ -66,8 +74,9 @@ export async function connectStripeAction(fd: FormData) {
 export async function disconnectStripeAction() {
   return runAction(async () => {
     await requirePermission({ settings: ["write"] });
-    await disconnectStripe(stripeDeps);
+    // Disable first: if a later step fails Card is already off (fail closed).
     await setStripeMethodEnabled(false);
+    await disconnectStripe(stripeDeps);
     refresh();
   });
 }
@@ -93,6 +102,7 @@ export async function saveStripeSettingsAction(
 export async function checkTaxReadinessAction(taxCode: string) {
   return runAction(async () => {
     await requirePermission({ settings: ["read"] });
+    if (!/^txcd_\d+$/.test(taxCode)) throw new ValidationError("Pick a valid tax code");
     const rt = await stripeRuntime();
     if (!rt) throw new ValidationError("Connect Stripe first");
     try {

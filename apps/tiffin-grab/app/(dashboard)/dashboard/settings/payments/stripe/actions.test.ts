@@ -15,7 +15,7 @@ vi.mock("@/lib/auth/guards", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/services/app-settings.service", () => ({
   ensurePaymentCatalog: vi.fn(),
-  getPaymentConfig: vi.fn(async () => cfgState.cfg),
+  getPaymentConfigFresh: vi.fn(async () => cfgState.cfg),
   setPaymentConfig: vi.fn(async (c: unknown) => { cfgState.cfg = c; }),
 }));
 vi.mock("@/lib/payments/stripe", () => ({
@@ -35,6 +35,7 @@ const allow = () => (requirePermission as ReturnType<typeof vi.fn>).mockResolved
 const enabled = () => cfgState.cfg.methods[0].enabled;
 
 beforeEach(() => {
+  taxReadinessMock.mockReset();
   rt.current = null;
   cfgState.cfg = { methods: [{ id: "stripe", kind: "online", enabled: false, label: "Card", taxes: [] }] };
 });
@@ -75,6 +76,25 @@ describe("stripe settings actions", () => {
     allow();
     expect(await a.setStripeEnabledAction(false)).toEqual({ ok: true });
     expect(enabled()).toBe(false);
+  });
+
+  it("enable after disconnect is refused (fresh runtime check)", async () => {
+    rt.current = { stripe: {}, cfg: {} };
+    allow();
+    await a.setStripeEnabledAction(true);
+    rt.current = null;
+    allow();
+    expect(await a.disconnectStripeAction()).toEqual({ ok: true });
+    allow();
+    expect(await a.setStripeEnabledAction(true)).toEqual({ error: "Connect Stripe first" });
+    expect(enabled()).toBe(false);
+  });
+
+  it("rejects a malformed tax code before calling Stripe", async () => {
+    rt.current = { stripe: {}, cfg: {} };
+    allow();
+    expect(await a.checkTaxReadinessAction("x; drop")).toEqual({ error: "Pick a valid tax code" });
+    expect(taxReadinessMock).not.toHaveBeenCalled();
   });
 
   it("disconnect disables the method", async () => {

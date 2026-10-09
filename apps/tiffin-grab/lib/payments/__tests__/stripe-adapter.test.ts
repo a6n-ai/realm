@@ -4,8 +4,10 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/services/app-settings.service", () => {
   let blob: Record<string, unknown> = {};
+  const stale = { stripe: { installed: true, accountId: "acct_old", secretKey: { v: 1, iv: "a", tag: "b", ct: "OLD" } } };
   return {
-    getIntegrationsConfig: async () => blob,
+    getIntegrationsConfig: async () => ({ ...stale }),
+    getIntegrationsConfigFresh: async () => blob,
     setIntegrationsConfig: async (b: Record<string, unknown>) => { blob = b; },
     getPaymentConfig: async () => ({ methods: [] }),
     __set: (b: Record<string, unknown>) => { blob = b; },
@@ -13,7 +15,7 @@ vi.mock("@/lib/services/app-settings.service", () => {
 });
 
 const settings = (await import("@/lib/services/app-settings.service")) as unknown as { __set: (b: Record<string, unknown>) => void };
-const { stripeRuntime, toCents, fromCents } = await import("../stripe");
+const { stripeRuntime, stripeDeps, toCents, fromCents } = await import("../stripe");
 
 describe("stripe adapter", () => {
   beforeEach(() => settings.__set({}));
@@ -34,5 +36,14 @@ describe("stripe adapter", () => {
     settings.__set({ stripe: { installed: true, accountId: "acct_1", secretKey: { v: 1, iv: "a", tag: "b", ct: "c" } } });
     await expect(stripeRuntime()).resolves.toBeNull();
     if (prev !== undefined) process.env.INTEGRATIONS_ENCRYPTION_KEY = prev;
+  });
+
+  it("writers start from the DB, not a stale cache (no secret resurrection after disconnect)", async () => {
+    settings.__set({ stripe: { installed: false } }); // post-disconnect truth
+    const { updateStripeSettings } = await import("@foundry/payments/stripe");
+    await updateStripeSettings(stripeDeps, { methodLabel: "Credit card" });
+    const out = (await stripeDeps.store.get()) as { stripe: Record<string, unknown> };
+    expect(out.stripe.secretKey).toBeUndefined();
+    expect(out.stripe.accountId).toBeUndefined();
   });
 });
