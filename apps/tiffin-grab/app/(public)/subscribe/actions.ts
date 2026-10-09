@@ -14,7 +14,7 @@ import { quoteTrial } from "@/lib/trial/quote";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
-import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
+import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
 import { provisionCustomerByEmail } from "@/lib/services/customers.service";
 import { getSession } from "@/lib/auth/session";
@@ -127,10 +127,7 @@ async function quote(
   }));
   const methodId = paymentMethodId?.trim() || "simulated";
   const method = methodId !== "simulated" ? findMethod(paymentCfg, methodId) : undefined;
-  const { taxes } = await resolveCheckoutTaxes({
-    postalCode: postalCode?.trim() || null,
-    methodTaxes: method?.enabled ? method.taxes : [],
-  });
+  const methodTaxes = method?.enabled ? method.taxes : [];
 
   // Resolve the plan's plan_type enum server-side from the catalog snapshot — the
   // client passes a plan KEY, not the plan_type. The optimizer checks
@@ -193,7 +190,15 @@ async function quote(
     }
   }
 
-  const pricing = priceSubscription(pricedSelections, catalog, lines, taxes);
+  const { pricing } = await priceWithTax({
+    selections: pricedSelections,
+    catalog,
+    adjustments: lines,
+    address: { postalCode: postalCode?.trim() || null },
+    methodTaxes,
+    reference: "preview",
+    cache: true,
+  });
   const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r) => ({
     code: r.coupon.code,
     name: r.coupon.name,

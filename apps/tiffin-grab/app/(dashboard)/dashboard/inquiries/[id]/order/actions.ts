@@ -14,7 +14,7 @@ import { resolveSessionVisibleOrgIds, type CreateOrderInput } from "@/lib/servic
 import { couponsService } from "@/lib/services/coupons.service";
 import { getDiscountPolicy, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { findMethod } from "@foundry/payments";
-import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
+import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import { earliestNewPlanStart } from "@/lib/services/order-window";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -24,7 +24,7 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { addressService } from "@/lib/services/addresses.service";
 import { dropOffsFor } from "@/lib/services/address-drop-off.service";
-import { priceSubscription, type PricingLine, type PricingResult } from "@/lib/pricing";
+import { type PricingLine, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
 
@@ -167,8 +167,11 @@ async function quotePrice(
   // Same tax resolution as createOrder (delivery postal code + the method's own taxes), so the
   // total staff see and copy to the customer is the total charged.
   const method = input.paymentMethodId ? findMethod(await getPaymentConfig(), input.paymentMethodId) : undefined;
-  const { taxes } = await resolveCheckoutTaxes({ postalCode: input.contact.postalCode, methodTaxes: method?.enabled ? method.taxes : [] });
-  const base = priceSubscription(trial ? trial.pricingSelections : input.selections, catalog, [], taxes);
+  const methodTaxes = method?.enabled ? method.taxes : [];
+  const address = { line1: input.contact.addressLine, city: input.contact.city, postalCode: input.contact.postalCode };
+  const quote = (selections: PricingSelections, adjustments: PricingLine[]) =>
+    priceWithTax({ selections, catalog, adjustments, address, methodTaxes, reference: "admin-preview", cache: true }).then((r) => r.pricing);
+  const base = await quote(trial ? trial.pricingSelections : input.selections, []);
 
   const code = couponCode?.trim();
   if (!code || requestedAmount == null || requestedAmount <= 0) return base;
@@ -184,7 +187,7 @@ async function quotePrice(
       actorId,
       planType: plan?.planType,
     });
-    return priceSubscription(input.selections, catalog, [line], taxes);
+    return await quote(input.selections, [line]);
   } catch {
     return base;
   }

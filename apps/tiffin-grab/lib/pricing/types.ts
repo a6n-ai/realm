@@ -88,6 +88,8 @@ export type OrderPricingSnapshot = PricingResult & {
   /** Province whose rates produced taxLines, so a receipt can be audited later.
    *  null when the delivery address yielded no province (then taxLines is []). */
   taxProvince?: string | null;
+  /** Where taxLines came from; calculationId ties the payment to a Stripe Tax calculation. */
+  tax?: { source: "stripe" | "fallback"; calculationId: string | null; expiresAt: number | null };
   planType?: string;
   // Staff replaced a custom meal's computed per-TU base price (actor = staff public id).
   // computed is null when a category had no custom-meal pricing at order time.

@@ -8,7 +8,7 @@ import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
+import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
   deliveries,
@@ -105,6 +105,8 @@ export async function recordPayment(
     createdBy?: bigint | null;
     // Default true (simulated / already-settled). False for awaiting_payment rows.
     creditLedger?: boolean;
+    taxSource?: string | null;
+    taxCalculationId?: string | null;
   },
 ): Promise<bigint> {
   const [pay] = await tx
@@ -116,6 +118,8 @@ export async function recordPayment(
       amount: input.amount.toFixed(2),
       note: input.note ?? null,
       createdBy: input.createdBy ?? null,
+      taxSource: input.taxSource ?? null,
+      taxCalculationId: input.taxCalculationId ?? null,
     })
     .returning({ id: payments.id });
   if (input.creditLedger !== false) {
@@ -342,13 +346,8 @@ export async function createOrder(
   }
 
   // Canadian sales tax is destination-based: the DELIVERY address decides the
-  // rate. Resolved through the same helper the checkout preview uses, so the
-  // total shown is the total charged.
-  const { taxes, province: taxProvince } = await resolveCheckoutTaxes({
-    postalCode: input.contact.postalCode,
-    methodTaxes,
-  });
-
+  // rate. Resolved inside priceWithTax (below), the same helper the checkout
+  // preview uses, so the total shown is the total charged.
   const deferSettlement = paymentMethodId !== "simulated";
 
   const txResult = await db.transaction(async (tx) => {
@@ -557,7 +556,16 @@ export async function createOrder(
       }
     }
 
-    const pricing = priceSubscription(input.selections, pricingCatalog, adjustments, taxes);
+    // ponytail: Stripe Tax (≤3s timeout) runs inside the coin-lock tx; move it before the tx if lock waits show up.
+    const { pricing, taxProvince, tax } = await priceWithTax({
+      selections: input.selections,
+      catalog: pricingCatalog,
+      adjustments,
+      address: { line1: input.contact.addressLine, city: input.contact.city, postalCode: input.contact.postalCode },
+      methodTaxes,
+      reference: `order:${Date.now()}`,
+      cache: false,
+    });
 
     // Snapshot is the immutable receipt. For deferred settlement, pending
     // redemptions ride along until staff verify — then redeem + clear.
@@ -565,6 +573,7 @@ export async function createOrder(
       ...pricing,
       paymentMethodId,
       taxProvince,
+      tax,
       planType: plan.planType,
       ...(basePriceOverride != null ? { basePriceOverride: { amount: pricingCatalog.mealSize.basePrice, computed: computedBase, byPublicId: actorId } } : {}),
       ...(deferSettlement && redemptions.length
@@ -666,6 +675,8 @@ export async function createOrder(
       method: paymentMethodId as PaymentMethodValue,
       status: deferSettlement ? "awaiting_payment" : "simulated_paid",
       creditLedger: !deferSettlement,
+      taxSource: pricingSnapshot.tax?.source ?? null,
+      taxCalculationId: pricingSnapshot.tax?.calculationId ?? null,
     });
 
     // Simulated path redeems immediately. Real-method path defers until verify
@@ -1944,9 +1955,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const method = findMethod(paymentCfg, priorMethodId);
       if (method?.enabled) methodTaxes = method.taxes;
     }
-    // Same destination rule as createOrder — off this order's own delivery address.
-    const { taxes } = await resolveCheckoutTaxes({ postalCode: order.postalCode, methodTaxes });
-
     const selections: PricingSelections = {
       mealSizeId: mealSize.publicId,
       frequencyKey: freqRow.key,
@@ -1964,9 +1972,18 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       addonSelections: await db.select({ key: orderAddons.addonKey, qty: orderAddons.qty }).from(orderAddons).where(eq(orderAddons.orderId, order.id)),
     };
     const pricingCatalog = buildPricingCatalog(pricingSnapshot, selections);
-    const pricing = priceSubscription(selections, pricingCatalog, [], taxes);
+    // Same destination rule as createOrder — off this order's own delivery address.
+    const { pricing, tax } = await priceWithTax({
+      selections,
+      catalog: pricingCatalog,
+      address: { line1: order.addressLine, city: order.city, postalCode: order.postalCode },
+      methodTaxes,
+      reference: `requote:${order.publicId}`,
+      cache: false,
+    });
     const newSnapshot: OrderPricingSnapshot = {
       ...pricing,
+      tax,
       paymentMethodId: priorMethodId,
       planType: plan.planType,
     };
