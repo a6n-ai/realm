@@ -60,7 +60,7 @@ export async function makeStripePayment(o: {
   amount: string; surcharge?: string; piId: string | null; paid?: boolean;
   postalCode?: string; taxCalc?: { id: string; expiresAt: number };
 }) {
-  const { publicId } = await createOrder(await baseInput({ paymentMethodId: "etransfer" }));
+  const { publicId } = await createOrder(await baseInput({ paymentMethodId: "etransfer", phone: `+1647555${String(Math.floor(Math.random() * 9000) + 1000)}` }));
   const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   const [owner] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, order!.userId!));
   OWNER = owner!.publicId;

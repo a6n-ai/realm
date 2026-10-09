@@ -1,11 +1,11 @@
 import "server-only";
-import { and, eq, like, sql } from "drizzle-orm";
+import { and, eq, gte, like, lte, sql } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import type Stripe from "stripe";
 import { NotFoundError, ValidationError } from "@foundry/commons";
 import {
   chargeSavedCard, createAndConfirmIntent, defaultCard, ensureCustomer, fetchIntentStatus,
-  previewConfirmationToken, surchargeCents,
+  listIntents, previewConfirmationToken, refundIntent, surchargeCents,
 } from "@foundry/payments/stripe";
 import { db } from "@/db/client";
 import { ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
@@ -423,5 +423,73 @@ export async function chargeSavedCardForPayment(paymentPublicId: string, actorPu
     });
     if (r.status === "succeeded" && !(await settled({ paymentRef: pay.publicId, piId: r.piId }, "staff"))) return { kind: "processing", message: UNSETTLED };
     return { kind: r.status, message: r.reason };
+  });
+}
+
+export type ReconcileRow =
+  | { kind: "unpaid_here"; piId: string; paymentRef: string; amount: string }
+  | { kind: "amount_differs"; piId: string; paymentRef: string; stripe: string; ours: string }
+  | { kind: "paid_here_not_in_stripe"; paymentRef: string; piId: string | null; amount: string }
+  | { kind: "unmatched_charge"; piId: string; amount: string };
+
+const chargedCents = (p: Payment) => toCents(p.amount) + toCents(p.surchargeAmount ?? 0);
+
+/** Read-only diff between Stripe and our rows. Staff act on rows; nothing is written here. */
+export async function reconcileStripe(range: { from: number; to: number }, cursor?: string): Promise<{ rows: ReconcileRow[]; nextCursor: string | null }> {
+  const rt = await stripeRuntime();
+  if (!rt) throw new ValidationError("Stripe is not connected");
+  const page = await listIntents(rt.stripe, { fromSec: Math.floor(range.from / 1000), toSec: Math.floor(range.to / 1000) }, cursor);
+  const succeeded = page.items.filter((i) => i.status === "succeeded");
+  const ours = await db
+    .select()
+    .from(payments)
+    .where(and(eq(payments.method, "stripe"), gte(payments.createdAt, range.from), lte(payments.createdAt, range.to)));
+  const byRef = new Map(ours.map((p) => [p.publicId, p]));
+  const byPi = new Map(ours.filter((p) => p.providerRef).map((p) => [p.providerRef!, p]));
+  const rows: ReconcileRow[] = [];
+  const seen = new Set<string>();
+
+  for (const i of succeeded) {
+    const p = (i.paymentRef && byRef.get(i.paymentRef)) || byPi.get(i.piId);
+    if (!p) {
+      rows.push({ kind: "unmatched_charge", piId: i.piId, amount: fromCents(i.amountReceivedCents) });
+      continue;
+    }
+    seen.add(p.publicId);
+    const expected = chargedCents(p);
+    if (i.amountReceivedCents !== expected) {
+      rows.push({ kind: "amount_differs", piId: i.piId, paymentRef: p.publicId, stripe: fromCents(i.amountReceivedCents), ours: fromCents(expected) });
+    } else if (p.status !== "paid" && p.status !== "refunded") {
+      rows.push({ kind: "unpaid_here", piId: i.piId, paymentRef: p.publicId, amount: fromCents(expected) });
+    }
+  }
+  // ponytail: full-range check only when the whole range fits one Stripe page (<=100 PIs); page through for wider ranges.
+  if (!page.nextCursor && !cursor) {
+    for (const p of ours) {
+      if (p.status === "paid" && !seen.has(p.publicId)) {
+        rows.push({ kind: "paid_here_not_in_stripe", paymentRef: p.publicId, piId: p.providerRef, amount: fromCents(chargedCents(p)) });
+      }
+    }
+  }
+  return { rows, nextCursor: page.nextCursor };
+}
+
+/** Asks Stripe to refund; the charge.refunded webhook is the only ledger writer. */
+export async function refundStripePayment(paymentPublicId: string, amount: string | null, reason: string, actorPublicId: string): Promise<void> {
+  if (!reason.trim()) throw new ValidationError("Add a reason for the refund");
+  const [pay] = await db.select().from(payments).where(and(eq(payments.publicId, paymentPublicId), eq(payments.method, "stripe"))).limit(1);
+  if (!pay?.providerRef || pay.status !== "paid") throw new ValidationError("Only a settled card payment can be refunded");
+  const rt = await stripeRuntime();
+  if (!rt) throw new ValidationError("Stripe is not connected");
+  const refunds = await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.paymentId, pay.id), eq(ledgerEntries.type, "refund")));
+  const remaining = chargedCents(pay) - refunds.reduce((s, r) => s + toCents(r.amount), 0);
+  const cents = amount == null ? remaining : toCents(amount);
+  if (cents <= 0 || cents > remaining) throw new ValidationError(`Refund must be between 0.01 and ${fromCents(remaining)}`);
+  await refundIntent(rt.stripe, pay.providerRef, cents, `refund:${pay.publicId}:${cents}:${refunds.length}`);
+  await db.insert(orderActivities).values({
+    orderId: pay.orderId,
+    type: "note",
+    note: `Refund of ${fromCents(cents)} requested in Stripe by staff: ${reason.trim()} (ledger updates when Stripe confirms)`,
+    createdBy: await resolveUserId(db, actorPublicId),
   });
 }

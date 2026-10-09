@@ -2,7 +2,7 @@ import { eq, gte, ilike, inArray, lte, or, sql, and, type AnyColumn, type SQL } 
 import { pageOrder } from "@foundry/database";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
-import { notificationOutbox, orders, payments, users } from "@/db/schema";
+import { notificationOutbox, orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
 import type { SendState } from "@/lib/services/customers.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
@@ -10,6 +10,7 @@ import {
   PAYMENT_METHOD_OPTIONS,
   PAYMENT_SORT_KEYS,
   PAYMENT_STATUS_OPTIONS,
+  STRIPE_FACETS,
   type PaymentRow,
   type PaymentSortKey,
 } from "./payment-facets";
@@ -23,7 +24,7 @@ const SORT_COL = {
   amount: payments.amount,
 } as const;
 
-type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; from?: string; to?: string };
+type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; from?: string; to?: string };
 
 /** The FacetFilters `dateRange` facet writes epoch-ms `from`/`to` params; either end may be open. */
 export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string }): SQL | undefined {
@@ -34,6 +35,38 @@ export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string 
   if (a != null) return gte(col, a);
   if (b != null) return lte(col, b);
   return undefined;
+}
+
+// Prefixes written to order_activities (type payment_failed) by payment-stripe.ts when a card payment needs staff.
+const FLAGGED_NOTES = [
+  "Stripe amount mismatch for %",
+  "Stripe PaymentIntent % belongs to another payment%",
+  "Cancelled-order card payment %",
+  "Credit card used without surcharge %",
+];
+
+const activityExists = (cond: SQL) =>
+  sql`exists (select 1 from ${orderActivities} oa where oa.order_id = ${payments.orderId} and ${cond})`;
+
+/** One OR-ed condition per selected "needs attention" facet value. */
+function attentionWhere(values: string[]): SQL | undefined {
+  const conds = values.map((v): SQL => {
+    switch (v) {
+      case "stuck":
+        return sql`(${payments.status} = 'awaiting_payment' and ${payments.providerRef} is not null and ${payments.createdAt} < ${Date.now() - 120_000})`;
+      case "failed":
+        return activityExists(sql`oa.type = 'payment_failed' and oa.created_at > ${Date.now() - 7 * 86_400_000}`);
+      case "flagged":
+        return activityExists(sql`oa.type = 'payment_failed' and (${sql.join(FLAGGED_NOTES.map((n) => sql`oa.note like ${n}`), sql` or `)})`);
+      case "disputed":
+        return activityExists(sql`oa.type = 'payment_disputed'`);
+      case "event_error":
+        return sql`exists (select 1 from ${stripeEvents} se where se.payment_id = ${payments.id} and se.error is not null)`;
+      default:
+        return sql`${payments.taxSource} = 'fallback'`;
+    }
+  });
+  return conds.length ? or(...conds) : undefined;
 }
 
 const csv = (v: string | undefined, allowed: readonly { value: string }[]) =>
@@ -51,12 +84,14 @@ export async function listPayments(
   const q = sp.q?.trim();
   const statuses = csv(sp.status, PAYMENT_STATUS_OPTIONS);
   const methods = csv(sp.method, PAYMENT_METHOD_OPTIONS);
+  const attention = csv(sp.attention, STRIPE_FACETS);
 
   const where = and(
     opts.where,
     statuses.length ? inArray(payments.status, statuses as never[]) : undefined,
     methods.length ? inArray(payments.method, methods as never[]) : undefined,
     dateRangeWhere(payments.createdAt, sp),
+    attentionWhere(attention),
     q
       ? or(
           ilike(orders.publicId, `%${q}%`),
@@ -91,6 +126,12 @@ export async function listPayments(
         email: users.email,
         phone: users.phone,
         orderPublicId: orders.publicId,
+        providerRef: payments.providerRef,
+        providerCheckedAt: payments.providerCheckedAt,
+        cardBrand: payments.cardBrand,
+        cardLast4: payments.cardLast4,
+        surchargeAmount: payments.surchargeAmount,
+        taxSource: payments.taxSource,
         // Latest payment-reminder email for this order (its vars carry the order code).
         lastReminder: sql<SendState | null>`(select json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)
           from ${notificationOutbox} o

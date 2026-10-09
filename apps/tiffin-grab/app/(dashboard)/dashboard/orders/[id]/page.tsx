@@ -5,7 +5,9 @@ import { ActivityIcon, PackageIcon, ReceiptIcon, TruckIcon, WalletIcon } from "l
 import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
-import { requireStaff } from "@/lib/auth/guards";
+import { after } from "next/server";
+import { requireStaff, roleCan } from "@/lib/auth/guards";
+import { settleStripePayment } from "@/lib/services/payment-stripe";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
 import { appToday } from "@/lib/services/start-date";
@@ -93,7 +95,7 @@ async function OrderDetail({
     db.select({ planType: plans.planType, allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
     order.userId != null
       ? db
-          .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone })
+          .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone, stripeCustomerId: users.stripeCustomerId })
           .from(users)
           .where(eq(users.id, order.userId))
           .limit(1)
@@ -105,6 +107,17 @@ async function OrderDetail({
       ? db.select({ name: deliveryZones.name }).from(deliveryZones).where(eq(deliveryZones.id, order.zoneId)).limit(1).then((r) => r[0] ?? null)
       : Promise.resolve(null),
   ]);
+
+  // Lazy status check on view (no cron): settle card payments the webhook may have missed.
+  const staleCards = order.payments.filter(
+    (p) => p.method === "stripe" && p.status === "awaiting_payment" && p.providerRef && (p.providerCheckedAt ?? 0) < Date.now() - 120_000,
+  );
+  if (staleCards.length) {
+    after(async () => {
+      for (const p of staleCards) await settleStripePayment({ paymentRef: p.publicId }, "view").catch(() => {});
+    });
+  }
+  const role = session?.user.role ?? "";
 
   const settingsToday = zonedDateIso(Date.now(), settings.timezone);
   const optimoRows = deliveryRows
@@ -333,6 +346,8 @@ async function OrderDetail({
                 pricingSnapshot={order.pricingSnapshot}
                 payments={order.payments}
                 claimContexts={claimContexts}
+                canRefund={roleCan(role, { finance: ["refund"] })}
+                canCharge={roleCan(role, { finance: ["charge"] }) && !!customer?.stripeCustomerId}
               />
             </SectionCard>
           ),

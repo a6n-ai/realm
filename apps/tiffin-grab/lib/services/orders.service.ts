@@ -1423,6 +1423,12 @@ export type OrderPaymentDetail = {
   proofThumbUrl: string | null;
   // Token-gated href for the secured original; null when no proof.
   proofHref: string | null;
+  cardBrand: string | null;
+  cardLast4: string | null;
+  surchargeAmount: string;
+  taxSource: string | null;
+  providerRef: string | null;
+  providerCheckedAt: number | null;
 };
 
 export type OrderDetail = typeof orders.$inferSelect & {
@@ -1481,6 +1487,12 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
       capturedAt: payments.capturedAt,
       createdAt: payments.createdAt,
       note: payments.note,
+      cardBrand: payments.cardBrand,
+      cardLast4: payments.cardLast4,
+      surchargeAmount: payments.surchargeAmount,
+      taxSource: payments.taxSource,
+      providerRef: payments.providerRef,
+      providerCheckedAt: payments.providerCheckedAt,
     })
     .from(payments)
     .where(eq(payments.orderId, row.order.id));

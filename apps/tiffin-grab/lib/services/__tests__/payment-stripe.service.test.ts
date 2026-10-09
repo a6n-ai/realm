@@ -9,6 +9,8 @@ const charge = vi.fn();
 const card = vi.fn();
 const stripeTax = vi.fn();
 const cancel = vi.fn();
+const list = vi.fn();
+const refund = vi.fn();
 const retrieve = vi.fn();
 const flags = { taxable: false };
 vi.mock("@/lib/payments/stripe", async (orig) => ({
@@ -30,6 +32,8 @@ vi.mock("@foundry/payments/stripe", async (orig) => ({
   chargeSavedCard: (...a: unknown[]) => charge(...a),
   defaultCard: (...a: unknown[]) => card(...a),
   ensureCustomer: async () => "cus_test",
+  listIntents: (...a: unknown[]) => list(...a),
+  refundIntent: (...a: unknown[]) => refund(...a),
 }));
 vi.mock("@/lib/tax/checkout-taxes", async (orig) => ({ ...(await orig<object>()), stripeTaxFor: (...a: unknown[]) => stripeTax(...a) }));
 
@@ -469,5 +473,55 @@ describe("surcharge bypass detection and abandon cancel", () => {
     expect(cancel).toHaveBeenCalledWith("pi_o");
     const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(row!.surchargeAmount).toBe("0.00");
+  });
+});
+
+describe("reconcileStripe", () => {
+  beforeEach(async () => { await reset(); vi.clearAllMocks(); });
+
+  it("classifies differences without writing anything", async () => {
+    const unpaid = await makeStripePayment({ amount: "10.00", piId: "pi_a" });
+    const differs = await makeStripePayment({ amount: "20.00", piId: "pi_b" });
+    const paidMissing = await makeStripePayment({ amount: "30.00", piId: "pi_c", paid: true });
+    list.mockResolvedValue({ nextCursor: null, items: [
+      { piId: "pi_a", status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: unpaid.publicId, created: 1 },
+      { piId: "pi_b", status: "succeeded", amountReceivedCents: 1999, currency: "cad", paymentRef: differs.publicId, created: 1 },
+      { piId: "pi_z", status: "succeeded", amountReceivedCents: 500, currency: "cad", paymentRef: null, created: 1 },
+    ] });
+    const { rows } = await svc.reconcileStripe({ from: 0, to: Date.now() + 60_000 });
+    expect(rows).toHaveLength(4);
+    expect(rows).toEqual(expect.arrayContaining([
+      { kind: "unpaid_here", piId: "pi_a", paymentRef: unpaid.publicId, amount: "10.00" },
+      { kind: "amount_differs", piId: "pi_b", paymentRef: differs.publicId, stripe: "19.99", ours: "20.00" },
+      { kind: "unmatched_charge", piId: "pi_z", amount: "5.00" },
+      { kind: "paid_here_not_in_stripe", paymentRef: paidMissing.publicId, piId: "pi_c", amount: "30.00" },
+    ]));
+    expect(await db.select().from(ledgerEntries)).toHaveLength(0);
+  });
+});
+
+describe("refundStripePayment", () => {
+  beforeEach(async () => { await reset(); vi.clearAllMocks(); refund.mockResolvedValue("re_1"); });
+
+  it("asks Stripe with a counted idempotency key and writes no ledger row", async () => {
+    const pay = await makeStripePayment({ amount: "20.00", surcharge: "0.48", piId: "pi_r", paid: true });
+    await svc.refundStripePayment(pay.publicId, "5.00", "goodwill", fx.OWNER);
+    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_r", 500, `refund:${pay.publicId}:500:0`);
+    expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.type, "refund"))).toHaveLength(0);
+  });
+
+  it("refunds the full remainder (amount + surcharge) when amount is null", async () => {
+    const pay = await makeStripePayment({ amount: "20.00", surcharge: "0.48", piId: "pi_r", paid: true });
+    await svc.refundStripePayment(pay.publicId, null, "dup", fx.OWNER);
+    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_r", 2048, `refund:${pay.publicId}:2048:0`);
+  });
+
+  it("rejects more than the refundable remainder, unpaid payments and blank reasons", async () => {
+    const pay = await makeStripePayment({ amount: "20.00", piId: "pi_r", paid: true });
+    await expect(svc.refundStripePayment(pay.publicId, "20.01", "x", fx.OWNER)).rejects.toThrow(/between/);
+    await expect(svc.refundStripePayment(pay.publicId, "1.00", " ", fx.OWNER)).rejects.toThrow(/reason/);
+    const open = await makeStripePayment({ amount: "5.00", piId: "pi_u" });
+    await expect(svc.refundStripePayment(open.publicId, null, "x", fx.OWNER)).rejects.toThrow(/settled/);
+    expect(refund).not.toHaveBeenCalled();
   });
 });

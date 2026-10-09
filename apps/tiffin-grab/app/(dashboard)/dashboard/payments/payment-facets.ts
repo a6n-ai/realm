@@ -17,6 +17,12 @@ export type PaymentRow = {
   email: string | null;
   phone: string | null;
   orderPublicId: string;
+  providerRef: string | null;
+  providerCheckedAt: number | null;
+  cardBrand: string | null;
+  cardLast4: string | null;
+  surchargeAmount: string;
+  taxSource: string | null;
   lastReminder: { status: string; at: number; deliveredAt: number | null; openedAt: number | null } | null;
 };
 
@@ -38,6 +44,7 @@ export const PAYMENT_METHOD_OPTIONS = [
   { value: "cash", label: "Cash" },
   { value: "manual", label: "Manual" },
   { value: "simulated", label: "Simulated" },
+  { value: "stripe", label: "Card" },
 ] as const;
 
 export const LEDGER_SORT_KEYS = ["time", "customer", "type", "order", "amount"] as const;
@@ -53,8 +60,20 @@ export const LEDGER_TYPE_OPTIONS = [
 export const LOG_SORT_KEYS = ["time", "event", "order", "by"] as const;
 export type LogSortKey = (typeof LOG_SORT_KEYS)[number];
 
+export const STRIPE_FACETS = [
+  { value: "stuck", label: "Stuck (PI open > 2 min)" },
+  { value: "failed", label: "Failed in last 7 days" },
+  { value: "flagged", label: "Mismatch / cancelled order / no surcharge" },
+  { value: "disputed", label: "Disputed" },
+  { value: "event_error", label: "Webhook error" },
+  { value: "fallback", label: "Fallback tax rates" },
+] as const;
+
+export const STRIPE_EVENT_FILTER = "stripe_event";
+
 export const LOG_EVENT_OPTIONS = [
   { value: "payment_claimed", label: "Customer claimed" },
   { value: "payment_verified", label: "Staff approved" },
   { value: "payment_rejected", label: "Staff rejected" },
+  { value: STRIPE_EVENT_FILTER, label: "Stripe webhook" },
 ] as const;

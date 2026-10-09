@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { CheckIcon, CopyIcon, ExternalLinkIcon, MailIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, CreditCardIcon, ExternalLinkIcon, MailIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
@@ -17,6 +17,7 @@ import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { formatEpoch } from "@/lib/format/datetime";
 import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "./actions";
 import { ReferenceEditor } from "./reference-editor";
+import { chargeSavedCardAction, checkStatusAction, refundAction } from "../../payments/stripe/actions";
 
 function statusLabel(status: OrderPaymentDetail["status"]): string {
   switch (status) {
@@ -151,9 +152,15 @@ function PaymentRow({
   currency,
   timezone,
   claimCtx,
+  taxLines,
+  canRefund,
+  canCharge,
 }: {
   orderId: string;
   deploymentId: string;
+  taxLines: { name: string; ratePct: number; amount: number }[];
+  canRefund: boolean;
+  canCharge: boolean;
   payment: OrderPaymentDetail;
   currency: string;
   timezone: string;
@@ -165,6 +172,11 @@ function PaymentRow({
   const [rejectNote, setRejectNote] = useState("");
   const [showReject, setShowReject] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const isCard = payment.method === "stripe";
+  const unpaid = payment.status === "awaiting_payment" || payment.status === "rejected";
 
   const canVerify =
     payment.status === "pending_verification" || payment.status === "awaiting_payment";
@@ -230,6 +242,36 @@ function PaymentRow({
     });
   }
 
+  function checkStatus() {
+    start(async () => {
+      const res = await checkStatusAction(payment.publicId);
+      if ("error" in res) return void toast.error(res.error);
+      (res.settled ? toast.success : toast)(res.message);
+      router.refresh();
+    });
+  }
+
+  function chargeCard() {
+    start(async () => {
+      const res = await chargeSavedCardAction(payment.publicId);
+      if ("error" in res) return void toast.error(res.error);
+      (res.kind === "succeeded" ? toast.success : toast)(res.message || res.kind);
+      router.refresh();
+    });
+  }
+
+  function refund() {
+    start(async () => {
+      const res = await refundAction(payment.publicId, refundAmount, refundReason);
+      if ("error" in res) return void toast.error(res.error);
+      toast.success(res.message ?? "Refund requested");
+      setShowRefund(false);
+      setRefundAmount("");
+      setRefundReason("");
+      router.refresh();
+    });
+  }
+
   async function copyPayLink() {
     try {
       await navigator.clipboard.writeText(customerPayUrl(deploymentId));
@@ -279,6 +321,24 @@ function PaymentRow({
               </Button>
             </>
           )}
+          {isCard && payment.providerRef && !isSettled(payment.status) && payment.status !== "refunded" && (
+            <Button size="sm" variant="outline" disabled={pending} onClick={checkStatus}>
+              <RefreshCwIcon data-icon="inline-start" />
+              Check status
+            </Button>
+          )}
+          {isCard && unpaid && canCharge && (
+            <Button size="sm" variant="outline" disabled={pending} onClick={chargeCard}>
+              <CreditCardIcon data-icon="inline-start" />
+              Charge saved card
+            </Button>
+          )}
+          {isCard && payment.status === "paid" && canRefund && (
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => setShowRefund((v) => !v)}>
+              <Undo2Icon data-icon="inline-start" />
+              Refund
+            </Button>
+          )}
           {canRemind && (
             <Button size="sm" variant="outline" disabled={pending} onClick={remind}>
               <MailIcon data-icon="inline-start" />
@@ -302,6 +362,23 @@ function PaymentRow({
           )}
         </div>
       </div>
+
+      {isCard && (
+        <div className="space-y-1 border-t pt-2">
+          <MetaRow label="Card">{payment.cardLast4 ? `${payment.cardBrand ?? "card"} ••${payment.cardLast4}` : "-"}</MetaRow>
+          {Number(payment.surchargeAmount) > 0 && (
+            <MetaRow label="Card surcharge">{formatMoney(Number(payment.surchargeAmount), currency)}</MetaRow>
+          )}
+          {taxLines.map((t) => (
+            <MetaRow key={t.name} label={`${t.name} (${t.ratePct}%)`}>{formatMoney(t.amount, currency)}</MetaRow>
+          ))}
+          {payment.taxSource && (
+            <MetaRow label="Tax source">
+              <Badge variant={payment.taxSource === "fallback" ? "outline" : "secondary"} className="text-[0.65rem]">{payment.taxSource}</Badge>
+            </MetaRow>
+          )}
+        </div>
+      )}
 
       <div className="space-y-1 border-t pt-2">
         <MetaRow label="Recorded">{fmt(payment.createdAt)}</MetaRow>
@@ -341,6 +418,20 @@ function PaymentRow({
         </div>
       )}
 
+      {showRefund && (
+        <div className="flex flex-wrap items-end gap-2 border-t pt-3">
+          <div className="grid w-40 gap-1.5">
+            <Label htmlFor={`refund-amt-${payment.publicId}`} className="text-xs text-muted-foreground">Amount (blank = full)</Label>
+            <Input id={`refund-amt-${payment.publicId}`} inputMode="decimal" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} disabled={pending} />
+          </div>
+          <div className="grid min-w-[12rem] flex-1 gap-1.5">
+            <Label htmlFor={`refund-why-${payment.publicId}`} className="text-xs text-muted-foreground">Reason</Label>
+            <Input id={`refund-why-${payment.publicId}`} value={refundReason} onChange={(e) => setRefundReason(e.target.value)} disabled={pending} />
+          </div>
+          <Button size="sm" variant="destructive" disabled={pending} onClick={refund}>Confirm refund</Button>
+        </div>
+      )}
+
       {showReject && (
         <div className="flex flex-wrap items-end gap-2 border-t pt-3">
           <div className="grid min-w-[12rem] flex-1 gap-1.5">
@@ -374,6 +465,8 @@ export function PaymentsPanel({
   pricingSnapshot,
   payments,
   claimContexts = {},
+  canRefund = false,
+  canCharge = false,
 }: {
   orderId: string;
   deploymentId: string;
@@ -385,6 +478,9 @@ export function PaymentsPanel({
   payments: OrderPaymentDetail[];
   /** paymentPublicId → claim form context for staff-on-behalf uploads. */
   claimContexts?: Record<string, ClaimPaymentContext>;
+  canRefund?: boolean;
+  /** finance:charge and the customer has a saved Stripe customer. */
+  canCharge?: boolean;
 }) {
   const snap = pricingSnapshot as OrderPricingSnapshot | null;
   const pendingRedemptions = snap?.pendingRedemptions;
@@ -424,6 +520,9 @@ export function PaymentsPanel({
             currency={currency}
             timezone={timezone}
             claimCtx={claimContexts[p.publicId] ?? null}
+            taxLines={snap?.taxLines ?? []}
+            canRefund={canRefund}
+            canCharge={canCharge}
           />
         ))}
       </div>

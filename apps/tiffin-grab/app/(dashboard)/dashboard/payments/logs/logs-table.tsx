@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { ActivityIcon } from "lucide-react";
+import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
@@ -10,15 +14,8 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { PaymentStatusPill } from "../payment-status-pill";
 import { LOG_EVENT_OPTIONS, type LogSortKey } from "../payment-facets";
-
-type Row = {
-  publicId: string;
-  createdAt: number;
-  type: string;
-  note: string | null;
-  actorEmail: string | null;
-  orderPublicId: string;
-};
+import { reprocessEventAction } from "../stripe/actions";
+import type { LogRow as Row } from "./page";
 
 const EVENT_STATUS: Record<string, string> = {
   payment_claimed: "pending_verification",
@@ -59,16 +56,26 @@ export function LogsTable({
   sort: SortState<LogSortKey>;
 }) {
   const tz = useTimezone();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  function reprocess(eventId: string) {
+    start(async () => {
+      const res = await reprocessEventAction(eventId);
+      if ("error" in res) return void toast.error(res.error);
+      toast.success(res.message ?? "Reprocessed");
+      router.refresh();
+    });
+  }
   return (
     <div className="space-y-4">
     <DataTable
       serialOffset={page * size}
       columns={COLUMNS}
       rows={rows}
-      rowKey={(r) => r.publicId}
-      idAccessor={(r) => r.publicId}
-      idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
-      rowClassName={() => "group cursor-pointer"}
+      rowKey={(r) => r.key}
+      idAccessor={(r) => r.key}
+      idHref={(r) => (r.orderPublicId ? `/dashboard/orders/${r.orderPublicId}` : "/dashboard/payments/logs")}
+      rowClassName={() => "group"}
       sort={sort as SortState<LogSortKey | "detail">}
       filters={<ListSearchFilters spec={SPEC} placeholder="Search order, person, note…" shortPlaceholder="Search…" />}
       emptyIcon={ActivityIcon}
@@ -81,17 +88,30 @@ export function LogsTable({
           </TableCell>
           <TableCell>
             <div className="flex items-center gap-2">
-              <PaymentStatusPill status={EVENT_STATUS[r.type] ?? r.type} />
-              <span className="text-sm">{EVENT_LABEL[r.type] ?? r.type}</span>
+              <PaymentStatusPill status={r.type.startsWith("stripe:") ? (r.failedEventId ? "rejected" : "paid") : (EVENT_STATUS[r.type] ?? r.type)} />
+              <span className="text-sm">{EVENT_LABEL[r.type] ?? r.type.replace("stripe:", "Stripe ")}</span>
             </div>
           </TableCell>
           <TableCell>
-            <Link href={`/dashboard/orders/${r.orderPublicId}`} className="hover:underline">
-              {r.orderPublicId}
-            </Link>
+            {r.orderPublicId ? (
+              <Link href={`/dashboard/orders/${r.orderPublicId}`} className="hover:underline">
+                {r.orderPublicId}
+              </Link>
+            ) : (
+              "-"
+            )}
           </TableCell>
           <TableCell className="text-muted-foreground">{r.actorEmail ?? "-"}</TableCell>
-          <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{r.note ?? ""}</TableCell>
+          <TableCell className="max-w-[280px] text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span className="truncate" title={r.note ?? undefined}>{r.note ?? ""}</span>
+              {r.failedEventId && (
+                <Button size="sm" variant="outline" disabled={pending} onClick={() => reprocess(r.failedEventId!)}>
+                  Reprocess
+                </Button>
+              )}
+            </div>
+          </TableCell>
         </>
       )}
     />
