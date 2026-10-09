@@ -180,7 +180,7 @@ export default async function CampaignPage({
             />
           </SectionCard>
           <SectionCard title="Content" subtitle="One row per channel and locale.">
-            <CampaignContentSection isSystemCampaign={isSystem} campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} from={from} />
+            <CampaignContentSection autosaveDraft={row.status === "draft" && !isSystem} campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} from={from} />
           </SectionCard>
         </>
       ) : (
@@ -198,7 +198,7 @@ export default async function CampaignPage({
               <CampaignAnalytics counts={counts} />
             </SectionCard>
             <SectionCard title="Content" subtitle="One row per channel and locale.">
-              <CampaignContentSection isSystemCampaign={isSystem} campaignPublicId={row.publicId} content={previewContent} editable={isSystem} footer={footer} from={from} />
+              <CampaignContentSection autosaveDraft={row.status === "draft" && !isSystem} campaignPublicId={row.publicId} content={previewContent} editable={isSystem} footer={footer} from={from} />
             </SectionCard>
             <SectionCard
               title="Unsubscribed"

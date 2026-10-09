@@ -70,6 +70,7 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
       html: t.html ?? "",
       text: t.text ?? "",
       enabled: t.enabled,
+      revision: t.revision,
     }));
 
   const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" });
