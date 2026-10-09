@@ -28,7 +28,6 @@ import {
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
 import { ResubscribeLinkButton } from "../../resubscribe-link-button";
 import { BulkRuns } from "./bulk-runs";
-import { emailTheme } from "@/lib/notifications/email-theme";
 
 // Oldest notification_outbox row in prod: earlier per-recipient send rows were lost.
 const OUTBOX_KEPT_SINCE = Date.UTC(2026, 8, 28, 11);
@@ -91,6 +90,7 @@ export default async function CampaignPage({
         body: campaignContent.body,
         html: campaignContent.html,
         text: campaignContent.text,
+        revision: campaignContent.revision,
         providerTemplateId: campaignContent.providerTemplateId,
         attachments: campaignContent.attachments,
       })
@@ -180,7 +180,7 @@ export default async function CampaignPage({
             />
           </SectionCard>
           <SectionCard title="Content" subtitle="One row per channel and locale.">
-            <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} from={from} themeOverrides={emailTheme} />
+            <CampaignContentSection isSystemCampaign={isSystem} campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} from={from} />
           </SectionCard>
         </>
       ) : (
@@ -198,7 +198,7 @@ export default async function CampaignPage({
               <CampaignAnalytics counts={counts} />
             </SectionCard>
             <SectionCard title="Content" subtitle="One row per channel and locale.">
-              <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={isSystem} footer={footer} from={from} themeOverrides={emailTheme} />
+              <CampaignContentSection isSystemCampaign={isSystem} campaignPublicId={row.publicId} content={previewContent} editable={isSystem} footer={footer} from={from} />
             </SectionCard>
             <SectionCard
               title="Unsubscribed"

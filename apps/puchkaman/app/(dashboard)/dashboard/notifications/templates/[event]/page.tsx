@@ -6,10 +6,9 @@ import { eventLabel, TemplateEditor, TemplateEditorSkeleton } from "@relay/engin
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
-import { listTemplates } from "@/lib/services/notification-template.service";
+import { listTemplates, sampleMap } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
 import { notificationTables } from "@/lib/notifications/tables";
-import { emailTheme } from "@/lib/notifications/email-theme";
 
 const HIDDEN_EVENTS = new Set(["signup"]);
 
@@ -83,7 +82,6 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
     : undefined;
 
   return (
-    <TemplateEditor event={event} variables={availableVariables(event)} initial={initial} footer={footer}
-      themeOverrides={emailTheme} />
+    <TemplateEditor samples={sampleMap(event as AppEvent)} event={event} variables={availableVariables(event)} initial={initial} footer={footer} />
   );
 }
