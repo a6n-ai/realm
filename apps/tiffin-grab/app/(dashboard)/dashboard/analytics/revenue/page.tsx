@@ -31,17 +31,32 @@ function rangeLabel(from: string, to: string) {
   return a === b ? a : `${a} – ${b}`;
 }
 
-type SearchParams = Promise<{ from?: string; to?: string; method?: string }>;
+type SearchParams = Promise<{
+  from?: string;
+  to?: string;
+  method?: string;
+  plan?: string;
+  mealSize?: string;
+  zone?: string;
+}>;
 
 const METHOD_OPTIONS = REVENUE_METHODS.map((m) => ({ value: m, label: methodLabel(m) }));
 
-const loadReport = cache((from: string, to: string, method: string) =>
-  getRevenueReport(parseRevenueFilters({ from, to, method })),
+const loadReport = cache(
+  (from: string, to: string, method: string, plan: string, mealSize: string, zone: string) =>
+    getRevenueReport(parseRevenueFilters({ from, to, method, plan, mealSize, zone })),
 );
 
 async function reportFrom(searchParams: SearchParams): Promise<RevenueReport> {
   const sp = await searchParams;
-  return loadReport(sp.from ?? "", sp.to ?? "", sp.method ?? "");
+  return loadReport(
+    sp.from ?? "",
+    sp.to ?? "",
+    sp.method ?? "",
+    sp.plan ?? "",
+    sp.mealSize ?? "",
+    sp.zone ?? "",
+  );
 }
 
 export default function RevenueAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -93,7 +108,7 @@ async function RangeAndLive({ searchParams }: { searchParams: SearchParams }) {
   const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <RevenueFilters from={report.from} to={report.to} methods={METHOD_OPTIONS} />
+      <RevenueFilters methods={METHOD_OPTIONS} />
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-muted-foreground text-xs">{rangeLabel(report.from, report.to)}</span>
         <LiveRefresh updatedLabel={clockInZone(Date.now(), timezone)} />

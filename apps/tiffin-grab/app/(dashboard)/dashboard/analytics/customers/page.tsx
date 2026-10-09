@@ -12,29 +12,35 @@ import {
   getSubscriptionMix,
   getTopCities,
 } from "@/lib/services/analytics/customers.service";
+import {
+  parseAnalyticsFilters,
+  type AnalyticsSearchParams,
+} from "@/lib/services/analytics/shared-filters";
 
-export default function CustomersAnalyticsPage() {
+type SearchParams = Promise<AnalyticsSearchParams>;
+
+export default function CustomersAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
       <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <StatsData />
+        <StatsData searchParams={searchParams} />
       </Suspense>
 
       <ChartCard title="Signups over time">
         <Suspense fallback={<ChartSkeleton />}>
-          <SignupChart />
+          <SignupChart searchParams={searchParams} />
         </Suspense>
       </ChartCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="Subscription status mix">
           <Suspense fallback={<ChartSkeleton />}>
-            <MixChart />
+            <MixChart searchParams={searchParams} />
           </Suspense>
         </ChartCard>
         <ChartCard title="Top cities">
           <Suspense fallback={<ChartSkeleton />}>
-            <CitiesChart />
+            <CitiesChart searchParams={searchParams} />
           </Suspense>
         </ChartCard>
       </div>
@@ -42,8 +48,8 @@ export default function CustomersAnalyticsPage() {
   );
 }
 
-async function StatsData() {
-  const s = await getCustomerStats();
+async function StatsData({ searchParams }: { searchParams: SearchParams }) {
+  const s = await getCustomerStats(parseAnalyticsFilters(await searchParams));
   return (
     <MetricTiles
       cols={4}
@@ -62,13 +68,13 @@ async function StatsData() {
   );
 }
 
-async function SignupChart() {
-  const rows = await getSignupTrend();
+async function SignupChart({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getSignupTrend(parseAnalyticsFilters(await searchParams));
   return <TrendLineChart data={rows} xKey="day" yKey="n" />;
 }
 
-async function MixChart() {
-  const rows = await getSubscriptionMix();
+async function MixChart({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getSubscriptionMix(parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({
@@ -81,7 +87,7 @@ async function MixChart() {
   );
 }
 
-async function CitiesChart() {
-  const rows = await getTopCities();
+async function CitiesChart({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getTopCities(8, parseAnalyticsFilters(await searchParams));
   return <BreakdownBarChart data={rows} xKey="city" yKey="n" />;
 }

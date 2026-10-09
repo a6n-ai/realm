@@ -1,15 +1,18 @@
 import { and, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { deliveryZones, orders, plans, tickets, users } from "@/db/schema";
+import { deliveryZones, mealSizes, orders, plans, tickets, users } from "@/db/schema";
 import { isTicketCategory, TICKET_CATEGORIES, type TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
 
 /**
  * Complaint analytics and the ticket queue read the SAME query parameters, so
  * every chart and metric on the dashboard can link straight to the tickets
  * behind it. Change a name here and both ends move together.
+ *
+ * `from`/`to`/`plan`/`mealSize`/`zone` are the shared analytics filters; the
+ * rest are complaints-only.
  */
 export const COMPLAINT_PARAMS = [
-  "from", "to", "category", "subcategory", "status", "priority", "plan", "zone",
+  "from", "to", "category", "subcategory", "status", "priority", "plan", "mealSize", "zone",
 ] as const;
 
 export type ComplaintSearchParams = Partial<Record<(typeof COMPLAINT_PARAMS)[number], string>>;
@@ -22,6 +25,7 @@ export type ComplaintFilters = {
   statuses: string[];
   priorities: string[];
   plans: string[];
+  mealSizes: string[];
   zones: string[];
 };
 
@@ -57,6 +61,7 @@ export function parseComplaintFilters(sp: ComplaintSearchParams): ComplaintFilte
     statuses: list(sp.status),
     priorities: list(sp.priority),
     plans: list(sp.plan),
+    mealSizes: list(sp.mealSize),
     zones: list(sp.zone),
   };
 }
@@ -74,6 +79,7 @@ export function complaintHref(base: string, filters: Partial<ComplaintFilters> &
   put("status", filters.statuses);
   put("priority", filters.priorities);
   put("plan", filters.plans);
+  put("mealSize", filters.mealSizes);
   put("zone", filters.zones);
   const s = qs.toString();
   return s ? `${base}?${s}` : base;
@@ -140,10 +146,11 @@ export function complaintWhere(
   parts.push(statusCondition(f.statuses));
   if (f.priorities.length) parts.push(inArray(tickets.priority, f.priorities as never));
   parts.push(linkedCondition(f.plans, plans.key));
+  parts.push(linkedCondition(f.mealSizes, mealSizes.key));
   parts.push(linkedCondition(f.zones, deliveryZones.name));
   const defined = parts.filter((p): p is SQL => p != null);
   return defined.length ? and(...defined) : undefined;
 }
 
-/** Shared join shape: tickets → their linked order → that order's plan/zone + customer. */
-export const complaintJoins = { orders, plans, users, deliveryZones };
+/** Shared join shape: tickets → their linked order → that order's plan/size/zone + customer. */
+export const complaintJoins = { orders, plans, mealSizes, users, deliveryZones };

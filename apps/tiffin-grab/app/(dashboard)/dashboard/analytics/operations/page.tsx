@@ -8,23 +8,29 @@ import {
   getDeliveryStatusMix,
   getRouteLoadByDriver,
 } from "@/lib/services/analytics/operations.service";
+import {
+  parseAnalyticsFilters,
+  type AnalyticsSearchParams,
+} from "@/lib/services/analytics/shared-filters";
 
-export default function OperationsAnalyticsPage() {
+type SearchParams = Promise<AnalyticsSearchParams>;
+
+export default function OperationsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
       <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <StatsData />
+        <StatsData searchParams={searchParams} />
       </Suspense>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="Delivery status mix">
           <Suspense fallback={<ChartSkeleton />}>
-            <MixChart />
+            <MixChart searchParams={searchParams} />
           </Suspense>
         </ChartCard>
         <ChartCard title="Route load per driver" subtitle="Deliveries synced from OptimoRoute">
           <Suspense fallback={<ChartSkeleton />}>
-            <DriverChart />
+            <DriverChart searchParams={searchParams} />
           </Suspense>
         </ChartCard>
       </div>
@@ -32,8 +38,8 @@ export default function OperationsAnalyticsPage() {
   );
 }
 
-async function StatsData() {
-  const s = await getOperationsStats();
+async function StatsData({ searchParams }: { searchParams: SearchParams }) {
+  const s = await getOperationsStats(parseAnalyticsFilters(await searchParams));
   return (
     <StatGrid
       cols={4}
@@ -47,12 +53,12 @@ async function StatsData() {
   );
 }
 
-async function MixChart() {
-  const rows = await getDeliveryStatusMix();
+async function MixChart({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getDeliveryStatusMix(parseAnalyticsFilters(await searchParams));
   return <DistributionDonutChart data={rows} nameKey="status" valueKey="n" />;
 }
 
-async function DriverChart() {
-  const rows = await getRouteLoadByDriver();
+async function DriverChart({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getRouteLoadByDriver(10, parseAnalyticsFilters(await searchParams));
   return <BreakdownBarChart data={rows} xKey="driver" yKey="n" />;
 }

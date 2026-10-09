@@ -1,10 +1,19 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSelections, mealSizes, orders, payments, plans } from "@/db/schema";
+import {
+  epochRangeWhere,
+  hasDateFilter,
+  hasDimensionFilters,
+  ordersMatchFilters,
+  type AnalyticsFilters,
+} from "./shared-filters";
 
 const SETTLED = ["paid", "simulated_paid"] as const;
 
 const intCount = sql<number>`cast(count(*) as int)`;
+
+const EMPTY: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] };
 
 export type ProductStats = {
   totalSelections: number;
@@ -12,14 +21,27 @@ export type ProductStats = {
   topDish: string | null;
 };
 
-export async function getProductStats(): Promise<ProductStats> {
+function matchingOrderIds(filters: AnalyticsFilters) {
+  return sql`${mealSelections.orderId} in (
+    select ${orders.id} from ${orders}
+    where ${and(ordersMatchFilters(filters), epochRangeWhere(orders.createdAt, filters)) ?? sql`true`}
+  )`;
+}
+
+export async function getProductStats(filters: AnalyticsFilters = EMPTY): Promise<ProductStats> {
+  const narrowed = hasDateFilter(filters) || hasDimensionFilters(filters);
+  const selectionWhere = narrowed ? matchingOrderIds(filters) : undefined;
   const [[{ n: totalSelections }], [{ n: distinctDishes }], top] = await Promise.all([
-    db.select({ n: intCount }).from(mealSelections),
-    db.select({ n: sql<number>`cast(count(distinct ${mealSelections.dishId}) as int)` }).from(mealSelections),
+    db.select({ n: intCount }).from(mealSelections).where(selectionWhere),
+    db
+      .select({ n: sql<number>`cast(count(distinct ${mealSelections.dishId}) as int)` })
+      .from(mealSelections)
+      .where(selectionWhere),
     db
       .select({ name: dishes.name, n: intCount })
       .from(mealSelections)
       .innerJoin(dishes, eq(mealSelections.dishId, dishes.id))
+      .where(selectionWhere)
       .groupBy(dishes.name)
       .orderBy(sql`count(*) desc`)
       .limit(1),
@@ -27,11 +49,13 @@ export async function getProductStats(): Promise<ProductStats> {
   return { totalSelections, distinctDishes, topDish: top[0]?.name ?? null };
 }
 
-export async function getTopDishes(limit = 8) {
+export async function getTopDishes(limit = 8, filters: AnalyticsFilters = EMPTY) {
+  const narrowed = hasDateFilter(filters) || hasDimensionFilters(filters);
   return db
     .select({ dish: dishes.name, n: intCount })
     .from(mealSelections)
     .innerJoin(dishes, eq(mealSelections.dishId, dishes.id))
+    .where(narrowed ? matchingOrderIds(filters) : undefined)
     .groupBy(dishes.name)
     .orderBy(sql`count(*) desc`)
     .limit(limit);
@@ -40,7 +64,7 @@ export async function getTopDishes(limit = 8) {
 export type PaidPlanRow = { plan: string; key: string; orders: number; paid: number };
 
 /** Orders that have a settled payment, with the money those payments brought in. */
-export async function getOrdersByPlan(): Promise<PaidPlanRow[]> {
+export async function getOrdersByPlan(filters: AnalyticsFilters = EMPTY): Promise<PaidPlanRow[]> {
   const rows = await db
     .select({
       plan: plans.name,
@@ -51,7 +75,13 @@ export async function getOrdersByPlan(): Promise<PaidPlanRow[]> {
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(payments, eq(payments.orderId, orders.id))
-    .where(inArray(payments.status, [...SETTLED]))
+    .where(
+      and(
+        inArray(payments.status, [...SETTLED]),
+        ordersMatchFilters(filters),
+        epochRangeWhere(payments.createdAt, filters),
+      ),
+    )
     .groupBy(plans.name, plans.key)
     .orderBy(sql`sum(${payments.amount}) desc`);
   return rows.map((r) => ({ ...r, paid: Math.round(Number(r.paid) * 100) / 100 }));
@@ -61,7 +91,7 @@ const TIER_LABELS: Record<string, string> = { budget: "Budget", medium: "Medium"
 
 export type PaidTierRow = { tier: string; key: string; orders: number; paid: number };
 
-export async function getOrdersByTier(): Promise<PaidTierRow[]> {
+export async function getOrdersByTier(filters: AnalyticsFilters = EMPTY): Promise<PaidTierRow[]> {
   const rows = await db
     .select({
       tier: mealSizes.tier,
@@ -71,7 +101,14 @@ export async function getOrdersByTier(): Promise<PaidTierRow[]> {
     .from(orders)
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .innerJoin(payments, eq(payments.orderId, orders.id))
-    .where(and(inArray(payments.status, [...SETTLED]), eq(mealSizes.custom, false)))
+    .where(
+      and(
+        inArray(payments.status, [...SETTLED]),
+        eq(mealSizes.custom, false),
+        ordersMatchFilters(filters),
+        epochRangeWhere(payments.createdAt, filters),
+      ),
+    )
     .groupBy(mealSizes.tier)
     .orderBy(sql`sum(${payments.amount}) desc`);
   return rows.map((r) => ({
