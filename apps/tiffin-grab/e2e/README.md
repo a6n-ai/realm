@@ -64,3 +64,16 @@ e2e/
 2. **Journey**: add a case in `*/flows.spec.ts` (or a new `*.spec.ts`).
 3. Prefer role/label selectors; reuse page objects under `pages/`.
 4. Put pure logic assertions in Vitest under `lib/**/__tests__` or next to the component — not in Playwright.
+
+## Stripe (sandbox only)
+
+Stripe specs skip unless `STRIPE_E2E=1`. They need a connected Stripe test account (Card enabled) and webhook forwarding:
+
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe &
+STRIPE_E2E=1 pnpm --filter tiffin-grab test:e2e:customer -- e2e/customer/stripe.spec.ts
+# reconcile spec: stop `stripe listen` first, then
+STRIPE_E2E=1 STRIPE_E2E_NO_WEBHOOK=1 pnpm --filter tiffin-grab test:e2e:admin -- e2e/admin/stripe-reconcile.spec.ts
+```
+
+See `docs/realm/stripe-runbook.md`.
