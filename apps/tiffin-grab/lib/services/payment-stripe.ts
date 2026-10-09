@@ -199,6 +199,8 @@ async function loadOwned(paymentPublicId: string, userPublicId: string | null) {
 /**
  * One charge attempt per payment at a time: tokens differ per submit, so Stripe idempotency alone
  * cannot stop two tabs from creating two PIs. Lock is transaction-scoped, released on any exit.
+ * ponytail: each charge holds a pooled connection and needs a second for its queries, so ~pool-size
+ * concurrent charges would exhaust the pool; upgrade to a row-claim column (claimed_at) if that matters.
  */
 async function withChargeLock<T>(paymentPublicId: string, busy: T, fn: () => Promise<T>): Promise<T> {
   return db.transaction(async (tx) => {
@@ -208,46 +210,85 @@ async function withChargeLock<T>(paymentPublicId: string, busy: T, fn: () => Pro
   });
 }
 
-/** A PI that already took or is taking money blocks a new attempt (double submit, second tab). */
-async function inFlight(stripe: Stripe, pay: Payment): Promise<"succeeded" | "processing" | null> {
-  if (!pay.providerRef) return null;
+type Prior = "succeeded" | "processing" | "cleared" | "stuck";
+
+/**
+ * Before a new PI exists the previous one must be dead: succeeded/processing block the attempt, any
+ * unfinished requires_* PI is cancelled (else its later completion double-charges the customer).
+ */
+async function clearPrior(stripe: Stripe, pay: Payment): Promise<Prior> {
+  if (!pay.providerRef) return "cleared";
   const st = await fetchIntentStatus(stripe, pay.providerRef);
-  return st.status === "succeeded" || st.status === "processing" ? st.status : null;
+  if (st.status === "succeeded" || st.status === "processing") return st.status;
+  if (st.status !== "requires_action" && st.status !== "requires_payment_method" && st.status !== "other") return "cleared";
+  try {
+    await stripe.paymentIntents.cancel(pay.providerRef);
+  } catch (e) {
+    const again = await fetchIntentStatus(stripe, pay.providerRef);
+    if (again.status === "succeeded" || again.status === "processing") return again.status;
+    if (again.status !== "canceled") {
+      log.error({ paymentId: pay.publicId, piId: pay.providerRef, err: e }, "could not cancel prior stripe intent");
+      return "stuck";
+    }
+  }
+  // A cancelled PI's idempotency key would replay it; a new attempt number forces a fresh charge.
+  await db.update(payments).set({ chargeAttempt: sql`${payments.chargeAttempt} + 1` }).where(eq(payments.id, pay.id));
+  pay.chargeAttempt += 1;
+  return "cleared";
 }
+
+const settled = async (ref: { paymentRef: string; piId?: string | null }, source: "return" | "staff") => {
+  const o = await settleStripePayment(ref, source);
+  return o === "paid" || o === "already_paid";
+};
 
 const provinceOf = (order: Order) => resolveProvince({ postalCode: order.postalCode });
 
-/** Expired or surcharge-changed amount means a new calculation (one calc backs one successful PI). */
-async function taxCalcFor(pay: Payment, order: Order, chargeCents: number, surchargeTaxable: boolean, hasSurcharge: boolean): Promise<string | null> {
-  if (pay.taxSource !== "stripe") return null;
+/**
+ * Amount charged above payments.amount (fee, plus tax on the fee when surchargeTaxable) and the Stripe
+ * tax calculation backing the PI. An expired base calculation is replaced and persisted for later attempts.
+ */
+async function priceCharge(pay: Payment, order: Order, feeCents: number, surchargeTaxable: boolean): Promise<{ calcId: string | null; extraCents: number }> {
+  if (pay.taxSource !== "stripe") return { calcId: null, extraCents: feeCents };
   const snap = order.pricingSnapshot as OrderPricingSnapshot;
-  const surchargeInBase = hasSurcharge && surchargeTaxable;
+  const inBase = feeCents > 0 && surchargeTaxable;
   const fresh = (snap.tax?.expiresAt ?? 0) > Date.now() + 5 * 60_000;
-  if (fresh && !surchargeInBase) return pay.taxCalculationId;
+  if (fresh && !inBase) return { calcId: pay.taxCalculationId, extraCents: feeCents };
+
   const snapTaxCents = toCents(snap.taxTotal ?? 0);
   const preTaxCents = toCents(pay.amount) - snapTaxCents;
-  const taxable = preTaxCents + (surchargeInBase ? chargeCents - toCents(pay.amount) : 0);
-  const q = await stripeTaxFor({
-    taxableCents: taxable,
-    reference: pay.publicId,
-    address: { line1: order.addressLine, city: order.city, postalCode: order.postalCode, province: provinceOf(order) },
-  });
-  if (!q) return null; // Stripe Tax unavailable now: charge without a linked calc
-  if (q.taxCents !== snapTaxCents && !surchargeInBase) {
+  const address = { line1: order.addressLine, city: order.city, postalCode: order.postalCode, province: provinceOf(order) };
+  const base = await stripeTaxFor({ taxableCents: preTaxCents, reference: pay.publicId, address });
+  if (!base) return { calcId: null, extraCents: feeCents }; // Stripe Tax unavailable now: charge without a linked calc
+  if (base.taxCents !== snapTaxCents) {
     // Rates changed since quote: never charge a total the customer did not see.
     throw new ValidationError("Tax has changed since your order was priced. Please contact us to reprice it.");
   }
-  await db.update(payments).set({ taxCalculationId: q.calculationId }).where(eq(payments.id, pay.id));
-  return q.calculationId;
+  if (!inBase) {
+    await persistCalc(pay, order, snap, base.calculationId, base.expiresAt);
+    return { calcId: base.calculationId, extraCents: feeCents };
+  }
+  // The fee calc is for this card only, so it is never persisted for later attempts.
+  const withFee = await stripeTaxFor({ taxableCents: preTaxCents + feeCents, reference: pay.publicId, address });
+  if (!withFee) return { calcId: null, extraCents: feeCents };
+  return { calcId: withFee.calculationId, extraCents: feeCents + (withFee.taxCents - snapTaxCents) };
+}
+
+async function persistCalc(pay: Payment, order: Order, snap: OrderPricingSnapshot, calculationId: string, expiresAt: number | null) {
+  await db.update(payments).set({ taxCalculationId: calculationId }).where(eq(payments.id, pay.id));
+  await db.update(orders).set({ pricingSnapshot: { ...snap, tax: { source: "stripe", calculationId, expiresAt } } }).where(eq(orders.id, order.id));
 }
 
 export async function refreshTaxIfExpired(pay: Payment): Promise<Payment> {
   if (pay.taxSource !== "stripe") return pay;
   const [order] = await db.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
   if (!order) return pay;
-  const calcId = await taxCalcFor(pay, order, toCents(pay.amount), false, false);
+  const { calcId } = await priceCharge(pay, order, 0, false);
   return { ...pay, taxCalculationId: calcId };
 }
+
+const clearCard = (payId: bigint) =>
+  db.update(payments).set({ surchargeAmount: "0", cardBrand: null, cardLast4: null }).where(eq(payments.id, payId));
 
 export async function payByCard(i: {
   paymentPublicId: string; userPublicId: string; confirmationTokenId: string; acceptSurcharge: boolean; returnUrl: string;
@@ -258,41 +299,38 @@ export async function payByCard(i: {
     const rt = await stripeRuntime();
     if (!rt) return { kind: "failed", message: "Card payments are unavailable right now. Please try again shortly." };
 
-    const busy = await inFlight(rt.stripe, pay);
-    if (busy === "succeeded") {
-      await settleStripePayment({ paymentRef: pay.publicId }, "return");
-      return { kind: "succeeded" };
-    }
-    if (busy === "processing") return { kind: "processing" };
+    const prior = await clearPrior(rt.stripe, pay);
+    if (prior === "succeeded") return (await settled({ paymentRef: pay.publicId }, "return")) ? { kind: "succeeded" } : { kind: "processing" };
+    if (prior === "processing") return { kind: "processing" };
+    if (prior === "stuck") return { kind: "failed", message: "A previous card attempt is still open. Please try again in a moment." };
 
     const card = await previewConfirmationToken(rt.stripe, i.confirmationTokenId);
     const baseCents = toCents(pay.amount);
-    const sCents = surchargeCents({ funding: card.funding, province: provinceOf(order), baseCents, cfg: rt.cfg.surcharge });
-    if (sCents > 0 && !i.acceptSurcharge) {
-      return { kind: "confirm_surcharge", surcharge: fromCents(sCents), newTotal: fromCents(baseCents + sCents), brand: card.brand, last4: card.last4 };
+    const fee = surchargeCents({ funding: card.funding, province: provinceOf(order), baseCents, cfg: rt.cfg.surcharge });
+    const { calcId, extraCents } = await priceCharge(pay, order, fee, rt.cfg.tax.surchargeTaxable);
+    if (extraCents > 0 && !i.acceptSurcharge) {
+      return { kind: "confirm_surcharge", surcharge: fromCents(extraCents), newTotal: fromCents(baseCents + extraCents), brand: card.brand, last4: card.last4 };
     }
-    const chargeCents = baseCents + sCents;
-    const calcId = await taxCalcFor(pay, order, chargeCents, rt.cfg.tax.surchargeTaxable, sCents > 0);
     const customerId = await ensureCustomer(rt.stripe, customerStore, { ref: user.publicId, email: user.email, name: user.name });
 
-    await db.update(payments).set({ surchargeAmount: fromCents(sCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
+    await db.update(payments).set({ surchargeAmount: fromCents(extraCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
     const r = await createAndConfirmIntent(rt.stripe, {
-      amountCents: chargeCents, customerId, confirmationTokenId: i.confirmationTokenId, paymentRef: pay.publicId,
+      amountCents: baseCents + extraCents, customerId, confirmationTokenId: i.confirmationTokenId, paymentRef: pay.publicId,
       orgRef: order.organizationId, taxCalculationId: calcId, returnUrl: i.returnUrl, description: `Order ${order.publicId}`,
     });
     if (r.piId) await db.update(payments).set({ providerRef: r.piId }).where(eq(payments.id, pay.id));
 
-    if (r.status === "succeeded") {
-      await settleStripePayment({ paymentRef: pay.publicId, piId: r.piId }, "return");
-      return { kind: "succeeded" };
-    }
+    if (r.status === "succeeded") return (await settled({ paymentRef: pay.publicId, piId: r.piId }, "return")) ? { kind: "succeeded" } : { kind: "processing" };
     if (r.status === "processing") return { kind: "processing" };
     if (r.status === "requires_action" && r.clientSecret) return { kind: "requires_action", clientSecret: r.clientSecret };
+    await clearCard(pay.id);
     return { kind: "failed", message: r.reason ?? "Your card was declined." };
   });
 }
 
 export type SavedCardResult = { kind: "succeeded" | "processing" | "requires_action" | "failed" | "no_card"; message?: string };
+
+const UNSETTLED = "Charged in Stripe but not yet settled in the system; check the order before retrying.";
 
 export async function chargeSavedCardForPayment(paymentPublicId: string, actorPublicId: string): Promise<SavedCardResult> {
   await loadOwned(paymentPublicId, null);
@@ -300,30 +338,28 @@ export async function chargeSavedCardForPayment(paymentPublicId: string, actorPu
     const { pay, order, user } = await loadOwned(paymentPublicId, null);
     const rt = await stripeRuntime();
     if (!rt) return { kind: "failed", message: "Stripe is not connected" };
-    const busy = await inFlight(rt.stripe, pay);
-    if (busy === "succeeded") {
-      await settleStripePayment({ paymentRef: pay.publicId }, "staff");
-      return { kind: "succeeded" };
-    }
-    if (busy) return { kind: busy };
+    const prior = await clearPrior(rt.stripe, pay);
+    if (prior === "succeeded") return (await settled({ paymentRef: pay.publicId }, "staff")) ? { kind: "succeeded" } : { kind: "processing", message: UNSETTLED };
+    if (prior === "processing") return { kind: "processing" };
+    if (prior === "stuck") return { kind: "failed", message: "A previous card attempt is still open and could not be cancelled." };
     const customerId = await customerStore.get(user.publicId);
     const card = customerId ? await defaultCard(rt.stripe, customerId) : null;
     if (!customerId || !card) return { kind: "no_card" };
 
     const baseCents = toCents(pay.amount);
-    const sCents = surchargeCents({ funding: card.funding, province: provinceOf(order), baseCents, cfg: rt.cfg.surcharge });
-    const chargeCents = baseCents + sCents;
-    const calcId = await taxCalcFor(pay, order, chargeCents, rt.cfg.tax.surchargeTaxable, sCents > 0);
-    await db.update(payments).set({ surchargeAmount: fromCents(sCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
+    const fee = surchargeCents({ funding: card.funding, province: provinceOf(order), baseCents, cfg: rt.cfg.surcharge });
+    const { calcId, extraCents } = await priceCharge(pay, order, fee, rt.cfg.tax.surchargeTaxable);
+    await db.update(payments).set({ surchargeAmount: fromCents(extraCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
 
     const r = await chargeSavedCard(rt.stripe, {
-      amountCents: chargeCents, customerId, paymentMethodId: card.paymentMethodId, paymentRef: pay.publicId,
+      amountCents: baseCents + extraCents, customerId, paymentMethodId: card.paymentMethodId, paymentRef: pay.publicId,
       orgRef: order.organizationId, taxCalculationId: calcId, attempt: String(pay.chargeAttempt),
     });
     if (r.piId) await db.update(payments).set({ providerRef: r.piId }).where(eq(payments.id, pay.id));
     // Only a definitive decline opens a new idempotency key; processing/requires_action must replay the same charge.
     if (r.status === "failed") {
       await db.update(payments).set({ chargeAttempt: sql`${payments.chargeAttempt} + 1` }).where(eq(payments.id, pay.id));
+      await clearCard(pay.id);
     }
     await db.insert(orderActivities).values({
       orderId: order.id,
@@ -331,7 +367,7 @@ export async function chargeSavedCardForPayment(paymentPublicId: string, actorPu
       note: `Staff charged saved card ${card.brand ?? ""} ••${card.last4 ?? ""}: ${r.status}`,
       createdBy: await resolveUserId(db, actorPublicId),
     });
-    if (r.status === "succeeded") await settleStripePayment({ paymentRef: pay.publicId, piId: r.piId }, "staff");
+    if (r.status === "succeeded" && !(await settled({ paymentRef: pay.publicId, piId: r.piId }, "staff"))) return { kind: "processing", message: UNSETTLED };
     return { kind: r.status, message: r.reason };
   });
 }
