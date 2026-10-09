@@ -16,6 +16,7 @@ import {
   type ProfitabilityKpis,
   type ProfitRow,
 } from "@/lib/analytics/profitability";
+import { hasDateFilter, ordersMatchFilters, type AnalyticsFilters } from "./shared-filters";
 
 const PAID_STATUSES = ["simulated_paid", "paid"] as const;
 
@@ -75,18 +76,29 @@ export async function getProfitabilityReport(opts: {
   month: string;
   grain: Grain;
   now?: number;
+  filters?: AnalyticsFilters;
 }): Promise<ProfitabilityReport> {
   const now = opts.now ?? Date.now();
   const grain = opts.grain;
   const month = opts.month;
-  const { from, to } = rangeFor(month, grain);
+  const dims = opts.filters ?? { plans: [], mealSizes: [], zones: [] };
   const [{ timezone }, assumptions] = await Promise.all([getAppSettings(), getProfitabilityAssumptions()]);
+  // Shared date filter wins over the month/grain nav when set.
+  const bounds = hasDateFilter(dims)
+    ? {
+        from: dims.from != null ? isoDateInZone(dims.from, timezone) : rangeFor(month, grain).from,
+        to: dims.to != null ? isoDateInZone(dims.to, timezone) : rangeFor(month, grain).to,
+      }
+    : rangeFor(month, grain);
+  const { from, to } = bounds.from <= bounds.to ? bounds : { from: bounds.to, to: bounds.from };
+  const orderWhere = ordersMatchFilters(dims);
 
   const deliveredWhere = and(
     eq(deliveries.status, "scheduled"),
     eq(deliveries.optimoCompletionStatus, "success"),
     gte(deliveries.deliveryDate, from),
     lte(deliveries.deliveryDate, to),
+    orderWhere,
   );
 
   const pad = 48 * 60 * 60 * 1000;
@@ -114,16 +126,19 @@ export async function getProfitabilityReport(opts: {
         amount: payments.amount,
       })
       .from(payments)
+      .innerJoin(orders, eq(payments.orderId, orders.id))
       .where(
         and(
           inArray(payments.status, PAID_STATUSES),
           sql`coalesce(${payments.capturedAt}, ${payments.createdAt}) >= ${cashFromMs}`,
           sql`coalesce(${payments.capturedAt}, ${payments.createdAt}) <= ${cashToMs}`,
+          orderWhere,
         ),
       ),
     db
       .select({ at: sql<number | null>`min(${deliveries.cutoffAt})` })
       .from(deliveries)
+      .innerJoin(orders, eq(deliveries.orderId, orders.id))
       .where(
         and(
           eq(deliveries.status, "scheduled"),
@@ -131,6 +146,7 @@ export async function getProfitabilityReport(opts: {
           sql`${deliveries.optimoCompletionStatus} is distinct from 'success'`,
           gte(deliveries.deliveryDate, from),
           lte(deliveries.deliveryDate, to),
+          orderWhere,
         ),
       ),
   ]);

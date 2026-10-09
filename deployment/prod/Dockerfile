@@ -4,7 +4,9 @@
 # (default tiffin-grab). Produces a slim runner; the `build` target is reused by
 # the compose `migrate` service (it keeps drizzle-kit + source).
 
-FROM node:26-alpine AS base
+# public.ecr.aws mirrors Docker Hub's official library images without the
+# anonymous Hub rate limit that flakes CI (429 on node:*-alpine).
+FROM public.ecr.aws/docker/library/node:26-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 # node:26-alpine no longer bundles corepack; install pnpm pinned to the root

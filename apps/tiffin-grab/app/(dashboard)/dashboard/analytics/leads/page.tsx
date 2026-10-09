@@ -12,38 +12,44 @@ import {
   getLostReasonBreakdown,
   getSourcePerformance,
 } from "@/lib/services/analytics/leads.service";
+import {
+  parseAnalyticsFilters,
+  type AnalyticsSearchParams,
+} from "@/lib/services/analytics/shared-filters";
 
-export default function LeadsAnalyticsPage() {
+type SearchParams = Promise<AnalyticsSearchParams>;
+
+export default function LeadsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
       <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <StatsData />
+        <StatsData searchParams={searchParams} />
       </Suspense>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="Leads by stage" subtitle="Open a stage to see those inquiries.">
           <Suspense fallback={<ChartSkeleton />}>
-            <StageChart />
+            <StageChart searchParams={searchParams} />
           </Suspense>
         </ChartCard>
         <ChartCard title="Lost reasons" subtitle="Among leads marked lost">
           <Suspense fallback={<ChartSkeleton />}>
-            <LostReasonChart />
+            <LostReasonChart searchParams={searchParams} />
           </Suspense>
         </ChartCard>
       </div>
 
       <ChartCard title="Source performance" subtitle="Leads and conversion rate by source. Open a source to see those inquiries.">
         <Suspense fallback={<ChartSkeleton />}>
-          <SourceTable />
+          <SourceTable searchParams={searchParams} />
         </Suspense>
       </ChartCard>
     </div>
   );
 }
 
-async function StatsData() {
-  const s = await getLeadStats();
+async function StatsData({ searchParams }: { searchParams: SearchParams }) {
+  const s = await getLeadStats(parseAnalyticsFilters(await searchParams));
   return (
     <MetricTiles
       cols={4}
@@ -62,8 +68,8 @@ async function StatsData() {
   );
 }
 
-async function StageChart() {
-  const rows = await getLeadsByStage();
+async function StageChart({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getLeadsByStage(parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({ label: r.stage, n: r.n, href: inquiriesHref({ stage: r.key }) }))}
@@ -72,13 +78,13 @@ async function StageChart() {
   );
 }
 
-async function LostReasonChart() {
-  const rows = await getLostReasonBreakdown();
+async function LostReasonChart({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getLostReasonBreakdown(parseAnalyticsFilters(await searchParams));
   return <DistributionDonutChart data={rows} nameKey="reason" valueKey="n" />;
 }
 
-async function SourceTable() {
-  const rows = await getSourcePerformance();
+async function SourceTable({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getSourcePerformance(parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({

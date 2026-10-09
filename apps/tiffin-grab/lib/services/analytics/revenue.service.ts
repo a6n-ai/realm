@@ -12,19 +12,34 @@ import {
   type PaymentStatusSlice,
   type RevenueSummary,
 } from "@/lib/analytics/revenue";
+import { ordersMatchFilters, parseAnalyticsFilters } from "./shared-filters";
 
 export type { RevenueSummary, PaymentStatusSlice };
 
 export type RevenueReport = RevenueSummary & { byStatus: PaymentStatusSlice[] };
 
-export type RevenueFilters = { from?: string; to?: string; methods: string[] };
+export type RevenueFilters = {
+  from?: string;
+  to?: string;
+  methods: string[];
+  plans: string[];
+  mealSizes: string[];
+  zones: string[];
+};
 
 const PAYMENT_METHODS = payments.method.enumValues;
 type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function parseRevenueFilters(sp: { from?: string; to?: string; method?: string }): RevenueFilters {
+export function parseRevenueFilters(sp: {
+  from?: string;
+  to?: string;
+  method?: string;
+  plan?: string;
+  mealSize?: string;
+  zone?: string;
+}): RevenueFilters {
   const bound = (raw: string | undefined) => {
     if (!raw) return undefined;
     if (ISO_DATE.test(raw)) return raw;
@@ -35,7 +50,25 @@ export function parseRevenueFilters(sp: { from?: string; to?: string; method?: s
     .split(",")
     .map((s) => s.trim())
     .filter((m): m is PaymentMethod => (PAYMENT_METHODS as readonly string[]).includes(m));
-  return { from: bound(sp.from), to: bound(sp.to), methods };
+  const dims = parseAnalyticsFilters(sp);
+  return {
+    from: bound(sp.from),
+    to: bound(sp.to),
+    methods,
+    plans: dims.plans,
+    mealSizes: dims.mealSizes,
+    zones: dims.zones,
+  };
+}
+
+function dimensionWhere(filters: RevenueFilters) {
+  return ordersMatchFilters({
+    from: undefined,
+    to: undefined,
+    plans: filters.plans,
+    mealSizes: filters.mealSizes,
+    zones: filters.zones,
+  });
 }
 
 const DAY_PAD = 48 * 60 * 60 * 1000;
@@ -57,6 +90,7 @@ export async function getRevenueReport(
   const methodWhere = filters.methods.length
     ? inArray(payments.method, filters.methods as PaymentMethod[])
     : undefined;
+  const orderWhere = dimensionWhere(filters);
   // The payments list filters createdAt, so the status breakdown uses the same
   // window. A click on a status then shows exactly the rows that were counted.
   const created = zonedRangeMs(from, to, timezone);
@@ -74,15 +108,17 @@ export async function getRevenueReport(
       })
       .from(payments)
       .innerJoin(orders, eq(payments.orderId, orders.id))
-      .where(and(inArray(payments.status, [...SETTLED_STATUSES, "refunded"]), window, methodWhere)),
+      .where(and(inArray(payments.status, [...SETTLED_STATUSES, "refunded"]), window, methodWhere, orderWhere)),
     db
       .select({ amount: payments.amount, at: payments.createdAt })
       .from(payments)
+      .innerJoin(orders, eq(payments.orderId, orders.id))
       .where(
         and(
           inArray(payments.status, [...PENDING_STATUSES]),
           sql`${payments.createdAt} between ${fromMs} and ${toMs}`,
           methodWhere,
+          orderWhere,
         ),
       ),
     db
@@ -92,7 +128,15 @@ export async function getRevenueReport(
         amount: sql<number>`coalesce(sum(${payments.amount}::float8), 0)`,
       })
       .from(payments)
-      .where(and(gte(payments.createdAt, created.from), lte(payments.createdAt, created.to), methodWhere))
+      .innerJoin(orders, eq(payments.orderId, orders.id))
+      .where(
+        and(
+          gte(payments.createdAt, created.from),
+          lte(payments.createdAt, created.to),
+          methodWhere,
+          orderWhere,
+        ),
+      )
       .groupBy(payments.status),
   ]);
 

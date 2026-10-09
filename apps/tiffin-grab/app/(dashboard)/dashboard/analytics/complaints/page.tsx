@@ -25,7 +25,6 @@ import {
   getByZone,
   getComplaintKpis,
   getComplaintTrend,
-  getFilterOptions,
   getNeedsAttention,
   getPriorityMix,
   getRepeatCustomers,
@@ -119,10 +118,9 @@ export default function ComplaintsAnalyticsPage({ searchParams }: { searchParams
 }
 
 async function Filters() {
-  const { plans, zones } = await getFilterOptions();
-  // Same field names the ticket queue reads, so a filtered view links straight through.
+  // Date / plan / meal size / zone live on the shared analytics filter bar.
+  // These are complaints-only facets; field names still match the ticket queue.
   const spec: FacetDef[] = [
-    { kind: "dateRange", field: "createdAt", label: "Raised" },
     {
       kind: "multi",
       field: "category",
@@ -140,8 +138,6 @@ async function Filters() {
     },
     { kind: "multi", field: "status", label: "Status", options: STATUS_OPTIONS.map((s) => ({ ...s })) },
     { kind: "multi", field: "priority", label: "Priority", options: PRIORITY_OPTIONS.map((p) => ({ ...p })) },
-    { kind: "multi", field: "plan", label: "Plan", options: plans },
-    { kind: "multi", field: "zone", label: "Zone", options: zones },
   ];
   return <ListSearchFilters spec={spec} />;
 }

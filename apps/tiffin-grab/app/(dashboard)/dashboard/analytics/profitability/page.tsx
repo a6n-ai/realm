@@ -20,6 +20,7 @@ import {
   type ProfitabilityKpis,
   type ProfitRow,
 } from "@/lib/analytics/profitability";
+import { parseAnalyticsFilters } from "@/lib/services/analytics/shared-filters";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
 import { AssumptionsForm } from "./assumptions-form";
 import { GrainNav } from "./grain-nav";
@@ -41,7 +42,15 @@ function parseMonth(raw: string | undefined, fallback: string): string {
   return raw && /^\d{4}-\d{2}$/.test(raw) ? raw : fallback;
 }
 
-type SearchParams = Promise<{ view?: string; month?: string }>;
+type SearchParams = Promise<{
+  view?: string;
+  month?: string;
+  from?: string;
+  to?: string;
+  plan?: string;
+  mealSize?: string;
+  zone?: string;
+}>;
 
 export default function ProfitabilityAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -76,14 +85,29 @@ export default function ProfitabilityAnalyticsPage({ searchParams }: { searchPar
   );
 }
 
-const loadReport = cache((month: string, grain: Grain) => getProfitabilityReport({ month, grain }));
+const loadReport = cache(
+  (month: string, grain: Grain, from: string, to: string, plan: string, mealSize: string, zone: string) =>
+    getProfitabilityReport({
+      month,
+      grain,
+      filters: parseAnalyticsFilters({ from, to, plan, mealSize, zone }),
+    }),
+);
 
 async function reportFrom(searchParams: SearchParams) {
   const sp = await searchParams;
   const { timezone } = await getAppSettings();
   const month = parseMonth(sp.month, currentMonth(timezone));
   const grain = parseGrain(sp.view);
-  return loadReport(month, grain);
+  return loadReport(
+    month,
+    grain,
+    sp.from ?? "",
+    sp.to ?? "",
+    sp.plan ?? "",
+    sp.mealSize ?? "",
+    sp.zone ?? "",
+  );
 }
 
 async function Nav({ searchParams }: { searchParams: SearchParams }) {

@@ -9,31 +9,37 @@ import { BreakdownBarChart } from "@/components/analytics/charts";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@foundry/ui/table";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { getEmployeeRollup, type EmployeeRow } from "@/lib/services/analytics/employees.service";
+import {
+  parseAnalyticsFilters,
+  type AnalyticsSearchParams,
+} from "@/lib/services/analytics/shared-filters";
 
-export default function EmployeesAnalyticsPage() {
+type SearchParams = Promise<AnalyticsSearchParams>;
+
+export default function EmployeesAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
       <Suspense fallback={<SkeletonStatCards count={3} />}>
-        <StatsData />
+        <StatsData searchParams={searchParams} />
       </Suspense>
 
       <ChartCard title="Leads worked per rep">
         <Suspense fallback={<ChartSkeleton />}>
-          <LeadsChart />
+          <LeadsChart searchParams={searchParams} />
         </Suspense>
       </ChartCard>
 
       <ChartCard title="Per-rep breakdown">
         <Suspense fallback={<TableRowsSkeleton />}>
-          <RollupTable />
+          <RollupTable searchParams={searchParams} />
         </Suspense>
       </ChartCard>
     </div>
   );
 }
 
-async function StatsData() {
-  const rows = await getEmployeeRollup();
+async function StatsData({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getEmployeeRollup(parseAnalyticsFilters(await searchParams));
   const activeReps = rows.length;
   const totalLeadsWorked = rows.reduce((s, r) => s + r.leadsWorked, 0);
   const totalTicketsResolved = rows.reduce((s, r) => s + r.ticketsResolved, 0);
@@ -49,14 +55,14 @@ async function StatsData() {
   );
 }
 
-async function LeadsChart() {
-  const rows = await getEmployeeRollup();
+async function LeadsChart({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getEmployeeRollup(parseAnalyticsFilters(await searchParams));
   const data = rows.map((r) => ({ name: r.name, n: r.leadsWorked }));
   return <BreakdownBarChart data={data} xKey="name" yKey="n" />;
 }
 
-async function RollupTable() {
-  const rows = await getEmployeeRollup();
+async function RollupTable({ searchParams }: { searchParams: SearchParams }) {
+  const rows = await getEmployeeRollup(parseAnalyticsFilters(await searchParams));
   if (rows.length === 0) return <p className="text-muted-foreground text-sm">No data yet.</p>;
   return (
     <Table>
