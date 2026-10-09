@@ -214,7 +214,7 @@ async function resolveBrandOrgId(tx: { select: typeof db.select }): Promise<stri
   return row?.id ?? null;
 }
 
-async function resolveUserId(
+export async function resolveUserId(
   tx: { select: typeof db.select },
   publicId: string | null | undefined,
 ): Promise<bigint | null> {

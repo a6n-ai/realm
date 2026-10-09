@@ -3,17 +3,39 @@ import { eq } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const status = vi.fn();
+const preview = vi.fn();
+const create = vi.fn();
+const charge = vi.fn();
+const card = vi.fn();
+const stripeTax = vi.fn();
 vi.mock("@/lib/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
-  stripeRuntime: async () => ({ stripe: {}, cfg: { tax: { enabled: false } } }),
+  stripeRuntime: async () => ({
+    stripe: {},
+    cfg: {
+      surcharge: { enabled: true, ratePct: 2.4, excludeProvinces: ["QC"], networksNotifiedOn: "2026-09-01" },
+      tax: { enabled: true, taxCode: "txcd_x", surchargeTaxable: false },
+    },
+  }),
+  customerStore: { get: async () => "cus_test", set: async () => {} },
 }));
-vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>()), fetchIntentStatus: (...a: unknown[]) => status(...a) }));
+vi.mock("@foundry/payments/stripe", async (orig) => ({
+  ...(await orig<object>()),
+  fetchIntentStatus: (...a: unknown[]) => status(...a),
+  previewConfirmationToken: (...a: unknown[]) => preview(...a),
+  createAndConfirmIntent: (...a: unknown[]) => create(...a),
+  chargeSavedCard: (...a: unknown[]) => charge(...a),
+  defaultCard: (...a: unknown[]) => card(...a),
+  ensureCustomer: async () => "cus_test",
+}));
+vi.mock("@/lib/tax/checkout-taxes", async (orig) => ({ ...(await orig<object>()), stripeTaxFor: (...a: unknown[]) => stripeTax(...a) }));
 
 const { db } = await import("@/db/client");
 const { ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const svc = await import("../payment-stripe");
 const { claimPayment } = await import("../orders.service");
-const { makeStripePayment, reset, cleanup } = await import("./stripe-fixture");
+const fx = await import("./stripe-fixture");
+const { makeStripePayment, reset, cleanup } = fx;
 
 describe("settleStripePayment", () => {
   afterAll(cleanup);
@@ -164,5 +186,126 @@ describe("recordStripeDispute / recordStripeFailure", () => {
     await svc.recordStripeDispute({ piId: "pi_d", disputeId: "dp_1", amountCents: 1000, reason: "fraudulent" });
     const types = (await db.select().from(orderActivities).where(eq(orderActivities.orderId, pay.orderId))).map((a) => a.type);
     expect(types).toEqual(expect.arrayContaining(["payment_failed", "payment_disputed"]));
+  });
+});
+
+describe("payByCard", () => {
+  beforeEach(async () => { await reset(); vi.resetAllMocks(); status.mockResolvedValue(undefined); });
+  afterAll(cleanup);
+  const go = (pay: { publicId: string }, o: { accept?: boolean; user?: string; ct?: string } = {}) =>
+    svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: o.user ?? fx.OWNER, confirmationTokenId: o.ct ?? "ct_1", acceptSurcharge: o.accept ?? false, returnUrl: "u" });
+
+  it("asks to confirm a credit surcharge before charging", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ funding: "credit", brand: "visa", last4: "4242" });
+    expect(await go(pay)).toEqual({ kind: "confirm_surcharge", surcharge: "4.80", newTotal: "204.80", brand: "visa", last4: "4242" });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("charges amount + surcharge once accepted and records card + surcharge", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ funding: "credit", brand: "visa", last4: "4242" });
+    create.mockResolvedValue({ status: "succeeded", piId: "pi_new", clientSecret: "cs" });
+    status.mockResolvedValue({ piId: "pi_new", status: "succeeded", amountReceivedCents: 20480, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    expect(await go(pay, { accept: true })).toEqual({ kind: "succeeded" });
+    expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: 20480, paymentRef: pay.publicId });
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row).toMatchObject({ surchargeAmount: "4.80", providerRef: "pi_new", cardBrand: "visa", cardLast4: "4242" });
+  });
+
+  it("no surcharge for a Quebec postal code even with a credit card", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "H2X 1Y4" });
+    preview.mockResolvedValue({ funding: "credit", brand: "visa", last4: "4242" });
+    create.mockResolvedValue({ status: "requires_action", piId: "pi_q", clientSecret: "cs" });
+    await go(pay);
+    expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: 20000 });
+  });
+
+  it("refuses a second attempt while the previous PI is processing (double-submit)", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: "pi_prev", postalCode: "M5H 2N2" });
+    status.mockResolvedValue({ piId: "pi_prev", status: "processing", amountReceivedCents: 0, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    expect(await go(pay, { ct: "ct_2", accept: true })).toEqual({ kind: "processing" });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("two concurrent submits create only one PI", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ funding: "debit", brand: "visa", last4: "1111" });
+    create.mockImplementation(async () => { await new Promise((r) => setTimeout(r, 150)); return { status: "requires_action", piId: "pi_one", clientSecret: "cs" }; });
+    const rs = await Promise.all([go(pay, { ct: "ct_a" }), go(pay, { ct: "ct_b" })]);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(rs.map((r) => r.kind).sort()).toEqual(["processing", "requires_action"]);
+  });
+
+  it("treats a Stripe idempotency 'processing' as pending: no failure recorded", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ funding: "debit", brand: "visa", last4: "1111" });
+    create.mockResolvedValue({ status: "processing", piId: null, clientSecret: null, reason: "in progress" });
+    expect(await go(pay)).toEqual({ kind: "processing" });
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.providerRef).toBeNull();
+  });
+
+  it("rejects a payment owned by someone else", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    await expect(go(pay, { user: "usr_someone_else" })).rejects.toThrow(/not found/i);
+  });
+
+  it("refuses a cancelled order", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, pay.orderId));
+    await expect(go(pay)).rejects.toThrow("This order was cancelled");
+  });
+
+  it("recalculates an expired Stripe tax calculation before charging", async () => {
+    const pay = await makeStripePayment({ amount: "113.00", piId: null, postalCode: "M5H 2N2", taxCalc: { id: "taxcalc_old", expiresAt: Date.now() - 1000 } });
+    stripeTax.mockResolvedValue({ calculationId: "taxcalc_new", taxCents: 1300, totalCents: 11300, expiresAt: Date.now() + 3600_000, lines: [], reasons: [] });
+    preview.mockResolvedValue({ funding: "debit", brand: "visa", last4: "1111" });
+    create.mockResolvedValue({ status: "requires_action", piId: "pi_t", clientSecret: "cs" });
+    await go(pay);
+    expect(stripeTax.mock.calls[0]![0]).toMatchObject({ taxableCents: 10000 });
+    expect(create.mock.calls[0]![1]).toMatchObject({ taxCalculationId: "taxcalc_new" });
+  });
+
+  it("refuses to charge when repriced tax differs from what the customer saw", async () => {
+    const pay = await makeStripePayment({ amount: "113.00", piId: null, postalCode: "M5H 2N2", taxCalc: { id: "taxcalc_old", expiresAt: Date.now() - 1000 } });
+    stripeTax.mockResolvedValue({ calculationId: "taxcalc_new", taxCents: 1500, totalCents: 11500, expiresAt: Date.now() + 3600_000, lines: [], reasons: [] });
+    preview.mockResolvedValue({ funding: "debit", brand: "visa", last4: "1111" });
+    await expect(go(pay)).rejects.toThrow(/tax has changed/i);
+    expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe("chargeSavedCardForPayment", () => {
+  beforeEach(async () => { await reset(); vi.resetAllMocks(); status.mockResolvedValue(undefined); });
+  afterAll(cleanup);
+
+  it("keys the charge by attempt and bumps it only on a definitive decline", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    card.mockResolvedValue({ paymentMethodId: "pm_1", funding: "debit", brand: "visa", last4: "1111" });
+    charge.mockResolvedValueOnce({ status: "processing", piId: null, clientSecret: null, reason: "in progress" });
+    expect((await svc.chargeSavedCardForPayment(pay.publicId, fx.OWNER)).kind).toBe("processing");
+    expect(charge.mock.calls[0]![1]).toMatchObject({ attempt: "0" });
+    let [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.chargeAttempt).toBe(0);
+
+    charge.mockResolvedValueOnce({ status: "failed", piId: "pi_f", clientSecret: null, reason: "declined" });
+    status.mockResolvedValue({ piId: "pi_f", status: "requires_payment_method", amountReceivedCents: 0, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    expect((await svc.chargeSavedCardForPayment(pay.publicId, fx.OWNER)).kind).toBe("failed");
+    [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.chargeAttempt).toBe(1);
+
+    charge.mockResolvedValueOnce({ status: "requires_action", piId: "pi_r", clientSecret: "cs" });
+    await svc.chargeSavedCardForPayment(pay.publicId, fx.OWNER);
+    expect(charge.mock.calls[2]![1]).toMatchObject({ attempt: "1" });
+    [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.chargeAttempt).toBe(1);
+  });
+
+  it("reports no_card without charging", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    card.mockResolvedValue(null);
+    expect((await svc.chargeSavedCardForPayment(pay.publicId, fx.OWNER)).kind).toBe("no_card");
+    expect(charge).not.toHaveBeenCalled();
   });
 });

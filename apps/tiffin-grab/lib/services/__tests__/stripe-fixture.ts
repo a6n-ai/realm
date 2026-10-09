@@ -54,12 +54,26 @@ export async function reset() {
 }
 
 /** An order with one stripe payment row; amount overrides make cents math explicit. */
-export async function makeStripePayment(o: { amount: string; surcharge?: string; piId: string; paid?: boolean }) {
+export let OWNER = "";
+
+export async function makeStripePayment(o: {
+  amount: string; surcharge?: string; piId: string | null; paid?: boolean;
+  postalCode?: string; taxCalc?: { id: string; expiresAt: number };
+}) {
   const { publicId } = await createOrder(await baseInput({ paymentMethodId: "etransfer" }));
   const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+  const [owner] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, order!.userId!));
+  OWNER = owner!.publicId;
+  if (o.postalCode) await db.update(orders).set({ postalCode: o.postalCode }).where(eq(orders.id, order!.id));
+  if (o.taxCalc) {
+    const snap = order!.pricingSnapshot as Record<string, unknown>;
+    await db.update(orders).set({
+      pricingSnapshot: { ...snap, taxTotal: 13, tax: { source: "stripe", calculationId: o.taxCalc.id, expiresAt: o.taxCalc.expiresAt } },
+    }).where(eq(orders.id, order!.id));
+  }
   const [pay] = await db
     .update(payments)
-    .set({ method: "stripe", amount: o.amount, surchargeAmount: o.surcharge ?? "0", providerRef: o.piId, status: o.paid ? "paid" : "awaiting_payment" })
+    .set({ method: "stripe", amount: o.amount, surchargeAmount: o.surcharge ?? "0", providerRef: o.piId, status: o.paid ? "paid" : "awaiting_payment", ...(o.taxCalc ? { taxCalculationId: o.taxCalc.id, taxSource: "stripe" } : {}) })
     .where(eq(payments.orderId, order!.id))
     .returning();
   return pay!;
