@@ -87,7 +87,7 @@ async function OrderDetail({
   try {
     order = await readOrder(id, visible);
   } catch (e) {
-    void settingsP.catch((e) => log.error({ paymentId: p.publicId, err: e }, "lazy stripe settle failed"));
+    void settingsP.catch(() => {});
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
