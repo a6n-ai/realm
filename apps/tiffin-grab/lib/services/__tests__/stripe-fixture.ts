@@ -64,3 +64,10 @@ export async function makeStripePayment(o: { amount: string; surcharge?: string;
     .returning();
   return pay!;
 }
+
+/** Leaves the shared test DB with no payment rails, as other suites expect. */
+export async function cleanup() {
+  await reset();
+  await setPaymentConfig({ methods: [] });
+  await sharedCache("app-settings").evictAll();
+}

@@ -777,7 +777,7 @@ export function paymentTemplateVars(
 // pending_verification (after a claim). Idempotent against already-paid rows.
 export async function verifyPayment(
   paymentPublicId: string,
-  opts: { actorId?: string | null; providerEventId?: string | null } = {},
+  opts: { actorId?: string | null; providerEventId?: string | null; fromProvider?: boolean } = {},
 ): Promise<void> {
   let missedStops: OptimoSyncedRow[] = [];
   const settled = await db.transaction(async (tx) => {
@@ -785,7 +785,8 @@ export async function verifyPayment(
     const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay) throw new NotFoundError("Payment not found");
     if (pay.status === "paid" || pay.status === "simulated_paid") return null;
-    if (pay.status !== "awaiting_payment" && pay.status !== "pending_verification") {
+    // A provider-confirmed charge settles even a staff-rejected row; a manual verify must not.
+    if (pay.status !== "awaiting_payment" && pay.status !== "pending_verification" && !(opts.fromProvider && pay.status === "rejected")) {
       throw new ValidationError(`Payment cannot be verified from status ${pay.status}`);
     }
 
@@ -1006,6 +1007,7 @@ export async function claimPayment(
 ): Promise<void> {
   const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
   if (!pay) throw new NotFoundError("Payment not found");
+  if (pay.method === "stripe") throw new ValidationError("Card payments are settled automatically");
 
   // Once claimed the payment is in staff hands: no re-submit until they approve or reject it.
   if (pay.status !== "awaiting_payment" && pay.status !== "rejected") {

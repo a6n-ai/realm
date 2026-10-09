@@ -30,11 +30,12 @@ async function activity(orderId: bigint, type: "payment_failed" | "payment_dispu
 }
 
 // Retries/polls re-hit the same bad PI; one activity per (order, type, PI).
-async function activityOnce(orderId: bigint, type: "payment_failed", piId: string, note: string) {
+async function activityOnce(orderId: bigint, type: "payment_failed", prefix: string, piId: string, detail: string) {
+  const note = `${prefix} ${piId} ${detail}`;
   const [dup] = await db
     .select({ id: orderActivities.id })
     .from(orderActivities)
-    .where(and(eq(orderActivities.orderId, orderId), eq(orderActivities.type, type), like(orderActivities.note, `%${piId}%`)))
+    .where(and(eq(orderActivities.orderId, orderId), eq(orderActivities.type, type), like(orderActivities.note, `${prefix} ${piId} %`)))
     .limit(1);
   if (!dup) await activity(orderId, type, note);
 }
@@ -59,14 +60,14 @@ export async function settleStripePayment(
   if (st.status !== "succeeded") return "not_succeeded";
 
   if (st.paymentRef !== pay.publicId) {
-    await activityOnce(pay.orderId, "payment_failed", piId, `Stripe PaymentIntent ${piId} belongs to another payment - not settled`);
+    await activityOnce(pay.orderId, "payment_failed", "Stripe PaymentIntent", piId, "belongs to another payment - not settled");
     log.error({ paymentId: pay.publicId, piId, source }, "stripe intent bound to another payment");
     return "amount_mismatch";
   }
 
   const [order] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
   if (order?.status === "cancelled") {
-    await activityOnce(pay.orderId, "payment_failed", piId, `Card payment received on a cancelled order - refund it in Stripe (${piId})`);
+    await activityOnce(pay.orderId, "payment_failed", "Cancelled-order card payment", piId, "- refund it in Stripe");
     log.error({ paymentId: pay.publicId, piId, source }, "stripe payment on cancelled order");
     return "order_cancelled";
   }
@@ -76,8 +77,9 @@ export async function settleStripePayment(
     await activityOnce(
       pay.orderId,
       "payment_failed",
+      "Stripe amount mismatch for",
       piId,
-      `Stripe amount mismatch: received ${fromCents(st.amountReceivedCents)} ${st.currency.toUpperCase()}, expected ${fromCents(expected)} CAD (${piId}) - not settled`,
+      `- received ${fromCents(st.amountReceivedCents)} ${st.currency.toUpperCase()}, expected ${fromCents(expected)} CAD, not settled`,
     );
     log.error({ paymentId: pay.publicId, piId, source }, "stripe amount mismatch");
     return "amount_mismatch";
@@ -88,7 +90,7 @@ export async function settleStripePayment(
     .update(payments)
     .set({ providerRef: piId, providerEventId: eventId ?? null })
     .where(and(eq(payments.id, pay.id), sql`${payments.providerEventId} is null`));
-  await verifyPayment(pay.publicId, { actorId: null, providerEventId: eventId ?? null });
+  await verifyPayment(pay.publicId, { actorId: null, providerEventId: eventId ?? null, fromProvider: true });
   return "paid";
 }
 
@@ -104,7 +106,15 @@ export async function recordStripeRefund(n: { piId: string; eventId: string; amo
   if (pay.status !== "paid" && pay.status !== "refunded") {
     const [o] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
     if (o?.status === "cancelled") {
-      await db.insert(orderActivities).values({ orderId: pay.orderId, type: "payment_refunded", note: `Refund recorded for cancelled order (payment was never settled) (${n.piId})` });
+      const tag = `[${n.eventId}]`;
+      const [dup] = await db
+        .select({ id: orderActivities.id })
+        .from(orderActivities)
+        .where(and(eq(orderActivities.orderId, pay.orderId), eq(orderActivities.type, "payment_refunded"), like(orderActivities.note, `%${tag}`)))
+        .limit(1);
+      if (!dup) {
+        await db.insert(orderActivities).values({ orderId: pay.orderId, type: "payment_refunded", note: `Refund recorded for cancelled order (payment was never settled) ${tag}` });
+      }
       return;
     }
     throw new Error(`Refund for ${n.piId} arrived but payment ${pay.publicId} is not settled yet`);
