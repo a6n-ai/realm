@@ -9,11 +9,12 @@ const charge = vi.fn();
 const card = vi.fn();
 const stripeTax = vi.fn();
 const cancel = vi.fn();
+const retrieve = vi.fn();
 const flags = { taxable: false };
 vi.mock("@/lib/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
   stripeRuntime: async () => ({
-    stripe: { paymentIntents: { cancel: (...a: unknown[]) => cancel(...a) } },
+    stripe: { paymentIntents: { cancel: (...a: unknown[]) => cancel(...a), retrieve: (...a: unknown[]) => retrieve(...a) } },
     cfg: {
       surcharge: { enabled: true, ratePct: 2.4, excludeProvinces: ["QC"], networksNotifiedOn: "2026-09-01" },
       tax: { enabled: true, taxCode: "txcd_x", surchargeTaxable: flags.taxable },
@@ -422,5 +423,51 @@ describe("abandonCardAttempt and acceptSurcharge", () => {
     create.mockResolvedValue({ status: "requires_action", piId: "pi_d", clientSecret: "cs" });
     await svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: fx.OWNER, confirmationTokenId: "ct", acceptSurcharge: true, returnUrl: "u" });
     expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: 20000 });
+  });
+});
+
+describe("surcharge bypass detection and abandon cancel", () => {
+  beforeEach(async () => { await reset(); vi.resetAllMocks(); flags.taxable = false; status.mockResolvedValue(undefined); });
+  afterAll(cleanup);
+  const succeeded = (pay: { publicId: string }, cents: number) =>
+    status.mockResolvedValue({ piId: "pi_s", status: "succeeded", amountReceivedCents: cents, currency: "cad", paymentRef: pay.publicId, created: 1 });
+  const flagged = async (orderId: bigint) =>
+    (await db.select().from(orderActivities).where(eq(orderActivities.orderId, orderId))).filter((a) => a.note?.startsWith("Credit card used without surcharge pi_s"));
+
+  it("settles a credit charge with no surcharge and flags it once", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: "pi_s", postalCode: "M5H 2N2" });
+    succeeded(pay, 20000);
+    retrieve.mockResolvedValue({ latest_charge: { payment_method_details: { card: { funding: "credit" } } } });
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook")).toBe("paid");
+    await svc.settleStripePayment({ paymentRef: pay.publicId }, "view");
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.status).toBe("paid");
+    const acts = await flagged(pay.orderId);
+    expect(acts).toHaveLength(1);
+    expect(acts[0]!.note).toContain("4.80");
+  });
+
+  it("does not flag a debit card", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: "pi_s", postalCode: "M5H 2N2" });
+    succeeded(pay, 20000);
+    retrieve.mockResolvedValue({ latest_charge: { payment_method_details: { card: { funding: "debit" } } } });
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook")).toBe("paid");
+    expect(await flagged(pay.orderId)).toHaveLength(0);
+  });
+
+  it("still settles when the retrieve fails", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: "pi_s", postalCode: "M5H 2N2" });
+    succeeded(pay, 20000);
+    retrieve.mockRejectedValue(new Error("boom"));
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook")).toBe("paid");
+  });
+
+  it("abandonCardAttempt cancels the open PI before clearing", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", surcharge: "4.80", piId: "pi_o" });
+    status.mockResolvedValue({ piId: "pi_o", status: "requires_payment_method", amountReceivedCents: 0, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    await svc.abandonCardAttempt(pay.publicId, fx.OWNER);
+    expect(cancel).toHaveBeenCalledWith("pi_o");
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.surchargeAmount).toBe("0.00");
   });
 });

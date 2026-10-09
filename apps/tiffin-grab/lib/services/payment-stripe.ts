@@ -48,6 +48,32 @@ async function activityOnce(orderId: bigint, type: "payment_failed", prefix: str
   if (!dup) await activity(orderId, type, note);
 }
 
+/**
+ * Detect-only: a credit card confirmed on a PI created at the debit (no-fee) price still settles, but staff
+ * see the uncollected fee. Never blocks money; a failed lookup is logged and skipped.
+ */
+async function flagUnchargedSurcharge(rt: NonNullable<Awaited<ReturnType<typeof stripeRuntime>>>, pay: Payment, piId: string, source: string) {
+  try {
+    if (toCents(pay.surchargeAmount ?? 0) !== 0) return;
+    const pi = await rt.stripe.paymentIntents.retrieve(piId, { expand: ["latest_charge"] });
+    const charge = pi.latest_charge;
+    const funding = charge && typeof charge !== "string" ? charge.payment_method_details?.card?.funding : undefined;
+    if (funding !== "credit") return;
+    const [row] = await db
+      .select({ order: orders })
+      .from(orders)
+      .where(eq(orders.id, pay.orderId))
+      .limit(1);
+    if (!row) return;
+    const fee = surchargeCents({ funding: "credit", province: provinceOf(row.order), baseCents: toCents(pay.amount), cfg: rt.cfg.surcharge });
+    if (fee <= 0) return;
+    await activityOnce(pay.orderId, "payment_failed", "Credit card used without surcharge", piId, `- uncollected fee ${fromCents(fee)}`);
+    log.warn({ paymentId: pay.publicId, piId, source }, "credit card settled without surcharge");
+  } catch (e) {
+    log.error({ paymentId: pay.publicId, piId, source, err: e }, "surcharge bypass check failed");
+  }
+}
+
 const SETTLEABLE = ["awaiting_payment", "pending_verification", "rejected"];
 
 export async function settleStripePayment(
@@ -92,6 +118,8 @@ export async function settleStripePayment(
     log.error({ paymentId: pay.publicId, piId, source }, "stripe amount mismatch");
     return "amount_mismatch";
   }
+
+  await flagUnchargedSurcharge(rt, pay, piId, source);
 
   // provider_ref follows the PI that actually succeeded (a fast webhook can beat payByCard's write).
   await db
@@ -303,6 +331,14 @@ export async function abandonCardAttempt(paymentPublicId: string, userPublicId: 
       if (!rt) return;
       const st = await fetchIntentStatus(rt.stripe, pay.providerRef);
       if (st.status === "succeeded" || st.status === "processing") return;
+      try {
+        await rt.stripe.paymentIntents.cancel(pay.providerRef);
+      } catch (e) {
+        // Already canceled is fine; if it actually completed meanwhile, leave the fields for settle.
+        const again = await fetchIntentStatus(rt.stripe, pay.providerRef);
+        if (again.status === "succeeded" || again.status === "processing") return;
+        if (again.status !== "canceled") log.error({ paymentId: pay.publicId, piId: pay.providerRef, err: e }, "could not cancel abandoned intent");
+      }
     }
     await clearCard(pay.id);
   });
