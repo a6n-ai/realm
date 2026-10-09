@@ -519,6 +519,14 @@ describe("refundStripePayment", () => {
     expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_r", 1048, `refund:${pay.publicId}:1048:1000`);
   });
 
+  it("caps at our own total when Stripe's charge is larger", async () => {
+    const pay = await makeStripePayment({ amount: "20.00", piId: "pi_r", paid: true });
+    charge(5000, 0);
+    await expect(svc.refundStripePayment(pay.publicId, "20.01", "x", fx.OWNER)).rejects.toThrow(/between 0.01 and 20.00/);
+    await svc.refundStripePayment(pay.publicId, null, "x", fx.OWNER);
+    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_r", 2000, `refund:${pay.publicId}:2000:0`);
+  });
+
   it("rejects over-remainder, bad amounts, unpaid payments and blank reasons before refunding", async () => {
     const pay = await makeStripePayment({ amount: "20.00", piId: "pi_r", paid: true });
     charge(2000, 500);
@@ -551,5 +559,26 @@ describe("reconcileStripe late and missing payments", () => {
       id === "pi_ok" ? { piId: id, status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: ok.publicId, created: 1 } : { piId: id, status: "canceled", amountReceivedCents: 0, currency: "cad", paymentRef: gone.publicId, created: 1 });
     const { rows } = await svc.reconcileStripe({ from: 0, to: Date.now() + 60_000 });
     expect(rows).toEqual([{ kind: "paid_here_not_in_stripe", paymentRef: gone.publicId, piId: "pi_gone", amount: "11.00" }]);
+  });
+});
+
+describe("reconcileStripe bounds and binding", () => {
+  beforeEach(async () => { await reset(); vi.clearAllMocks(); });
+
+  it("treats a PI whose paymentRef row is bound to another PI as unmatched", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: "pi_bound" });
+    list.mockResolvedValue({ nextCursor: null, items: [{ piId: "pi_other", status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: pay.publicId, created: 1 }] });
+    const { rows } = await svc.reconcileStripe({ from: 0, to: Date.now() + 60_000 });
+    expect(rows).toEqual([{ kind: "unmatched_charge", piId: "pi_other", amount: "10.00" }]);
+  });
+
+  it("checks at most 50 paid rows individually and says so", async () => {
+    for (let i = 0; i < 51; i++) await makeStripePayment({ amount: "1.00", piId: `pi_m${i}`, paid: true });
+    list.mockResolvedValue({ nextCursor: null, items: [] });
+    status.mockImplementation(async (_s: unknown, id: string) => ({ piId: id, status: "canceled", amountReceivedCents: 0, currency: "cad", paymentRef: null, created: 1 }));
+    const { rows, truncated } = await svc.reconcileStripe({ from: 0, to: Date.now() + 60_000 });
+    expect(truncated).toBe(true);
+    expect(rows).toHaveLength(50);
+    expect(status).toHaveBeenCalledTimes(50);
   });
 });

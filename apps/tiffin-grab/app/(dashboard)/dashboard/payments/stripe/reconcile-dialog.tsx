@@ -36,6 +36,7 @@ export function ReconcileDialog({ open, onOpenChange }: { open: boolean; onOpenC
   const [to, setTo] = useState(() => iso(Date.now()));
   const [rows, setRows] = useState<ReconcileRow[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
 
   function run(next?: string) {
     start(async () => {
@@ -44,6 +45,7 @@ export function ReconcileDialog({ open, onOpenChange }: { open: boolean; onOpenC
       if ("error" in res) return void toast.error(res.error);
       setRows(next ? [...(rows ?? []), ...res.rows] : res.rows);
       setCursor(res.nextCursor);
+      if (!next) setTruncated(res.truncated);
     });
   }
 
@@ -83,6 +85,9 @@ export function ReconcileDialog({ open, onOpenChange }: { open: boolean; onOpenC
                 )}
               </div>
             ))}
+            {truncated && (
+              <p className="text-xs text-muted-foreground">Checked the first 50 paid payments. Narrow the date range to check more.</p>
+            )}
             {cursor && (
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">More than one page of Stripe charges. Narrow the date range for a complete check, or load the next page.</p>

@@ -435,10 +435,11 @@ export type ReconcileRow =
   | { kind: "paid_here_not_in_stripe"; paymentRef: string; piId: string | null; amount: string }
   | { kind: "unmatched_charge"; piId: string; amount: string };
 
+const MAX_PI_CHECKS = 50;
 const chargedCents = (p: Payment) => toCents(p.amount) + toCents(p.surchargeAmount ?? 0);
 
 /** Read-only diff between Stripe and our rows. Staff act on rows; nothing is written here. */
-export async function reconcileStripe(range: { from: number; to: number }, cursor?: string): Promise<{ rows: ReconcileRow[]; nextCursor: string | null }> {
+export async function reconcileStripe(range: { from: number; to: number }, cursor?: string): Promise<{ rows: ReconcileRow[]; nextCursor: string | null; truncated: boolean }> {
   const rt = await stripeRuntime();
   if (!rt) throw new ValidationError("Stripe is not connected");
   const page = await listIntents(rt.stripe, { fromSec: Math.floor(range.from / 1000), toSec: Math.floor(range.to / 1000) }, cursor);
@@ -446,7 +447,8 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
   const ours = await db
     .select()
     .from(payments)
-    .where(and(eq(payments.method, "stripe"), gte(payments.createdAt, range.from), lte(payments.createdAt, range.to)));
+    .where(and(eq(payments.method, "stripe"), gte(payments.createdAt, range.from), lte(payments.createdAt, range.to)))
+    .limit(500);
   const byRef = new Map(ours.map((p) => [p.publicId, p]));
   const byPi = new Map(ours.filter((p) => p.providerRef).map((p) => [p.providerRef!, p]));
   const rows: ReconcileRow[] = [];
@@ -455,7 +457,8 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
   for (const i of succeeded) {
     // A payment created before the range can be charged inside it (late payment), so look outside the range too.
     const p = (i.paymentRef && byRef.get(i.paymentRef)) || byPi.get(i.piId) || (await findStripePayment({ paymentRef: i.paymentRef, piId: i.piId }));
-    if (!p) {
+    // A row bound to a different PI must not be settled or compared against this one.
+    if (!p || (p.providerRef && p.providerRef !== i.piId)) {
       rows.push({ kind: "unmatched_charge", piId: i.piId, amount: fromCents(i.amountReceivedCents) });
       continue;
     }
@@ -468,17 +471,20 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
     }
   }
   // Absence from the range proves nothing, so each paid row not seen is checked by retrieving its own PI.
-  // ponytail: first page only, one retrieve per unseen paid row; batch or cap if ranges get large.
+  // ponytail: first page only, capped at MAX_PI_CHECKS retrieves per run; staff narrow the range to check more.
+  let truncated = false;
   if (!cursor) {
+    let checked = 0;
     for (const p of ours) {
       if (p.status !== "paid" || seen.has(p.publicId)) continue;
+      if (checked++ >= MAX_PI_CHECKS) { truncated = true; break; }
       const live = p.providerRef ? await fetchIntentStatus(rt.stripe, p.providerRef).catch(() => null) : null;
       if (live?.status !== "succeeded") {
         rows.push({ kind: "paid_here_not_in_stripe", paymentRef: p.publicId, piId: p.providerRef, amount: fromCents(chargedCents(p)) });
       }
     }
   }
-  return { rows, nextCursor: page.nextCursor };
+  return { rows, nextCursor: page.nextCursor, truncated };
 }
 
 /** Asks Stripe to refund; the charge.refunded webhook is the only ledger writer. */
@@ -493,7 +499,8 @@ export async function refundStripePayment(paymentPublicId: string, amount: strin
   const pi = await rt.stripe.paymentIntents.retrieve(pay.providerRef, { expand: ["latest_charge"] });
   const charge = pi.latest_charge;
   if (!charge || typeof charge === "string") throw new ValidationError("Stripe has no charge to refund for this payment");
-  const remaining = charge.amount - charge.amount_refunded;
+  // Our own total caps Stripe's: a charge larger than what we billed is never refundable beyond our amount.
+  const remaining = Math.min(chargedCents(pay), charge.amount) - charge.amount_refunded;
   const cents = amount == null ? remaining : toCents(amount);
   if (cents <= 0 || cents > remaining) throw new ValidationError(`Refund must be between 0.01 and ${fromCents(Math.max(remaining, 0))}`);
   await refundIntent(rt.stripe, pay.providerRef, cents, `refund:${pay.publicId}:${cents}:${charge.amount_refunded}`);

@@ -77,7 +77,7 @@ export async function reprocessEventAction(eventId: string): Promise<ActionResul
   });
 }
 
-export async function reconcileAction(from: number, to: number, cursor?: string): Promise<ActionResult<{ rows: ReconcileRow[]; nextCursor: string | null }>> {
+export async function reconcileAction(from: number, to: number, cursor?: string): Promise<ActionResult<{ rows: ReconcileRow[]; nextCursor: string | null; truncated: boolean }>> {
   return runAction(async () => {
     await requirePermission({ finance: ["read"] });
     if (!Number.isFinite(from) || !Number.isFinite(to) || from > to) throw new ValidationError("Pick a valid date range");
