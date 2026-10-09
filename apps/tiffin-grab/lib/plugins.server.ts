@@ -6,7 +6,7 @@ import { googleReviewsPlugin } from "@foundry/google-reviews/server";
 import { stripeDeps } from "@/lib/payments/stripe";
 import { optimoRoutePlugin } from "./services/optimoroute/plugin.server";
 import {
-  getIntegrationsConfig,
+  getIntegrationsConfigFresh,
   setIntegrationsConfig,
   getPaymentConfig,
   ensurePaymentCatalog,
@@ -14,7 +14,7 @@ import {
 } from "@/lib/services/app-settings.service";
 
 const payments = paymentsPlugin({
-  integrations: { get: getIntegrationsConfig, set: setIntegrationsConfig },
+  integrations: { get: getIntegrationsConfigFresh, set: setIntegrationsConfig },
   payments: { get: getPaymentConfig },
 });
 

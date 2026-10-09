@@ -1,6 +1,6 @@
 import { getGoogleReviewsConfig, shouldNudge, writeReviewUrl } from "@foundry/google-reviews";
 import { ReviewNudgeCard } from "@foundry/google-reviews/ui";
-import { integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigReadStore } from "@/lib/services/app-settings.service";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
 import { getSession } from "@/lib/auth/session";
 import { markReviewNudgeDone } from "./review-nudge-actions";
@@ -11,7 +11,7 @@ export async function ReviewNudge() {
   const email = session?.user?.email;
   if (!email) return null;
 
-  const cfg = await getGoogleReviewsConfig(integrationsConfigStore);
+  const cfg = await getGoogleReviewsConfig(integrationsConfigReadStore);
   if (!cfg.installed || !cfg.placeId) return null;
 
   if (!shouldNudge(await reviewNudgeStore.get(email))) return null;

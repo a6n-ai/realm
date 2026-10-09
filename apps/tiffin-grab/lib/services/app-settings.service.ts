@@ -276,7 +276,15 @@ export async function touchStripeLastEventAt(at: number): Promise<void> {
   await settingsCache.evictAll();
 }
 
+// Plugin WRITERS (clover, google-reviews, install/uninstall...) read-modify-write the whole
+// blob, so their read must be uncached or a stale copy resurrects keys wiped on another instance.
 export const integrationsConfigStore: IntegrationsConfigStore = {
+  get: getIntegrationsConfigFresh,
+  set: setIntegrationsConfig,
+};
+
+/** Display-only: cached get. Never pass to a writer. */
+export const integrationsConfigReadStore: IntegrationsConfigStore = {
   get: getIntegrationsConfig,
   set: setIntegrationsConfig,
 };

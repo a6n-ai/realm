@@ -1,10 +1,10 @@
 import { StarIcon } from "lucide-react";
 import { getReviewsSummary } from "@foundry/google-reviews";
-import { integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigReadStore } from "@/lib/services/app-settings.service";
 import { Section } from "./section";
 
 export async function GoogleReviewsSection() {
-  const summary = await getReviewsSummary(integrationsConfigStore);
+  const summary = await getReviewsSummary(integrationsConfigReadStore);
   if (!summary || summary.reviews.length === 0) return null;
 
   return (

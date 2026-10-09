@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getIntegrationsConfig, setIntegrationsConfig } from "@/lib/services/app-settings.service";
+import { getIntegrationsConfig, getIntegrationsConfigFresh, setIntegrationsConfig } from "@/lib/services/app-settings.service";
 
 // App-local, not @foundry/clover: OptimoRoute is delivery routing for this client, and
 // nothing has proven it shared. It rides in the same integrations_config blob, which is
@@ -64,7 +64,7 @@ export async function getOptimoRouteConfig(): Promise<OptimoRouteConfig> {
 }
 
 export async function setOptimoRouteConfig(next: OptimoRouteConfig): Promise<void> {
-  const cfg = await getIntegrationsConfig();
+  const cfg = await getIntegrationsConfigFresh();
   await setIntegrationsConfig({ ...cfg, [OPTIMOROUTE_KEY]: optimoRouteConfigSchema.parse(next) });
 }
 
