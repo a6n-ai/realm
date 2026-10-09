@@ -105,6 +105,9 @@ async function quote(
   // preview can't know the province, so it shows no province tax yet — the
   // receipt on the payment step always has it, since that step needs an address.
   postalCode?: string,
+  // Used only as the Stripe Tax address, same shape createOrder passes. Absent until typed.
+  addressLine?: string,
+  city?: string,
 ): Promise<RepriceResult> {
   // Must match the snapshot the wizard page rendered from (same orgId), or a
   // franchise-scoped meal size/coupon the client priced against could resolve
@@ -194,7 +197,7 @@ async function quote(
     selections: pricedSelections,
     catalog,
     adjustments: lines,
-    address: { postalCode: postalCode?.trim() || null },
+    address: { line1: (typeof addressLine === "string" && addressLine.trim()) || null, city: (typeof city === "string" && city.trim()) || null, postalCode: postalCode?.trim() || null },
     methodTaxes,
     reference: "preview",
     cache: true,

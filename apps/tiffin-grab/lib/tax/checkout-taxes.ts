@@ -49,7 +49,7 @@ export async function stripeTaxFor(
   if (i.taxableCents <= 0 || !i.address.postalCode || !i.address.line1) return null;
   const rt = await stripeRuntime();
   if (!rt || !rt.cfg.tax.enabled || !rt.cfg.tax.taxCode) return null;
-  const key = `${i.taxableCents}|${i.address.postalCode}|${i.address.province ?? ""}|${i.address.line1}`;
+  const key = `${rt.cfg.tax.taxCode}|${i.taxableCents}|${i.address.postalCode}|${i.address.province ?? ""}|${i.address.line1}`;
   if (opts.cache) {
     const hit = (await quotes().get<TaxQuote>(key))?.value;
     if (hit && (hit.expiresAt ?? Infinity) > Date.now() + 5 * 60_000) return hit;

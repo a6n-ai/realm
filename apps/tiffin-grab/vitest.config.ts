@@ -3,7 +3,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL(".", import.meta.url)) },
+    alias: {
+      "@": fileURLToPath(new URL(".", import.meta.url)),
+      // The real package throws outside a Next server build; orders.service now reaches lib/payments/stripe.
+      "server-only": fileURLToPath(new URL("./vitest.server-only-stub.ts", import.meta.url)),
+    },
     // pnpm installs two physical `next` copies (differing peer sets), so the app
     // and @foundry/* packages import different `next/navigation` modules — a
     // `vi.mock("next/navigation")` would only patch one. Dedupe to a single copy.

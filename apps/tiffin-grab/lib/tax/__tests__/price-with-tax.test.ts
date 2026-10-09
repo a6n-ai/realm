@@ -11,7 +11,8 @@ vi.mock("@/lib/services/app-settings.service", () => ({ getProvinceTaxes: async 
 vi.mock("@/lib/cache", () => ({ sharedCache: () => ({ get: async () => undefined, set: async () => {} }) }));
 
 const { stripeRuntime } = await import("@/lib/payments/stripe");
-const { priceWithTax } = await import("../checkout-taxes");
+const { priceWithTax, resolveCheckoutTaxes } = await import("../checkout-taxes");
+const { priceSubscription } = await import("@/lib/pricing/engine");
 const { sel, catalog } = await import("@/lib/pricing/__tests__/fixtures");
 
 const enabled = { stripe: {}, cfg: { tax: { enabled: true, taxCode: "txcd_food", surchargeTaxable: false } } };
@@ -53,5 +54,13 @@ describe("priceWithTax", () => {
     const r = await priceWithTax({ selections: sel(), catalog: catalog(10), adjustments: [{ label: "Comp", amount: 9999 }], address: addr, methodTaxes: [], reference: "quote" });
     expect(calc).not.toHaveBeenCalled();
     expect(r.pricing.total).toBe(0);
+  });
+
+  it("fallback is exactly the old resolveCheckoutTaxes + priceSubscription result", async () => {
+    rt.mockResolvedValue(null);
+    const adjustments = [{ label: "Promo", amount: 7.5 }];
+    const { taxes } = await resolveCheckoutTaxes({ postalCode: addr.postalCode, province: addr.province, methodTaxes: [] });
+    const r = await priceWithTax({ selections: sel({ durationWeeks: 4 }), catalog: catalog(10), adjustments, address: addr, methodTaxes: [], reference: "quote" });
+    expect(r.pricing).toEqual(priceSubscription(sel({ durationWeeks: 4 }), catalog(10), adjustments, taxes));
   });
 });

@@ -192,10 +192,11 @@ export function Checkout({
     methodId: string | null,
     coins?: number,
     postalCode = contact.postalCode,
+    addr: { addressLine?: string; city?: string } = contact,
   ) => {
     // Postal code drives province sales tax, so the receipt must be re-priced
     // with it — otherwise the preview total would omit tax the order charges.
-    const r = await reprice(s, code, s.planKey ?? undefined, methodId, coins, postalCode || undefined);
+    const r = await reprice(s, code, s.planKey ?? undefined, methodId, coins, postalCode || undefined, addr.addressLine || undefined, addr.city || undefined);
     if ("error" in r) {
       setPriceError(r.error);
       throw new UnpriceableCart(r.error);
@@ -209,7 +210,7 @@ export function Checkout({
     // Auto-pick the first enabled method when none chosen yet.
     if (!methodId && r.paymentMethods.length > 0) {
       setPaymentMethodId(r.paymentMethods[0]!.id);
-      return refreshPrice(s, code, r.paymentMethods[0]!.id, coins, postalCode);
+      return refreshPrice(s, code, r.paymentMethods[0]!.id, coins, postalCode, addr);
     }
     return r;
   };
@@ -263,17 +264,17 @@ export function Checkout({
     );
     // The default saved address is checked against our zones straight away, like a picked one.
     // The first price above already used its postal code, so no second re-price.
-    if (defaultAddress) void checkPostal(defaultAddress.postalCode, false);
+    if (defaultAddress) void checkPostal(defaultAddress.postalCode, false, defaultAddress);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  const checkPostal = async (postalCode = contact.postalCode, withPrice = true) => {
+  const checkPostal = async (postalCode = contact.postalCode, withPrice = true, addr: { addressLine?: string; city?: string } = contact) => {
     if (!postalCode.trim()) return;
     const res = await validatePostal(postalCode);
     setZone(res.served ? { served: true, name: res.zone!.name, slotWindow: res.zone!.slotWindow } : { served: false });
     // A served address fixes the province, so the total shown from here on includes its tax.
     if (res.served && withPrice && selections) {
-      void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined, postalCode).catch(() => undefined);
+      void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined, postalCode, addr).catch(() => undefined);
     }
   };
 
@@ -290,7 +291,7 @@ export function Checkout({
     const next = a ? addressFields(a) : (draft ?? EMPTY_ADDRESS);
     setContact((c) => ({ ...c, ...next }));
     setZone(null);
-    if (next.postalCode) void checkPostal(next.postalCode);
+    if (next.postalCode) void checkPostal(next.postalCode, true, next);
   };
 
   const saveEditor = () => {
@@ -299,7 +300,7 @@ export function Checkout({
     setAddressPublicId(null);
     setContact((c) => ({ ...c, ...editor }));
     setZone(null);
-    void checkPostal(editor.postalCode);
+    void checkPostal(editor.postalCode, true, editor);
     setEditor(null);
   };
 
