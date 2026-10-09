@@ -337,3 +337,39 @@ describe("createOrder payment deferral", () => {
     expect(paymentLed).toHaveLength(1);
   });
 });
+
+describe("verifyPayment — stripe extensions", () => {
+  afterAll(reset);
+  beforeEach(async () => {
+    await reset();
+    await setPaymentConfig({
+      methods: [{ id: "etransfer", kind: "manual", enabled: true, label: "Interac e-Transfer", payeeHandle: "pay@test.ca", taxes: [] }],
+    });
+    await sharedCache("app-settings").evictAll();
+  });
+
+  async function pendingPayment() {
+    const { publicId } = await createOrder(await baseInput({ paymentMethodId: "etransfer" }));
+    const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, order!.id));
+    return pay!;
+  }
+
+  it("credits amount + surcharge and stamps the provider event id on the ledger", async () => {
+    const pay = await pendingPayment();
+    await db.update(payments).set({ method: "stripe", surchargeAmount: "4.80" }).where(eq(payments.id, pay.id));
+
+    await verifyPayment(pay.publicId, { actorId: null, providerEventId: "evt_1" });
+
+    const rows = await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id));
+    expect(rows).toHaveLength(1);
+    expect(Number(rows[0]!.amount)).toBeCloseTo(Number(pay.amount) + 4.8, 2);
+    expect(rows[0]!.providerEventId).toBe("evt_1");
+  });
+
+  it("is idempotent across two concurrent verifies", async () => {
+    const pay = await pendingPayment();
+    await Promise.all([verifyPayment(pay.publicId, {}), verifyPayment(pay.publicId, {})]);
+    expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).toHaveLength(1);
+  });
+});

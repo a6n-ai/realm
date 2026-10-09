@@ -19,6 +19,7 @@ export interface LedgerRecordInput {
   type: LedgerEntryType;
   amount: number | string; // dollars; stored as numeric(10,2)
   memo?: string | null;
+  providerEventId?: string | null;
 }
 
 // Append-only money ledger. Corrections are new `adjustment` rows, never edits —
@@ -36,6 +37,7 @@ class LedgerService extends SessionBaseService<typeof ledgerEntries> {
       type: input.type,
       amount,
       memo: input.memo ?? null,
+      providerEventId: input.providerEventId ?? null,
     });
   }
 

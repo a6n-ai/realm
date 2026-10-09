@@ -5,6 +5,8 @@ import type { Condition, FilterCondition } from "@foundry/commons/model/conditio
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
+import { commitTax } from "@foundry/payments/stripe";
+import { stripeRuntime } from "@/lib/payments/stripe";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -775,10 +777,10 @@ export function paymentTemplateVars(
 // pending_verification (after a claim). Idempotent against already-paid rows.
 export async function verifyPayment(
   paymentPublicId: string,
-  opts: { actorId?: string | null } = {},
+  opts: { actorId?: string | null; providerEventId?: string | null } = {},
 ): Promise<void> {
   let missedStops: OptimoSyncedRow[] = [];
-  const award = await db.transaction(async (tx) => {
+  const settled = await db.transaction(async (tx) => {
     // Locked so a second, concurrent verify waits, then sees "paid" and stops.
     const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay) throw new NotFoundError("Payment not found");
@@ -798,7 +800,9 @@ export async function verifyPayment(
       paymentId: pay.id,
       direction: "credit",
       type: "payment",
-      amount: Number(pay.amount),
+      amount: (Number(pay.amount) + Number(pay.surchargeAmount ?? 0)).toFixed(2),
+      memo: Number(pay.surchargeAmount ?? 0) > 0 ? `incl. card surcharge ${pay.surchargeAmount}` : null,
+      providerEventId: opts.providerEventId ?? null,
     });
 
     await tx
@@ -901,12 +905,20 @@ export async function verifyPayment(
 
     // Award coins only when the order is (still) active — waitlisted stays deferred
     // until activateOrder, which has its own award path.
-    return order.status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "paid" }) ? { 
+    const award = order.status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "paid" }) ? { 
       userId: order.userId, 
       orderPublicId: order.publicId,
       userPublicId: user.publicId,
     } : null;
+    // Card payments are recorded by Stripe through the PaymentIntent's calculation; only manual methods commit here.
+    const taxCommit =
+      pay.taxSource === "stripe" && pay.method !== "stripe" && pay.taxCalculationId
+        ? { calc: pay.taxCalculationId, ref: pay.publicId, orderId: order.id }
+        : null;
+    return { award, taxCommit };
   });
+  const award = settled?.award ?? null;
+  const taxCommit = settled?.taxCommit ?? null;
 
   publishAnalyticsLive();
   await deleteFromOptimoRouteBestEffort(missedStops);
@@ -920,6 +932,17 @@ export async function verifyPayment(
 
     // Trigger page refresh for the user
     publishUserRefresh(award.userPublicId);
+  }
+
+  if (taxCommit) {
+    try {
+      const rt = await stripeRuntime();
+      if (!rt) throw new Error("Stripe not connected");
+      await commitTax(rt.stripe, taxCommit.calc, taxCommit.ref);
+    } catch (e) {
+      log.error({ err: (e as Error).message }, "stripe tax commit failed");
+      await db.insert(orderActivities).values({ orderId: taxCommit.orderId, type: "note", note: "Stripe Tax commit failed — retry from Payments → Stripe" });
+    }
   }
 }
 
@@ -945,28 +968,30 @@ export async function refundOrder(
 
     const actorInternalId = await resolveUserId(tx, opts.actorId);
 
-    await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, pay.id));
-    await tx.insert(orderActivities).values({
+    await refundPaymentInTx(tx, {
       orderId: order.id,
-      type: "note",
+      orderPublicId: order.publicId,
+      userId: order.userId,
+      paymentId: pay.id,
+      actorInternalId,
       note: "Order refunded",
-      createdBy: actorInternalId,
     });
-
-    // Clawback runs in the SAME transaction as the payment-status flip: both
-    // commit or roll back together, so a crash between them can never leave a
-    // refunded order whose coins were never reversed. reverseCoinAward only
-    // needs a row lock on `users` (via lockUser), which this transaction can
-    // acquire without conflicting with anything else already held here.
-    if (order.userId) {
-      await reverseCoinAward(tx, {
-        userId: order.userId,
-        eventType: "order_activated",
-        source: { type: "order", id: order.publicId },
-      });
-    }
   });
   publishAnalyticsLive();
+}
+
+// Clawback runs in the SAME transaction as the payment-status flip: both
+// commit or roll back together, so a crash between them can never leave a
+// refunded order whose coins were never reversed.
+export async function refundPaymentInTx(
+  tx: Tx,
+  i: { orderId: bigint; orderPublicId: string; userId: bigint | null; paymentId: bigint; actorInternalId: bigint | null; note: string },
+): Promise<void> {
+  await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, i.paymentId));
+  await tx.insert(orderActivities).values({ orderId: i.orderId, type: "payment_refunded", note: i.note, createdBy: i.actorInternalId });
+  if (i.userId) {
+    await reverseCoinAward(tx, { userId: i.userId, eventType: "order_activated", source: { type: "order", id: i.orderPublicId } });
+  }
 }
 
 // Customer (or staff-on-behalf) marks a manual payment as sent. Requires a transfer
