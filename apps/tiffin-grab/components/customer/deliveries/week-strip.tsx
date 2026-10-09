@@ -1,5 +1,5 @@
 "use client";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/components/customer/kit";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { addDays, mondayOf, weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
@@ -24,7 +24,7 @@ interface Props {
   onWeek: (monday: string) => void;
 }
 
-/** Compact 7-day date picker for the customer page: a dot under each day you eat, coloured by status. */
+/** Compact 7-day date picker for the customer page: a dot under each day you eat, coloured by status, and a truck (with the tiffin count when more than one) on each delivery day. */
 export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agenda, now, onPickDay, onWeek }: Props) {
   const { trips, dayStatus } = weekTimeline(agenda, week, now);
   const isos = weekDays(week);
@@ -65,6 +65,15 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agend
               <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted-foreground,#6E6558)]">{WD.format(at(iso)).slice(0, 3)}</span>
               <span className={cn("grid size-8 place-items-center rounded-full text-[15px] font-semibold tabular-nums", iso === today && "ring-[1.5px] ring-[var(--primary)]")}>{at(iso).getUTCDate()}</span>
               <span aria-hidden className="size-1.5 rounded-full" style={{ background: s ? STATUS_COLOR[s] : "transparent" }} />
+              {/* Fixed height so weeks with and without a truck line up. */}
+              <span aria-hidden className="flex h-3.5 items-center gap-0.5 text-[10px] font-semibold tabular-nums text-[var(--muted-foreground,#6E6558)]">
+                {units ? (
+                  <>
+                    <Truck className="size-3.5" />
+                    {units > 1 && units}
+                  </>
+                ) : null}
+              </span>
             </button>
           );
         })}

@@ -138,20 +138,22 @@ export function moveNotes(r: EatingRow, history = false): string[] {
   return moveFacts(r, history).map((f) => f.text);
 }
 
-/** "Arrives Mon, Sep 21 with Mon" / "Delivered Mon, Sep 21" / "Moved to Wed, Sep 23": which truck feeds this eating day. */
+/** "Arrives Mon, Sep 21" / "Comes with the Fri, Sep 25 delivery" / "Delivered Mon, Sep 21" / "Moved to Wed, Sep 23": which truck feeds this eating day. */
 export function deliveryLine(r: EatingRow): string {
   if (r.movedTo) return `Moved to ${humanDate(r.movedTo)}`;
   const t = r.trip;
   const day = humanDate(t.date);
-  const with_ = r.own ? "" : ` with ${weekdayShort(t.date)}`;
+  // A day eaten off another day's truck names that delivery instead of claiming it arrives that day.
+  const arrives = r.own ? `arrives ${day}` : `comes with the ${day} delivery`;
+  const Arrives = arrives[0]!.toUpperCase() + arrives.slice(1);
   switch (t.status) {
     case "delivered": return `Delivered ${day}`;
     case "unconfirmed": return `Awaiting confirmation, ${day}`;
     case "failed": return `Delivery failed ${day}`;
-    case "cutoff-passed": return `Being prepared, arrives ${day}${with_}`;
-    case "upcoming": return `Arrives ${day}${with_}`;
+    case "cutoff-passed": return `Being prepared, ${arrives}`;
+    case "upcoming": return Arrives;
     case "rescheduled": case "combined-into": return t.movedTo ? `Moved to ${humanDate(t.movedTo)}` : "Moved";
     case "vacation": return "Paused";
-    default: return `Arrives ${day}${with_}`;
+    default: return Arrives;
   }
 }

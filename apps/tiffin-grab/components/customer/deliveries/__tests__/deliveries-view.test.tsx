@@ -129,7 +129,7 @@ describe("DeliveriesView (one plan)", () => {
   it("a delivered day carried on Monday's trip just reads Delivered, without trip details", () => {
     view("2026-09-22");
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Tue, Sep 22");
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Delivered Mon, Sep 21 with Mon");
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Came with the Mon, Sep 21 delivery");
     expect(screen.getByRole("img", { name: "Delivered delivery" })).toBeInTheDocument();
     expect(screen.getByTestId("delivery-block")).not.toHaveTextContent(/tiffins covering/);
   });
@@ -183,7 +183,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     multi();
     expect(screen.queryByTestId("next-delivery")).toBeNull();
     fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Mon, Sep 21 with Mon");
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Comes with the Mon, Sep 21 delivery");
   });
   it("the next-week arrow updates ?week via router.replace", () => {
     replace.mockClear();
@@ -201,7 +201,7 @@ describe("DeliveriesView (week, plans on top, delivery info)", () => {
     view("2026-09-25", [arriving]);
     expect(screen.queryByText("Nothing planned on Fri, Sep 25.")).toBeNull();
     expect(screen.getByText("Fri, Sep 18")).toBeInTheDocument();
-    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Arrives Fri, Sep 25");
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Comes with the Fri, Sep 25 delivery");
   });
   it("5-day Mon/Tue/Thu plan: after Thursday moves to Wednesday, only Wednesday shows the truck", () => {
     const mon = "2026-09-28";

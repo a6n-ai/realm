@@ -199,7 +199,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
   const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}`;
   const meta = arriving ? [
     // A day carried on another day's truck says which one.
-    trip.date !== row.date ? `${trip.status === "delivered" ? "Delivered" : "Arrives"} ${humanDate(trip.date)} with ${weekdayShort(trip.date)}` : null,
+    trip.date !== row.date ? `${trip.status === "delivered" ? "Came" : "Comes"} with the ${humanDate(trip.date)} delivery` : null,
     trip.status === "upcoming" && trip.cutoffAt ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : null,
   ].filter(Boolean).join(" · ") || null : null;
   const label = (text: string, color: string) => <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color }}>{text}</h3>;

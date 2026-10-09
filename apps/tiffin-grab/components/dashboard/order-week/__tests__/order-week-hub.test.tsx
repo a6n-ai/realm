@@ -89,7 +89,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
     const block = screen.getByTestId("delivery-block");
     expect(block).toHaveTextContent("Tue, Sep 22");
-    expect(block).toHaveTextContent("Arrives Mon, Sep 21 with Mon");
+    expect(block).toHaveTextContent("Comes with the Mon, Sep 21 delivery");
     expect(block).toHaveTextContent("2 tiffins (1 Mon + 1 Tue)");
   });
   it("strip marks the delivery day; no separate next-delivery banner (the card is the delivery)", () => {
