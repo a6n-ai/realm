@@ -60,6 +60,9 @@ function cellValue(r: KitchenPackingRow, column: ColKey, itemHeaders: string[]):
   }
 }
 
+/** Same customer = same key; phone first, name when there is none. */
+const customerKey = (r: KitchenPackingRow) => r.phone || r.customerName;
+
 function loadStoredWidths(): Record<string, number> {
   try {
     const raw = localStorage.getItem(WIDTHS_STORAGE_KEY);
@@ -251,6 +254,14 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
   const safePage = Math.min(Math.max(0, pagination.page), pageCount - 1);
   const displayRows = shownRows.slice(safePage * pagination.size, (safePage + 1) * pagination.size);
   const serialOffset = safePage * pagination.size;
+  const repeatCustomers = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const r of sheet.rows) n.set(customerKey(r), (n.get(customerKey(r)) ?? 0) + 1);
+    return new Set([...n].filter(([, c]) => c > 1).map(([k]) => k));
+  }, [sheet.rows]);
+  // One brand-coloured bar marks a customer with several rows that day (a trip's For Fri / Sat /
+  // Sun, or two deliveries); the indented sub-rows say which rows belong together.
+  const barFor = (r: KitchenPackingRow) => (repeatCustomers.has(customerKey(r)) ? "var(--primary)" : null);
 
   if (sheet.rows.length === 0) {
     return (
@@ -361,16 +372,25 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
                             minWidth: w,
                             maxWidth: w,
                             ...(isCustomer ? { left: customerLeft } : {}),
+                            // Keeps the right border the class draws; inline boxShadow replaces it.
+                            ...(isCustomer && barFor(row) ? { boxShadow: `inset 4px 0 0 0 ${barFor(row)}, 1px 0 0 0 var(--border)` } : {}),
                           }}
                         >
                           {isCustomer ? (
-                            // The name truncates, never the eating day: a trip's rows differ only by "For Sat".
-                            <span className="flex min-w-0">
-                              <span className="truncate">{row.customerName}</span>
-                              {row.forLabel ? (
-                                <span className="text-muted-foreground shrink-0 whitespace-pre font-normal"> · {row.forLabel}</span>
-                              ) : null}
-                            </span>
+                            // Same customer as the row above: read as a sub-row, not a new customer.
+                            i > 0 && customerKey(displayRows[i - 1]!) === customerKey(row) ? (
+                              <span className="text-muted-foreground flex min-w-0 pl-3 font-normal">
+                                <span className="truncate">↳ {row.forLabel ?? row.customerName}</span>
+                              </span>
+                            ) : (
+                              // The name truncates, never the eating day: a trip's rows differ only by "For Sat".
+                              <span className="flex min-w-0">
+                                <span className="truncate">{row.customerName}</span>
+                                {row.forLabel ? (
+                                  <span className="text-muted-foreground shrink-0 whitespace-pre font-normal"> · {row.forLabel}</span>
+                                ) : null}
+                              </span>
+                            )
                           ) : (
                             text
                           )}
@@ -387,7 +407,11 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
 
       <div aria-busy={loading} className={cn("space-y-3 transition-opacity md:hidden", loading && "opacity-60")}>
         {displayRows.map((row, i) => (
-          <div key={`${row.deliveryPublicId}-${row.forDate}-${serialOffset + i}`} className="bg-card rounded-lg border p-4">
+          <div
+            key={`${row.deliveryPublicId}-${row.forDate}-${serialOffset + i}`}
+            className="bg-card rounded-lg border p-4"
+            style={barFor(row) ? { boxShadow: `inset 4px 0 0 0 ${barFor(row)}` } : undefined}
+          >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-muted-foreground text-xs tabular-nums">#{serialOffset + i + 1}</p>
