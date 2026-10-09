@@ -28,7 +28,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 const { db } = await import("@/db/client");
 const { users, organization, member, invitation, session } = await import("@/db/schema");
 const { auth } = await import("@/lib/auth");
-const { inviteUserAction } = await import("../actions");
+const { inviteUserAction, inviteUserFormAction } = await import("../actions");
 
 const MARK = "invite-action-it";
 const ADMIN = `${MARK}-admin@example.test`;
@@ -129,5 +129,14 @@ describe("inviteUserAction (integration)", () => {
     await expect(inviteUserAction({ email: INVITEE, name: "Invitee", role: "member" })).rejects.toThrow(/can't invite staff/);
 
     expect(await db.select({ id: users.id }).from(users).where(eq(users.email, INVITEE))).toHaveLength(0);
+  });
+
+  it("returns the already-in-use message as a value so production builds don't redact it", async () => {
+    // An existing account (e.g. a customer) can't be invited as staff; the UI must see why.
+    await db.insert(users).values({ email: INVITEE, name: "Customer", role: "user", emailVerified: true });
+
+    await expect(inviteUserFormAction({ email: INVITEE, name: "Invitee", role: "admin" })).resolves.toEqual({
+      error: "That email is already in use",
+    });
   });
 });
