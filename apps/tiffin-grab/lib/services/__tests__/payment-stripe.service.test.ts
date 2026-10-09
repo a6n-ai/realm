@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -10,11 +10,12 @@ vi.mock("@/lib/payments/stripe", async (orig) => ({
 vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>()), fetchIntentStatus: (...a: unknown[]) => status(...a) }));
 
 const { db } = await import("@/db/client");
-const { ledgerEntries, orderActivities, payments } = await import("@/db/schema");
+const { ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const svc = await import("../payment-stripe");
 const { makeStripePayment, reset } = await import("./stripe-fixture");
 
 describe("settleStripePayment", () => {
+  afterAll(reset);
   beforeEach(async () => { await reset(); status.mockReset(); });
 
   it("settles once with one ledger row when Stripe says succeeded", async () => {
@@ -62,18 +63,65 @@ describe("settleStripePayment", () => {
   });
 });
 
+describe("settleStripePayment guards", () => {
+  beforeEach(async () => { await reset(); status.mockReset(); });
+  afterAll(reset);
+
+  it("never settles a succeeded PI bound to a different payment", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: "pi_x" });
+    status.mockResolvedValue({ piId: "pi_x", status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: "pay_other", created: 1 });
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook")).toBe("amount_mismatch");
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook")).toBe("amount_mismatch");
+    expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).toHaveLength(0);
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, pay.orderId));
+    expect(acts.filter((a) => a.type === "payment_failed")).toHaveLength(1);
+  });
+
+  it("a refunded payment replayed with a succeeded PI returns already_paid without a new ledger row", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: "pi_rr", paid: true });
+    await db.update(payments).set({ status: "refunded" }).where(eq(payments.id, pay.id));
+    status.mockResolvedValue({ piId: "pi_rr", status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook", "evt_z")).toBe("already_paid");
+    expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).toHaveLength(0);
+  });
+
+  it("does not settle on a cancelled order", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: "pi_cc" });
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, pay.orderId));
+    status.mockResolvedValue({ piId: "pi_cc", status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: pay.publicId, created: 1 });
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook")).toBe("order_cancelled");
+    expect(await svc.settleStripePayment({ paymentRef: pay.publicId }, "webhook")).toBe("order_cancelled");
+    expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).toHaveLength(0);
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, pay.orderId));
+    expect(acts.filter((a) => a.type === "payment_failed")).toHaveLength(1);
+  });
+});
+
 describe("recordStripeRefund", () => {
   beforeEach(reset);
+  afterAll(reset);
 
   it("writes delta debits for cumulative partial refunds, then full refund flips status", async () => {
     const pay = await makeStripePayment({ amount: "100.00", piId: "pi_r", paid: true });
     await svc.recordStripeRefund({ piId: "pi_r", eventId: "evt_r1", amountRefundedCents: 3000, fullyRefunded: false });
     await svc.recordStripeRefund({ piId: "pi_r", eventId: "evt_r1", amountRefundedCents: 3000, fullyRefunded: false });
+    expect((await db.select().from(payments).where(eq(payments.id, pay.id)))[0]!.status).toBe("paid");
     await svc.recordStripeRefund({ piId: "pi_r", eventId: "evt_r2", amountRefundedCents: 10000, fullyRefunded: true });
     const debits = (await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).filter((r) => r.type === "refund");
     expect(debits.map((d) => Number(d.amount))).toEqual([30, 70]);
     const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(row!.status).toBe("refunded");
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, pay.orderId));
+    expect(acts.filter((a) => a.type === "payment_refunded").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("cancelled order with unsettled payment: records activity, no throw, no debit", async () => {
+    const pay = await makeStripePayment({ amount: "50.00", piId: "pi_c" });
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, pay.orderId));
+    await svc.recordStripeRefund({ piId: "pi_c", eventId: "evt_c", amountRefundedCents: 5000, fullyRefunded: true });
+    expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).toHaveLength(0);
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, pay.orderId));
+    expect(acts.some((a) => a.type === "payment_refunded" && a.note?.includes("never settled"))).toBe(true);
   });
 
   it("handles a refund event that arrives before the paid event (out of order)", async () => {
