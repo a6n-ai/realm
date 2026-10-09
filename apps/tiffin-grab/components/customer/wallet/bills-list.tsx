@@ -110,6 +110,9 @@ function BillRow({
               {paymentLabel(p.status)}
             </Badge>
           ))}
+          {!cardAvailable && bill.payments.some(cardPayable) && (
+            <span className="text-muted-foreground text-xs">Card payments are paused right now. Please contact us.</span>
+          )}
           {payable && (
             <Link
               href={`/me/pay/${payable.publicId}`}

@@ -387,3 +387,40 @@ describe("payByCard prior-PI and surcharge-tax guards", () => {
     expect((o!.pricingSnapshot as { tax: unknown }).tax).toEqual({ source: "stripe", calculationId: "taxcalc_new", expiresAt: exp });
   });
 });
+
+describe("abandonCardAttempt and acceptSurcharge", () => {
+  beforeEach(async () => { await reset(); vi.resetAllMocks(); flags.taxable = false; status.mockResolvedValue(undefined); });
+  afterAll(cleanup);
+  const st = (pay: { publicId: string }, piId: string, s: string) =>
+    ({ piId, status: s, amountReceivedCents: 0, currency: "cad", paymentRef: pay.publicId, created: 1 });
+
+  it("clears card and fee when the PI is dead, never touching amount", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", surcharge: "4.80", piId: "pi_x" });
+    status.mockResolvedValue(st(pay, "pi_x", "requires_payment_method"));
+    await svc.abandonCardAttempt(pay.publicId, fx.OWNER);
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row).toMatchObject({ surchargeAmount: "0.00", cardBrand: null, cardLast4: null, amount: "200.00" });
+  });
+
+  it.each(["succeeded", "processing"])("is a no-op when the PI is %s", async (s) => {
+    const pay = await makeStripePayment({ amount: "200.00", surcharge: "4.80", piId: "pi_y" });
+    status.mockResolvedValue(st(pay, "pi_y", s));
+    await svc.abandonCardAttempt(pay.publicId, fx.OWNER);
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.surchargeAmount).toBe("4.80");
+  });
+
+  it("refuses a foreign user", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", surcharge: "4.80", piId: "pi_z" });
+    await expect(svc.abandonCardAttempt(pay.publicId, "usr_other")).rejects.toThrow();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it("acceptSurcharge never lowers the charge: a debit card is charged the base amount only", async () => {
+    const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ funding: "debit", brand: "visa", last4: "1111" });
+    create.mockResolvedValue({ status: "requires_action", piId: "pi_d", clientSecret: "cs" });
+    await svc.payByCard({ paymentPublicId: pay.publicId, userPublicId: fx.OWNER, confirmationTokenId: "ct", acceptSurcharge: true, returnUrl: "u" });
+    expect(create.mock.calls[0]![1]).toMatchObject({ amountCents: 20000 });
+  });
+});

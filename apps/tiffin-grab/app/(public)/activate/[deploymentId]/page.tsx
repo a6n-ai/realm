@@ -7,6 +7,7 @@ import { CheckCircle2Icon, ClockIcon, HourglassIcon } from "lucide-react";
 import { Card } from "@foundry/ui/card";
 import { StaticMap } from "@foundry/design-system";
 import { getSession } from "@/lib/auth/session";
+import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getClaimPaymentContext } from "@/lib/services/orders.service";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
@@ -44,6 +45,8 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
   const { currency } = await getAppSettings();
   const claimCtx =
     claimable && ownsOrder && pay ? await getClaimPaymentContext(pay.publicId) : null;
+
+  const cardAvailable = claimCtx?.methodId === "stripe" ? await stripeMethodAvailable() : false;
 
   const state = waitlisted
     ? {
@@ -83,7 +86,9 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
 
         {claimable && !waitlisted && (
           <div className="bg-muted/40 mt-6 rounded-2xl p-4 text-sm">
-            {claimCtx?.methodId === "stripe" ? (
+            {claimCtx?.methodId === "stripe" && !cardAvailable ? (
+              <p className="text-muted-foreground">Card payments are paused right now. Please contact us.</p>
+            ) : claimCtx?.methodId === "stripe" ? (
               <Link
                 className="bg-primary text-primary-foreground inline-flex h-11 items-center rounded-full px-6 text-sm font-semibold"
                 href={`/me/pay/${claimCtx.paymentPublicId}`}

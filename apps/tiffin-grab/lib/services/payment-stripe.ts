@@ -290,6 +290,24 @@ export async function refreshTaxIfExpired(pay: Payment): Promise<Payment> {
 const clearCard = (payId: bigint) =>
   db.update(payments).set({ surchargeAmount: "0", cardBrand: null, cardLast4: null }).where(eq(payments.id, payId));
 
+/**
+ * Drops the card/fee shown on Bills after an attempt the customer abandoned (e.g. failed 3DS).
+ * No-op unless the payment is still payable and its PI is neither succeeded nor processing. Never touches amount.
+ */
+export async function abandonCardAttempt(paymentPublicId: string, userPublicId: string): Promise<void> {
+  await loadOwned(paymentPublicId, userPublicId);
+  await withChargeLock<void>(paymentPublicId, undefined, async () => {
+    const { pay } = await loadOwned(paymentPublicId, userPublicId);
+    if (pay.providerRef) {
+      const rt = await stripeRuntime();
+      if (!rt) return;
+      const st = await fetchIntentStatus(rt.stripe, pay.providerRef);
+      if (st.status === "succeeded" || st.status === "processing") return;
+    }
+    await clearCard(pay.id);
+  });
+}
+
 export async function payByCard(i: {
   paymentPublicId: string; userPublicId: string; confirmationTokenId: string; acceptSurcharge: boolean; returnUrl: string;
 }): Promise<PayByCardResult> {

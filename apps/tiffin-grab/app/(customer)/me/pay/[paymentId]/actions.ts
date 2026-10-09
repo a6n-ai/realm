@@ -2,7 +2,10 @@
 
 import { getSession } from "@/lib/auth/session";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
-import { payByCard, settleStripePayment, type PayByCardResult } from "@/lib/services/payment-stripe";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { orders, payments, users } from "@/db/schema";
+import { abandonCardAttempt, payByCard, settleStripePayment, type PayByCardResult } from "@/lib/services/payment-stripe";
 import { appBaseUrl } from "@/lib/payments/stripe";
 
 export async function submitCardPayment(
@@ -23,10 +26,27 @@ export async function submitCardPayment(
   });
 }
 
-// No ownership check: it only triggers the idempotent settle and returns a boolean.
 export async function confirmReturn(paymentId: string): Promise<ActionResult<{ paid: boolean }>> {
   return runAction(async () => {
+    const session = await getSession();
+    if (!session?.user) return { paid: false };
+    const [owned] = await db
+      .select({ id: payments.id })
+      .from(payments)
+      .innerJoin(orders, eq(orders.id, payments.orderId))
+      .innerJoin(users, eq(users.id, orders.userId))
+      .where(and(eq(payments.publicId, paymentId), eq(users.publicId, session.user.id)))
+      .limit(1);
+    if (!owned) return { paid: false };
     const outcome = await settleStripePayment({ paymentRef: paymentId }, "return");
     return { paid: outcome === "paid" || outcome === "already_paid" };
+  });
+}
+
+export async function abandonCard(paymentId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const session = await getSession();
+    if (!session?.user) throw new Error("Not signed in");
+    await abandonCardAttempt(paymentId, session.user.id);
   });
 }

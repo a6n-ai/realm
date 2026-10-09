@@ -35,6 +35,7 @@ import {
   myTiffinCounts,
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
+import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getClaimPaymentContextForOrder } from "@/lib/services/orders.service";
 import { addDays, defaultWeek, mondayOf, parseWeekParam, type Agenda } from "@/lib/deliveries-view/week";
 
@@ -103,6 +104,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   ]);
   // Payment-review plans hide the calendar and show the claim form instead.
   const claimPayment = locked ? await getClaimPaymentContextForOrder(sub.publicId) : null;
+  const cardAvailable = claimPayment?.methodId === "stripe" ? await stripeMethodAvailable() : false;
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
   const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first });
   const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
@@ -143,6 +145,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
         customerName={userRow?.name ?? null}
         locked={locked}
         claimPayment={claimPayment}
+        cardAvailable={cardAvailable}
         currency={currency}
         initialTrip={initialTrip}
         initialAction={actionParam ?? null}

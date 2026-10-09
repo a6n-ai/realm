@@ -43,6 +43,7 @@ interface Props {
   locked?: boolean;
   /** Claim form for payment-review plans; null when settled or unavailable. */
   claimPayment?: ClaimPaymentContext | null;
+  cardAvailable?: boolean;
   currency?: string;
   initialTrip: string | null;
   initialAction?: string | null;
@@ -53,7 +54,7 @@ function PlanTab({ selected, className, ...rest }: React.ButtonHTMLAttributes<HT
 }
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
-export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, currency = "CAD", initialTrip, initialAction }: Props) {
+export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency = "CAD", initialTrip, initialAction }: Props) {
   const router = useRouter();
   const [navigating, startNav] = useTransition();
   const multi = subs.length > 1;
@@ -160,10 +161,16 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         <Card className="mb-4 p-5" data-testid="payment-claim">
           {claimPayment.methodId === "stripe" ? (
             <div className="space-y-3">
-              <p className="text-sm">Your plan is reserved. Pay by card to get it started.</p>
-              <Link href={`/me/pay/${claimPayment.paymentPublicId}`} className="inline-flex h-11 items-center rounded-full bg-[var(--primary)] px-6 text-sm font-semibold text-[var(--primary-foreground,#fff)]">
-                Pay by card
-              </Link>
+              {cardAvailable ? (
+                <>
+                  <p className="text-sm">Your plan is reserved. Pay by card to get it started.</p>
+                  <Link href={`/me/pay/${claimPayment.paymentPublicId}`} className="inline-flex h-11 items-center rounded-full bg-[var(--primary)] px-6 text-sm font-semibold text-[var(--primary-foreground,#fff)]">
+                    Pay by card
+                  </Link>
+                </>
+              ) : (
+                <Notice>Card payments are paused right now. Please contact us.</Notice>
+              )}
             </div>
           ) : (
             <ClaimPayment ctx={claimPayment} currency={currency} />

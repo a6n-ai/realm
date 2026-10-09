@@ -16,7 +16,7 @@ export default async function PayPage({
 }) {
   const { paymentId } = await params;
   const session = await getSession();
-  if (!session?.user) redirect(`/login?next=/me/pay/${paymentId}`);
+  if (!session?.user) redirect(`/login?callbackUrl=${encodeURIComponent(`/me/pay/${paymentId}`)}`);
 
   const [row] = await db
     .select({ pay: payments, order: orders })
@@ -35,6 +35,7 @@ export default async function PayPage({
     <PayForm
       paymentId={paymentId}
       status={row.pay.status}
+      method={row.pay.method}
       publishableKey={rt?.cfg.publishableKey ?? null}
       amountCents={Math.round(Number(row.pay.amount) * 100)}
       lines={[

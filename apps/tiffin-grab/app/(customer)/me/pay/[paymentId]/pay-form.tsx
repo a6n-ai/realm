@@ -6,7 +6,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { Button, Card, Notice, PageHeader } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
-import { submitCardPayment, confirmReturn } from "./actions";
+import { submitCardPayment, confirmReturn, abandonCard } from "./actions";
 
 type Line = { label: string; amount: number };
 
@@ -33,6 +33,7 @@ function Shell({ children }: { children: ReactNode }) {
 export function PayForm(p: {
   paymentId: string;
   status: string;
+  method: string;
   publishableKey: string | null;
   amountCents: number;
   lines: Line[];
@@ -41,10 +42,18 @@ export function PayForm(p: {
 }) {
   const stripePromise = useMemo(() => (p.publishableKey ? loadStripe(p.publishableKey) : null), [p.publishableKey]);
   if (p.status === "paid" || p.status === "simulated_paid") return <Paid />;
+  if (p.method !== "stripe" || (p.status !== "awaiting_payment" && p.status !== "rejected")) {
+    return (
+      <Shell>
+        <Notice>This payment can&apos;t be paid online.</Notice>
+        <Link href="/me/wallet?tab=bills" className="text-sm font-semibold underline">Open Bills</Link>
+      </Shell>
+    );
+  }
   if (!stripePromise) {
     return (
       <Shell>
-        <Notice>Card payments are unavailable right now. You can pay by e-Transfer from Bills.</Notice>
+        <Notice>Card payments are paused right now. Please contact us.</Notice>
         <Link href="/me/wallet?tab=bills" className="text-sm font-semibold underline">Open Bills</Link>
       </Shell>
     );
@@ -89,6 +98,7 @@ function Inner(p: { paymentId: string; lines: Line[]; total: number }) {
       }
       const r = await submitCardPayment(p.paymentId, tokenId, accept);
       if ("error" in r) {
+        setSurcharge(null);
         setError(r.error);
         return;
       }
@@ -97,12 +107,14 @@ function Inner(p: { paymentId: string; lines: Line[]; total: number }) {
       } else if (r.kind === "requires_action") {
         const { error: actErr } = await stripe.handleNextAction({ clientSecret: r.clientSecret });
         if (actErr) {
+          await abandonCard(p.paymentId).catch(() => undefined);
           setError(actErr.message ?? "Authentication failed");
           return;
         }
         const c = await confirmReturn(p.paymentId);
         setDone("error" in c || !c.paid ? "processing" : "paid");
       } else if (r.kind === "failed") {
+        setSurcharge(null);
         setError(r.message);
       } else {
         setDone(r.kind === "succeeded" ? "paid" : "processing");

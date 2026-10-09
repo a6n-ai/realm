@@ -532,7 +532,8 @@ export const TEMPLATES: EmailTemplate[] = [
             ["Delivery days", "{{payment.deliveryDays}}"],
           ]}
         />
-        <P>{"{{payment.receiptLines}}"}</P>
+        {/* Empty for non-card payments: a margin-free, content-free paragraph takes no space. */}
+        <Text style={{ margin: 0, fontSize: "13px", lineHeight: "20px", color: C.muted }}>{"{{payment.receiptLines}}"}</Text>
         <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
       </Layout>
     ),
