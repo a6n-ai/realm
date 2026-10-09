@@ -427,7 +427,7 @@ export function Checkout({
         setStep(1);
         return;
       }
-      router.push(`/activate/${res.deploymentId}`, { transitionTypes: ["nav-forward"] });
+      router.push(paymentMethodId === "stripe" ? `/me/pay/${res.paymentPublicId}` : `/activate/${res.deploymentId}`, { transitionTypes: ["nav-forward"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {

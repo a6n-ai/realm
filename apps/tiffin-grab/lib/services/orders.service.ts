@@ -110,7 +110,7 @@ export async function recordPayment(
     taxSource?: string | null;
     taxCalculationId?: string | null;
   },
-): Promise<bigint> {
+): Promise<{ id: bigint; publicId: string }> {
   const [pay] = await tx
     .insert(payments)
     .values({
@@ -123,7 +123,7 @@ export async function recordPayment(
       taxSource: input.taxSource ?? null,
       taxCalculationId: input.taxCalculationId ?? null,
     })
-    .returning({ id: payments.id });
+    .returning({ id: payments.id, publicId: payments.publicId });
   if (input.creditLedger !== false) {
     await ledgerService.record(tx, {
       userId: input.userId,
@@ -134,7 +134,7 @@ export async function recordPayment(
       amount: input.amount,
     });
   }
-  return pay.id;
+  return pay;
 }
 
 export interface CreateOrderInput {
@@ -235,7 +235,7 @@ export async function resolveUserId(
 export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
-): Promise<{ deploymentId: string; publicId: string }> {
+): Promise<{ deploymentId: string; publicId: string; paymentPublicId: string }> {
   const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, basePriceOverride } = opts;
   const snapshot = await loadCatalogSnapshot(orgId);
 
@@ -669,7 +669,7 @@ export async function createOrder(
     // payment is confirmed; unpaid days can be moved ahead later.
     if (order.status === "active") await materializeDeliveries(tx, order);
 
-    await recordPayment(tx, {
+    const recorded = await recordPayment(tx, {
       orderId: order.id,
       userId,
       amount: pricing.total,
@@ -729,6 +729,7 @@ export async function createOrder(
     return {
       deploymentId,
       publicId: order.publicId,
+      paymentPublicId: recorded.publicId,
       awardUserId:
         !deferSettlement && status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "simulated_paid" })
           ? userId
@@ -746,7 +747,7 @@ export async function createOrder(
     log.error({ err: e }, "wallet award on activation failed");
   }
 
-  return { deploymentId: txResult.deploymentId, publicId: txResult.publicId };
+  return { deploymentId: txResult.deploymentId, publicId: txResult.publicId, paymentPublicId: txResult.paymentPublicId };
 }
 
 const METHOD_LABEL: Record<(typeof payments.$inferSelect)["method"], string> = {
@@ -756,6 +757,22 @@ const METHOD_LABEL: Record<(typeof payments.$inferSelect)["method"], string> = {
   simulated: "Simulated",
   stripe: "Card (Stripe)",
 };
+
+/** Receipt extras for payment_approved: card fee, taxes (Stripe Tax lines included) and the card used. */
+function receiptVars(
+  pay: Pick<typeof payments.$inferSelect, "method" | "cardBrand" | "cardLast4" | "surchargeAmount">,
+  taxLines: { name: string; ratePct: number; amount: number }[],
+) {
+  const fee = Number(pay.surchargeAmount);
+  const parts = [
+    ...taxLines.map((t) => `${t.name} ${t.ratePct}%: ${formatMoney(t.amount)}`),
+    fee > 0 ? `Credit card fee: ${formatMoney(fee)}` : null,
+  ].filter(Boolean);
+  return {
+    receiptLines: parts.join(" · "),
+    paidWith: pay.method === "stripe" && pay.cardLast4 ? `${pay.cardBrand ?? "Card"} ••${pay.cardLast4}` : METHOD_LABEL[pay.method],
+  };
+}
 
 /** Shared `{{payment.*}}` template variables for the payment_* customer emails. */
 export function paymentTemplateVars(
@@ -895,6 +912,7 @@ export async function verifyPayment(
       data: {
         payment: {
           ...paymentTemplateVars(pay, order.deploymentId, user?.name),
+          ...receiptVars(pay, snap.taxLines ?? []),
           startDate: order.startDate,
           durationWeeks: order.durationWeeks,
           deliveryDays: (freq?.weekdays ?? []).join(", "),

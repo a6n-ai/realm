@@ -83,7 +83,14 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
 
         {claimable && !waitlisted && (
           <div className="bg-muted/40 mt-6 rounded-2xl p-4 text-sm">
-            {claimCtx ? (
+            {claimCtx?.methodId === "stripe" ? (
+              <Link
+                className="bg-primary text-primary-foreground inline-flex h-11 items-center rounded-full px-6 text-sm font-semibold"
+                href={`/me/pay/${claimCtx.paymentPublicId}`}
+              >
+                Pay by card
+              </Link>
+            ) : claimCtx ? (
               <ClaimPayment ctx={claimCtx} currency={currency} />
             ) : (
               <p className="text-muted-foreground">

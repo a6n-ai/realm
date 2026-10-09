@@ -1,6 +1,9 @@
 import { Suspense } from "react";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { currentUserId } from "@/lib/services/session-service";
+import { stripeMethodAvailable } from "@/lib/payments/stripe";
+import { settleStripePayment } from "@/lib/services/payment-stripe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myBillsPage, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
 import { couponsService } from "@/lib/services/coupons.service";
@@ -93,6 +96,16 @@ async function BillsPanel({ userId, searchParams }: { userId: bigint; searchPara
   const { currency } = await getAppSettings();
   const { page } = parseFilterState([], await searchParams);
   const bills = await myBillsPage(userId, page);
+  const cardAvailable = await stripeMethodAvailable();
+  // Lazy status check on view (no cron): settle card payments the webhook may have missed.
+  const stale = bills.items
+    .flatMap((b) => b.payments)
+    .filter((p) => p.method === "stripe" && p.status === "awaiting_payment" && p.providerRef && (p.providerCheckedAt ?? 0) < Date.now() - 120_000);
+  if (stale.length) {
+    after(async () => {
+      for (const p of stale) await settleStripePayment({ paymentRef: p.publicId }, "view").catch(() => {});
+    });
+  }
   return (
     <BillsList
       items={bills.items}
@@ -100,6 +113,7 @@ async function BillsPanel({ userId, searchParams }: { userId: bigint; searchPara
       size={bills.size}
       total={bills.total}
       currency={currency}
+      cardAvailable={cardAvailable}
     />
   );
 }

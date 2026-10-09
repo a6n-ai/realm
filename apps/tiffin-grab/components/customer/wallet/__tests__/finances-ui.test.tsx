@@ -89,7 +89,8 @@ describe("BillsList empty state", () => {
         status: "active",
         total: "120.00",
         createdAt: Date.UTC(2026, 6, 10),
-        payments: [{ publicId: "pay_1", status: "simulated_paid", method: "simulated", amount: "120.00", note: null }],
+        taxLines: [],
+        payments: [{ publicId: "pay_1", status: "simulated_paid", method: "simulated", amount: "120.00", note: null, providerRef: null, providerCheckedAt: null, cardBrand: null, cardLast4: null, surchargeAmount: "0.00" }],
       },
       {
         publicId: "ord_2",
@@ -98,7 +99,8 @@ describe("BillsList empty state", () => {
         status: "completed",
         total: "200.00",
         createdAt: Date.UTC(2026, 5, 5),
-        payments: [{ publicId: "pay_2", status: "pending", method: "cash", amount: "200.00", note: null }],
+        taxLines: [],
+        payments: [{ publicId: "pay_2", status: "pending", method: "cash", amount: "200.00", note: null, providerRef: null, providerCheckedAt: null, cardBrand: null, cardLast4: null, surchargeAmount: "0.00" }],
       },
     ];
     render(<BillsList items={items} page={0} size={25} total={2} currency="CAD" />);

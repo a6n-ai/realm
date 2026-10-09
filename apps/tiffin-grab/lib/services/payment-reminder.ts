@@ -20,6 +20,9 @@ export function reminderInstructions(
   method: MethodConfig | null,
 ): { instructions: string; action: string } {
   const amount = formatMoney(Number(pay.amount));
+  if (pay.method === "stripe") {
+    return { instructions: `Pay ${amount} for order ${orderRef} securely by card.`, action: "Pay by card" };
+  }
   if (pay.method === "etransfer") {
     const to = method?.payeeHandle ? ` to ${method.payeeHandle}` : "";
     return {
@@ -61,7 +64,7 @@ export async function sendPaymentReminder(
   await sendPaymentReminderLink(row.email, {
     ...paymentTemplateVars(row.pay, row.orderRef, row.name),
     ...reminderInstructions(row.pay, row.orderRef, method ?? null),
-  });
+  }, row.pay.method === "stripe" ? `/me/pay/${row.pay.publicId}` : undefined);
 
   await db.insert(orderActivities).values({
     orderId: row.orderId,

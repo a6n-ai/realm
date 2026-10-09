@@ -18,6 +18,7 @@ import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
 import { provisionCustomerByEmail } from "@/lib/services/customers.service";
 import { getSession } from "@/lib/auth/session";
+import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 
@@ -63,13 +64,15 @@ export interface RepriceResult {
   coinCap: { maxCoins: number; maxPct: number | null; message: string | null } | null;
 }
 
-function checkoutRails(cfg: Awaited<ReturnType<typeof getPaymentConfig>>) {
-  return enabledMethods(cfg).filter((m) => m.id === "cash" || m.id === "etransfer");
+// Card is offered only while Stripe is actually usable, so a half-configured account never strands a customer.
+async function checkoutRails(cfg: Awaited<ReturnType<typeof getPaymentConfig>>) {
+  const card = await stripeMethodAvailable();
+  return enabledMethods(cfg).filter((m) => m.id === "cash" || m.id === "etransfer" || (m.id === "stripe" && card));
 }
 
 export async function listCheckoutPaymentMethods(): Promise<CheckoutPaymentMethod[]> {
   const cfg = await getPaymentConfig();
-  return checkoutRails(cfg).map((m) => ({
+  return (await checkoutRails(cfg)).map((m) => ({
     id: m.id,
     label: m.label,
     instructions: m.instructions,
@@ -121,7 +124,7 @@ async function quote(
   const postCatalog = postCatalogSubtotal(base.subtotal, base.adjustments);
 
   const paymentCfg = await getPaymentConfig();
-  const paymentMethods = checkoutRails(paymentCfg).map((m) => ({
+  const paymentMethods = (await checkoutRails(paymentCfg)).map((m) => ({
     id: m.id,
     label: m.label,
     instructions: m.instructions,

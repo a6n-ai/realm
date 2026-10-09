@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { Button, Card, Notice, Toast } from "@/components/customer/kit";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 import { OrderStatusBadge } from "@/components/ds";
@@ -157,7 +158,16 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
 
       {locked && claimPayment && (
         <Card className="mb-4 p-5" data-testid="payment-claim">
-          <ClaimPayment ctx={claimPayment} currency={currency} />
+          {claimPayment.methodId === "stripe" ? (
+            <div className="space-y-3">
+              <p className="text-sm">Your plan is reserved. Pay by card to get it started.</p>
+              <Link href={`/me/pay/${claimPayment.paymentPublicId}`} className="inline-flex h-11 items-center rounded-full bg-[var(--primary)] px-6 text-sm font-semibold text-[var(--primary-foreground,#fff)]">
+                Pay by card
+              </Link>
+            </div>
+          ) : (
+            <ClaimPayment ctx={claimPayment} currency={currency} />
+          )}
         </Card>
       )}
 

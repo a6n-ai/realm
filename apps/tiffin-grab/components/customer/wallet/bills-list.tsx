@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@/components/customer/kit";
@@ -57,21 +58,41 @@ function paymentLabel(status: CustomerBill["payments"][number]["status"]): strin
   }
 }
 
-function isClaimable(status: CustomerBill["payments"][number]["status"]): boolean {
-  return status === "awaiting_payment" || status === "rejected" || status === "pending_verification";
+function isClaimable(p: CustomerBill["payments"][number]): boolean {
+  if (p.method === "stripe") return false;
+  return p.status === "awaiting_payment" || p.status === "rejected" || p.status === "pending_verification";
+}
+
+function cardPayable(p: CustomerBill["payments"][number]): boolean {
+  return p.method === "stripe" && (p.status === "awaiting_payment" || p.status === "rejected");
+}
+
+function cardDetail(bill: CustomerBill, p: CustomerBill["payments"][number]): string | null {
+  if (p.method !== "stripe") return null;
+  const fee = Number(p.surchargeAmount);
+  const parts = [
+    p.cardLast4 ? `${p.cardBrand ?? "Card"} ••${p.cardLast4}` : null,
+    fee > 0 ? `Credit card fee $${fee.toFixed(2)}` : null,
+    ...bill.taxLines.map((t) => `${t.name} ${t.ratePct}% $${t.amount.toFixed(2)}`),
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
 }
 
 function BillRow({
   bill,
   currency,
   onClaim,
+  cardAvailable,
 }: {
   bill: CustomerBill;
   currency: string;
+  cardAvailable: boolean;
   onClaim: (paymentPublicId: string) => void;
 }) {
   const tz = useTimezone();
-  const claimable = bill.payments.find((p) => isClaimable(p.status));
+  const claimable = bill.payments.find(isClaimable);
+  const payable = cardAvailable ? bill.payments.find(cardPayable) : undefined;
+  const details = bill.payments.map((p) => cardDetail(bill, p)).filter(Boolean);
 
   return (
     <Reveal className="flex items-start justify-between gap-3 py-3">
@@ -89,6 +110,14 @@ function BillRow({
               {paymentLabel(p.status)}
             </Badge>
           ))}
+          {payable && (
+            <Link
+              href={`/me/pay/${payable.publicId}`}
+              className="border-input hover:bg-muted inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium"
+            >
+              Pay by card
+            </Link>
+          )}
           {claimable && (
             <Button
               type="button"
@@ -101,6 +130,9 @@ function BillRow({
             </Button>
           )}
         </div>
+        {details.map((d) => (
+          <p key={d} className="text-muted-foreground text-xs">{d}</p>
+        ))}
       </div>
       <span className="shrink-0 text-sm font-semibold tabular-nums">
         {formatDollars(bill.total, currency)}
@@ -115,12 +147,14 @@ export function BillsList({
   size,
   total,
   currency,
+  cardAvailable = false,
 }: {
   items: CustomerBill[];
   page: number;
   size: number;
   total: number;
   currency: string;
+  cardAvailable?: boolean;
 }) {
   const tz = useTimezone();
   const [claimCtx, setClaimCtx] = useState<ClaimPaymentContext | null>(null);
@@ -172,7 +206,7 @@ export function BillsList({
           </h2>
           <Reveal.Group className="divide-y">
             {g.bills.map((bill) => (
-              <BillRow key={bill.publicId} bill={bill} currency={currency} onClaim={openClaim} />
+              <BillRow key={bill.publicId} bill={bill} currency={currency} cardAvailable={cardAvailable} onClaim={openClaim} />
             ))}
           </Reveal.Group>
         </section>

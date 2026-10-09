@@ -43,6 +43,6 @@ export async function createCustomerInviteUrl(email: string): Promise<string> {
 }
 
 /** Unpaid manual payment: sign in straight to Finances → Bills to upload the screenshot. */
-export function sendPaymentReminderLink(email: string, payment: PaymentReminderVars) {
-  return issue(email, "/me/wallet?tab=bills", "/login", { kind: "payment_reminder", payment });
+export function sendPaymentReminderLink(email: string, payment: PaymentReminderVars, callbackURL = "/me/wallet?tab=bills") {
+  return issue(email, callbackURL, "/login", { kind: "payment_reminder", payment });
 }

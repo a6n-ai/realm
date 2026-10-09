@@ -68,10 +68,13 @@ export async function stripeMethodAvailable(): Promise<boolean> {
   return !!method?.enabled && (await stripeRuntime()) != null;
 }
 
-// Same BETTER_AUTH_URL base as lib/clover/redirect-uri.ts: the request host is unreliable behind a proxy.
+// BETTER_AUTH_URL base, as lib/clover/redirect-uri.ts: the request host is unreliable behind a proxy.
+export function appBaseUrl(): string {
+  return (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "").trim().replace(/\/$/, "");
+}
+
 export async function webhookUrl(): Promise<string> {
-  const base = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "").trim().replace(/\/$/, "");
-  return `${base}/api/webhooks/stripe`;
+  return `${appBaseUrl()}/api/webhooks/stripe`;
 }
 
 export const toCents = (d: number | string): number => Math.round(Number(d) * 100);

@@ -11,6 +11,11 @@ export type BillPaymentSummary = {
   method: (typeof payments.method.enumValues)[number];
   amount: string;
   note: string | null;
+  providerRef: string | null;
+  providerCheckedAt: number | null;
+  cardBrand: string | null;
+  cardLast4: string | null;
+  surchargeAmount: string;
 };
 
 export type CustomerBill = {
@@ -20,6 +25,7 @@ export type CustomerBill = {
   status: (typeof orders.status.enumValues)[number];
   total: string;
   createdAt: number;
+  taxLines: { name: string; ratePct: number; amount: number }[];
   payments: BillPaymentSummary[];
 };
 
@@ -46,6 +52,7 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
         total: orders.total,
         createdAt: orders.createdAt,
         id: orders.id,
+        snapshot: orders.pricingSnapshot,
       })
       .from(orders)
       .innerJoin(plans, eq(orders.planId, plans.id))
@@ -72,6 +79,11 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
       method: payments.method,
       amount: payments.amount,
       note: payments.note,
+      providerRef: payments.providerRef,
+      providerCheckedAt: payments.providerCheckedAt,
+      cardBrand: payments.cardBrand,
+      cardLast4: payments.cardLast4,
+      surchargeAmount: payments.surchargeAmount,
     })
     .from(payments)
     .where(inArray(payments.orderId, orderIds));
@@ -85,13 +97,19 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
       method: p.method,
       amount: p.amount,
       note: p.note,
+      providerRef: p.providerRef,
+      providerCheckedAt: p.providerCheckedAt,
+      cardBrand: p.cardBrand,
+      cardLast4: p.cardLast4,
+      surchargeAmount: p.surchargeAmount,
     });
     paysByOrder.set(p.orderId, list);
   }
 
   return {
-    items: rows.map(({ id, ...r }) => ({
+    items: rows.map(({ id, snapshot, ...r }) => ({
       ...r,
+      taxLines: (snapshot as { taxLines?: CustomerBill["taxLines"] } | null)?.taxLines ?? [],
       payments: paysByOrder.get(id) ?? [],
     })),
     page: page.page,

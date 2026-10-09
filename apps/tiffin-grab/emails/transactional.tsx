@@ -526,11 +526,13 @@ export const TEMPLATES: EmailTemplate[] = [
         <Details
           rows={[
             ["Order", "{{payment.orderCode}}"],
+            ["Paid with", "{{payment.paidWith}}"],
             ["Starts", "{{payment.startDate}}"],
             ["Duration", "{{payment.durationWeeks}} weeks"],
             ["Delivery days", "{{payment.deliveryDays}}"],
           ]}
         />
+        <P>{"{{payment.receiptLines}}"}</P>
         <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
       </Layout>
     ),

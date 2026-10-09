@@ -24,7 +24,7 @@ export type ConfirmInput = CreateOrderInput & {
 // A served checkout returns the created order; an out-of-zone one creates no
 // order and takes no payment — it's captured as a waitlist inquiry instead.
 export type ConfirmResult =
-  | { waitlisted: false; deploymentId: string; publicId: string }
+  | { waitlisted: false; deploymentId: string; publicId: string; paymentPublicId: string }
   | { waitlisted: true };
 
 const log = createLogger("checkout");
