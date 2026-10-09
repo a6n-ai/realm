@@ -216,7 +216,11 @@ export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
 export async function ensurePaymentCatalog(): Promise<PaymentConfig> {
   const cfg = await getPaymentConfig();
   const hadManual = cfg.methods.some((m) => m.id === "manual");
-  const merged = mergePaymentCatalog(cfg);
+  const integrations = await getIntegrationsConfig();
+  const installed = Object.entries(integrations)
+    .filter(([, v]) => (v as { installed?: boolean } | null)?.installed)
+    .map(([k]) => k);
+  const merged = mergePaymentCatalog(cfg, installed);
   const methods = merged.methods
     .filter((m) => m.id !== "manual")
     .map((m) => (m.id === "cash" && hadManual ? { ...m, enabled: true } : m));

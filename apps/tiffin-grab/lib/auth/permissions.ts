@@ -10,7 +10,7 @@ export const statement = {
   order: ["read", "write", "cancel"],
   subscription: ["read", "write", "pause"],
   menu: ["read", "write", "publish"],
-  finance: ["read"],
+  finance: ["read", "refund", "charge"],
 } as const;
 
 export const ac = createAccessControl(statement);
@@ -37,7 +37,7 @@ export const roles = {
     order: ["read", "write", "cancel"],
     subscription: ["read", "write", "pause"],
     menu: ["read", "write", "publish"],
-    finance: ["read"],
+    finance: ["read", "refund", "charge"],
   }),
   member: ac.newRole({
     order: ["read", "write"],

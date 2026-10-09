@@ -1,0 +1,78 @@
+import "server-only";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import type Stripe from "stripe";
+import { createLogger } from "@foundry/commons/logger";
+import { findMethod } from "@foundry/payments";
+import {
+  getStripe,
+  StripeNotConfiguredError,
+  type ConnectDeps,
+  type StripeCustomerStore,
+  type StripePluginConfig,
+} from "@foundry/payments/stripe";
+import { db } from "@/db/client";
+import { payments, users } from "@/db/schema";
+import {
+  getIntegrationsConfig,
+  getPaymentConfig,
+  setIntegrationsConfig,
+} from "@/lib/services/app-settings.service";
+
+const log = createLogger("payments.stripe");
+
+export const stripeDeps: ConnectDeps = {
+  store: { get: getIntegrationsConfig, set: setIntegrationsConfig },
+  masterKey: () => process.env.INTEGRATIONS_ENCRYPTION_KEY,
+  hasOpenPayments: async () => {
+    const [row] = await db
+      .select({ id: payments.id })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.method, "stripe"),
+          inArray(payments.status, ["awaiting_payment", "rejected"]),
+          isNotNull(payments.providerRef),
+        ),
+      )
+      .limit(1);
+    return !!row;
+  },
+};
+
+export const customerStore: StripeCustomerStore = {
+  async get(userRef) {
+    const [u] = await db
+      .select({ id: users.stripeCustomerId })
+      .from(users)
+      .where(eq(users.publicId, userRef))
+      .limit(1);
+    return u?.id ?? null;
+  },
+  async set(userRef, customerId) {
+    await db.update(users).set({ stripeCustomerId: customerId }).where(eq(users.publicId, userRef));
+  },
+};
+
+/** Null when Stripe is not usable right now. Callers hide the card option instead of failing. */
+export async function stripeRuntime(): Promise<{ stripe: Stripe; cfg: StripePluginConfig } | null> {
+  try {
+    return await getStripe(stripeDeps);
+  } catch (e) {
+    if (!(e instanceof StripeNotConfiguredError)) log.error({ err: e }, "stripe runtime unavailable");
+    return null;
+  }
+}
+
+export async function stripeMethodAvailable(): Promise<boolean> {
+  const method = findMethod(await getPaymentConfig(), "stripe");
+  return !!method?.enabled && (await stripeRuntime()) != null;
+}
+
+// Same BETTER_AUTH_URL base as lib/clover/redirect-uri.ts: the request host is unreliable behind a proxy.
+export async function webhookUrl(): Promise<string> {
+  const base = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "").trim().replace(/\/$/, "");
+  return `${base}/api/webhooks/stripe`;
+}
+
+export const toCents = (d: number | string): number => Math.round(Number(d) * 100);
+export const fromCents = (c: number): string => (c / 100).toFixed(2);

@@ -1,7 +1,9 @@
 import type { PluginRegistry } from "@foundry/crm/server";
 import { cloverPlugin } from "@foundry/clover/server";
 import { paymentsPlugin } from "@foundry/payments/server";
+import { stripePlugin } from "@foundry/payments/stripe";
 import { googleReviewsPlugin } from "@foundry/google-reviews/server";
+import { stripeDeps } from "@/lib/payments/stripe";
 import { optimoRoutePlugin } from "./services/optimoroute/plugin.server";
 import {
   getIntegrationsConfig,
@@ -21,6 +23,13 @@ export const PLUGINS: PluginRegistry = [
     ...payments,
     async install() {
       await payments.install();
+      await ensurePaymentCatalog();
+    },
+  },
+  {
+    ...stripePlugin(stripeDeps),
+    async install() {
+      await stripePlugin(stripeDeps).install();
       await ensurePaymentCatalog();
     },
   },
