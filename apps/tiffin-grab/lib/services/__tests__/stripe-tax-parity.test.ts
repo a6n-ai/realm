@@ -3,7 +3,8 @@ import { ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
+let session: unknown = { user: { id: "usr_signed_in" } };
+vi.mock("@/lib/auth/session", () => ({ getSession: async () => session }));
 
 let runtime: unknown = null;
 vi.mock("@/lib/payments/stripe", async (orig) => ({ ...(await orig<object>()), stripeRuntime: async () => runtime }));
@@ -57,7 +58,7 @@ async function input() {
 }
 
 describe("Stripe Tax: preview matches charge", () => {
-  beforeEach(async () => { calc.mockClear(); runtime = null; await reset(); });
+  beforeEach(async () => { calc.mockClear(); runtime = null; session = { user: { id: "usr_signed_in" } }; await reset(); });
   afterAll(reset);
 
   it("with Stripe not connected the payment row records the fallback source", async () => {
@@ -88,5 +89,15 @@ describe("Stripe Tax: preview matches charge", () => {
     const i = await input();
     await reprice(i.selections, undefined, i.planKey, null, undefined, i.contact.postalCode);
     expect(calc).not.toHaveBeenCalled();
+  });
+
+  it("an anonymous reprice with a full address never calls Stripe and uses the fallback estimate", async () => {
+    runtime = { stripe: {}, cfg: { tax: { enabled: true, taxCode: "txcd_food", surchargeTaxable: false } } };
+    session = null;
+    const i = await input();
+    const r = await reprice(i.selections, undefined, i.planKey, null, undefined, i.contact.postalCode, i.contact.addressLine, i.contact.city);
+    if ("error" in r) throw new Error(r.error);
+    expect(calc).not.toHaveBeenCalled();
+    expect(r.pricing.taxTotal).toBeGreaterThan(0);
   });
 });

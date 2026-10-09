@@ -197,7 +197,9 @@ async function quote(
     selections: pricedSelections,
     catalog,
     adjustments: lines,
-    address: { line1: (typeof addressLine === "string" && addressLine.trim()) || null, city: (typeof city === "string" && city.trim()) || null, postalCode: postalCode?.trim() || null },
+    // Stripe Tax is metered and this action is public: anonymous previews omit line1 so they stay on the
+    // province-table estimate (stripeTaxFor skips Stripe without a line1). createOrder requires sign-in.
+    address: { line1: (session?.user?.id && typeof addressLine === "string" && addressLine.trim()) || null, city: (typeof city === "string" && city.trim()) || null, postalCode: postalCode?.trim() || null },
     methodTaxes,
     reference: "preview",
     cache: true,
