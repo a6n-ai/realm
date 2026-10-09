@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import type { AnalyticsFilterOptions } from "@/lib/analytics/filter-options";
+import type { AnalyticsFilterOptions } from "@/lib/services/analytics/shared-filters";
 
 /**
  * Shared filter bar for every analytics subsection. Writes `from`/`to` (epoch),
