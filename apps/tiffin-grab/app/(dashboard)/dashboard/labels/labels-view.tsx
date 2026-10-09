@@ -12,6 +12,7 @@ import {
   useSortNav,
 } from "@/components/ds";
 import { sortRows } from "@/lib/list/sort";
+import { labelLineTexts } from "@/lib/menu/packing-requirement";
 import type { DeliveryLabel, KitchenCount } from "@/lib/services/daily-labels.service";
 import { useTableParams } from "./use-table-params";
 import { groupKitchenCounts } from "./kitchen-groups";
@@ -205,10 +206,9 @@ export function LabelList({ labels }: { labels: DeliveryLabel[] }) {
                 </Badge>
               </div>
               <ul className="space-y-0.5 text-xs">
-                {label.lines.map((line, j) => (
-                  <li key={`${line.category}-${j}`} className="flex items-baseline gap-1">
-                    <span>{line.dish}{line.addon ? " (add-on)" : ""}</span>
-                    {line.portion ? <span className="text-muted-foreground">({line.portion})</span> : null}
+                {labelLineTexts(label.lines).map((line, j) => (
+                  <li key={j} className="flex items-baseline gap-1">
+                    <span>{line.text}</span>
                     {/* Defaulted = the customer never picked, so the menu default was packed. */}
                     {line.defaulted ? <span className="text-muted-foreground">·default</span> : null}
                   </li>

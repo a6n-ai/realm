@@ -29,6 +29,16 @@ describe("assembleLedger", () => {
     expect(l.rows.every((r) => r.group === "on_route")).toBe(true);
   });
 
+  it("carries a weekend trip's coverage onto its row", () => {
+    const l = assembleLedger({
+      date: "2026-10-09",
+      ours: [{ ...our("d1", null), tiffinUnits: 2, coverage: "Covers Fri + Sat · 2 tiffins" }, our("d2", null)],
+      paymentHeld: [],
+      optimo: [],
+    });
+    expect(l.rows.map((r) => r.coverage)).toEqual(["Covers Fri + Sat · 2 tiffins", null]);
+  });
+
   it("phone fallback only when exactly one unclaimed stop has that phone", () => {
     const one = assembleLedger({ date: "x", ours: [our("d1", "416-555-0001")], paymentHeld: [], optimo: [opt("o1", "Legacy 43", "4165550001")] });
     expect(one.rows.find((r) => r.deliveryPublicId === "d1")?.reason).toContain("(matched by phone)");

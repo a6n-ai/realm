@@ -1,5 +1,6 @@
 import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { DailyLabelSheet, DeliveryLabel } from "@/lib/services/daily-labels.service";
+import { labelLineTexts } from "@/lib/menu/packing-requirement";
 
 // 2 x 5 on A4. Deliberately not a named Avery template: nobody has stated the stock yet, so
 // this is a readable default that prints on plain paper and can be re-gridded once the
@@ -11,7 +12,8 @@ const PER_PAGE = COLS * ROWS;
 
 const styles = StyleSheet.create({
   page: { padding: 18, fontSize: 8 },
-  grid: { flexDirection: "row", flexWrap: "wrap" },
+  // Fills the page so a cell's 20% height is a fifth of the page even on a short last page.
+  grid: { flex: 1, flexDirection: "row", flexWrap: "wrap", alignContent: "flex-start" },
   cell: {
     width: `${100 / COLS}%`,
     height: `${100 / ROWS}%`,
@@ -26,7 +28,6 @@ const styles = StyleSheet.create({
   meta: { fontSize: 7, color: "#555", marginBottom: 4 },
   forTag: { fontSize: 11, fontWeight: "bold", marginBottom: 3 },
   line: { marginBottom: 1 },
-  portion: { color: "#333" },
   note: { marginTop: 4, fontSize: 7, color: "#000" },
   footer: { marginTop: "auto", fontSize: 6, color: "#777" },
 });
@@ -54,10 +55,9 @@ function LabelCell({ label, date }: { label: DeliveryLabel; date: string }) {
         {label.persons > 1 ? ` · person ${label.personIndex}/${label.persons}` : ""}
       </Text>
       {label.forLabel ? <Text style={styles.forTag}>{label.forLabel}</Text> : null}
-      {label.lines.map((line, i) => (
-        <Text key={`${line.category}-${i}`} style={styles.line}>
-          • {line.dish}{line.addon ? " (add-on)" : ""}
-          {line.portion ? <Text style={styles.portion}> ({line.portion})</Text> : null}
+      {labelLineTexts(label.lines).map((line, i) => (
+        <Text key={i} style={styles.line}>
+          • {line.text}
         </Text>
       ))}
       {label.deliveryNotes ? <Text style={styles.note}>Note: {label.deliveryNotes}</Text> : null}

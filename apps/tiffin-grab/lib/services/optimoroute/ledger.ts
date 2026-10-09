@@ -3,10 +3,12 @@ import { db } from "@/db/client";
 import { deliveries, orderActivities, orders } from "@/db/schema";
 import { labelDeliveryStatus, loadDayDeliveries, STATUS_DAY_STATUSES } from "@/lib/services/daily-labels.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
+import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { getCompletionDetails, searchOrdersForDate } from "./client";
 import { movedSourceIds, tiffinsMoved } from "./completions";
 import { listPaymentHeld, type PaymentHeldRow } from "./drivers";
 import { normalisePhone } from "./push";
+import { tripDetail } from "./trip-notes";
 import { reconcileReason, type LedgerAction, type OptimoSide, type OurSide, type ReasonGroup } from "./reconcile-reason";
 
 export type LedgerOurRow = {
@@ -17,6 +19,8 @@ export type LedgerOurRow = {
   tiffinUnits: number;
   ourStatus: string;
   side: OurSide;
+  /** "Covers Fri + Sat · 2 tiffins" — the same line the OptimoRoute stop note carries. */
+  coverage?: string | null;
 };
 
 export type LedgerOptimoRow = {
@@ -44,6 +48,7 @@ export type LedgerRow = {
   reason: string;
   action?: LedgerAction;
   onLabels: boolean;
+  coverage?: string | null;
 };
 
 export type DayLedger = {
@@ -192,6 +197,7 @@ export function assembleLedger(input: {
       reason: reason.text,
       ...(reason.action ? { action: reason.action } : {}),
       onLabels: o.side.status === "scheduled",
+      coverage: o.coverage ?? null,
     };
   }
 }
@@ -202,7 +208,7 @@ export async function buildDayLedger(date: string): Promise<DayLedger> {
   const ids = dayRows.map((r) => r.delivery.id);
   const mergedIds = dayRows.map((r) => r.delivery.mergedIntoDeliveryId).filter((v): v is bigint => v != null);
 
-  const [movedIds, merged, pushed, paymentHeld, optimoOrders] = await Promise.all([
+  const [movedIds, merged, pushed, paymentHeld, optimoOrders, extrasById] = await Promise.all([
     movedSourceIds(ids),
     mergedIds.length
       ? db.select({ id: deliveries.id, date: deliveries.deliveryDate }).from(deliveries).where(inArray(deliveries.id, mergedIds))
@@ -215,6 +221,7 @@ export async function buildDayLedger(date: string): Promise<DayLedger> {
       : Promise.resolve([]),
     listPaymentHeld(date),
     searchOrdersForDate(date),
+    loadExtraDates(db, ids),
   ]);
 
   const completions = await getCompletionDetails(optimoOrders.map((o) => o.id));
@@ -237,6 +244,7 @@ export async function buildDayLedger(date: string): Promise<DayLedger> {
       moved: tiffinsMoved(r, movedIds) && r.delivery.mergedIntoDeliveryId == null,
       everPushed: pushedIds.has(r.delivery.id),
     },
+    coverage: tripDetail(r, extrasById.get(r.delivery.id)).coverage,
   }));
 
   const optimo: LedgerOptimoRow[] = optimoOrders.map((o) => {

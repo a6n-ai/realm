@@ -124,6 +124,7 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
               {r.customerName}
               {r.phone ? <span className="text-muted-foreground block text-xs">{r.phone}</span> : null}
               {r.orderId ? <span className="text-muted-foreground block text-xs">{r.orderId}</span> : null}
+              {r.coverage ? <span className="block text-xs font-medium">{r.coverage}</span> : null}
             </TableCell>
             <TableCell>
               {r.ourStatus ? <TonePill tone={labelStatusTone(r.ourStatus)}>{r.ourStatus}</TonePill> : "—"}
