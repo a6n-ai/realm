@@ -11,6 +11,7 @@ import { eventLabel } from "@relay/engine/ui";
 import { BackButton } from "@foundry/design-system";
 import { SectionCard } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
+import { emailTheme } from "@/lib/notifications/email-theme";
 
 export default function Page({ params }: { params: Promise<{ event: string }> }) {
   return (
@@ -81,6 +82,7 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
       variables={availableVariables(event as AppEvent)}
       initial={initial}
       footer={footer}
+      themeOverrides={emailTheme}
     />
   );
 }

@@ -25,6 +25,7 @@ import {
   type AudienceValue,
 } from "@relay/engine/ui";
 import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
+import { emailTheme } from "@/lib/notifications/email-theme";
 
 // Resolves a live audience count on every view.
 export const dynamic = "force-dynamic";
@@ -117,6 +118,12 @@ export default async function CampaignPage({
   const counts = (row.counts ?? {}) as Record<string, number>;
 
   const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" });
+
+  const from = campaignConfig?.sender.email
+
+    ? `${campaignConfig.sender.name} <${campaignConfig.sender.email}>`
+
+    : campaignConfig?.sender.name;
   const footer = campaignConfig
     ? {
         url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),
@@ -163,7 +170,7 @@ export default async function CampaignPage({
             />
           </SectionCard>
           <SectionCard title="Content" subtitle="One row per channel and locale.">
-            <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} />
+            <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} from={from} themeOverrides={emailTheme} />
           </SectionCard>
         </>
       ) : (
@@ -177,7 +184,7 @@ export default async function CampaignPage({
               <CampaignAnalytics counts={counts} />
             </SectionCard>
             <SectionCard title="Content" subtitle="One row per channel and locale.">
-              <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} />
+              <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} from={from} themeOverrides={emailTheme} />
             </SectionCard>
             <SectionCard
               title="Unsubscribed"
