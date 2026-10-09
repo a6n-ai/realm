@@ -162,7 +162,9 @@ function PackingSortHead({
   return (
     <TableHead
       className={cn(
-        "bg-muted/40 sticky top-0 relative z-20",
+        // Sticky alone, never "relative" too: relative wins and shifts the pinned Customer head
+        // left: 48px to the right, over Delivery ID. Opaque so scrolled cells don't show through.
+        "sticky top-0 z-20 bg-[color-mix(in_oklab,var(--muted)_40%,var(--background))]",
         stickyLeft != null && "z-30 shadow-[1px_0_0_0_var(--border)]",
         align === "right" && "text-right",
       )}
@@ -297,7 +299,7 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead
-                  className="bg-muted/40 sticky top-0 left-0 z-30 text-right shadow-[1px_0_0_0_var(--border)]"
+                  className="sticky top-0 left-0 z-30 bg-[color-mix(in_oklab,var(--muted)_40%,var(--background))] text-right shadow-[1px_0_0_0_var(--border)]"
                   style={{ width: SERIAL_WIDTH, minWidth: SERIAL_WIDTH, maxWidth: SERIAL_WIDTH }}
                 >
                   #
