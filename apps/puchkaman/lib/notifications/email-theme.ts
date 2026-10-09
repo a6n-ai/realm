@@ -1,7 +1,7 @@
 import type { EmailThemeOverrides } from "@relay/engine/ui";
 
-// Public palette from app/globals.css: paper page, cream card, green (white text) CTA,
-// yellow accent rule. Red is status-only, so it never appears here.
+// Public palette from app/globals.css: paper page, white card, green (white text) CTA.
+// Red is status-only, so it never appears here.
 const FONT = "Archivo, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 export const emailTheme: EmailThemeOverrides = {
@@ -12,5 +12,4 @@ export const emailTheme: EmailThemeOverrides = {
   paragraph: { color: "#16140D", fontSize: "16px", lineHeight: "24px" },
   link: { color: "#1F7A34" },
   button: { backgroundColor: "#1F7A34", color: "#FFFFFF", borderRadius: "9999px", padding: "14px 26px", fontWeight: 700 },
-  hr: { borderColor: "#FCD807" },
 };

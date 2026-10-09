@@ -11,5 +11,4 @@ export const emailTheme: EmailThemeOverrides = {
   paragraph: { color: "#241F1B", fontSize: "16px", lineHeight: "24px" },
   link: { color: "#F06B1A" },
   button: { backgroundColor: "#F06B1A", color: "#FFFFFF", borderRadius: "9999px", padding: "15px 28px", fontWeight: 600 },
-  hr: { borderColor: "#E3DFD1" },
 };

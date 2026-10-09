@@ -3,7 +3,7 @@ import { BackButton, SectionCard } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, contactList } from "@/db/schema";
-import { buildCampaignConfig, buildUnsubscribeUrl } from "@relay/engine";
+import { buildCampaignConfig, campaignFromLine, buildUnsubscribeUrl } from "@relay/engine";
 import { CampaignComposer } from "@relay/engine/ui";
 import { notificationTables } from "@/lib/notifications/tables";
 import { emailTheme } from "@/lib/notifications/email-theme";
@@ -27,11 +27,7 @@ export default async function NewCampaignPage() {
 
   const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" });
 
-  const from = campaignConfig?.sender.email
-
-    ? `${campaignConfig.sender.name} <${campaignConfig.sender.email}>`
-
-    : campaignConfig?.sender.name;
+  const from = campaignFromLine(campaignConfig);
   const footer = campaignConfig
     ? {
         url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
-import { buildCampaignConfig, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
+import { buildCampaignConfig, campaignFromLine, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
@@ -119,11 +119,7 @@ export default async function CampaignPage({
 
   const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" });
 
-  const from = campaignConfig?.sender.email
-
-    ? `${campaignConfig.sender.name} <${campaignConfig.sender.email}>`
-
-    : campaignConfig?.sender.name;
+  const from = campaignFromLine(campaignConfig);
   const footer = campaignConfig
     ? {
         url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),

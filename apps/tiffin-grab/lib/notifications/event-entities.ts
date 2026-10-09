@@ -124,7 +124,8 @@ export function availableVariables(event: AppEvent): string[] {
   return e ? e.fields.map((f) => `${e.entity}.${f.name}`) : [];
 }
 
-const VAR_RE = /\{\{\s*([\w.]+)\s*\}\}/g;
+// Same grammar as @relay/engine interpolate, including `{{a.b|fallback}}`.
+const VAR_RE = /\{\{\s*([\w.]+)\s*(?:\|[^}]*)?\}\}/g;
 
 /** Returns variables used in `body` that aren't valid for the event. */
 export function validateTemplateVars(event: AppEvent, body: string): string[] {
