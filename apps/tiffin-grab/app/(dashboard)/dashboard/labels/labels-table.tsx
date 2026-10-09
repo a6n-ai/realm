@@ -364,12 +364,13 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
                           }}
                         >
                           {isCustomer ? (
-                            <>
-                              {row.customerName}
+                            // The name truncates, never the eating day: a trip's rows differ only by "For Sat".
+                            <span className="flex min-w-0">
+                              <span className="truncate">{row.customerName}</span>
                               {row.forLabel ? (
-                                <span className="text-muted-foreground font-normal"> · {row.forLabel}</span>
+                                <span className="text-muted-foreground shrink-0 whitespace-pre font-normal"> · {row.forLabel}</span>
                               ) : null}
-                            </>
+                            </span>
                           ) : (
                             text
                           )}
