@@ -4,6 +4,7 @@ import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { notificationOutbox, orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
 import type { SendState } from "@/lib/services/customers.service";
+import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/services/stripe-notes";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
 import {
@@ -39,10 +40,10 @@ export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string 
 
 // Prefixes written to order_activities (type payment_failed) by payment-stripe.ts when a card payment needs staff.
 const FLAGGED_NOTES = [
-  "Stripe amount mismatch for %",
-  "Stripe PaymentIntent % belongs to another payment%",
-  "Cancelled-order card payment %",
-  "Credit card used without surcharge %",
+  `${NOTE_AMOUNT_MISMATCH} %`,
+  `${NOTE_PI_OTHER_PAYMENT} % belongs to another payment%`,
+  `${NOTE_CANCELLED_ORDER} %`,
+  `${NOTE_CC_NO_SURCHARGE} %`,
 ];
 
 const activityExists = (cond: SQL) =>

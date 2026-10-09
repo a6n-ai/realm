@@ -155,12 +155,14 @@ function PaymentRow({
   taxLines,
   canRefund,
   canCharge,
+  canCheck,
 }: {
   orderId: string;
   deploymentId: string;
   taxLines: { name: string; ratePct: number; amount: number }[];
   canRefund: boolean;
   canCharge: boolean;
+  canCheck: boolean;
   payment: OrderPaymentDetail;
   currency: string;
   timezone: string;
@@ -321,7 +323,7 @@ function PaymentRow({
               </Button>
             </>
           )}
-          {isCard && payment.providerRef && !isSettled(payment.status) && payment.status !== "refunded" && (
+          {isCard && canCheck && payment.providerRef && !isSettled(payment.status) && payment.status !== "refunded" && (
             <Button size="sm" variant="outline" disabled={pending} onClick={checkStatus}>
               <RefreshCwIcon data-icon="inline-start" />
               Check status
@@ -467,6 +469,7 @@ export function PaymentsPanel({
   claimContexts = {},
   canRefund = false,
   canCharge = false,
+  canCheck = false,
 }: {
   orderId: string;
   deploymentId: string;
@@ -479,6 +482,7 @@ export function PaymentsPanel({
   /** paymentPublicId → claim form context for staff-on-behalf uploads. */
   claimContexts?: Record<string, ClaimPaymentContext>;
   canRefund?: boolean;
+  canCheck?: boolean;
   /** finance:charge and the customer has a saved Stripe customer. */
   canCharge?: boolean;
 }) {
@@ -523,6 +527,7 @@ export function PaymentsPanel({
             taxLines={snap?.taxLines ?? []}
             canRefund={canRefund}
             canCharge={canCharge}
+            canCheck={canCheck}
           />
         ))}
       </div>

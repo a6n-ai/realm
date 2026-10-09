@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { orders, payments } from "@/db/schema";
+import { orders, payments, stripeEvents } from "@/db/schema";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { currentUserId } from "@/lib/services/session-service";
@@ -68,6 +68,9 @@ export async function refundAction(paymentId: string, amount: string | null, rea
 export async function reprocessEventAction(eventId: string): Promise<ActionResult> {
   return runAction(async () => {
     await requirePermission({ finance: ["read"] });
+    const [ev] = await db.select({ processedAt: stripeEvents.processedAt }).from(stripeEvents).where(eq(stripeEvents.eventId, eventId)).limit(1);
+    if (!ev) throw new ValidationError("Event not found");
+    if (ev.processedAt) throw new ValidationError("This event was already processed. Use Check status on the payment instead.");
     await processStripeEvent(eventId);
     revalidatePath("/dashboard/payments/logs");
     return "Event reprocessed";

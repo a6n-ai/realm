@@ -14,7 +14,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { PaymentStatusPill } from "../payment-status-pill";
 import { LOG_EVENT_OPTIONS, type LogSortKey } from "../payment-facets";
-import { reprocessEventAction } from "../stripe/actions";
+import { checkStatusAction, reprocessEventAction } from "../stripe/actions";
 import type { LogRow as Row } from "./page";
 
 const EVENT_STATUS: Record<string, string> = {
@@ -66,6 +66,15 @@ export function LogsTable({
       router.refresh();
     });
   }
+  function check(paymentId: string) {
+    start(async () => {
+      const res = await checkStatusAction(paymentId);
+      if ("error" in res) return void toast.error(res.error);
+      (res.settled ? toast.success : toast)(res.message);
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-4">
     <DataTable
@@ -105,6 +114,11 @@ export function LogsTable({
           <TableCell className="max-w-[280px] text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <span className="truncate" title={r.note ?? undefined}>{r.note ?? ""}</span>
+              {r.checkPaymentId && (
+                <Button size="sm" variant="outline" disabled={pending} onClick={() => check(r.checkPaymentId!)}>
+                  Check status
+                </Button>
+              )}
               {r.failedEventId && (
                 <Button size="sm" variant="outline" disabled={pending} onClick={() => reprocess(r.failedEventId!)}>
                   Reprocess

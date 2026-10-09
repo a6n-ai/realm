@@ -13,6 +13,9 @@ import { customerStore, stripeRuntime, toCents, fromCents } from "@/lib/payments
 import { resolveProvince } from "@/lib/tax/canada";
 import { stripeTaxFor } from "@/lib/tax/checkout-taxes";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
+import {
+  NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_PI_OTHER_PAYMENT,
+} from "./stripe-notes";
 import { ledgerService } from "./ledger.service";
 import { verifyPayment, refundPaymentInTx, resolveUserId } from "./orders.service";
 
@@ -67,7 +70,7 @@ async function flagUnchargedSurcharge(rt: NonNullable<Awaited<ReturnType<typeof 
     if (!row) return;
     const fee = surchargeCents({ funding: "credit", province: provinceOf(row.order), baseCents: toCents(pay.amount), cfg: rt.cfg.surcharge });
     if (fee <= 0) return;
-    await activityOnce(pay.orderId, "payment_failed", "Credit card used without surcharge", piId, `- uncollected fee ${fromCents(fee)}`);
+    await activityOnce(pay.orderId, "payment_failed", NOTE_CC_NO_SURCHARGE, piId, `- uncollected fee ${fromCents(fee)}`);
     log.warn({ paymentId: pay.publicId, piId, source }, "credit card settled without surcharge");
   } catch (e) {
     log.error({ paymentId: pay.publicId, piId, source, err: e }, "surcharge bypass check failed");
@@ -94,14 +97,14 @@ export async function settleStripePayment(
   if (st.status !== "succeeded") return "not_succeeded";
 
   if (st.paymentRef !== pay.publicId) {
-    await activityOnce(pay.orderId, "payment_failed", "Stripe PaymentIntent", piId, "belongs to another payment - not settled");
+    await activityOnce(pay.orderId, "payment_failed", NOTE_PI_OTHER_PAYMENT, piId, "belongs to another payment - not settled");
     log.error({ paymentId: pay.publicId, piId, source }, "stripe intent bound to another payment");
     return "amount_mismatch";
   }
 
   const [order] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
   if (order?.status === "cancelled") {
-    await activityOnce(pay.orderId, "payment_failed", "Cancelled-order card payment", piId, "- refund it in Stripe");
+    await activityOnce(pay.orderId, "payment_failed", NOTE_CANCELLED_ORDER, piId, "- refund it in Stripe");
     log.error({ paymentId: pay.publicId, piId, source }, "stripe payment on cancelled order");
     return "order_cancelled";
   }
@@ -111,7 +114,7 @@ export async function settleStripePayment(
     await activityOnce(
       pay.orderId,
       "payment_failed",
-      "Stripe amount mismatch for",
+      NOTE_AMOUNT_MISMATCH,
       piId,
       `- received ${fromCents(st.amountReceivedCents)} ${st.currency.toUpperCase()}, expected ${fromCents(expected)} CAD, not settled`,
     );
@@ -450,7 +453,8 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
   const seen = new Set<string>();
 
   for (const i of succeeded) {
-    const p = (i.paymentRef && byRef.get(i.paymentRef)) || byPi.get(i.piId);
+    // A payment created before the range can be charged inside it (late payment), so look outside the range too.
+    const p = (i.paymentRef && byRef.get(i.paymentRef)) || byPi.get(i.piId) || (await findStripePayment({ paymentRef: i.paymentRef, piId: i.piId }));
     if (!p) {
       rows.push({ kind: "unmatched_charge", piId: i.piId, amount: fromCents(i.amountReceivedCents) });
       continue;
@@ -463,10 +467,13 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
       rows.push({ kind: "unpaid_here", piId: i.piId, paymentRef: p.publicId, amount: fromCents(expected) });
     }
   }
-  // ponytail: full-range check only when the whole range fits one Stripe page (<=100 PIs); page through for wider ranges.
-  if (!page.nextCursor && !cursor) {
+  // Absence from the range proves nothing, so each paid row not seen is checked by retrieving its own PI.
+  // ponytail: first page only, one retrieve per unseen paid row; batch or cap if ranges get large.
+  if (!cursor) {
     for (const p of ours) {
-      if (p.status === "paid" && !seen.has(p.publicId)) {
+      if (p.status !== "paid" || seen.has(p.publicId)) continue;
+      const live = p.providerRef ? await fetchIntentStatus(rt.stripe, p.providerRef).catch(() => null) : null;
+      if (live?.status !== "succeeded") {
         rows.push({ kind: "paid_here_not_in_stripe", paymentRef: p.publicId, piId: p.providerRef, amount: fromCents(chargedCents(p)) });
       }
     }
@@ -477,15 +484,19 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
 /** Asks Stripe to refund; the charge.refunded webhook is the only ledger writer. */
 export async function refundStripePayment(paymentPublicId: string, amount: string | null, reason: string, actorPublicId: string): Promise<void> {
   if (!reason.trim()) throw new ValidationError("Add a reason for the refund");
+  if (amount != null && !(Number.isFinite(Number(amount)) && Number(amount) > 0)) throw new ValidationError("Enter a refund amount greater than zero");
   const [pay] = await db.select().from(payments).where(and(eq(payments.publicId, paymentPublicId), eq(payments.method, "stripe"))).limit(1);
   if (!pay?.providerRef || pay.status !== "paid") throw new ValidationError("Only a settled card payment can be refunded");
   const rt = await stripeRuntime();
   if (!rt) throw new ValidationError("Stripe is not connected");
-  const refunds = await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.paymentId, pay.id), eq(ledgerEntries.type, "refund")));
-  const remaining = chargedCents(pay) - refunds.reduce((s, r) => s + toCents(r.amount), 0);
+  // Stripe is the authority on what is refundable: the ledger lags until the webhook lands.
+  const pi = await rt.stripe.paymentIntents.retrieve(pay.providerRef, { expand: ["latest_charge"] });
+  const charge = pi.latest_charge;
+  if (!charge || typeof charge === "string") throw new ValidationError("Stripe has no charge to refund for this payment");
+  const remaining = charge.amount - charge.amount_refunded;
   const cents = amount == null ? remaining : toCents(amount);
-  if (cents <= 0 || cents > remaining) throw new ValidationError(`Refund must be between 0.01 and ${fromCents(remaining)}`);
-  await refundIntent(rt.stripe, pay.providerRef, cents, `refund:${pay.publicId}:${cents}:${refunds.length}`);
+  if (cents <= 0 || cents > remaining) throw new ValidationError(`Refund must be between 0.01 and ${fromCents(Math.max(remaining, 0))}`);
+  await refundIntent(rt.stripe, pay.providerRef, cents, `refund:${pay.publicId}:${cents}:${charge.amount_refunded}`);
   await db.insert(orderActivities).values({
     orderId: pay.orderId,
     type: "note",

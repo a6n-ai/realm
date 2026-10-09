@@ -6,11 +6,14 @@ import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
+import { createLogger } from "@foundry/commons/logger";
 import { settleStripePayment } from "@/lib/services/payment-stripe";
 import { listPayments } from "../payment-queries";
 import { StripeTable, StripeTableSkeleton } from "./stripe-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
+
+const log = createLogger("stripe-view-settle");
 
 export default function StripePaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -35,7 +38,7 @@ async function StripeData({ searchParams }: { searchParams: SearchParams }) {
   );
   if (stale.length) {
     after(async () => {
-      for (const p of stale) await settleStripePayment({ paymentRef: p.publicId }, "view").catch(() => {});
+      for (const p of stale) await settleStripePayment({ paymentRef: p.publicId }, "view").catch((e) => log.error({ paymentId: p.publicId, err: e }, "lazy stripe settle failed"));
     });
   }
   return (

@@ -27,3 +27,13 @@ describe("Stripe tab attention facets", () => {
     await listPayments({ attention: "fallback" });
   });
 });
+
+describe("reprocessEventAction", () => {
+  it("refuses an already-processed event", async () => {
+    vi.doMock("@/lib/auth/guards", () => ({ requirePermission: async () => {} }));
+    const { reprocessEventAction } = await import("@/app/(dashboard)/dashboard/payments/stripe/actions");
+    await db.insert(stripeEvents).values({ eventId: "evt_done", type: "charge.refunded", payload: {}, receivedAt: Date.now(), processedAt: Date.now(), error: "amount_mismatch" });
+    const res = await reprocessEventAction("evt_done");
+    expect(res).toEqual({ error: expect.stringMatching(/already processed/) });
+  });
+});

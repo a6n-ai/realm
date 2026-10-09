@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
 import { after } from "next/server";
 import { requireStaff, roleCan } from "@/lib/auth/guards";
+import { createLogger } from "@foundry/commons/logger";
 import { settleStripePayment } from "@/lib/services/payment-stripe";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
@@ -43,6 +44,8 @@ import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
 import { DeliveriesSection, loadSubscription } from "@/components/dashboard/subscription-panel";
+
+const log = createLogger("stripe-view-settle");
 
 // The full record for ONE order: what it is, what it costs, whether it is paid, and every
 // change the customer can make on it (move, swap, address, meal picks) through
@@ -84,7 +87,7 @@ async function OrderDetail({
   try {
     order = await readOrder(id, visible);
   } catch (e) {
-    void settingsP.catch(() => {});
+    void settingsP.catch((e) => log.error({ paymentId: p.publicId, err: e }, "lazy stripe settle failed"));
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
@@ -114,7 +117,7 @@ async function OrderDetail({
   );
   if (staleCards.length) {
     after(async () => {
-      for (const p of staleCards) await settleStripePayment({ paymentRef: p.publicId }, "view").catch(() => {});
+      for (const p of staleCards) await settleStripePayment({ paymentRef: p.publicId }, "view").catch((e) => log.error({ paymentId: p.publicId, err: e }, "lazy stripe settle failed"));
     });
   }
   const role = session?.user.role ?? "";
@@ -346,6 +349,7 @@ async function OrderDetail({
                 pricingSnapshot={order.pricingSnapshot}
                 payments={order.payments}
                 claimContexts={claimContexts}
+                canCheck={roleCan(role, { finance: ["read"] })}
                 canRefund={roleCan(role, { finance: ["refund"] })}
                 canCharge={roleCan(role, { finance: ["charge"] }) && !!customer?.stripeCustomerId}
               />

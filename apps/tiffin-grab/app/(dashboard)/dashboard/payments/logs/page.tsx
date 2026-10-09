@@ -31,6 +31,8 @@ export type LogRow = {
   orderPublicId: string | null;
   /** Set for stripe_events rows that failed; powers the Reprocess action. */
   failedEventId: string | null;
+  /** Errored event that already ran its handler: Reprocess is a no-op, so offer Check status on the payment. */
+  checkPaymentId: string | null;
 };
 
 const CMP = {
@@ -104,6 +106,7 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
             receivedAt: stripeEvents.receivedAt,
             type: stripeEvents.type,
             error: stripeEvents.error,
+            processedAt: stripeEvents.processedAt,
             paymentPublicId: payments.publicId,
             orderPublicId: orders.publicId,
           })
@@ -117,7 +120,7 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
   ]);
 
   const merged: LogRow[] = [
-    ...actRows.map((r) => ({ key: r.publicId, createdAt: r.createdAt, type: r.type, note: r.note, actorEmail: r.actorEmail, orderPublicId: r.orderPublicId, failedEventId: null })),
+    ...actRows.map((r) => ({ key: r.publicId, createdAt: r.createdAt, type: r.type, note: r.note, actorEmail: r.actorEmail, orderPublicId: r.orderPublicId, failedEventId: null, checkPaymentId: null })),
     ...evRows.map((r) => ({
       key: r.eventId,
       createdAt: r.receivedAt,
@@ -125,7 +128,8 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
       note: [r.paymentPublicId, r.error ?? "processed"].filter(Boolean).join(" · "),
       actorEmail: "Stripe",
       orderPublicId: r.orderPublicId,
-      failedEventId: r.error ? r.eventId : null,
+      failedEventId: r.error && !r.processedAt ? r.eventId : null,
+      checkPaymentId: r.error && r.processedAt ? r.paymentPublicId : null,
     })),
   ];
   const key = CMP[sort.column];

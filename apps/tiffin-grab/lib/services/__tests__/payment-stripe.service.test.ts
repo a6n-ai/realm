@@ -501,27 +501,55 @@ describe("reconcileStripe", () => {
 });
 
 describe("refundStripePayment", () => {
+  const charge = (amount: number, refunded: number) => retrieve.mockResolvedValue({ latest_charge: { amount, amount_refunded: refunded } });
   beforeEach(async () => { await reset(); vi.clearAllMocks(); refund.mockResolvedValue("re_1"); });
 
-  it("asks Stripe with a counted idempotency key and writes no ledger row", async () => {
+  it("asks Stripe with a key counted from Stripe's amount_refunded and writes no ledger row", async () => {
     const pay = await makeStripePayment({ amount: "20.00", surcharge: "0.48", piId: "pi_r", paid: true });
+    charge(2048, 0);
     await svc.refundStripePayment(pay.publicId, "5.00", "goodwill", fx.OWNER);
     expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_r", 500, `refund:${pay.publicId}:500:0`);
     expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.type, "refund"))).toHaveLength(0);
   });
 
-  it("refunds the full remainder (amount + surcharge) when amount is null", async () => {
+  it("refunds Stripe's remainder when amount is null, even with no ledger row yet", async () => {
     const pay = await makeStripePayment({ amount: "20.00", surcharge: "0.48", piId: "pi_r", paid: true });
+    charge(2048, 1000);
     await svc.refundStripePayment(pay.publicId, null, "dup", fx.OWNER);
-    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_r", 2048, `refund:${pay.publicId}:2048:0`);
+    expect(refund).toHaveBeenCalledWith(expect.anything(), "pi_r", 1048, `refund:${pay.publicId}:1048:1000`);
   });
 
-  it("rejects more than the refundable remainder, unpaid payments and blank reasons", async () => {
+  it("rejects over-remainder, bad amounts, unpaid payments and blank reasons before refunding", async () => {
     const pay = await makeStripePayment({ amount: "20.00", piId: "pi_r", paid: true });
-    await expect(svc.refundStripePayment(pay.publicId, "20.01", "x", fx.OWNER)).rejects.toThrow(/between/);
+    charge(2000, 500);
+    await expect(svc.refundStripePayment(pay.publicId, "15.01", "x", fx.OWNER)).rejects.toThrow(/between/);
+    await expect(svc.refundStripePayment(pay.publicId, "NaN", "x", fx.OWNER)).rejects.toThrow(/greater than zero/);
+    await expect(svc.refundStripePayment(pay.publicId, "-1", "x", fx.OWNER)).rejects.toThrow(/greater than zero/);
     await expect(svc.refundStripePayment(pay.publicId, "1.00", " ", fx.OWNER)).rejects.toThrow(/reason/);
     const open = await makeStripePayment({ amount: "5.00", piId: "pi_u" });
     await expect(svc.refundStripePayment(open.publicId, null, "x", fx.OWNER)).rejects.toThrow(/settled/);
     expect(refund).not.toHaveBeenCalled();
+  });
+});
+
+describe("reconcileStripe late and missing payments", () => {
+  beforeEach(async () => { await reset(); vi.clearAllMocks(); });
+
+  it("matches a payment created before the range to a PI inside it", async () => {
+    const old = await makeStripePayment({ amount: "10.00", piId: "pi_late" });
+    await db.update(payments).set({ createdAt: 1000 }).where(eq(payments.id, old.id));
+    list.mockResolvedValue({ nextCursor: null, items: [{ piId: "pi_late", status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: old.publicId, created: 1 }] });
+    const { rows } = await svc.reconcileStripe({ from: Date.now() - 1000, to: Date.now() + 60_000 });
+    expect(rows).toEqual([{ kind: "unpaid_here", piId: "pi_late", paymentRef: old.publicId, amount: "10.00" }]);
+  });
+
+  it("does not flag a paid row whose PI succeeded outside the listed page", async () => {
+    const ok = await makeStripePayment({ amount: "10.00", piId: "pi_ok", paid: true });
+    const gone = await makeStripePayment({ amount: "11.00", piId: "pi_gone", paid: true });
+    list.mockResolvedValue({ nextCursor: null, items: [] });
+    status.mockImplementation(async (_s: unknown, id: string) =>
+      id === "pi_ok" ? { piId: id, status: "succeeded", amountReceivedCents: 1000, currency: "cad", paymentRef: ok.publicId, created: 1 } : { piId: id, status: "canceled", amountReceivedCents: 0, currency: "cad", paymentRef: gone.publicId, created: 1 });
+    const { rows } = await svc.reconcileStripe({ from: 0, to: Date.now() + 60_000 });
+    expect(rows).toEqual([{ kind: "paid_here_not_in_stripe", paymentRef: gone.publicId, piId: "pi_gone", amount: "11.00" }]);
   });
 });
