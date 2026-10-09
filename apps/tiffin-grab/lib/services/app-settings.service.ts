@@ -9,7 +9,7 @@ import {
 import { DEFAULT_PAYMENT_CONFIG, parsePaymentConfig, type PaymentConfig } from "@foundry/payments";
 import { mergePaymentCatalog } from "@foundry/payments/providers";
 import type { Country as CountryCode } from "react-phone-number-input";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { sharedCache } from "@/lib/cache";
 import { db } from "@/db/client";
 import { app, deliveries } from "@/db/schema";
@@ -249,6 +249,15 @@ export async function setIntegrationsConfig(cfg: IntegrationsConfig): Promise<vo
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { integrationsConfig: parsed });
   else await appSettingsEntity.create({ ...DEFAULTS, integrationsConfig: parsed });
+}
+
+// Atomic single-key write: the webhook must not read-modify-write the whole blob
+// (would race admin saves and could resurrect keys wiped by Disconnect).
+export async function touchStripeLastEventAt(at: number): Promise<void> {
+  await db.update(app).set({
+    integrationsConfig: sql`jsonb_set(${app.integrationsConfig}, '{stripe,lastEventAt}', to_jsonb(${at}::bigint), true)`,
+  }).where(sql`${app.integrationsConfig} ? 'stripe'`);
+  await settingsCache.evictAll();
 }
 
 export const integrationsConfigStore: IntegrationsConfigStore = {
