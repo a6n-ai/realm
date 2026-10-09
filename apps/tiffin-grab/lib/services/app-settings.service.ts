@@ -209,6 +209,13 @@ export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
   else await appSettingsEntity.create({ ...DEFAULTS, paymentConfig: parsed });
 }
 
+export async function installedPlugins(): Promise<string[]> {
+  const integrations = await getIntegrationsConfig();
+  return Object.entries(integrations)
+    .filter(([, v]) => (v as { installed?: boolean } | null)?.installed)
+    .map(([k]) => k);
+}
+
 /**
  * Seed cash (on) + e-Transfer from Foundry's catalog. Drop the old card-style
  * "manual" rail — Stripe lands later as an online provider.
@@ -216,10 +223,7 @@ export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
 export async function ensurePaymentCatalog(): Promise<PaymentConfig> {
   const cfg = await getPaymentConfig();
   const hadManual = cfg.methods.some((m) => m.id === "manual");
-  const integrations = await getIntegrationsConfig();
-  const installed = Object.entries(integrations)
-    .filter(([, v]) => (v as { installed?: boolean } | null)?.installed)
-    .map(([k]) => k);
+  const installed = await installedPlugins();
   const merged = mergePaymentCatalog(cfg, installed);
   const methods = merged.methods
     .filter((m) => m.id !== "manual")

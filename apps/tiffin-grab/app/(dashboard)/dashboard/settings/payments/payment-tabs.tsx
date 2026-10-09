@@ -11,8 +11,6 @@ export type PaymentTab = {
   label: string;
 };
 
-const CATALOG_IDS = new Set(["cash", "etransfer"]);
-
 function methodHref(id: string) {
   return `/dashboard/settings/payments/${id}`;
 }
@@ -21,19 +19,15 @@ function methodIcon(id: string): LucideIcon {
   return findPaymentProvider(id)?.icon ?? BanknoteIcon;
 }
 
-function catalogProviders() {
-  return PAYMENT_PROVIDERS.filter((p) => CATALOG_IDS.has(p.id));
-}
-
-/** Routed sub-tabs — cash and e-Transfer only. Card/Stripe is not a method tab. */
-export function PaymentTabs({ methods }: { methods: PaymentTab[] }) {
-  const catalog = catalogProviders();
+/** Routed sub-tabs: one per catalog method whose plugin (if any) is installed. */
+export function PaymentTabs({ methods, installedPlugins }: { methods: PaymentTab[]; installedPlugins: string[] }) {
+  const catalog = PAYMENT_PROVIDERS.filter((p) => !p.requiresPlugin || installedPlugins.includes(p.requiresPlugin));
   const visible = catalog
     .map((p) => methods.find((m) => m.id === p.id))
     .filter((m): m is PaymentTab => Boolean(m));
   if (visible.length === 0) return null;
 
-  const tabs = visible.map((m) => ({ href: methodHref(m.id), label: m.label, icon: methodIcon(m.id) }));
+  const tabs = visible.map((m) => ({ href: m.id === "stripe" ? "/dashboard/settings/payments/stripe" : methodHref(m.id), label: m.label, icon: methodIcon(m.id) }));
   const hasMoreToAdd = catalog.some((p) => !methods.some((m) => m.id === p.id));
 
   return (
