@@ -37,6 +37,12 @@ export function describeActivity(a: OrderActivityLike): string {
       return a.note ? `Payment verified — ${a.note}` : "Payment verified";
     case "payment_rejected":
       return a.note ? `Payment rejected — ${a.note}` : "Payment rejected";
+    case "payment_failed":
+      return a.note ? `Payment failed - ${a.note}` : "Payment failed";
+    case "payment_refunded":
+      return a.note ? `Payment refunded - ${a.note}` : "Payment refunded";
+    case "payment_disputed":
+      return a.note ? `Payment disputed - ${a.note}` : "Payment disputed";
     case "route_pushed":
       return a.note ? `Route — ${a.note}` : "Sent to route planning";
     case "route_completed":

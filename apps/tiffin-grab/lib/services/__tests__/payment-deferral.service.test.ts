@@ -1,6 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray, ne } from "drizzle-orm";
-import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -11,6 +10,7 @@ const { createOrder, verifyPayment, claimPayment } = await import("../orders.ser
 const { setPaymentConfig } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
+const { baseInput } = await import("./stripe-fixture");
 
 type Snapshot = {
   subtotal: number;
@@ -35,32 +35,6 @@ async function reset() {
   await db.delete(users).where(ne(users.isSystem, true));
   await setPaymentConfig({ methods: [] });
   await sharedCache("app-settings").evictAll();
-}
-
-async function baseInput(over: { couponCode?: string; paymentMethodId?: string; phone?: string } = {}) {
-  const snap = await loadCatalogSnapshot();
-  return {
-    planKey: snap.plans[0]!.key,
-    selections: {
-      mealSizeId: snap.mealSizes[0]!.publicId,
-      frequencyKey: "5_day" as const,
-      persons: 1,
-      mealSlots: ["lunch"],
-      includeSaturday: false,
-      includeSunday: false,
-      durationWeeks: 1,
-      startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
-    },
-    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, 
-      fullName: "Pay Test",
-      phone: over.phone ?? "+16475550999",
-      addressLine: "1 St",
-      city: "Toronto",
-      postalCode: "M5V 2T6",
-    },
-    couponCode: over.couponCode ?? null,
-    paymentMethodId: over.paymentMethodId ?? null,
-  };
 }
 
 describe("createOrder payment deferral", () => {
