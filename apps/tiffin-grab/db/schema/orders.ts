@@ -1,6 +1,6 @@
 import { baseColumns, updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, date, doublePrecision, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, doublePrecision, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, mealSizes, plans } from "./catalog";
 import { deliveryZones } from "./delivery";
 import { deliveryStrategies, deliveryStrategyGroups, addressTags } from "./delivery";
@@ -15,7 +15,7 @@ export const paymentStatus = pgEnum("payment_status", [
   "simulated_paid", "pending", "refunded",
   "awaiting_payment", "pending_verification", "paid", "rejected",
 ]);
-export const paymentMethod = pgEnum("payment_method", ["simulated", "cash", "etransfer", "manual"]);
+export const paymentMethod = pgEnum("payment_method", ["simulated", "cash", "etransfer", "manual", "stripe"]);
 // Append-only in practice: Postgres cannot drop an enum value, and the log table holds
 // history keyed on these. New values go on the end.
 export const orderActivityType = pgEnum("order_activity_type", [
@@ -25,6 +25,7 @@ export const orderActivityType = pgEnum("order_activity_type", [
   "route_pushed", "route_completed",
   "category_swap_applied", "category_swap_removed",
   "complimentary_granted",
+  "payment_failed", "payment_refunded", "payment_disputed",
 ]);
 
 export const orders = pgTable("orders", {
@@ -135,9 +136,24 @@ export const payments = pgTable("payments", {
   proof: jsonb("proof").$type<PaymentProof>(),
   claimedAt: bigint("claimed_at", { mode: "number" }),
   note: text("note"),
+  // Stripe: the PaymentIntent currently backing this payment, and the event that settled it.
+  providerRef: text("provider_ref"),
+  providerEventId: text("provider_event_id"),
+  // Throttle for the lazy on-view status check (no cron — see docs/superpowers/specs/2026-10-09-stripe-payments-design.md §4.6).
+  providerCheckedAt: bigint("provider_checked_at", { mode: "number" }),
+  cardBrand: text("card_brand"),
+  cardLast4: text("card_last4"),
+  // Credit-card surcharge charged on top of `amount`; the ledger credit is amount + surcharge.
+  surchargeAmount: numeric("surcharge_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  taxCalculationId: text("tax_calculation_id"),
+  taxSource: text("tax_source"), // 'stripe' | 'fallback' | null
+  // Count of definitively failed saved-card charges; part of the Stripe idempotency key (same value = same charge).
+  chargeAttempt: integer("charge_attempt").notNull().default(0),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
+  index("payments_provider_ref_idx").on(t.providerRef),
+  uniqueIndex("payments_provider_event_idx").on(t.providerEventId),
   index("payments_order_idx").on(t.orderId),
   index("payments_organization_idx").on(t.organizationId),
   // section-seen.service.ts filters status='pending_verification' alone.

@@ -14,7 +14,7 @@ export const LOG_ACTIVITY_CATEGORY_TYPES = {
   tiffins: ["skipped", "unskipped", "pool_scheduled", "complimentary_granted"],
   routes: ["route_pushed", "route_completed"],
   lifecycle: ["created", "activated", "paused", "resumed", "cancelled", "status_change"],
-  payments: ["payment_claimed", "payment_verified", "payment_rejected"],
+  payments: ["payment_claimed", "payment_verified", "payment_rejected", "payment_failed", "payment_refunded", "payment_disputed"],
   notes: ["note"],
 } as const;
 
@@ -52,6 +52,9 @@ export const ACTIVITY_TYPE_VALUES = [
   "category_swap_applied",
   "category_swap_removed",
   "complimentary_granted",
+  "payment_failed",
+  "payment_refunded",
+  "payment_disputed",
 ] as const;
 
 export type ActivityTypeValue = (typeof ACTIVITY_TYPE_VALUES)[number];
@@ -78,6 +81,9 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityTypeValue, string> = {
   category_swap_applied: "Category swap applied",
   category_swap_removed: "Category swap removed",
   complimentary_granted: "Free tiffin given",
+  payment_failed: "Payment failed",
+  payment_refunded: "Payment refunded",
+  payment_disputed: "Payment disputed",
 };
 
 export const SETTINGS_ACTIVITY_FACETS: FacetDef[] = [

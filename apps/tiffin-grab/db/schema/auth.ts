@@ -34,6 +34,7 @@ export const users = pgTable(
     phoneVerified: boolean("phone_verified").notNull().default(false),
     image: text("image"),
     phone: text("phone"),
+    stripeCustomerId: text("stripe_customer_id").unique(),
     role: userRole("role").notNull().default("user"),
     // Org-independent platform bypass for cross-client visibility. Rare, explicit,
     // audited — see resolveVisibleOrgIds in @foundry/auth. Not a `member` role: it must

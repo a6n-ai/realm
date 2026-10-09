@@ -741,6 +741,7 @@ const METHOD_LABEL: Record<(typeof payments.$inferSelect)["method"], string> = {
   cash: "Cash",
   manual: "Manual",
   simulated: "Simulated",
+  stripe: "Card (Stripe)",
 };
 
 /** Shared `{{payment.*}}` template variables for the payment_* customer emails. */

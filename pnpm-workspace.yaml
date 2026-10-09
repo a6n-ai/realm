@@ -8,7 +8,7 @@ packages:
 blockExoticSubdeps: false
 
 overrides:
-  "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons"
+  "@foundry/commons": "github:a6n-ai/foundry#3a12780&path:packages/commons"
   "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config"
   "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm"
   "@foundry/database": "github:a6n-ai/foundry#path:packages/database"

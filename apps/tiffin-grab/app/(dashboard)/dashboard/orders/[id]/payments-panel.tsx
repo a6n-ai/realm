@@ -50,6 +50,8 @@ function methodLabel(method: OrderPaymentDetail["method"]): string {
       return "Manual";
     case "simulated":
       return "Simulated";
+    case "stripe":
+      return "Card (Stripe)";
     default: {
       const _exhaustive: never = method;
       return _exhaustive;

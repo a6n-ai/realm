@@ -118,9 +118,11 @@ export const ledgerEntries = pgTable("ledger_entries", {
   type: ledgerEntryType("type").notNull(),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   memo: text("memo"),
+  providerEventId: text("provider_event_id"),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
+  uniqueIndex("ledger_provider_event_idx").on(t.providerEventId),
   index("ledger_entries_user_created_idx").on(t.userId, t.createdAt),
   index("ledger_entries_order_idx").on(t.orderId),
   index("ledger_entries_organization_idx").on(t.organizationId),

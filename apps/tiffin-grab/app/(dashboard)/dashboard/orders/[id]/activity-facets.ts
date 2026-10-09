@@ -9,7 +9,7 @@ export const ACTIVITY_CATEGORY_TYPES = {
   // and staff look for them with the same question ("what did they get?").
   meals: ["meal_pick", "category_swap_applied", "category_swap_removed"],
   lifecycle: ["created", "activated", "paused", "resumed", "cancelled", "status_change"],
-  payments: ["payment_claimed", "payment_verified", "payment_rejected"],
+  payments: ["payment_claimed", "payment_verified", "payment_rejected", "payment_failed", "payment_refunded", "payment_disputed"],
   notes: ["note"],
 } as const;
 
