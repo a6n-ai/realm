@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { listTaxCodes, parseStripeConfig } from "@foundry/payments/stripe";
 import { requirePermission } from "@/lib/auth/guards";
 import { stripeRuntime } from "@/lib/payments/stripe";
-import { getIntegrationsConfig } from "@/lib/services/app-settings.service";
+import { findMethod } from "@foundry/payments";
+import { getIntegrationsConfig, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { StripeSettingsForm, type StripeView } from "./stripe-settings-form";
 
 export default async function StripeSettingsPage() {
@@ -25,6 +26,7 @@ export default async function StripeSettingsPage() {
   // Redacted: no key, envelope, webhook secret or publishable key crosses to the client.
   const view: StripeView = {
     connected: !!cfg.accountId,
+    enabled: !!findMethod(await getPaymentConfig(), "stripe")?.enabled,
     unhealthy: !!cfg.accountId && rt == null,
     hint: cfg.secretKeyHint ?? null,
     livemode: cfg.livemode ?? false,

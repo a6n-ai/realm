@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
@@ -14,10 +14,12 @@ import {
   disconnectStripeAction,
   saveStripeSettingsAction,
   sendTestEventAction,
+  setStripeEnabledAction,
 } from "./actions";
 
 export type StripeView = {
   connected: boolean;
+  enabled: boolean;
   unhealthy: boolean;
   hint: string | null;
   livemode: boolean;
@@ -35,8 +37,8 @@ const WEEK_MS = 7 * 24 * 3600 * 1000;
 const card = "space-y-4 rounded-xl border bg-muted/30 p-4";
 const selectCls = "border-input bg-background h-9 w-full rounded-md border px-2 text-sm";
 
-function ago(at: number) {
-  const mins = Math.max(0, Math.round((Date.now() - at) / 60000));
+function ago(at: number, now: number) {
+  const mins = Math.max(0, Math.round((now - at) / 60000));
   if (mins < 60) return `${mins} min ago`;
   if (mins < 2880) return `${Math.round(mins / 60)} h ago`;
   return `${Math.round(mins / 1440)} days ago`;
@@ -51,7 +53,10 @@ export function StripeSettingsForm({ view }: { view: StripeView }) {
   const [tax, setTax] = useState(view.tax);
   const [sur, setSur] = useState(view.surcharge);
   const [ready, setReady] = useState<Readiness | null>(null);
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => setNow(Date.now()), []);
 
+  const REJECTED_PREFIX = "Stripe rejected";
   const run = (fn: () => Promise<{ error: string } | { ok: true; message?: string }>, after?: () => void) =>
     start(async () => {
       setMsg(null);
@@ -73,16 +78,16 @@ export function StripeSettingsForm({ view }: { view: StripeView }) {
       setReady(r);
     });
 
-  const stale = view.lastEventAt == null || Date.now() - view.lastEventAt > WEEK_MS;
+  const stale = view.lastEventAt == null || (now != null && now - view.lastEventAt > WEEK_MS);
   const codes = view.taxCodes.some((c) => c.id === tax.taxCode) || !tax.taxCode
     ? view.taxCodes
     : [{ id: tax.taxCode, name: tax.taxCode, description: "" }, ...view.taxCodes];
 
   return (
     <div className="space-y-5">
-      {view.unhealthy && (
+      {(view.unhealthy || msg?.text.startsWith(REJECTED_PREFIX)) && (
         <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-          Stripe can&apos;t be used right now. Replace key to reconnect.
+          {view.unhealthy ? "Stripe can't be used right now. Replace key to reconnect." : msg?.text}
         </p>
       )}
 
@@ -94,7 +99,7 @@ export function StripeSettingsForm({ view }: { view: StripeView }) {
             <span>{view.accountId}</span>
             {view.hint && <span className="text-muted-foreground">{view.hint}</span>}
             <span className={stale ? "text-destructive" : "text-muted-foreground"}>
-              Last event: {view.lastEventAt ? ago(view.lastEventAt) : "never"}
+              Last event: {view.lastEventAt ? (now == null ? "…" : ago(view.lastEventAt, now)) : "never"}
             </span>
           </div>
         )}
@@ -135,7 +140,15 @@ export function StripeSettingsForm({ view }: { view: StripeView }) {
           <Label htmlFor="methodLabel">Label shown at checkout</Label>
           <Input id="methodLabel" value={label} onChange={(e) => setLabel(e.target.value)} />
         </div>
-        <p className="text-muted-foreground text-xs">Enable or disable Card from the payment methods list.</p>
+        {view.connected ? (
+          <div className="flex items-center gap-2">
+            <Switch id="enabled" checked={view.enabled} disabled={pending}
+              onCheckedChange={(v) => run(() => setStripeEnabledAction(v))} />
+            <Label htmlFor="enabled">Accept card payments</Label>
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-xs">Connect Stripe to accept card payments.</p>
+        )}
       </section>
 
       <section className={card}>
@@ -224,7 +237,11 @@ export function StripeSettingsForm({ view }: { view: StripeView }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
             <Button variant="destructive" disabled={pending}
-              onClick={() => { setConfirmOpen(false); run(disconnectStripeAction); }}>
+              onClick={() => { setConfirmOpen(false); start(async () => {
+                const r = await disconnectStripeAction();
+                if ("error" in r) return setMsg({ ok: false, text: r.error });
+                router.push("/dashboard/settings/payments");
+              }); }}>
               Disconnect
             </Button>
           </DialogFooter>
