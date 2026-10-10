@@ -39,7 +39,7 @@ export default function OperationsAnalyticsPage({ searchParams }: { searchParams
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getOperationsStats(parseAnalyticsFilters(await searchParams));
+  const s = await getOperationsStats(await parseAnalyticsFilters(await searchParams));
   return (
     <StatGrid
       cols={4}
@@ -54,11 +54,11 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function MixChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getDeliveryStatusMix(parseAnalyticsFilters(await searchParams));
+  const rows = await getDeliveryStatusMix(await parseAnalyticsFilters(await searchParams));
   return <DistributionDonutChart data={rows} nameKey="status" valueKey="n" />;
 }
 
 async function DriverChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getRouteLoadByDriver(10, parseAnalyticsFilters(await searchParams));
+  const rows = await getRouteLoadByDriver(10, await parseAnalyticsFilters(await searchParams));
   return <BreakdownBarChart data={rows} xKey="driver" yKey="n" />;
 }

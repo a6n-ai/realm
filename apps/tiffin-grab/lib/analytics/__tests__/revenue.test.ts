@@ -135,8 +135,8 @@ describe("summarizeRevenue", () => {
 describe("resolveRevenueBounds", () => {
   const now = Date.parse("2035-03-10T16:00:00Z");
 
-  it("defaults to month-to-date in the business timezone", () => {
-    expect(resolveRevenueBounds(undefined, undefined, TZ, now)).toEqual({ from: "2035-03-01", to: "2035-03-10" });
+  it("defaults to the full current month in the business timezone", () => {
+    expect(resolveRevenueBounds(undefined, undefined, TZ, now)).toEqual({ from: "2035-03-01", to: "2035-03-31" });
   });
 
   it("keeps a picked calendar day instead of shifting it through the business timezone", () => {

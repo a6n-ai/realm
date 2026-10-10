@@ -49,7 +49,7 @@ export default function CustomersAnalyticsPage({ searchParams }: { searchParams:
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getCustomerStats(parseAnalyticsFilters(await searchParams));
+  const s = await getCustomerStats(await parseAnalyticsFilters(await searchParams));
   return (
     <MetricTiles
       cols={4}
@@ -69,12 +69,12 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function SignupChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSignupTrend(parseAnalyticsFilters(await searchParams));
+  const rows = await getSignupTrend(await parseAnalyticsFilters(await searchParams));
   return <TrendLineChart data={rows} xKey="day" yKey="n" />;
 }
 
 async function MixChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSubscriptionMix(parseAnalyticsFilters(await searchParams));
+  const rows = await getSubscriptionMix(await parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({
@@ -88,6 +88,6 @@ async function MixChart({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function CitiesChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getTopCities(8, parseAnalyticsFilters(await searchParams));
+  const rows = await getTopCities(8, await parseAnalyticsFilters(await searchParams));
   return <BreakdownBarChart data={rows} xKey="city" yKey="n" />;
 }

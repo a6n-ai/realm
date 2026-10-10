@@ -4,6 +4,9 @@
  * browser bundle.
  */
 
+import { zonedRangeMs } from "@/lib/analytics/drill";
+import { currentMonth, monthBounds } from "@/lib/analytics/profitability";
+
 export const ANALYTICS_FILTER_PARAMS = ["from", "to", "plan", "mealSize", "zone"] as const;
 
 export type AnalyticsSearchParams = Partial<Record<(typeof ANALYTICS_FILTER_PARAMS)[number], string>>;
@@ -38,10 +41,27 @@ const epoch = (raw: string | undefined): number | undefined => {
   return Number.isFinite(n) ? n : undefined;
 };
 
-export function parseAnalyticsFilters(sp: AnalyticsSearchParams): AnalyticsFilters {
+/** Inclusive epoch window for the calendar month containing `now` in `timezone`. */
+export function currentMonthEpochRange(timezone: string, now = Date.now()): { from: number; to: number } {
+  const bounds = monthBounds(currentMonth(timezone, now));
+  return zonedRangeMs(bounds.from, bounds.to, timezone);
+}
+
+export function parseAnalyticsFilters(
+  sp: AnalyticsSearchParams,
+  opts?: { timezone?: string; now?: number },
+): AnalyticsFilters {
+  let from = epoch(sp.from);
+  let to = epoch(sp.to);
+  // Analytics always scopes to a date range; missing params mean the current month.
+  if (from == null && to == null && opts?.timezone) {
+    const range = currentMonthEpochRange(opts.timezone, opts.now);
+    from = range.from;
+    to = range.to;
+  }
   return {
-    from: epoch(sp.from),
-    to: epoch(sp.to),
+    from,
+    to,
     plans: list(sp.plan),
     mealSizes: list(sp.mealSize),
     zones: list(sp.zone),
@@ -55,3 +75,9 @@ export function hasDimensionFilters(f: AnalyticsFilters): boolean {
 export function hasDateFilter(f: AnalyticsFilters): boolean {
   return f.from != null || f.to != null;
 }
+
+export type AnalyticsFilterOptions = {
+  plans: { value: string; label: string }[];
+  mealSizes: { value: string; label: string; parent: string }[];
+  zones: { value: string; label: string }[];
+};

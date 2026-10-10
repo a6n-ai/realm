@@ -48,7 +48,7 @@ export default function ProductsAnalyticsPage({ searchParams }: { searchParams: 
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getProductStats(parseAnalyticsFilters(await searchParams));
+  const s = await getProductStats(await parseAnalyticsFilters(await searchParams));
   return (
     <StatGrid
       cols={3}
@@ -62,7 +62,7 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function TopDishesChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getTopDishes(8, parseAnalyticsFilters(await searchParams));
+  const rows = await getTopDishes(8, await parseAnalyticsFilters(await searchParams));
   return <BreakdownBarChart data={rows} xKey="dish" yKey="n" height={280} />;
 }
 
@@ -71,7 +71,7 @@ function money(n: number) {
 }
 
 async function PlanChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByPlan(parseAnalyticsFilters(await searchParams));
+  const rows = await getOrdersByPlan(await parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({
@@ -87,7 +87,7 @@ async function PlanChart({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function TierChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getOrdersByTier(parseAnalyticsFilters(await searchParams));
+  const rows = await getOrdersByTier(await parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({

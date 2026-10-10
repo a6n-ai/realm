@@ -77,6 +77,7 @@ export function OptimoRoutePanel({ orderId, rows, week }: {
         </div>
       )}
       <DataTable
+        pagination="client"
         columns={COLUMNS}
         rows={shown}
         rowKey={(r) => r.publicId}

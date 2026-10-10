@@ -47,6 +47,7 @@ export function MemberManagement({ rows, organizationId }: { rows: Row[]; organi
   return (
     <div className="space-y-3">
       <DataTable
+        pagination="client"
         columns={COLUMNS}
         rows={rows}
         rowKey={(row) => row.organizationId + row.userPublicId}

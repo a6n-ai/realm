@@ -4,16 +4,31 @@ import { db } from "@/db/client";
 import { deliveryZones, mealSizes, orders, plans } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { isoDateInZone } from "@/lib/analytics/profitability";
-import type { AnalyticsFilters } from "./shared-filter-params";
+import {
+  parseAnalyticsFilters as parseAnalyticsFiltersSync,
+  type AnalyticsFilterOptions,
+  type AnalyticsFilters,
+  type AnalyticsSearchParams,
+} from "./shared-filter-params";
 
 export {
   ANALYTICS_FILTER_PARAMS,
-  parseAnalyticsFilters,
+  currentMonthEpochRange,
   hasDimensionFilters,
   hasDateFilter,
   type AnalyticsSearchParams,
   type AnalyticsFilters,
+  type AnalyticsFilterOptions,
 } from "./shared-filter-params";
+
+/** Parse URL filters, defaulting a missing date range to the current business month. */
+export async function parseAnalyticsFilters(sp: AnalyticsSearchParams): Promise<AnalyticsFilters> {
+  const { timezone } = await getAppSettings();
+  return parseAnalyticsFiltersSync(sp, { timezone });
+}
+
+/** Dimension-only parse (no date default). Prefer `parseAnalyticsFilters` for pages. */
+export { parseAnalyticsFiltersSync };
 
 /** Epoch `createdAt`/`capturedAt`-style columns. */
 export function epochRangeWhere(col: AnyColumn, f: AnalyticsFilters): SQL | undefined {
@@ -59,12 +74,6 @@ export function ordersMatchFilters(f: AnalyticsFilters): SQL | undefined {
   }
   return parts.length ? and(...parts) : undefined;
 }
-
-export type AnalyticsFilterOptions = {
-  plans: { value: string; label: string }[];
-  mealSizes: { value: string; label: string; parent: string }[];
-  zones: { value: string; label: string }[];
-};
 
 export async function getAnalyticsFilterOptions(): Promise<AnalyticsFilterOptions> {
   const [planRows, sizeRows, zoneRows] = await Promise.all([

@@ -10,14 +10,12 @@ import { LiveRefresh } from "@/components/analytics/live-refresh";
 import { paymentsHref, zonedRangeMs } from "@/lib/analytics/drill";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
-  REVENUE_METHODS,
   getRevenueReport,
   parseRevenueFilters,
   type RevenueReport,
 } from "@/lib/services/analytics/revenue.service";
 import { clockInZone } from "@/lib/analytics/profitability";
-import { SETTLED_STATUSES, methodLabel, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
-import { RevenueFilters } from "./filters";
+import { SETTLED_STATUSES, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
 
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -39,8 +37,6 @@ type SearchParams = Promise<{
   mealSize?: string;
   zone?: string;
 }>;
-
-const METHOD_OPTIONS = REVENUE_METHODS.map((m) => ({ value: m, label: methodLabel(m) }));
 
 const loadReport = cache(
   (from: string, to: string, method: string, plan: string, mealSize: string, zone: string) =>
@@ -107,12 +103,9 @@ export default function RevenueAnalyticsPage({ searchParams }: { searchParams: S
 async function RangeAndLive({ searchParams }: { searchParams: SearchParams }) {
   const [report, { timezone }] = await Promise.all([reportFrom(searchParams), getAppSettings()]);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <RevenueFilters methods={METHOD_OPTIONS} />
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-muted-foreground text-xs">{rangeLabel(report.from, report.to)}</span>
-        <LiveRefresh updatedLabel={clockInZone(Date.now(), timezone)} />
-      </div>
+    <div className="flex flex-wrap items-center justify-end gap-3">
+      <span className="text-muted-foreground text-xs">{rangeLabel(report.from, report.to)}</span>
+      <LiveRefresh updatedLabel={clockInZone(Date.now(), timezone)} />
     </div>
   );
 }
