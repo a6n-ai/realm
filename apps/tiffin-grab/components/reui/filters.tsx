@@ -48,13 +48,18 @@ import {
   InputGroupText,
 } from "@/components/ui/input-group"
 import { Kbd } from "@/components/ui/kbd"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { AlertCircleIcon, XIcon, CheckIcon } from "lucide-react"
+
+// Radix ScrollArea's viewport child is display:table, so a max-height on it
+// never becomes a scrollport and a long option list paints over the page.
+// Same cap as NotificationBell: a real overflow box at 24rem, not the viewport.
+const filterMenuListClass =
+  "max-h-96 min-h-0 w-full overflow-y-auto overscroll-contain scroll-pt-2 scroll-pb-2"
 
 // i18n Configuration Interface
 export interface FilterI18nConfig {
@@ -836,13 +841,11 @@ function SelectOptionsPopover<T = unknown>({
           <DropdownMenuSeparator />
         </>
       )}
-      <div className="relative flex max-h-full">
-        <div
-          className="flex max-h-[min(var(--available-height),24rem)] w-full scroll-pt-2 scroll-pb-2 flex-col overscroll-contain"
-          role="listbox"
-          id={`${baseId}-listbox`}
-        >
-          <ScrollArea className="size-full min-h-0 **:data-[slot=scroll-area-scrollbar]:m-0 [&_[data-slot=scroll-area-viewport]]:h-full [&_[data-slot=scroll-area-viewport]]:overscroll-contain">
+      <div
+        className={filterMenuListClass}
+        role="listbox"
+        id={`${baseId}-listbox`}
+      >
             {allFilteredOptions.length === 0 && (
               <div className="text-muted-foreground py-2 text-center text-sm">
                 {context.i18n.noResultsFound}
@@ -950,8 +953,6 @@ function SelectOptionsPopover<T = unknown>({
                 })}
               </DropdownMenuGroup>
             )}
-          </ScrollArea>
-        </div>
       </div>
     </>
   )
@@ -996,7 +997,7 @@ function SelectOptionsPopover<T = unknown>({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className={cn("w-[200px] px-0", field.className)}
+        className={cn("w-max min-w-[12.5rem] max-w-xs px-0", field.className)}
       >
         {renderMenuContent()}
       </DropdownMenuContent>
@@ -1307,12 +1308,11 @@ function FilterSubmenuContent<T = unknown>({
           <DropdownMenuSeparator />
         </>
       )}
-      <div className="relative flex max-h-full">
-        <div
-          className="flex max-h-[min(var(--available-height),24rem)] w-full scroll-pt-2 scroll-pb-2 flex-col overscroll-contain outline-hidden"
-          role="listbox"
-          id={`${baseId}-listbox`}
-          tabIndex={field.searchable === false ? 0 : -1}
+      <div
+        className={cn(filterMenuListClass, "outline-hidden")}
+        role="listbox"
+        id={`${baseId}-listbox`}
+        tabIndex={field.searchable === false ? 0 : -1}
           onKeyDown={(e) => {
             if (field.searchable === false) {
               if (e.key === "ArrowDown") {
@@ -1352,7 +1352,6 @@ function FilterSubmenuContent<T = unknown>({
             }
           }}
         >
-          <ScrollArea className="size-full min-h-0 **:data-[slot=scroll-area-scrollbar]:m-0 [&_[data-slot=scroll-area-viewport]]:h-full [&_[data-slot=scroll-area-viewport]]:overscroll-contain">
             {filteredOptions.length === 0 ? (
               <div className="text-muted-foreground py-2 text-center text-sm">
                 {i18n.noResultsFound}
@@ -1391,8 +1390,6 @@ function FilterSubmenuContent<T = unknown>({
                 })}
               </DropdownMenuGroup>
             )}
-          </ScrollArea>
-        </div>
       </div>
     </div>
   )
@@ -1714,14 +1711,12 @@ export function Filters<T = unknown>({
                 </>
               )}
 
-              <div className="relative flex max-h-full">
-                <div
-                  className="flex max-h-[min(var(--available-height),24rem)] w-full scroll-pt-2 scroll-pb-2 flex-col overscroll-contain"
-                  role="listbox"
-                  id={`${rootId}-listbox`}
-                  onMouseEnter={() => setActiveMenu("root")}
-                >
-                  <ScrollArea className="**:data-[slot=scroll-area-scrollbar]:m-0">
+              <div
+                className={filterMenuListClass}
+                role="listbox"
+                id={`${rootId}-listbox`}
+                onMouseEnter={() => setActiveMenu("root")}
+              >
                     {(() => {
                       if (filteredFields.length === 0) {
                         return (
@@ -1777,7 +1772,7 @@ export function Filters<T = unknown>({
                                 {field.icon}
                                 <span>{field.label}</span>
                               </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent className="w-[200px]">
+                              <DropdownMenuSubContent className="w-max min-w-[12.5rem] max-w-xs">
                                 <FilterSubmenuContent
                                   field={field}
                                   currentValues={currentValues}
@@ -1868,8 +1863,6 @@ export function Filters<T = unknown>({
                         )
                       })
                     })()}
-                  </ScrollArea>
-                </div>
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
