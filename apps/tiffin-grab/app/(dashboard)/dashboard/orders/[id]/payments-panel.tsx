@@ -296,7 +296,7 @@ function PaymentRow({
               {methodLabel(payment.method)}
             </span>
           </div>
-          <p className="text-muted-foreground font-mono text-xs">{payment.publicId}</p>
+          <p data-testid="payment-public-id" className="text-muted-foreground font-mono text-xs">{payment.publicId}</p>
           {(payment.reference || payment.method !== "simulated") && (
             <ReferenceEditor orderId={orderId} paymentId={payment.publicId} reference={payment.reference} allowAdd={payment.method !== "simulated"} />
           )}

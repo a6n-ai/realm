@@ -16,13 +16,18 @@ test("reconcile settles a card payment the webhook missed", async ({ page, brows
   await customer.goto(`/me/pay/${unpaidStripePayment}`);
   await fillCard(customer, "4000056655665556");
   await customer.getByRole("button", { name: /^Pay \$/ }).click();
-  await customer.waitForTimeout(8_000); // charge succeeds in Stripe; no webhook reaches us
+  await expect(customer.getByText(/Paid, thank you|Payment is processing/)).toBeVisible({ timeout: 30_000 });
   await ctx.close();
 
   await page.goto("/dashboard/payments/stripe");
   await page.getByRole("button", { name: /Reconcile with Stripe/ }).click();
   const dialog = page.getByRole("dialog", { name: /Reconcile with Stripe/ });
-  await dialog.getByRole("button", { name: "Run" }).click();
-  await dialog.getByRole("button", { name: "Settle" }).first().click();
-  await expect(dialog.getByText("Paid in Stripe, unpaid here")).toHaveCount(0, { timeout: 15_000 });
+  const row = dialog.locator("div.rounded-md").filter({ hasText: unpaidStripePayment });
+  // the charge may take a moment to appear in Stripe's list
+  await expect(async () => {
+    await dialog.getByRole("button", { name: "Run" }).click();
+    await expect(row).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 30_000 });
+  await row.getByRole("button", { name: "Settle" }).click();
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
 });

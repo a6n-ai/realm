@@ -18,7 +18,7 @@ test("credit card shows the surcharge before charging", async ({ page, unpaidStr
   await fillCard(page, "4242424242424242");
   await page.getByRole("button", { name: /^Pay \$/ }).click();
   await expect(page.getByText(/card fee/)).toBeVisible();
-  await page.getByRole("button", { name: /^Pay \$\d+\.\d\d$/ }).click();
+  await page.getByRole("button", { name: /^Pay \$[\d.]+$/ }).click();
   await expect(paid(page)).toBeVisible({ timeout: 30_000 });
 });
 

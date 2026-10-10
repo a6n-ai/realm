@@ -46,14 +46,13 @@ export const test = base.extend<Fixtures>({
       await sheet.fillContact({ name: "E2E Stripe", email: customerCreds().email, phone: `416555${String(Date.now()).slice(-4)}` });
       await sheet.continue().click();
       await sheet.fillMinimalOrder();
-      await sheet.root.getByRole("button").filter({ hasText: /card|stripe/i }).first().click();
+      await sheet.root.getByRole("button").filter({ hasText: /^Card$/ }).first().click();
       await sheet.reviewOrder().click();
       await sheet.submitOrder().click();
       await page.getByRole("dialog", { name: /order created/i }).getByRole("button", { name: /view order/i }).click({ timeout: 90_000 });
       await page.waitForURL(/\/dashboard\/orders\//);
-      const html = await page.content();
-      const id = /\/me\/pay\/([A-Za-z0-9_-]+)/.exec(html)?.[1];
-      if (!id) throw new Error("order detail did not expose a /me/pay/<paymentId> link; update unpaidStripePayment");
+      const id = (await page.getByTestId("payment-public-id").first().textContent({ timeout: 30_000 }))?.trim();
+      if (!id) throw new Error("order detail did not render payment-public-id");
       await use(id);
     } finally {
       await ctx.close();
