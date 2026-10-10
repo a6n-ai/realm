@@ -2,12 +2,12 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { rt, taxReadinessMock, disconnectMock, cfgState, connectMock, prevState, clearMock } = vi.hoisted(() => ({
   connectMock: vi.fn(),
-  prevState: { cfg: {} as any },
+  prevState: { cfg: {} as Record<string, unknown> },
   clearMock: vi.fn(async () => {}),
   rt: { current: null as unknown },
   taxReadinessMock: vi.fn(),
   disconnectMock: vi.fn(async () => {}),
-  cfgState: { cfg: { methods: [{ id: "stripe", kind: "online", enabled: false, label: "Card", taxes: [] }] } as any },
+  cfgState: { cfg: { methods: [{ id: "stripe", kind: "online", enabled: false, label: "Card", taxes: [] }] } as { methods: { id: string; kind: string; enabled: boolean; label: string; taxes: unknown[] }[] } },
 }));
 
 vi.mock("@/lib/auth/guards", () => ({
@@ -19,7 +19,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/services/app-settings.service", () => ({
   ensurePaymentCatalog: vi.fn(),
   getPaymentConfigFresh: vi.fn(async () => cfgState.cfg),
-  setPaymentConfig: vi.fn(async (c: unknown) => { cfgState.cfg = c; }),
+  setPaymentConfig: vi.fn(async (c: typeof cfgState.cfg) => { cfgState.cfg = c; }),
 }));
 vi.mock("@/lib/payments/stripe", () => ({
   stripeDeps: {},
@@ -113,6 +113,19 @@ describe("stripe settings actions", () => {
     expect(await a.disconnectStripeAction()).toEqual({ ok: true });
     expect(disconnectMock).toHaveBeenCalled();
     expect(enabled()).toBe(false);
+  });
+
+  it("disconnect clears stored Stripe customer ids, but not when disconnect is refused", async () => {
+    allow();
+    clearMock.mockClear();
+    expect(await a.disconnectStripeAction()).toEqual({ ok: true });
+    expect(clearMock).toHaveBeenCalledTimes(1);
+
+    clearMock.mockClear();
+    disconnectMock.mockRejectedValueOnce(new Error("open card payments"));
+    allow();
+    await a.disconnectStripeAction();
+    expect(clearMock).not.toHaveBeenCalled();
   });
 
   it("test event refuses live mode", async () => {

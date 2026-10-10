@@ -82,6 +82,8 @@ export async function disconnectStripeAction() {
     // Disable first: if a later step fails Card is already off (fail closed).
     await setStripeMethodEnabled(false);
     await disconnectStripe(stripeDeps);
+    // Disconnect wipes accountId, so a later Connect cannot tell the account changed.
+    await clearStripeCustomers();
     refresh();
   });
 }
