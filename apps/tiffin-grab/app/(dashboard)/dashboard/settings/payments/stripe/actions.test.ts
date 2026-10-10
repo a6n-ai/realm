@@ -1,6 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rt, taxReadinessMock, disconnectMock, cfgState } = vi.hoisted(() => ({
+const { rt, taxReadinessMock, disconnectMock, cfgState, connectMock, prevState, clearMock } = vi.hoisted(() => ({
+  connectMock: vi.fn(),
+  prevState: { cfg: {} as any },
+  clearMock: vi.fn(async () => {}),
   rt: { current: null as unknown },
   taxReadinessMock: vi.fn(),
   disconnectMock: vi.fn(async () => {}),
@@ -20,14 +23,21 @@ vi.mock("@/lib/services/app-settings.service", () => ({
 }));
 vi.mock("@/lib/payments/stripe", () => ({
   stripeDeps: {},
+  clearStripeCustomers: clearMock,
   stripeRuntime: vi.fn(async () => rt.current),
   webhookUrl: vi.fn(async () => "https://example.com/api/webhooks/stripe"),
 }));
-vi.mock("@foundry/payments/stripe", async (orig) => ({
-  ...(await orig<typeof import("@foundry/payments/stripe")>()),
+vi.mock("@foundry/payments/stripe", async (orig) => {
+  const real = await orig<typeof import("@foundry/payments/stripe")>();
+  connectMock.mockImplementation(real.connectStripe);
+  return {
+  ...real,
   taxReadiness: taxReadinessMock,
   disconnectStripe: disconnectMock,
-}));
+  connectStripe: connectMock,
+  readStripeConfigStrict: vi.fn(async () => prevState.cfg),
+  };
+});
 
 const a = await import("./actions");
 const { requirePermission } = await import("@/lib/auth/guards");
@@ -126,5 +136,44 @@ describe("stripe settings actions", () => {
     expect(await a.checkTaxReadinessAction("txcd_1")).toEqual({
       error: "Stripe rejected the stored key — use Replace key to reconnect.",
     });
+  });
+});
+
+describe("connect clears stored Stripe customers on identity change", () => {
+  const fd = () => {
+    const f = new FormData();
+    f.set("secretKey", "rk_test_x");
+    f.set("publishableKey", "pk_test_x");
+    return f;
+  };
+  beforeEach(() => { clearMock.mockClear(); connectMock.mockReset(); });
+  afterAll(() => { prevState.cfg = {}; });
+
+  it("clears when the account changes", async () => {
+    allow();
+    prevState.cfg = { accountId: "acct_1", livemode: false };
+    connectMock.mockResolvedValue({ accountId: "acct_2", livemode: false });
+    await a.connectStripeAction(fd());
+    expect(clearMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears on test to live", async () => {
+    allow();
+    prevState.cfg = { accountId: "acct_1", livemode: false };
+    connectMock.mockResolvedValue({ accountId: "acct_1", livemode: true });
+    await a.connectStripeAction(fd());
+    expect(clearMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps ids on a same-identity reconnect and on first connect", async () => {
+    allow();
+    prevState.cfg = { accountId: "acct_1", livemode: false };
+    connectMock.mockResolvedValue({ accountId: "acct_1", livemode: false });
+    await a.connectStripeAction(fd());
+    allow();
+    prevState.cfg = {};
+    connectMock.mockResolvedValue({ accountId: "acct_1", livemode: false });
+    await a.connectStripeAction(fd());
+    expect(clearMock).not.toHaveBeenCalled();
   });
 });

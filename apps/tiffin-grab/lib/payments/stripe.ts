@@ -54,6 +54,15 @@ export const customerStore: StripeCustomerStore = {
   },
 };
 
+export async function clearStripeCustomer(userRef: string): Promise<void> {
+  await db.update(users).set({ stripeCustomerId: null }).where(eq(users.publicId, userRef));
+}
+
+// cus_ ids belong to one Stripe account and mode; after a switch every stored id is dead.
+export async function clearStripeCustomers(): Promise<void> {
+  await db.update(users).set({ stripeCustomerId: null }).where(isNotNull(users.stripeCustomerId));
+}
+
 /** Null when Stripe is not usable right now. Callers hide the card option instead of failing. */
 export async function stripeRuntime(): Promise<{ stripe: Stripe; cfg: StripePluginConfig } | null> {
   try {

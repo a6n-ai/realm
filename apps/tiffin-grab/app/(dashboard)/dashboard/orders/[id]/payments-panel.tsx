@@ -181,8 +181,8 @@ function PaymentRow({
   const unpaid = payment.status === "awaiting_payment" || payment.status === "rejected";
 
   const canVerify =
-    payment.status === "pending_verification" || payment.status === "awaiting_payment";
-  const canReject = payment.status === "pending_verification";
+    !isCard && (payment.status === "pending_verification" || payment.status === "awaiting_payment");
+  const canReject = !isCard && payment.status === "pending_verification";
   const canShareLink =
     payment.status === "awaiting_payment" ||
     payment.status === "pending_verification" ||

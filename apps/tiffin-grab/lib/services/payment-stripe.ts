@@ -9,7 +9,7 @@ import {
 } from "@foundry/payments/stripe";
 import { db } from "@/db/client";
 import { ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
-import { customerStore, stripeRuntime, toCents, fromCents } from "@/lib/payments/stripe";
+import { clearStripeCustomer, customerStore, stripeRuntime, toCents, fromCents } from "@/lib/payments/stripe";
 import { resolveProvince } from "@/lib/tax/canada";
 import { stripeTaxFor } from "@/lib/tax/checkout-taxes";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
@@ -20,6 +20,11 @@ import { ledgerService } from "./ledger.service";
 import { verifyPayment, refundPaymentInTx, resolveUserId } from "./orders.service";
 
 const log = createLogger("payment-stripe");
+
+function isMissingCustomer(e: unknown): boolean {
+  const x = e as { type?: string; code?: string; param?: string; message?: string } | null;
+  return x?.type === "StripeInvalidRequestError" && ((x.code === "resource_missing" && x.param === "customer") || /No such customer/i.test(x.message ?? ""));
+}
 
 export type SettleOutcome = "paid" | "already_paid" | "not_succeeded" | "amount_mismatch" | "not_found" | "unavailable" | "order_cancelled";
 type Payment = typeof payments.$inferSelect;
@@ -368,13 +373,23 @@ export async function payByCard(i: {
     if (extraCents > 0 && !i.acceptSurcharge) {
       return { kind: "confirm_surcharge", surcharge: fromCents(extraCents), newTotal: fromCents(baseCents + extraCents), brand: card.brand, last4: card.last4 };
     }
-    const customerId = await ensureCustomer(rt.stripe, customerStore, { ref: user.publicId, email: user.email, name: user.name });
+    const who = { ref: user.publicId, email: user.email, name: user.name };
+    const customerId = await ensureCustomer(rt.stripe, customerStore, who);
 
     await db.update(payments).set({ surchargeAmount: fromCents(extraCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
-    const r = await createAndConfirmIntent(rt.stripe, {
-      amountCents: baseCents + extraCents, customerId, confirmationTokenId: i.confirmationTokenId, paymentRef: pay.publicId,
+    const createIntent = (cid: string) => createAndConfirmIntent(rt.stripe, {
+      amountCents: baseCents + extraCents, customerId: cid, confirmationTokenId: i.confirmationTokenId, paymentRef: pay.publicId,
       orgRef: order.organizationId, taxCalculationId: calcId, returnUrl: i.returnUrl, description: `Order ${order.publicId}`,
     });
+    let r;
+    try {
+      r = await createIntent(customerId);
+    } catch (e) {
+      if (!isMissingCustomer(e)) throw e;
+      // Stored id is from another Stripe account/mode: drop it and retry once with a fresh customer.
+      await clearStripeCustomer(user.publicId);
+      r = await createIntent(await ensureCustomer(rt.stripe, customerStore, who));
+    }
     if (r.piId) await db.update(payments).set({ providerRef: r.piId }).where(eq(payments.id, pay.id));
 
     if (r.status === "succeeded") return (await settled({ paymentRef: pay.publicId, piId: r.piId }, "return")) ? { kind: "succeeded" } : { kind: "processing" };
@@ -400,7 +415,14 @@ export async function chargeSavedCardForPayment(paymentPublicId: string, actorPu
     if (prior === "processing") return { kind: "processing" };
     if (prior === "stuck") return { kind: "failed", message: "A previous card attempt is still open and could not be cancelled." };
     const customerId = await customerStore.get(user.publicId);
-    const card = customerId ? await defaultCard(rt.stripe, customerId) : null;
+    let card: Awaited<ReturnType<typeof defaultCard>> = null;
+    try {
+      card = customerId ? await defaultCard(rt.stripe, customerId) : null;
+    } catch (e) {
+      if (!isMissingCustomer(e)) throw e;
+      await clearStripeCustomer(user.publicId);
+      return { kind: "no_card" };
+    }
     if (!customerId || !card) return { kind: "no_card" };
 
     const baseCents = toCents(pay.amount);
@@ -408,10 +430,17 @@ export async function chargeSavedCardForPayment(paymentPublicId: string, actorPu
     const { calcId, extraCents } = await priceCharge(pay, order, fee, rt.cfg.tax.surchargeTaxable);
     await db.update(payments).set({ surchargeAmount: fromCents(extraCents), cardBrand: card.brand, cardLast4: card.last4 }).where(eq(payments.id, pay.id));
 
-    const r = await chargeSavedCard(rt.stripe, {
-      amountCents: baseCents + extraCents, customerId, paymentMethodId: card.paymentMethodId, paymentRef: pay.publicId,
-      orgRef: order.organizationId, taxCalculationId: calcId, attempt: String(pay.chargeAttempt),
-    });
+    let r;
+    try {
+      r = await chargeSavedCard(rt.stripe, {
+        amountCents: baseCents + extraCents, customerId, paymentMethodId: card.paymentMethodId, paymentRef: pay.publicId,
+        orgRef: order.organizationId, taxCalculationId: calcId, attempt: String(pay.chargeAttempt),
+      });
+    } catch (e) {
+      if (!isMissingCustomer(e)) throw e;
+      await clearStripeCustomer(user.publicId);
+      return { kind: "no_card" };
+    }
     if (r.piId) await db.update(payments).set({ providerRef: r.piId }).where(eq(payments.id, pay.id));
     // Only a definitive decline opens a new idempotency key; processing/requires_action must replay the same charge.
     if (r.status === "failed") {

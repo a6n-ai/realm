@@ -802,6 +802,7 @@ export async function verifyPayment(
     const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay) throw new NotFoundError("Payment not found");
     if (pay.status === "paid" || pay.status === "simulated_paid") return null;
+    if (pay.method === "stripe" && !opts.fromProvider) throw new ValidationError("Card payments settle automatically");
     // A provider-confirmed charge settles even a staff-rejected row; a manual verify must not.
     if (pay.status !== "awaiting_payment" && pay.status !== "pending_verification" && !(opts.fromProvider && pay.status === "rejected")) {
       throw new ValidationError(`Payment cannot be verified from status ${pay.status}`);

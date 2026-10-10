@@ -333,12 +333,21 @@ describe("verifyPayment — stripe extensions", () => {
     const pay = await pendingPayment();
     await db.update(payments).set({ method: "stripe", surchargeAmount: "4.80" }).where(eq(payments.id, pay.id));
 
-    await verifyPayment(pay.publicId, { actorId: null, providerEventId: "evt_1" });
+    await verifyPayment(pay.publicId, { actorId: null, providerEventId: "evt_1", fromProvider: true });
 
     const rows = await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id));
     expect(rows).toHaveLength(1);
     expect(Number(rows[0]!.amount)).toBeCloseTo(Number(pay.amount) + 4.8, 2);
     expect(rows[0]!.providerEventId).toBe("evt_1");
+  });
+
+  it("refuses a manual verify of a card payment and writes nothing", async () => {
+    const pay = await pendingPayment();
+    await db.update(payments).set({ method: "stripe" }).where(eq(payments.id, pay.id));
+    await expect(verifyPayment(pay.publicId, { actorId: null })).rejects.toThrow("Card payments settle automatically");
+    expect(await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, pay.id))).toHaveLength(0);
+    const [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
+    expect(row!.status).not.toBe("paid");
   });
 
   it("is idempotent across two concurrent verifies", async () => {

@@ -5,6 +5,7 @@ import { ValidationError } from "@foundry/commons";
 import { findMethod, paymentConfigSaveError } from "@foundry/payments";
 import {
   connectStripe,
+  readStripeConfigStrict,
   disconnectStripe,
   updateStripeSettings,
   taxReadiness,
@@ -12,7 +13,7 @@ import {
 } from "@foundry/payments/stripe";
 import { requirePermission } from "@/lib/auth/guards";
 import { runAction } from "@/app/(customer)/me/action-result";
-import { stripeDeps, stripeRuntime, webhookUrl } from "@/lib/payments/stripe";
+import { clearStripeCustomers, stripeDeps, stripeRuntime, webhookUrl } from "@/lib/payments/stripe";
 import { ensurePaymentCatalog, getPaymentConfigFresh, setPaymentConfig } from "@/lib/services/app-settings.service";
 
 const PATH = "/dashboard/settings/payments";
@@ -61,11 +62,15 @@ export async function setStripeEnabledAction(enabled: boolean) {
 export async function connectStripeAction(fd: FormData) {
   return runAction(async () => {
     await requirePermission({ settings: ["write"] });
-    await connectStripe(stripeDeps, {
+    const prev = await readStripeConfigStrict(stripeDeps);
+    const next = await connectStripe(stripeDeps, {
       secretKey: String(fd.get("secretKey") ?? "").trim(),
       publishableKey: String(fd.get("publishableKey") ?? "").trim(),
       webhookUrl: await webhookUrl(),
     });
+    if (prev.accountId && (prev.accountId !== next.accountId || prev.livemode !== next.livemode)) {
+      await clearStripeCustomers();
+    }
     await ensurePaymentCatalog();
     refresh();
   });

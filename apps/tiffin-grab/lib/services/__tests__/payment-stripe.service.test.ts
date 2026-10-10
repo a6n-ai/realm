@@ -220,6 +220,23 @@ describe("payByCard", () => {
     expect(row).toMatchObject({ surchargeAmount: "4.80", providerRef: "pi_new", cardBrand: "visa", cardLast4: "4242" });
   });
 
+  it("recovers from a stale customer id with exactly one retry", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ funding: "debit", brand: "visa", last4: "1111" });
+    const gone = Object.assign(new Error("No such customer: 'cus_test'"), { type: "StripeInvalidRequestError", code: "resource_missing", param: "customer" });
+    create.mockRejectedValueOnce(gone).mockResolvedValueOnce({ status: "requires_action", piId: "pi_r", clientSecret: "cs" });
+    expect((await go(pay)).kind).toBe("requires_action");
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a second missing-customer error", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    preview.mockResolvedValue({ funding: "debit", brand: "visa", last4: "1111" });
+    create.mockRejectedValue(Object.assign(new Error("No such customer"), { type: "StripeInvalidRequestError", code: "resource_missing", param: "customer" }));
+    await expect(go(pay)).rejects.toThrow(/No such customer/);
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
   it("no surcharge for a Quebec postal code even with a credit card", async () => {
     const pay = await makeStripePayment({ amount: "200.00", piId: null, postalCode: "H2X 1Y4" });
     preview.mockResolvedValue({ funding: "credit", brand: "visa", last4: "4242" });
@@ -309,6 +326,13 @@ describe("chargeSavedCardForPayment", () => {
     expect(charge.mock.calls[2]![1]).toMatchObject({ attempt: "2" });
     [row] = await db.select().from(payments).where(eq(payments.id, pay.id));
     expect(row!.chargeAttempt).toBe(2);
+  });
+
+  it("treats a stale customer id as no_card", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: null, postalCode: "M5H 2N2" });
+    card.mockRejectedValue(Object.assign(new Error("No such customer: 'cus_test'"), { type: "StripeInvalidRequestError", code: "resource_missing", param: "customer" }));
+    expect((await svc.chargeSavedCardForPayment(pay.publicId, fx.OWNER)).kind).toBe("no_card");
+    expect(charge).not.toHaveBeenCalled();
   });
 
   it("reports no_card without charging", async () => {
