@@ -1,10 +1,11 @@
 import { Suspense } from "react";
-import { asc, desc, ne } from "drizzle-orm";
+import { and, asc, desc, ne } from "drizzle-orm";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
+import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { CouponsManager, CouponsManagerSkeleton } from "./coupons-manager";
 
 // Server-sortable columns → their Drizzle expression. "value" (computed across
@@ -13,6 +14,7 @@ const SORT_COL = {
   code: coupons.code,
   kind: coupons.kind,
   autoApply: coupons.autoApply,
+  visible: coupons.visible,
   window: coupons.startsAt,
   stackable: coupons.stackable,
   status: coupons.active,
@@ -33,10 +35,10 @@ export default function CouponsPage({ searchParams }: { searchParams: SearchPara
 async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
-  const sp = await searchParams;
+  const sp = await withDefaultMonth(await searchParams);
   const sort: SortState<CouponSortColumn> = parseSort(
     sp,
-    ["code", "kind", "autoApply", "window", "stackable", "status"],
+    ["code", "kind", "autoApply", "visible", "window", "stackable", "status"],
     { column: "window", dir: "desc" },
   );
 
@@ -61,6 +63,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       redemptionCount: coupons.redemptionCount,
       stackable: coupons.stackable,
       autoApply: coupons.autoApply,
+      visible: coupons.visible,
       planTypes: coupons.planTypes,
       startsAt: coupons.startsAt,
       expiresAt: coupons.expiresAt,
@@ -68,7 +71,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       config: coupons.config,
     })
     .from(coupons)
-    .where(ne(coupons.kind, "rep_daily"))
+    .where(and(ne(coupons.kind, "rep_daily"), epochBoundsWhere(coupons.createdAt, sp)))
     .orderBy(primary, desc(coupons.createdAt));
 
   // Hand-made coupons are a small set, so search and paging stay client-side.

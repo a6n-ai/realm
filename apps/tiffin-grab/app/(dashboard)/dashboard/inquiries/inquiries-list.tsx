@@ -66,7 +66,7 @@ export function InquiriesList({
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/inquiries/${r.publicId}`}
         rowClassName={() => "group cursor-pointer"}
-        filters={<ListSearchFilters spec={spec} placeholder="Search inquiries…" shortPlaceholder="Search…" />}
+        filters={<ListSearchFilters spec={spec} placeholder="Search inquiries…" shortPlaceholder="Search…" dateControl="external" />}
         emptyIcon={ClipboardListIcon}
         emptyMessage="No inquiries yet."
         emptySearchMessage="No inquiries match your search."

@@ -3,7 +3,6 @@ import { BarChart3Icon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, PageHeader, type FacetDef } from "@/components/ds";
 import { AnalyticsFilters } from "@/components/analytics/analytics-filters";
-import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getAnalyticsFilterOptions } from "@/lib/services/analytics/shared-filters";
 import { REVENUE_METHODS } from "@/lib/services/analytics/revenue.service";
 import { methodLabel } from "@/lib/analytics/revenue";
@@ -59,11 +58,10 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
 }
 
 async function SharedFilters() {
-  const [options, { timezone }] = await Promise.all([getAnalyticsFilterOptions(), getAppSettings()]);
+  const options = await getAnalyticsFilterOptions();
   return (
     <AnalyticsFilters
       options={options}
-      timezone={timezone}
       revenueFacets={REVENUE_FACETS}
       complaintFacets={COMPLAINT_FACETS}
     />

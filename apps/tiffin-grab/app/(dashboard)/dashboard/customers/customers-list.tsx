@@ -49,7 +49,7 @@ export function CustomersList({
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/customers/${r.publicId}`}
         rowClassName={() => "group cursor-pointer"}
-        filters={<ListSearchFilters spec={spec} placeholder="Search customers…" shortPlaceholder="Search…" />}
+        filters={<ListSearchFilters spec={spec} placeholder="Search customers…" shortPlaceholder="Search…" dateControl="external" />}
         emptyIcon={UsersIcon}
         emptyMessage="No customers yet."
         emptySearchMessage="No customers match your search."

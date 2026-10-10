@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { BellIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
-import { NotificationsNav } from "@relay/engine/ui";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { DatedTabNav } from "@/components/filters/dated-tab-nav";
 
 export default async function NotificationsLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
@@ -13,7 +14,8 @@ export default async function NotificationsLayout({ children }: { children: Reac
         title="Notifications"
         subtitle="Templates, delivery logs, and analytics."
       />
-      <NotificationsNav
+      <DatedTabNav
+        ariaLabel="Notifications sections"
         tabs={[
           { href: "/dashboard/notifications/templates", label: "Templates" },
           { href: "/dashboard/notifications/campaigns", label: "Campaigns" },
@@ -22,6 +24,7 @@ export default async function NotificationsLayout({ children }: { children: Reac
           { href: "/dashboard/notifications/analytics", label: "Analytics" },
         ]}
       />
+      <SectionDateRange />
       <div className="min-w-0">{children}</div>
     </PageShell>
   );

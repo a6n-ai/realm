@@ -60,7 +60,7 @@ export function MoneyLedgerTable({
       rowKey={(r) => r.publicId}
       idAccessor={(r) => r.publicId}
       sort={sort as SortState<LedgerSortKey | "memo">}
-      filters={<ListSearchFilters spec={SPEC} placeholder="Search ledger…" shortPlaceholder="Search…" />}
+      filters={<ListSearchFilters spec={SPEC} placeholder="Search ledger…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={ScrollTextIcon}
       emptyMessage="No money movements yet. Approved payments, refunds and discounts appear here."
       emptySearchMessage="No ledger entries match your search."

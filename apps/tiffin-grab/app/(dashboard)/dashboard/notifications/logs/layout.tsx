@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { RoutedTabNav } from "@foundry/design-system";
+import { DatedTabNav } from "@/components/filters/dated-tab-nav";
 
 // A route per tab, not client-side Tabs — each keeps its own filter/sort/page
 // URL params (both tables use `q`/`page`/`size`/`sort`/`dir` and some
@@ -8,7 +8,7 @@ import { RoutedTabNav } from "@foundry/design-system";
 export default function LogsLayout({ children }: { children: ReactNode }) {
   return (
     <div className="space-y-4">
-      <RoutedTabNav
+      <DatedTabNav
         ariaLabel="Logs sections"
         tabs={[
           { href: "/dashboard/notifications/logs", label: "Sends" },

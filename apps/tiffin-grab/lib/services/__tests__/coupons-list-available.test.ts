@@ -23,7 +23,7 @@ describe("couponsService.listAvailable (customer browse list)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("returns only active, non-rep_daily, in-window coupons with a customer-safe projection", async () => {
+  it("returns only active, visible, non-rep_daily, in-window coupons with a customer-safe projection", async () => {
     const [rep] = await db
       .insert(users)
       .values({ email: "rep@test.com", role: "member", name: "Rep One" })
@@ -37,8 +37,17 @@ describe("couponsService.listAvailable (customer browse list)", () => {
         description: "10% off any plan",
         valuePct: "10",
         active: true,
+        visible: true,
         redemptionCount: 3,
         ownerUserId: null,
+      },
+      {
+        code: "HIDDEN10",
+        kind: "fixed",
+        name: "Hidden fixed",
+        valueAmount: "10",
+        active: true,
+        visible: false,
       },
       {
         code: "REP-2026-07-11-abc",
@@ -80,6 +89,7 @@ describe("couponsService.listAvailable (customer browse list)", () => {
     expect(result).toHaveLength(1);
     expect(result[0].code).toBe("SAVE10");
     expect(result[0].kind).toBe("percentage");
+    expect(result.some((c) => c.code === "HIDDEN10")).toBe(false);
     expect(result.some((c) => "rep_daily" === (c as { kind: string }).kind)).toBe(false);
     expect(result[0]).not.toHaveProperty("redemptionCount");
     expect(result[0]).not.toHaveProperty("ownerUserId");

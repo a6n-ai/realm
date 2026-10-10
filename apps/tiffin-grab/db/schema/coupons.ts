@@ -63,6 +63,9 @@ export const coupons = pgTable("coupons", {
   // Auto-applied at checkout when valid (no code needed). Festival/launch promos
   // are just autoApply coupons with a startsAt/expiresAt window — no special kind.
   autoApply: boolean("auto_apply").notNull().default(false),
+  // When false, omitted from customer browse/suggestion lists (checkout
+  // "Available for you", home, subscribe). Manual code entry still works if active.
+  visible: boolean("visible").notNull().default(true),
   planTypes: text("plan_types").array().notNull().default([]),
   // Payment methods this coupon is valid with (payment_method ids). Empty = all methods.
   allowedPaymentMethods: text("allowed_payment_methods").array().notNull().default([]),

@@ -70,7 +70,7 @@ export function LogsTable({
       idHref={(r) => `/dashboard/orders/${r.orderPublicId}`}
       rowClassName={() => "group cursor-pointer"}
       sort={sort as SortState<LogSortKey | "detail">}
-      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, person, note…" shortPlaceholder="Search…" />}
+      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, person, note…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={ActivityIcon}
       emptyMessage="No payment events yet."
       emptySearchMessage="No payment events match your search."

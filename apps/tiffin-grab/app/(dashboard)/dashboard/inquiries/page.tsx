@@ -28,6 +28,8 @@ import { AddInquirySheet } from "./new-inquiry-form";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { reassignInquiry } from "./actions";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -68,8 +70,9 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
         }
       />
 
+      <SectionDateRange />
       <Suspense fallback={<SkeletonStatCards count={3} className="sm:grid-cols-3" />}>
-        <InquiryStats />
+        <InquiryStats searchParams={searchParams} />
       </Suspense>
 
       <SectionCard title="All inquiries">
@@ -175,12 +178,13 @@ async function NewInquiryAction() {
   );
 }
 
-async function InquiryStats() {
+async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
+  const where = epochBoundsWhere(inquiries.createdAt, await withDefaultMonth(await searchParams));
 
   const [stageCounts, [{ total }]] = await Promise.all([
-    db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
-    db.select({ total: count() }).from(inquiries),
+    db.select({ stage: inquiries.stage, n: count() }).from(inquiries).where(where).groupBy(inquiries.stage),
+    db.select({ total: count() }).from(inquiries).where(where),
   ]);
 
   const countOf = (...stages: string[]) =>
@@ -194,7 +198,7 @@ async function InquiryStats() {
     <StatGrid
       cols={3}
       items={[
-        { icon: InboxIcon, label: "Total", value: total, hint: "all inquiries" },
+        { icon: InboxIcon, label: "Total", value: total, hint: "created in selected dates" },
         { icon: UsersIcon, label: "Open", value: open, hint: "new · contacted · follow-up" },
         {
           icon: TrendingUpIcon,
@@ -210,7 +214,7 @@ async function InquiryStats() {
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await searchParams;
+  const sp = await withDefaultMonth(await searchParams);
   const sort = parseSort(
     sp,
     ["name", "owner", "stage", "source", "lastTouch", "created"],

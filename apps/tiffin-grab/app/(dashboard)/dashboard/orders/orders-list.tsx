@@ -65,7 +65,7 @@ export function OrdersList({
       idAccessor={(o) => o.publicId}
       idHref={(o) => `/dashboard/orders/${o.publicId}`}
       rowClassName={() => "group cursor-pointer"}
-      filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" />}
+      filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={PackageIcon}
       emptyMessage="No orders yet."
       emptySearchMessage="No orders match your search."

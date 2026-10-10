@@ -25,6 +25,8 @@ import {
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
 import { and } from "@foundry/commons/model/condition";
@@ -54,8 +56,9 @@ export default function OrdersPage({
           </div>
         }
       />
+      <SectionDateRange />
       <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <OrdersStats />
+        <OrdersStats searchParams={searchParams} />
       </Suspense>
       <SectionCard title="All orders">
         <Suspense fallback={<OrdersListSkeleton />}>
@@ -73,8 +76,9 @@ async function StartMigratedAction() {
   return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
 }
 
-async function OrdersStats() {
+async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
+  const sp = await withDefaultMonth(await searchParams);
 
   const [s] = await db
     .select({
@@ -83,7 +87,8 @@ async function OrdersStats() {
       pending: sql<number>`count(*) filter (where ${orders.status} = 'pending')`.mapWith(Number),
       revenue: sql<number>`coalesce(sum(${orders.total}) filter (where ${orders.status} <> 'cancelled'), 0)`.mapWith(Number),
     })
-    .from(orders);
+    .from(orders)
+    .where(epochBoundsWhere(orders.createdAt, sp));
 
   const stats = [
     { label: "Total orders", value: s.total, icon: PackageIcon },
@@ -98,7 +103,7 @@ async function OrdersStats() {
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await searchParams;
+  const sp = await withDefaultMonth(await searchParams);
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],

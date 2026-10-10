@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -39,18 +39,23 @@ import {
   PageSkeleton,
   SkeletonStatCards,
 } from "@/components/ds";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-async function loadStats() {
+async function loadStats(sp: { from?: string; to?: string }) {
+  const joined = epochBoundsWhere(users.createdAt, sp);
+  const created = epochBoundsWhere(orders.createdAt, sp);
   const [userCount, subsTotal, subsActive, subsWaitlisted, revenue] = await Promise.all([
-    db.$count(users),
-    db.$count(orders),
-    db.$count(orders, eq(orders.status, "active")),
-    db.$count(orders, eq(orders.status, "waitlisted")),
+    db.$count(users, joined),
+    db.$count(orders, created),
+    db.$count(orders, and(eq(orders.status, "active"), created)),
+    db.$count(orders, and(eq(orders.status, "waitlisted"), created)),
     db
       .select({ total: sql<string>`coalesce(sum(${orders.total}), 0)` })
       .from(orders)
-      .where(eq(orders.status, "active"))
+      .where(and(eq(orders.status, "active"), created))
       .then((r) => Number(r[0]?.total ?? 0)),
   ]);
   return { userCount, subsTotal, subsActive, subsWaitlisted, revenue };
@@ -59,15 +64,15 @@ async function loadStats() {
 // The page shell returns synchronously (no top-level await), so `loading.tsx`
 // never fires — instead the role gate and each data region stream into their own
 // <Suspense> with a skeleton that mirrors the resolved component.
-export default function DashboardOverviewPage() {
+export default function DashboardOverviewPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <Suspense fallback={<PageSkeleton variant="table" stats={4} columns={5} action={false} />}>
-      <DashboardData />
+      <DashboardData searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function DashboardData() {
+async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
   // Staff-only: the overview exposes business-wide stats and customer PII.
   // Customers landing here are sent to their account page.
   const session = await getSession();
@@ -75,10 +80,10 @@ async function DashboardData() {
   if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) {
     return <CustomerDashboard userId={session.user.id} />;
   }
-  return <StaffOverview />;
+  return <StaffOverview searchParams={searchParams} />;
 }
 
-function StaffOverview() {
+function StaffOverview({ searchParams }: { searchParams: SearchParams }) {
   return (
     <PageShell>
       <PageHeader
@@ -86,29 +91,30 @@ function StaffOverview() {
         title="Overview"
         subtitle="Operational snapshot across orders and members."
       />
+      <SectionDateRange />
 
       <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <OverviewStats />
+        <OverviewStats searchParams={searchParams} />
       </Suspense>
 
       <SectionCard title="Recent orders" subtitle="The latest plans deployed through checkout.">
         <Suspense fallback={<RecentOrders.Skeleton />}>
-          <RecentOrders />
+          <RecentOrders searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </PageShell>
   );
 }
 
-async function OverviewStats() {
+async function OverviewStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
-  const stats = await loadStats();
+  const stats = await loadStats(await withDefaultMonth(await searchParams));
 
   const cards = [
-    { label: "Members", value: String(stats.userCount), hint: "registered accounts", icon: UsersIcon },
-    { label: "Active orders", value: String(stats.subsActive), hint: `${stats.subsTotal} total`, icon: PackageIcon },
-    { label: "Waitlisted", value: String(stats.subsWaitlisted), hint: "pending delivery zones", icon: ClockIcon },
-    { label: "Revenue", value: fmt(stats.revenue), hint: "active plans", icon: DollarSignIcon },
+    { label: "Members", value: String(stats.userCount), hint: "joined in selected dates", icon: UsersIcon },
+    { label: "Active orders", value: String(stats.subsActive), hint: `${stats.subsTotal} created`, icon: PackageIcon },
+    { label: "Waitlisted", value: String(stats.subsWaitlisted), hint: "created in selected dates", icon: ClockIcon },
+    { label: "Revenue", value: fmt(stats.revenue), hint: "active plans created in range", icon: DollarSignIcon },
   ];
 
   return <StatGrid cols={4} items={cards} />;
@@ -124,8 +130,9 @@ const RECENT_ORDER_COLUMNS = [
   { key: "total", label: "Total", align: "right" },
 ] as const;
 
-async function RecentOrders() {
+async function RecentOrders({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
+  const sp = await withDefaultMonth(await searchParams);
   const recent = await db
     .select({
       deploymentId: orders.deploymentId,
@@ -136,11 +143,12 @@ async function RecentOrders() {
       createdAt: orders.createdAt,
     })
     .from(orders)
+    .where(epochBoundsWhere(orders.createdAt, sp))
     .orderBy(desc(orders.createdAt))
     .limit(5);
 
   if (recent.length === 0) {
-    return <p className="text-muted-foreground text-sm">No orders yet.</p>;
+    return <p className="text-muted-foreground text-sm">No orders in the selected dates.</p>;
   }
 
   return (

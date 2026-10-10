@@ -1,7 +1,7 @@
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon } from "lucide-react";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
@@ -27,6 +27,8 @@ import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
 import { InvitePendingButton } from "./invite-pending-button";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -47,8 +49,9 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
           </Suspense>
         }
       />
+      <SectionDateRange />
       <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <CustomersStats />
+        <CustomersStats searchParams={searchParams} />
       </Suspense>
       <SectionCard
         title="All customers"
@@ -72,8 +75,9 @@ async function InvitePendingAction() {
   return <InvitePendingButton count={await countPendingInvites()} />;
 }
 
-async function CustomersStats() {
+async function CustomersStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
+  const sp = await withDefaultMonth(await searchParams);
 
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -83,22 +87,27 @@ async function CustomersStats() {
     .groupBy(orders.userId)
     .as("oc");
 
-  const [s] = await db
-    .select({
-      total: sql<number>`count(*)`.mapWith(Number),
-      withOrders: sql<number>`count(*) filter (where ${oc.c} > 0)`.mapWith(Number),
-      repeat: sql<number>`count(*) filter (where ${oc.c} >= 2)`.mapWith(Number),
-      newThisWeek: sql<number>`count(*) filter (where ${users.createdAt} >= ${weekAgo})`.mapWith(Number),
-    })
-    .from(users)
-    .leftJoin(oc, eq(oc.userId, users.id))
-    .where(eq(users.role, "user"));
+  const [[s], [week]] = await Promise.all([
+    db
+      .select({
+        total: sql<number>`count(*)`.mapWith(Number),
+        withOrders: sql<number>`count(*) filter (where ${oc.c} > 0)`.mapWith(Number),
+        repeat: sql<number>`count(*) filter (where ${oc.c} >= 2)`.mapWith(Number),
+      })
+      .from(users)
+      .leftJoin(oc, eq(oc.userId, users.id))
+      .where(and(eq(users.role, "user"), epochBoundsWhere(users.createdAt, sp))),
+    db
+      .select({ n: sql<number>`count(*)`.mapWith(Number) })
+      .from(users)
+      .where(and(eq(users.role, "user"), gte(users.createdAt, weekAgo))),
+  ]);
 
   const stats = [
     { label: "Total customers", value: s.total, icon: UsersIcon },
     { label: "With orders", value: s.withOrders, icon: ShoppingBagIcon },
     { label: "Repeat buyers", value: s.repeat, icon: RepeatIcon, hint: "2+ orders" },
-    { label: "New this week", value: s.newThisWeek, icon: UserPlusIcon },
+    { label: "New this week", value: week.n, icon: UserPlusIcon },
   ];
 
   return <StatGrid cols={4} items={stats} />;
@@ -107,7 +116,7 @@ async function CustomersStats() {
 export async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await searchParams;
+  const sp = await withDefaultMonth(await searchParams);
   const sort = parseSort(sp, ["name", "email", "phone", "orders"], { column: "orders", dir: "desc" });
 
   const spec: FacetDef[] = [

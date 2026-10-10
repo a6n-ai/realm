@@ -6,6 +6,7 @@ import { ledgerEntries, orders, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { parseFilterState, SectionCard } from "@/components/ds";
+import { withDefaultMonth } from "@/lib/list/default-month";
 import { dateRangeWhere } from "../payment-queries";
 import { LEDGER_SORT_KEYS, LEDGER_TYPE_OPTIONS } from "../payment-facets";
 import { MoneyLedgerTable, MoneyLedgerTableSkeleton } from "./money-ledger-table";
@@ -32,7 +33,7 @@ export default function MoneyLedgerPage({ searchParams }: { searchParams: Search
 
 async function MoneyLedgerData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const sp = await searchParams;
+  const sp = await withDefaultMonth(await searchParams);
   const q = sp.q?.trim();
   const sort = parseSort(sp, LEDGER_SORT_KEYS, { column: "time", dir: "desc" });
   const types = (sp.type ?? "").split(",").filter((t) => LEDGER_TYPE_OPTIONS.some((o) => o.value === t));

@@ -60,7 +60,7 @@ export function SuppressedTable({
           shortPlaceholder: "Search…",
           debounceMs: 300,
         }}
-        filters={<ReuiFacetFilters spec={spec} />}
+        filters={<ReuiFacetFilters spec={spec} hideDate />}
         emptyIcon={ShieldOffIcon}
         emptyMessage="No suppressed addresses."
         emptySearchMessage="No suppressed addresses match your search."

@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { messageSuppression, notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, type FacetDef } from "@/components/ds";
+import { withDefaultMonth } from "@/lib/list/default-month";
 import type { LogSortColumn } from "@/app/(dashboard)/dashboard/notifications/logs/logs-table";
 import type { SuppressedSortColumn } from "@/app/(dashboard)/dashboard/notifications/logs/suppressed-table";
 
@@ -91,12 +92,13 @@ export async function loadNotificationLogs(
   sp: Record<string, string | undefined>,
   opts: { campaignId?: bigint } = {},
 ): Promise<{ rows: NotificationLogRow[]; sort: SortState<LogSortColumn>; total: number; page: number; size: number }> {
-  const sort: SortState<LogSortColumn> = parseSort(sp, ["time", "event", "channel", "recipient", "status"], {
+  const dated = await withDefaultMonth(sp);
+  const sort: SortState<LogSortColumn> = parseSort(dated, ["time", "event", "channel", "recipient", "status"], {
     column: "time",
     dir: "desc",
   });
 
-  const { condition, page } = parseFilterState(LOGS_SPEC, sp);
+  const { condition, page } = parseFilterState(LOGS_SPEC, dated);
 
   const facetWhere = conditionToSql(
     condition,
@@ -114,7 +116,7 @@ export async function loadNotificationLogs(
   // Deep-link from a campaign's detail page — not a facet pill, just a plain
   // id filter carried in the URL when this is the standalone Logs page.
   const linkedCampaignId =
-    opts.campaignId ?? (sp.campaignId && /^\d+$/.test(sp.campaignId) ? BigInt(sp.campaignId) : undefined);
+    opts.campaignId ?? (dated.campaignId && /^\d+$/.test(dated.campaignId) ? BigInt(dated.campaignId) : undefined);
   const where = linkedCampaignId ? and(facetWhere, eq(notificationOutbox.campaignId, linkedCampaignId)) : facetWhere;
 
   const col = SORT_COL[sort.column];
@@ -205,12 +207,13 @@ export interface SuppressedAddressRow {
 export async function loadSuppressedAddresses(
   sp: Record<string, string | undefined>,
 ): Promise<{ rows: SuppressedAddressRow[]; sort: SortState<SuppressedSortColumn>; total: number; page: number; size: number }> {
-  const sort: SortState<SuppressedSortColumn> = parseSort(sp, ["time", "address", "channel", "scope", "reason"], {
+  const dated = await withDefaultMonth(sp);
+  const sort: SortState<SuppressedSortColumn> = parseSort(dated, ["time", "address", "channel", "scope", "reason"], {
     column: "time",
     dir: "desc",
   });
 
-  const { condition, page } = parseFilterState(SUPPRESSED_SPEC, sp);
+  const { condition, page } = parseFilterState(SUPPRESSED_SPEC, dated);
   const where = conditionToSql(
     condition,
     columnResolver({

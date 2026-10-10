@@ -120,7 +120,7 @@ export function RequestsTable({
         onRowClick={setViewing}
         rowClassName={() => "group/row"}
         sort={sort as SortState<PaymentSortKey | "reference" | "proof" | "actions">}
-        filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
+        filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />}
         emptyIcon={InboxIcon}
         emptyMessage="No e-transfers yet. Customer claims land here for approval."
         emptySearchMessage="No e-transfers match your filters."

@@ -3,6 +3,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { handler } from "@foundry/routes";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { requireStaff } from "@/lib/auth/guards";
+import { withDefaultMonth } from "@/lib/list/default-month";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { EXPORT_COLUMNS, inquiryRowToExcelRecord } from "@/app/(dashboard)/dashboard/inquiries/inquiry-export-columns";
 
@@ -22,7 +23,7 @@ const EXPORT_SPEC: FacetDef[] = [
 export const GET = handler(async (request: Request): Promise<Response> => {
   await requireStaff();
 
-  const sp = Object.fromEntries(new URL(request.url).searchParams);
+  const sp = await withDefaultMonth(Object.fromEntries(new URL(request.url).searchParams));
   const { condition } = parseFilterState(EXPORT_SPEC, sp);
   const rows = await inquiriesService.listForExport(condition);
 
