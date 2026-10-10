@@ -49,7 +49,7 @@ export default function OverviewAnalyticsPage({ searchParams }: { searchParams: 
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const filters = parseAnalyticsFilters(sp);
+  const filters = await parseAnalyticsFilters(sp);
   const [leads, revenue, customers, complaints, operations, { timezone }] = await Promise.all([
     getLeadStats(filters),
     getRevenueReport(parseRevenueFilters(sp)),
@@ -104,6 +104,6 @@ async function RevenueChart({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function SubscriptionChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSubscriptionMix(parseAnalyticsFilters(await searchParams));
+  const rows = await getSubscriptionMix(await parseAnalyticsFilters(await searchParams));
   return <DistributionDonutChart data={rows} nameKey="status" valueKey="n" />;
 }

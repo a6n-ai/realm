@@ -3,6 +3,7 @@ import { BarChart3Icon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
 import { AnalyticsFilters } from "@/components/analytics/analytics-filters";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getAnalyticsFilterOptions } from "@/lib/services/analytics/shared-filters";
 import { AnalyticsTabs } from "./analytics-tabs";
 
@@ -24,10 +25,6 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
 }
 
 async function SharedFilters() {
-  const options = await getAnalyticsFilterOptions();
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <AnalyticsFilters options={options} />
-    </div>
-  );
+  const [options, { timezone }] = await Promise.all([getAnalyticsFilterOptions(), getAppSettings()]);
+  return <AnalyticsFilters options={options} timezone={timezone} />;
 }

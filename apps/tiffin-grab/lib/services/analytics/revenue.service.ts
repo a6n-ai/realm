@@ -12,7 +12,7 @@ import {
   type PaymentStatusSlice,
   type RevenueSummary,
 } from "@/lib/analytics/revenue";
-import { ordersMatchFilters, parseAnalyticsFilters } from "./shared-filters";
+import { ordersMatchFilters, parseAnalyticsFiltersSync } from "./shared-filters";
 
 export type { RevenueSummary, PaymentStatusSlice };
 
@@ -50,7 +50,7 @@ export function parseRevenueFilters(sp: {
     .split(",")
     .map((s) => s.trim())
     .filter((m): m is PaymentMethod => (PAYMENT_METHODS as readonly string[]).includes(m));
-  const dims = parseAnalyticsFilters(sp);
+  const dims = parseAnalyticsFiltersSync(sp);
   return {
     from: bound(sp.from),
     to: bound(sp.to),

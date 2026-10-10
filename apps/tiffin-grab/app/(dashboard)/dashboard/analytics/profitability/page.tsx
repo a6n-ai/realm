@@ -83,11 +83,11 @@ export default function ProfitabilityAnalyticsPage({ searchParams }: { searchPar
 }
 
 const loadReport = cache(
-  (month: string, grain: Grain, from: string, to: string, plan: string, mealSize: string, zone: string) =>
+  async (month: string, grain: Grain, from: string, to: string, plan: string, mealSize: string, zone: string) =>
     getProfitabilityReport({
       month,
       grain,
-      filters: parseAnalyticsFilters({ from, to, plan, mealSize, zone }),
+      filters: await parseAnalyticsFilters({ from, to, plan, mealSize, zone }),
     }),
 );
 

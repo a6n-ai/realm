@@ -49,7 +49,7 @@ export default function LeadsAnalyticsPage({ searchParams }: { searchParams: Sea
 }
 
 async function StatsData({ searchParams }: { searchParams: SearchParams }) {
-  const s = await getLeadStats(parseAnalyticsFilters(await searchParams));
+  const s = await getLeadStats(await parseAnalyticsFilters(await searchParams));
   return (
     <MetricTiles
       cols={4}
@@ -69,7 +69,7 @@ async function StatsData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function StageChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getLeadsByStage(parseAnalyticsFilters(await searchParams));
+  const rows = await getLeadsByStage(await parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({ label: r.stage, n: r.n, href: inquiriesHref({ stage: r.key }) }))}
@@ -79,12 +79,12 @@ async function StageChart({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function LostReasonChart({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getLostReasonBreakdown(parseAnalyticsFilters(await searchParams));
+  const rows = await getLostReasonBreakdown(await parseAnalyticsFilters(await searchParams));
   return <DistributionDonutChart data={rows} nameKey="reason" valueKey="n" />;
 }
 
 async function SourceTable({ searchParams }: { searchParams: SearchParams }) {
-  const rows = await getSourcePerformance(parseAnalyticsFilters(await searchParams));
+  const rows = await getSourcePerformance(await parseAnalyticsFilters(await searchParams));
   return (
     <BreakdownList
       rows={rows.map((r) => ({

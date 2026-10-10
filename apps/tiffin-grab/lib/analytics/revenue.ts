@@ -173,7 +173,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /**
  * The date the user picked is a calendar day, stored as YYYY-MM-DD. Epoch values
  * are the older picker payload: an instant, converted into the business timezone.
- * No bounds means month-to-date through today in that timezone.
+ * No bounds means the full current calendar month in that timezone.
  */
 export function resolveRevenueBounds(
   fromRaw: string | undefined,
@@ -188,7 +188,8 @@ export function resolveRevenueBounds(
     const n = Number(raw);
     return Number.isFinite(n) ? isoDateInZone(n, timezone) : fallback;
   };
-  if (!fromRaw && !toRaw) return { from: monthBounds(currentMonth(timezone, now)).from, to: today };
+  // Match the shared analytics date control: full current month when unset.
+  if (!fromRaw && !toRaw) return monthBounds(currentMonth(timezone, now));
   const from = one(fromRaw, "2000-01-01");
   const to = one(toRaw, today);
   return from <= to ? { from, to } : { from: to, to: from };
