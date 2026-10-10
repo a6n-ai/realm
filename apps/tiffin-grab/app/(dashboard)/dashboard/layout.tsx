@@ -30,11 +30,32 @@ import { AppClock } from "@/components/dashboard/app-clock";
 // ~126 of them once at build time only to discard the result.
 export const dynamic = "force-dynamic";
 
+// This layout blocks first byte of every /dashboard page, so each read is timed
+// and logged as one "[dashboard-timing]" line (CloudWatch /tiffin/prod) to show
+// which one is slow. ponytail: logs every render; sample or drop once tuned.
+function timer() {
+  const start = performance.now();
+  const ms: Record<string, number> = {};
+  const elapsed = (from: number) => Math.round(performance.now() - from);
+  return {
+    timed<T>(label: string, p: Promise<T>): Promise<T> {
+      const t = performance.now();
+      return p.finally(() => {
+        ms[label] = elapsed(t);
+      });
+    },
+    log() {
+      console.info(`[dashboard-timing] ${JSON.stringify({ total: elapsed(start), ...ms })}`);
+    },
+  };
+}
+
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
 // it for the account page.
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const session = await getSession();
+  const { timed, log } = timer();
+  const session = await timed("session", getSession());
   if (!session?.user) redirect("/login");
 
   // Customers have their own app at /me — the CRM shell is staff/admin only.
@@ -46,7 +67,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // outlive its user row (e.g. dev DB reseeded) — treat that as expired.
   let user;
   try {
-    user = await usersService.read(session.user.id);
+    user = await timed("user", usersService.read(session.user.id));
   } catch (err) {
     if (err instanceof NotFoundError) redirect("/login");
     throw err;
@@ -85,13 +106,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   // Independent reads; this layout blocks first byte of every /dashboard page.
   const [{ timezone, cutoffHour }, memberOrganizations, activity, repCoupon, notificationFeed] = await Promise.all([
-    getAppSettings(),
-    getMemberOrganizations(session),
-    newActivity(),
-    loadRepCoupon(),
+    timed("settings", getAppSettings()),
+    timed("orgs", getMemberOrganizations(session)),
+    timed("activity", newActivity()),
+    timed("repCoupon", loadRepCoupon()),
     // Server-rendered so the bell paints with its badge instead of fetching after hydration.
-    getFeed(user.id),
+    timed("feed", getFeed(user.id)),
   ]);
+  log();
 
   return (
     <div className="crm-app">
