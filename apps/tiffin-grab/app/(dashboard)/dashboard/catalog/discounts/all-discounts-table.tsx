@@ -31,6 +31,7 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
   return (
     <div className="space-y-3">
       <DataTable
+        pagination="client"
         columns={ALL_DISCOUNT_COLUMNS}
         rows={shown}
         rowKey={(r) => `${r.type}:${r.id}`}

@@ -57,4 +57,37 @@ describe("DataTable mobile card", () => {
     // stretched link to the row href
     expect((card as HTMLElement).querySelector('a[href="/x/TG-1"]')).toBeTruthy();
   });
+
+  it("gives every desktop column a resize grip and scrolls sideways", () => {
+    const { container } = render(<Harness />);
+    const desktop = container.querySelector(".md\\:block") as HTMLElement;
+    expect(desktop.querySelector('[role="separator"][aria-label="Resize Name"]')).toBeTruthy();
+    expect(desktop.querySelector('[role="separator"][aria-label="Resize City"]')).toBeTruthy();
+    expect(desktop.querySelector('[role="separator"][aria-label="Resize ID"]')).toBeTruthy();
+    expect(desktop.querySelector("[data-slot=table-container]")?.className).toContain("overflow-x-auto");
+  });
+
+  it("pages an in-memory list without writing the URL", () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ id: `TG-${i}`, name: `N${i}`, city: "Toronto" }));
+    const { container } = render(
+      <DataTable
+        pagination="client"
+        columns={columns}
+        rows={many}
+        rowKey={(r) => r.id}
+        emptyIcon={(() => null) as never}
+        emptyMessage="none"
+        renderRow={(r) => (
+          <>
+            <TableCell>{r.name}</TableCell>
+            <TableCell>{r.city}</TableCell>
+            <TableCell />
+          </>
+        )}
+      />,
+    );
+    expect(container.textContent).toContain("1–25 of 30");
+    expect(container.textContent).toContain("N0");
+    expect(container.textContent).not.toContain("N29");
+  });
 });

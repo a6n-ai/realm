@@ -22,6 +22,7 @@ export const MENU_ITEM_COLUMNS: readonly Column<"name" | "basePrice" | "price" |
 export function MenuItemsTable({ items }: { items: MenuItemRow[] }) {
   return (
     <DataTable
+      pagination="client"
       columns={MENU_ITEM_COLUMNS}
       rows={items}
       rowKey={(item) => item.publicId}

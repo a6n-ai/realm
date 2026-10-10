@@ -77,6 +77,7 @@ export function DiscountsTable({ rows }: { rows: DiscountRow[] }) {
   return (
     <>
       <DataTable
+        pagination="client"
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.publicId}

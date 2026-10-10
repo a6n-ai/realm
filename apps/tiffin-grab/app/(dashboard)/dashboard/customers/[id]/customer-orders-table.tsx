@@ -46,6 +46,7 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
 
   return (
     <DataTable
+      pagination="client"
       columns={CUSTOMER_ORDERS_COLUMNS}
       rows={filtered}
       rowKey={(o) => o.publicId}

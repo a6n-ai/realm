@@ -40,6 +40,7 @@ export function CustomerInquiriesTable({ inquiries }: { inquiries: CustomerInqui
 
   return (
     <DataTable
+      pagination="client"
       columns={CUSTOMER_INQUIRIES_COLUMNS}
       rows={filtered}
       rowKey={(i) => i.publicId}

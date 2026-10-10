@@ -24,6 +24,7 @@ export function DriverRoster({ drivers, rows }: { drivers: KnownDriver[]; rows: 
 
   return (
     <DataTable
+      pagination="client"
       columns={COLUMNS}
       rows={safeDrivers}
       rowKey={(d) => d.driverSerial}

@@ -135,6 +135,7 @@ export function TemplateList({
 
   return (
     <DataTable
+      pagination="client"
       columns={TEMPLATE_COLUMNS}
       rows={statusRows}
       rowKey={(r) => r.event}

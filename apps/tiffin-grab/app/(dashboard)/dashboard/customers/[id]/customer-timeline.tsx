@@ -46,6 +46,7 @@ export function CustomerTimeline({ entries, timezone }: { entries: TimelineEntry
 
   return (
     <DataTable
+      pagination="client"
       columns={CUSTOMER_TIMELINE_COLUMNS}
       rows={filtered}
       rowKey={(e) => e.id}

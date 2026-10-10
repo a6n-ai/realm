@@ -91,6 +91,7 @@ export function CustomerBookingsTable({ rows, currency }: { rows: CustomerBookin
   const f = useFiltered(rows, bookingText);
   return (
     <DataTable
+      pagination="client"
       columns={BOOKING_COLUMNS}
       rows={f.filtered}
       rowKey={(r) => r.publicId}
@@ -142,6 +143,7 @@ export function CustomerPaymentsTable({ rows, canReview }: { rows: CustomerPayme
   const f = useFiltered(rows, paymentText);
   return (
     <DataTable
+      pagination="client"
       columns={PAYMENT_COLUMNS}
       rows={f.filtered}
       rowKey={(r) => r.publicId}
@@ -188,6 +190,7 @@ export function CustomerLedgerTable({ rows }: { rows: CustomerLedgerRow[] }) {
   const f = useFiltered(rows, ledgerText);
   return (
     <DataTable
+      pagination="client"
       columns={LEDGER_COLUMNS}
       rows={f.filtered}
       rowKey={(r) => r.publicId}

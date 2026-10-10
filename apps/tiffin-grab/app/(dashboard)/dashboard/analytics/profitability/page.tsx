@@ -8,22 +8,19 @@ import { Card, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
-import { cn } from "@foundry/ui/cn";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
 import {
   clockInZone,
   currentMonth,
-  periodLabel,
   type Grain,
   type ProfitabilityKpis,
-  type ProfitRow,
 } from "@/lib/analytics/profitability";
 import { parseAnalyticsFilters } from "@/lib/services/analytics/shared-filters";
 import { LiveRefresh } from "@/components/analytics/live-refresh";
 import { AssumptionsForm } from "./assumptions-form";
 import { GrainNav } from "./grain-nav";
+import { ProfitTable } from "./profit-table";
 
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -191,63 +188,4 @@ async function Grid({ searchParams }: { searchParams: SearchParams }) {
 async function Assumptions({ searchParams }: { searchParams: SearchParams }) {
   const report = await reportFrom(searchParams);
   return <AssumptionsForm current={report.assumptions} />;
-}
-
-const COLUMNS = [
-  { key: "date", label: "Date", align: "left" },
-  { key: "tiffins", label: "Tiffins delivered", align: "right" },
-  { key: "cash", label: "Cash collected", align: "right" },
-  { key: "revenue", label: "Revenue earned", align: "right" },
-  { key: "kitchen", label: "Kitchen", align: "right" },
-  { key: "driver", label: "Driver", align: "right" },
-  { key: "marketing", label: "Marketing", align: "right" },
-  { key: "salaries", label: "Salaries", align: "right" },
-  { key: "other", label: "Other", align: "right" },
-  { key: "profit", label: "Profit", align: "right" },
-  { key: "margin", label: "Margin", align: "right" },
-] as const;
-
-function ProfitTable({ rows, grain }: { rows: ProfitRow[]; grain: Grain }) {
-  if (rows.length === 0) {
-    return <p className="text-muted-foreground text-sm">No days in this range.</p>;
-  }
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {COLUMNS.map((c) => (
-              <TableHead key={c.key} className={c.align === "right" ? "text-right" : undefined}>
-                {c.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
-            <TableRow key={r.date}>
-              <TableCell className="whitespace-nowrap">{periodLabel(r.date, grain)}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.tiffins}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(r.cashCollected)}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(r.revenue)}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(r.kitchen)}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(r.driver)}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(r.marketing)}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(r.salaries)}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(r.other)}</TableCell>
-              <TableCell
-                className={cn(
-                  "text-right font-medium tabular-nums",
-                  r.profit < 0 && "text-destructive",
-                )}
-              >
-                {money(r.profit)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{pct(r.marginPct)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
 }

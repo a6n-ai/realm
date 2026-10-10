@@ -50,6 +50,7 @@ export function ClientsList({
 
   return (
     <DataTable
+      pagination="client"
       columns={COLUMNS}
       rows={filteredRows}
       rowKey={(r) => r.id}

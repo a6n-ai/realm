@@ -76,6 +76,7 @@ export function SwapPairGrid({
       }
     >
       <DataTable
+        pagination="client"
         columns={COLUMNS}
         rows={pairs}
         rowKey={(p) => p.id}
