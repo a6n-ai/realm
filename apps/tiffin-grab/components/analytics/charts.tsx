@@ -170,18 +170,23 @@ export function DistributionDonutChart({
   data,
   nameKey,
   valueKey,
+  format = "number",
+  colorKey,
   height = 240,
 }: {
   data: Row[];
   nameKey: string;
   valueKey: string;
+  format?: ValueFormat;
+  /** Optional per-row CSS color field (e.g. theme chart token). */
+  colorKey?: string;
   height?: number;
 }) {
   if (data.length === 0) return <EmptyChart height={height} />;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>
-        <Tooltip content={(props) => <ChartTooltip {...props} />} />
+        <Tooltip content={(props) => <ChartTooltip {...props} format={format} />} />
         <Pie
           data={data}
           dataKey={valueKey}
@@ -190,9 +195,11 @@ export function DistributionDonutChart({
           outerRadius="85%"
           paddingAngle={2}
         >
-          {data.map((_, i) => (
-            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-          ))}
+          {data.map((row, i) => {
+            const custom = colorKey != null ? row[colorKey] : undefined;
+            const fill = typeof custom === "string" ? custom : CHART_COLORS[i % CHART_COLORS.length];
+            return <Cell key={i} fill={fill} />;
+          })}
         </Pie>
       </PieChart>
     </ResponsiveContainer>

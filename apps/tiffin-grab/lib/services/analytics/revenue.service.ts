@@ -12,9 +12,13 @@ import {
   type PaymentStatusSlice,
   type RevenueSummary,
 } from "@/lib/analytics/revenue";
+import {
+  summarizeRevenueCohorts,
+  type RevenueCohortSlice,
+} from "@/lib/analytics/revenue-cohorts";
 import { ordersMatchFilters, parseAnalyticsFiltersSync } from "./shared-filters";
 
-export type { RevenueSummary, PaymentStatusSlice };
+export type { RevenueSummary, PaymentStatusSlice, RevenueCohortSlice };
 
 export type RevenueReport = RevenueSummary & { byStatus: PaymentStatusSlice[] };
 
@@ -165,3 +169,71 @@ export async function getRevenueReport(
 }
 
 export const REVENUE_METHODS: readonly PaymentMethod[] = PAYMENT_METHODS;
+
+const priorNonTrial = sql<boolean>`exists (
+  select 1 from ${orders} as prior
+  where prior.user_id = ${orders.userId}
+    and prior.trial_length is null
+    and prior.created_at < ${orders.createdAt}
+)`;
+
+/**
+ * Settled net sales split into renewals / new plans / trials for the same
+ * window as {@link getRevenueReport}. Amounts sum to net sales.
+ */
+export async function getRevenueCohortMix(
+  filters: RevenueFilters,
+  opts: { now?: number } = {},
+): Promise<{ from: string; to: string; slices: RevenueCohortSlice[]; totalAmount: number; totalCount: number }> {
+  const now = opts.now ?? Date.now();
+  const { timezone } = await getAppSettings();
+  const { from, to } = resolveRevenueBounds(filters.from, filters.to, timezone, now);
+  const fromMs = Date.parse(`${from}T00:00:00.000Z`) - DAY_PAD;
+  const toMs = Date.parse(`${to}T23:59:59.999Z`) + DAY_PAD;
+  const window = sql`${moneyAt} between ${fromMs} and ${toMs}`;
+  const methodWhere = filters.methods.length
+    ? inArray(payments.method, filters.methods as PaymentMethod[])
+    : undefined;
+  const orderWhere = dimensionWhere(filters);
+
+  const rows = await db
+    .select({
+      orderId: payments.orderId,
+      status: payments.status,
+      method: payments.method,
+      amount: payments.amount,
+      at: moneyAt,
+      orderTotal: orders.total,
+      snapshot: orders.pricingSnapshot,
+      trialLength: orders.trialLength,
+      userId: orders.userId,
+      orderCreatedAt: orders.createdAt,
+      hasPriorNonTrial: priorNonTrial,
+    })
+    .from(payments)
+    .innerJoin(orders, eq(payments.orderId, orders.id))
+    .where(and(inArray(payments.status, [...SETTLED_STATUSES]), window, methodWhere, orderWhere));
+
+  return {
+    from,
+    to,
+    ...summarizeRevenueCohorts({
+      from,
+      to,
+      timezone,
+      payments: rows.map((r) => ({
+        orderId: String(r.orderId),
+        status: r.status,
+        method: r.method,
+        amount: Number(r.amount),
+        at: Number(r.at),
+        orderTotal: Number(r.orderTotal),
+        snapshot: r.snapshot,
+        trialLength: r.trialLength,
+        userId: r.userId == null ? null : String(r.userId),
+        orderCreatedAt: Number(r.orderCreatedAt),
+        hasPriorNonTrial: Boolean(r.hasPriorNonTrial),
+      })),
+    }),
+  };
+}
