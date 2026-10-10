@@ -70,6 +70,8 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
       { name: "durationWeeks", label: "Duration (weeks)" },
       { name: "deliveryDays", label: "Delivery days" },
       { name: "eatingDays", label: "Eating days" },
+      { name: "paidWith", label: "Paid with" },
+      { name: "receiptLines", label: "Tax and fee lines" },
     ],
   },
   payment_reminder: {

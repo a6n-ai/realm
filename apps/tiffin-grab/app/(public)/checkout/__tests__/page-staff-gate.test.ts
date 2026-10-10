@@ -16,6 +16,7 @@ vi.mock("@/lib/services/session-service", async (orig) => ({
 vi.mock("@/lib/services/app-settings.service", () => ({
   getAppSettings: async () => ({ defaultCountry: "CA" }),
   getIntegrationsConfig: async () => ({}),
+  getIntegrationsConfigFresh: async () => ({}),
   setIntegrationsConfig: async () => {},
   getPaymentConfig: async () => ({}),
 }));
