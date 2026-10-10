@@ -9,9 +9,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { ReferenceEditor } from "../orders/[id]/reference-editor";
-import { PAYMENT_METHOD_OPTIONS, type PaymentRow } from "./payment-facets";
-
-const methodLabel = (m: string) => PAYMENT_METHOD_OPTIONS.find((o) => o.value === m)?.label ?? m;
+import { methodLabel, type PaymentRow } from "./payment-facets";
 
 /** One payment row (reference editable in place); `footer` carries the caller's actions (e.g. approve/reject). */
 export function PaymentDetailDialog({

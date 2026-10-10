@@ -40,6 +40,8 @@ export const PAYMENT_METHOD_OPTIONS = [
   { value: "simulated", label: "Simulated" },
 ] as const;
 
+export const methodLabel = (m: string) => PAYMENT_METHOD_OPTIONS.find((o) => o.value === m)?.label ?? m;
+
 export const LEDGER_SORT_KEYS = ["time", "customer", "type", "order", "amount"] as const;
 export type LedgerSortKey = (typeof LEDGER_SORT_KEYS)[number];
 
