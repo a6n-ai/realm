@@ -13,18 +13,24 @@ import {
 
 /**
  * Shared filter bar for every analytics subsection. Date sits outside the facet
- * menu (defaults to the current month). Plan / meal size / zone stay in Filter
- * and write into the same URL scope the cards read.
+ * menu (defaults to the current month). Plan / meal size / zone stay in Filter;
+ * Revenue / Complaints append page-only facets when the route matches.
  */
 export function AnalyticsFilters({
   options,
   timezone,
+  revenueFacets = [],
+  complaintFacets = [],
 }: {
   options: AnalyticsFilterOptions;
   timezone: string;
+  revenueFacets?: FacetDef[];
+  complaintFacets?: FacetDef[];
 }) {
-  const spec = useMemo<FacetDef[]>(
-    () => [
+  const pathname = usePathname();
+
+  const spec = useMemo<FacetDef[]>(() => {
+    const shared: FacetDef[] = [
       { kind: "multi", field: "plan", label: "Meal plan", options: options.plans },
       {
         kind: "multi",
@@ -34,9 +40,14 @@ export function AnalyticsFilters({
         options: options.mealSizes,
       },
       { kind: "multi", field: "zone", label: "Zone", options: options.zones },
-    ],
-    [options],
-  );
+    ];
+    const extras = pathname.startsWith("/dashboard/analytics/revenue")
+      ? revenueFacets
+      : pathname.startsWith("/dashboard/analytics/complaints")
+        ? complaintFacets
+        : [];
+    return [...shared, ...extras];
+  }, [options, pathname, revenueFacets, complaintFacets]);
 
   return (
     <div className="flex flex-wrap items-center gap-2">

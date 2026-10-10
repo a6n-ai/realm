@@ -1,18 +1,16 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { AlertTriangleIcon, ClockIcon, InboxIcon, RepeatIcon } from "lucide-react";
-import { SectionCard, type FacetDef } from "@/components/ds";
+import { SectionCard } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { TrendLineChart } from "@/components/analytics/charts";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { MetricTiles } from "@/components/analytics/metric-tiles";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
-import { categoryLabel, SUBCATEGORIES, TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
-import { PRIORITY_OPTIONS, priorityLabel } from "@/lib/support/ticket-priority";
+import { categoryLabel } from "@/lib/support/ticket-taxonomy";
+import { priorityLabel } from "@/lib/support/ticket-priority";
 import {
   NOT_LINKED,
-  STATUS_OPTIONS,
   complaintHref,
   parseComplaintFilters,
   type ComplaintFilters,
@@ -44,10 +42,6 @@ function ticketsHref(filters: ComplaintFilters, extra: Partial<ComplaintFilters>
 export default function ComplaintsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
-      <Suspense fallback={<div className="bg-muted/40 h-10 animate-pulse rounded-lg" />}>
-        <Filters />
-      </Suspense>
-
       <Suspense fallback={<ChartSkeleton />}>
         <Kpis searchParams={searchParams} />
       </Suspense>
@@ -115,31 +109,6 @@ export default function ComplaintsAnalyticsPage({ searchParams }: { searchParams
       </div>
     </div>
   );
-}
-
-async function Filters() {
-  // Date / plan / meal size / zone live on the shared analytics filter bar.
-  // These are complaints-only facets; field names still match the ticket queue.
-  const spec: FacetDef[] = [
-    {
-      kind: "multi",
-      field: "category",
-      label: "Category",
-      options: TICKET_CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) })),
-    },
-    {
-      kind: "multi",
-      field: "subcategory",
-      label: "Sub-category",
-      dependsOn: "category",
-      options: TICKET_CATEGORIES.flatMap((c) =>
-        SUBCATEGORIES[c].map((s) => ({ value: s.value, label: s.label, parent: c })),
-      ),
-    },
-    { kind: "multi", field: "status", label: "Status", options: STATUS_OPTIONS.map((s) => ({ ...s })) },
-    { kind: "multi", field: "priority", label: "Priority", options: PRIORITY_OPTIONS.map((p) => ({ ...p })) },
-  ];
-  return <ListSearchFilters spec={spec} />;
 }
 
 async function Kpis({ searchParams }: { searchParams: SearchParams }) {
