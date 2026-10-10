@@ -7,8 +7,7 @@ import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
 import { after } from "next/server";
 import { requireStaff, roleCan } from "@/lib/auth/guards";
-import { createLogger } from "@foundry/commons/logger";
-import { settleStripePayment } from "@/lib/services/payment-stripe";
+import { settleStaleOnView } from "@/lib/services/payment-stripe";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
 import { appToday } from "@/lib/services/start-date";
@@ -44,8 +43,6 @@ import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
 import { DeliveriesSection, loadSubscription } from "@/components/dashboard/subscription-panel";
-
-const log = createLogger("stripe-view-settle");
 
 // The full record for ONE order: what it is, what it costs, whether it is paid, and every
 // change the customer can make on it (move, swap, address, meal picks) through
@@ -112,14 +109,8 @@ async function OrderDetail({
   ]);
 
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
-  const staleCards = order.payments.filter(
-    (p) => p.method === "stripe" && p.status === "awaiting_payment" && p.providerRef && (p.providerCheckedAt ?? 0) < Date.now() - 120_000,
-  );
-  if (staleCards.length) {
-    after(async () => {
-      for (const p of staleCards) await settleStripePayment({ paymentRef: p.publicId }, "view").catch((e) => log.error({ paymentId: p.publicId, err: e }, "lazy stripe settle failed"));
-    });
-  }
+  const unsettledCards = order.payments.filter((p) => p.method === "stripe" && p.status === "awaiting_payment" && p.providerRef);
+  if (unsettledCards.length) after(() => settleStaleOnView(unsettledCards));
   const role = session?.user.role ?? "";
 
   const settingsToday = zonedDateIso(Date.now(), settings.timezone);

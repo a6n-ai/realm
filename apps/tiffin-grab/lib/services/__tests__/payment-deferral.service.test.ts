@@ -8,7 +8,6 @@ const { couponRedemptions, coupons, deliveries, ledgerEntries, notificationOutbo
   await import("@/db/schema");
 const { createOrder, verifyPayment, claimPayment } = await import("../orders.service");
 const { setPaymentConfig } = await import("../app-settings.service");
-const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput } = await import("./stripe-fixture");
 

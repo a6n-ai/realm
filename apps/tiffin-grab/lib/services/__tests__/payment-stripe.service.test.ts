@@ -606,3 +606,31 @@ describe("reconcileStripe bounds and binding", () => {
     expect(status).toHaveBeenCalledTimes(50);
   });
 });
+
+describe("settleStaleOnView", () => {
+  beforeEach(async () => { await reset(); status.mockReset(); });
+  const view = (p: { publicId: string; method: string; status: string; providerRef: string | null }, providerCheckedAt: number | null) => ({
+    publicId: p.publicId, method: p.method, status: p.status, providerRef: p.providerRef, providerCheckedAt,
+  });
+
+  it("checks rows not looked at in the last two minutes and skips fresh, paid and PI-less rows", async () => {
+    const stale = await makeStripePayment({ amount: "10.00", piId: "pi_stale" });
+    status.mockResolvedValue({ piId: "pi_stale", status: "processing", amountReceivedCents: 0, currency: "cad", paymentRef: stale.publicId, created: 1 });
+
+    await svc.settleStaleOnView([
+      view(stale, Date.now() - 5 * 60_000),
+      view({ ...stale, publicId: "pay_fresh" }, Date.now() - 30_000),
+      view({ ...stale, publicId: "pay_paid", status: "paid" }, null),
+      view({ ...stale, publicId: "pay_nopi", providerRef: null }, null),
+      view({ ...stale, publicId: "pay_cash", method: "cash" }, null),
+    ]);
+
+    expect(status).toHaveBeenCalledTimes(1);
+  });
+
+  it("never throws when a settle fails", async () => {
+    const pay = await makeStripePayment({ amount: "10.00", piId: "pi_boom" });
+    status.mockRejectedValue(new Error("stripe down"));
+    await expect(svc.settleStaleOnView([view(pay, null)])).resolves.toBeUndefined();
+  });
+});

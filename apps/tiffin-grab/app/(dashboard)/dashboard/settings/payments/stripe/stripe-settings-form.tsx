@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
@@ -37,6 +37,12 @@ const WEEK_MS = 7 * 24 * 3600 * 1000;
 const card = "space-y-4 rounded-xl border bg-muted/30 p-4";
 const selectCls = "border-input bg-background h-9 w-full rounded-md border px-2 text-sm";
 
+// Client-only clock, read once: null on the server so "Last event" hydrates without a mismatch.
+let mountedAt: number | null = null;
+const subscribeNone = () => () => {};
+const clientNow = () => (mountedAt ??= Date.now());
+const serverNow = () => null;
+
 function ago(at: number, now: number) {
   const mins = Math.max(0, Math.round((now - at) / 60000));
   if (mins < 60) return `${mins} min ago`;
@@ -53,8 +59,7 @@ export function StripeSettingsForm({ view }: { view: StripeView }) {
   const [tax, setTax] = useState(view.tax);
   const [sur, setSur] = useState(view.surcharge);
   const [ready, setReady] = useState<Readiness | null>(null);
-  const [now, setNow] = useState<number | null>(null);
-  useEffect(() => setNow(Date.now()), []);
+  const now = useSyncExternalStore(subscribeNone, clientNow, serverNow);
 
   const REJECTED_PREFIX = "Stripe rejected";
   const run = (fn: () => Promise<{ error: string } | { ok: true; message?: string }>, after?: () => void) =>

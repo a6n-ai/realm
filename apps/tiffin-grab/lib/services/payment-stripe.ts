@@ -540,3 +540,22 @@ export async function refundStripePayment(paymentPublicId: string, amount: strin
     createdBy: await resolveUserId(db, actorPublicId),
   });
 }
+
+const LAZY_SETTLE_STALE_MS = 120_000;
+
+/**
+ * Lazy on-view check (no cron): settles awaiting card payments that were not checked
+ * in the last two minutes. Call it inside after() so the page response does not wait.
+ */
+export async function settleStaleOnView(
+  rows: readonly { publicId: string; method?: string; status: string; providerRef: string | null; providerCheckedAt: number | null }[],
+): Promise<void> {
+  const cutoff = Date.now() - LAZY_SETTLE_STALE_MS;
+  for (const p of rows) {
+    if ((p.method ?? "stripe") !== "stripe" || p.status !== "awaiting_payment" || !p.providerRef) continue;
+    if ((p.providerCheckedAt ?? 0) >= cutoff) continue;
+    await settleStripePayment({ paymentRef: p.publicId }, "view").catch((e) =>
+      log.error({ paymentId: p.publicId, err: (e as Error).message }, "lazy stripe settle failed"),
+    );
+  }
+}

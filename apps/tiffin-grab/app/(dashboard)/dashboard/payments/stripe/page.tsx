@@ -6,14 +6,11 @@ import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
-import { createLogger } from "@foundry/commons/logger";
-import { settleStripePayment } from "@/lib/services/payment-stripe";
+import { settleStaleOnView } from "@/lib/services/payment-stripe";
 import { listPayments } from "../payment-queries";
 import { StripeTable, StripeTableSkeleton } from "./stripe-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
-
-const log = createLogger("stripe-view-settle");
 
 export default function StripePaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -33,14 +30,8 @@ async function StripeData({ searchParams }: { searchParams: SearchParams }) {
     stripeRuntime(),
   ]);
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
-  const stale = rows.filter(
-    (p) => p.status === "awaiting_payment" && p.providerRef && (p.providerCheckedAt ?? 0) < Date.now() - 120_000,
-  );
-  if (stale.length) {
-    after(async () => {
-      for (const p of stale) await settleStripePayment({ paymentRef: p.publicId }, "view").catch((e) => log.error({ paymentId: p.publicId, err: e }, "lazy stripe settle failed"));
-    });
-  }
+  const unsettled = rows.filter((p) => p.status === "awaiting_payment" && p.providerRef);
+  if (unsettled.length) after(() => settleStaleOnView(unsettled));
   return (
     <StripeTable
       rows={rows}
