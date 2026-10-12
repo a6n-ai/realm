@@ -27,7 +27,7 @@ import { Button } from "@foundry/ui/button";
 import Link from "next/link";
 import { humanDate } from "@/lib/deliveries-view";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PaymentsPanel } from "./payments-panel";
@@ -36,6 +36,7 @@ import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { ChangePlanControl } from "./change-plan-control";
 import { StartDateControl } from "./start-date-control";
+import { EatingDaysControl } from "./eating-days-control";
 import { ComplimentaryControl } from "./complimentary-control";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
@@ -202,6 +203,22 @@ async function OrderDetail({
     />
   );
 
+  const frequencyRow = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId);
+  const canEditEating = frequencyRow != null && order.trialLength == null
+    && (order.status === "active" || order.status === "paused" || order.status === "pending");
+  const eatingAction = canEditEating ? (
+    <EatingDaysControl
+      orderId={order.publicId}
+      eatingDays={(order.eatingDays as DayOfWeek[] | null) ?? orderDeliveryDays({
+        frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null,
+        includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
+      })}
+      deliveryDays={orderDeliveryDays({ frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false })}
+      servesWeekends={catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.servesWeekends ?? true}
+      bounds={{ min: settings.minTiffinsPerWeek, max: settings.maxTiffinsPerWeek }}
+    />
+  ) : null;
+
   const stats: StatItem[] = [
     { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" ? "Paused" : order.frequencyName, pixelValue: false },
     {
@@ -311,6 +328,7 @@ async function OrderDetail({
               currency={settings.currency}
               categoryLabels={categoryLabels}
               startAction={startAction}
+              eatingAction={eatingAction}
             />
           ),
           deliveries: (

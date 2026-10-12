@@ -13,6 +13,7 @@ import {
   cancelOrder,
   startMigratedOrder,
   changeOrderStartDate,
+  changeOrderEatingDays,
   changeMealSize,
   rejectPayment,
   updatePaymentReference,
@@ -25,6 +26,7 @@ import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
+import type { DayOfWeek } from "@/lib/menu/delivery-days";
 
 export async function activate(orderId: string) {
   await requireStaff();
@@ -45,6 +47,15 @@ export async function changeStartDateAction(orderId: string, startDate: string):
   const res = await runAction(async () => {
     await requireStaff();
     await changeOrderStartDate(orderId, startDate);
+  });
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  return res;
+}
+
+export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[]): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await changeOrderEatingDays(orderId, days);
   });
   revalidatePath(`/dashboard/orders/${orderId}`);
   return res;

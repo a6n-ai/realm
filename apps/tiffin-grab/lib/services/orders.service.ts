@@ -66,7 +66,8 @@ import {
   reverseCoinAward,
 } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
-import { eatingDaysError, orderDeliveryDays, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { publishAnalyticsLive, publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
@@ -1698,6 +1699,101 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     publishAnalyticsLive();
   }
 
+  // Admin: change which days the customer eats. The delivery days (frequency) and the tiffin
+  // balance stay as they are; only deliveries nobody has touched are laid out again, so the
+  // last delivery date moves. Delivered, held, moved, swapped, re-addressed and routed rows
+  // keep their date and the open tiffins are laid around them.
+  async changeEatingDays(publicId: string, days: DayOfWeek[]): Promise<void> {
+    const actorId = await this.currentUserId();
+    const { timezone, cutoffHour, minTiffinsPerWeek, maxTiffinsPerWeek } = await getAppSettings();
+    const label = (d: readonly string[]) => d.map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join(", ");
+    await db.transaction(async (tx) => {
+      const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
+      if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+      if (order.status !== "active" && order.status !== "paused" && order.status !== "pending") {
+        throw new ValidationError("Eating days can only change on a plan that is running or waiting to start");
+      }
+      if (order.trialLength != null) throw new ValidationError("A trial's days come from its trial schedule");
+
+      const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
+        .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+      if (!freq) throw new ValidationError("Delivery frequency not found");
+      const frequency = { frequencyKey: freq.key, weekdays: freq.weekdays as DayOfWeek[] | null };
+      const deliveryDays = orderDeliveryDays({ ...frequency, includeSaturday: false, includeSunday: false });
+      const err = eatingDaysError(deliveryDays, days, { min: minTiffinsPerWeek, max: maxTiffinsPerWeek })
+        ?? weekendDaysError(days, await mealSizeServesWeekends(order.mealSizeId, tx));
+      if (err) throw new ValidationError(err);
+      const trips = planWeek(deliveryDays, days)!;
+      const next = trips.flatMap((t) => t.days);
+      const before = (order.eatingDays as DayOfWeek[] | null)
+        ?? orderDeliveryDays({ ...frequency, includeSaturday: order.includeSaturday, includeSunday: order.includeSunday });
+      if (before.join() === next.join()) return;
+
+      const rows = await tx.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+      const ids = rows.map((r) => r.id);
+      const [swaps, extras, moves] = ids.length ? await Promise.all([
+        tx.select({ id: deliveryCategorySwaps.deliveryId }).from(deliveryCategorySwaps).where(inArray(deliveryCategorySwaps.deliveryId, ids)),
+        tx.select({ id: deliveryExtraTiffins.deliveryId }).from(deliveryExtraTiffins).where(inArray(deliveryExtraTiffins.deliveryId, ids)),
+        tx.select({ a: deliveryMoves.fromDeliveryId, b: deliveryMoves.toDeliveryId }).from(deliveryMoves).where(eq(deliveryMoves.orderId, order.id)),
+      ]) : [[], [], []];
+      const linked = (r: (typeof rows)[number]) => [r.mergedIntoDeliveryId, r.makeupForDeliveryId, r.complimentaryForDeliveryId];
+      const tied = new Set([...swaps.map((x) => x.id), ...extras.map((x) => x.id), ...moves.flatMap((x) => [x.a, x.b]), ...rows.flatMap(linked)]);
+      const now = Date.now();
+      const open = rows.filter((r) => r.status === "scheduled" && r.cutoffAt > now && !r.routeSyncedAt && !r.optimoCompletionStatus
+        && r.complimentaryNote == null && r.addressLine == null && r.addressId == null
+        && linked(r).every((x) => x == null) && !tied.has(r.id));
+      const units = open.reduce((n, r) => n + r.tiffinUnits, 0);
+
+      const laid: { deliveryDate: string; tiffinUnits: number; coversDates: string[]; cutoffAt: number }[] = [];
+      if (units > 0) {
+        // Never earlier than the first open delivery: a plan that hasn't started stays put.
+        const start = open.map((r) => r.deliveryDate).sort()[0]!;
+        const openIds = new Set(open.map((r) => r.id));
+        const taken = new Set(rows.filter((r) => !openIds.has(r.id) && r.deliveryDate >= start).map((r) => r.deliveryDate));
+        // Padded so the rows skipped for a kept date never run the candidates short.
+        const candidates = buildBoundedDeliveryRows({ startDate: start, trips, persons: order.persons, targetTiffinCount: units + (taken.size + 1) * 7 * order.persons });
+        let left = units;
+        for (const c of candidates) {
+          if (left <= 0) break;
+          if (taken.has(c.deliveryDate)) continue;
+          const tiffinUnits = Math.min(c.tiffinUnits, left);
+          laid.push({
+            deliveryDate: c.deliveryDate,
+            tiffinUnits,
+            coversDates: c.coversDates.slice(0, Math.ceil(tiffinUnits / order.persons)),
+            cutoffAt: cutoffMsFor(c.deliveryDate, cutoffHour, timezone),
+          });
+          left -= tiffinUnits;
+        }
+        if (left > 0) throw new ValidationError("Couldn't fit the remaining tiffins on these days");
+        await tx.delete(deliveries).where(inArray(deliveries.id, [...openIds]));
+        await tx.insert(deliveries).values(laid.map((r) => ({ ...r, orderId: order.id, status: "scheduled" as const, organizationId: order.organizationId })));
+      }
+
+      // The overlap guard reads durationWeeks; keep it covering a plan that now runs longer.
+      const last = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !open.includes(r) && r.status === "scheduled").map((r) => r.deliveryDate)].sort().at(-1);
+      const spanWeeks = last ? Math.ceil((Math.round((parseIsoDateUtc(last).getTime() - parseIsoDateUtc(order.startDate).getTime()) / 86_400_000) + 1) / 7) : 0;
+      await tx.update(orders).set({
+        eatingDays: next,
+        includeSaturday: next.includes("sat"),
+        includeSunday: next.includes("sun"),
+        durationWeeks: Math.max(order.durationWeeks, spanWeeks),
+        updatedBy: actorId,
+        updatedAt: Date.now(),
+      }).where(eq(orders.id, order.id));
+      await tx.insert(orderActivities).values({
+        orderId: order.id,
+        type: "note",
+        note: `Eating days changed from ${label(before)} to ${label(next)}`
+          + (laid.length ? `. ${units} upcoming tiffin${units === 1 ? "" : "s"} rescheduled, last delivery ${laid.at(-1)!.deliveryDate}` : ""),
+        createdBy: actorId,
+        organizationId: order.organizationId,
+      });
+    });
+    publishAnalyticsLive();
+  }
+
   // Switch-over day: start every WordPress plan still waiting, from `fromDate` or its own
   // later next-due date (a customer WordPress hasn't started yet keeps that start). One plan
   // failing (cutoff passed, no balance) never stops the rest; each result says what happened.
@@ -2016,6 +2112,7 @@ export const activateOrder = (publicId: string): Promise<void> => ordersService.
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
 export const startMigratedOrder = (publicId: string, startDate: string): Promise<void> => ordersService.startMigrated(publicId, startDate);
 export const changeOrderStartDate = (publicId: string, startDate: string): Promise<void> => ordersService.changeStartDate(publicId, startDate);
+export const changeOrderEatingDays = (publicId: string, days: DayOfWeek[]): Promise<void> => ordersService.changeEatingDays(publicId, days);
 export const startAllMigratedOrders = (fromDate: string) => ordersService.startAllMigrated(fromDate);
 export async function countMigratedWaiting(): Promise<number> {
   const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(orders)
