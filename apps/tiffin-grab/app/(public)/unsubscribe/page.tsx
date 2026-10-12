@@ -1,3 +1,4 @@
+import { buildResubscribeUrl } from "@relay/engine";
 import { Card } from "@foundry/ui/card";
 import { applyUnsubscribe } from "@/app/api/unsubscribe/route";
 
@@ -16,7 +17,11 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   // Same handler as the API route. It is a no-op on a bad or missing token, and
   // the page below says the same thing either way — so this page cannot be used
   // to test whether an address is on the list.
-  await applyUnsubscribe(url);
+  const { applied, address } = await applyUnsubscribe(url, "link");
+  // Shown only to someone holding a valid signed link for this address — it is their own.
+  const base = process.env.CAMPAIGN_BASE_URL ?? process.env.SITE_URL;
+  const secret = process.env.UNSUBSCRIBE_SECRET;
+  const undoUrl = applied && address && base && secret ? buildResubscribeUrl(base, secret, address) : null;
 
   return (
     <main className="mx-auto flex min-h-[80vh] max-w-xl items-center px-4 py-16">
@@ -26,11 +31,24 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
           You will no longer receive marketing email from TiffinGrab. It can take a few minutes for
           anything already on its way to stop.
         </p>
+        {applied && address && (
+          <p className="mt-3 text-sm">
+            <span className="font-medium break-all">{address}</span> is off our marketing list.
+          </p>
+        )}
         <p className="mt-4 text-sm text-muted-foreground">
           You will still get messages about orders you place — receipts, payment confirmations and
           delivery updates. Those aren&apos;t marketing, and we send them so you know what is happening
           with your own order.
         </p>
+        {undoUrl && (
+          <p className="mt-4 text-sm">
+            Changed your mind?{" "}
+            <a className="underline underline-offset-2" href={undoUrl}>
+              Subscribe again
+            </a>
+          </p>
+        )}
       </Card>
     </main>
   );

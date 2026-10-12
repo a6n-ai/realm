@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { ShieldOffIcon } from "lucide-react";
+import { ClearSuppressionButton } from "../unsubscribed/suppression-actions";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@foundry/design-system";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
@@ -16,14 +18,18 @@ type Row = {
   scope: string;
   reason: string;
   createdAt: number;
+  campaignPublicId: string | null;
+  campaignName: string | null;
 };
 
-const COLUMNS: readonly Column<SuppressedSortColumn>[] = [
+const COLUMNS: readonly Column<SuppressedSortColumn | "campaign" | "actions">[] = [
   { key: "time", label: "Time", sortable: true },
   { key: "address", label: "Address", sortable: true },
   { key: "channel", label: "Channel", sortable: true },
   { key: "scope", label: "Scope", sortable: true },
   { key: "reason", label: "Reason", sortable: true },
+  { key: "campaign", label: "Campaign" },
+  { key: "actions", label: "", align: "right" },
 ];
 
 export function SuppressedTable({
@@ -69,6 +75,19 @@ export function SuppressedTable({
               <Badge variant={r.scope === "all" ? "destructive" : "outline"}>{r.scope}</Badge>
             </TableCell>
             <TableCell className="text-sm text-muted-foreground">{r.reason}</TableCell>
+            <TableCell className="text-sm">
+              {r.campaignPublicId ? (
+                <Link className="underline underline-offset-2" href={`/dashboard/notifications/campaigns/${r.campaignPublicId}`}>
+                  {r.campaignName}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </TableCell>
+            <TableCell className="text-right">
+              {/* An unsubscribe is the recipient's to undo; anything else staff may clear. */}
+              {r.reason !== "unsubscribe" && <ClearSuppressionButton publicId={r.publicId} address={r.address} />}
+            </TableCell>
           </>
         )}
       />
