@@ -8,12 +8,12 @@ const DAY = 86_400_000;
 const now = Date.UTC(2026, 9, 20);
 
 describe("summarizeSuppressions", () => {
-  it("splits by reason across all time, the last 30 days and this month", () => {
+  it("classifies the free-text reasons production stores, split across all time, the last 30 days and this month", () => {
     const out = summarizeSuppressions(
       [
         { reason: "unsubscribe", createdAt: now - 2 * DAY },
-        { reason: "unsubscribe", createdAt: now - 25 * DAY },
-        { reason: "bounce", createdAt: now - 90 * DAY },
+        { reason: "sms STOP keyword", createdAt: now - 25 * DAY },
+        { reason: "SES hard bounce", createdAt: now - 90 * DAY },
         { reason: "weird", createdAt: now - DAY },
       ],
       now,

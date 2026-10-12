@@ -20,6 +20,7 @@ type Row = {
   createdAt: number;
   campaignPublicId: string | null;
   campaignName: string | null;
+  clearable: boolean;
 };
 
 const COLUMNS: readonly Column<SuppressedSortColumn | "campaign" | "actions">[] = [
@@ -85,8 +86,8 @@ export function SuppressedTable({
               )}
             </TableCell>
             <TableCell className="text-right">
-              {/* An unsubscribe is the recipient's to undo; anything else staff may clear. */}
-              {r.reason !== "unsubscribe" && <ClearSuppressionButton publicId={r.publicId} address={r.address} />}
+              {/* A recipient's own opt-out is theirs to undo; staff may clear provider feedback and staff blocks. */}
+              {r.clearable && <ClearSuppressionButton publicId={r.publicId} address={r.address} />}
             </TableCell>
           </>
         )}

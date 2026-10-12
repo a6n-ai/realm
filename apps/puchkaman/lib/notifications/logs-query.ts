@@ -1,6 +1,7 @@
 import { and, count, eq } from "drizzle-orm";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
+import { canClearSuppression, suppressionKind } from "@relay/engine";
 import { eventLabel } from "@relay/engine/ui";
 import { db } from "@/db/client";
 import { appEvent, campaign, messageSuppression, notificationOutbox, users } from "@/db/schema";
@@ -193,6 +194,8 @@ export interface SuppressedAddressRow {
   source: string | null;
   campaignPublicId: string | null;
   campaignName: string | null;
+  /** Staff may clear it: provider feedback or a staff block, never a recipient's own opt-out. */
+  clearable: boolean;
 }
 
 export async function loadSuppressedAddresses(
@@ -241,20 +244,29 @@ export async function loadSuppressedAddresses(
     db.select({ n: count() }).from(messageSuppression).where(where),
   ]);
 
-  return { rows, sort, total: Number(totalRow?.n ?? 0), page: page.page, size: page.size };
+  return {
+    rows: rows.map((r) => ({ ...r, clearable: canClearSuppression(r.reason) })),
+    sort,
+    total: Number(totalRow?.n ?? 0),
+    page: page.page,
+    size: page.size,
+  };
 }
 
-const REASONS = ["unsubscribe", "bounce", "complaint", "manual"] as const;
-type Reason = (typeof REASONS)[number];
-const zero = (): Record<Reason, number> => ({ unsubscribe: 0, bounce: 0, complaint: 0, manual: 0 });
+const zero = () => ({ unsubscribe: 0, bounce: 0, complaint: 0, manual: 0 });
 
-/** Counts for the Unsubscribed tab's summary row. Month boundaries are UTC — a summary, not a ledger. */
+/**
+ * Counts for the Unsubscribed tab's summary row. Reasons are free text
+ * ("SES hard bounce", "sms STOP keyword"), so they go through relay's classifier.
+ * Month boundaries are UTC — a summary, not a ledger.
+ */
 export function summarizeSuppressions(rows: { reason: string; createdAt: number }[], now: number) {
   const out = { total: zero(), last30: zero(), thisMonth: zero() };
   const d = new Date(now);
   const monthStart = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
   for (const r of rows) {
-    const reason: Reason = (REASONS as readonly string[]).includes(r.reason) ? (r.reason as Reason) : "manual";
+    const kind = suppressionKind(r.reason);
+    const reason = kind === "other" ? "manual" : kind;
     out.total[reason] += 1;
     if (r.createdAt >= now - 30 * 86_400_000) out.last30[reason] += 1;
     if (r.createdAt >= monthStart) out.thisMonth[reason] += 1;

@@ -23,6 +23,7 @@ type Row = {
   createdAt: number;
   campaignPublicId: string | null;
   campaignName: string | null;
+  clearable: boolean;
 };
 
 const COLUMNS: readonly Column<SuppressedSortColumn | "campaign" | "actions">[] = [
@@ -65,7 +66,7 @@ export function SuppressedTable({
           shortPlaceholder: "Search…",
           debounceMs: 300,
         }}
-        filters={<ReuiFacetFilters spec={spec} hideDate />}
+        filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={ShieldOffIcon}
         emptyMessage="No suppressed addresses."
         emptySearchMessage="No suppressed addresses match your search."
@@ -88,12 +89,9 @@ export function SuppressedTable({
               )}
             </TableCell>
             <TableCell className="text-right">
-              {/* An unsubscribe is the recipient's to undo (the link); anything else staff may clear. */}
-              {r.reason === "unsubscribe" ? (
-                <ResubscribeLinkButton address={r.address} />
-              ) : (
-                <ClearSuppressionButton publicId={r.publicId} address={r.address} />
-              )}
+              {/* A recipient's own opt-out is theirs to undo; staff may clear provider feedback and staff blocks. */}
+              {r.reason === "unsubscribe" && <ResubscribeLinkButton address={r.address} />}
+              {r.clearable && <ClearSuppressionButton publicId={r.publicId} address={r.address} />}
             </TableCell>
           </>
         )}

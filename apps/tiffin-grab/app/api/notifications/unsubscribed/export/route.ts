@@ -1,4 +1,4 @@
-import { handler } from "@foundry/routes";
+import { handler, problem } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { loadSuppressedAddresses } from "@/lib/notifications/logs-query";
 
@@ -21,7 +21,9 @@ export const GET = handler(async (req: Request): Promise<Response> => {
         [r.address, r.channel, r.reason, r.scope, r.source, r.campaignName, new Date(r.createdAt).toISOString()].map(cell).join(","),
       );
     }
-    if (rows.length === 0 || lines.length - 1 >= total) break;
+    if (lines.length - 1 >= total) break;
+    // A do-not-mail list that is silently short is worse than no file.
+    if (rows.length === 0 || page === 199) return problem(500, "The list is too large to export here. Narrow the filters and try again.");
   }
   return new Response(lines.join("\n"), {
     headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="unsubscribed.csv"' },
