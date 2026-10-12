@@ -169,6 +169,13 @@
       "when": 1791662773821,
       "tag": "0023_neat_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791806488920,
+      "tag": "0024_keen_angel",
+      "breakpoints": true
     }
   ]
 }

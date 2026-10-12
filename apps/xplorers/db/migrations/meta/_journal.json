@@ -71,6 +71,13 @@
       "when": 1791585796864,
       "tag": "0009_jittery_wild_child",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791806495461,
+      "tag": "0010_parallel_sabra",
+      "breakpoints": true
     }
   ]
 }
