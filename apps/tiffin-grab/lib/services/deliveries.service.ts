@@ -1,6 +1,6 @@
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, gt, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNull, lte, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
@@ -9,7 +9,7 @@ import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
-import { countsToCoverage, coveredDates, dateCounts, mergeBlockReason, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
+import { MAX_TIFFINS_PER_TRIP, countsToCoverage, coveredDates, dateCounts, mergeBlockReason, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
 import { carryTripDateIso } from "@/lib/menu/carry-trip";
 import { findZone } from "@/lib/catalog/zone-match";
@@ -596,6 +596,12 @@ async function dropDeliverySwapsForDate(tx: Tx, deliveryId: bigint, tripDate: st
   if (gone.length) await tx.delete(deliveryCategorySwaps).where(inArray(deliveryCategorySwaps.id, gone));
 }
 
+// A row that lands on a new day starts clean: its stop and completion belonged to the old day.
+const ROUTE_RESET = {
+  routeDriverSerial: null, routeDriverName: null, routeStopNumber: null, routeSyncedAt: null,
+  optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null,
+} as const;
+
 /**
  * A row whose tiffins all left (merged into another trip, or replaced by a make-up) still owns
  * its date under deliveries_order_date_unique but carries nothing, which used to block every
@@ -608,9 +614,7 @@ async function reviveIfEmptied(tx: Tx, row: Delivery, cutoffAt: number): Promise
   // The make-up keeps its tiffin but stops pointing here; delivery_moves still records the move and keeps it locked.
   if (child) await tx.update(deliveries).set({ makeupForDeliveryId: null }).where(eq(deliveries.id, child.id));
   const [revived] = await tx.update(deliveries).set({
-    status: "scheduled", cutoffAt, mergedIntoDeliveryId: null, coversDates: [], tiffinUnits: 0,
-    routeDriverSerial: null, routeDriverName: null, routeStopNumber: null, routeSyncedAt: null,
-    optimoCompletionStatus: null, optimoCompletedAt: null, optimoCompletionNote: null,
+    status: "scheduled", cutoffAt, mergedIntoDeliveryId: null, coversDates: [], tiffinUnits: 0, ...ROUTE_RESET,
   }).where(eq(deliveries.id, row.id)).returning();
   await replaceExtras(tx, row.id, []);
   await tx.delete(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id));
@@ -691,6 +695,10 @@ async function moveTrip(
  * The source keeps its status and every other tiffin. A scheduled trip already on targetDate
  * takes it within the 3-tiffin cap; otherwise a new row is inserted (not a make-up: the source
  * is still a live trip).
+ *
+ * A source carrying only this tiffin (a tiffin that already moved once, moving again) leaves no
+ * trail: onto an open day the row itself changes date; onto a scheduled trip it is left empty
+ * and the caller drops it.
  */
 async function moveOneTiffin(
   tx: Tx,
@@ -729,6 +737,11 @@ async function moveOneTiffin(
     if (blocked) throw new ValidationError(blocked);
     await writeCounts(target.id, shiftTiffin(targetCounts, null, toEat));
     targetId = target.id;
+  } else if (leftSource.size === 0) {
+    await tx.update(deliveries).set({ deliveryDate: targetDate, cutoffAt: targetCutoff, coversDates: [toEat], tiffinUnits: per, ...ROUTE_RESET })
+      .where(eq(deliveries.id, source.id));
+    await dropSwaps();
+    return { id: source.id, merged: false };
   } else {
     const [inserted] = await tx.insert(deliveries).values({
       orderId: source.orderId,
@@ -743,6 +756,30 @@ async function moveOneTiffin(
   await writeCounts(source.id, leftSource);
   await dropSwaps();
   return { id: targetId, merged: !!target };
+}
+
+/**
+ * A relocated tiffin merged onto another trip and left `row` carrying nothing. A make-up's
+ * original stays settled by pointing at the new trip (unsettled, it would earn a second make-up).
+ * The row itself goes, unless a move ledger entry or a merged source still hangs off it: then it
+ * stays as a settled source showing only the days its own tiffins left from.
+ */
+async function dropEmptiedCarrier(tx: Tx, row: Delivery, targetId: bigint): Promise<boolean> {
+  if (row.makeupForDeliveryId != null) {
+    await tx.update(deliveries).set({ makeupForDeliveryId: null }).where(eq(deliveries.id, row.id));
+    if (row.makeupForDeliveryId !== targetId) {
+      await tx.update(deliveries).set({ mergedIntoDeliveryId: targetId }).where(eq(deliveries.id, row.makeupForDeliveryId));
+    }
+  }
+  const left = await tx.select({ from: deliveryMoves.fromEatDate }).from(deliveryMoves).where(eq(deliveryMoves.fromDeliveryId, row.id));
+  const [pointedAt] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.mergedIntoDeliveryId, row.id)).limit(1);
+  if (left.length === 0 && !pointedAt) {
+    await tx.delete(deliveries).where(eq(deliveries.id, row.id));
+    return true;
+  }
+  const ownDays = [...new Set(left.flatMap((m) => (m.from ? [m.from] : [])))].sort();
+  await tx.update(deliveries).set({ status: "skipped", mergedIntoDeliveryId: targetId, coversDates: ownDays, tiffinUnits: 0 }).where(eq(deliveries.id, row.id));
+  return false;
 }
 
 /**
@@ -802,28 +839,37 @@ export async function shiftMissedDeliveries(
  * at most 3 tiffins. Never writes a Saturday/Sunday delivery row.
  *
  * `sourceEatDate` says WHICH eating day's tiffin leaves (required when the trip carries more
- * than one day). The trip keeps delivering (or stays on hold with) everything else. A tiffin
- * that was itself moved in can't move again; the day's own tiffin still can.
+ * than one day). The trip keeps delivering (or stays on hold with) everything else.
+ *
+ * A tiffin can move any number of times while its trip is open. A second move re-targets the
+ * first one's delivery_moves row instead of chaining a new one, so the ledger always reads
+ * "original day -> where it is eaten now", and moving it back home erases the move.
+ *
+ * `count` moves that many of `sourceEatDate`'s tiffins (a day can hold several once tiffins have
+ * moved onto it), all or nothing.
  */
 export async function rescheduleDelivery(
   deliveryPublicId: string,
   eatingDateIso: string,
   actorId: bigint | null,
   sourceEatDate: string | null = null,
+  count = 1,
 ): Promise<{ merged: boolean; carriedOn: string }> {
+  if (!Number.isInteger(count) || count < 1 || count > MAX_TIFFINS_PER_TRIP) throw new ValidationError("Pick how many tiffins to move.");
   const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
   if (!isoDateRegex.test(eatingDateIso)) throw new ValidationError("Reschedule date must be ISO YYYY-MM-DD");
   if (sourceEatDate != null && !isoDateRegex.test(sourceEatDate)) throw new ValidationError("Source date must be ISO YYYY-MM-DD");
 
   let oldStop: OptimoSyncedRow | null = null;
   const refreshIds: bigint[] = [];
-  const result = await db.transaction(async (tx) => {
+  const moveOnce = async (tx: Tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
     await assertOrderNotTrial(tx, orderId);
 
     const row = await loadByPublicId(tx, deliveryPublicId);
-    assertOriginal(row);
+    // A make-up that is still going out can move again; one that was missed cannot spawn its own make-up.
+    if (row.status !== "scheduled") assertOriginal(row);
 
     const mutableStatuses = ["scheduled", "skipped", "paused"] as const;
     if (!mutableStatuses.includes(row.status as (typeof mutableStatuses)[number])) {
@@ -871,8 +917,6 @@ export async function rescheduleDelivery(
     const [existingMakeup] = await tx.select({ id: deliveries.id }).from(deliveries)
       .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
     if (existingMakeup || row.mergedIntoDeliveryId) throw new ValidationError("This delivery has already been rescheduled");
-    // Make-up rows only ever carry moved tiffins.
-    if (row.makeupForDeliveryId != null) throw new ValidationError("This tiffin was already moved once. It can't move again.");
 
     const own = coveredDates(row);
     // No source given: the trip's own day, or its only day when it no longer carries its own.
@@ -881,14 +925,24 @@ export async function rescheduleDelivery(
     const counts = dateCounts(row, (await loadExtraDates(tx, [row.id])).get(row.id) ?? []);
     if (!counts.has(fromEat)) throw new ValidationError("That day isn't part of this trip anymore.");
     if (fromEat === eatingDateIso) throw new ValidationError("Pick a different day");
-    const [{ movedIn }] = await tx.select({ movedIn: sql<number>`count(*)::int` }).from(deliveryMoves)
-      .where(and(eq(deliveryMoves.toDeliveryId, row.id), eq(deliveryMoves.toEatDate, fromEat)));
-    if (counts.get(fromEat)! - movedIn < 1) throw new ValidationError("This tiffin was already moved once. It can't move again.");
+    const arrivals = await tx.select({ id: deliveryMoves.id, fromDeliveryId: deliveryMoves.fromDeliveryId, fromEatDate: deliveryMoves.fromEatDate })
+      .from(deliveryMoves).where(and(eq(deliveryMoves.toDeliveryId, row.id), eq(deliveryMoves.toEatDate, fromEat))).orderBy(asc(deliveryMoves.id));
+    // The day's own tiffin leaves first; once only moved-in ones are left, the latest arrival moves on.
+    const arrival = counts.get(fromEat)! > arrivals.length ? null : arrivals.at(-1) ?? null;
 
     const whole = tiffinTotal(counts) === 1;
+    const [departed] = await tx.select({ id: deliveryMoves.id }).from(deliveryMoves)
+      .where(and(eq(deliveryMoves.fromDeliveryId, row.id), ne(deliveryMoves.toDeliveryId, row.id))).limit(1);
+    // A trip that exists only for a moved tiffin relocates: no skipped row, no make-up of a make-up.
+    // One whose own tiffin left earlier stays put, so that day keeps reading "Moved to".
+    const relocate = whole && row.status === "scheduled" && carriedOn !== row.deliveryDate && !departed
+      && (arrival != null || row.makeupForDeliveryId != null);
     let moved: { id: bigint; merged: boolean };
     if (whole) {
-      if (carriedOn === row.deliveryDate && row.status === "scheduled") {
+      if (relocate) {
+        moved = await moveOneTiffin(tx, row, fromEat, eatingDateIso, carriedOn, newCutoff, order.persons);
+        oldStop = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
+      } else if (carriedOn === row.deliveryDate && row.status === "scheduled") {
         // Same truck, other eat day (Fri's only tiffin eaten Sat instead): relabel in place.
         moved = await moveOneTiffin(tx, row, fromEat, eatingDateIso, carriedOn, newCutoff, order.persons);
       } else {
@@ -909,19 +963,42 @@ export async function rescheduleDelivery(
     if (row.status === "scheduled" && (!whole || moved.id === row.id)) refreshIds.push(row.id);
     if (moved.merged && moved.id !== row.id) refreshIds.push(moved.id);
 
-    await tx.insert(deliveryMoves).values({
-      orderId, fromDeliveryId: row.id, toDeliveryId: moved.id, fromEatDate: fromEat, toEatDate: eatingDateIso, organizationId: row.organizationId,
-    });
+    if (!arrival) {
+      await tx.insert(deliveryMoves).values({
+        orderId, fromDeliveryId: row.id, toDeliveryId: moved.id, fromEatDate: fromEat, toEatDate: eatingDateIso, organizationId: row.organizationId,
+      });
+    } else if (arrival.fromDeliveryId === moved.id && arrival.fromEatDate === eatingDateIso) {
+      await tx.delete(deliveryMoves).where(eq(deliveryMoves.id, arrival.id));
+    } else {
+      await tx.update(deliveryMoves).set({ toDeliveryId: moved.id, toEatDate: eatingDateIso }).where(eq(deliveryMoves.id, arrival.id));
+    }
+    let dropped = false;
+    if (moved.id !== row.id) {
+      // The original whose only tiffin had merged onto this trip follows it to the new one.
+      if (arrival?.fromDeliveryId != null && arrival.fromDeliveryId !== moved.id) {
+        const [origin] = await tx.select().from(deliveries).where(eq(deliveries.id, arrival.fromDeliveryId)).limit(1);
+        const own = origin ? coveredDates(origin) : [];
+        if (origin?.mergedIntoDeliveryId === row.id && own.length === 1 && own[0] === arrival.fromEatDate) {
+          await tx.update(deliveries).set({ mergedIntoDeliveryId: moved.id }).where(eq(deliveries.id, origin.id));
+        }
+      }
+      if (relocate) dropped = await dropEmptiedCarrier(tx, row, moved.id);
+    }
     const where = carriedOn === eatingDateIso ? carriedOn : `${eatingDateIso} (rides ${carriedOn})`;
     await tx.insert(orderActivities).values(
       moved.id === row.id
-        ? [{ orderId, deliveryId: row.id, type: "note", note: `Moved ${fromEat}'s tiffin to ${eatingDateIso} on the same delivery`, createdBy: actorId }]
+        ? [{ orderId, deliveryId: row.id, type: "note", note: carriedOn === row.deliveryDate ? `Moved ${fromEat}'s tiffin to ${eatingDateIso} on the same delivery` : `Moved ${fromEat}'s tiffin again, to ${where}`, createdBy: actorId }]
         : [
-            { orderId, deliveryId: row.id, type: whole && row.status === "scheduled" ? "skipped" : "note", note: `Moved ${fromEat}'s tiffin to ${where}${moved.merged ? " (merged)" : ""}`, createdBy: actorId },
+            { orderId, deliveryId: dropped ? null : row.id, type: whole && row.status === "scheduled" && !relocate ? "skipped" : "note", note: `Moved ${fromEat}'s tiffin to ${where}${moved.merged ? " (merged)" : ""}`, createdBy: actorId },
             { orderId, deliveryId: moved.id, type: "pool_scheduled", note: `${fromEat}'s tiffin from ${row.deliveryDate}, now eaten ${eatingDateIso}`, createdBy: actorId },
           ],
     );
     return { merged: moved.merged, carriedOn };
+  };
+  const result = await db.transaction(async (tx) => {
+    let last = await moveOnce(tx);
+    for (let i = 1; i < count; i++) last = await moveOnce(tx);
+    return last;
   });
   if (oldStop) await deleteFromOptimoRouteBestEffort([oldStop]);
   for (const id of refreshIds) await refreshStopBestEffort(id);

@@ -149,11 +149,13 @@ export async function rescheduleMyDelivery(
   newDateIso: string,
   /** Which eating day is moving; leave unset (or equal to the trip's own date) to move the whole trip. */
   sourceEatDateIso?: string,
+  /** How many of that day's tiffins move (a day can hold several once tiffins have moved onto it). */
+  count = 1,
 ): Promise<ActionResult<{ carriedOn: string; merged: boolean }>> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);
     await assertDeliveryUnlocked(deliveryPublicId);
-    const result = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId(), sourceEatDateIso ?? null);
+    const result = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId(), sourceEatDateIso ?? null, count);
     const orderId = await orderPublicIdForDelivery(deliveryPublicId);
     if (orderId) await revalidateDeliverySurfaces(orderId);
     else revalidatePath("/me", "layout");
