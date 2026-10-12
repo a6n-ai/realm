@@ -1,6 +1,8 @@
-import { handleUnsubscribe, verifyUnsubscribeToken } from "@relay/engine";
+import { and, eq } from "drizzle-orm";
+import { handleUnsubscribe, normalizeAddress, verifyUnsubscribeToken } from "@relay/engine";
 import { handler, json } from "@foundry/routes";
 import { db } from "@/db/client";
+import { messageSuppression } from "@/db/schema";
 import { notificationTables } from "@/lib/notifications/tables";
 
 /**
@@ -11,20 +13,30 @@ import { notificationTables } from "@/lib/notifications/tables";
  * or not the address exists, so the endpoint cannot be used to test membership.
  * `applied` is for the page only: it is true just when the caller presented a
  * valid signed link for that address, which says nothing about any list.
+ * `fresh` is true only when this request is what unsubscribed them — the page
+ * offers "subscribe again" just then, so an old or forwarded unsubscribe link
+ * can never be turned into a way to re-subscribe someone who already opted out.
  */
 export async function applyUnsubscribe(
   url: URL,
   source: "link" | "one-click",
-): Promise<{ applied: boolean; address: string | null }> {
+): Promise<{ applied: boolean; address: string | null; fresh: boolean }> {
   const secret = process.env.UNSUBSCRIBE_SECRET;
-  if (!secret) return { applied: false, address: null };
+  if (!secret) return { applied: false, address: null, fresh: false };
   const address = url.searchParams.get("address");
   const token = url.searchParams.get("token");
   const campaignIdParam = url.searchParams.get("campaignId");
   const campaignId = campaignIdParam && /^\d+$/.test(campaignIdParam) ? BigInt(campaignIdParam) : undefined;
-  await handleUnsubscribe(db, notificationTables, { address, token, secret, campaignId, source });
   const applied = !!address && !!token && verifyUnsubscribeToken(secret, address, token);
-  return { applied, address: applied ? address : null };
+  const already = applied
+    ? await db
+        .select({ id: messageSuppression.id })
+        .from(messageSuppression)
+        .where(and(eq(messageSuppression.address, normalizeAddress(address)), eq(messageSuppression.scope, "marketing")))
+        .limit(1)
+    : [];
+  await handleUnsubscribe(db, notificationTables, { address, token, secret, campaignId, source });
+  return { applied, address: applied ? address : null, fresh: applied && already.length === 0 };
 }
 
 export const GET = handler(async (req: Request): Promise<Response> => {

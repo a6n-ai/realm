@@ -17,11 +17,12 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   // Same handler as the API route. It is a no-op on a bad or missing token, and
   // the page below says the same thing either way — so this page cannot be used
   // to test whether an address is on the list.
-  const { applied, address } = await applyUnsubscribe(url, "link");
+  const { applied, address, fresh } = await applyUnsubscribe(url, "link");
   // Shown only to someone holding a valid signed link for this address — it is their own.
   const base = process.env.CAMPAIGN_BASE_URL ?? process.env.SITE_URL;
   const secret = process.env.UNSUBSCRIBE_SECRET;
-  const undoUrl = applied && address && base && secret ? buildResubscribeUrl(base, secret, address) : null;
+  // Undo only what this visit did: never a way back in for an address that had already opted out.
+  const undoUrl = fresh && address && base && secret ? buildResubscribeUrl(base, secret, address) : null;
 
   return (
     <main className="mx-auto flex min-h-[80vh] max-w-xl items-center px-4 py-16">
