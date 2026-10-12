@@ -6,7 +6,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import {
@@ -1261,6 +1261,13 @@ function ordersListResolver() {
               eq(mealSizes.custom, false),
             ),
           ),
+      );
+    }
+    // Orders carry no email of their own; search matches the account's.
+    if (f.field === "email") {
+      return inArray(
+        orders.userId,
+        db.select({ id: users.id }).from(users).where(ilike(users.email, String(f.value))),
       );
     }
     return base(f);

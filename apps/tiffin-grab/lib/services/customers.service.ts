@@ -216,7 +216,7 @@ export async function findExistingByContact(phone: string, email?: string | null
   return row ? { publicId: row.publicId, fullName: row.name ?? "Customer" } : null;
 }
 
-// Staff typeahead: find customers by a name or phone fragment. Light rows for a
+// Staff typeahead: find customers by a name, phone or email fragment. Light rows for a
 // picker — publicId + contact only. Empty for <2 chars so a keystroke never scans.
 export async function searchCustomers(query: string) {
   const q = query.trim();
@@ -225,7 +225,7 @@ export async function searchCustomers(query: string) {
   return db
     .select({ publicId: users.publicId, fullName: users.name, phone: users.phone, email: users.email })
     .from(users)
-    .where(and(eq(users.role, "user"), or(ilike(users.name, like), ilike(users.phone, like))))
+    .where(and(eq(users.role, "user"), or(ilike(users.name, like), ilike(users.phone, like), ilike(users.email, like))))
     .orderBy(users.name)
     .limit(8);
 }
@@ -287,6 +287,7 @@ export async function listCustomersPage(
       columnResolver({
         name: users.name,
         phone: users.phone,
+        email: users.email,
         createdAt: users.createdAt,
       }),
     ),

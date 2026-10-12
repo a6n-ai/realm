@@ -17,7 +17,7 @@ const EXPORT_SPEC: FacetDef[] = [
   { kind: "multi", field: "source", label: "Source", options: [] },
   { kind: "multi", field: "subsource", label: "Subsource", options: [], dependsOn: "source" },
   { kind: "dateRange", field: "createdAt", label: "Created" },
-  { kind: "search", fields: ["fullName", "phone"] },
+  { kind: "search", fields: ["fullName", "phone", "email"] },
 ];
 
 export const GET = handler(async (request: Request): Promise<Response> => {

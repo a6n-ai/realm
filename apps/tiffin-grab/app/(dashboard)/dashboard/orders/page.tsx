@@ -134,7 +134,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       ],
     },
     { kind: "dateRange", field: "createdAt", label: "Created" },
-    { kind: "search", fields: ["fullName", "deploymentId"] },
+    { kind: "search", fields: ["fullName", "deploymentId", "email"] },
   ];
 
   const { sp: filterSp, extra } = ongoingFilter(sp);

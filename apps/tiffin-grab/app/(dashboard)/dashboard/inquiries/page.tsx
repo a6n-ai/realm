@@ -238,7 +238,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     { kind: "multi", field: "source", label: "Source", options: sources },
     { kind: "multi", field: "subsource", label: "Subsource", options: subsources, dependsOn: "source" },
     { kind: "dateRange", field: "createdAt", label: "Created" },
-    { kind: "search", fields: ["fullName", "phone"] },
+    { kind: "search", fields: ["fullName", "phone", "email"] },
   ];
 
   const { condition, page } = parseFilterState(spec, sp);

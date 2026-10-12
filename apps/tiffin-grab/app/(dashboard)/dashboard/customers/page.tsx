@@ -133,7 +133,7 @@ export async function CustomersData({ searchParams }: { searchParams: SearchPara
         { value: "14", label: "Next 14 days" },
       ],
     },
-    { kind: "search", fields: ["name", "phone"] },
+    { kind: "search", fields: ["name", "phone", "email"] },
   ];
 
   // planCompletesInDays is a derived value, not a column: the full spec drives the

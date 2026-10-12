@@ -72,6 +72,7 @@ function inquiriesResolver() {
     createdAt: inquiries.createdAt,
     fullName: inquiries.fullName,
     phone: inquiries.phone,
+    email: inquiries.email,
   });
   const valuesOf = (f: FilterCondition) =>
     f.operator === "in" ? (f.value as string[]) : [f.value as string];
