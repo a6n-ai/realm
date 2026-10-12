@@ -6,11 +6,6 @@ vi.mock("@relay/engine", async (orig) => ({
   handleUnsubscribe: (...args: unknown[]) => handle(...args),
 }));
 
-const existing = vi.fn<() => { id: bigint }[]>(() => []);
-vi.mock("@/db/client", () => ({
-  db: { select: () => ({ from: () => ({ where: () => ({ limit: async () => existing() }) }) }) },
-}));
-
 const { GET, applyUnsubscribe } = await import("./route");
 const { signUnsubscribeToken } = await import("@relay/engine");
 
@@ -53,15 +48,12 @@ describe("applyUnsubscribe", () => {
   const link = (address: string, token: string) =>
     new URL(`https://x.test/unsubscribe?address=${encodeURIComponent(address)}&token=${token}`);
 
-  it("is fresh only when this request did the unsubscribing — the page offers undo just then", async () => {
+  it("names the address only for a valid signed link", async () => {
     const token = signUnsubscribeToken("test-secret", "a@x.com");
-    existing.mockReturnValueOnce([]);
-    expect(await applyUnsubscribe(link("a@x.com", token), "link")).toEqual({ applied: true, address: "a@x.com", fresh: true });
-    existing.mockReturnValueOnce([{ id: 1n }]);
-    expect(await applyUnsubscribe(link("a@x.com", token), "link")).toEqual({ applied: true, address: "a@x.com", fresh: false });
+    expect(await applyUnsubscribe(link("a@x.com", token), "link")).toEqual({ applied: true, address: "a@x.com" });
   });
 
   it("gives nothing back for a bad token", async () => {
-    expect(await applyUnsubscribe(link("a@x.com", "abcd"), "link")).toEqual({ applied: false, address: null, fresh: false });
+    expect(await applyUnsubscribe(link("a@x.com", "abcd"), "link")).toEqual({ applied: false, address: null });
   });
 });
