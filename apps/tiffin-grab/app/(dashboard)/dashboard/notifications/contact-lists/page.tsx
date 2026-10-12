@@ -8,7 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { contactList } from "@/db/schema";
-import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { ContactListFromSegment, ContactListManualAdd } from "@relay/engine/ui";
@@ -112,7 +112,7 @@ function StatsSkeleton() {
 
 async function ContactListsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const sp = await withDefaultMonth(await searchParams);
+  const sp = await withListDates(await searchParams);
 
   const sort: SortState<ContactListSortColumn> = parseSort(sp, ["name", "memberCount", "createdAt"], {
     column: "createdAt",

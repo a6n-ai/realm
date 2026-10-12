@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 import { campaign, messageSuppression, notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, type FacetDef } from "@/components/ds";
-import { withDefaultMonth } from "@/lib/list/default-month";
+import { withListDates } from "@/lib/list/default-month";
 import type { LogSortColumn } from "@/app/(dashboard)/dashboard/notifications/logs/logs-table";
 import type { SuppressedSortColumn } from "@/app/(dashboard)/dashboard/notifications/logs/suppressed-table";
 
@@ -93,7 +93,7 @@ export async function loadNotificationLogs(
   sp: Record<string, string | undefined>,
   opts: { campaignId?: bigint } = {},
 ): Promise<{ rows: NotificationLogRow[]; sort: SortState<LogSortColumn>; total: number; page: number; size: number }> {
-  const dated = await withDefaultMonth(sp);
+  const dated = await withListDates(sp);
   const sort: SortState<LogSortColumn> = parseSort(dated, ["time", "event", "channel", "recipient", "status"], {
     column: "time",
     dir: "desc",

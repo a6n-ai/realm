@@ -26,7 +26,7 @@ import {
   type FacetDef,
 } from "@/components/ds";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
 import { and } from "@foundry/commons/model/condition";
@@ -103,7 +103,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await withDefaultMonth(await searchParams);
+  const sp = await withListDates(await searchParams);
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],

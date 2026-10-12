@@ -7,7 +7,7 @@ import { couponRedemptions, coupons, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState } from "@/components/ds";
-import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
 
 const customer = alias(users, "customer");
@@ -39,7 +39,7 @@ export default function DiscountLogsPage({ searchParams }: { searchParams: Searc
 async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
-  const sp = await withDefaultMonth(await searchParams);
+  const sp = await withListDates(await searchParams);
   const sort: SortState<DiscountLogSortColumn> = parseSort(
     sp,
     ["time", "coupon", "user", "amount", "order", "redeemedBy"],

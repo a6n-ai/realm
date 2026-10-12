@@ -10,7 +10,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { campaign, contactList } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { withDefaultMonth } from "@/lib/list/default-month";
+import { withListDates } from "@/lib/list/default-month";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { CampaignsTable, CampaignsTableSkeleton, type CampaignRow } from "./campaigns-table";
 
@@ -110,7 +110,7 @@ async function SesQuotaCard() {
 
 async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const sp = await withDefaultMonth(await searchParams);
+  const sp = await withListDates(await searchParams);
 
   const sort: SortState<CampaignSortColumn> = parseSort(sp, ["name", "status", "createdAt"], {
     column: "createdAt",

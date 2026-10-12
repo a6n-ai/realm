@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { notificationOutbox, orders, payments, users } from "@/db/schema";
 import type { SendState } from "@/lib/services/customers.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
 import {
   PAYMENT_METHOD_OPTIONS,
@@ -41,7 +41,7 @@ export async function listPayments(
   sp: Sp,
   opts: { where?: SQL } = {},
 ): Promise<{ rows: PaymentRow[]; total: number; page: number; size: number; sort: SortState<PaymentSortKey> }> {
-  const dated = await withDefaultMonth(sp);
+  const dated = await withListDates(sp);
   const { page } = parseFilterState([], dated);
   const sort = parseSort(dated, PAYMENT_SORT_KEYS, { column: "time", dir: "desc" });
   const q = dated.q?.trim();

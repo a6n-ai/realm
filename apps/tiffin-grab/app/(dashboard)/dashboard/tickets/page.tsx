@@ -20,7 +20,7 @@ import {
 import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 
 const SORT_COLUMNS = [
   "subject",
@@ -96,7 +96,7 @@ async function TicketStats({ searchParams }: { searchParams: TicketSearchParams 
 async function TicketsData({ searchParams }: { searchParams: TicketSearchParams }) {
   await requireStaff();
 
-  const sp = await withDefaultMonth(await searchParams);
+  const sp = await withListDates(await searchParams);
   const sort = parseSort(sp, SORT_COLUMNS, {
     column: "lastMessage",
     dir: "desc",

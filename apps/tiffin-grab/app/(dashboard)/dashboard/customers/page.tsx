@@ -28,7 +28,7 @@ import { NewCustomerSheet } from "./new-customer-sheet";
 import { InvitePendingButton } from "./invite-pending-button";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -116,7 +116,7 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
 export async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await withDefaultMonth(await searchParams);
+  const sp = await withListDates(await searchParams);
   const sort = parseSort(sp, ["name", "email", "phone", "orders"], { column: "orders", dir: "desc" });
 
   const spec: FacetDef[] = [

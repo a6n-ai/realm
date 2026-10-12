@@ -22,6 +22,15 @@ export async function withDefaultMonth<T extends Dated>(sp: T): Promise<T> {
   return fillDefaultMonth(sp, timezone);
 }
 
+/**
+ * Dates for a searchable list. A text search spans all dates, so a match from
+ * before the default month still shows; without one the list keeps its range.
+ */
+export async function withListDates<T extends Dated & { q?: string }>(sp: T): Promise<T> {
+  if (sp.q?.trim()) return { ...sp, from: undefined, to: undefined };
+  return withDefaultMonth(sp);
+}
+
 /** Inclusive epoch window. Either end may be open. */
 export function epochBoundsWhere(col: AnyColumn, sp: Dated): SQL | undefined {
   const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);

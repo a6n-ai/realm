@@ -29,7 +29,7 @@ import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { reassignInquiry } from "./actions";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -214,7 +214,7 @@ async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await withDefaultMonth(await searchParams);
+  const sp = await withListDates(await searchParams);
   const sort = parseSort(
     sp,
     ["name", "owner", "stage", "source", "lastTouch", "created"],

@@ -3,7 +3,7 @@ import { SectionCard, parseFilterState } from "@/components/ds";
 import { requireAdmin } from "@/lib/auth/guards";
 import { CUSTOMER_ACTIVITY_FACETS } from "@/lib/customer-activity/log-facets";
 import { parseSort } from "@/lib/list/sort";
-import { withDefaultMonth } from "@/lib/list/default-month";
+import { withListDates } from "@/lib/list/default-month";
 import {
   listCustomerActivitiesPage,
   type CustomerActivitySortColumn,
@@ -36,7 +36,7 @@ export default function NotificationActivityLogsPage({
 
 async function ActivityData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const params = await withDefaultMonth(await searchParams);
+  const params = await withListDates(await searchParams);
   const sort = parseSort(params, SORT_COLUMNS, { column: "time", dir: "desc" });
   const { condition, page } = parseFilterState(CUSTOMER_ACTIVITY_FACETS, params);
   const result = await listCustomerActivitiesPage(condition, page, sort);
