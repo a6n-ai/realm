@@ -19,6 +19,8 @@ import {
   updatePaymentReference,
   verifyPayment,
   assertOrderVisible,
+  assertDeliveryVisible,
+  assertPaymentVisible,
   resolveSessionVisibleOrgIds,
 } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
@@ -28,8 +30,13 @@ import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/p
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 
+// Staff of one organization must not act on another's order: every action below checks the
+// order (or the order behind the delivery/payment) against the caller's organizations.
+const visibleOrgs = async () => resolveSessionVisibleOrgIds(await getSession());
+
 export async function activate(orderId: string) {
   await requireStaff();
+  await assertOrderVisible(orderId, await visibleOrgs());
   await activateOrder(orderId);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
@@ -37,6 +44,7 @@ export async function activate(orderId: string) {
 export async function startMigrated(orderId: string, startDate: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
     await startMigratedOrder(orderId, startDate);
   });
   revalidatePath(`/dashboard/orders/${orderId}`);
@@ -46,6 +54,7 @@ export async function startMigrated(orderId: string, startDate: string): Promise
 export async function changeStartDateAction(orderId: string, startDate: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
     await changeOrderStartDate(orderId, startDate);
   });
   revalidatePath(`/dashboard/orders/${orderId}`);
@@ -55,7 +64,7 @@ export async function changeStartDateAction(orderId: string, startDate: string):
 export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[]): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
-    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
+    await assertOrderVisible(orderId, await visibleOrgs());
     await changeOrderEatingDays(orderId, days);
   });
   revalidatePath(`/dashboard/orders/${orderId}`);
@@ -64,12 +73,14 @@ export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[])
 
 export async function cancel(orderId: string) {
   await requireStaff();
+  await assertOrderVisible(orderId, await visibleOrgs());
   await cancelOrder(orderId);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 
 export async function changePlan(orderId: string, mealSizePublicId: string) {
   await requireStaff();
+  await assertOrderVisible(orderId, await visibleOrgs());
   await changeMealSize(orderId, mealSizePublicId);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
@@ -77,6 +88,7 @@ export async function changePlan(orderId: string, mealSizePublicId: string) {
 export async function verifyPaymentAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertPaymentVisible(paymentPublicId, await visibleOrgs());
     const session = await getSession();
     await verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null });
   });
@@ -103,6 +115,7 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
 export async function rejectPaymentAction(orderId: string, paymentPublicId: string, note: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertPaymentVisible(paymentPublicId, await visibleOrgs());
     await rejectPayment(paymentPublicId, note, await currentUserId());
   });
   if ("ok" in res) {
@@ -128,7 +141,7 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
 export async function updatePaymentReferenceAction(orderId: string, paymentPublicId: string, reference: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
-    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
+    await assertOrderVisible(orderId, await visibleOrgs());
     await updatePaymentReference(orderId, paymentPublicId, reference, await currentUserId());
   });
   if ("ok" in res) {
@@ -142,7 +155,7 @@ export async function updatePaymentReferenceAction(orderId: string, paymentPubli
 export async function sendPaymentReminderAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
-    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
+    await assertOrderVisible(orderId, await visibleOrgs());
     await sendPaymentReminder(orderId, paymentPublicId, await currentUserId());
   });
   if ("ok" in res) revalidatePath(`/dashboard/orders/${orderId}`);
@@ -151,6 +164,7 @@ export async function sendPaymentReminderAction(orderId: string, paymentPublicId
 
 export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublicId: string, date: string) {
   await requireStaff();
+  await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
   await pushOneDelivery(deliveryPublicId, date, await currentUserId());
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
@@ -159,6 +173,7 @@ export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublic
  *  the day-level stale check has caught up to it yet. */
 export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPublicId: string, date: string) {
   await requireStaff();
+  await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
   await removeOneDelivery(deliveryPublicId, date, await currentUserId());
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
@@ -170,6 +185,7 @@ export async function setDeliveryStatusAction(
 ): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireAdmin();
+    await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
     if (!isAdminDeliveryStatus(status)) throw new ValidationError("Unknown delivery status");
     await adminSetDeliveryStatus(deliveryPublicId, status, await currentUserId());
     return "Delivery status updated";
@@ -193,6 +209,7 @@ export async function setDeliveryStatusAction(
 export async function redeliverTripAction(orderId: string, deliveryPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertDeliveryVisible(deliveryPublicId, await visibleOrgs());
     const { targetDate } = await redeliverTrip(deliveryPublicId, await currentUserId());
     return `Re-delivering on ${targetDate}`;
   });
@@ -208,7 +225,7 @@ export async function grantComplimentaryAction(
 ): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireAdmin();
-    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
+    await assertOrderVisible(orderId, await visibleOrgs());
     const { reopened } = await grantComplimentaryTiffin(
       orderId,
       {

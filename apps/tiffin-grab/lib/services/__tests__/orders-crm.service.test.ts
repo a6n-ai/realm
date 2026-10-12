@@ -8,9 +8,10 @@ const { orders, payments, orderActivities, ledgerEntries, users } = await import
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds } = await import("../orders.service");
+const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible } = await import("../orders.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
+const schema = await import("@/db/schema");
 const { eq } = await import("drizzle-orm");
 
 async function reset() {
@@ -143,5 +144,25 @@ describe("order CRM queries (integration)", () => {
     expect(detail.publicId).toBe(publicId);
     const allDetail = await readOrder(publicId, "all");
     expect(allDetail.publicId).toBe(publicId);
+  });
+
+  it("delivery and payment guards follow the row's own order", async () => {
+    const snap = await loadCatalogSnapshot();
+    const suffix = Math.random().toString(36).slice(2);
+    const [orgA] = await db.insert(organization).values({ name: "Org A", clientCode: `GA-${suffix}` }).returning({ id: organization.id });
+    const { publicId } = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    const [order] = await db.update(orders).set({ organizationId: orgA.id }).where(eq(orders.publicId, publicId)).returning({ id: orders.id });
+    const [delivery] = await db.insert(schema.deliveries)
+      .values({ orderId: order.id, deliveryDate: "2031-06-02", cutoffAt: 1, tiffinUnits: 1 }).returning({ publicId: schema.deliveries.publicId });
+    const [payment] = await db.insert(schema.payments)
+      .values({ orderId: order.id, amount: "1.00", method: "simulated", status: "paid" }).returning({ publicId: schema.payments.publicId });
+
+    for (const [guard, id] of [[assertDeliveryVisible, delivery.publicId], [assertPaymentVisible, payment.publicId]] as const) {
+      await expect(guard(id, ["org_someone_else"])).rejects.toThrow(/not found/i);
+      await expect(guard(id, [])).rejects.toThrow(/not found/i);
+      await expect(guard("missing", "all")).rejects.toThrow(/not found/i);
+      await expect(guard(id, [orgA.id])).resolves.toBeUndefined();
+      await expect(guard(id, "all")).resolves.toBeUndefined();
+    }
   });
 });

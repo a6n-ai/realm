@@ -1229,6 +1229,22 @@ export async function assertOrderVisible(publicId: string, visible: "all" | stri
   if (!row) throw new NotFoundError("Order not found");
 }
 
+// Actions that take a delivery or payment id resolve the order from that row, never from an
+// order id the client sent alongside it.
+export async function assertDeliveryVisible(deliveryPublicId: string, visible: "all" | string[]): Promise<void> {
+  const [row] = await db.select({ publicId: orders.publicId }).from(deliveries)
+    .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(deliveries.publicId, deliveryPublicId)).limit(1);
+  if (!row) throw new NotFoundError("Order not found");
+  await assertOrderVisible(row.publicId, visible);
+}
+
+export async function assertPaymentVisible(paymentPublicId: string, visible: "all" | string[]): Promise<void> {
+  const [row] = await db.select({ publicId: orders.publicId }).from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId)).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  if (!row) throw new NotFoundError("Order not found");
+  await assertOrderVisible(row.publicId, visible);
+}
+
 function filterValues(f: FilterCondition): string[] {
   return f.operator === "in" ? (f.value as string[]) : [String(f.value)];
 }
