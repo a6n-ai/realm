@@ -55,6 +55,7 @@ export async function changeStartDateAction(orderId: string, startDate: string):
 export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[]): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
+    await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(await getSession()));
     await changeOrderEatingDays(orderId, days);
   });
   revalidatePath(`/dashboard/orders/${orderId}`);
