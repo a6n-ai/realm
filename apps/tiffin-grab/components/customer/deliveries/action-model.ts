@@ -10,7 +10,7 @@ export const ACTION_LABEL: Record<TripAction, string> = {
   address: "Change address",
 };
 
-const CLOSED = new Set<Trip["status"]>(["delivered", "unconfirmed", "cutoff-passed", "locked", "combined-into", "rescheduled"]);
+const CLOSED = new Set<Trip["status"]>(["delivered", "unconfirmed", "cutoff-passed", "locked", "combined-into", "rescheduled", "holiday"]);
 
 /** Move stays available; pick needs a resolved menu, so a not-yet-released week disables it with one reason. */
 const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet.", sub: "" };
@@ -52,7 +52,7 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
     })),
     bar: (closed || opts.locked ? [] : movedAway ? (showAddress ? ["address"] : []) : moveOnly ? (opts.trial ? [] : ["move"]) : opts.trial ? ["pick"] : ["pick", "move"]) as TripAction[],
     closedReason: movedAway ? null : closed ? av.pick.why : null,
-    goTo: opts.movedTo ?? (trip.status === "combined-into" ? trip.mergedInto : trip.status === "rescheduled" ? (trip.movedTo ?? null) : null),
+    goTo: opts.movedTo ?? (trip.status === "combined-into" ? trip.mergedInto : trip.status === "rescheduled" || trip.status === "holiday" ? (trip.movedTo ?? null) : null),
   };
 }
 

@@ -10,6 +10,7 @@ const TONE: Record<LabelDeliveryStatus, Tone> = {
   "Not delivered": "bad",
   "On hold": "neutral",
   Paused: "neutral",
+  Holiday: "neutral",
   Cancelled: "faint",
 };
 

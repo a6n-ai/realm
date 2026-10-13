@@ -9,11 +9,39 @@ const log = createLogger("pause-state");
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type Reader = Pick<typeof db, "select">;
 
+/** An ordinary delivery a holiday added at plan end points back at this row: its tiffins are already re-homed. */
+export const HAS_HOLIDAY_EXTRA = sql`exists (select 1 from deliveries hx where hx.holiday_extra_for_delivery_id = ${deliveries.id})`;
+
 /**
- * A row whose tiffin already left: merged into another trip or replaced by a make-up. It keeps
- * its date (and its status) but carries nothing, so it must never be put back on the schedule.
+ * A row whose tiffin already left: merged into another trip, replaced by a make-up, or stood in
+ * for by the days a holiday added. It keeps its date (and its status) but carries nothing, so it
+ * must never be put back on the schedule.
  */
-export const MOVED_AWAY = sql`(${deliveries.mergedIntoDeliveryId} is not null or exists (select 1 from deliveries mv where mv.makeup_for_delivery_id = ${deliveries.id}))`;
+export const MOVED_AWAY = sql`(${deliveries.mergedIntoDeliveryId} is not null or exists (select 1 from deliveries mv where mv.makeup_for_delivery_id = ${deliveries.id} or mv.holiday_extra_for_delivery_id = ${deliveries.id}))`;
+
+/**
+ * Paused by the customer (or staff on their behalf), as opposed to closed for a holiday. Every
+ * pause rule (budget, cutoff lapse, Resume, the pause drawer, "all upcoming days paused") reads
+ * this and never bare status = 'paused'. One rule in two forms: SQL for a where clause, the
+ * function for a loaded row.
+ */
+export const CUSTOMER_PAUSED = sql`(${deliveries.status} = 'paused' and ${deliveries.holidayId} is null)`;
+export const isCustomerPaused = (row: { status: string; holidayId: bigint | null }): boolean => row.status === "paused" && row.holidayId == null;
+
+/**
+ * The row flip a customer pause and a holiday share: scheduled -> paused, status-filtered so a
+ * concurrent change drops the row. A customer pause needs the cutoff ahead. A holiday tags the
+ * row and closes the day whatever the hour, unless the driver already delivered it. The caller
+ * holds the order's advisory lock and owns every other rule (trial, make-up, budget).
+ */
+export async function pauseRows(tx: Tx, ids: bigint[], now: number, holidayId: bigint | null = null) {
+  if (ids.length === 0) return [];
+  return tx.update(deliveries).set({ status: "paused", ...(holidayId == null ? {} : { holidayId }) }).where(and(
+    inArray(deliveries.id, ids),
+    eq(deliveries.status, "scheduled"),
+    holidayId == null ? gt(deliveries.cutoffAt, now) : sql`${deliveries.optimoCompletionStatus} is distinct from 'success'`,
+  )).returning({ id: deliveries.id, publicId: deliveries.publicId, routeSyncedAt: deliveries.routeSyncedAt, deliveryDate: deliveries.deliveryDate });
+}
 
 /** A tiffin was moved onto this row (or relabelled on it); it cannot move again, so the row must not lapse. */
 export const CARRIES_MOVED_IN = sql`exists (select 1 from delivery_moves dm where dm.to_delivery_id = ${deliveries.id})`;
@@ -51,7 +79,7 @@ export async function lapsePausedRows(tx: Tx, orderId: bigint): Promise<number> 
   await retireLegacyPaused(tx, orderId);
   const lapsed = await tx.update(deliveries).set({ status: "skipped" }).where(and(
     eq(deliveries.orderId, orderId),
-    eq(deliveries.status, "paused"),
+    CUSTOMER_PAUSED,
     lte(deliveries.cutoffAt, Date.now()),
   )).returning({ id: deliveries.id, deliveryDate: deliveries.deliveryDate, movedAway: sql<boolean>`${MOVED_AWAY}` });
   const held = lapsed.filter((r) => !r.movedAway);
@@ -100,12 +128,13 @@ export function isLapsedPause(row: { status: string; deliveryDate: string; route
 export async function isOrderFullyPaused(exec: Reader, orderId: bigint, today: string, now = Date.now()): Promise<boolean> {
   const rows = await exec.select({
     status: deliveries.status,
+    holidayId: deliveries.holidayId,
     deliveryDate: deliveries.deliveryDate,
     cutoffAt: deliveries.cutoffAt,
     movedAway: sql<boolean>`${MOVED_AWAY}`,
   }).from(deliveries).where(and(eq(deliveries.orderId, orderId), inArray(deliveries.status, ["scheduled", "paused"])));
   const goingOut = rows.some((r) => r.status === "scheduled" && !r.movedAway && r.deliveryDate >= today);
-  const stillPaused = rows.some((r) => r.status === "paused" && r.cutoffAt > now && !r.movedAway);
+  const stillPaused = rows.some((r) => isCustomerPaused(r) && r.cutoffAt > now && !r.movedAway);
   return stillPaused && !goingOut;
 }
 
@@ -118,7 +147,7 @@ export async function isOrderFullyPaused(exec: Reader, orderId: bigint, today: s
 export async function releasePausedRows(tx: Tx, orderId: bigint, wanted: string[] | null, actorId: bigint | null): Promise<string[]> {
   const conds = [
     eq(deliveries.orderId, orderId),
-    eq(deliveries.status, "paused"),
+    CUSTOMER_PAUSED,
     gt(deliveries.cutoffAt, Date.now()),
     not(MOVED_AWAY),
   ];

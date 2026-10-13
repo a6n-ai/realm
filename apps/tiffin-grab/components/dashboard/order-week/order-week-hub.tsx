@@ -225,6 +225,7 @@ function statusChoice(trip: Trip): StatusValue | null {
   switch (trip.status) {
     case "combined-into":
     case "rescheduled":
+    case "holiday":
     case "locked":
       return null;
     case "vacation":

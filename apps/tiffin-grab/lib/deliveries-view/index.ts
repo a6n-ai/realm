@@ -2,10 +2,10 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
 
-export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "vacation" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed";
+export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "vacation" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed" | "holiday";
 export type TripAction = "pick" | "swap" | "move" | "address";
 export type Availability = { ok: boolean; why: string | null; sub: string };
-export type LegendKey = "delivered" | "upcoming" | "vacation" | "onHold";
+export type LegendKey = "delivered" | "upcoming" | "vacation" | "onHold" | "holiday";
 
 type MealLike = { label: string; picks: { name: string }[]; quantity: number }[];
 
@@ -45,6 +45,10 @@ export type CalendarDayInput = {
   complimentaryNote?: string | null;
   /** A day paused through the day-set pause that went past cutoff and became a hold. It has no route stop. */
   lapsedPause?: boolean;
+  /** Name of the holiday that closed this trip; null otherwise. */
+  holidayName?: string | null;
+  /** Dates of the ordinary deliveries the holiday added for it, earliest first. */
+  holidayExtras?: string[];
 };
 
 export type TiffinMove = { from: string | null; to: string };
@@ -97,6 +101,8 @@ export type Trip = {
   /** Staff's reason when this is a free tiffin; null for a paid one. */
   complimentaryNote?: string | null;
   lapsedPause?: boolean;
+  holidayName?: string | null;
+  holidayExtras?: string[];
 };
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -121,7 +127,10 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       const covers = coveredDates({ deliveryDate: d.date, coversDates: d.covers ?? null });
       const rescheduled = !!d.rescheduled;
       let status: TripStatus;
-      if (d.combinedInto) status = "combined-into";
+      // Closed by a holiday: paused by the declare, or a hold tagged after the fact whose tiffin already
+      // moved. A hold still carrying its tiffin stays "failed" so Move keeps working; holidayName labels it.
+      if (d.holidayName && (d.status === "paused" || (d.status !== "scheduled" && (rescheduled || !!d.combinedInto)))) status = "holiday";
+      else if (d.combinedInto) status = "combined-into";
       else if (d.status !== "scheduled" && rescheduled) status = "rescheduled";
       // Nobody holds a day any more: a skipped row that wasn't moved away is a failed drop.
       else if (d.status === "skipped") status = "failed";
@@ -161,6 +170,8 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         movesOut: d.movesOut ?? [],
         complimentaryNote: d.complimentaryNote ?? null,
         lapsedPause: d.lapsedPause,
+        holidayName: d.holidayName ?? null,
+        holidayExtras: d.holidayExtras ?? [],
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -176,8 +187,9 @@ const LEGEND: Record<TripStatus, LegendKey | null> = {
   vacation: "vacation",
   "combined-into": null,
   failed: "onHold",
+  holiday: "holiday",
 };
-const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", vacation: "Paused", onHold: "Not delivered" };
+const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", vacation: "Paused", onHold: "Not delivered", holiday: "Holiday" };
 
 /** Replaces day-status.ts: legend bucket per eating day, keyed by ISO date. */
 export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> {
@@ -224,6 +236,10 @@ export function actionAvailability(trip: Trip, now: number, plan: PlanContext): 
   const closed = "Changes closed";
   const s = trip.status;
   const into = trip.mergedInto ? humanDate(trip.mergedInto) : "";
+  if (s === "holiday") {
+    const closedDay = no(`Kitchen is closed${trip.holidayName ? `: ${trip.holidayName}` : ""}. This tiffin is added back at the end of the plan.`);
+    return { pick: closedDay, swap: closedDay, move: closedDay, address: closedDay };
+  }
 
   const blocked = (delivered: string): string =>
     s === "combined-into" ? `Combined into ${into}. Go to that trip.`

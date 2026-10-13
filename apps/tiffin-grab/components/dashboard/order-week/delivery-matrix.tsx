@@ -23,6 +23,7 @@ const LABEL: Record<BoxStatus, string> = {
   hold: "On hold",
   "not-delivered": "Not delivered",
   combined: "Moved",
+  holiday: "Holiday",
 };
 const LEGEND: BoxStatus[] = ["delivered", "awaiting", "upcoming", "hold", "not-delivered", "vacation", "combined"];
 

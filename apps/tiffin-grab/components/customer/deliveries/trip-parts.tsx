@@ -13,6 +13,8 @@ export const dayNum = (iso: string) => d(iso).getUTCDate();
 export const weekday = (iso: string) => WD.format(d(iso));
 
 export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryStatus | null } {
+  // A day a holiday closed reads Holiday whatever its row status (paused, or held and tagged after the fact).
+  if (t.holidayName) return { label: "Holiday", tone: "neutral", dot: "holiday" };
   switch (t.status) {
     case "upcoming": return { label: t.isMakeup ? "Make-up" : "Upcoming", tone: "up", dot: "upcoming" };
     case "delivered": return { label: "Delivered", tone: "ok", dot: "delivered" };
@@ -22,14 +24,16 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
     case "vacation": return { label: "Paused", tone: "vac", dot: "vacation" };
     case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
+    case "holiday": return { label: "Holiday", tone: "neutral", dot: "holiday" };
     case "failed": return { label: "Not delivered", tone: "hold", dot: "hold" };
   }
 }
 
-const MOVED_TRIP: Trip["status"][] = ["rescheduled", "combined-into"];
+const MOVED_TRIP: Trip["status"][] = ["rescheduled", "combined-into", "holiday"];
 
 /** A moved-away eating day reads "Moved" even while its old trip keeps delivering other days. */
 export function rowMeta(row: EatingRow): ReturnType<typeof statusMeta> {
+  if (row.trip.holidayName) return statusMeta(row.trip);
   return row.movedTo && !MOVED_TRIP.includes(row.trip.status) ? { label: "Moved", tone: "neutral", dot: "combined" } : statusMeta(row.trip);
 }
 
@@ -308,6 +312,7 @@ export const EXPLAIN: Record<Trip["status"], string> = {
   vacation: "Paused. Resume it before cutoff, or move it to another day.",
   "combined-into": "Combined into another delivery.",
   failed: "Not delivered. Move it to another day.",
+  holiday: "The kitchen is closed. This tiffin is added back at the end of the plan.",
 };
 
 /** Meal breakdown of one eating day (category, portion after swaps, dishes), with a compact delivery footer. */

@@ -28,7 +28,7 @@ export function buildEatingDays(trips: Trip[]): EatingRow[] {
   const rows: EatingRow[] = [];
   const covered = new Set(trips.filter((t) => t.status !== "combined-into").flatMap((t) => t.coversDates));
   for (const trip of trips) {
-    const moved = trip.status === "rescheduled" || trip.status === "combined-into";
+    const moved = trip.status === "rescheduled" || trip.status === "combined-into" || trip.status === "holiday";
     const outTo = new Map((trip.movesOut ?? []).flatMap((m) => (m.from ? [[m.from, m.to] as const] : [])));
     for (const e of trip.eatingDays) {
       // A merged source shows only the days its target does not already carry: those read "Moved to ...".

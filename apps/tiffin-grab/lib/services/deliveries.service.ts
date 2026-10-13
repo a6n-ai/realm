@@ -1,6 +1,6 @@
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, gt, gte, inArray, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNull, lte, ne, not, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
@@ -23,7 +23,7 @@ import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { assertDayOutsideOtherPlans } from "./order-window";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
-import { isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
+import { HAS_HOLIDAY_EXTRA, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
 
 const log = createLogger("deliveries.service");
 
@@ -387,16 +387,19 @@ export async function adminSetDeliveryStatus(
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
     let row = await loadByPublicId(tx, deliveryPublicId);
     // A paused day past its cutoff did not go out: it is a hold first, then the rules for a hold apply.
-    if (row.status === "paused" && row.cutoffAt <= Date.now()) {
+    if (isCustomerPaused(row) && row.cutoffAt <= Date.now()) {
       await lapsePausedRows(tx, orderId);
       row = await loadByPublicId(tx, deliveryPublicId);
     }
     if (row.status === "cancelled") throw new ValidationError("A cancelled delivery cannot be changed");
+    if (row.status === "paused" && row.holidayId != null) {
+      throw new ValidationError("The kitchen is closed that day. Remove the holiday to bring this delivery back.");
+    }
     if (row.mergedIntoDeliveryId != null || row.tiffinUnits === 0) {
       throw new ValidationError("This delivery's tiffins were moved. Change the day they moved to.");
     }
     const [moved] = await tx.select({ id: deliveries.id }).from(deliveries)
-      .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
+      .where(or(eq(deliveries.makeupForDeliveryId, row.id), eq(deliveries.holidayExtraForDeliveryId, row.id))).limit(1);
     if (moved) throw new ValidationError("This delivery's tiffins were moved. Change the day they moved to.");
 
     const [order] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
@@ -550,6 +553,8 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
         inArray(deliveries.status, ["paused", "skipped"]),
         isNull(deliveries.mergedIntoDeliveryId),
         isNull(existingMakeup.id),
+        // A day a holiday closed is settled by the days added for it; one still waiting for staff to place stays debt.
+        not(HAS_HOLIDAY_EXTRA),
       ));
     if (debt > 0) return false;
 
@@ -889,6 +894,9 @@ export async function rescheduleDelivery(
     await lapsePausedRows(tx, orderId);
 
     const row = await loadByPublicId(tx, deliveryPublicId);
+    if (row.status === "paused" && row.holidayId != null) {
+      throw new ValidationError("The kitchen is closed that day. This tiffin is added back at the end of the plan.");
+    }
     // A make-up that is still going out can move again; one that was missed cannot spawn its own make-up.
     if (row.status !== "scheduled") assertOriginal(row);
 
@@ -937,7 +945,7 @@ export async function rescheduleDelivery(
     if (Date.now() > newCutoff) throw new ValidationError("That day's cutoff has already passed");
 
     const [existingMakeup] = await tx.select({ id: deliveries.id }).from(deliveries)
-      .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
+      .where(or(eq(deliveries.makeupForDeliveryId, row.id), eq(deliveries.holidayExtraForDeliveryId, row.id))).limit(1);
     if (existingMakeup || row.mergedIntoDeliveryId) throw new ValidationError("This delivery has already been rescheduled");
 
     const own = coveredDates(row);

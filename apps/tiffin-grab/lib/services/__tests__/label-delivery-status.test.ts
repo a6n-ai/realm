@@ -24,4 +24,10 @@ describe("labelDeliveryStatus", () => {
     expect(labelDeliveryStatus({ status: "cancelled", cutoffAt: AFTER, optimoCompletionStatus: null }, NOW)).toBe("Cancelled");
   });
 
+  it("calls a row a holiday closed Holiday, whatever its status", () => {
+    expect(labelDeliveryStatus({ status: "paused", cutoffAt: BEFORE, optimoCompletionStatus: null, holidayId: 5n }, NOW)).toBe("Holiday");
+    expect(labelDeliveryStatus({ status: "skipped", cutoffAt: AFTER, optimoCompletionStatus: null, holidayId: 5n }, NOW)).toBe("Holiday");
+    expect(labelDeliveryStatus({ status: "paused", cutoffAt: BEFORE, optimoCompletionStatus: null, holidayId: null }, NOW)).toBe("Paused");
+  });
+
 });

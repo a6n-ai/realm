@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { deliveries, deliveryMoves, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
 import { assertDaysPauseAllowed } from "./pause-limits.service";
-import { CARRIES_MOVED_IN, MOVED_AWAY, lapsePausedRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
+import { CARRIES_MOVED_IN, CUSTOMER_PAUSED, MOVED_AWAY, lapsePausedRows, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -25,6 +25,19 @@ async function orderByPublicId(publicId: string) {
   }).from(orders).where(eq(orders.publicId, publicId)).limit(1);
   if (!order) throw new ValidationError("Order not found");
   return order;
+}
+
+/**
+ * After a pause commits: take the rows' stops off OptimoRoute. The route stamp is the evidence a
+ * stop still exists, so it goes only once the stop is really gone. Returns how many were removed.
+ */
+export async function removeStopsBestEffort(rows: OptimoSyncedRow[]): Promise<number> {
+  const gone = await deleteFromOptimoRouteBestEffort(rows);
+  if (gone.length > 0) {
+    await db.update(deliveries).set({ routeSyncedAt: null, routeDriverSerial: null, routeDriverName: null, routeStopNumber: null })
+      .where(inArray(deliveries.publicId, gone));
+  }
+  return gone.length;
 }
 
 /**
@@ -67,11 +80,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     }
     await assertDaysPauseAllowed(order.id, eligible.map((r) => r.deliveryDate), tx);
 
-    const updated = await tx.update(deliveries).set({ status: "paused" }).where(and(
-      inArray(deliveries.id, eligible.map((r) => r.id)),
-      eq(deliveries.status, "scheduled"),
-      gt(deliveries.cutoffAt, now),
-    )).returning({ id: deliveries.id, publicId: deliveries.publicId, routeSyncedAt: deliveries.routeSyncedAt, deliveryDate: deliveries.deliveryDate });
+    const updated = await pauseRows(tx, eligible.map((r) => r.id), now);
 
     if (updated.length === 0) throw new ValidationError("Cutoff has passed for those days");
     const pausedDates = updated.map((r) => r.deliveryDate).sort();
@@ -99,12 +108,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     const skipped = wanted.filter((d) => byDate.get(d)!.cutoffAt <= now && !pausedDates.includes(d));
     return { paused: pausedDates, skipped };
   });
-  // The route stamp is the evidence a stop still exists, so it goes only once the stop is really gone.
-  const gone = await deleteFromOptimoRouteBestEffort(removed);
-  if (gone.length > 0) {
-    await db.update(deliveries).set({ routeSyncedAt: null, routeDriverSerial: null, routeDriverName: null, routeStopNumber: null })
-      .where(inArray(deliveries.publicId, gone));
-  }
+  await removeStopsBestEffort(removed);
   publishAnalyticsLive();
   return result;
 }
@@ -161,7 +165,7 @@ export async function lapseElapsedPausesSafe(orderId: bigint): Promise<number> {
  */
 export async function lapseAllElapsedPauses(): Promise<{ checked: number; lapsed: number; failed: number }> {
   const stranded = await db.selectDistinct({ id: orders.id }).from(orders)
-    .leftJoin(deliveries, and(eq(deliveries.orderId, orders.id), eq(deliveries.status, "paused"), lte(deliveries.cutoffAt, Date.now())))
+    .leftJoin(deliveries, and(eq(deliveries.orderId, orders.id), CUSTOMER_PAUSED, lte(deliveries.cutoffAt, Date.now())))
     .where(or(eq(orders.status, "paused"), isNotNull(deliveries.id)));
   let lapsed = 0;
   let failed = 0;
@@ -180,7 +184,7 @@ export async function lapseAllElapsedPauses(): Promise<{ checked: number; lapsed
 export async function listPauseDays(orderId: bigint): Promise<{ date: string; paused: boolean }[]> {
   const rows = await db.select({ date: deliveries.deliveryDate, status: deliveries.status }).from(deliveries).where(and(
     eq(deliveries.orderId, orderId),
-    inArray(deliveries.status, ["scheduled", "paused"]),
+    or(eq(deliveries.status, "scheduled"), CUSTOMER_PAUSED),
     isNull(deliveries.makeupForDeliveryId),
     gt(deliveries.cutoffAt, Date.now()),
     not(MOVED_AWAY),

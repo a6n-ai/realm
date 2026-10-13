@@ -1,6 +1,6 @@
 import type { DeliveryStatus } from "@/components/customer/kit";
 
-export type AgendaDot = { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; deliveryDate: string; truck: boolean; units: number; covers: string[]; moved?: boolean; optimoCompletionStatus?: string | null; deliveryId?: string };
+export type AgendaDot = { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; deliveryDate: string; truck: boolean; units: number; covers: string[]; moved?: boolean; holiday?: string | null; optimoCompletionStatus?: string | null; deliveryId?: string };
 export type Agenda = Record<string, AgendaDot[]>;
 
 const DAY = 864e5;
@@ -21,6 +21,7 @@ export function defaultWeek(today: string, planFirst: string | null | undefined)
 }
 
 export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
+  if (d.holiday) return "holiday";
   if (d.moved) return "combined";
   if (d.status === "paused") return "vacation";
   if (d.status === "skipped") return "hold";
@@ -34,7 +35,7 @@ export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
 export function pausedAhead(agenda: Agenda, now: number): number {
   const seen = new Set<string>();
   for (const dots of Object.values(agenda)) {
-    for (const d of dots) if (d.truck && !d.moved && d.status === "paused" && d.cutoffAt > now) seen.add(d.deliveryId ?? d.deliveryDate);
+    for (const d of dots) if (d.truck && !d.moved && !d.holiday && d.status === "paused" && d.cutoffAt > now) seen.add(d.deliveryId ?? d.deliveryDate);
   }
   return seen.size;
 }

@@ -1,6 +1,6 @@
 import { cn } from "./cn";
 
-export type DeliveryStatus = "delivered" | "upcoming" | "vacation" | "hold" | "combined";
+export type DeliveryStatus = "delivered" | "upcoming" | "vacation" | "hold" | "combined" | "holiday";
 
 export const STATUS_LABEL: Record<DeliveryStatus, string> = {
   delivered: "Delivered",
@@ -8,6 +8,7 @@ export const STATUS_LABEL: Record<DeliveryStatus, string> = {
   vacation: "Paused",
   hold: "Not delivered",
   combined: "Combined",
+  holiday: "Holiday",
 };
 
 export const STATUS_COLOR: Record<DeliveryStatus, string> = {
@@ -16,6 +17,7 @@ export const STATUS_COLOR: Record<DeliveryStatus, string> = {
   vacation: "var(--s-vac,#d98a00)",
   hold: "var(--s-hold,#f43f5e)",
   combined: "var(--muted-foreground,#6E6558)",
+  holiday: "var(--s-holiday,#7c3aed)",
 };
 
 /** Shape carries meaning alongside colour: combined is a dashed outline. */
