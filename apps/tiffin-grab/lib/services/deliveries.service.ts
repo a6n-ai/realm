@@ -23,7 +23,7 @@ import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { assertDayOutsideOtherPlans } from "./order-window";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
-import { isLapsedPause, lapsePausedRows, lapsedPauseDates } from "./pause-state";
+import { isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
 
 const log = createLogger("deliveries.service");
 
@@ -381,10 +381,16 @@ export async function adminSetDeliveryStatus(
 ): Promise<void> {
   let syncedRow: OptimoSyncedRow | null = null;
   let changed = false;
+  let resumed = null as { orderId: bigint; dates: string[] } | null;
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
-    const row = await loadByPublicId(tx, deliveryPublicId);
+    let row = await loadByPublicId(tx, deliveryPublicId);
+    // A paused day past its cutoff did not go out: it is a hold first, then the rules for a hold apply.
+    if (row.status === "paused" && row.cutoffAt <= Date.now()) {
+      await lapsePausedRows(tx, orderId);
+      row = await loadByPublicId(tx, deliveryPublicId);
+    }
     if (row.status === "cancelled") throw new ValidationError("A cancelled delivery cannot be changed");
     if (row.mergedIntoDeliveryId != null || row.tiffinUnits === 0) {
       throw new ValidationError("This delivery's tiffins were moved. Change the day they moved to.");
@@ -398,12 +404,19 @@ export async function adminSetDeliveryStatus(
       throw new ValidationError("This subscription can no longer be changed");
     }
 
+    // A paused day before cutoff can only be resumed, through the same path as Resume (cutoff, pause-log refund, activity).
+    if (row.status === "paused") {
+      if (status !== "upcoming") throw new ValidationError("Resume this day first");
+      resumed = { orderId, dates: await releasePausedRows(tx, orderId, [row.deliveryDate], actorId) };
+      changed = true;
+      return;
+    }
+
     const now = Date.now();
     // Delivered only once confirmed (OptimoRoute or an admin); the cutoff alone proves nothing.
     // "upcoming" is the unconfirmed state: Upcoming before the cutoff, Awaiting confirmation after.
-    const current: AdminDeliveryStatus | "paused" =
+    const current: AdminDeliveryStatus =
       row.status === "skipped" ? "not_delivered"
-      : row.status === "paused" ? "paused"
       : row.optimoCompletionStatus === "success" ? "delivered"
       : "upcoming";
     if (current === status) return;
@@ -452,6 +465,7 @@ export async function adminSetDeliveryStatus(
     changed = true;
   });
   if (syncedRow) await deleteFromOptimoRouteBestEffort([syncedRow]);
+  if (resumed) await restoreStopsBestEffort(resumed.orderId, resumed.dates, actorId);
   if (changed) publishAnalyticsLive();
 }
 

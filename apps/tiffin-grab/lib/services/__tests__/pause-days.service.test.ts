@@ -23,11 +23,20 @@ vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
   return { ...actual, deleteOrder: async (orderNo: string) => { if (failDelete) throw new Error("optimoroute down"); deletedStops.push(orderNo); } };
 });
 
+const pushedStops: string[][] = [];
+let failPush = false;
+vi.mock("@/lib/services/optimoroute/push", () => ({
+  pushOneDelivery: async (orderNo: string, date: string) => {
+    if (failPush) throw new Error("optimoroute push down");
+    pushedStops.push([orderNo, date]);
+  },
+}));
+
 const { db } = await import("@/db/client");
 const { deliveries, deliveryMoves, durationPackages, ledgerEntries, orderActivities, orders, payments, subscriptionPauses, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
-const { pauseDays, releasePausedDays, lapseElapsedPauses, lapseAllElapsedPauses, listPauseDays } = await import("../pause-days.service");
+const { pauseDays, releasePausedDays, lapseElapsedPauses, lapseElapsedPausesSafe, lapseAllElapsedPauses, listPauseDays } = await import("../pause-days.service");
 const { isOrderFullyPaused } = await import("../pause-state");
 const { getPauseUsage } = await import("../pause-limits.service");
 const { rescheduleDelivery, adminSetDeliveryStatus } = await import("../deliveries.service");
@@ -49,6 +58,8 @@ async function reset() {
   deletedStops.length = 0;
   failLapse = 0;
   failDelete = false;
+  failPush = false;
+  pushedStops.length = 0;
 }
 
 async function activatedOrder() {
@@ -551,5 +562,145 @@ describe("lapse keeps the route evidence and stays quiet about moved-away rows",
     expect((await rowOn(o.id, D[0])).status).toBe("skipped");
     await lapseElapsedPauses(o.id);
     expect(await skippedNotes(o.id)).toHaveLength(0);
+  });
+});
+
+describe("I1: orders.status = paused has no meaning, so it is retired wherever the lapse runs", () => {
+  beforeEach(reset);
+
+  const legacyPaused = async () => {
+    const o = await activatedOrder();
+    await db.update(payments).set({ status: "paid" }).where(eq(payments.orderId, o.id));
+    await pauseDays(o.publicId, [...D], null);
+    await db.update(orders).set({ status: "paused" }).where(eq(orders.id, o.id));
+    return o;
+  };
+  const retired = async (id: bigint) => (await db.select().from(orderActivities).where(and(eq(orderActivities.orderId, id), eq(orderActivities.type, "status_change"))))
+    .filter((a) => a.fromStatus === "paused" && a.toStatus === "active");
+
+  it("resuming one of five days puts the order back on active, so the day reaches the labels", async () => {
+    const o = await legacyPaused();
+    await releasePausedDays(o.publicId, [D[1]], null);
+    expect(await orderStatus(o.id)).toBe("active");
+    expect((await rowOn(o.id, D[1])).status).toBe("scheduled");
+    expect((await loadDayDeliveries(D[1])).some((r) => r.delivery.orderId === o.id)).toBe(true);
+    expect(await retired(o.id)).toHaveLength(1);
+  });
+
+  it("Resume all on a paused order leaves it active", async () => {
+    const o = await legacyPaused();
+    await releasePausedDays(o.publicId, "all", null);
+    expect(await orderStatus(o.id)).toBe("active");
+  });
+
+  it("pausing another day on a paused order also retires the status", async () => {
+    const o = await legacyPaused();
+    await releasePausedDays(o.publicId, [D[0]], null);
+    await db.update(orders).set({ status: "paused" }).where(eq(orders.id, o.id));
+    await pauseDays(o.publicId, [D[0]], null);
+    expect(await orderStatus(o.id)).toBe("active");
+  });
+
+  it("the customer read and the admin page read retire it too", async () => {
+    const a = await legacyPaused();
+    await myActiveSubscriptions(a.userId!);
+    expect(await orderStatus(a.id)).toBe("active");
+    const b = await legacyPaused();
+    await lapseElapsedPausesSafe(b.id);
+    expect(await orderStatus(b.id)).toBe("active");
+  });
+
+  it("the nightly step flips a paused order nobody opened, once, and writes one activity", async () => {
+    const o = await activatedOrder();
+    await db.update(orders).set({ status: "paused" }).where(eq(orders.id, o.id));
+    await runCronJob("complete-plans", "manual");
+    expect(await orderStatus(o.id)).toBe("active");
+    expect(await retired(o.id)).toHaveLength(1);
+    await runCronJob("complete-plans", "manual");
+    await lapseElapsedPauses(o.id);
+    await myActiveSubscriptions(o.userId!);
+    expect(await retired(o.id)).toHaveLength(1);
+  });
+});
+
+describe("I2: the admin status select on a paused day", () => {
+  beforeEach(reset);
+
+  it("(a) past cutoff the pause lapses first, then the hold rules apply", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    await expire(o.id, D[0]);
+    const row = await rowOn(o.id, D[0]);
+    await expect(adminSetDeliveryStatus(row.publicId, "upcoming", null)).rejects.toThrow(/can't go back to this day/);
+    expect((await rowOn(o.id, D[0])).status).not.toBe("scheduled");
+    await adminSetDeliveryStatus(row.publicId, "not_delivered", null);
+    expect((await rowOn(o.id, D[0])).status).toBe("skipped");
+    expect(await skippedNotes(o.id)).toHaveLength(1);
+  });
+
+  it("(b) before cutoff Upcoming is a resume: log released, pause day refunded, stop restored", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0], D[1]], null);
+    const row = await rowOn(o.id, D[0]);
+    await adminSetDeliveryStatus(row.publicId, "upcoming", 7n);
+    expect((await rowOn(o.id, D[0])).status).toBe("scheduled");
+    expect((await getPauseUsage(o.id)).daysUsed).toBe(1);
+    const [log] = await db.select().from(subscriptionPauses).where(eq(subscriptionPauses.orderId, o.id));
+    expect(log!.releasedDates).toEqual([D[0]]);
+    const resumedActs = await db.select().from(orderActivities).where(and(eq(orderActivities.orderId, o.id), eq(orderActivities.type, "resumed")));
+    expect(resumedActs.map((a) => [a.note, a.createdBy])).toEqual([[D[0], 7n]]);
+  });
+
+  it("(c) before cutoff any other status is refused: resume the day first", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    const row = await rowOn(o.id, D[0]);
+    for (const status of ["not_delivered", "delivered"] as const) {
+      await expect(adminSetDeliveryStatus(row.publicId, status, null)).rejects.toThrow("Resume this day first");
+    }
+    expect((await rowOn(o.id, D[0])).status).toBe("paused");
+    expect((await getPauseUsage(o.id)).daysUsed).toBe(1);
+  });
+});
+
+describe("I3: a resumed day gets its stop back only when its date was already pushed", () => {
+  beforeEach(reset);
+
+  const markPushed = async (orderId: bigint, date: string) =>
+    db.update(deliveries).set({ routeSyncedAt: Date.now() }).where(and(eq(deliveries.orderId, orderId), eq(deliveries.deliveryDate, date)));
+
+  it("pushes that one stop when another delivery on the date is already on the route", async () => {
+    const o = await activatedOrder();
+    const other = await activatedOrder();
+    await markPushed(other.id, D[1]);
+    await pauseDays(o.publicId, [D[1], D[2]], null);
+    await releasePausedDays(o.publicId, [D[1], D[2]], null);
+    expect(pushedStops).toEqual([[(await rowOn(o.id, D[1])).publicId, D[1]]]);
+  });
+
+  it("does nothing when the date has not been pushed yet", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[1]], null);
+    await releasePausedDays(o.publicId, [D[1]], null);
+    expect(pushedStops).toEqual([]);
+  });
+
+  it("the admin Upcoming resume restores the stop the same way", async () => {
+    const o = await activatedOrder();
+    const other = await activatedOrder();
+    await markPushed(other.id, D[1]);
+    await pauseDays(o.publicId, [D[1]], null);
+    await adminSetDeliveryStatus((await rowOn(o.id, D[1])).publicId, "upcoming", null);
+    expect(pushedStops).toHaveLength(1);
+  });
+
+  it("a push that throws never fails the release", async () => {
+    const o = await activatedOrder();
+    const other = await activatedOrder();
+    await markPushed(other.id, D[1]);
+    await pauseDays(o.publicId, [D[1]], null);
+    failPush = true;
+    await expect(releasePausedDays(o.publicId, [D[1]], null)).resolves.toEqual([D[1]]);
+    expect((await rowOn(o.id, D[1])).status).toBe("scheduled");
   });
 });

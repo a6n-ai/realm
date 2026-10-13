@@ -1,11 +1,11 @@
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, gt, inArray, isNull, lte, not, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryMoves, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
 import { assertDaysPauseAllowed } from "./pause-limits.service";
-import { CARRIES_MOVED_IN, MOVED_AWAY, lapsePausedRows } from "./pause-state";
+import { CARRIES_MOVED_IN, MOVED_AWAY, lapsePausedRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -120,37 +120,9 @@ export async function releasePausedDays(orderPublicId: string, dates: string[] |
   const resumed = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
     await lapsePausedRows(tx, order.id);
-    const now = Date.now();
-    // A paused day whose tiffin was moved away has nothing left to resume: putting it back would deliver twice.
-    const conds = [
-      eq(deliveries.orderId, order.id),
-      eq(deliveries.status, "paused"),
-      gt(deliveries.cutoffAt, now),
-      not(MOVED_AWAY),
-    ];
-    if (wanted) conds.push(inArray(deliveries.deliveryDate, wanted));
-    const updated = await tx.update(deliveries).set({ status: "scheduled" }).where(and(...conds))
-      .returning({ id: deliveries.id, deliveryDate: deliveries.deliveryDate });
-    if (updated.length === 0) throw new ValidationError("There are no paused days to resume for those dates");
-    const back = new Set(updated.map((r) => r.deliveryDate));
-    const logs = await tx.select({
-      id: subscriptionPauses.id,
-      deliveryDates: subscriptionPauses.deliveryDates,
-      releasedDates: subscriptionPauses.releasedDates,
-    }).from(subscriptionPauses).where(eq(subscriptionPauses.orderId, order.id));
-    for (const log of logs) {
-      const add = (log.deliveryDates ?? []).filter((d) => back.has(d) && !(log.releasedDates ?? []).includes(d));
-      if (add.length === 0) continue;
-      await tx.update(subscriptionPauses).set({ releasedDates: [...(log.releasedDates ?? []), ...add] }).where(eq(subscriptionPauses.id, log.id));
-    }
-    await tx.insert(orderActivities).values({
-      orderId: order.id,
-      type: "resumed",
-      note: updated.map((r) => r.deliveryDate).sort().join(", "),
-      createdBy: actorId,
-    });
-    return updated.map((r) => r.deliveryDate).sort();
+    return releasePausedRows(tx, order.id, wanted, actorId);
   });
+  await restoreStopsBestEffort(order.id, resumed, actorId);
   publishAnalyticsLive();
   return resumed;
 }
@@ -161,11 +133,13 @@ export async function releasePausedDays(orderPublicId: string, dates: string[] |
  * converts each row once.
  */
 export async function lapseElapsedPauses(orderId: bigint): Promise<number> {
+  let retired = false;
   const n = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    retired = await retireLegacyPaused(tx, orderId);
     return lapsePausedRows(tx, orderId);
   });
-  if (n > 0) publishAnalyticsLive();
+  if (n > 0 || retired) publishAnalyticsLive();
   return n;
 }
 
@@ -182,12 +156,13 @@ export async function lapseElapsedPausesSafe(orderId: bigint): Promise<number> {
 }
 
 /**
- * Every order with a paused day past its cutoff, whatever the order's status. One order failing
- * is logged and skipped so the rest still convert.
+ * Every order with a paused day past its cutoff, whatever the order's status, plus every order
+ * still marked paused (retired to active). One order failing is logged and skipped so the rest still convert.
  */
 export async function lapseAllElapsedPauses(): Promise<{ checked: number; lapsed: number; failed: number }> {
-  const stranded = await db.selectDistinct({ id: deliveries.orderId }).from(deliveries)
-    .where(and(eq(deliveries.status, "paused"), lte(deliveries.cutoffAt, Date.now())));
+  const stranded = await db.selectDistinct({ id: orders.id }).from(orders)
+    .leftJoin(deliveries, and(eq(deliveries.orderId, orders.id), eq(deliveries.status, "paused"), lte(deliveries.cutoffAt, Date.now())))
+    .where(or(eq(orders.status, "paused"), isNotNull(deliveries.id)));
   let lapsed = 0;
   let failed = 0;
   for (const o of stranded) {

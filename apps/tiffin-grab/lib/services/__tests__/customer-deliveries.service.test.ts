@@ -136,7 +136,8 @@ describe("customer-deliveries.service (integration)", () => {
     const primary = await myPrimarySubscription(userA);
     expect(primary?.publicId).toBe(aOrder1.publicId);
 
-    await db.update(orders).set({ status: "paused" }).where(eq(orders.id, aOrder1.id));
+    // orders.status = paused no longer exists as a state (it reads back as active), so the first plan stops delivering instead.
+    await db.update(deliveries).set({ status: "cancelled" }).where(eq(deliveries.orderId, aOrder1.id));
     const afterPause = await myPrimarySubscription(userA);
     expect(afterPause?.publicId).toBe(aOrder2.publicId);
   });
