@@ -120,26 +120,28 @@ const NO_CONTEXT: CustomerOrderContext = { renewFrom: null, plans: [], conflict:
 
 // An existing customer's running plans, renewal date and address book for the staff order
 // form, or empty for a new customer. Matches the account by phone or email, as createOrder does.
-export async function customerOrderContext(email: string, phone = ""): Promise<CustomerOrderContext> {
-  await requireStaff();
+// The accounts this phone or email matches that the acting staff member may know about.
+async function knownCustomerAccounts(email: string, phone: string) {
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
   // Unparseable input matches nobody: the form calls this while staff are still typing.
   const parsedEmail = emailSchema.safeParse(email.trim());
   const parsedPhone = phoneSchema().safeParse(phone);
-  if (!parsedEmail.success && !parsedPhone.success) return NO_CONTEXT;
+  if (!parsedEmail.success && !parsedPhone.success) return { known: [], visible };
   const matches = await matchCustomerAccounts(db, parsedPhone.success ? parsedPhone.data : "", parsedEmail.success ? parsedEmail.data : "");
-  if (matches.length === 0) return NO_CONTEXT;
   // Only reveal anything about an account, even that one exists, to staff who can already
   // see one of its orders. An account they cannot see is dropped here, so it answers exactly
   // as a phone or email that matches nobody would: no conflict flag, and no change to what
   // is shown for the account they can see.
-  const visible = await resolveSessionVisibleOrgIds(await getSession());
-  let known = matches;
-  if (visible !== "all") {
-    if (visible.length === 0) return NO_CONTEXT;
-    const seen = await db.selectDistinct({ userId: orders.userId }).from(orders)
-      .where(and(inArray(orders.userId, matches), inArray(orders.organizationId, visible)));
-    known = matches.filter((id) => seen.some((s) => s.userId === id));
-  }
+  if (visible === "all" || matches.length === 0) return { known: matches, visible };
+  if (visible.length === 0) return { known: [], visible };
+  const seen = await db.selectDistinct({ userId: orders.userId }).from(orders)
+    .where(and(inArray(orders.userId, matches), inArray(orders.organizationId, visible)));
+  return { known: matches.filter((id) => seen.some((s) => s.userId === id)), visible };
+}
+
+export async function customerOrderContext(email: string, phone = ""): Promise<CustomerOrderContext> {
+  await requireStaff();
+  const { known, visible } = await knownCustomerAccounts(email, phone);
   if (known.length > 1) return { ...NO_CONTEXT, conflict: true };
   const userId = known[0];
   if (!userId) return NO_CONTEXT;
@@ -183,13 +185,12 @@ export type StaffCouponPreview = { applied: AppliedCoupon[]; error?: string; ava
 export type StaffPricePreview = { preview: PricingResult; coupons: StaffCouponPreview };
 
 // The account createOrder would bill, when the contact matches exactly one. Usage-capped and
-// first-order coupons are judged against it; no match leaves those gates to createOrder.
+// first-order coupons are judged against it; no match leaves those gates to createOrder. An
+// account this staff member cannot see counts as no match, or a coupon's rejection reason
+// would say that it exists.
 async function previewCustomerId(contact: CreateOrderInput["contact"]): Promise<bigint | null> {
-  const email = emailSchema.safeParse(contact.email.trim());
-  const phone = phoneSchema().safeParse(contact.phone);
-  if (!email.success && !phone.success) return null;
-  const matches = await matchCustomerAccounts(db, phone.success ? phone.data : "", email.success ? email.data : "");
-  return matches.length === 1 ? matches[0]! : null;
+  const { known } = await knownCustomerAccounts(contact.email, contact.phone);
+  return known.length === 1 ? known[0]! : null;
 }
 
 async function quotePrice(
