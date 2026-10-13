@@ -127,17 +127,20 @@ export async function customerOrderContext(email: string, phone = ""): Promise<C
   const matches = await matchCustomerAccounts(db, parsedPhone.success ? parsedPhone.data : "", parsedEmail.success ? parsedEmail.data : "");
   if (matches.length === 0) return NO_CONTEXT;
   // Only reveal anything about an account, even that one exists, to staff who can already
-  // see one of its orders. Checked before the conflict flag: that flag alone would tell
-  // staff of one organization that a phone or email is a customer of another.
+  // see one of its orders. An account they cannot see is dropped here, so it answers exactly
+  // as a phone or email that matches nobody would: no conflict flag, and no change to what
+  // is shown for the account they can see.
   const visible = await resolveSessionVisibleOrgIds(await getSession());
+  let known = matches;
   if (visible !== "all") {
     if (visible.length === 0) return NO_CONTEXT;
     const seen = await db.selectDistinct({ userId: orders.userId }).from(orders)
       .where(and(inArray(orders.userId, matches), inArray(orders.organizationId, visible)));
-    if (seen.length < matches.length) return NO_CONTEXT;
+    known = matches.filter((id) => seen.some((s) => s.userId === id));
   }
-  if (matches.length > 1) return { ...NO_CONTEXT, conflict: true };
-  const userId = matches[0];
+  if (known.length > 1) return { ...NO_CONTEXT, conflict: true };
+  const userId = known[0];
+  if (!userId) return NO_CONTEXT;
   const [renewFrom, plans, saved] = await Promise.all([
     earliestNewPlanStart(db, userId),
     runningPlans(db, userId),

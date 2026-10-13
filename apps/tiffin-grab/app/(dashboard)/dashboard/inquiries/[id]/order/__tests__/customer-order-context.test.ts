@@ -2,6 +2,7 @@
 // phone and an email are two different customers, unless the caller can already see it.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne } from "drizzle-orm";
+import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orders, payments, users } from "@/db/schema";
 
@@ -16,6 +17,8 @@ vi.mock("@/lib/services/orders.service", async (importOriginal) => ({
 }));
 
 const { customerOrderContext } = await import("../actions");
+const { createOrder } = await import("@/lib/services/orders.service");
+const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 
 async function reset() {
   await db.delete(deliveries);
@@ -45,5 +48,24 @@ describe("customerOrderContext: phone and email on two accounts", () => {
     expect(await customerOrderContext("email-holder@x.com", "+16475550111")).toEqual({ renewFrom: null, plans: [], conflict: false, addresses: [] });
     visible.orgs = [];
     expect(await customerOrderContext("email-holder@x.com", "+16475550111")).toEqual({ renewFrom: null, plans: [], conflict: false, addresses: [] });
+  });
+
+  // Otherwise staff holding one customer's phone could test any email for an account elsewhere.
+  it("answers the same for another organization's email as for an email nobody has", async () => {
+    const snap = await loadCatalogSnapshot();
+    await createOrder({
+      planKey: snap.plans[0].key,
+      selections: {
+        mealSizeId: snap.mealSizes[0].publicId, frequencyKey: "5_day" as const, persons: 1, mealSlots: ["lunch"],
+        includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+      },
+      contact: { email: "phone-holder@x.com", fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    });
+    const [mine] = await db.select({ org: orders.organizationId }).from(orders);
+    visible.orgs = [mine.org!];
+
+    const unknown = await customerOrderContext("nobody@x.com", "+16475550111");
+    expect(unknown.plans).toHaveLength(1);
+    expect(await customerOrderContext("email-holder@x.com", "+16475550111")).toEqual(unknown);
   });
 });
