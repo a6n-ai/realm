@@ -76,13 +76,16 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>
               {onDay > 1 && (
-                <label className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] px-4 py-3">
-                  <span className="flex items-baseline justify-between text-[15px] font-semibold">
-                    How many tiffins to move
-                    <span className="tabular-nums">{tiffins(Math.round(perTiffin * qty) || qty)} of {Math.round(perTiffin * onDay) || onDay}</span>
-                  </span>
-                  <input type="range" min={1} max={onDay} step={1} value={qty} onChange={(e) => (setReason(null), setQty(Number(e.target.value)))} className="w-full accent-[var(--primary)]" />
-                </label>
+                <div role="group" aria-label="How many tiffins to move" className="flex flex-col gap-2">
+                  <span className="text-[15px] font-semibold">How many tiffins to move</span>
+                  <div className="flex gap-2">
+                    {Array.from({ length: onDay }, (_, i) => i + 1).map((n) => (
+                      <OptionCard key={n} aria-label={tiffins(Math.round(perTiffin * n) || n)} selected={qty === n} onClick={() => (setReason(null), setQty(n))} className="flex min-h-11 flex-1 items-center justify-center text-[17px] font-semibold tabular-nums">
+                        {Math.round(perTiffin * n) || n}
+                      </OptionCard>
+                    ))}
+                  </div>
+                </div>
               )}
               {end && (
                 <OptionCard selected={picked === end} onClick={toEnd} className="flex w-full items-center gap-3 px-4 py-3">

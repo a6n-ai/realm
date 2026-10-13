@@ -66,16 +66,16 @@ describe("MoveSheet", () => {
   it("a day holding several tiffins asks how many to move", async () => {
     a.move.mockResolvedValue({ ok: true, message: "moved" });
     mount(MoveSheet, trip({ coversDates: ["2026-09-23"], extraDates: ["2026-09-23"], coversLabel: null }));
-    fireEvent.change(screen.getByRole("slider"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "2 tiffins" }));
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
     expect(screen.getByText("2 tiffins that day")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23", 2));
   });
-  it("one tiffin on the day: no slider", () => {
+  it("one tiffin on the day: no count boxes", () => {
     mount(MoveSheet, trip());
-    expect(screen.queryByRole("slider")).toBeNull();
+    expect(screen.queryByRole("group", { name: "How many tiffins to move" })).toBeNull();
   });
   it("multi-day bundle splits only the chosen day's tiffin", async () => {
     a.move.mockResolvedValue({ ok: true, message: "moved" });
