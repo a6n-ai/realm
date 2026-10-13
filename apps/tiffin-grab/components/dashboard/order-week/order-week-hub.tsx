@@ -21,6 +21,7 @@ import { cutoffFmt, dedupeDishes, Journey, MealTiles, mealCategories, moveChips,
 import { OrderStatusBadge } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
+import { DeliveryMatrix } from "./delivery-matrix";
 import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
 import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
 import { actionModel } from "@/components/customer/deliveries/action-model";
@@ -68,6 +69,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
     else sp.delete("trip");
     startNav(() => router.replace(`?${sp.toString()}`, { scroll: false }));
   };
+  const pickDay = (iso: string) => (mondayOf(iso) === weekStart ? setSel(iso) : goWeek(mondayOf(iso), iso));
   const done = (msg?: string) => {
     if (msg) toast.success(msg);
     setDlg(null);
@@ -84,44 +86,50 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
         </span>
       </div>
 
-      <WeekStrip
-        firstWeek={firstWeek}
-        lastWeek={lastWeek}
-        week={weekStart}
-        today={plan.today}
-        selectedDay={row?.date ?? sel}
-        agenda={agenda}
-        now={now}
-        onPickDay={(iso) => (mondayOf(iso) === weekStart ? setSel(iso) : goWeek(mondayOf(iso), iso))}
-        onWeek={(m) => goWeek(m)}
-      />
+      {/* The week on the left, the whole plan beside it. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 space-y-4">
+          <WeekStrip
+            firstWeek={firstWeek}
+            lastWeek={lastWeek}
+            week={weekStart}
+            today={plan.today}
+            selectedDay={row?.date ?? sel}
+            agenda={agenda}
+            now={now}
+            onPickDay={pickDay}
+            onWeek={(m) => goWeek(m)}
+          />
 
-      {menuOut && (
-        <p data-testid="menu-not-released" className="text-muted-foreground text-sm"><span className="text-foreground font-medium">Menu not released yet.</span> Dish picks open once the kitchen releases this week&apos;s menu; days can still be moved or re-addressed.</p>
-      )}
+          {menuOut && (
+            <p data-testid="menu-not-released" className="text-muted-foreground text-sm"><span className="text-foreground font-medium">Menu not released yet.</span> Dish picks open once the kitchen releases this week&apos;s menu; days can still be moved or re-addressed.</p>
+          )}
 
-      {/* Same order as the customer's page: delivery (date, journey, moves), then meal and destination, then actions. */}
-      {rows.length === 0 ? (
-        <Card><CardContent className="text-muted-foreground py-6 text-sm">No eating days this week.</CardContent></Card>
-      ) : row && trip && av ? (
-        <SelectedDelivery
-          row={row}
-          trip={trip}
-          plan={plan}
-          now={now}
-          menuOut={menuOut}
-          weekStart={weekStart}
-          weekEnd={weekEnd}
-          rows={rows}
-          tz={tz}
-          editChoice={editChoice}
-          release={av.move}
-          onDone={done}
-          onOpen={setDlg}
-        />
-      ) : (
-        <Card><CardContent className="text-muted-foreground py-6 text-sm">Nothing planned on {sel ? humanDate(sel) : "this day"}.</CardContent></Card>
-      )}
+          {/* Same order as the customer's page: delivery (date, journey, moves), then meal and destination, then actions. */}
+          {rows.length === 0 ? (
+            <Card><CardContent className="text-muted-foreground py-6 text-sm">No eating days this week.</CardContent></Card>
+          ) : row && trip && av ? (
+            <SelectedDelivery
+              row={row}
+              trip={trip}
+              plan={plan}
+              now={now}
+              menuOut={menuOut}
+              weekStart={weekStart}
+              weekEnd={weekEnd}
+              rows={rows}
+              tz={tz}
+              editChoice={editChoice}
+              release={av.move}
+              onDone={done}
+              onOpen={setDlg}
+            />
+          ) : (
+            <Card><CardContent className="text-muted-foreground py-6 text-sm">Nothing planned on {sel ? humanDate(sel) : "this day"}.</CardContent></Card>
+          )}
+        </div>
+        <DeliveryMatrix agenda={agenda} firstWeek={firstWeek} lastWeek={lastWeek} week={weekStart} today={plan.today} selectedDay={row?.date ?? sel} now={now} onPickDay={pickDay} />
+      </div>
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
