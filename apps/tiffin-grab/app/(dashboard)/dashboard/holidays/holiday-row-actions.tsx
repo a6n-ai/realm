@@ -46,7 +46,7 @@ export function HolidayRowActions({ publicId, name: current, canReapply, canRemo
     });
 
   return (
-    <div className="flex justify-end gap-1">
+    <>
       {canReapply && <RowActionTooltipButton icon={RotateCwIcon} label="Re-apply" hint="Re-apply: close any delivery this holiday missed" disabled={pending} onClick={reapply} />}
       <RowActionTooltipButton icon={PencilIcon} label="Rename" onClick={() => { setName(current); setError(null); setRenameOpen(true); }} />
       {canRemove && <RowActionTooltipButton icon={Trash2Icon} label="Remove" tone="text-destructive" onClick={() => { setError(null); setRemoveOpen(true); }} />}
@@ -83,6 +83,6 @@ export function HolidayRowActions({ publicId, name: current, canReapply, canRemo
           {error && <p role="alert" className="text-destructive text-sm">{error}</p>}
         </ResponsiveDialog>
       )}
-    </div>
+    </>
   );
 }
