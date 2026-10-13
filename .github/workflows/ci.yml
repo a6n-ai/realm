@@ -79,6 +79,9 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Structural conventions from konsistent.json: stray top-level files,
+      # component file/export naming, schema barrels.
+      - run: pnpm konsistent
       - run: pnpm turbo typecheck --filter=tiffin-grab --filter=puchkaman --filter=xplorers
       # App vitest talks to Postgres. Add a services: postgres job later; do not
       # fail this gate on an empty/no-DB vitest run.
