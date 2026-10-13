@@ -12,6 +12,7 @@ const svc = vi.hoisted(() => ({
   sendPaymentReminder: vi.fn(),
   adminSetDeliveryStatus: vi.fn(), grantComplimentaryTiffin: vi.fn(), redeliverTrip: vi.fn(),
   pushOneDelivery: vi.fn(), removeOneDelivery: vi.fn(),
+  quoteOrderAddons: vi.fn(), addOrderAddons: vi.fn(),
 }));
 vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => {}, requireAdmin: async () => {} }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
@@ -25,6 +26,8 @@ vi.mock("@/lib/services/deliveries.service", () => ({
   adminSetDeliveryStatus: svc.adminSetDeliveryStatus, grantComplimentaryTiffin: svc.grantComplimentaryTiffin,
   redeliverTrip: svc.redeliverTrip, isAdminDeliveryStatus: () => true,
 }));
+vi.mock("@/lib/services/order-addons.service", () => ({ quoteOrderAddons: svc.quoteOrderAddons, addOrderAddons: svc.addOrderAddons }));
+vi.mock("@/lib/services/payment-proof", () => ({ uploadPaymentProof: vi.fn(async () => null) }));
 vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: svc.pushOneDelivery, removeOneDelivery: svc.removeOneDelivery }));
 
 const actions = await import("../actions");
@@ -58,6 +61,13 @@ describe("order actions outside the caller's organizations", () => {
     ["updatePaymentReferenceAction", () => actions.updatePaymentReferenceAction(ORDER, PAYMENT, "ref"), svc.updatePaymentReference],
     ["sendPaymentReminderAction", () => actions.sendPaymentReminderAction(ORDER, PAYMENT), svc.sendPaymentReminder],
     ["grantComplimentaryAction", () => actions.grantComplimentaryAction(ORDER, { date: "2030-01-07", note: "x", notify: false }), svc.grantComplimentaryTiffin],
+    ["quoteOrderAddonsAction", () => actions.quoteOrderAddonsAction(ORDER, [{ key: "roti", qty: 1 }], "etransfer"), svc.quoteOrderAddons],
+    ["addOrderAddonsAction", () => {
+      const form = new FormData();
+      form.set("selections", JSON.stringify([{ key: "roti", qty: 1 }]));
+      form.set("method", "etransfer");
+      return actions.addOrderAddonsAction(ORDER, form);
+    }, svc.addOrderAddons],
   ] as const)("%s checks the order", async (_name, call, service) => {
     await refused(call);
     expect(svc.assertOrderVisible).toHaveBeenCalledWith(ORDER, VISIBLE);

@@ -23,6 +23,8 @@ import {
   resolveSessionVisibleOrgIds,
 } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
+import { addOrderAddons, quoteOrderAddons, type AddonQuote, type AddonSelection } from "@/lib/services/order-addons.service";
+import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
@@ -100,6 +102,60 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
     if (order.length > 0) {
       memoryBus.publish(`refresh:${order[0].userPublicId}`, { type: "message", channel: `refresh:${order[0].userPublicId}` });
     }
+  }
+  return res;
+}
+
+function parseAddonSelections(raw: FormDataEntryValue | null): AddonSelection[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(typeof raw === "string" ? raw : "");
+  } catch {
+    throw new ValidationError("Pick at least one add-on");
+  }
+  if (!Array.isArray(parsed)) throw new ValidationError("Pick at least one add-on");
+  return parsed.map((s) => {
+    const { key, qty } = (s ?? {}) as { key?: unknown; qty?: unknown };
+    if (typeof key !== "string" || typeof qty !== "number") throw new ValidationError("Pick at least one add-on");
+    return { key, qty };
+  });
+}
+
+// Display only: the save reprices everything server-side.
+export async function quoteOrderAddonsAction(
+  orderId: string,
+  selections: AddonSelection[],
+  methodId: string,
+): Promise<ActionResult<{ quote: AddonQuote }>> {
+  return runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    return { quote: await quoteOrderAddons(orderId, selections, methodId) };
+  });
+}
+
+// FormData: selections (JSON), method, reference (optional), proof + proof_thumb (images).
+export async function addOrderAddonsAction(orderId: string, form: FormData): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    const selections = parseAddonSelections(form.get("selections"));
+    const method = form.get("method");
+    const methodId = typeof method === "string" ? method : "";
+    // Every rule runs before the screenshot is stored, so a refused save leaves no orphan file.
+    await quoteOrderAddons(orderId, selections, methodId);
+    // The first argument only names the storage folder; the payment row does not exist yet.
+    const proof = await uploadPaymentProof(orderId, form.get("proof"), form.get("proof_thumb"));
+    const ref = form.get("reference");
+    await addOrderAddons(
+      orderId,
+      { selections, methodId, proof, reference: typeof ref === "string" ? ref : null },
+      await currentUserId(),
+    );
+  });
+  if ("ok" in res) {
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/payments", "layout");
   }
   return res;
 }

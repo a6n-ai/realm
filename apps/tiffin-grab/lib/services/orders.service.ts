@@ -1401,7 +1401,7 @@ export type OrderDetail = typeof orders.$inferSelect & {
   mealSizeName: string;
   payments: OrderPaymentDetail[];
   /** Add-ons sold on the order; each qty is an extra row in every tiffin. */
-  addons: { name: string; category: string; qty: number; pricePerTiffin: string }[];
+  addons: { key: string; name: string; category: string; qty: number; pricePerTiffin: string }[];
 };
 
 // Same org scoping as listOrdersPage (see @foundry/auth resolveVisibleOrgIds). A
@@ -1432,7 +1432,7 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
     .limit(1);
   if (!row) throw new NotFoundError("Order not found");
   const addons = await db
-    .select({ name: orderAddons.addonName, category: orderAddons.category, qty: orderAddons.qty, pricePerTiffin: orderAddons.pricePerTiffin })
+    .select({ key: orderAddons.addonKey, name: orderAddons.addonName, category: orderAddons.category, qty: orderAddons.qty, pricePerTiffin: orderAddons.pricePerTiffin })
     .from(orderAddons)
     .where(eq(orderAddons.orderId, row.order.id))
     .orderBy(asc(orderAddons.id));
