@@ -164,3 +164,15 @@ export async function assertNoPlanOverlap(
     }
   }
 }
+
+/** The given days that fall inside another active/paused plan of this customer (same band rule as assertDayOutsideOtherPlans). */
+export async function datesInsideOtherPlans(
+  tx: Tx | typeof db,
+  args: { userId: bigint; dates: string[]; excludeOrderId: bigint },
+): Promise<string[]> {
+  const bands = await reservedBands(tx, args.userId, args.excludeOrderId);
+  return args.dates.filter((date) => {
+    const day = parseIsoDateUtc(date);
+    return bands.some((b) => b.start <= day && day < b.endExclusive);
+  });
+}

@@ -21,6 +21,7 @@ import { deleteOrder } from "@/lib/services/optimoroute/client";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { assertDayOutsideOtherPlans } from "./order-window";
+import { holidayForOrderDate } from "./holiday-dates";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
 import { HAS_HOLIDAY_EXTRA, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
@@ -592,7 +593,7 @@ export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string
   throw new ValidationError("Could not find a make-up slot within 30 days");
 }
 
-async function orderDeliveryDaySet(tx: Tx, order: Order): Promise<Set<string>> {
+export async function orderDeliveryDaySet(tx: Tx, order: Order): Promise<Set<string>> {
   const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
     .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
   return new Set(orderDeliveryDays({
@@ -645,6 +646,12 @@ async function reviveIfEmptied(tx: Tx, row: Delivery, cutoffAt: number): Promise
   return revived!;
 }
 
+/** Every move target routes through moveTrip or moveOneTiffin, so one check here closes the day for all of them. */
+async function assertNotHoliday(tx: Tx, orderId: bigint, date: string): Promise<void> {
+  const holiday = await holidayForOrderDate(tx, orderId, date);
+  if (holiday) throw new ValidationError(`Kitchen is closed on ${humanDate(date)}: ${holiday.name}`);
+}
+
 /**
  * Moves a WHOLE trip onto `targetDate` (a delivery weekday): payment-shift, re-delivery, a
  * single-tiffin reschedule. If a SCHEDULED trip already sits on targetDate
@@ -661,6 +668,7 @@ async function moveTrip(
   persons: number,
   enforceCaps = true,
 ): Promise<{ id: bigint; merged: boolean; coversDates: string[] }> {
+  await assertNotHoliday(tx, source.orderId, targetDate);
   const own = coveredDates(source);
   const carried = eatingDateIso && own.length === 1 ? [eatingDateIso] : own;
   const relabel = carried.length === 1 && own.length === 1 && carried[0] !== own[0];
@@ -733,6 +741,7 @@ async function moveOneTiffin(
   targetCutoff: number,
   persons: number,
 ): Promise<{ id: bigint; merged: boolean }> {
+  if (targetDate !== source.deliveryDate) await assertNotHoliday(tx, source.orderId, targetDate);
   const per = Math.max(1, persons);
   const srcCounts = dateCounts(source, (await loadExtraDates(tx, [source.id])).get(source.id) ?? []);
   const writeCounts = async (id: bigint, counts: Map<string, number>) => {
@@ -842,7 +851,8 @@ export async function shiftMissedDeliveries(
       .from(deliveries)
       .where(and(eq(deliveries.orderId, orderId), eq(deliveries.status, "scheduled"), isNull(deliveries.mergedIntoDeliveryId)));
     const tail = max && max > floor ? max : floor;
-    const target = nextDeliveryDateAfter(tail, weekdays);
+    let target = nextDeliveryDateAfter(tail, weekdays);
+    for (let guard = 0; guard < 30 && (await holidayForOrderDate(tx, orderId, target)); guard++) target = nextDeliveryDateAfter(target, weekdays);
 
     await tx.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, row.id));
     const moved = await moveTrip(tx, row, target, cutoffMsFor(target, cutoffHour, timezone), null, order.persons);
@@ -1096,6 +1106,7 @@ export async function redeliverTrip(
         break;
       }
       if (WEEKEND.has(weekdayKey(parseIsoDateUtc(cursor)))) continue;
+      if (await holidayForOrderDate(tx, orderId, cursor)) continue;
       const cutoff = cutoffMsFor(cursor, cutoffHour, timezone);
       if (cursor < today || Date.now() > cutoff) continue;
       const occupant = await moveTripPreflight(tx, orderId, cursor);
@@ -1164,6 +1175,7 @@ export async function grantComplimentaryTiffin(
     }
     const cutoffAt = cutoffMsFor(input.date, cutoffHour, timezone);
     if (Date.now() >= cutoffAt) throw new ValidationError("That day's cutoff has passed. Pick a later day.");
+    await assertNotHoliday(tx, order.id, input.date);
     const [taken] = await tx.select({ id: deliveries.id }).from(deliveries)
       .where(and(eq(deliveries.orderId, order.id), eq(deliveries.deliveryDate, input.date))).limit(1);
     if (taken) throw new ValidationError("This plan already has a delivery that day. Pick another day.");
