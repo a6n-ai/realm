@@ -56,10 +56,11 @@ describe("order CRM queries (integration)", () => {
     expect(await countLookOutOrders([])).toBe(0);
     expect((await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all")).total).toBe(2);
 
-    await setOrderLookOut(flagged.publicId, false, "");
+    await expect(setOrderLookOut(flagged.publicId, false, "")).rejects.toThrow("why it is being unmarked");
+    await setOrderLookOut(flagged.publicId, false, "Sorted with customer");
     expect(await countLookOutOrders("all")).toBe(0);
     const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.type, "note"));
-    expect(notes.map((n) => n.note).sort()).toEqual(["Look out for cleared", "Look out for note changed: Call before delivery", "Marked look out for: Call first"]);
+    expect(notes.map((n) => n.note).sort()).toEqual(["Look out for cleared: Sorted with customer", "Look out for note changed: Call before delivery", "Marked look out for: Call first"]);
   });
 
   it("look out for: a ticket flags its order, and leaves a flag staff already set", async () => {

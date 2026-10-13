@@ -1135,7 +1135,7 @@ export async function setOrderLookOut(
   actorId: bigint | null = null,
 ): Promise<void> {
   const reason = note.trim();
-  if (on && !reason) throw new ValidationError("Add a note on what to look out for");
+  if (!reason) throw new ValidationError(on ? "Add a note on what to look out for" : "Add a note on why it is being unmarked");
   if (reason.length > 300) throw new ValidationError("Keep the note under 300 characters");
   const [order] = await db.select({ id: orders.id, lookOutAt: orders.lookOutAt }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
   if (!order) throw new NotFoundError("Order not found");
@@ -1148,7 +1148,7 @@ export async function setOrderLookOut(
   await db.insert(orderActivities).values({
     orderId: order.id,
     type: "note",
-    note: !on ? "Look out for cleared" : order.lookOutAt == null ? `Marked look out for: ${reason}` : `Look out for note changed: ${reason}`,
+    note: !on ? `Look out for cleared: ${reason}` : order.lookOutAt == null ? `Marked look out for: ${reason}` : `Look out for note changed: ${reason}`,
     createdBy: actorId,
   });
 }
