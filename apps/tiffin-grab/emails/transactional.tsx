@@ -558,17 +558,16 @@ export const TEMPLATES: EmailTemplate[] = [
   {
     event: "holiday_declared",
     subject: "We are closed on {{order.date}}",
-    inApp: { subject: "Closed on {{order.date}}: {{order.holidayName}}", body: "Your tiffin for that day is added back to your plan: {{order.movedTo}}." },
+    inApp: { subject: "Closed on {{order.date}}: {{order.holidayName}}", body: "{{order.outcome}}" },
     element: (
-      <Layout preview="You keep every tiffin: that day is added back at the end of your plan.">
+      <Layout preview="You keep every tiffin.">
         <Eyebrow>Holiday</Eyebrow>
         <Title lead="We are closed for" accent="{{order.holidayName}}." />
-        <P>Hi {"{{order.customerName}}"}, our kitchen is closed on {"{{order.date}}"}. You keep every tiffin and there is nothing you need to do: that day is added back at the end of your plan.</P>
+        <P>Hi {"{{order.customerName}}"}, our kitchen is closed on {"{{order.date}}"}. You keep every tiffin and there is nothing you need to do.</P>
+        <P>{"{{order.outcome}}"}</P>
         <Details
           rows={[
             ["Closed", "{{order.date}}"],
-            ["Added back on", "{{order.movedTo}}"],
-            ["Plan now ends", "{{order.lastDate}}"],
             ["Order", "{{order.code}}"],
           ]}
         />
@@ -578,13 +577,13 @@ export const TEMPLATES: EmailTemplate[] = [
   },
   {
     event: "holiday_removed",
-    subject: "We are open on {{order.date}} after all",
-    inApp: { subject: "Open on {{order.date}} after all", body: "{{order.outcome}}" },
+    subject: "An update on {{order.date}}",
+    inApp: { subject: "An update on {{order.date}}", body: "{{order.outcome}}" },
     element: (
-      <Layout preview="An earlier closure notice no longer applies.">
+      <Layout preview="An earlier closure notice has changed.">
         <Eyebrow>Update</Eyebrow>
-        <Title lead="We are open on" accent="{{order.date}}." />
-        <P>Hi {"{{order.customerName}}"}, we told you our kitchen would be closed on {"{{order.date}}"} for {"{{order.holidayName}}"}. It will be open after all.</P>
+        <Title lead="An update on" accent="{{order.date}}." />
+        <P>Hi {"{{order.customerName}}"}, we told you our kitchen would be closed on {"{{order.date}}"} for {"{{order.holidayName}}"}.</P>
         <P>{"{{order.outcome}}"}</P>
         <Details rows={[["Order", "{{order.code}}"]]} />
         <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>

@@ -203,7 +203,8 @@ export async function undoHolidayForOrder(tx: Tx, orderId: bigint, holidayId: bi
 /**
  * Staff place the day(s) of a closed row the system could not place itself, on the first free
  * plan weekdays on or after `fromDate`. No other-plan check: staff chose the date knowing the
- * customer's plans. Only a paused holiday row qualifies; a held row is moved from the order page.
+ * customer's plans. A paused holiday row qualifies, and so does a held (skipped) row tagged after the
+ * fact, as long as its tiffins are still on it: the normal Move refuses a trial, so this is staff's only tool.
  */
 export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint, fromDate: string, actorId: bigint | null): Promise<string[]> {
   const cut = await getAppSettings();
@@ -215,10 +216,10 @@ export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint,
     eq(deliveries.id, sourceId),
     eq(deliveries.orderId, order.id),
     isNotNull(deliveries.holidayId),
-    eq(deliveries.status, "paused"),
+    inArray(deliveries.status, ["paused", "skipped"]),
     not(MOVED_AWAY),
   )).limit(1);
-  if (!source || source.tiffinUnits === 0) throw new ValidationError("Nothing to place: this day already has its extra day, or it is on hold and is moved from the order page");
+  if (!source || source.tiffinUnits === 0) throw new ValidationError("Nothing to place: this day already has its extra day, or its tiffin was moved to another day");
   const per = Math.max(1, order.persons);
   if (source.tiffinUnits % per !== 0) throw new ValidationError("This trip's tiffin count does not divide by persons, so it cannot be placed automatically");
 

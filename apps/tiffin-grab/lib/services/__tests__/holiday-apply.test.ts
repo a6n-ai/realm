@@ -321,7 +321,6 @@ describe("rows tagged after the fact (skipped, moved with the normal Move) are l
     expect(await totals()).toEqual(before);
 
     await expect(place(mon.id)).rejects.toThrow("Nothing to place");
-    await expect(place(fri.id)).rejects.toThrow("Nothing to place");
     expect(await totals()).toEqual(before);
 
     for (const [src, h] of [[mon, hMon], [fri, hFri]] as const) {

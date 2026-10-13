@@ -1,5 +1,6 @@
 import { NotFoundError, ValidationError, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
+import { alias } from "drizzle-orm/pg-core";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, like, not, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, holidays, orders, organization, users } from "@/db/schema";
@@ -14,6 +15,7 @@ import { removeStopsBestEffort } from "./pause-days.service";
 import { MOVED_AWAY } from "./pause-state";
 
 const log = createLogger("holidays.service");
+const sources = alias(deliveries, "holiday_sources");
 const NAME_MAX = 60;
 
 type Visible = "all" | string[];
@@ -48,8 +50,11 @@ function assertRealDate(date: string): void {
   }
 }
 
-function assertOrgVisible(organizationId: string, visible: Visible): void {
+async function assertOrgVisible(organizationId: string, visible: Visible): Promise<void> {
   if (visible !== "all" && !visible.includes(organizationId)) throw new NotFoundError("Organization not found");
+  // "all" still has to name a real organization: same error as one the caller cannot see, not a foreign-key failure.
+  const [found] = await db.select({ id: organization.id }).from(organization).where(eq(organization.id, organizationId)).limit(1);
+  if (!found) throw new NotFoundError("Organization not found");
 }
 
 const scope = (visible: Visible) => (visible === "all" ? undefined : inArray(holidays.organizationId, visible));
@@ -68,7 +73,7 @@ async function scopedHoliday(publicId: string, visible: Visible): Promise<Holida
 
 /** Scheduled trips on that date for that organization, split by how far along they are. */
 export async function previewHoliday(input: { organizationId: string; date: string }, visible: Visible): Promise<HolidayPreview> {
-  assertOrgVisible(input.organizationId, visible);
+  await assertOrgVisible(input.organizationId, visible);
   const rows = await db.select({ routeSyncedAt: deliveries.routeSyncedAt, completion: deliveries.optimoCompletionStatus })
     .from(deliveries).innerJoin(orders, eq(deliveries.orderId, orders.id))
     .where(and(
@@ -80,21 +85,29 @@ export async function previewHoliday(input: { organizationId: string; date: stri
 }
 
 async function announceDeclared(tx: Tx, order: Order, holiday: Holiday, own: HolidayApplied[]): Promise<void> {
-  const [user] = await tx.select({ name: users.name }).from(users).where(eq(users.id, order.userId!)).limit(1);
-  const [{ last }] = await tx.select({ last: sql<string | null>`max(${deliveries.deliveryDate})` }).from(deliveries)
-    .where(and(eq(deliveries.orderId, order.id), eq(deliveries.status, "scheduled")));
   const added = own.flatMap((a) => a.extraDates);
-  const movedTo = added.length > 0 ? added.map(humanDate).join(", ") : "To be confirmed";
-  const lastDate = last ? humanDate(last) : "To be confirmed";
+  const waiting = own.some((a) => a.needsPlacing != null);
+  // An emptied carrier holds no tiffin: there is nothing to tell the customer.
+  if (added.length === 0 && !waiting) return;
+  const [user] = await tx.select({ name: users.name }).from(users).where(eq(users.id, order.userId!)).limit(1);
+  const date = humanDate(holiday.date);
+  let movedTo = "Our team will place it";
+  let lastDate = "";
+  let outcome = `Our kitchen is closed on ${date}. Our team will place that tiffin on a new day.`;
+  if (!waiting) {
+    const [{ last }] = await tx.select({ last: sql<string | null>`max(${deliveries.deliveryDate})` }).from(deliveries)
+      .where(and(eq(deliveries.orderId, order.id), eq(deliveries.status, "scheduled")));
+    movedTo = added.map(humanDate).join(", ");
+    lastDate = last ? humanDate(last) : movedTo;
+    outcome = `Your tiffin for that day is added back at the end of your plan (${movedTo}). Your plan now ends ${lastDate}.`;
+  }
   await enqueueNotification(tx, {
     event: "holiday_declared",
     recipientId: order.userId!,
-    title: `Closed on ${humanDate(holiday.date)}: ${holiday.name}`,
-    body: added.length > 0
-      ? `Your tiffin for that day is added back at the end of your plan (${movedTo}). Your plan now ends ${lastDate}.`
-      : "We will add that day's tiffin back to your plan and confirm the day with you.",
+    title: `Closed on ${date}: ${holiday.name}`,
+    body: outcome,
     href: "/me/deliveries",
-    data: { order: { code: order.deploymentId, customerName: user?.name ?? "", holidayName: holiday.name, date: humanDate(holiday.date), movedTo, lastDate } },
+    data: { order: { code: order.deploymentId, customerName: user?.name ?? "", holidayName: holiday.name, date, movedTo, lastDate, outcome } },
     dedupeKey: `holiday:${holiday.publicId}:${order.publicId}`,
   });
 }
@@ -107,16 +120,24 @@ async function announceRemoved(tx: Tx, orderId: bigint, holiday: Holiday, undone
   const [told] = await tx.select({ id: outbox.id }).from(outbox).where(like(outbox.dedupeKey, `holiday:${holiday.publicId}:${order.publicId}:%`)).limit(1);
   if (!told) return;
   const [user] = await tx.select({ name: users.name }).from(users).where(eq(users.id, order.userId)).limit(1);
+  const date = humanDate(holiday.date);
+  // The days the holiday added for this order's closed date that are still there (undo removes them when it restores the day).
+  const extras = await tx.select({ date: deliveries.deliveryDate }).from(deliveries)
+    .innerJoin(sources, eq(deliveries.holidayExtraForDeliveryId, sources.id))
+    .where(and(eq(sources.orderId, orderId), eq(sources.deliveryDate, holiday.date))).orderBy(asc(deliveries.deliveryDate));
+  const lifted = `Our closure on ${date} has been lifted, but your delivery for that date is not going out.`;
   const outcome = undone.restored.length > 0
-    ? `Your delivery on ${humanDate(holiday.date)} is back on, and the day we added at the end of your plan is removed.`
-    : "Your extra day stays where it is, so nothing changes for you.";
+    ? `The kitchen is open on ${date} after all, so your delivery goes out that day and nothing is added at the end of your plan.`
+    : extras.length > 0
+      ? `${lifted} Your extra day on ${extras.map((e) => humanDate(e.date)).join(", ")} stays, so you keep every tiffin.`
+      : `${lifted} Our team will place that tiffin on a new day.`;
   await enqueueNotification(tx, {
     event: "holiday_removed",
     recipientId: order.userId,
-    title: `Open on ${humanDate(holiday.date)} after all`,
+    title: `Update on ${date}`,
     body: outcome,
     href: "/me/deliveries",
-    data: { order: { code: order.code, customerName: user?.name ?? "", holidayName: holiday.name, date: humanDate(holiday.date), outcome } },
+    data: { order: { code: order.code, customerName: user?.name ?? "", holidayName: holiday.name, date, outcome } },
     dedupeKey: `holiday_removed:${holiday.publicId}:${order.publicId}`,
   });
 }
@@ -154,7 +175,6 @@ async function applyToOrders(holiday: Holiday, notify: boolean, actorId: bigint 
     }
   }
   run.removedFromRoute = await removeStopsBestEffort(stops);
-  if (notify && holiday.notifiedAt == null) await db.update(holidays).set({ notifiedAt: Date.now() }).where(eq(holidays.id, holiday.id));
   publishAnalyticsLive();
   return run;
 }
@@ -164,7 +184,7 @@ export async function createHoliday(
   actorId: bigint | null,
   visible: Visible,
 ): Promise<({ created: true; publicId: string } & HolidayRun) | { created: false; preview: HolidayPreview }> {
-  assertOrgVisible(input.organizationId, visible);
+  await assertOrgVisible(input.organizationId, visible);
   const name = cleanName(input.name);
   assertRealDate(input.date);
   const now = await today();
@@ -176,7 +196,8 @@ export async function createHoliday(
 
   // The unique index is the real guard against two staff declaring at once.
   const [holiday] = await db.insert(holidays)
-    .values({ organizationId: input.organizationId, date: input.date, name, createdBy: actorId, updatedBy: actorId })
+    // notifiedAt is the "declared with notices" flag: set before any customer is closed, so a run that dies part-way still re-applies with notices.
+    .values({ organizationId: input.organizationId, date: input.date, name, createdBy: actorId, updatedBy: actorId, notifiedAt: input.notify ? Date.now() : null })
     .onConflictDoNothing().returning();
   if (!holiday) throw new ValidationError(`${humanDate(input.date)} is already a holiday`);
 
@@ -201,13 +222,13 @@ export async function renameHoliday(publicId: string, rawName: string, actorId: 
  * Only before the holiday date. Each order is undone in its own locked transaction; an order that
  * fails is reported and the holiday row stays, so removing again finishes the job.
  */
-export async function removeHoliday(publicId: string, actorId: bigint | null, visible: Visible): Promise<{ restored: number; left: number; failed: string[] }> {
+export async function removeHoliday(publicId: string, actorId: bigint | null, visible: Visible): Promise<{ restored: number; left: number; failed: string[]; removed: boolean }> {
   const holiday = await scopedHoliday(publicId, visible);
   if (holiday.date <= (await today())) throw new ValidationError("Only a future holiday can be removed");
 
   const tagged = await db.selectDistinct({ id: deliveries.orderId, code: orders.deploymentId })
     .from(deliveries).innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(deliveries.holidayId, holiday.id));
-  const out = { restored: 0, left: 0, failed: [] as string[] };
+  const out = { restored: 0, left: 0, failed: [] as string[], removed: false };
   const stops: OptimoSyncedRow[] = [];
   for (const o of tagged) {
     try {
@@ -230,10 +251,12 @@ export async function removeHoliday(publicId: string, actorId: bigint | null, vi
   if (out.failed.length === 0) {
     try {
       await db.delete(holidays).where(eq(holidays.id, holiday.id));
+      out.removed = true;
     } catch (err) {
-      // A delivery was closed for this holiday after the loop read its list: the row must stay until it is undone too.
+      // A delivery was closed for this holiday after the loop read its list: the row stays until that one is undone too (remove again).
+      const code = (err as { code?: string; cause?: { code?: string } }).code ?? (err as { cause?: { code?: string } }).cause?.code;
+      if (code !== "23503") throw err;
       log.error({ err, holiday: holiday.publicId }, "holiday delete blocked by a newly closed delivery");
-      out.failed.push("a delivery closed while removing; remove again");
     }
   }
   publishAnalyticsLive();

@@ -9,6 +9,21 @@ vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
 });
 vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
 
+// Lets a test make one customer's notice fail (after the real enqueue, so the rollback is what hides it) or run a step mid-removal.
+const hook = vi.hoisted(() => ({ failUsers: new Set<bigint>(), after: null as null | ((event: string, recipientId: bigint) => Promise<void>) }));
+vi.mock("@/lib/notifications/enqueue", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/notifications/enqueue")>();
+  return {
+    ...actual,
+    enqueueNotification: async (...args: Parameters<typeof actual.enqueueNotification>) => {
+      await actual.enqueueNotification(...args);
+      const { event, recipientId } = args[1];
+      if (recipientId != null && hook.failUsers.has(recipientId)) throw new Error("forced failure");
+      if (recipientId != null) await hook.after?.(event, recipientId);
+    },
+  };
+});
+
 const { db } = await import("@/db/client");
 const { deliveries, holidays, orders, organization, users } = await import("@/db/schema");
 const { notificationTables } = await import("@/lib/notifications/tables");
@@ -35,6 +50,8 @@ async function ownOrgId(): Promise<string> {
   return (await db.select({ id: organization.id }).from(organization).where(eq(organization.slug, slug)).limit(1))[0]!.id;
 }
 const reset = async () => {
+  hook.failUsers.clear();
+  hook.after = null;
   // Only this file's customers' messages: the outbox is shared with the other holiday files.
   const mine = await db.select({ id: users.id }).from(users).where(like(users.email, `${PFX}%@test.invalid`));
   if (mine.length) await db.delete(outbox).where(inArray(outbox.recipientId, mine.map((u) => u.id)));
@@ -78,6 +95,7 @@ describe("holidays.service", () => {
     const sent = await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday:${h!.publicId}:${order.publicId}%`));
     expect(sent.length).toBeGreaterThan(0);
     expect((sent[0]!.payload as { body: string }).body).toContain("Mon, Jan 14, Wed, Jan 16");
+    expect((sent[0]!.payload as { body: string }).body).toContain("added back at the end of your plan");
     expect((await listHolidays("all")).find((r) => r.publicId === h!.publicId)?.closed).toBe(1);
     expect((await holidaysOn("2030-01-09", [org])).map((x) => x.name)).toEqual([`${PFX} Diwali`]);
     expect(await holidaysOn("2030-01-09", [])).toEqual([]);
@@ -108,11 +126,15 @@ describe("holidays.service", () => {
   });
 
   it("for today, returns a preview and writes nothing until confirmed", async () => {
-    const { org } = await orderWithOrg();
+    const { order, mon, org } = await orderWithOrg();
     const today = await todayIso();
-    const res = await createHoliday({ organizationId: org, date: today, name: `${PFX} storm`, notify: false }, 1n, "all");
-    expect(res.created).toBe(false);
+    await db.update(deliveries).set({ deliveryDate: today }).where(eq(deliveries.id, mon.id));
+    const before = await rowsOf(order.id);
+    const res = await createHoliday({ organizationId: org, date: today, name: `${PFX} storm`, notify: true }, 1n, "all");
+    expect(res).toEqual({ created: false, preview: { affected: 1, onRoute: 0, delivered: 0 } });
     expect(await db.select().from(holidays).where(like(holidays.name, `${PFX}%`))).toEqual([]);
+    expect(await rowsOf(order.id)).toEqual(before);
+    expect(await db.select().from(outbox).where(eq(outbox.recipientId, order.userId!))).toEqual([]);
     expect((await declare(org, { date: today, name: `${PFX} storm`, confirmToday: true })).created).toBe(true);
   });
 
@@ -157,7 +179,7 @@ describe("holidays.service", () => {
     const [h] = await db.select().from(holidays).where(eq(holidays.publicId, res.publicId));
     expect([h!.name, h!.updatedBy]).toEqual([`${PFX} new`, 2n]);
 
-    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [] });
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: true });
 
     expect(await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).toEqual([]);
     expect((await rowsOf(order.id)).map((r) => [r.deliveryDate, r.status])).toEqual([["2030-01-07", "scheduled"], ["2030-01-09", "scheduled"], ["2030-01-11", "scheduled"]]);
@@ -170,13 +192,13 @@ describe("holidays.service", () => {
     const [extra] = (await rowsOf(order.id)).filter((r) => r.holidayExtraForDeliveryId === wed.id);
     await db.update(deliveries).set({ status: "paused" }).where(eq(deliveries.id, extra!.id));
 
-    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 0, left: 1, failed: [] });
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 0, left: 1, failed: [], removed: true });
 
     expect([(await rowById(wed.id)).status, (await rowById(wed.id)).holidayId]).toEqual(["skipped", null]);
     expect((await rowsOf(order.id)).filter((r) => r.holidayExtraForDeliveryId === wed.id).length).toBe(2);
     const sent = await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday_removed:${res.publicId}:${order.publicId}%`));
     expect(sent.length).toBeGreaterThan(0);
-    expect((sent[0]!.payload as { body: string }).body).toContain("Your extra day stays");
+    expect((sent[0]!.payload as { body: string }).body).toContain("is not going out. Your extra day on Mon, Jan 14, Wed, Jan 16 stays");
   });
 
   it("remove tells nobody when the declare told nobody", async () => {
@@ -226,7 +248,7 @@ describe("holidays.service", () => {
     }
     const [h] = await db.select().from(holidays).where(eq(holidays.publicId, res.publicId));
     expect([h!.name, h!.updatedBy]).toEqual([`${PFX} mine`, 1n]);
-    expect(await removeHoliday(res.publicId, 2n, [org])).toEqual({ restored: 1, left: 0, failed: [] });
+    expect(await removeHoliday(res.publicId, 2n, [org])).toEqual({ restored: 1, left: 0, failed: [], removed: true });
   });
 
   it("does not close an order that has no organization", async () => {
@@ -258,7 +280,6 @@ describe("holidays.service", () => {
     await db.update(deliveries).set({ status: "skipped", holidayId: retro!.id }).where(eq(deliveries.id, mon.id));
     const waiting = (await listNeedsPlacing("all")).filter((r) => r.holidayPublicId === retro!.publicId);
     expect(waiting.map((r) => [r.orderPublicId, r.held, r.tiffins])).toEqual([[order.publicId, true, 2]]);
-    await expect(placeHolidayDay(mon.publicId, "2030-01-21", 3n, "all")).rejects.toThrow("Nothing to place");
   });
 
   it("lists the organizations a caller may declare for, brand first", async () => {
@@ -279,5 +300,145 @@ describe("holidays.service", () => {
     expect(await holidayNamesForUser(order.userId!, "2030-01-10")).toEqual({});
     expect(res.created).toBe(true);
     expect(await checkoutHolidayDates("2030-01-01")).toContain("2030-01-09");
+  });
+  it("an organization that does not exist is the same not-found as one the caller cannot see", async () => {
+    await expect(createHoliday({ organizationId: "no_such_org", date: "2030-01-09", name: `${PFX} x`, notify: false }, 1n, "all")).rejects.toThrow("Organization not found");
+    await expect(previewHoliday({ organizationId: "no_such_org", date: "2030-01-09" }, "all")).rejects.toThrow("Organization not found");
+  });
+
+  it("one order failing rolls back only itself; re-apply closes it, tells it once and tells nobody twice", async () => {
+    const a = await orderWithOrg();
+    const b = await orderWithOrg(DEP2);
+    const sentTo = async (o: { order: { publicId: string } }, id: string) => (await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday:${id}:${o.order.publicId}%`))).length;
+    hook.failUsers.add(b.order.userId!);
+    // What a run that dies after its first customer would leave behind: the flag must already be there.
+    let stampedMidRun: number | null = null;
+    hook.after = async () => {
+      stampedMidRun = (await db.select().from(holidays).where(like(holidays.name, `${PFX}%`)))[0]!.notifiedAt;
+    };
+
+    const res = await declare(a.org, { notify: true });
+
+    expect(stampedMidRun).not.toBeNull();
+    expect(res).toMatchObject({ closed: 1, failed: [DEP2] });
+    expect((await rowById(a.wed.id)).status).toBe("paused");
+    expect([(await rowById(b.wed.id)).status, (await rowById(b.wed.id)).holidayId]).toEqual(["scheduled", null]);
+    expect((await rowsOf(b.order.id)).filter((r) => r.holidayExtraForDeliveryId != null)).toEqual([]);
+    const tellA = await sentTo(a, res.publicId);
+    expect(tellA).toBeGreaterThan(0);
+    expect(await sentTo(b, res.publicId)).toBe(0);
+    expect((await db.select().from(holidays).where(eq(holidays.publicId, res.publicId)))[0]!.notifiedAt).not.toBeNull();
+
+    hook.failUsers.clear();
+    expect(await reapplyHoliday(res.publicId, 2n, "all")).toEqual({ closed: 1, needsPlacing: 0, failed: [], removedFromRoute: 0 });
+    expect(await sentTo(b, res.publicId)).toBeGreaterThan(0);
+    expect(await sentTo(a, res.publicId)).toBe(tellA);
+    expect(await reapplyHoliday(res.publicId, 2n, "all")).toMatchObject({ closed: 0 });
+    expect(await sentTo(a, res.publicId)).toBe(tellA);
+  });
+
+  it("a holiday declared without notices never sends one on re-apply", async () => {
+    const a = await orderWithOrg();
+    const res = await declare(a.org, { notify: false });
+    const b = await orderWithOrg(DEP2);
+    expect(await reapplyHoliday(res.publicId, 2n, "all")).toMatchObject({ closed: 1 });
+    expect(await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday:${res.publicId}:%`))).toEqual([]);
+    expect((await rowById(b.wed.id)).status).toBe("paused");
+  });
+
+  it("removal: one order failing keeps itself as it was and the holiday until it is done", async () => {
+    const a = await orderWithOrg();
+    const b = await orderWithOrg(DEP2);
+    const res = await declare(a.org, { notify: true });
+    hook.failUsers.add(b.order.userId!);
+
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [DEP2], removed: false });
+
+    expect((await rowById(a.wed.id)).status).toBe("scheduled");
+    expect([(await rowById(b.wed.id)).status, (await rowById(b.wed.id)).holidayId != null]).toEqual(["paused", true]);
+    expect((await rowsOf(b.order.id)).filter((r) => r.holidayExtraForDeliveryId === b.wed.id).length).toBe(2);
+    expect((await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).length).toBe(1);
+
+    hook.failUsers.clear();
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: true });
+    expect(await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).toEqual([]);
+  });
+
+  it("removal: a delivery closed for the holiday mid-removal blocks the delete, names no order, and a second removal finishes", async () => {
+    const a = await orderWithOrg();
+    const res = await declare(a.org, { notify: true });
+    const c = await orderWithOrg(DEP2);
+    const [h] = await db.select().from(holidays).where(eq(holidays.publicId, res.publicId));
+    hook.after = async (event) => {
+      hook.after = null;
+      if (event === "holiday_removed") await db.update(deliveries).set({ status: "paused", holidayId: h!.id }).where(eq(deliveries.id, c.wed.id));
+    };
+
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: false });
+    expect((await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).length).toBe(1);
+
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: true });
+    expect((await rowById(c.wed.id)).status).toBe("scheduled");
+  });
+
+  it("the declare notice for a day that needs placing promises no added day and no new plan end", async () => {
+    const { order, org } = await orderWithOrg();
+    await db.update(orders).set({ trialLength: 3, trialWeekdays: ["mon", "wed", "fri"] }).where(eq(orders.id, order.id));
+    const res = await declare(org, { notify: true });
+    const [sent] = await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday:${res.publicId}:${order.publicId}%`));
+    const body = (sent!.payload as { body: string }).body;
+    expect(body).toContain("Our team will place that tiffin on a new day");
+    expect(body).not.toMatch(/added back|plan now ends/i);
+    const vars = (sent!.payload as { vars: { order: { outcome: string } } }).vars.order;
+    expect(vars.outcome).toBe(body);
+  });
+
+  it("the removal notice says what happened to the day: back on, extra day stays, or staff will place it", async () => {
+    const body = async (orderPublicId: string, id: string) =>
+      ((await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday_removed:${id}:${orderPublicId}%`)))[0]!.payload as { body: string }).body;
+
+    const a = await orderWithOrg();
+    const ra = await declare(a.org, { notify: true });
+    await removeHoliday(ra.publicId, 1n, "all");
+    expect(await body(a.order.publicId, ra.publicId)).toBe("The kitchen is open on Wed, Jan 9 after all, so your delivery goes out that day and nothing is added at the end of your plan.");
+
+    const c = await orderWithOrg(DEP2);
+    await db.update(orders).set({ trialLength: 3, trialWeekdays: ["mon", "wed", "fri"] }).where(eq(orders.id, c.order.id));
+    const rc = await declare(c.org, { notify: true });
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.id, c.wed.id));
+    expect(await removeHoliday(rc.publicId, 1n, "all")).toMatchObject({ left: 1, removed: true });
+    expect(await body(c.order.publicId, rc.publicId)).toBe("Our closure on Wed, Jan 9 has been lifted, but your delivery for that date is not going out. Our team will place that tiffin on a new day.");
+  });
+
+  it("places a held row tagged after the fact, on a normal and a trial order, once", async () => {
+    for (const trial of [false, true]) {
+      await reset();
+      const { order, mon, org } = await orderWithOrg();
+      if (trial) await db.update(orders).set({ trialLength: 3, trialWeekdays: ["mon", "wed", "fri"] }).where(eq(orders.id, order.id));
+      const [retro] = await db.insert(holidays).values({ organizationId: org, date: "2030-01-07", name: `${PFX} retro` }).returning();
+      await db.update(deliveries).set({ status: "skipped", holidayId: retro!.id }).where(eq(deliveries.id, mon.id));
+      const units = async () => (await rowsOf(order.id)).filter((r) => r.status === "scheduled").reduce((n, r) => n + r.tiffinUnits, 0);
+      const before = await units();
+
+      expect(await placeHolidayDay(mon.publicId, "2030-01-21", 3n, "all"), `trial=${trial}`).toEqual(["2030-01-21", "2030-01-23"]);
+
+      expect(await units()).toBe(before + 2);
+      expect((await listNeedsPlacing("all")).filter((r) => r.holidayPublicId === retro!.publicId)).toEqual([]);
+      await expect(placeHolidayDay(mon.publicId, "2030-01-28", 3n, "all")).rejects.toThrow("Nothing to place");
+      expect(await units()).toBe(before + 2);
+      expect((await rowById(mon.id)).status).toBe("skipped");
+
+      expect(await removeHoliday(retro!.publicId, 1n, "all")).toEqual({ restored: 0, left: 1, failed: [], removed: true });
+      expect((await rowsOf(order.id)).filter((r) => r.holidayExtraForDeliveryId === mon.id).length).toBe(2);
+    }
+  });
+
+  it("refuses a held tagged row whose tiffin the normal Move already moved", async () => {
+    const { order, mon, org } = await orderWithOrg();
+    const [retro] = await db.insert(holidays).values({ organizationId: org, date: "2030-01-07", name: `${PFX} retro` }).returning();
+    await db.update(deliveries).set({ status: "skipped", holidayId: retro!.id }).where(eq(deliveries.id, mon.id));
+    await db.insert(deliveries).values({ orderId: order.id, deliveryDate: "2030-01-14", status: "scheduled", cutoffAt: Date.now() + 1e9, tiffinUnits: 2, coversDates: ["2030-01-07", "2030-01-08"], makeupForDeliveryId: mon.id });
+    await expect(placeHolidayDay(mon.publicId, "2030-01-21", 3n, "all")).rejects.toThrow("Nothing to place");
+    expect((await listNeedsPlacing("all")).filter((r) => r.holidayPublicId === retro!.publicId)).toEqual([]);
   });
 });

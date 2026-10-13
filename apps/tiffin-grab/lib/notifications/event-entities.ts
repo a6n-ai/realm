@@ -59,6 +59,7 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
       { name: "date", label: "Closed date" },
       { name: "movedTo", label: "Extra delivery day(s)" },
       { name: "lastDate", label: "New last delivery date" },
+      { name: "outcome", label: "What changed for the customer" },
     ],
   },
   holiday_removed: {
