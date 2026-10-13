@@ -1,5 +1,5 @@
 import type { PersonalizationAnswerRow } from "@/lib/services/personalization.service";
-import { PersonalizationAnswersList } from "@/components/personalization/answers-list";
+import { PersonalizationAnswersList } from "@/components/personalization/personalization-answers-list";
 
 export function AboutPanel({ rows }: { rows: PersonalizationAnswerRow[] }) {
   return (

@@ -45,7 +45,7 @@ import { LookOutControl } from "./look-out-control";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
-import { DeliveriesSection, loadSubscription } from "@/components/dashboard/subscription-panel";
+import { DeliveriesSection, loadSubscription } from "@/components/dashboard/deliveries-section";
 
 // The full record for ONE order: what it is, what it costs, whether it is paid, and every
 // change the customer can make on it (move, swap, address, meal picks) through

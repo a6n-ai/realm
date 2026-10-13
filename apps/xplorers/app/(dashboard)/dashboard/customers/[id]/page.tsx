@@ -12,7 +12,7 @@ import { getAppClock } from "@/lib/services/app-settings.service";
 import { getCustomer360 } from "@/lib/services/customers.service";
 import { personalizationService } from "@/lib/services/personalization.service";
 import { walletService } from "@/lib/services/wallet.service";
-import { PersonalizationAnswersList } from "@/components/personalization/answers-list";
+import { PersonalizationAnswersList } from "@/components/personalization/personalization-answers-list";
 import { AdjustCoins } from "./adjust-coins";
 import { CustomerBookingsTable, CustomerLedgerTable, CustomerPaymentsTable } from "./customer-tables";
 
