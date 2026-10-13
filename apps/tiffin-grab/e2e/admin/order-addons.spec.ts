@@ -1,7 +1,7 @@
 // Changes a shared payment setting (e-Transfer) through the UI and restores it afterwards:
 // never run this spec in parallel with other specs.
 import path from "node:path";
-import type { Browser, Page } from "@playwright/test";
+import type { Browser, Locator, Page } from "@playwright/test";
 import { test, expect } from "../fixtures";
 import { LeadSheet } from "../pages/admin.shell";
 import { OrderDetailPage } from "../pages/order-detail.page";
@@ -29,7 +29,6 @@ async function setEtransfer(browser: Browser, baseURL: string | undefined, on: b
       await page.reload();
       await expect(page.getByRole("switch").first()).toHaveAttribute("aria-checked", String(on), { timeout: 30_000 });
     }
-    return was;
   } finally {
     await ctx.close();
   }
@@ -112,6 +111,13 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
     const pricing = detail.card("Pricing");
     const totalBefore = await pricing.innerText();
 
+    await detail.openTab("Payments");
+    const rows = detail.paymentCard().getByTestId("payment-row");
+    await expect(rows).toHaveCount(1);
+    const idOf = (row: Locator) => row.locator("p.font-mono").innerText();
+    const existingId = await idOf(rows.first());
+    await detail.openTab("Overview");
+
     await page.getByRole("button", { name: /^Add-ons$/ }).click();
     const dialog = page.getByRole("dialog", { name: "Add add-ons to this plan" });
     await expect(dialog).toBeVisible();
@@ -120,8 +126,11 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
     const quote = dialog.getByLabel("Add-on quote");
     await expect(quote).toBeVisible();
     await expect(quote.getByText("To collect")).toBeVisible();
-    const toCollect = (await quote.getByText("To collect").locator("xpath=following-sibling::dd").innerText()).trim();
-    expect(toCollect).toMatch(/\$\d/);
+    const toCollectText = (await quote.getByText("To collect", { exact: true }).locator("xpath=following-sibling::dd").innerText()).trim();
+    const money = (t: string) => Number(t.replace(/[^0-9.]/g, ""));
+    const toCollect = money(toCollectText);
+    expect(toCollectText).toMatch(/^\$[\d,]+\.\d{2}$/);
+    expect(toCollect).toBeGreaterThan(0);
 
     await dialog.locator('input[type="file"]').setInputFiles(proofPath);
     await dialog.getByRole("button", { name: /^Add and record / }).click();
@@ -132,11 +141,15 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
     await expect(pricing).not.toHaveText(totalBefore);
 
     await detail.openTab("Payments");
-    await expect(detail.paymentCard().getByText("Paid", { exact: true })).toHaveCount(2);
-    // The new payment is for exactly the amount the quote asked to collect.
-    await expect(
-      detail.paymentCard().locator("div, li").filter({ hasText: "Paid" }).filter({ hasText: toCollect }).first(),
-    ).toBeVisible();
+    await expect(rows).toHaveCount(2);
+    const ids = await rows.evaluateAll((els) => els.map((e) => e.querySelector("p.font-mono")?.textContent ?? ""));
+    expect(ids).toContain(existingId);
+    const newRow = rows.filter({ hasNotText: existingId });
+    await expect(newRow).toHaveCount(1);
+    // Status and amount of the new row only; amount compared as a number, and the text must be a plain money figure.
+    await expect(newRow.getByText("Paid", { exact: true })).toBeVisible();
+    const amountText = (await newRow.getByText(/^\$[\d,]+\.\d{2}$/).first().innerText()).trim();
+    expect(money(amountText)).toBe(toCollect);
     await expect(detail.paymentCard().getByText(/awaiting|pending/i)).toHaveCount(0);
 
     await detail.openTab("Activity");
@@ -156,6 +169,8 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
         await days.nth(i).click();
         await expect(days.nth(i)).toHaveAttribute("aria-pressed", "true");
         checked++;
+        // The Meal heading renders in the same pass as the menu state, so wait for it before reading that state.
+        await expect(block.getByText("Meal", { exact: true })).toBeVisible();
         if (!(await block.getByText("Menu not released yet").count())) {
           await expect(block.getByText("Add-ons", { exact: true })).toBeVisible();
           found = true;
