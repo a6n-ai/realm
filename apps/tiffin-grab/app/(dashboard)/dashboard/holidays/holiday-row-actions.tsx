@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { PencilIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
-import { ResponsiveDialog } from "@/components/ds";
+import { ResponsiveDialog, RowActionTooltipButton } from "@/components/ds";
 import { reapplyHolidayAction, removeHolidayAction, renameHolidayAction } from "./actions";
 
 export function HolidayRowActions({ publicId, name: current, canReapply, canRemove }: { publicId: string; name: string; canReapply: boolean; canRemove: boolean }) {
@@ -45,12 +46,13 @@ export function HolidayRowActions({ publicId, name: current, canReapply, canRemo
     });
 
   return (
-    <div className="flex justify-end gap-2">
-      {canReapply && <Button size="sm" variant="outline" disabled={pending} onClick={reapply}>Re-apply</Button>}
+    <div className="flex justify-end gap-1">
+      {canReapply && <RowActionTooltipButton icon={RotateCwIcon} label="Re-apply" hint="Re-apply: close any delivery this holiday missed" disabled={pending} onClick={reapply} />}
+      <RowActionTooltipButton icon={PencilIcon} label="Rename" onClick={() => { setName(current); setError(null); setRenameOpen(true); }} />
+      {canRemove && <RowActionTooltipButton icon={Trash2Icon} label="Remove" tone="text-destructive" onClick={() => { setError(null); setRemoveOpen(true); }} />}
       <ResponsiveDialog
         open={renameOpen}
-        onOpenChange={(o) => { setRenameOpen(o); if (o) { setName(current); setError(null); } }}
-        trigger={<Button size="sm" variant="outline">Rename</Button>}
+        onOpenChange={setRenameOpen}
         title="Rename holiday"
         footer={
           <div className="flex justify-end gap-2">
@@ -68,8 +70,7 @@ export function HolidayRowActions({ publicId, name: current, canReapply, canRemo
       {canRemove && (
         <ResponsiveDialog
           open={removeOpen}
-          onOpenChange={(o) => { setRemoveOpen(o); if (o) setError(null); }}
-          trigger={<Button size="sm" variant="outline">Remove</Button>}
+          onOpenChange={setRemoveOpen}
           title="Remove this holiday?"
           description="Deliveries go back to that day where the extra day is untouched. A customer who already changed their extra day keeps it. Customers who were told about the holiday are told it is off."
           footer={

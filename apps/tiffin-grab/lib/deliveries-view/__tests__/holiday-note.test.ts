@@ -39,7 +39,7 @@ describe("the selected day's holiday note", () => {
 
   it("a held holiday row that still carries its tiffin says so, and never also claims it was not delivered", () => {
     const row = rowFor({ date: "2029-12-31", status: "skipped", cutoffAt: now - 1000, holidayName: "Thanksgiving" });
-    expect(dayNote(row)).toEqual(["Holiday: Thanksgiving", "The kitchen was closed that day. Move this tiffin to another day."]);
+    expect(dayNote(row)).toEqual(["Holiday: Thanksgiving", "The kitchen was closed that day. Move this tiffin to another day, or contact us and we will place it."]);
     expect(dayNote(row, true)).toEqual(["Holiday: Thanksgiving", "The kitchen was closed that day. Place this tiffin on another day."]);
     expect(deliveryLine(row)).not.toMatch(/failed|Not delivered/);
     expect(rowMeta(row).label).toBe("Holiday");

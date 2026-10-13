@@ -1732,7 +1732,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       .from(deliveries).where(eq(deliveries.orderId, orderId));
     const now = Date.now();
     // A row a holiday closed was paused by the kitchen, not the customer; the rebuild re-applies holidays.
-    const rows = all.filter((d) => d.holidayId == null);
+    const rows = all.filter((d) => !(d.status === "paused" && d.holidayId != null));
     if (rows.some((d) => d.cutoffAt <= now)) return "This plan has started: its first delivery is past the cutoff";
     if (rows.some((d) => d.status !== "scheduled")) return "The customer has already skipped or paused a delivery";
     const ids = all.map((d) => d.id);

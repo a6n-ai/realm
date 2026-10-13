@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities } from "@/db/schema";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
@@ -287,16 +287,17 @@ export function tiffinsMoved(row: DayDeliveryRow, movedIds: Set<bigint>): boolea
   return row.delivery.mergedIntoDeliveryId != null || row.delivery.tiffinUnits === 0 || movedIds.has(row.delivery.id);
 }
 
-/** Source rows that already spawned a make-up. Restoring one would count its tiffins twice. */
+/** Source rows that already spawned a make-up or a holiday's added day. Restoring one would count its tiffins twice. */
 export async function movedSourceIds(deliveryIds: bigint[]): Promise<Set<bigint>> {
   if (deliveryIds.length === 0) return new Set();
   const children = await db
-    .select({ sourceId: deliveries.makeupForDeliveryId })
+    .select({ sourceId: deliveries.makeupForDeliveryId, holidaySourceId: deliveries.holidayExtraForDeliveryId })
     .from(deliveries)
-    .where(inArray(deliveries.makeupForDeliveryId, deliveryIds));
+    .where(or(inArray(deliveries.makeupForDeliveryId, deliveryIds), inArray(deliveries.holidayExtraForDeliveryId, deliveryIds)));
   const ids = new Set<bigint>();
   for (const child of children) {
     if (child.sourceId != null) ids.add(child.sourceId);
+    if (child.holidaySourceId != null) ids.add(child.holidaySourceId);
   }
   return ids;
 }

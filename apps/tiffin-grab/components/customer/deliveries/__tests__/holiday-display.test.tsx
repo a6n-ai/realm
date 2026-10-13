@@ -54,7 +54,7 @@ describe("a holiday day on the customer deliveries page", () => {
     view([trip({ status: "failed", holidayName: "Thanksgiving", optimoCompletionStatus: null })], "2026-09-23", holidayDot("2026-09-23", "Thanksgiving"));
     const note = screen.getByTestId("holiday-note");
     expect(note).toHaveTextContent("Holiday: Thanksgiving");
-    expect(note).toHaveTextContent("The kitchen was closed that day. Move this tiffin to another day.");
+    expect(note).toHaveTextContent("The kitchen was closed that day. Move this tiffin to another day, or contact us and we will place it.");
     expect(screen.getByTestId("delivery-block")).not.toHaveTextContent("Not delivered");
     expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
   });

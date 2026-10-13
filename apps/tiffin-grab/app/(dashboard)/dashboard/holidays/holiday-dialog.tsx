@@ -68,7 +68,7 @@ export function HolidayDialog({ today, organizations }: { today: string; organiz
       ) : preview ? (
         <div className="grid gap-2">
           <p className="text-sm">
-            Today&apos;s kitchen is already running. {preview.affected} deliveries will be closed and added back at the end of their plans. {preview.onRoute} are already on a route and will be removed from it. {preview.delivered} already delivered stay as they are.
+            Today&apos;s kitchen is already running. {preview.affected} {preview.affected === 1 ? "delivery" : "deliveries"} will be closed and added back at the end of their plans. {preview.onRoute} are already on a route and will be removed from it. {preview.delivered} already delivered stay as they are.
           </p>
           {error && <p role="alert" className="text-destructive text-sm">{error}</p>}
         </div>

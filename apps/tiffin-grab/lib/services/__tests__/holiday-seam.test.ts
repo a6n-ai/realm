@@ -137,6 +137,17 @@ describe("a holiday row is not a customer pause", () => {
     expect((await db.select().from(orders).where(eq(orders.id, order.id)))[0]!.status).toBe("completed");
   });
 
+  it("maybeComplete: a closed make-up day still waiting for placing keeps the plan open", async () => {
+    const { order, mon, wed, fri, org } = await orderWithOrg();
+    await db.update(deliveries).set({ deliveryDate: "2020-01-06", cutoffAt: 1, status: "skipped" }).where(eq(deliveries.id, mon.id));
+    await db.update(deliveries).set({ deliveryDate: "2020-01-08", cutoffAt: 1 }).where(eq(deliveries.id, wed.id));
+    await db.update(deliveries).set({ deliveryDate: "2020-01-10", cutoffAt: 1, makeupForDeliveryId: mon.id }).where(eq(deliveries.id, fri.id));
+    await closeForHoliday(fri.id, org, "2020-01-10");
+
+    expect(await maybeComplete(order.id)).toBe(false);
+    expect((await db.select().from(orders).where(eq(orders.id, order.id)))[0]!.status).toBe("active");
+  });
+
   it("Move cannot take a paused holiday day; a held day tagged after the fact still moves", async () => {
     const { mon, wed, org } = await orderWithOrg();
     await closeForHoliday(wed.id, org, "2030-01-09");

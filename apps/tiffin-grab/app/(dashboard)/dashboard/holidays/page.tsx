@@ -14,7 +14,7 @@ import { HolidayRowActions } from "./holiday-row-actions";
 import { PlaceForm } from "./place-form";
 
 const reasonFor = (w: NeedsPlacingRow) =>
-  w.trial ? "Trial: never placed automatically." : w.held ? "On hold when the holiday was set." : "No free day, or another plan is in the way.";
+  w.trial ? "Trial: never placed automatically." : w.held ? "Kitchen was closed that day; the tiffin is still held." : "No free day, or another plan is in the way.";
 
 export default async function HolidaysPage() {
   await requirePermission({ holiday: ["read"] });

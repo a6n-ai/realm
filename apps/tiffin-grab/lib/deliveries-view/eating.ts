@@ -147,7 +147,7 @@ const dateList = (dates: string[]): string => {
  * Visible lines for a day a holiday closed: the holiday's name, then where its tiffin went.
  * Keyed on the name, not the trip status, so a hold tagged after the fact is covered too.
  * A tagged day still holding its tiffin says the kitchen was closed and what to do with it
- * (`staff`: place it; the customer moves it). Empty for every other day.
+ * (`staff`: place it; the customer moves it, or waits for the team when the day is a make-up). Empty for every other day.
  */
 export function dayNote(r: EatingRow, staff = false): string[] {
   const t = r.trip;
@@ -155,7 +155,10 @@ export function dayNote(r: EatingRow, staff = false): string[] {
   const where = t.holidayExtras?.length ? `Added at the end of the plan: ${dateList(t.holidayExtras)}`
     : r.movedTo ? `Moved to ${humanDate(r.movedTo)}`
     : t.status === "holiday" ? "The kitchen is closed that day. The team will place this tiffin on a new day."
-    : `The kitchen was closed that day. ${staff ? "Place" : "Move"} this tiffin ${staff ? "on" : "to"} another day.`;
+    : staff ? "The kitchen was closed that day. Place this tiffin on another day."
+    // A make-up day cannot be moved by the customer, and a trial has no Move at all.
+    : t.isMakeup ? "The kitchen was closed that day. Our team will place this tiffin on another day."
+    : "The kitchen was closed that day. Move this tiffin to another day, or contact us and we will place it.";
   return [`Holiday: ${t.holidayName}`, where];
 }
 

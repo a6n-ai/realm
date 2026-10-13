@@ -240,7 +240,7 @@ export function actionAvailability(trip: Trip, now: number, plan: PlanContext): 
   const s = trip.status;
   const into = trip.mergedInto ? humanDate(trip.mergedInto) : "";
   if (s === "holiday") {
-    const closedDay = no(`Kitchen is closed${trip.holidayName ? `: ${trip.holidayName}` : ""}. This tiffin is placed on another day.`);
+    const closedDay = no(`Kitchen is closed${trip.holidayName ? `: ${trip.holidayName}` : ""}. This tiffin goes on another day.`);
     return { pick: closedDay, swap: closedDay, move: closedDay, address: closedDay };
   }
 

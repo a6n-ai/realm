@@ -1,6 +1,6 @@
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, gt, gte, inArray, isNull, lte, ne, not, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, ne, not, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
@@ -555,7 +555,8 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
       .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
       .where(and(
         eq(deliveries.orderId, orderId),
-        isNull(deliveries.makeupForDeliveryId),
+        // A missed make-up row is spent, except one a holiday closed: its tiffin is still owed.
+        or(isNull(deliveries.makeupForDeliveryId), isNotNull(deliveries.holidayId)),
         inArray(deliveries.status, ["paused", "skipped"]),
         isNull(deliveries.mergedIntoDeliveryId),
         isNull(existingMakeup.id),
@@ -910,7 +911,7 @@ export async function rescheduleDelivery(
 
     const row = await loadByPublicId(tx, deliveryPublicId);
     if (row.status === "paused" && row.holidayId != null) {
-      throw new ValidationError("The kitchen is closed that day. This tiffin is added back at the end of the plan.");
+      throw new ValidationError("The kitchen is closed that day. This tiffin goes on another day.");
     }
     // A make-up that is still going out can move again; one that was missed cannot spawn its own make-up.
     if (row.status !== "scheduled") assertOriginal(row);

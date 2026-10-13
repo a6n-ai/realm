@@ -30,7 +30,7 @@ export type NeedsPlacingRow = {
   orderPublicId: string; orderCode: string; customerName: string; tiffins: number;
   /** A trial: never auto-placed. */
   trial: boolean;
-  /** A hold tagged after the fact: staff move it from the order page, not from here. */
+  /** A hold tagged after the fact (the day already passed). */
   held: boolean;
 };
 
