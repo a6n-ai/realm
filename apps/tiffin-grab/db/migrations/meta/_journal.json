@@ -183,6 +183,13 @@
       "when": 1791872867207,
       "tag": "0025_tiresome_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791884823187,
+      "tag": "0026_ambitious_living_lightning",
+      "breakpoints": true
     }
   ]
 }
