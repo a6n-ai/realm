@@ -31,7 +31,7 @@ import { isFullPostalCode } from "@/lib/catalog/postal";
 import { DropOffPicker } from "@/components/customer/address/drop-off";
 import { dropOffCatalog, dropOffSummary, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
-import { CheckoutAddressPicker } from "@/components/checkout/address-picker";
+import { CheckoutAddressPicker } from "@/components/checkout/checkout-address-picker";
 import { Check, ChevronRight, Coins, Info, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
