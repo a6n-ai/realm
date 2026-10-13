@@ -8,7 +8,7 @@ const { orders, payments, orderActivities, ledgerEntries, users } = await import
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, countLookOutOrders } = await import("../orders.service");
+const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders } = await import("../orders.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const schema = await import("@/db/schema");
@@ -71,8 +71,18 @@ describe("order CRM queries (integration)", () => {
     await lookOutForTicket(id, "Missing roti");
     expect(await note()).toBe("Support ticket: Missing roti");
 
-    await setOrderLookOut(order.publicId, true, "Call first");
+    // Resolving clears it only once no other ticket on the order is still open.
+    const [{ userId }] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.id, id));
+    const [open] = await db.insert(schema.tickets).values({ publicId: "tkt_lookout_open", raisedBy: userId!, subject: "Still open", category: "order", orderId: id, createdAt: Date.now(), updatedAt: Date.now() }).returning({ id: schema.tickets.id });
+    await clearTicketLookOut(id);
+    expect(await note()).toBe("Support ticket: Missing roti");
+    await db.delete(schema.tickets).where(eq(schema.tickets.id, open.id));
+    await clearTicketLookOut(id);
+    expect(await note()).toBeNull();
+
+    await setOrderLookOut(order.publicId, true, "Call first", userId);
     await lookOutForTicket(id, "Late again");
+    await clearTicketLookOut(id);
     expect(await note()).toBe("Call first");
   });
 
