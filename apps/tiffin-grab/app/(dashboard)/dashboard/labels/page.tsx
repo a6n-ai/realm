@@ -6,6 +6,10 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dailyLabelSheet, listDayDeliveryStatuses } from "@/lib/services/daily-labels.service";
 import { getKitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
+import { HolidayBanner } from "@/components/dashboard/holiday-banner";
+import { getSession } from "@/lib/auth/session";
+import { holidaysOn } from "@/lib/services/holidays.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { LabelDatePicker } from "./label-date-picker";
 import { LabelsExportButton } from "./labels-export-button";
@@ -52,10 +56,11 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
   const today = zonedDateIso(Date.now(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
 
-  const [sheet, packing, deliveries] = await Promise.all([
+  const [sheet, packing, deliveries, closed] = await Promise.all([
     dailyLabelSheet(date),
     getKitchenPackingSheet(date),
     listDayDeliveryStatuses(date),
+    getSession().then(resolveSessionVisibleOrgIds).then((visible) => holidaysOn(date, visible)),
   ]);
   const containers = sheet.counts.reduce((n, c) => n + c.count, 0);
   const noMenu = sheet.menuWeekPublicId == null ? (
@@ -70,6 +75,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <>
+      <HolidayBanner closed={closed} />
       <SectionCard title="Day">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <LabelDatePicker date={date} today={today} />
