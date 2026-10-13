@@ -84,7 +84,7 @@ Each has `-fg` and `-bg` variants and always ships with a label and a shape, nev
 | `--s-delivered` | Delivered (emerald) | emerald ring around date |
 | `--s-upcoming` | Upcoming (sky) | solid dot |
 | `--s-hold` | On hold (rose) | dot |
-| `--s-vac` | Vacation (amber, distinct from brand orange) | dot |
+| `--s-vac` | Paused (amber, distinct from brand orange) | dot |
 | `--s-combined` | Combined into another trip | dashed ring |
 | `--s-locked` | Locked past cutoff | plain, muted |
 
@@ -150,7 +150,7 @@ Page header: eyebrow, bold title + italic saffron accent, optional subtitle, ONE
 ## Top bar anatomy
 Brand (left) | pill nav: Deliveries, Menu, Account (`NavPill`, saffron wash when current) | `CoinChip` (wallet icon + tabular balance, links to `/me/wallet`, active state on `/me/wallet*`; it is the ONLY entry to Finances, not a nav pill) | ONE `ThemeToggle`. ThemeToggle is a single 44px icon button showing the current theme; one tap cycles light, dark, system (chosen over a popover: one tap, no overlay to dismiss); aria-label announces current and next. The full Light/System/Dark choice (`Segmented`) also lives in the Menu sheet. Mobile: brand, coin chip, theme button on top; `TabBar` at bottom with exactly three tabs (Deliveries, Menu, Account). There is no floating Order button: a new order is the first row of the Menu sheet ("New order", above Weekly menu and Renew plan), so nothing competes with the sticky trip action bar that sits directly above the tab bar. The desktop Menu pill opens the same sheet.
 
-Deliveries hub (`/me`): calm and selection-first. Title, then ONE quiet plan line (size - diet, tiffins left, hold days, renews in N days) that wraps. Desktop (>=1024): two columns, a plain trip list (weekday + date, "1 tiffin" or "Covers Mon + Tue", status dot + word; merged-source days have no row; next 8 with Show earlier / Show more) and ONE trip card (big date, status, cutoff in plain words, dishes deduped as "Bhindi Masala x2", then Pick meals as the primary button, Swap / Hold / Move as outline buttons, and "Going away? Vacation" as a text link). Mobile: title + Vacation text link, 7-day week strip, trip card, sticky action bar above the tab bar, and an Upcoming list collapsed to 3 (See all). `?trip=` selects a trip, `?action=pick|swap|hold|move|vacation` opens its sheet.
+Deliveries hub (`/me`): calm and selection-first. Title, then ONE quiet plan line (size - diet, tiffins left, hold days, renews in N days) that wraps. Desktop (>=1024): two columns, a plain trip list (weekday + date, "1 tiffin" or "Covers Mon + Tue", status dot + word; merged-source days have no row; next 8 with Show earlier / Show more) and ONE trip card (big date, status, cutoff in plain words, dishes deduped as "Bhindi Masala x2", then Pick meals as the primary button, Swap / Hold / Move as outline buttons, and a Pause button). Mobile: title + Pause button, 7-day week strip, trip card, sticky action bar above the tab bar, and an Upcoming list collapsed to 3 (See all). `?trip=` selects a trip, `?action=pick|swap|hold|move` opens its sheet.
 
 ## Components (kit)
 - Button: the wizard Next button. 14px radius, 1.5px border, 50 (lg, 17/600, tracking -0.022em) / 44 (md, 15/600); primary = flat saffron, outline = ink border, quiet = hairline card, danger = rose outline; no shadow; press scale .97; disabled 45% opacity but `disabledReason` keeps it focusable and prints the reason. `hero` is the only glowing pill (full radius, 52px, glow `0 12px 30px -8px`), reserved for hero calls to action. Sticky CTA bars in sheets use the standard button.
@@ -166,7 +166,7 @@ Deliveries hub (`/me`): calm and selection-first. Title, then ONE quiet plan lin
 - ChoiceGroup / Choice: radiogroup of OptionCards with a radio dot, roving tabindex, arrow keys move and select (commitment duration).
 - Pill `size="sm"` (compact 20px tag) and tones `save`, `wash`, `solid`, `soft` for offers, day chips and nutrition tags.
 - IconButton (44px round on muted; `href` makes it a link: close, back, month arrows) and Divider (hairline rule).
-- DatePicker: trigger button plus a month grid (`MonthGrid`); an anchored popover from 768px up, the kit Sheet on phones; `min`, `max`, `disabledReason(iso)` explain blocked days. Never a native date input. `components/customer/date-field.tsx` adapts it for deliveries and vacation.
+- DatePicker: trigger button plus a month grid (`MonthGrid`); an anchored popover from 768px up, the kit Sheet on phones; `min`, `max`, `disabledReason(iso)` explain blocked days. Never a native date input. `components/customer/date-field.tsx` adapts it for deliveries.
 - Sheet `bottom`: keep the bottom-sheet form on desktop (centered, max-w-xl); the wizard price summary uses it. BottomBar `alignEnd` right-aligns the wizard bar from sm up.
 - Tabs / Segmented: pill 44; active = ink fill.
 - DateStrip / MonthGrid / DateCell: 16px cells, emerald ring delivered, dashed combined.

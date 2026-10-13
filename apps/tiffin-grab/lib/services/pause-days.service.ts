@@ -6,7 +6,7 @@ import { deliveries, deliveryMoves, orderActivities, orders, subscriptionPauses 
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertDaysPauseAllowed } from "./pause-limits.service";
-import { CARRIES_MOVED_IN, CUSTOMER_PAUSED, MOVED_AWAY, lapsePausedRows, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
+import { CARRIES_MOVED_IN, CUSTOMER_PAUSED, MOVED_AWAY, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -92,7 +92,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
       isIndefinite: false,
       deliveryDates: pausedDates,
       releasedDates: [],
-      // Closed on insert. The live set is deliveries.status, not an open vacation row.
+      // Closed on insert. The live set is deliveries.status, not an open pause row.
       resumedAt: new Date(),
       createdBy: actorId,
     });
@@ -200,15 +200,29 @@ export async function lapseAllElapsedPauses(): Promise<{ checked: number; lapsed
   return { checked: stranded.length, lapsed, failed };
 }
 
-/** What the pause drawer can offer: upcoming original days that are still pausable or still resumable. */
-export async function listPauseDays(orderId: bigint): Promise<{ date: string; paused: boolean }[]> {
-  const rows = await db.select({ date: deliveries.deliveryDate, status: deliveries.status }).from(deliveries).where(and(
-    eq(deliveries.orderId, orderId),
-    or(eq(deliveries.status, "scheduled"), CUSTOMER_PAUSED),
-    isNull(deliveries.makeupForDeliveryId),
-    gt(deliveries.cutoffAt, Date.now()),
-    not(MOVED_AWAY),
-    not(CARRIES_MOVED_IN),
-  )).orderBy(asc(deliveries.deliveryDate));
-  return rows.map((r) => ({ date: r.date, paused: r.status === "paused" }));
+export type PauseDay = { date: string; paused: boolean; /** Paused and past its cutoff: Move only, never Resume. */ lapsed?: true };
+
+/**
+ * What the pause drawer can offer: upcoming original days that are still pausable or still
+ * resumable, plus paused days past their cutoff whose tiffin has not been moved yet.
+ */
+export async function listPauseDays(orderId: bigint): Promise<PauseDay[]> {
+  const now = Date.now();
+  const rows = await db.select({ date: deliveries.deliveryDate, status: deliveries.status, cutoffAt: deliveries.cutoffAt, routeSyncedAt: deliveries.routeSyncedAt })
+    .from(deliveries).where(and(
+      eq(deliveries.orderId, orderId),
+      isNull(deliveries.makeupForDeliveryId),
+      not(MOVED_AWAY),
+      or(
+        and(or(eq(deliveries.status, "scheduled"), CUSTOMER_PAUSED), gt(deliveries.cutoffAt, now), not(CARRIES_MOVED_IN)),
+        and(CUSTOMER_PAUSED, lte(deliveries.cutoffAt, now)),
+        and(eq(deliveries.status, "skipped"), isNull(deliveries.holidayId)),
+      ),
+    )).orderBy(asc(deliveries.deliveryDate));
+  const lapsed = rows.some((r) => r.status === "skipped") ? (await lapsedPauseDates(db, [orderId])).get(orderId) : undefined;
+  return rows.flatMap((r): PauseDay[] => {
+    if (r.status === "skipped") return isLapsedPause({ status: r.status, deliveryDate: r.date, routeSyncedAt: r.routeSyncedAt }, lapsed) ? [{ date: r.date, paused: true, lapsed: true }] : [];
+    if (r.cutoffAt <= now) return [{ date: r.date, paused: true, lapsed: true }];
+    return [{ date: r.date, paused: r.status === "paused" }];
+  });
 }

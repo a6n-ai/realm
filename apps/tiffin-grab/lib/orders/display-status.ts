@@ -19,7 +19,7 @@ const OVERLAY_ORDER = new Set(["active", "pending", "paused"]);
  *
  * DB `orders.status` can stay `active` while e-Transfer is unpaid so deliveries materialize
  * early; the UI must not look settled until money is verified. `paused` maps to Active —
- * vacation is day-level, not a plan tag.
+ * a pause is day-level, not a plan tag.
  */
 export function orderDisplayStatus(
   orderStatus: string,

@@ -2,7 +2,7 @@
 import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Truck } from "lucide-react";
 import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { humanDate, type Trip } from "@/lib/deliveries-view";
+import { humanDate, isPastPause, type Trip } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, isDone, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
@@ -22,10 +22,10 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "cutoff-passed": return { label: "Being prepared", tone: "ok", dot: "delivered" };
     case "rescheduled": return { label: "Moved", tone: "hold", dot: "hold" };
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
-    case "vacation": return { label: "Paused", tone: "vac", dot: "vacation" };
+    case "paused": return { label: "Paused", tone: "vac", dot: "paused" };
     case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
     case "holiday": return { label: "Holiday", tone: "neutral", dot: "holiday" };
-    case "failed": return { label: "Not delivered", tone: "hold", dot: "hold" };
+    case "failed": return isPastPause(t) ? { label: "Paused", tone: "vac", dot: "paused" } : { label: "Not delivered", tone: "hold", dot: "hold" };
   }
 }
 
@@ -196,7 +196,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
   const m = rowMeta(row);
   // A holiday day says why in its own note, so "Not delivered" never sits beside it.
   const facts = row.movedTo || trip.holidayName ? []
-    : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
+    : trip.status === "failed" ? [isPastPause(trip) ? "Paused. Move it to another day." : "Not delivered. Move it to another day."]
     : isDone(row) ? [reason] : [trip.status === "upcoming" ? null : reason];
   // Short in/out pills ("Thu's in", "to Oct 12") instead of sentences.
   const moves = moveChips(row);

@@ -88,7 +88,7 @@ describe("order lifecycle (integration)", () => {
 
     // The activity IS written — the customer paused something even though no status
     // transition followed. This assertion previously required the opposite, which is how
-    // partial vacations stayed invisible in the log.
+    // partial pauses stayed invisible in the log.
     const acts = await svc.listOrderActivities(o.id);
     const paused = acts.filter((a) => a.type === "paused");
     expect(paused).toHaveLength(1);

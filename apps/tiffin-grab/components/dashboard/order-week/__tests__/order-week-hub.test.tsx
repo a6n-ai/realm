@@ -195,7 +195,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(within(screen.getAllByTestId("paged-row")[0]!).getByText("Paused")).toBeInTheDocument();
   });
   describe("pause", () => {
-    const paused = { ...mon, status: "vacation" as const, deliveryId: "d1" };
+    const paused = { ...mon, status: "paused" as const, deliveryId: "d1" };
     const pdot = (date: string) => [date, [{ orderId: "o", status: "paused", cutoffAt: NOW + 30 * 3600e3, deliveryDate: date, truck: true, units: 1, covers: [date], deliveryId: `x-${date}` }]] as const;
     const withPaused = (n: number, over: object = {}) => ({
       ...data,

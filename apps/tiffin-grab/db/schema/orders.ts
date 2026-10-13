@@ -53,7 +53,7 @@ export const orders = pgTable("orders", {
   trialWeekdays: text("trial_weekdays").array(),
   startDate: date("start_date").notNull(),
   tiffinCount: integer("tiffin_count").notNull(),
-  // Tiffins owed but not yet placed on a calendar date (post-cutoff skip/vacation misses).
+  // Tiffins owed but not yet placed on a calendar date (post-cutoff skip/pause misses).
   // Customer schedules these after the last delivery via scheduleFromPool.
   pooledTiffinCount: integer("pooled_tiffin_count").notNull().default(0),
   // Free tiffins staff gave on top of tiffin_count (one complimentary delivery row each, times

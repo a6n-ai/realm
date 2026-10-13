@@ -291,7 +291,7 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
  *
  * Plain resume (no `fromDate`): every FUTURE paused row (cutoff not passed) comes back.
  * Resume-from (`fromDate`): only paused days on/after `fromDate` (with a future cutoff) come back.
- * Vacation has no entry point today (move-only deliveries); this stays for its redesign.
+ * The range pause has no entry point today (move-only deliveries); this stays for its redesign.
  */
 export async function resumeOrder(orderPublicId: string, fromDate?: string): Promise<number> {
   if (fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {

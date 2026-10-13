@@ -1,4 +1,4 @@
-import { humanDate, type Trip, type TripStatus } from "./index";
+import { humanDate, isPastPause, type Trip, type TripStatus } from "./index";
 
 /** The customer's unit of thought: one eating day, fed by the trip (delivery day) that carries it. */
 export type EatingRow = {
@@ -176,11 +176,11 @@ export function deliveryLine(r: EatingRow): string {
   switch (t.status) {
     case "delivered": return `Delivered ${day}`;
     case "unconfirmed": return `Awaiting confirmation, ${day}`;
-    case "failed": return `Delivery failed ${day}`;
+    case "failed": return isPastPause(t) ? "Paused" : `Delivery failed ${day}`;
     case "cutoff-passed": return `Being prepared, ${arrives}`;
     case "upcoming": return Arrives;
     case "rescheduled": case "combined-into": return t.movedTo ? `Moved to ${humanDate(t.movedTo)}` : "Moved";
-    case "vacation": return "Paused";
+    case "paused": return "Paused";
     default: return Arrives;
   }
 }

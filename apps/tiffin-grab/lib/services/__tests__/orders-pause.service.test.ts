@@ -221,7 +221,7 @@ describe("OrdersService.pause/resume — limits + recorded pauses (integration)"
   });
 
   // REGRESSION: the activity write used to sit behind the `if (remaining) return` that skips
-  // the status flip, so a partial vacation left no trace in the log at all.
+  // the status flip, so a partial pause left no trace in the log at all.
   it("logs a partial pause even though the order stays active", async () => {
     const publicId = await makeOrder();
     const orderId = await orderIdOf(publicId);
