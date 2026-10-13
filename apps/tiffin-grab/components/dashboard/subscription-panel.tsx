@@ -7,6 +7,7 @@ import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { db } from "@/db/client";
 import { plans } from "@/db/schema";
+import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { SectionCard } from "@/components/ds";
 
@@ -32,6 +33,7 @@ export async function loadSubscription(
     .where(eq(plans.id, order.planId))
     .limit(1)
     .then((r) => r[0]);
+  const addons = (await loadSubscriptionAddons([order.id])).get(order.id) ?? [];
   const planType = (planRow?.planType ?? "tiffin") as "tiffin" | "healthy";
   const categoryCounts = (order.categoryCounts as Record<string, number> | null) ?? {};
   const displayStatus = orderDisplayStatus(
@@ -63,6 +65,7 @@ export async function loadSubscription(
           tagColor: planRow?.tagColor ?? null,
           frequencyKey: order.frequencyKey,
           trial: order.trialLength != null,
+          addons,
         }
       : null;
 
