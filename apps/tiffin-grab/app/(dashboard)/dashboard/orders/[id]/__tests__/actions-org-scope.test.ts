@@ -6,7 +6,7 @@ import { NotFoundError } from "@foundry/commons";
 
 const svc = vi.hoisted(() => ({
   activateOrder: vi.fn(), cancelOrder: vi.fn(), startMigratedOrder: vi.fn(), changeOrderStartDate: vi.fn(),
-  changeOrderEatingDays: vi.fn(), changeMealSize: vi.fn(), rejectPayment: vi.fn(), updatePaymentReference: vi.fn(),
+  changeOrderEatingDays: vi.fn(), rejectPayment: vi.fn(), updatePaymentReference: vi.fn(),
   verifyPayment: vi.fn(), assertOrderVisible: vi.fn(), assertDeliveryVisible: vi.fn(), assertPaymentVisible: vi.fn(),
   resolveSessionVisibleOrgIds: vi.fn(),
   sendPaymentReminder: vi.fn(),
@@ -55,7 +55,6 @@ describe("order actions outside the caller's organizations", () => {
     ["changeStartDateAction", () => actions.changeStartDateAction(ORDER, "2030-01-07"), svc.changeOrderStartDate],
     ["changeEatingDaysAction", () => actions.changeEatingDaysAction(ORDER, ["mon"]), svc.changeOrderEatingDays],
     ["cancel", () => actions.cancel(ORDER), svc.cancelOrder],
-    ["changePlan", () => actions.changePlan(ORDER, "msz_1"), svc.changeMealSize],
     ["updatePaymentReferenceAction", () => actions.updatePaymentReferenceAction(ORDER, PAYMENT, "ref"), svc.updatePaymentReference],
     ["sendPaymentReminderAction", () => actions.sendPaymentReminderAction(ORDER, PAYMENT), svc.sendPaymentReminder],
     ["grantComplimentaryAction", () => actions.grantComplimentaryAction(ORDER, { date: "2030-01-07", note: "x", notify: false }), svc.grantComplimentaryTiffin],

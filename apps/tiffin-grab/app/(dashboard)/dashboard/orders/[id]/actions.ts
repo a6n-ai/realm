@@ -14,7 +14,6 @@ import {
   startMigratedOrder,
   changeOrderStartDate,
   changeOrderEatingDays,
-  changeMealSize,
   rejectPayment,
   updatePaymentReference,
   verifyPayment,
@@ -75,13 +74,6 @@ export async function cancel(orderId: string) {
   await requireStaff();
   await assertOrderVisible(orderId, await visibleOrgs());
   await cancelOrder(orderId);
-  revalidatePath(`/dashboard/orders/${orderId}`);
-}
-
-export async function changePlan(orderId: string, mealSizePublicId: string) {
-  await requireStaff();
-  await assertOrderVisible(orderId, await visibleOrgs());
-  await changeMealSize(orderId, mealSizePublicId);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 

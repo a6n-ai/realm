@@ -16,7 +16,6 @@ import { nextWeekday } from "@foundry/commons";
 import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { listableMealSizes } from "@/lib/catalog/types";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
@@ -34,7 +33,6 @@ import { PaymentsPanel } from "./payments-panel";
 import { OrderOverview } from "./order-summary-panel";
 import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
-import { ChangePlanControl } from "./change-plan-control";
 import { StartDateControl } from "./start-date-control";
 import { EatingDaysControl } from "./eating-days-control";
 import { ComplimentaryControl } from "./complimentary-control";
@@ -151,12 +149,6 @@ async function OrderDetail({
   const checkoutMethodLabel = checkoutMethodId
     ? findMethod(paymentCfg, checkoutMethodId)?.label ?? checkoutMethodId
     : null;
-  const currentMealSizePublicId = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.publicId;
-  const mealSizeOptions = listableMealSizes(catalogSnapshot.mealSizes, currentMealSizePublicId).map((m) => ({
-    publicId: m.publicId,
-    name: m.name,
-    planKey: m.planKey,
-  }));
 
 
   const counts = sub.week?.plan.counts ?? endedCounts;
@@ -255,7 +247,6 @@ async function OrderDetail({
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
-      {/* A trial can only have its dishes edited (orders.service rejects a plan change). */}
       {canGiveFree && (
         <ComplimentaryControl
           orderId={order.publicId}
@@ -266,7 +257,6 @@ async function OrderDetail({
           missed={missedOptions}
         />
       )}
-      {order.trialLength == null && <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />}
     </>
   );
 

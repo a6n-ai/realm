@@ -17,7 +17,6 @@ import {
   deliveryMoves,
   mealSelections,
   deliveryFrequencies,
-  durationPackages,
   member,
   mealSizes,
   orderActivities,
@@ -32,8 +31,7 @@ import {
 } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
-import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/lib/catalog/load";
-import type { CatalogSnapshot } from "@/lib/catalog/types";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
 import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliveries";
@@ -2028,126 +2026,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const owner = await resolveAssignableOwner(ownerId);
     await this.update(publicId, { currentOwner: owner.id });
   }
-
-  // Admin correction tool: move an order onto a different meal size/plan after
-  // creation, recomputing price from scratch (never carrying over the stale
-  // snapshot — same rule createOrder follows). Built for the legacy-order
-  // migration (docs/realm/legacy-order-migration-plan.md), where orders land on
-  // a closest-match meal size at import time and staff need a way to correct
-  // one onto the customer's real plan without another migration pass.
-  //
-  // Out of scope on purpose: coupons/coins are not re-resolved (adjustments: []
-  // below) — a plan change is a catalog correction, not a new checkout, so any
-  // discount the customer originally had is dropped rather than guessed at.
-  // Add-ons carry over, repriced; the change is refused if the new size can't offer one.
-  async changeMealSize(publicId: string, mealSizePublicId: string): Promise<void> {
-    const order = await this.read(publicId);
-    if (order.status === "cancelled" || order.status === "completed") {
-      throw new ValidationError(`Cannot change plan on an order that is ${order.status}`);
-    }
-    const actorId = await this.currentUserId();
-    const snapshot = await loadCatalogSnapshot(order.organizationId);
-    const mealSize = snapshot.mealSizes.find((m) => m.publicId === mealSizePublicId);
-    if (!mealSize) throw new ValidationError("Invalid meal size");
-    if (order.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
-    if (mealSize.trial) throw new ValidationError("Trial meals are ordered from the trial page.");
-    const plan = snapshot.plans.find((p) => p.id === mealSize.planId);
-    if (!plan) throw new ValidationError("Invalid meal size: owning plan not found or inactive");
-
-    // Same derivation createOrder uses: categoryCounts/mealSlots come from the
-    // meal size's own server-loaded items, never trusted from caller input.
-    const categoryCounts = categoryCountsFromItems(mealSize.items);
-    const mealSlots = Object.keys(categoryCounts);
-    if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
-
-    const [freqRow] = await db
-      .select()
-      .from(deliveryFrequencies)
-      .where(eq(deliveryFrequencies.id, order.frequencyId))
-      .limit(1);
-    if (!freqRow) throw new NotFoundError("Delivery frequency not found for this order");
-    // The catalog only loads active frequencies; an order created on a since-retired one
-    // must still reprice against its own row.
-    const [durRow] = await db
-      .select()
-      .from(durationPackages)
-      .where(and(eq(durationPackages.weeks, order.durationWeeks), scopedTo(durationPackages.organizationId, order.organizationId)))
-      .orderBy(desc(durationPackages.active))
-      .limit(1);
-    if (!durRow) throw new ValidationError("Invalid duration");
-    const ownDiscounts = await loadDiscountsForOrderTargets(order.organizationId, { frequency: freqRow, duration: durRow });
-    const pricingSnapshot = {
-      ...snapshot,
-      frequencies: snapshot.frequencies.some((f) => f.key === freqRow.key) ? snapshot.frequencies : [...snapshot.frequencies, freqRow],
-      durations: snapshot.durations.some((d) => d.weeks === durRow.weeks) ? snapshot.durations : [...snapshot.durations, durRow],
-      discounts: [...(snapshot.discounts ?? []), ...(ownDiscounts ?? []).filter((d) => !snapshot.discounts?.some((x) => x.key === d.key))],
-    };
-
-    const priorMethodId = (order.pricingSnapshot as OrderPricingSnapshot | null)?.paymentMethodId ?? "simulated";
-    let methodTaxes: { name: string; ratePct: number }[] = [];
-    if (priorMethodId !== "simulated") {
-      const paymentCfg = await getPaymentConfig();
-      const method = findMethod(paymentCfg, priorMethodId);
-      if (method?.enabled) methodTaxes = method.taxes;
-    }
-    // Same destination rule as createOrder — off this order's own delivery address.
-    const { taxes } = await resolveCheckoutTaxes({ postalCode: order.postalCode, methodTaxes });
-
-    const selections: PricingSelections = {
-      mealSizeId: mealSize.publicId,
-      frequencyKey: freqRow.key,
-      eatingDays: (order.eatingDays as DayOfWeek[] | null) ?? undefined,
-      persons: order.persons,
-      mealSlots,
-      includeSaturday: order.includeSaturday,
-      includeSunday: order.includeSunday,
-      durationWeeks: order.durationWeeks,
-      startDate: order.startDate,
-      // Keep the order's drop-off surcharges. One retired, or re-tagged / re-connected since
-      // checkout so it no longer fits with the rest, is dropped rather than failing the change.
-      deliveryStrategyIds: stillValidPicks(pricingSnapshot, order.deliveryStrategyIds),
-      // Carried over and repriced; buildPricingCatalog refuses one the new size can't offer.
-      addonSelections: await db.select({ key: orderAddons.addonKey, qty: orderAddons.qty }).from(orderAddons).where(eq(orderAddons.orderId, order.id)),
-    };
-    const pricingCatalog = buildPricingCatalog(pricingSnapshot, selections);
-    const pricing = priceSubscription(selections, pricingCatalog, [], taxes);
-    const newSnapshot: OrderPricingSnapshot = {
-      ...pricing,
-      paymentMethodId: priorMethodId,
-      planType: plan.planType,
-    };
-
-    await db.transaction(async (tx) => {
-      const [row] = await tx
-        .update(orders)
-        .set({
-          planId: mealSize.planId,
-          mealSizeId: mealSize.id,
-          categoryCounts: countsWithAddons(categoryCounts, pricingCatalog.addons),
-          mealSlots,
-          tiffinCount: pricing.tiffinCount,
-          perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
-          pricingSnapshot: newSnapshot,
-          total: pricing.total.toFixed(2),
-          updatedBy: actorId,
-        })
-        .where(eq(orders.publicId, publicId))
-        .returning();
-      if (!row) throw new NotFoundError(`Order not found: ${publicId}`);
-      await tx.delete(orderAddons).where(eq(orderAddons.orderId, row.id));
-      if (pricingCatalog.addons.length) {
-        await tx.insert(orderAddons).values(orderAddonValues(row.id, pricingCatalog.addons, pricing.tiffinCount, row.organizationId));
-      }
-      await tx.insert(orderActivities).values({
-        orderId: row.id,
-        type: "note",
-        note: `Plan changed to ${mealSize.name} — price recomputed to $${pricing.total.toFixed(2)}`,
-        createdBy: actorId,
-        organizationId: row.organizationId,
-      });
-    });
-    publishAnalyticsLive();
-  }
 }
 
 export const ordersService = new OrdersService(new UpdatableRepository(db, orders, orders.publicId, orders.id));
@@ -2163,8 +2041,6 @@ export async function countMigratedWaiting(): Promise<number> {
     .where(and(eq(orders.status, "pending"), sql`${orders.deploymentId} like 'wc-%'`));
   return row?.n ?? 0;
 }
-export const changeMealSize = (publicId: string, mealSizePublicId: string): Promise<void> =>
-  ordersService.changeMealSize(publicId, mealSizePublicId);
 export const pauseOrder = (publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> =>
   ordersService.pause(publicId, window);
 export const resumeOrder = (publicId: string, actorId?: bigint, fromDate?: string): Promise<void> =>
@@ -2194,20 +2070,4 @@ export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
   await db.update(subscriptionPauses)
     .set({ resumedAt: new Date() })
     .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
-}
-
-/** The order's strategy picks that still price together: active, one tag, one per connected set. */
-function stillValidPicks(snapshot: CatalogSnapshot, ids: bigint[]): string[] {
-  const rows = ids.flatMap((id) => snapshot.deliveryCharges?.deliveryStrategies.find((s) => s.id === id) ?? []);
-  const tag = rows[0]?.groupPublicId;
-  const sets = new Set<string>();
-  return rows
-    .filter((s) => {
-      if (s.groupPublicId !== tag) return false;
-      if (!s.connectionPublicId) return true;
-      if (sets.has(s.connectionPublicId)) return false;
-      sets.add(s.connectionPublicId);
-      return true;
-    })
-    .map((s) => s.publicId);
 }
