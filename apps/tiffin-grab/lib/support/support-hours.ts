@@ -49,10 +49,14 @@ export type SupportHoursView = {
   open: boolean;
   /** "Open now until 6 pm" / "Closed now. Opens Mon at 9 am". */
   status: string;
+  /** The second half of `status` on its own: "Until 6 pm today" / "Opens Mon at 9 am". */
+  detail: string;
   /** "We usually reply within 2 hours", when promised. */
   reply: string | null;
   /** Mon-first rows for the full week. */
-  week: { day: string; hours: string; today: boolean }[];
+  week: { day: string; hours: string; today: boolean; open: boolean }[];
+  /** The week with same-hours neighbours merged: "Mon – Fri", "Sat", "Sun". */
+  groups: { days: string; hours: string; open: boolean }[];
 };
 
 /** What the customer is told about support availability. null until staff set at least one day. */
@@ -62,24 +66,38 @@ export function supportHoursView(cfg: SupportHours, timezone: string, now = Date
   const today = cfg.days[day];
   const open = today != null && minute >= minutes(today.open) && minute < minutes(today.close);
 
-  let status: string;
-  if (open) status = `Open now until ${formatTime(today.close)}`;
-  else if (today && minute < minutes(today.open)) status = `Closed now. Opens today at ${formatTime(today.open)}`;
+  let detail: string;
+  if (open) detail = `Until ${formatTime(today.close)} today`;
+  else if (today && minute < minutes(today.open)) detail = `Opens today at ${formatTime(today.open)}`;
   else {
     // At least one day is set, so some offset 1..7 always hits.
     const offset = [1, 2, 3, 4, 5, 6, 7].find((o) => cfg.days[(day + o) % 7] != null)!;
     const next = (day + offset) % 7;
-    status = `Closed now. Opens ${offset === 1 ? "tomorrow" : DAY_NAMES[next]} at ${formatTime(cfg.days[next]!.open)}`;
+    detail = `Opens ${offset === 1 ? "tomorrow" : DAY_NAMES[next]} at ${formatTime(cfg.days[next]!.open)}`;
   }
+
+  const week = WEEK_ORDER.map((i) => {
+    const d = cfg.days[i];
+    return { day: DAY_NAMES[i], hours: d ? `${formatTime(d.open)} – ${formatTime(d.close)}` : "Closed", today: i === day, open: d != null };
+  });
+  const groups: SupportHoursView["groups"] = [];
+  const runs: string[][] = [];
+  for (const r of week) {
+    if (groups.at(-1)?.hours === r.hours) runs.at(-1)!.push(r.day);
+    else {
+      groups.push({ days: "", hours: r.hours, open: r.open });
+      runs.push([r.day]);
+    }
+  }
+  groups.forEach((g, i) => (g.days = runs[i].length > 1 ? `${runs[i][0]} – ${runs[i].at(-1)}` : runs[i][0]));
 
   const n = cfg.replyWithinHours;
   return {
     open,
-    status,
+    status: open ? `Open now until ${formatTime(today.close)}` : `Closed now. ${detail}`,
+    detail,
     reply: n == null ? null : `We usually reply within ${n} ${n === 1 ? "hour" : "hours"} during support hours`,
-    week: WEEK_ORDER.map((i) => {
-      const d = cfg.days[i];
-      return { day: DAY_NAMES[i], hours: d ? `${formatTime(d.open)} – ${formatTime(d.close)}` : "Closed", today: i === day };
-    }),
+    week,
+    groups,
   };
 }

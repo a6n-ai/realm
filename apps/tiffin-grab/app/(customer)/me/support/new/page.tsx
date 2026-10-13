@@ -19,7 +19,7 @@ export default function NewTicketPage({ searchParams }: { searchParams: SearchPa
       <BackLink href="/me/support" label="Support" />
       <PageHeader eyebrow="Support" title="New" accent="ticket" subtitle="Tell us what's going on. You can attach photos or screenshots, and link a plan if it helps." />
       <Suspense fallback={null}>
-        <SupportHoursSlot />
+        <SupportHoursSlot compact />
       </Suspense>
       <Suspense fallback={<NewTicketFormSkeleton />}>
         <TicketFormData searchParams={searchParams} />
