@@ -18,7 +18,6 @@ export const CUSTOMER_ROUTES: CustomerRoute[] = [
   { id: "profile", path: "/me/account?section=profile", heading: /your account|profile|security|address|dietary|delivery notes|notifications|phone/i },
   { id: "security", path: "/me/account?section=security", heading: /your account|profile|security|address|dietary|delivery notes|notifications|phone/i },
   { id: "address", path: "/me/account?section=address", heading: /your account|profile|security|address|dietary|delivery notes|notifications|phone/i },
-  { id: "dietary", path: "/me/account?section=dietary", heading: /your account|profile|security|address|dietary|delivery notes|notifications|phone/i },
   { id: "notifications", path: "/me/account?section=notifications", heading: /your account|profile|security|address|dietary|delivery notes|notifications|phone/i },
   { id: "contact", path: "/me/account?section=contact", heading: /your account|profile|security|address|dietary|delivery notes|notifications|phone/i },
 ];

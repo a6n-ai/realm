@@ -218,7 +218,7 @@ const CUSTOMER_LINKS = [
   {
     href: "/dashboard/account",
     title: "Account",
-    description: "Delivery address, dietary preferences, and notifications.",
+    description: "Delivery address and notifications.",
     icon: UserIcon,
   },
 ] as const;

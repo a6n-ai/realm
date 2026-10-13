@@ -21,7 +21,6 @@ describe("ACCOUNT_NAV role gating", () => {
       "profile",
       "contact",
       "address",
-      "dietary",
       "notifications",
       "security",
     ]);
