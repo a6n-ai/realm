@@ -1116,16 +1116,18 @@ export async function updatePaymentReference(
   });
 }
 
-/** Any staff member flags an order the whole team should watch (with why), or clears the flag.
- * Logged as an order note, like updatePaymentReference. */
+/** Any staff member flags an order the whole team should watch (always with why), or clears the flag.
+ * Marking an already flagged order re-marks it: new note, new marker. Logged as an order note,
+ * like updatePaymentReference. */
 export async function setOrderLookOut(
   orderPublicId: string,
   on: boolean,
   note: string,
   actorId: bigint | null = null,
 ): Promise<void> {
-  const reason = note.trim() || null;
-  if (reason && reason.length > 300) throw new ValidationError("Keep the note under 300 characters");
+  const reason = note.trim();
+  if (on && !reason) throw new ValidationError("Add a note on what to look out for");
+  if (reason.length > 300) throw new ValidationError("Keep the note under 300 characters");
   const [order] = await db.select({ id: orders.id, lookOutAt: orders.lookOutAt }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
   if (!order) throw new NotFoundError("Order not found");
   if (!on && order.lookOutAt == null) return;
@@ -1137,9 +1139,20 @@ export async function setOrderLookOut(
   await db.insert(orderActivities).values({
     orderId: order.id,
     type: "note",
-    note: on ? `Marked look out for${reason ? `: ${reason}` : ""}` : "Look out for cleared",
+    note: !on ? "Look out for cleared" : order.lookOutAt == null ? `Marked look out for: ${reason}` : `Look out for note changed: ${reason}`,
     createdBy: actorId,
   });
+}
+
+/** A support ticket puts its order on the look-out list. A flag staff already set is left alone. */
+export async function lookOutForTicket(orderId: bigint, subject: string): Promise<void> {
+  const note = `Support ticket: ${subject}`.slice(0, 300);
+  const [flagged] = await db
+    .update(orders)
+    .set({ lookOutAt: Date.now(), lookOutBy: null, lookOutNote: note })
+    .where(and(eq(orders.id, orderId), isNull(orders.lookOutAt)))
+    .returning({ id: orders.id });
+  if (flagged) await db.insert(orderActivities).values({ orderId, type: "note", note: `Marked look out for: ${note}` });
 }
 
 /** Flagged orders the caller can see, for the Orders tab badge. */
