@@ -1,4 +1,5 @@
 import { ValidationError } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gt, inArray, isNull, lte, not, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryMoves, orderActivities, orders, subscriptionPauses } from "@/db/schema";
@@ -167,13 +168,36 @@ export async function lapseElapsedPauses(orderId: bigint): Promise<number> {
   return n;
 }
 
-/** Every order with a paused day past its cutoff, whatever the order's status. Returns rows converted. */
-export async function lapseAllElapsedPauses(): Promise<number> {
+const log = createLogger("pause-days");
+
+/** For reads: a failed conversion is logged and the next read retries; the page renders the rows as they are. */
+export async function lapseElapsedPausesSafe(orderId: bigint): Promise<number> {
+  try {
+    return await lapseElapsedPauses(orderId);
+  } catch (err) {
+    log.error({ err, orderId: String(orderId) }, "lapse elapsed pauses failed");
+    return 0;
+  }
+}
+
+/**
+ * Every order with a paused day past its cutoff, whatever the order's status. One order failing
+ * is logged and skipped so the rest still convert.
+ */
+export async function lapseAllElapsedPauses(): Promise<{ checked: number; lapsed: number; failed: number }> {
   const stranded = await db.selectDistinct({ id: deliveries.orderId }).from(deliveries)
     .where(and(eq(deliveries.status, "paused"), lte(deliveries.cutoffAt, Date.now())));
-  let total = 0;
-  for (const o of stranded) total += await lapseElapsedPauses(o.id);
-  return total;
+  let lapsed = 0;
+  let failed = 0;
+  for (const o of stranded) {
+    try {
+      lapsed += await lapseElapsedPauses(o.id);
+    } catch (err) {
+      failed++;
+      log.error({ err, orderId: String(o.id) }, "lapse elapsed pauses failed");
+    }
+  }
+  return { checked: stranded.length, lapsed, failed };
 }
 
 /** What the pause drawer can offer: upcoming original days that are still pausable or still resumable. */

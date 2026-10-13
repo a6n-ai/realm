@@ -4,6 +4,18 @@ import { nextWeekday, ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
+let failLapse = 0;
+vi.mock("../pause-state", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../pause-state")>();
+  return {
+    ...actual,
+    lapsePausedRows: (...args: Parameters<typeof actual.lapsePausedRows>) => {
+      if (failLapse > 0) { failLapse--; return Promise.reject(new Error("lock timeout")); }
+      return actual.lapsePausedRows(...args);
+    },
+  };
+});
+
 const deletedStops: string[] = [];
 vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
@@ -17,7 +29,7 @@ const { createOrder } = await import("../orders.service");
 const { pauseDays, releasePausedDays, lapseElapsedPauses, lapseAllElapsedPauses, listPauseDays } = await import("../pause-days.service");
 const { isOrderFullyPaused } = await import("../pause-state");
 const { getPauseUsage } = await import("../pause-limits.service");
-const { rescheduleDelivery } = await import("../deliveries.service");
+const { rescheduleDelivery, adminSetDeliveryStatus } = await import("../deliveries.service");
 const { loadDayDeliveries } = await import("../daily-labels.service");
 const { myActiveSubscriptions, myDeliveries } = await import("../customer-deliveries.service");
 const { runCronJob } = await import("@/lib/cron/run");
@@ -34,6 +46,7 @@ async function reset() {
   await db.delete(users).where(ne(users.isSystem, true));
   await db.delete(durationPackages).where(eq(durationPackages.weeks, LIMIT_WEEKS));
   deletedStops.length = 0;
+  failLapse = 0;
 }
 
 async function activatedOrder() {
@@ -252,7 +265,7 @@ describe("C3: the cutoff converter runs wherever it can be noticed", () => {
     expect(await orderStatus(active.id)).toBe("active");
     await runCronJob("complete-plans", "manual");
     expect(await skippedNotes(active.id)).toHaveLength(1);
-    await expect(lapseAllElapsedPauses()).resolves.toBe(0);
+    await expect(lapseAllElapsedPauses()).resolves.toEqual({ checked: 0, lapsed: 0, failed: 0 });
   });
 
   it("opening the customer's plans converts an elapsed paused day on an active order", async () => {
@@ -262,6 +275,61 @@ describe("C3: the cutoff converter runs wherever it can be noticed", () => {
     await myActiveSubscriptions(o.userId!);
     expect((await rowOn(o.id, D[0])).status).toBe("skipped");
     expect(await skippedNotes(o.id)).toHaveLength(1);
+  });
+});
+
+describe("a failing conversion never takes anything else down", () => {
+  beforeEach(reset);
+
+  it("lapseAllElapsedPauses logs the order that fails and still converts the others", async () => {
+    const a = await activatedOrder();
+    const b = await activatedOrder();
+    for (const o of [a, b]) {
+      await pauseDays(o.publicId, [D[0]], null);
+      await expire(o.id, D[0]);
+    }
+    failLapse = 1;
+    await expect(lapseAllElapsedPauses()).resolves.toEqual({ checked: 2, lapsed: 1, failed: 1 });
+    const statuses = [(await rowOn(a.id, D[0])).status, (await rowOn(b.id, D[0])).status].sort();
+    expect(statuses).toEqual(["paused", "skipped"]);
+  });
+
+  it("the customer read resolves when the conversion fails, rows shown as they are", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    await expire(o.id, D[0]);
+    failLapse = 1;
+    await expect(myActiveSubscriptions(o.userId!)).resolves.toHaveLength(1);
+    expect((await rowOn(o.id, D[0])).status).toBe("paused");
+    await myActiveSubscriptions(o.userId!);
+    expect((await rowOn(o.id, D[0])).status).toBe("skipped");
+  });
+});
+
+describe("decisions pinned: partial move and make-up", () => {
+  beforeEach(reset);
+
+  it("a paused multi-day trip that lost one tiffin is still releasable and no units are lost", async () => {
+    const o = await activatedOrder();
+    await db.update(deliveries).set({ coversDates: [D[3], D[4]], tiffinUnits: 2 }).where(and(eq(deliveries.orderId, o.id), eq(deliveries.deliveryDate, D[3])));
+    await db.delete(deliveries).where(and(eq(deliveries.orderId, o.id), eq(deliveries.deliveryDate, D[4])));
+    const units = async () => (await rowsFor(o.id)).reduce((n, r) => n + (r.mergedIntoDeliveryId ? 0 : r.tiffinUnits), 0);
+    const before = await units();
+    await pauseDays(o.publicId, [D[3]], null);
+    await rescheduleDelivery((await rowOn(o.id, D[3])).publicId, "2030-01-14", null, D[4]);
+    const trip = await rowOn(o.id, D[3]);
+    expect([trip.status, trip.tiffinUnits]).toEqual(["paused", 1]);
+    await expect(releasePausedDays(o.publicId, [D[3]], null)).resolves.toBe(1);
+    expect((await rowOn(o.id, D[3])).status).toBe("scheduled");
+    expect(await units()).toBe(before);
+  });
+
+  it("a scheduled make-up counts as going out: all originals paused plus a make-up is not fully paused", async () => {
+    const o = await activatedOrder();
+    const [src] = await rowsFor(o.id);
+    await db.insert(deliveries).values({ orderId: o.id, deliveryDate: "2030-01-14", status: "scheduled", cutoffAt: Date.now() + 1e9, makeupForDeliveryId: src!.id, tiffinUnits: 1 });
+    await pauseDays(o.publicId, [...D], null);
+    expect(await isOrderFullyPaused(db, o.id, "2029-12-01")).toBe(false);
   });
 });
 
@@ -295,6 +363,19 @@ describe("D4: when a lapsed pause or a hold can be moved", () => {
     expect(rows.map((r) => [r.deliveryDate, r.status, r.lapsedPause])).toEqual([
       [D[0], "skipped", true], [D[1], "skipped", false], [D[2], "scheduled", false], [D[3], "scheduled", false], [D[4], "scheduled", false],
     ]);
+  });
+
+  it("a pause staff re-opened and routed, then held, waits for the truck like any hold", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    const row = await rowOn(o.id, D[0]);
+    await adminSetDeliveryStatus(row.publicId, "upcoming", null);
+    await db.update(deliveries).set({ routeSyncedAt: Date.now() }).where(eq(deliveries.id, row.id));
+    await expire(o.id, D[0]);
+    await adminSetDeliveryStatus(row.publicId, "not_delivered", null);
+    await expect(rescheduleDelivery(row.publicId, "2030-01-14", null)).rejects.toThrow(/on hold/i);
+    const [shown] = await myDeliveries(o.userId!, D[0], D[0]);
+    expect([shown!.status, shown!.lapsedPause]).toEqual(["skipped", false]);
   });
 
   it("any other hold keeps waiting until its delivery day is over", async () => {

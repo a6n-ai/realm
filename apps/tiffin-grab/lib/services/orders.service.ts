@@ -49,7 +49,7 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
-import { lapseElapsedPauses } from "./pause-days.service";
+import { lapseElapsedPausesSafe } from "./pause-days.service";
 import { MOVED_AWAY } from "./pause-state";
 import { ledgerService } from "./ledger.service";
 import { assertNoPlanOverlap } from "./order-window";
@@ -2031,7 +2031,7 @@ export const reassignOrder = (publicId: string, ownerId: string): Promise<void> 
 // closed, and an order those pauses flipped to "paused" goes back to active once nothing is paused
 // ahead. Day-set pauses never touch orders.status, so that last step only ever applies to old data.
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
-  await lapseElapsedPauses(orderId);
+  await lapseElapsedPausesSafe(orderId);
   const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
   let changed = false;
   await db.transaction(async (tx) => {

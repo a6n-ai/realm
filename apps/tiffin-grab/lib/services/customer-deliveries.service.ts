@@ -23,7 +23,7 @@ import { isPaymentReviewStatus } from "@/lib/orders/display-status";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
-import { lapseElapsedPauses } from "./pause-days.service";
+import { lapseElapsedPausesSafe } from "./pause-days.service";
 import { isLapsedPause, isOrderFullyPaused, lapsedPauseDates } from "./pause-state";
 import { toDropOffValues } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
@@ -157,7 +157,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
   const stranded = await db.selectDistinct({ id: orders.id }).from(orders)
     .innerJoin(deliveries, eq(deliveries.orderId, orders.id))
     .where(and(eq(orders.userId, userId), eq(deliveries.status, "paused"), lte(deliveries.cutoffAt, Date.now())));
-  await Promise.all(stranded.map((o) => lapseElapsedPauses(o.id)));
+  await Promise.all(stranded.map((o) => lapseElapsedPausesSafe(o.id)));
   // Legacy range pauses: close an elapsed window and return an order that has nothing paused left to active.
   const pausedOrderIds = await db.select({ id: orders.id }).from(orders)
     .where(and(eq(orders.userId, userId), eq(orders.status, "paused")));

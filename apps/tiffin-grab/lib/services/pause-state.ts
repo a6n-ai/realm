@@ -64,8 +64,9 @@ export async function lapsedPauseDates(exec: Reader, orderIds: bigint[]): Promis
   return out;
 }
 
-export function isLapsedPause(row: { status: string; deliveryDate: string }, lapsed: ReadonlySet<string> | undefined): boolean {
-  return row.status === "skipped" && !!lapsed?.has(row.deliveryDate);
+/** Lapsed from a pause AND no route stop: a day staff re-opened and routed, then held, still waits for the truck. */
+export function isLapsedPause(row: { status: string; deliveryDate: string; routeSyncedAt: number | null }, lapsed: ReadonlySet<string> | undefined): boolean {
+  return row.status === "skipped" && row.routeSyncedAt == null && !!lapsed?.has(row.deliveryDate);
 }
 
 /**

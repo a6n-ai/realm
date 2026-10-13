@@ -15,7 +15,7 @@ import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
 import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
-import { lapseElapsedPauses } from "@/lib/services/pause-days.service";
+import { lapseElapsedPausesSafe } from "@/lib/services/pause-days.service";
 import { isOrderFullyPaused } from "@/lib/services/pause-state";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
@@ -90,7 +90,7 @@ async function OrderDetail({
   }
 
   // A paused day past its cutoff is a hold: convert it (under the order lock) before the page reads any delivery.
-  if (order.status === "active" || order.status === "paused") await lapseElapsedPauses(order.id);
+  if (order.status === "active" || order.status === "paused") await lapseElapsedPausesSafe(order.id);
 
   const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone] = await Promise.all([
     listOrderActivities(order.id),
