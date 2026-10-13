@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionAvailability, buildDayStatusMap, buildTrips, type CalendarDayInput, type PlanContext, type TripAction } from "../index";
+import { actionAvailability, buildDayStatusMap, buildTrips, holdAwaitingReconcile, type CalendarDayInput, type PlanContext, type TripAction } from "../index";
 
 // Mon 2026-09-21 12:00 America/Toronto (EDT, UTC-4)
 const NOW = Date.UTC(2026, 8, 21, 16, 0);
@@ -127,6 +127,15 @@ describe("actionAvailability copy", () => {
     expect(actionAvailability(one(held, plan, NOW + 2 * 86_400_000), NOW + 2 * 86_400_000, plan).move.ok).toBe(true);
     // OptimoRoute already reported the failure: reconciled, movable right away.
     expect(actionAvailability(one({ ...held, optimoCompletionStatus: "failed" }), NOW, plan).move.ok).toBe(true);
+  });
+  it("a hold with no route stop still waits; only a lapsed pause is movable at once", () => {
+    const held = { date: "2026-09-22", status: "skipped" as const, locked: true, cutoffAt: NOW - 1 };
+    expect(holdAwaitingReconcile({ cutoffAt: NOW - 1, date: "2026-09-22" }, NOW, plan.timezone)).toBe(true);
+    expect(holdAwaitingReconcile({ cutoffAt: NOW - 1, date: "2026-09-22", lapsedPause: true }, NOW, plan.timezone)).toBe(false);
+    expect(actionAvailability(one(held), NOW, plan).move.ok).toBe(false);
+    const lapsed = actionAvailability(one({ ...held, lapsedPause: true }), NOW, plan);
+    expect(lapsed.move.ok).toBe(true);
+    expect(lapsed.move.sub).toBe("Pick a new day for this tiffin");
   });
   it("a moved-away day can't move again", () => {
     const a = actionAvailability(one({ date: "2026-09-25", status: "skipped", rescheduled: true }), NOW, plan);

@@ -154,7 +154,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     render(<OrderWeekHub data={heldData} />);
     expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Release hold|On hold/ })).toBeNull();
-    expect(screen.getByText("This delivery isn't going out.")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
     cleanup();
     render(<OrderWeekHub data={heldData} canEditDeliveryStatus />);
     expect(screen.getByRole("button", { name: "Release hold to a new day" })).toBeTruthy();

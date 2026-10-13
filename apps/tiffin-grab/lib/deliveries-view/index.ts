@@ -42,8 +42,8 @@ export type CalendarDayInput = {
   appliedSwaps?: Record<string, { label: string }[]>;
   /** Staff's reason when this is a free tiffin; null for a paid one. */
   complimentaryNote?: string | null;
-  /** False when this stop is not on a route. Omitted means it might still be. */
-  routed?: boolean;
+  /** A day paused through the day-set pause that went past cutoff and became a hold. It has no route stop. */
+  lapsedPause?: boolean;
 };
 
 export type TiffinMove = { from: string | null; to: string };
@@ -93,7 +93,7 @@ export type Trip = {
   optimoCompletionStatus?: string | null;
   /** Staff's reason when this is a free tiffin; null for a paid one. */
   complimentaryNote?: string | null;
-  routed?: boolean;
+  lapsedPause?: boolean;
 };
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -156,7 +156,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         movesIn: d.movesIn ?? [],
         movesOut: d.movesOut ?? [],
         complimentaryNote: d.complimentaryNote ?? null,
-        routed: d.routed,
+        lapsedPause: d.lapsedPause,
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -192,13 +192,13 @@ export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripS
  * already reconciled.
  */
 export function holdAwaitingReconcile(
-  d: { cutoffAt: number; date: string; optimoCompletionStatus?: string | null; routed?: boolean },
+  d: { cutoffAt: number; date: string; optimoCompletionStatus?: string | null; lapsedPause?: boolean },
   now: number,
   timezone: string,
 ): boolean {
-  // A pause already took the stop off the route. Nothing is left to reconcile, so Move is open.
-  // An admin hold that was synced still waits until the day is over.
-  if (d.routed === false) return false;
+  // A lapsed pause never had a stop on the route, so there is nothing to reconcile and Move is open.
+  // Every other hold waits until its day is over.
+  if (d.lapsedPause) return false;
   return d.optimoCompletionStatus !== "failed" && now >= d.cutoffAt && d.date >= zonedDateIso(now, timezone);
 }
 

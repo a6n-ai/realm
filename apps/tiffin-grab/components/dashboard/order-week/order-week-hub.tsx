@@ -255,8 +255,6 @@ function SelectedDelivery({
     isDeliveryDay: isAddressRow(rows, row),
     movedTo: row.movedTo,
     trial: plan.sub.trial,
-    // On hold is the admin correction after cutoff. The same Pause drawer is for everyone.
-    releaseHold: editChoice === "on_hold",
   });
   const addressOk = model.rows.some((r) => r.key === "address" && r.av.ok);
   const carried = trip.date !== row.date;

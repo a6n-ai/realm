@@ -122,10 +122,10 @@ describe("DeliveriesView (one plan)", () => {
     expect(screen.queryByRole("button", { name: /Hold|Resume|Edit meal|On hold|Release hold/ })).toBeNull();
     expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
   });
-  it("a staff hold is not a customer control", () => {
+  it("any hold is the customer's to move, as on a failed drop", () => {
     view("2026-09-26", [trip({ date: "2026-09-26", status: "failed" })]);
-    expect(screen.queryByRole("button", { name: /Hold|On hold|Release hold|Move to another day/ })).toBeNull();
-    expect(screen.getByText("This delivery isn't going out.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /On hold|Release hold/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
   });
   it("delivered eating day: no action rows", () => {
     view("2026-09-21");
