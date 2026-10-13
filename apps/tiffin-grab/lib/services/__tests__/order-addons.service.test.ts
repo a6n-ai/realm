@@ -3,6 +3,11 @@ import { asc, eq, ne } from "drizzle-orm";
 import { nextWeekday, ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const publish = vi.hoisted(() => ({ failRefresh: false }));
+vi.mock("@/lib/realtime/publish-inbox", async (orig) => {
+  const real = await orig<typeof import("@/lib/realtime/publish-inbox")>();
+  return { ...real, publishUserRefresh: (id: string) => { if (publish.failRefresh) throw new Error("bus down"); real.publishUserRefresh(id); } };
+});
 
 const { db } = await import("@/db/client");
 const { addons, deliveries, ledgerEntries, orderActivities, orderAddons, orders, payments, users } = await import("@/db/schema");
@@ -319,5 +324,20 @@ describe("order add-ons mid-plan (integration)", () => {
     const addon = await anAddon();
     await db.update(orders).set({ userId: null }).where(eq(orders.id, order.id));
     await expect(quoteOrderAddons(order.publicId, [{ key: addon.key, qty: 1 }], "etransfer")).rejects.toThrow("no customer");
+  });
+
+  it("a failing post-commit refresh does not fail the save, so a retry cannot pay twice", async () => {
+    const order = await runningOrder();
+    const addon = await anAddon();
+    publish.failRefresh = true;
+    try {
+      const quote = await saveShown(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF });
+      expect(quote.amountDue).toBeGreaterThan(0);
+    } finally {
+      publish.failRefresh = false;
+    }
+    const pays = await db.select().from(payments).where(eq(payments.orderId, order.id));
+    expect(pays.filter((p) => p.note?.startsWith("Add-ons:"))).toHaveLength(1);
+    expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id))).toHaveLength(1);
   });
 });

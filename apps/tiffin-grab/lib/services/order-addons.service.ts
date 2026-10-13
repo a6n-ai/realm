@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
 import { findMethod } from "@foundry/payments";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, orderActivities, orderAddons, orders, payments, users, type PaymentProof } from "@/db/schema";
@@ -14,6 +15,8 @@ import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
 import { openTiffinCount } from "./tiffin-counts";
+
+const log = createLogger("order-addons.service");
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type PaymentMethodValue = (typeof payments.method.enumValues)[number];
@@ -133,10 +136,11 @@ export async function addOrderAddons(
   input: { selections: AddonSelection[]; methodId: string; expectedAmountDue: number; proof?: PaymentProof | null; reference?: string | null },
   actorId: bigint | null,
 ): Promise<AddonQuote> {
-  const { quote, userId } = await db.transaction(async (tx) => {
+  const { quote, userPublicId } = await db.transaction(async (tx) => {
     const p = await priceAddons(tx, orderPublicId, input.selections, input.methodId, true);
     const { order, pricing } = p;
     const userId = order.userId!;
+    const [customer] = await tx.select({ publicId: users.publicId }).from(users).where(eq(users.id, userId)).limit(1);
     // A check only: the amount written below is always the server's. Cutoffs and prices move
     // between the quote on screen and Save, and the screenshot matches what staff saw.
     if (pricing.amountDue.toFixed(2) !== input.expectedAmountDue.toFixed(2)) {
@@ -198,10 +202,14 @@ export async function addOrderAddons(
       });
     }
 
-    return { quote: toQuote(p), userId };
+    return { quote: toQuote(p), userPublicId: customer?.publicId ?? null };
   });
-  publishAnalyticsLive();
-  const [customer] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, userId)).limit(1);
-  if (customer) publishUserRefresh(customer.publicId);
+  // The save is committed: nothing below may throw, or staff would retry and pay twice.
+  try {
+    publishAnalyticsLive();
+    if (userPublicId) publishUserRefresh(userPublicId);
+  } catch (e) {
+    log.error({ err: e }, "add-on live refresh failed");
+  }
   return quote;
 }

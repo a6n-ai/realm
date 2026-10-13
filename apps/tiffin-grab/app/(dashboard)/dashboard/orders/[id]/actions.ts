@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ValidationError } from "@foundry/commons";
+import { formatMoney, ValidationError } from "@foundry/commons";
 import { memoryBus } from "@foundry/realtime/server";
 import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
@@ -146,14 +146,18 @@ export async function addOrderAddonsAction(orderId: string, form: FormData): Pro
     const expectedAmountDue = typeof shown === "string" && shown.trim() !== "" ? Number(shown) : NaN;
     if (!Number.isFinite(expectedAmountDue) || expectedAmountDue < 0) throw new ValidationError("Add-on amount missing, reopen the dialog");
     // Every rule runs before the screenshot is stored, so a refused save leaves no orphan file.
-    await quoteOrderAddons(orderId, selections, methodId);
+    const fresh = await quoteOrderAddons(orderId, selections, methodId);
+    if (fresh.amountDue.toFixed(2) !== expectedAmountDue.toFixed(2)) {
+      throw new ValidationError(`The amount changed to ${formatMoney(fresh.amountDue)}. Check with the customer and try again.`);
+    }
+    const actorId = await currentUserId();
     // The first argument only names the storage folder; the payment row does not exist yet.
     const proof = await uploadPaymentProof(orderId, form.get("proof"), form.get("proof_thumb"));
     const ref = form.get("reference");
     await addOrderAddons(
       orderId,
       { selections, methodId, expectedAmountDue, proof, reference: typeof ref === "string" ? ref : null },
-      await currentUserId(),
+      actorId,
     );
   });
   if ("ok" in res) {

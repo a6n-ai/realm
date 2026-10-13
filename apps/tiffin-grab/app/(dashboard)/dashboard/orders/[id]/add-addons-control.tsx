@@ -36,12 +36,14 @@ export function AddAddonsControl({
   // Keyed by the inputs it answers, so a result for older inputs is never shown or saved.
   const [result, setResult] = useState<{ key: string; quote: AddonQuote | null; error: string | null } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  // Bumped to ask for a fresh quote for the same inputs (after a refused save or a failed quote).
+  const [refresh, setRefresh] = useState(0);
   const [saving, startSaving] = useTransition();
 
   const selections = options.filter((o) => (qty[o.key] ?? 0) > 0).map((o) => ({ key: o.key, qty: qty[o.key]! }));
   const selectionKey = JSON.stringify(selections);
   const method = methods.find((m) => m.id === methodId);
-  const inputKey = `${methodId}|${selectionKey}`;
+  const inputKey = `${methodId}|${selectionKey}|${refresh}`;
   const current = open && selections.length > 0 && result?.key === inputKey ? result : null;
   const quote = current?.quote ?? null;
   const error = formError ?? current?.error ?? null;
@@ -83,6 +85,7 @@ export function AddAddonsControl({
     setFile(null);
     setResult(null);
     setFormError(null);
+    setRefresh(0);
   }
 
   function save() {
@@ -107,6 +110,7 @@ export function AddAddonsControl({
       const res = await addOrderAddonsAction(orderId, form);
       if ("error" in res) {
         setFormError(res.error);
+        setRefresh((n) => n + 1);
         return;
       }
       toast.success("Add-ons added and payment recorded");
@@ -219,6 +223,11 @@ export function AddAddonsControl({
         {error && (
           <p className="text-destructive" role="alert">
             {error}
+            {!formError && selections.length > 0 && (
+              <Button size="sm" variant="outline" className="ml-2" onClick={() => setRefresh((n) => n + 1)}>
+                Try again
+              </Button>
+            )}
           </p>
         )}
       </div>
