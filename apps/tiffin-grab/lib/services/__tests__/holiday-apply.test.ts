@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, asc, eq, isNull, like, sql } from "drizzle-orm";
+import { and, asc, eq, like, sql } from "drizzle-orm";
 import { cutoffMsFor } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -22,11 +22,14 @@ const DEP2 = "SUB-HOLAPPLY02";
 const PFX = "tholapply";
 const FAR = Date.now() + 1e9;
 
-async function brandOrgId(): Promise<string> {
-  const [row] = await db.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId)).limit(1);
+// Own organization per file: holidays are unique per organization + date, and files run in parallel.
+async function ownOrgId(): Promise<string> {
+  const slug = `${PFX}-org`;
+  const [row] = await db.select({ id: organization.id }).from(organization).where(eq(organization.slug, slug)).limit(1);
   if (row) return row.id;
-  const [made] = await db.insert(organization).values({ name: "Tiffin Grab", clientCode: "TG", parentOrganizationId: null }).returning({ id: organization.id });
-  return made!.id;
+  const [made] = await db.insert(organization).values({ name: `${PFX} org`, slug, clientCode: PFX.toUpperCase() }).onConflictDoNothing().returning({ id: organization.id });
+  if (made) return made.id;
+  return (await db.select({ id: organization.id }).from(organization).where(eq(organization.slug, slug)).limit(1))[0]!.id;
 }
 const reset = async () => {
   // DEP2 shares DEP's customer in one test: clear its order first, without touching users.
@@ -37,7 +40,7 @@ const reset = async () => {
 /** mwf: Mon [7,8], Wed [9,10], Fri [11,12,13]. 5_day: Mon..Thu one day each, Fri [11,12,13]. All from Mon 2030-01-07. */
 async function orderWithOrg(frequencyKey: "mwf" | "5_day" = "mwf") {
   const made = await makeTripOrder(DEP, PFX, 1, frequencyKey);
-  const org = await brandOrgId();
+  const org = await ownOrgId();
   const [order] = await db.update(orders).set({ organizationId: org }).where(eq(orders.id, made.order.id)).returning();
   return { ...made, order: order!, org };
 }

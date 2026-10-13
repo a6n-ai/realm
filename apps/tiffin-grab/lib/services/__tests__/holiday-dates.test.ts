@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq, isNull, like } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { deliveries, holidays, orders, organization } = await import("@/db/schema");
@@ -9,11 +9,14 @@ const { makeTripOrder, resetTrips } = await import("./trip-fixture");
 const DEP = "SUB-HOLDATES01";
 const PFX = "tholdt";
 
-async function brandOrgId(): Promise<string> {
-  const [row] = await db.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId)).limit(1);
+// Own organization per file: holidays are unique per organization + date, and files run in parallel.
+async function ownOrgId(): Promise<string> {
+  const slug = `${PFX}-org`;
+  const [row] = await db.select({ id: organization.id }).from(organization).where(eq(organization.slug, slug)).limit(1);
   if (row) return row.id;
-  const [made] = await db.insert(organization).values({ name: "Tiffin Grab", clientCode: "TG", parentOrganizationId: null }).returning({ id: organization.id });
-  return made!.id;
+  const [made] = await db.insert(organization).values({ name: `${PFX} org`, slug, clientCode: PFX.toUpperCase() }).onConflictDoNothing().returning({ id: organization.id });
+  if (made) return made.id;
+  return (await db.select({ id: organization.id }).from(organization).where(eq(organization.slug, slug)).limit(1))[0]!.id;
 }
 const reset = async () => {
   await resetTrips(DEP, PFX);
@@ -25,7 +28,7 @@ describe("holiday-dates", () => {
   afterAll(reset);
 
   it("returns holidays on or after `from` for one organization, keyed by date", async () => {
-    const org = await brandOrgId();
+    const org = await ownOrgId();
     await db.insert(holidays).values([
       { organizationId: org, date: "2030-01-09", name: `${PFX} mid` },
       { organizationId: org, date: "2030-01-02", name: `${PFX} early` },
@@ -40,7 +43,7 @@ describe("holiday-dates", () => {
   });
 
   it("finds the holiday for an order's organization and date", async () => {
-    const org = await brandOrgId();
+    const org = await ownOrgId();
     const { order } = await makeTripOrder(DEP, PFX);
     await db.insert(holidays).values({ organizationId: org, date: "2030-01-09", name: `${PFX} one` });
     expect(await holidayForOrderDate(db, order.id, "2030-01-09")).toBeNull();
@@ -50,7 +53,7 @@ describe("holiday-dates", () => {
   });
 
   it("refuses a start date that is a holiday and allows the day after", async () => {
-    const org = await brandOrgId();
+    const org = await ownOrgId();
     await db.insert(holidays).values({ organizationId: org, date: "2030-02-04", name: `${PFX} closed` });
     await expect(assertStartNotHoliday(db, org, "2030-02-04")).rejects.toThrow(`We are closed on Mon, Feb 4 (${PFX} closed). Pick another start date`);
     await expect(assertStartNotHoliday(db, org, "2030-02-05")).resolves.toBeUndefined();
@@ -58,7 +61,7 @@ describe("holiday-dates", () => {
   });
 
   it("a closed row and the rows added for it carry their links", async () => {
-    const org = await brandOrgId();
+    const org = await ownOrgId();
     const { order, wed } = await makeTripOrder(DEP, PFX);
     const [h] = await db.insert(holidays).values({ organizationId: org, date: "2030-01-09", name: `${PFX} link` }).returning();
     await db.update(deliveries).set({ status: "paused", holidayId: h!.id }).where(eq(deliveries.id, wed.id));
