@@ -154,7 +154,7 @@ export function dayNote(r: EatingRow, staff = false): string[] {
   if (!t.holidayName) return [];
   const where = t.holidayExtras?.length ? `Added at the end of the plan: ${dateList(t.holidayExtras)}`
     : r.movedTo ? `Moved to ${humanDate(r.movedTo)}`
-    : t.status === "holiday" ? "This tiffin will be added back to the plan."
+    : t.status === "holiday" ? "The kitchen is closed that day. The team will place this tiffin on a new day."
     : `The kitchen was closed that day. ${staff ? "Place" : "Move"} this tiffin ${staff ? "on" : "to"} another day.`;
   return [`Holiday: ${t.holidayName}`, where];
 }
@@ -163,7 +163,7 @@ export function dayNote(r: EatingRow, staff = false): string[] {
 export function deliveryLine(r: EatingRow): string {
   // A closed day has no truck, so it never "arrives"; the extra day may not be placed yet.
   if (r.trip.holidayName) return dayNote(r).join(". ");
-  if (r.trip.status === "holiday") return r.movedTo ? `Kitchen closed. Moved to ${humanDate(r.movedTo)}` : "Kitchen closed. Your tiffin will be added to the end of your plan";
+  if (r.trip.status === "holiday") return r.movedTo ? `Kitchen closed. Moved to ${humanDate(r.movedTo)}` : "The kitchen is closed that day. The team will place this tiffin on a new day.";
   if (r.movedTo) return `Moved to ${humanDate(r.movedTo)}`;
   const t = r.trip;
   const day = humanDate(t.date);

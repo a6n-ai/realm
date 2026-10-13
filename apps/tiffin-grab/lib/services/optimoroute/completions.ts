@@ -129,7 +129,8 @@ export async function applyCompletion(
 
   if (action === "confirm" || action === "restore") {
     await db.update(deliveries).set({
-      ...(action === "restore" ? { status: "scheduled" as const } : {}),
+      // Back on the route: no longer closed, so the holiday tag goes too.
+      ...(action === "restore" ? { status: "scheduled" as const, holidayId: null } : {}),
       optimoCompletionStatus: "success",
       optimoCompletedAt: completedAtMs,
       optimoCompletionNote: null,

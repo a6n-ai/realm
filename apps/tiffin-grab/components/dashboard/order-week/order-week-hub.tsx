@@ -221,7 +221,8 @@ const OPENS: Record<TripAction, Dlg> = { pick: "pick", move: "reschedule", addre
 type StatusValue = "upcoming" | "delivered" | "on_hold" | "not_delivered" | "paused";
 
 function statusChoice(trip: Trip): StatusValue | null {
-  if (!trip.deliveryId || trip.mergedInto) return null;
+  // A holiday-closed day is placed or moved, never set to a status: the server refuses Upcoming on it.
+  if (!trip.deliveryId || trip.mergedInto || trip.holidayName) return null;
   switch (trip.status) {
     case "combined-into":
     case "rescheduled":

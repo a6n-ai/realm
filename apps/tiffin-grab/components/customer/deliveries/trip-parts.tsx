@@ -309,19 +309,6 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
   );
 }
 
-export const EXPLAIN: Record<Trip["status"], string> = {
-  upcoming: "Scheduled. Changes open until cutoff.",
-  delivered: "This delivery has been made.",
-  unconfirmed: "Out for delivery.",
-  "cutoff-passed": "Being prepared. Can't be changed.",
-  rescheduled: "Moved to another day.",
-  locked: "Closed for changes.",
-  vacation: "Paused. Resume it before cutoff, or move it to another day.",
-  "combined-into": "Combined into another delivery.",
-  failed: "Not delivered. Move it to another day.",
-  holiday: "The kitchen is closed. This tiffin is added back at the end of the plan.",
-};
-
 /** Meal breakdown of one eating day (category, portion after swaps, dishes), with a compact delivery footer. */
 export type MealCategory = { category: string; label: string; items: { name: string; portion: string | null }[] };
 type MealPlan = Pick<PlanView, "days" | "portionsByDate" | "categoryPortionSlots" | "categoryPortions">;
@@ -384,7 +371,7 @@ export function MealTiles({ cats }: { cats: MealCategory[] }) {
 export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
   const t = row.trip;
   const cats = plan ? mealCategories(row, plan) : [];
-  const delivery = row.trip.holidayName ? deliveryLine(row) : row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [
+  const delivery = row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [
     deliveryLine(row),
     `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
     ...moveNotes(row),

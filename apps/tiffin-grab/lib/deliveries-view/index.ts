@@ -172,8 +172,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         movesOut: d.movesOut ?? [],
         complimentaryNote: d.complimentaryNote ?? null,
         lapsedPause: d.lapsedPause,
-        // A scheduled day is open for business: a leftover name must not paint it as a holiday.
-        holidayName: d.status === "scheduled" ? null : (d.holidayName ?? null),
+        holidayName: d.holidayName ?? null,
         holidayExtras: d.holidayExtras ?? [],
       };
     })
@@ -227,6 +226,7 @@ const yes = (sub: string): Availability => ({ ok: true, why: null, sub });
 function moveAvailability(trip: Trip, now: number, plan: PlanContext, blocked: (delivered: string) => string): Availability {
   if (trip.status === "upcoming") return yes("Pick a new delivery day");
   if (trip.status === "failed" && holdAwaitingReconcile(trip, now, plan.timezone)) {
+    if (trip.holidayName) return no(`Kitchen is closed: ${trip.holidayName}. This tiffin can be moved after midnight, once ${humanDate(trip.date)}'s deliveries are reconciled.`);
     return no(`On hold. Release it to a new day after midnight, once ${humanDate(trip.date)}'s deliveries are reconciled.`);
   }
   if (trip.status === "failed") return yes("Pick a new day for this tiffin");
@@ -240,7 +240,7 @@ export function actionAvailability(trip: Trip, now: number, plan: PlanContext): 
   const s = trip.status;
   const into = trip.mergedInto ? humanDate(trip.mergedInto) : "";
   if (s === "holiday") {
-    const closedDay = no(`Kitchen is closed${trip.holidayName ? `: ${trip.holidayName}` : ""}. This tiffin is added back at the end of the plan.`);
+    const closedDay = no(`Kitchen is closed${trip.holidayName ? `: ${trip.holidayName}` : ""}. This tiffin is placed on another day.`);
     return { pick: closedDay, swap: closedDay, move: closedDay, address: closedDay };
   }
 

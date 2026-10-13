@@ -309,13 +309,16 @@ export type AgendaDay = {
   deliveryId?: string;
 };
 
+/** The holiday name of a row, only while the row is closed: a scheduled row is going out whatever tag it kept. Every read uses this one expression. */
+const closedHolidayName = sql<string | null>`case when ${deliveries.status} <> 'scheduled' then ${holidays.name} end`;
+
 /**
  * Light agenda for the week strip: one query, no meals/menus. Keyed by EATING day (a trip fans out to each
  * covered day); merged-source rows are skipped because their day already sits in the target trip's covers.
  */
 export async function myAgendaDots(userId: bigint, from: string, until: string): Promise<Record<string, AgendaDay[]>> {
   const rows = await db
-    .select({ d: deliveries, orderId: orders.publicId, holidayName: holidays.name })
+    .select({ d: deliveries, orderId: orders.publicId, holidayName: closedHolidayName })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .leftJoin(holidays, eq(holidays.id, deliveries.holidayId))
@@ -387,7 +390,7 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
       d: deliveries,
       orderPublicId: orders.publicId,
       planName: plans.name,
-      holidayName: holidays.name,
+      holidayName: closedHolidayName,
       routePushed: sql<boolean>`exists (select 1 from ${orderActivities} where ${orderActivities.deliveryId} = ${deliveries.id} and ${orderActivities.type} = 'route_pushed')`,
     })
     .from(deliveries)

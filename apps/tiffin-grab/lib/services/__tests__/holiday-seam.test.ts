@@ -16,6 +16,8 @@ const { getPauseUsage } = await import("../pause-limits.service");
 const { adminSetDeliveryStatus, maybeComplete, rescheduleDelivery } = await import("../deliveries.service");
 const { makeupSourceIdsForOrder, myActiveSubscriptions, myAgendaDots, myDeliveries } = await import("../customer-deliveries.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
+const { applyCompletion } = await import("../optimoroute/completions");
+const { loadDayDeliveries } = await import("../daily-labels.service");
 
 const DEP = "SUB-HOLSEAM001";
 const PFX = "tholseam";
@@ -196,5 +198,35 @@ describe("customer reads carry the holiday", () => {
 
     const moved = await makeupSourceIdsForOrder(order.publicId);
     expect([moved.get(wed.id.toString()), moved.get(mon.id.toString())]).toEqual(["2030-01-14", "2030-01-16"]);
+  });
+});
+
+describe("a row that is going out is never read as closed", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("a scheduled row keeping a stale tag yields no holiday name or dot; the same tag on a paused row still does", async () => {
+    const { order, wed, org } = await orderWithOrg();
+    const { holiday } = await closeForHoliday(wed.id, org, "2030-01-09");
+    const dotsOf = async () => (await myAgendaDots(order.userId!, "2030-01-07", "2030-01-13"))["2030-01-09"] ?? [];
+    const nameOf = async () => (await myDeliveries(order.userId!, "2030-01-07", "2030-01-13")).find((r) => r.id === wed.id)!.holidayName;
+
+    expect([await nameOf(), (await dotsOf()).map((d) => d.holiday)]).toEqual([holiday.name, [holiday.name]]);
+
+    await db.update(deliveries).set({ status: "scheduled" }).where(eq(deliveries.id, wed.id));
+    expect(await nameOf()).toBeNull();
+    expect((await dotsOf()).map((d) => d.holiday ?? null)).toEqual([null]);
+  });
+
+  it("an OptimoRoute restore puts a held tagged row back on the route and clears its tag", async () => {
+    const { fri, org } = await orderWithOrg();
+    const { holiday } = await closeForHoliday(fri.id, org, "2030-01-11");
+    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, fri.id));
+    const [row] = (await loadDayDeliveries("2030-01-11", ["skipped"])).filter((r) => r.delivery.id === fri.id);
+    const res = await applyCompletion(row!, { status: "success" } as never, false, null);
+    expect(res.kind).toBe("outcome");
+    const after = await rowById(fri.id);
+    expect([after.status, after.holidayId]).toEqual(["scheduled", null]);
+    expect(holiday.id).not.toBeNull();
   });
 });

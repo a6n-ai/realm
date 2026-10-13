@@ -260,4 +260,16 @@ describe("OrderWeekHub on a holiday", () => {
     expect(block).toHaveTextContent("Holiday");
     expect(block).not.toHaveTextContent("Not delivered");
   });
+
+  it("an admin who can edit statuses gets no status dropdown on a held holiday day, and nothing on the card reads On hold, Not delivered or Upcoming", () => {
+    const heldDot = { orderId: "o", status: "skipped", cutoffAt: NOW - 1000, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"], holiday: "Thanksgiving" };
+    const held: Trip = { ...mon, status: "failed", coversDates: ["2026-09-21"], eatingDays: [mon.eatingDays[0]!], holidayName: "Thanksgiving", cutoffAt: NOW - 1000 };
+    render(<OrderWeekHub canEditDeliveryStatus data={{ ...data, trips: [held], agenda: { "2026-09-21": [heldDot] } } as unknown as OrderWeek} />);
+    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Monday, September 21/ }));
+    const block = screen.getByTestId("delivery-block");
+    expect(within(block).queryByRole("combobox")).toBeNull();
+    expect(block).toHaveTextContent("Holiday");
+    expect(block).not.toHaveTextContent(/On hold|Not delivered|Upcoming/);
+    expect(within(block).getByTestId("holiday-note")).toHaveTextContent("Place this tiffin on another day.");
+  });
 });

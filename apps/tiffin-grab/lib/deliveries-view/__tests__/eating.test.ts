@@ -162,7 +162,7 @@ describe("deliveryLine on a holiday", () => {
   });
   it("says the tiffin goes to the end of the plan while the extra day is unplaced", () => {
     const line = deliveryLine(closed({ movedTo: null }));
-    expect(line).toBe("Holiday: Diwali. This tiffin will be added back to the plan.");
+    expect(line).toBe("Holiday: Diwali. The kitchen is closed that day. The team will place this tiffin on a new day.");
     expect(line).not.toContain("Arrives");
   });
 });

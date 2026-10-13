@@ -34,7 +34,7 @@ describe("the selected day's holiday note", () => {
   });
 
   it("a closed day still waiting for staff says the tiffin is coming back", () => {
-    expect(dayNote(rowFor({ status: "paused", holidayName: "Diwali" }))).toEqual(["Holiday: Diwali", "This tiffin will be added back to the plan."]);
+    expect(dayNote(rowFor({ status: "paused", holidayName: "Diwali" }))).toEqual(["Holiday: Diwali", "The kitchen is closed that day. The team will place this tiffin on a new day."]);
   });
 
   it("a held holiday row that still carries its tiffin says so, and never also claims it was not delivered", () => {
@@ -43,12 +43,6 @@ describe("the selected day's holiday note", () => {
     expect(dayNote(row, true)).toEqual(["Holiday: Thanksgiving", "The kitchen was closed that day. Place this tiffin on another day."]);
     expect(deliveryLine(row)).not.toMatch(/failed|Not delivered/);
     expect(rowMeta(row).label).toBe("Holiday");
-  });
-
-  it("a scheduled row never carries a holiday, whatever name it has", () => {
-    const row = rowFor({ status: "scheduled", holidayName: "stale" });
-    expect(dayNote(row)).toEqual([]);
-    expect(rowMeta(row).label).toBe("Upcoming");
   });
 
   it("a plain moved day keeps its Out-to chip and has no note", () => {

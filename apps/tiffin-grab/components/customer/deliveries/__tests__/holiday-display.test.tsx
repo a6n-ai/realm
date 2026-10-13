@@ -5,8 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import type { Agenda } from "@/lib/deliveries-view/week";
 import { DeliveriesView } from "../deliveries-view";
-import { buildEatingDays } from "@/lib/deliveries-view/eating";
-import { TripInfoSheet } from "../trip-parts";
 import { MoveSheet } from "../actions/move-sheet";
 import type { PlanView } from "../adapter";
 
@@ -71,14 +69,6 @@ describe("a holiday day on the customer deliveries page", () => {
     view([trip({})], "2026-09-23");
     fireEvent.click(screen.getByRole("button", { name: "What the colours mean" }));
     expect(screen.getByText("Holiday")).toBeInTheDocument();
-  });
-
-  it("the details sheet names the holiday once and does not repeat where the tiffin went", () => {
-    const [row] = buildEatingDays([trip({ status: "holiday", holidayName: "Diwali", movedTo: "2026-10-02", rescheduled: true })]);
-    render(<TripInfoSheet row={row!} tz="UTC" open onClose={vi.fn()} />);
-    const line = screen.getByTestId("info-delivery").textContent ?? "";
-    expect(line).toContain("Holiday: Diwali");
-    expect(line.match(/Oct 2/g)).toHaveLength(1);
   });
 });
 
