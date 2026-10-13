@@ -1796,9 +1796,12 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const { timezone, cutoffHour, minTiffinsPerWeek, maxTiffinsPerWeek } = await getAppSettings();
     const label = (d: readonly string[]) => d.map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join(", ");
     await db.transaction(async (tx) => {
+      // Advisory lock before the row lock (deliveries.service takes it first); the id comes from a plain read.
+      const [idRow] = await tx.select({ id: orders.id }).from(orders).where(eq(orders.publicId, publicId)).limit(1);
+      if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
-      await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
       if (order.status !== "active" && order.status !== "paused" && order.status !== "pending") {
         throw new ValidationError("Eating days can only change on a plan that is running or waiting to start");
       }
@@ -1831,7 +1834,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const now = Date.now();
       const open = rows.filter((r) => r.status === "scheduled" && r.cutoffAt > now && !r.routeSyncedAt && !r.optimoCompletionStatus
         && r.complimentaryNote == null && r.addressLine == null && r.addressId == null
-        && linked(r).every((x) => x == null) && !tied.has(r.id));
+        && linked(r).every((x) => x == null) && !tied.has(r.id)
+        // A day a holiday added keeps its link to the closed day; the ordinary rows are laid around it.
+        && r.holidayExtraForDeliveryId == null);
       const units = open.reduce((n, r) => n + r.tiffinUnits, 0);
       // A tiffin moved to its own later day and not touched since: it can follow the plan's end.
       const movable = rows.filter((r) => r.makeupForDeliveryId != null && r.status === "scheduled" && r.cutoffAt > now

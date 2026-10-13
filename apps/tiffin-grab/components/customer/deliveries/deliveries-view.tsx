@@ -12,7 +12,7 @@ import { addDays, mondayOf, pausedAhead, type Agenda } from "@/lib/deliveries-vi
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { actionModel, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "./action-model";
-import { backOnLine } from "./pause-copy";
+import { resumeLine } from "./pause-copy";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { PauseSheet } from "./actions/pause-sheet";
@@ -130,9 +130,10 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   };
   const resume = (dates: string[] | "all") => startRelease(async () => {
     const res = await releaseMyDays(plan.orderId, dates);
-    if ("error" in res) setToast(res.error);
-    else if (res.dates.length === 0) setToast("Nothing was resumed.");
-    else done(backOnLine(res.dates));
+    if ("error" in res) return setToast(res.error);
+    const line = resumeLine(res.dates, res.reclosed);
+    if (line) done(line);
+    else setToast("Nothing was resumed.");
   });
 
   const dates = Object.keys(agenda).sort();

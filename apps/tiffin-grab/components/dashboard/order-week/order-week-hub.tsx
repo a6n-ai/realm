@@ -26,7 +26,7 @@ import { DeliveryMatrix } from "./delivery-matrix";
 import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
 import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
 import { actionModel, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "@/components/customer/deliveries/action-model";
-import { backOnLine } from "@/components/customer/deliveries/pause-copy";
+import { resumeLine } from "@/components/customer/deliveries/pause-copy";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
 import { PauseSheet } from "@/components/customer/deliveries/actions/pause-sheet";
@@ -274,9 +274,10 @@ function SelectedDelivery({
   });
   const resume = (dates: string[] | "all") => startResume(async () => {
     const res = await releaseMyDays(plan.orderId, dates);
+    const line = "error" in res ? null : resumeLine(res.dates, res.reclosed);
     if ("error" in res) toast.error(res.error);
-    else if (res.dates.length === 0) toast.error("Nothing was resumed.");
-    else onDone(backOnLine(res.dates));
+    else if (line) onDone(line);
+    else toast.error("Nothing was resumed.");
   });
   const addressOk = model.rows.some((r) => r.key === "address" && r.av.ok);
   const carried = trip.date !== row.date;

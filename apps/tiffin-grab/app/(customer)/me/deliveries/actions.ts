@@ -7,7 +7,7 @@ import { NotFoundError } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
 import { setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
-import { listPauseDays, pauseDays, releasePausedDays } from "@/lib/services/pause-days.service";
+import { listPauseDays, pauseDays, releasePausedDaysDetailed, type ReclosedDay } from "@/lib/services/pause-days.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { listValidSwapOptionsForDelivery } from "@/lib/services/swap-options.service";
 import type { SwapOption } from "@/lib/menu/meal-validation";
@@ -97,13 +97,13 @@ export async function pauseMyDays(orderPublicId: string, dates: string[]): Promi
   });
 }
 
-export async function releaseMyDays(orderPublicId: string, dates: string[] | "all"): Promise<ActionResult<{ dates: string[] }>> {
+export async function releaseMyDays(orderPublicId: string, dates: string[] | "all"): Promise<ActionResult<{ dates: string[]; reclosed: ReclosedDay[] }>> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
     await assertOrderUnlocked(orderPublicId);
-    const resumed = await releasePausedDays(orderPublicId, dates, await currentUserId());
+    const { resumed, reclosed } = await releasePausedDaysDetailed(orderPublicId, dates, await currentUserId());
     await revalidateDeliverySurfaces(orderPublicId);
-    return { dates: resumed };
+    return { dates: resumed, reclosed };
   });
 }
 

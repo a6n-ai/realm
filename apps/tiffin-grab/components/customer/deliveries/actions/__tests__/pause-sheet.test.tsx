@@ -79,6 +79,23 @@ describe("PauseSheet", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Thu is back on."));
   });
 
+  it("a resumed day that a holiday closed again is a neutral line, not an error", async () => {
+    a.load.mockResolvedValue(days([WED, true], [THU, true]));
+    a.release.mockResolvedValueOnce({ ok: true, dates: [], reclosed: [{ date: WED, holidayName: "Diwali", placed: true }] });
+    const onDone = await open();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Resume this day" }))[0]!);
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Kitchen is closed on Wed, Sep 23 (Diwali). Your tiffin was added to the end of your plan."));
+    expect(screen.queryByText("Nothing was resumed.")).toBeNull();
+  });
+
+  it("when some days came back and one was closed again, says both", async () => {
+    a.load.mockResolvedValue(days([WED, true], [THU, true]));
+    a.release.mockResolvedValueOnce({ ok: true, dates: [THU], reclosed: [{ date: WED, holidayName: "Diwali", placed: false }] });
+    const onDone = await open();
+    fireEvent.click(screen.getAllByRole("button", { name: "Resume all" })[0]!);
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Thu is back on. Kitchen is closed on Wed, Sep 23 (Diwali). We will place your tiffin on a new day."));
+  });
+
   it("empty selection: confirm does nothing and says to choose a day", async () => {
     await open();
     await screen.findByRole("button", { name: /Wed, Sep 23/ });

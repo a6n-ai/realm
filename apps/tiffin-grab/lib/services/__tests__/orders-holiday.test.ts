@@ -11,9 +11,9 @@ vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async
 const { db } = await import("@/db/client");
 const { deliveries, holidays, ledgerEntries, orders, organization, payments, subscriptionPauses, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { changeOrderEatingDays, changeOrderStartDate, createOrder, startMigratedOrder } = await import("../orders.service");
-const { applyHolidaysToOrder } = await import("../holiday-apply");
-const { releasePausedDays } = await import("../pause-days.service");
+const { activateOrder, changeOrderEatingDays, changeOrderStartDate, createOrder, startMigratedOrder } = await import("../orders.service");
+const { applyHolidaysToOrder, undoHolidayForOrder } = await import("../holiday-apply");
+const { releasePausedDays, releasePausedDaysDetailed } = await import("../pause-days.service");
 const { getPauseUsage } = await import("../pause-limits.service");
 const { adminSetDeliveryStatus } = await import("../deliveries.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
@@ -26,6 +26,7 @@ const PFX = "tholord";
 // far out so no parallel file that creates a near-term order meets it.
 const FAR_MON = "2030-03-04";
 const FAR_TUE = "2030-03-05";
+const FAR_MON_2 = "2030-03-11";
 const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];
 
@@ -163,6 +164,63 @@ describe("holidays at schedule writes", () => {
     expect(await scheduledUnits(order!.id)).toBe(order!.tiffinCount);
   });
 
+  it("a waitlisted order that is activated closes the holiday its schedule meets", async () => {
+    const { order, org } = await orderWithOrg();
+    await addHoliday(org, "2030-01-09");
+    await db.delete(deliveries).where(eq(deliveries.orderId, order.id));
+    await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.id, order.id));
+
+    await activateOrder(order.publicId);
+
+    const rows = await rowsOf(order.id);
+    expect(rows.filter((r) => r.holidayId != null).map((r) => [r.deliveryDate, r.status])).toEqual([["2030-01-09", "paused"]]);
+    expect(await scheduledUnits(order.id)).toBe(order.tiffinCount);
+  });
+
+  it("a new order cannot start on a holiday", async () => {
+    const org = await brandOrgId();
+    await addHoliday(org, FAR_MON_2);
+    const snap = await loadCatalogSnapshot();
+    await expect(createOrder({
+      planKey: snap.plans[0].key,
+      selections: {
+        mealSizeId: snap.mealSizes[0].publicId, frequencyKey: "5_day", persons: 1, mealSlots: ["lunch"],
+        includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate: FAR_MON_2,
+      },
+      contact: { email: `${PFX}${Math.random().toString(36).slice(2)}@test.invalid`, fullName: "A B", phone: `+1647555${Math.floor(1000 + Math.random() * 9000)}`, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    })).rejects.toThrow("We are closed on Mon, Mar 11");
+  });
+
+  it("changing eating days keeps a holiday's added days linked, and removing the holiday later does not double the tiffins", async () => {
+    const made = await makeTripOrder(DEP, PFX, 1, "5_day", 2, { days: ["mon", "tue", "wed", "thu", "fri"], tiffinCount: 10 });
+    const org = await ownOrgId();
+    const [order] = await db.update(orders).set({ organizationId: org }).where(eq(orders.id, made.order.id)).returning();
+    const holiday = (await db.insert(holidays).values({ organizationId: org, date: "2030-01-09", name: `${PFX} link` }).returning())[0]!;
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${order!.id})`);
+      await applyHolidaysToOrder(tx, order!, null);
+    });
+    const before = await rowsOf(order!.id);
+    const closed = before.find((r) => r.holidayId === holiday.id)!;
+    const extraIds = before.filter((r) => r.holidayExtraForDeliveryId === closed.id).map((r) => r.id);
+    expect(extraIds.length).toBe(1);
+
+    await changeOrderEatingDays(order!.publicId, ["mon", "wed", "fri"]);
+
+    const after = await rowsOf(order!.id);
+    expect(after.filter((r) => r.holidayExtraForDeliveryId === closed.id).map((r) => r.id)).toEqual(extraIds);
+    expect(await scheduledUnits(order!.id)).toBe(order!.tiffinCount);
+
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${order!.id})`);
+      await undoHolidayForOrder(tx, order!.id, holiday.id, null);
+    });
+    const undone = await rowsOf(order!.id);
+    expect(undone.find((r) => r.id === closed.id)!.status).toBe("scheduled");
+    expect(undone.some((r) => r.holidayExtraForDeliveryId === closed.id)).toBe(false);
+    expect(await scheduledUnits(order!.id)).toBe(order!.tiffinCount);
+  });
+
   it("a migrated plan cannot start on a holiday", async () => {
     const { order, org } = await orderWithOrg(WC_DEP);
     await addHoliday(org, "2030-01-07");
@@ -213,6 +271,12 @@ describe("a customer pause that meets a holiday", () => {
 
     expect(deleteOrder).toHaveBeenCalledWith(wed.publicId);
     expect((await db.select().from(deliveries).where(eq(deliveries.id, wed.id)))[0]!.routeSyncedAt).toBeNull();
+  });
+
+  it("the detailed release names the day the holiday closed again", async () => {
+    const { order } = await pausedThenDeclared();
+    const res = await releasePausedDaysDetailed(order.publicId, ["2030-01-09"], null);
+    expect(res).toEqual({ resumed: [], reclosed: [{ date: "2030-01-09", holidayName: `${PFX} 2030-01-09`, placed: true }] });
   });
 
   it("the admin status select cannot put a paused day back onto a holiday", async () => {

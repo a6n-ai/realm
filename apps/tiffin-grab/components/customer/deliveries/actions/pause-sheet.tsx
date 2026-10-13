@@ -3,7 +3,7 @@ import { useEffect, useState, useTransition } from "react";
 import { humanDate } from "@/lib/deliveries-view";
 import { loadMyPauseDays, pauseMyDays, releaseMyDays, type PauseDayChoice } from "@/app/(customer)/me/deliveries/actions";
 import { RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "../action-model";
-import { backOnLine, pausedLine } from "../pause-copy";
+import { pausedLine, resumeLine } from "../pause-copy";
 import { KIT_UI } from "./sheet-ui";
 import type { ActionSheetProps } from "./types";
 
@@ -65,8 +65,9 @@ export function PauseSheet({ plan, open, onDone, ui }: Omit<ActionSheetProps, "t
     setError(null);
     const res = await releaseMyDays(plan.orderId, dates);
     if ("error" in res) return setError(res.error);
-    if (res.dates.length === 0) return setError("Nothing was resumed.");
-    onDone(backOnLine(res.dates));
+    const line = resumeLine(res.dates, res.reclosed);
+    if (!line) return setError("Nothing was resumed.");
+    onDone(line);
   });
 
   return (

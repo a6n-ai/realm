@@ -116,6 +116,14 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
 
 /** Put paused days back on the same dates. "all" is every paused day still before cutoff. */
 export async function releasePausedDays(orderPublicId: string, dates: string[] | "all", actorId: bigint | null): Promise<string[]> {
+  return (await releasePausedDaysDetailed(orderPublicId, dates, actorId)).resumed;
+}
+
+/** A resumed day that landed on a declared holiday and was closed again in the same step. */
+export type ReclosedDay = { date: string; holidayName: string; placed: boolean };
+
+/** `releasePausedDays` plus the days a holiday closed again, so the caller can say so instead of "nothing resumed". */
+export async function releasePausedDaysDetailed(orderPublicId: string, dates: string[] | "all", actorId: bigint | null): Promise<{ resumed: string[]; reclosed: ReclosedDay[] }> {
   const order = await orderByPublicId(orderPublicId);
   if (order.status !== "active" && order.status !== "paused") {
     throw new ValidationError(`Cannot resume an order that is ${order.status}`);
@@ -123,6 +131,7 @@ export async function releasePausedDays(orderPublicId: string, dates: string[] |
   const wanted = dates === "all" ? null : uniqueDates(dates);
 
   let closed: OptimoSyncedRow[] = [];
+  let reclosed: ReclosedDay[] = [];
   const resumed = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
     await lapsePausedRows(tx, order.id);
@@ -133,12 +142,13 @@ export async function releasePausedDays(orderPublicId: string, dates: string[] |
     const applied = fresh ? await applyHolidaysToOrder(tx, fresh, actorId) : [];
     closed = applied.map((x) => ({ publicId: x.deliveryPublicId, routeSyncedAt: x.routeSyncedAt }));
     const closedAgain = new Set(applied.map((x) => x.date));
+    reclosed = applied.filter((x) => dates.includes(x.date)).map((x) => ({ date: x.date, holidayName: x.holidayName, placed: x.needsPlacing == null }));
     return dates.filter((d) => !closedAgain.has(d));
   });
   await removeStopsBestEffort(closed.filter((r) => r.routeSyncedAt != null));
   if (resumed.length > 0) await restoreStopsBestEffort(order.id, resumed, actorId);
   publishAnalyticsLive();
-  return resumed;
+  return { resumed, reclosed };
 }
 
 /**
