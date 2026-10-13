@@ -45,9 +45,9 @@ describe("actionModel", () => {
     expect(m.closedReason).toMatch(/Combined into Fri, Sep 25/);
     expect(m.goTo).toBe("2026-09-25");
   });
-  it("a legacy paused day: nothing to resume, its tiffin is moved", () => {
+  it("a paused day: Resume is the one primary and Move sits beside it", () => {
     const m = actionModel(trip({ status: "vacation" }), Date.now(), ctx);
-    expect([m.primary, m.rows.map((r) => r.key)]).toEqual(["move", ["move"]]);
+    expect([m.primary, m.rows.map((r) => r.key), m.resume.day]).toEqual([null, ["move"], true]);
   });
   it("payment locked: view-only, no actions and no bar (not even Edit meal)", () => {
     const m = actionModel(trip(), Date.now(), ctx, { locked: true });
@@ -59,5 +59,31 @@ describe("actionModel", () => {
     const m = actionModel(trip({ status: "failed" }), Date.now(), ctx, { locked: true });
     expect(m.rows).toEqual([]);
     expect(m.primary).toBeNull();
+  });
+  describe("Resume on a paused day", () => {
+    const paused = trip({ status: "vacation" });
+    it("a future paused day offers Resume this day beside Move", () => {
+      const m = actionModel(paused, Date.now(), ctx, { pausedAhead: 1 });
+      expect(m.resume).toEqual({ day: true, all: false });
+      expect(m.rows.map((r) => r.key)).toEqual(["move"]);
+    });
+    it("Resume all appears only when more than one future day is paused", () => {
+      expect(actionModel(paused, Date.now(), ctx, { pausedAhead: 2 }).resume).toEqual({ day: true, all: true });
+      expect(actionModel(paused, Date.now(), ctx, { pausedAhead: 0 }).resume.all).toBe(false);
+    });
+    it("an expired pause (lapsedPause hold): Move only, no Resume", () => {
+      const m = actionModel(trip({ status: "failed", lapsedPause: true }), Date.now(), ctx, { pausedAhead: 3 });
+      expect([m.resume, m.rows.map((r) => r.key), m.primary]).toEqual([{ day: false, all: false }, ["move"], "move"]);
+    });
+    it("an ordinary hold: Move only, no Resume", () => {
+      const m = actionModel(trip({ status: "failed" }), Date.now(), ctx, { pausedAhead: 3 });
+      expect([m.resume, m.rows.map((r) => r.key)]).toEqual([{ day: false, all: false }, ["move"]]);
+    });
+    it("a payment-locked plan offers no Resume", () => {
+      expect(actionModel(paused, Date.now(), ctx, { pausedAhead: 2, locked: true }).resume).toEqual({ day: false, all: false });
+    });
+    it("an upcoming day has nothing to resume", () => {
+      expect(actionModel(trip(), Date.now(), ctx, { pausedAhead: 2 }).resume).toEqual({ day: false, all: false });
+    });
   });
 });

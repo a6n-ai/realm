@@ -8,10 +8,11 @@ import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { buildEatingDays, eatingRowsInWeek, isAddressRow, type EatingRow } from "@/lib/deliveries-view/eating";
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
-import { addDays, mondayOf, type Agenda } from "@/lib/deliveries-view/week";
+import { addDays, mondayOf, pausedAhead, type Agenda } from "@/lib/deliveries-view/week";
 import type { Subscription, SubscriptionWindow } from "@/lib/services/customer-deliveries.service";
 import type { ClaimPaymentContext } from "@/lib/services/orders.service";
-import { actionModel } from "./action-model";
+import { actionModel, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "./action-model";
+import { backOnLine } from "./pause-copy";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { PauseSheet } from "./actions/pause-sheet";
@@ -96,7 +97,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // The menu of this week isn't out: pick/swap are disabled, everything else (dates, move, info) still shows.
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
-  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo, trial: plan.sub.trial === true }) : null;
+  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo, trial: plan.sub.trial === true, pausedAhead: pausedAhead(agenda, now) }) : null;
 
   const qs = (over: Record<string, string | null>) => {
     const p = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
@@ -127,6 +128,11 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
     setActive(null);
     if (message) changed(message);
   };
+  const resume = (dates: string[] | "all") => startRelease(async () => {
+    const res = await releaseMyDays(plan.orderId, dates);
+    if ("error" in res) setToast(res.error);
+    else done(dates === "all" ? res.message ?? "Your paused days are back on." : backOnLine(dates));
+  });
 
   const dates = Object.keys(agenda).sort();
   const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;
@@ -134,7 +140,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const addressRow = model?.rows.find((r) => r.key === "address");
   const tiles = row ? splitMealAddons(mealCategories(row, plan), sub.addons) : { meal: [], addons: [] };
   const helpHref = trip ? `/me/support/new?orderId=${encodeURIComponent(plan.orderId)}&date=${trip.date}` : undefined;
-  const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo || trip.status === "vacation"));
+  const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo || model.resume.day));
 
   return (
     <div className={`${FONT} ${hasBar ? "pb-14" : "pb-4"} lg:pb-8`}>
@@ -214,12 +220,11 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
               onEditAddress={addressRow?.av.ok ? () => setActive("address") : undefined}
             >
               <div className="mt-6 hidden space-y-3 lg:block">
-                {trip.status === "vacation" && (
-                  <Button variant="primary" size="lg" className="w-full" pending={releasing} onClick={() => startRelease(async () => {
-                    const res = await releaseMyDays(plan.orderId, [trip.date]);
-                    if ("error" in res) setToast(res.error);
-                    else done(res.message ?? "That day is back on.");
-                  })}>Resume this day</Button>
+                {model.resume.day && (
+                  <div className="space-y-2">
+                    <Button variant="primary" size="lg" className="w-full" pending={releasing} onClick={() => resume([trip.date])}>{RESUME_DAY_LABEL}</Button>
+                    {model.resume.all && <Button size="lg" className="w-full" pending={releasing} onClick={() => resume("all")}>{RESUME_ALL_LABEL}</Button>}
+                  </div>
                 )}
                 <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} helpHref={helpHref} hide={addressRow?.av.ok ? ["address"] : []} />
               </div>
@@ -230,14 +235,13 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         </div>
       </div>
 
-      {trip && model && (model.rows.length > 0 || model.goTo || trip.status === "vacation") && (
+      {trip && model && (model.rows.length > 0 || model.goTo || model.resume.day) && (
         <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
-          {trip.status === "vacation" && (
-            <Button variant="primary" size="lg" className="min-w-0 flex-1" pending={releasing} onClick={() => startRelease(async () => {
-              const res = await releaseMyDays(plan.orderId, [trip.date]);
-              if ("error" in res) setToast(res.error);
-              else done(res.message ?? "That day is back on.");
-            })}>Resume</Button>
+          {model.resume.day && (
+            <Button variant="primary" size="lg" className="min-w-0 flex-1" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
+          )}
+          {model.resume.all && (
+            <Button size="lg" className="min-w-0 flex-1" pending={releasing} onClick={() => resume("all")}>{RESUME_ALL_LABEL}</Button>
           )}
           <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} helpHref={helpHref} hide={addressRow?.av.ok ? ["address"] : []} />
         </div>

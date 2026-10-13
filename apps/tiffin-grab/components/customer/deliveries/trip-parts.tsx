@@ -304,7 +304,7 @@ export const EXPLAIN: Record<Trip["status"], string> = {
   "cutoff-passed": "Being prepared. Can't be changed.",
   rescheduled: "Moved to another day.",
   locked: "Closed for changes.",
-  vacation: "Paused. Move it to another day.",
+  vacation: "Paused. Resume it before cutoff, or move it to another day.",
   "combined-into": "Combined into another delivery.",
   failed: "Not delivered. Move it to another day.",
 };

@@ -12,8 +12,9 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("tab=deliveries"),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const rel = vi.hoisted(() => vi.fn());
 vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
-  applyMyDeliverySwap: vi.fn(), pauseMyDays: vi.fn(), loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), releaseMyDays: vi.fn(), removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
+  applyMyDeliverySwap: vi.fn(), pauseMyDays: vi.fn(), loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), releaseMyDays: rel, removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
   scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
   setMyDeliveryAddress: vi.fn(), clearMyDeliveryAddress: vi.fn(),
 }));
@@ -159,5 +160,48 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     render(<OrderWeekHub data={heldData} canEditDeliveryStatus />);
     expect(screen.getByRole("button", { name: "Release hold to a new day" })).toBeTruthy();
     expect(screen.getAllByRole("combobox", { name: "Delivery status" }).length).toBeGreaterThan(0);
+  });
+  describe("pause", () => {
+    const paused = { ...mon, status: "vacation" as const, deliveryId: "d1" };
+    const pdot = (date: string) => [date, [{ orderId: "o", status: "paused", cutoffAt: NOW + 30 * 3600e3, deliveryDate: date, truck: true, units: 1, covers: [date], deliveryId: `x-${date}` }]] as const;
+    const withPaused = (n: number, over: object = {}) => ({
+      ...data,
+      trips: [paused],
+      agenda: { ...data.agenda, ...Object.fromEntries([pdot("2026-09-21"), ...(n > 1 ? [pdot("2026-09-23")] : [])]) },
+      plan: { ...data.plan, ...over },
+    }) as unknown as OrderWeek;
+    it("a paused day offers Resume this day beside Move, the same as the customer's card", () => {
+      render(<OrderWeekHub data={withPaused(1)} />);
+      expect(screen.getByRole("button", { name: "Resume this day" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Move to another day" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Resume all" })).toBeNull();
+    });
+    it("two paused days ahead add Resume all, which releases them all", async () => {
+      rel.mockReset();
+      rel.mockResolvedValue({ ok: true, message: "2 days are back on." });
+      render(<OrderWeekHub data={withPaused(2)} />);
+      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
+      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
+    });
+    it("Resume this day releases the selected date", async () => {
+      rel.mockReset();
+      rel.mockResolvedValue({ ok: true });
+      render(<OrderWeekHub data={withPaused(1)} />);
+      fireEvent.click(screen.getByRole("button", { name: "Resume this day" }));
+      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", ["2026-09-21"]));
+    });
+    it("a day past cutoff has no Resume (the hold is the after-cutoff tool)", () => {
+      const lapsed = { ...mon, status: "failed" as const, lapsedPause: true };
+      render(<OrderWeekHub data={{ ...data, trips: [lapsed] } as unknown as OrderWeek} />);
+      expect(screen.queryByRole("button", { name: /^Resume/ })).toBeNull();
+    });
+    it("a trial plan has no Pause", () => {
+      render(<OrderWeekHub data={{ ...data, plan: { ...data.plan, sub: { ...data.plan.sub, trial: true } } } as unknown as OrderWeek} />);
+      expect(screen.queryByRole("button", { name: "Pause" })).toBeNull();
+    });
+    it("a fully paused plan reads that way next to its (still active) status", () => {
+      render(<OrderWeekHub data={withPaused(1, { sub: { ...data.plan.sub, fullyPaused: true } })} />);
+      expect(screen.getByText("All upcoming days paused")).toBeInTheDocument();
+    });
   });
 });

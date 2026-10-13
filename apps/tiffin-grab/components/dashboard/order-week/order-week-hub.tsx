@@ -13,9 +13,10 @@ import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
+import { releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate, type Availability, type PlanContext, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { addDays, dotStatus, mondayOf } from "@/lib/deliveries-view/week";
+import { addDays, dotStatus, mondayOf, pausedAhead } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { cutoffFmt, dedupeDishes, Journey, MealTiles, mealCategories, moveChips, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
@@ -23,7 +24,8 @@ import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
 import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
 import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
-import { actionModel } from "@/components/customer/deliveries/action-model";
+import { actionModel, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "@/components/customer/deliveries/action-model";
+import { backOnLine } from "@/components/customer/deliveries/pause-copy";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
 import { PauseSheet } from "@/components/customer/deliveries/actions/pause-sheet";
@@ -81,6 +83,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <OrderStatusBadge status={plan.sub.displayStatus} />
         {!plan.sub.trial && <Button type="button" variant="outline" onClick={() => setPauseOpen(true)}>Pause</Button>}
+        {plan.sub.fullyPaused && <Badge variant="outline">All upcoming days paused</Badge>}
         <span className="font-medium">{plan.sub.mealSizeName}</span>
         <span className="text-muted-foreground tabular-nums">
           {plan.counts.remaining} of {plan.counts.total} tiffins left
@@ -119,6 +122,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
           tz={tz}
           editChoice={editChoice}
           release={av.move}
+          planAgenda={agenda}
           onDone={done}
           onOpen={setDlg}
         />
@@ -234,7 +238,7 @@ function statusChoice(trip: Trip): StatusValue | null {
 }
 
 function SelectedDelivery({
-  row, trip, plan, now, menuOut, weekStart, weekEnd, rows, tz, editChoice, release, onDone, onOpen,
+  row, trip, plan, now, menuOut, weekStart, weekEnd, rows, tz, editChoice, release, planAgenda, onDone, onOpen,
 }: {
   row: EatingRow;
   trip: Trip;
@@ -247,14 +251,22 @@ function SelectedDelivery({
   tz: string;
   editChoice: StatusValue | null;
   release: Availability;
+  planAgenda: OrderWeek["agenda"];
   onDone: (message?: string) => void;
   onOpen: (d: Dlg) => void;
 }) {
+  const [resuming, startResume] = useTransition();
   const model = actionModel(trip, now, plan.ctx, {
     menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd,
     isDeliveryDay: isAddressRow(rows, row),
     movedTo: row.movedTo,
     trial: plan.sub.trial,
+    pausedAhead: pausedAhead(planAgenda, now),
+  });
+  const resume = (dates: string[] | "all") => startResume(async () => {
+    const res = await releaseMyDays(plan.orderId, dates);
+    if ("error" in res) toast.error(res.error);
+    else onDone(dates === "all" ? res.message ?? "The paused days are back on." : backOnLine(dates));
   });
   const addressOk = model.rows.some((r) => r.key === "address" && r.av.ok);
   const carried = trip.date !== row.date;
@@ -314,7 +326,7 @@ function SelectedDelivery({
         )}
         <div className="flex flex-wrap items-start justify-between gap-3 border-t pt-4">
           {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
-          <Actions model={model} onOpen={onOpen} hide={addressOk ? ["address"] : []} held={editChoice === "on_hold"} />
+          <Actions model={model} onOpen={onOpen} hide={addressOk ? ["address"] : []} held={editChoice === "on_hold"} resuming={resuming} onResume={() => resume([trip.date])} onResumeAll={() => resume("all")} />
         </div>
       </CardContent>
     </Card>
@@ -439,12 +451,14 @@ function DeliveryStatusSelect({
   );
 }
 
-function Actions({ model, onOpen, hide = [], held = false }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void; hide?: TripAction[]; held?: boolean }) {
+function Actions({ model, onOpen, hide = [], held = false, resuming = false, onResume, onResumeAll }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void; hide?: TripAction[]; held?: boolean; resuming?: boolean; onResume?: () => void; onResumeAll?: () => void }) {
   const rows = model.rows.filter((r) => !hide.includes(r.key));
-  if (rows.length === 0) return model.closedReason ? <p className="text-muted-foreground text-sm">{model.closedReason}</p> : null;
+  if (rows.length === 0 && !model.resume.day) return model.closedReason ? <p className="text-muted-foreground text-sm">{model.closedReason}</p> : null;
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
+        {model.resume.day && <Button size="sm" disabled={resuming} onClick={onResume}>{RESUME_DAY_LABEL}</Button>}
+        {model.resume.all && <Button size="sm" variant="outline" disabled={resuming} onClick={onResumeAll}>{RESUME_ALL_LABEL}</Button>}
         {rows.map((r) => (
           <Button key={r.key} variant={r.key === model.primary ? "default" : "outline"} size="sm" disabled={!r.av.ok} onClick={() => onOpen(OPENS[r.key])}>
             {held && r.key === "move" ? "Release hold to a new day" : r.label}

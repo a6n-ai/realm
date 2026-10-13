@@ -229,7 +229,7 @@ async function OrderDetail({
   // Any status but cancelled: a driver can mark a stop delivered that the customer never got.
   const compensated = new Set(deliveryRows.map((r) => r.complimentaryForDeliveryId).filter((id) => id != null).map(String));
   const deliveryState = (r: (typeof deliveryRows)[number]) =>
-    r.status === "paused" ? "vacation"
+    r.status === "paused" ? "paused"
     : r.status === "skipped" ? (r.optimoCompletionStatus === "failed" ? "not delivered" : "on hold")
     : r.optimoCompletionStatus === "success" ? "marked delivered"
     : "not confirmed";
