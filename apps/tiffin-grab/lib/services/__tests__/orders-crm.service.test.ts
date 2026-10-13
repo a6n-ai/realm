@@ -8,7 +8,7 @@ const { orders, payments, orderActivities, ledgerEntries, users } = await import
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, countLookOutOrders } = await import("../orders.service");
+const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, countLookOutOrders } = await import("../orders.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const schema = await import("@/db/schema");
@@ -46,6 +46,8 @@ describe("order CRM queries (integration)", () => {
     const flagged = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Jane Customer", "+16475550111"));
     await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
 
+    await expect(setOrderLookOut(flagged.publicId, true, "   ")).rejects.toThrow("Add a note");
+    await setOrderLookOut(flagged.publicId, true, "  Call first  ");
     await setOrderLookOut(flagged.publicId, true, "  Call before delivery  ");
     const only = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { lookOutOnly: true });
     expect(only.items.map((o) => o.fullName)).toEqual(["Jane Customer"]);
@@ -57,7 +59,21 @@ describe("order CRM queries (integration)", () => {
     await setOrderLookOut(flagged.publicId, false, "");
     expect(await countLookOutOrders("all")).toBe(0);
     const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.type, "note"));
-    expect(notes.map((n) => n.note).sort()).toEqual(["Look out for cleared", "Marked look out for: Call before delivery"]);
+    expect(notes.map((n) => n.note).sort()).toEqual(["Look out for cleared", "Look out for note changed: Call before delivery", "Marked look out for: Call first"]);
+  });
+
+  it("look out for: a ticket flags its order, and leaves a flag staff already set", async () => {
+    const snap = await loadCatalogSnapshot();
+    const order = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    const [{ id }] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, order.publicId));
+    const note = async () => (await db.select({ note: orders.lookOutNote }).from(orders).where(eq(orders.id, id)))[0].note;
+
+    await lookOutForTicket(id, "Missing roti");
+    expect(await note()).toBe("Support ticket: Missing roti");
+
+    await setOrderLookOut(order.publicId, true, "Call first");
+    await lookOutForTicket(id, "Late again");
+    expect(await note()).toBe("Call first");
   });
 
   it("listOrdersPage filters by Condition, search, and paginates with a total", async () => {

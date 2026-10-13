@@ -273,7 +273,7 @@ async function OrderDetail({
   const headerActions = (
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
-      <LookOutControl orderId={order.publicId} flagged={order.lookOutAt != null} />
+      {order.lookOutAt == null && <LookOutControl orderId={order.publicId} />}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
       {canAddAddons && (
         <AddAddonsControl
@@ -311,14 +311,20 @@ async function OrderDetail({
       <StatGrid items={stats} cols={5} />
 
       {order.lookOutAt != null && (
-        <div role="status" data-testid="look-out-banner" className="border-warn/40 bg-warn/10 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
+        <div role="status" data-testid="look-out-banner" className="border-warn/40 bg-warn/10 flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 text-sm">
           <EyeIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="font-medium">Look out for this order</p>
-            <p className="text-muted-foreground text-pretty">
-              {order.lookOutNote ? `${order.lookOutNote} · ` : ""}
+            {/* The note is the point of the flag: its own line, not buried in the byline. */}
+            <p data-testid="look-out-note" className={order.lookOutNote ? "text-foreground my-1 whitespace-pre-line text-base text-pretty" : "text-muted-foreground"}>
+              {order.lookOutNote ?? "No note was added."}
+            </p>
+            <p className="text-muted-foreground text-xs">
               Marked{lookOutBy ? ` by ${lookOutBy}` : ""} on {formatEpoch(order.lookOutAt, { mode: "date", timeZone: settings.timezone })}
             </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <LookOutControl orderId={order.publicId} flaggedNote={order.lookOutNote ?? ""} />
           </div>
         </div>
       )}
