@@ -1,3 +1,5 @@
+// Changes a shared payment setting (e-Transfer) through the UI and restores it afterwards:
+// never run this spec in parallel with other specs.
 import path from "node:path";
 import type { Browser, Page } from "@playwright/test";
 import { test, expect } from "../fixtures";
@@ -6,8 +8,8 @@ import { OrderDetailPage } from "../pages/order-detail.page";
 
 const adminState = path.join(process.cwd(), "e2e/.auth/admin.json");
 
-/** Flips the e-Transfer switch through Settings > Payments; returns the state it found. */
-async function setEtransfer(browser: Browser, baseURL: string | undefined, on: boolean) {
+/** Flips the e-Transfer switch through Settings > Payments; reports the state it found via onRead before changing anything. */
+async function setEtransfer(browser: Browser, baseURL: string | undefined, on: boolean, onRead?: (was: boolean) => void) {
   const ctx = await browser.newContext({ baseURL, storageState: adminState });
   try {
     const page = await ctx.newPage();
@@ -15,6 +17,7 @@ async function setEtransfer(browser: Browser, baseURL: string | undefined, on: b
     const toggle = page.getByRole("switch").first();
     await expect(toggle).toBeVisible({ timeout: 60_000 });
     const was = (await toggle.getAttribute("aria-checked")) === "true";
+    onRead?.(was);
     if (was !== on) {
       await toggle.click();
       if (on) {
@@ -79,15 +82,20 @@ async function openPaidActiveOrder(page: Page) {
 
 test.describe("admin mid-plan add-ons (desktop)", () => {
   test.describe.configure({ mode: "serial" });
-  let etransferWasOn = true;
+  // null until the prior state is read; the restore runs whenever it was off, even if setup threw after saving.
+  let etransferPrior: boolean | null = null;
 
   // A real payment method must be on for the order page to offer add-ons; restore it afterwards.
   test.beforeAll(async ({ browser }) => {
-    etransferWasOn = await setEtransfer(browser, test.info().project.use.baseURL, true);
+    test.setTimeout(150_000);
+    await setEtransfer(browser, test.info().project.use.baseURL, true, (was) => {
+      etransferPrior = was;
+    });
   });
 
   test.afterAll(async ({ browser }) => {
-    if (etransferWasOn) return;
+    test.setTimeout(150_000);
+    if (etransferPrior !== false) return;
     try {
       await setEtransfer(browser, test.info().project.use.baseURL, false);
     } catch (e) {
@@ -104,7 +112,7 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
     const pricing = detail.card("Pricing");
     const totalBefore = await pricing.innerText();
 
-    await page.getByRole("button", { name: "Add-ons" }).click();
+    await page.getByRole("button", { name: /^Add-ons$/ }).click();
     const dialog = page.getByRole("dialog", { name: "Add add-ons to this plan" });
     await expect(dialog).toBeVisible();
 
@@ -112,6 +120,8 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
     const quote = dialog.getByLabel("Add-on quote");
     await expect(quote).toBeVisible();
     await expect(quote.getByText("To collect")).toBeVisible();
+    const toCollect = (await quote.getByText("To collect").locator("xpath=following-sibling::dd").innerText()).trim();
+    expect(toCollect).toMatch(/\$\d/);
 
     await dialog.locator('input[type="file"]').setInputFiles(proofPath);
     await dialog.getByRole("button", { name: /^Add and record / }).click();
@@ -123,18 +133,40 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
 
     await detail.openTab("Payments");
     await expect(detail.paymentCard().getByText("Paid", { exact: true })).toHaveCount(2);
+    // The new payment is for exactly the amount the quote asked to collect.
+    await expect(
+      detail.paymentCard().locator("div, li").filter({ hasText: "Paid" }).filter({ hasText: toCollect }).first(),
+    ).toBeVisible();
     await expect(detail.paymentCard().getByText(/awaiting|pending/i)).toHaveCount(0);
 
     await detail.openTab("Activity");
     await expect(page.getByText(/Add-ons added for the remaining \d+ tiffins/).first()).toBeVisible();
 
+    // Step through the plan's days until one with a released menu shows its meal block.
     await detail.openTab("Deliveries");
     const block = page.getByTestId("delivery-block");
+    const strip = page.getByTestId("week-timeline");
     await expect(block).toBeVisible();
-    if (await block.getByText("Menu not released yet").count()) {
-      test.info().annotations.push({ type: "skipped-assertion", description: "no released menu for the selected day; add-on tiles not asserted" });
-    } else {
-      await expect(block.getByText("Add-ons", { exact: true })).toBeVisible();
+    let checked = 0;
+    let found = false;
+    for (let week = 0; week < 4 && !found; week++) {
+      const days = strip.getByRole("button", { name: /, eating, / }).filter({ hasNotText: /delivered/i });
+      const n = await days.count();
+      for (let i = 0; i < n && !found; i++) {
+        await days.nth(i).click();
+        await expect(days.nth(i)).toHaveAttribute("aria-pressed", "true");
+        checked++;
+        if (!(await block.getByText("Menu not released yet").count())) {
+          await expect(block.getByText("Add-ons", { exact: true })).toBeVisible();
+          found = true;
+        }
+      }
+      const next = strip.getByRole("button", { name: "Next week" });
+      if (found || (await next.isDisabled())) break;
+      await next.click();
+    }
+    if (!found) {
+      test.info().annotations.push({ type: "skip-reason", description: `no upcoming day with a released menu among ${checked} checked; add-on tiles not asserted` });
     }
   });
 });
