@@ -3,7 +3,11 @@ import { count } from "drizzle-orm";
 import { LifeBuoyIcon, InboxIcon, AlertCircleIcon, CheckCircleIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { tickets } from "@/db/schema";
+import { Role } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
+import { getSupportHours } from "@/lib/services/app-settings.service";
+import { SupportHoursDialog } from "./support-hours-dialog";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { parseComplaintFilters, type ComplaintSearchParams } from "@/lib/services/analytics/complaint-filters";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
@@ -49,7 +53,15 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
   return (
     <PageShell>
       <MarkSectionRead section="tickets" />
-      <PageHeader icon={LifeBuoyIcon} title="Tickets" />
+      <PageHeader
+        icon={LifeBuoyIcon}
+        title="Tickets"
+        actions={
+          <Suspense fallback={null}>
+            <SupportHoursAction />
+          </Suspense>
+        }
+      />
       <SectionDateRange />
 
       <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>
@@ -63,6 +75,13 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
       </SectionCard>
     </PageShell>
   );
+}
+
+// Admins only: the hours are a promise to customers.
+async function SupportHoursAction() {
+  await requireStaff();
+  if ((await getSession())?.user.role !== Role.ADMIN) return null;
+  return <SupportHoursDialog value={await getSupportHours()} />;
 }
 
 async function TicketStats({ searchParams }: { searchParams: TicketSearchParams }) {

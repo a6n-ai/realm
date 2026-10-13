@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/customer/kit";
 import { NewTicketControl } from "@/components/customer/support/new-ticket-control";
 import { TicketsList, TicketsListSkeleton } from "@/components/customer/support/tickets-list";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
+import { SupportHoursSlot } from "@/components/customer/support/support-hours";
 import { TopicCards } from "@/components/customer/support/topic-cards";
 
 type SearchParams = Promise<{ orderId?: string }>;
@@ -18,6 +19,9 @@ export default function SupportPage({ searchParams }: { searchParams: SearchPara
     <div className="mx-auto max-w-2xl space-y-6">
       <Suspense fallback={<PageHeader eyebrow="Support" title="How can we" accent="help?" subtitle="Pick a topic or start a new ticket. We reply right here." />}>
         <SupportHeader searchParams={searchParams} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <SupportHoursSlot />
       </Suspense>
       <TopicCards />
       <Suspense fallback={<TicketsListSkeleton />}>

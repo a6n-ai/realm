@@ -158,6 +158,9 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const trimmed = (body ?? "").trim();
     if (!trimmed && attachments.length === 0) throw new ValidationError("Message is required");
 
+    // Whoever answers the customer owns the ticket from then on, whoever held it before.
+    if (actor.isStaff && ticket.currentOwner !== actor.id) await this.setOwner(ticket, actor.id, actor.id);
+
     const authorType: TicketMessageAuthor = actor.isStaff ? "staff" : "customer";
     await this.message(ticket.id, actor.id, authorType, trimmed, attachments);
 
@@ -200,24 +203,24 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     // assignment of an unowned ticket stays open to any staff member.
     if (ticket.currentOwner) await assertReassignAllowed();
     const owner = await resolveAssignableOwner(ownerId);
+    await this.setOwner(ticket, owner.id, actor.id);
+  }
 
-    let previousOwnerName: string | null = null;
-    if (ticket.currentOwner) {
-      const [previousOwner] = await db
-        .select({ name: users.name })
-        .from(users)
-        .where(eq(users.id, ticket.currentOwner))
-        .limit(1);
-      previousOwnerName = previousOwner?.name ?? null;
-    }
+  /** Hands the ticket to `ownerId` and leaves the staff-only note saying who had it before. */
+  private async setOwner(ticket: typeof tickets.$inferSelect, ownerId: bigint, actorId: bigint): Promise<void> {
+    const ids = ticket.currentOwner ? [ownerId, ticket.currentOwner] : [ownerId];
+    const rows = await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, ids));
+    const nameOf = (id: bigint) => rows.find((r) => r.id === id)?.name ?? null;
+    const ownerName = nameOf(ownerId) ?? "staff";
+    const previousOwnerName = ticket.currentOwner ? nameOf(ticket.currentOwner) : null;
 
-    await this.update(publicId, { currentOwner: owner.id });
+    await this.update(ticket.publicId, { currentOwner: ownerId });
     const message = ticket.currentOwner
       ? previousOwnerName
-        ? `Reassigned from ${previousOwnerName} to ${owner.name ?? "staff"}`
-        : `Reassigned to ${owner.name ?? "staff"}`
-      : `Assigned to ${owner.name ?? "staff"}`;
-    await this.message(ticket.id, actor.id, "system", message);
+        ? `Reassigned from ${previousOwnerName} to ${ownerName}`
+        : `Reassigned to ${ownerName}`
+      : `Assigned to ${ownerName}`;
+    await this.message(ticket.id, actorId, "system", message);
   }
 
   async setPriority(publicId: string, priority: TicketPriority): Promise<void> {

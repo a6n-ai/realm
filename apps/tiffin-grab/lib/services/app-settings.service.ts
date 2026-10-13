@@ -15,6 +15,7 @@ import { db } from "@/db/client";
 import { app, deliveries } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
 import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
+import { SUPPORT_HOURS_DEFAULT, parseSupportHours, type SupportHours } from "@/lib/support/support-hours";
 import type { LeadAssignmentConfig } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 
@@ -173,6 +174,29 @@ export async function setLeadAssignment(cfg: LeadAssignmentConfig): Promise<void
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { leadAssignment: cfg });
   else await appSettingsEntity.create({ ...DEFAULTS, leadAssignment: cfg });
+}
+
+export async function getSupportHours(): Promise<SupportHours> {
+  return settingsCache.getOrSet("supportHours", async () => {
+    const [row] = await db.select({ sh: app.supportHours }).from(app).limit(1);
+    try {
+      return parseSupportHours(row?.sh);
+    } catch {
+      return SUPPORT_HOURS_DEFAULT;
+    }
+  });
+}
+
+export async function setSupportHours(input: unknown): Promise<void> {
+  let cfg: SupportHours;
+  try {
+    cfg = parseSupportHours(input);
+  } catch (e) {
+    throw new ValidationError(e instanceof Error ? e.message : "Invalid support hours");
+  }
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { supportHours: cfg });
+  else await appSettingsEntity.create({ ...DEFAULTS, supportHours: cfg });
 }
 
 export async function getDiscountPolicy(): Promise<DiscountPolicy> {

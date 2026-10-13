@@ -167,6 +167,32 @@ describe("ticketsService", () => {
     expect(customerView).toEqual(["Please pause.", "Status: Open → Resolved"]);
   });
 
+  it("a staff reply makes the replier the owner, taking over from a previous owner; a customer reply does not", async () => {
+    const customer = await seedUser("Cust Own", "user");
+    const first = await seedUser("Staff First", "member");
+    const second = await seedUser("Staff Second", "admin");
+    const ownerOf = async (id: bigint) => (await db.select().from(tickets).where(eq(tickets.id, id)))[0].currentOwner;
+
+    actAs(customer, "user");
+    const ticket = await ticketsService.create({ subject: "Owner", category: "order", subcategory: "order_missing", body: "Hello?" });
+
+    actAs(first, "member");
+    await ticketsService.reply(ticket.publicId, "Looking into it");
+    await ticketsService.reply(ticket.publicId, "One moment");
+    expect(await ownerOf(ticket.id)).toBe(first.id);
+
+    actAs(customer, "user");
+    await ticketsService.reply(ticket.publicId, "Thanks");
+    expect(await ownerOf(ticket.id)).toBe(first.id);
+
+    actAs(second, "admin");
+    await ticketsService.reply(ticket.publicId, "Taking over");
+    expect(await ownerOf(ticket.id)).toBe(second.id);
+
+    const notes = (await ticketsService.listMessages(ticket.publicId)).filter((m) => m.authorType === "system").map((m) => m.body);
+    expect(notes).toEqual(["Assigned to Staff First", "Reassigned from Staff First to Staff Second"]);
+  });
+
   it("the customer rates a completed chat 1-5 stars; not before, not staff", async () => {
     const customer = await seedUser("Cust Rate", "user");
     const staff = await seedUser("Staff Rate", "admin");
