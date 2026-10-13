@@ -126,6 +126,20 @@ describe("createOrder (integration)", () => {
     expect(o.userId).toBe(matched.id);
   });
 
+  // The phone and the email are two different people's accounts: picking either
+  // one would put this order, and the overlap guard's verdict, on a stranger.
+  it("refuses an order whose phone and email belong to two different accounts", async () => {
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    await db.insert(users).values([
+      { email: "phone-holder@x.com", phone: input.contact.phone, role: "user" },
+      { email: input.contact.email, role: "user" },
+    ]);
+
+    await expect(createOrder(input)).rejects.toThrow(/phone number is saved on a different account/);
+    expect(await db.select().from(orders)).toHaveLength(0);
+  });
+
   it("attaches to ownerUserId without provisioning by phone", async () => {
     const snap = await loadCatalogSnapshot();
     const [owner] = await db.insert(users).values({ email: "owner@x.com", role: "user" }).returning();

@@ -386,17 +386,20 @@ export async function createOrder(
     }
     let userId = ownerId;
     if (!userId) {
-      const [existing] = await tx
+      const matches = await tx
         .select({ id: users.id })
         .from(users)
         .where(and(or(eq(users.phone, phone), eq(users.email, email)), eq(users.role, "user")))
-        // Phone first: when a number and an address somehow point at different
-        // accounts, the phone is the channel this flow has always keyed on, and
-        // deterministic ordering keeps the choice reproducible rather than
-        // whatever the planner returns first.
-        .orderBy(sql`case when ${users.phone} = ${phone} then 0 else 1 end`)
-        .limit(1);
-      userId = existing?.id ?? null;
+        .limit(2);
+      // Two rows means the number is one customer's and the address another's.
+      // Picking either would bill a stranger and run the overlap guard against
+      // their plan, so stop. The message names nobody: guests reach this too.
+      if (matches.length > 1) {
+        throw new ValidationError(
+          "This phone number is saved on a different account than this email. Use the phone number on that account, or a different one.",
+        );
+      }
+      userId = matches[0]?.id ?? null;
     }
     if (!userId) {
       userId = await provisionCustomerByPhone(
