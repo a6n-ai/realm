@@ -1,7 +1,7 @@
 "use client";
 
 import { HistoryIcon, PercentIcon, SlidersHorizontalIcon, TicketPercentIcon } from "lucide-react";
-import { RoutedTabNav } from "@foundry/design-system";
+import { DatedTabNav } from "@/components/filters/dated-tab-nav";
 
 const SUBTABS = [
   { label: "Logs", href: "/dashboard/discounts/logs", icon: HistoryIcon },
@@ -11,5 +11,5 @@ const SUBTABS = [
 ] as const;
 
 export function DiscountsTabs() {
-  return <RoutedTabNav tabs={SUBTABS} ariaLabel="Discount settings" />;
+  return <DatedTabNav tabs={SUBTABS} ariaLabel="Discount settings" />;
 }

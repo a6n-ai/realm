@@ -1,5 +1,5 @@
 {
-  "id": "7068d405-2c1c-4c0a-8782-25bb4e9604ad",
+  "id": "231615c4-7880-4c35-80f8-67ab2a4316ac",
   "prevId": "2e72299b-2d98-4df3-9f72-68dfe09cd412",
   "version": "7",
   "dialect": "postgresql",
@@ -4307,6 +4307,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "visible": {
+          "name": "visible",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
         },
         "plan_types": {
           "name": "plan_types",
@@ -11877,19 +11884,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "delivery_dates": {
-          "name": "delivery_dates",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "released_dates": {
-          "name": "released_dates",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
         },
         "resumed_at": {
           "name": "resumed_at",

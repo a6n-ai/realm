@@ -41,7 +41,10 @@ export function OrderOverview({
   currency,
   categoryLabels,
   startAction,
+  eatingAction,
 }: {
+  /** Edit control beside the eating days while they can still change. */
+  eatingAction?: ReactNode;
   /** Edit control beside the start date while the plan hasn't started. */
   startAction?: ReactNode;
   order: OrderDetail;
@@ -91,7 +94,12 @@ export function OrderOverview({
             <DetailRow label="Meal slots">{order.mealSlots.map((m) => cap(m.replaceAll("_", " "))).join(", ")}</DetailRow>
             <DetailRow label="Frequency">{order.frequencyName}</DetailRow>
             <DetailRow label="Delivery days">{deliveryDays.map(cap).join(", ")}</DetailRow>
-            <DetailRow label="Eating days">{(eatingDays ?? deliveryDays).map(cap).join(", ")}</DetailRow>
+            <DetailRow label="Eating days">
+              <span className="flex items-center justify-between gap-2">
+                <span>{(eatingDays ?? deliveryDays).map(cap).join(", ")}</span>
+                {eatingAction}
+              </span>
+            </DetailRow>
             {/* A trip is one truck run. Only worth a row when a run carries more than one eating day. */}
             {trips?.some((t) => t.units > 1) && (
               <DetailRow label="Combined trips">

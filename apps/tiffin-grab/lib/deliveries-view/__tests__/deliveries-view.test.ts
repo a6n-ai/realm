@@ -74,7 +74,7 @@ type Case = [string, Partial<CalendarDayInput> & { date: string }, Partial<Recor
 const off = { pick: false, swap: false, move: false, address: false };
 const cases: Case[] = [
   ["upcoming", { date: "2026-09-23" }, { pick: true, swap: true, move: true, address: true }],
-  ["make-up upcoming (a moved tiffin can't move again)", { date: "2026-09-25", isMakeup: true }, { pick: true, swap: true, move: false, address: true }],
+  ["make-up upcoming (a moved tiffin can move again)", { date: "2026-09-25", isMakeup: true }, { pick: true, swap: true, move: true, address: true }],
   ["failed drop", { date: "2026-09-25", status: "skipped" }, { pick: false, swap: false, move: true, address: false }],
   ["failed drop past its cutoff is still movable", { date: "2026-09-22", status: "skipped", locked: true }, { pick: false, swap: false, move: true, address: false }],
   ["moved away (make-up)", { date: "2026-09-25", status: "skipped", rescheduled: true }, off],

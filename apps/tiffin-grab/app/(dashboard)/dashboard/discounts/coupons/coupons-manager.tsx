@@ -51,6 +51,7 @@ type CouponRow = {
   redemptionCount: number;
   stackable: boolean;
   autoApply: boolean;
+  visible: boolean;
   planTypes: string[];
   startsAt: number | null;
   expiresAt: number | null;
@@ -75,6 +76,7 @@ type Draft = {
   expiresAt: string;
   stackable: boolean;
   autoApply: boolean;
+  visible: boolean;
   active: boolean;
 };
 
@@ -96,6 +98,7 @@ function emptyDraft(): Draft {
     expiresAt: "",
     stackable: false,
     autoApply: false,
+    visible: true,
     active: true,
   };
 }
@@ -118,6 +121,7 @@ function toDraft(c: CouponRow): Draft {
     expiresAt: toLocalInput(c.expiresAt),
     stackable: c.stackable,
     autoApply: c.autoApply,
+    visible: c.visible,
     active: c.active,
   };
 }
@@ -152,6 +156,7 @@ const COLUMNS: readonly Column<CouponSortColumn | "value" | "actions">[] = [
   { key: "kind", label: "Kind", sortable: true },
   { key: "value", label: "Value", align: "right" },
   { key: "autoApply", label: "Auto-apply", sortable: true },
+  { key: "visible", label: "Visible", sortable: true },
   { key: "window", label: "Window", sortable: true },
   { key: "stackable", label: "Stackable", sortable: true },
   { key: "status", label: "Status", sortable: true },
@@ -192,6 +197,7 @@ export function CouponsManager({
       maxPerUser: numOrNull(draft.maxPerUser),
       stackable: draft.stackable,
       autoApply: draft.autoApply,
+      visible: draft.visible,
       planTypes: draft.planTypes,
       startsAt: fromLocalInput(draft.startsAt),
       expiresAt: fromLocalInput(draft.expiresAt),
@@ -264,6 +270,9 @@ export function CouponsManager({
             <TableCell className="text-right tabular-nums">{couponValue(c)}</TableCell>
             <TableCell>
               <YesNo value={c.autoApply} />
+            </TableCell>
+            <TableCell>
+              <YesNo value={c.visible} />
             </TableCell>
             <TableCell className="text-muted-foreground tabular-nums whitespace-nowrap text-sm">
               {formatWindow(c.startsAt, c.expiresAt)}
@@ -465,6 +474,13 @@ export function CouponsManager({
                   hint="Applies automatically at checkout when valid — no code needed; great for festival/launch promos."
                   checked={draft.autoApply}
                   onChange={(v) => setDraft({ ...draft, autoApply: v })}
+                />
+                <ToggleRow
+                  id="cpn-visible"
+                  label="Visible to customers"
+                  hint="Show this code under Available for you on checkout and other customer coupon lists. Turn off for private/manual-entry codes; customers can still type the code if Active."
+                  checked={draft.visible}
+                  onChange={(v) => setDraft({ ...draft, visible: v })}
                 />
                 <ToggleRow
                   id="cpn-stack"

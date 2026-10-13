@@ -16,7 +16,10 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   // Same handler as the API route. It is a no-op on a bad or missing token, and
   // the page below says the same thing either way — so this page cannot be used
   // to test whether an address is on the list.
-  await applyUnsubscribe(url);
+  // `address` comes back only for a valid signed link — the recipient's own.
+  // No "subscribe again" link here: a resubscribe link never expires, so it is
+  // only ever issued by staff, on request, to the person who asked.
+  const { applied, address } = await applyUnsubscribe(url, "link");
 
   return (
     <main className="mx-auto flex min-h-[80vh] max-w-xl items-center px-4 py-16">
@@ -26,6 +29,11 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
           You will no longer receive marketing email from TiffinGrab. It can take a few minutes for
           anything already on its way to stop.
         </p>
+        {applied && address && (
+          <p className="mt-3 text-sm">
+            <span className="font-medium break-all">{address}</span> is off our marketing list.
+          </p>
+        )}
         <p className="mt-4 text-sm text-muted-foreground">
           You will still get messages about orders you place — receipts, payment confirmations and
           delivery updates. Those aren&apos;t marketing, and we send them so you know what is happening

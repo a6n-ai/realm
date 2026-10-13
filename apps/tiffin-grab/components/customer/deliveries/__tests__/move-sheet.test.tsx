@@ -59,10 +59,23 @@ describe("MoveSheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
     expect(screen.getByText("Arrives Mon, Sep 28")).toBeInTheDocument();
     expect(screen.getByText("2 tiffins that day")).toBeInTheDocument();
-    expect(screen.getByText("Can't move again")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
-    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23");
+    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23", 1);
+  });
+  it("a day holding several tiffins asks how many to move", async () => {
+    a.move.mockResolvedValue({ ok: true, message: "moved" });
+    mount(MoveSheet, trip({ coversDates: ["2026-09-23"], extraDates: ["2026-09-23"], coversLabel: null }));
+    fireEvent.change(screen.getByRole("slider"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    fireEvent.click(screen.getByRole("button", { name: /Monday, September 28/ }));
+    expect(screen.getByText("2 tiffins that day")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
+    await waitFor(() => expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23", 2));
+  });
+  it("one tiffin on the day: no slider", () => {
+    mount(MoveSheet, trip());
+    expect(screen.queryByRole("slider")).toBeNull();
   });
   it("multi-day bundle splits only the chosen day's tiffin", async () => {
     a.move.mockResolvedValue({ ok: true, message: "moved" });
@@ -72,7 +85,7 @@ describe("MoveSheet", () => {
     expect(screen.getByText("1 tiffin that day")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Move to Mon, Sep 28" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Moved Wed, Sep 23 to Mon, Sep 28."));
-    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23");
+    expect(a.move).toHaveBeenCalledWith("d1", "2026-09-28", "2026-09-23", 1);
   });
   it("occupied day: merge preview with covered days", async () => {
     a.move.mockResolvedValue({ ok: true, message: "merged" });

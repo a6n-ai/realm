@@ -398,7 +398,13 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     const rows = await db
       .select()
       .from(coupons)
-      .where(and(eq(coupons.active, true), ne(coupons.kind, "rep_daily")));
+      .where(
+        and(
+          eq(coupons.active, true),
+          eq(coupons.visible, true),
+          ne(coupons.kind, "rep_daily"),
+        ),
+      );
     return rows
       .filter((c) => !this.windowError(c))
       .map((c) => ({

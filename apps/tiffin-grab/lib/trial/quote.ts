@@ -21,7 +21,12 @@ export type TrialQuote = {
   catalog: PricingCatalog;
 };
 
-export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingSelections): Promise<TrialQuote> {
+export async function quoteTrial(
+  snapshot: CatalogSnapshot,
+  selections: PricingSelections,
+  /** The day start rules count from; staff pass staffStartBase to allow today. */
+  startBase: Date = appToday(snapshot.timezone, snapshot.cutoffHour),
+): Promise<TrialQuote> {
   const meal = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);
   if (!meal?.trial) throw new ValidationError("This meal isn't a trial");
   if (meal.custom) throw new ValidationError("A custom meal can't be a trial");
@@ -32,7 +37,7 @@ export async function quoteTrial(snapshot: CatalogSnapshot, selections: PricingS
     throw new ValidationError("Trials aren't available right now");
   }
   const { sendDays, length } = resolveTrialDays(weekdays, settings.maxDays, selections.eatingDays, selections.trialDays);
-  assertTrialStart(selections.startDate, sendDays, appToday(snapshot.timezone));
+  assertTrialStart(selections.startDate, sendDays, startBase);
   const dates = trialDeliveryDates(selections.startDate, length, sendDays);
 
   // The trial's delivery frequency from Trial settings, stored on the order like a meal size's.

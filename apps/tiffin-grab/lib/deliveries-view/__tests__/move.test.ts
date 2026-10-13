@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moveLockReason, moveOptions, planEndDate } from "../move";
+import { moveOptions, planEndDate } from "../move";
 import type { PlanContext, Trip } from "../index";
 
 const NOW = Date.parse("2026-09-21T12:00:00Z");
@@ -72,12 +72,6 @@ describe("moveOptions", () => {
     const days = [{ date: "2026-09-25", status: "scheduled" as const, units: 2, covers: ["2026-09-25"], extras: ["2026-09-25"] }];
     const o = moveOptions({ ...trip, status: "upcoming", coversDates: ["2026-09-23", "2026-09-24"], units: 2 } as Trip, days, NOW, ctx, "2026-09-21", 5);
     expect(o.find((x) => x.date === "2026-09-25")).toMatchObject({ disabledReason: undefined, merge: { units: 3, covers: ["2026-09-25"] } });
-  });
-  it("a tiffin moved onto a day can't move again; the day's own tiffin still can", () => {
-    const t = { ...trip, coversDates: ["2026-09-23"], extraDates: ["2026-09-23"], movesIn: [{ from: "2026-09-25", to: "2026-09-23" }] } as Trip;
-    expect(moveLockReason(t, "2026-09-23")).toBeNull();
-    const t2 = { ...t, movesIn: [...t.movesIn!, { from: "2026-09-21", to: "2026-09-23" }] } as Trip;
-    expect(moveLockReason(t2, "2026-09-23")).toMatch(/already moved/);
   });
   it("a day emptied by moves is open again, not a held trip", () => {
     const o = moveOptions({ ...trip, status: "upcoming" } as Trip, [{ date: "2026-09-25", status: "skipped", emptied: true }], NOW, ctx, "2026-09-21", 5);

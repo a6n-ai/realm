@@ -80,7 +80,7 @@ export function PaymentsTable({
       idAccessor={(r) => r.publicId}
       onRowClick={setViewing}
       rowClassName={() => "group/row"}
-      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" />}
+      filters={<ListSearchFilters spec={SPEC} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={ReceiptTextIcon}
       emptyMessage="No payments yet."
       emptySearchMessage="No payments match your search."

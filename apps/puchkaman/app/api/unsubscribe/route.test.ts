@@ -6,7 +6,8 @@ vi.mock("@relay/engine", async (orig) => ({
   handleUnsubscribe: (...args: unknown[]) => handle(...args),
 }));
 
-const { GET } = await import("./route");
+const { GET, applyUnsubscribe } = await import("./route");
+const { signUnsubscribeToken } = await import("@relay/engine");
 
 beforeEach(() => {
   handle.mockClear();
@@ -40,5 +41,19 @@ describe("GET /api/unsubscribe", () => {
     const res = await GET(new Request("https://x.test/api/unsubscribe?address=a@x.com&token=abcd"));
     expect(res.status).toBe(200);
     expect(handle).not.toHaveBeenCalled();
+  });
+});
+
+describe("applyUnsubscribe", () => {
+  const link = (address: string, token: string) =>
+    new URL(`https://x.test/unsubscribe?address=${encodeURIComponent(address)}&token=${token}`);
+
+  it("names the address only for a valid signed link", async () => {
+    const token = signUnsubscribeToken("test-secret", "a@x.com");
+    expect(await applyUnsubscribe(link("a@x.com", token), "link")).toEqual({ applied: true, address: "a@x.com" });
+  });
+
+  it("gives nothing back for a bad token", async () => {
+    expect(await applyUnsubscribe(link("a@x.com", "abcd"), "link")).toEqual({ applied: false, address: null });
   });
 });

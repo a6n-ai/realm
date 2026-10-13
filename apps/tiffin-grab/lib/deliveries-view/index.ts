@@ -82,7 +82,7 @@ export type Trip = {
   rescheduled: boolean;
   /** Where a moved trip went: the eat day it was moved to, or the trip it combined into. */
   movedTo?: string | null;
-  /** Tiffins moved onto this trip (they can't move again) and off it (their old day reads "Moved to"). */
+  /** Tiffins moved onto this trip and off it (their old day reads "Moved to"). */
   movesIn?: TiffinMove[];
   movesOut?: TiffinMove[];
   /** This delivery's own address when re-addressed; null = it follows the plan's address. */
@@ -206,7 +206,6 @@ const no = (why: string): Availability => ({ ok: false, why, sub: "" });
 const yes = (sub: string): Availability => ({ ok: true, why: null, sub });
 
 function moveAvailability(trip: Trip, now: number, plan: PlanContext, blocked: (delivered: string) => string): Availability {
-  if (trip.status === "upcoming" && trip.isMakeup) return no("Already moved once. Only one move is allowed.");
   if (trip.status === "upcoming") return yes("Pick a new delivery day");
   if (trip.status === "failed" && holdAwaitingReconcile(trip, now, plan.timezone)) {
     return no(`On hold. Release it to a new day after midnight, once ${humanDate(trip.date)}'s deliveries are reconciled.`);

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { WalletCardsIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
+import { SectionDateRange } from "@/components/filters/section-date-range";
 import { PaymentsTabs } from "./payments-tabs";
 
 export default async function PaymentsLayout({ children }: { children: ReactNode }) {
@@ -15,6 +16,7 @@ export default async function PaymentsLayout({ children }: { children: ReactNode
         subtitle="Money in, by provider. E-transfers stay on hold until you approve them."
       />
       <PaymentsTabs />
+      <SectionDateRange />
       <div className="min-w-0">{children}</div>
     </PageShell>
   );

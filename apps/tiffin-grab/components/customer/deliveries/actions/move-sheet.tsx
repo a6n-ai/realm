@@ -1,11 +1,11 @@
 "use client";
-import { CalendarCheck, Lock, Package, Truck, Utensils, type LucideIcon } from "lucide-react";
+import { CalendarCheck, Package, Truck, Utensils, type LucideIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate } from "@/lib/deliveries-view";
 import { weekdayShort } from "@/lib/deliveries-view/eating";
 import { mondayOf } from "@/lib/deliveries-view/week";
-import { moveLockReason, moveOptions, planEndDate } from "@/lib/deliveries-view/move";
+import { moveOptions, planEndDate, tripCounts } from "@/lib/deliveries-view/move";
 import { WeekTimeline } from "../week-timeline";
 import type { ActionSheetProps } from "./types";
 import { useCommit } from "./use-commit";
@@ -26,10 +26,12 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
   const [now] = useState(() => Date.now());
   // Which eating day is moving: the one the customer selected, or the trip's own date if none was passed.
   const source = sourceDate ?? trip.date;
-  const lock = moveLockReason(trip, source);
-  const av = lock ? { ok: false, why: lock, sub: "" } : actionAvailability(trip, now, plan.ctx).move;
+  const av = actionAvailability(trip, now, plan.ctx).move;
   const split = trip.coversDates.length + (trip.extraDates?.length ?? 0) > 1;
-  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today, undefined, source), [trip, plan, now, source]);
+  // A day can hold several tiffins once others moved onto it: ask how many go.
+  const onDay = tripCounts(trip).get(source) ?? 1;
+  const [qty, setQty] = useState(1);
+  const options = useMemo(() => moveOptions(trip, plan.days, now, plan.ctx, plan.today, undefined, source, qty), [trip, plan, now, source, qty]);
   const [picked, setPickedRaw] = useState<string | null>(null);
   const [week, setWeek] = useState<string | null>(null);
   const [reason, setReason] = useState<string | null>(null);
@@ -48,12 +50,12 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
   const chosen = options.find((o) => o.date === picked);
   const day = humanDate(source);
   const perTiffin = trip.units / Math.max(1, trip.coversDates.length + (trip.extraDates?.length ?? 0));
-  const movingUnits = split ? Math.round(perTiffin) || 1 : trip.units;
+  const movingUnits = split ? Math.round(perTiffin * qty) || 1 : trip.units;
 
   const confirm = () => {
     if (!trip.deliveryId || !picked) return;
     void run(
-      () => rescheduleMyDelivery(trip.deliveryId!, picked, source),
+      () => rescheduleMyDelivery(trip.deliveryId!, picked, source, qty),
       () => `Moved ${day} to ${humanDate(picked)}.`,
     );
   };
@@ -73,6 +75,15 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 pb-2">
           {!av.ok ? <Notice>{av.why}</Notice> : (
             <>
+              {onDay > 1 && (
+                <label className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] px-4 py-3">
+                  <span className="flex items-baseline justify-between text-[15px] font-semibold">
+                    How many tiffins to move
+                    <span className="tabular-nums">{tiffins(Math.round(perTiffin * qty) || qty)} of {Math.round(perTiffin * onDay) || onDay}</span>
+                  </span>
+                  <input type="range" min={1} max={onDay} step={1} value={qty} onChange={(e) => (setReason(null), setQty(Number(e.target.value)))} className="w-full accent-[var(--primary)]" />
+                </label>
+              )}
               {end && (
                 <OptionCard selected={picked === end} onClick={toEnd} className="flex w-full items-center gap-3 px-4 py-3">
                   <CalendarCheck aria-hidden className="size-5 shrink-0 text-[var(--primary)]" />
@@ -102,7 +113,6 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
                   <Pill icon={Truck}>Arrives {humanDate(chosen.carriedOn)}</Pill>
                   <Pill icon={Package}>{tiffins(chosen.merge ? chosen.merge.units : movingUnits)} that day</Pill>
                   <Pill icon={Utensils}>{weekdayShort(chosen.date)}&apos;s menu</Pill>
-                  <Pill icon={Lock}>Can&apos;t move again</Pill>
                 </ul>
               ) : !reason && <Reason>Pick a day. Greyed days aren&apos;t available.</Reason>}
             </>

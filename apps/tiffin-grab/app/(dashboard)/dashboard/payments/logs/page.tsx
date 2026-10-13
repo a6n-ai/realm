@@ -7,6 +7,7 @@ import { orderActivities, orders, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { parseFilterState, SectionCard } from "@/components/ds";
+import { withListDates } from "@/lib/list/default-month";
 import { dateRangeWhere } from "../payment-queries";
 import { LOG_EVENT_OPTIONS, LOG_SORT_KEYS } from "../payment-facets";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
@@ -27,7 +28,7 @@ export default function ProviderLogsPage({ searchParams }: { searchParams: Searc
 // slice of the order activity log; add a provider_events table when an online provider lands.
 async function LogsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
   const q = sp.q?.trim();
   const sort = parseSort(sp, LOG_SORT_KEYS, { column: "time", dir: "desc" });
   const events = (sp.event ?? "").split(",").filter((e) => LOG_EVENT_OPTIONS.some((o) => o.value === e));

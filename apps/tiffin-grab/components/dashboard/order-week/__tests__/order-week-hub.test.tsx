@@ -93,6 +93,31 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(block).toHaveTextContent("Comes with the Mon, Sep 21 delivery");
     expect(block).toHaveTextContent("2 tiffins (1 Mon + 1 Tue)");
   });
+  it("matrix shows every week of the plan; a box in this week selects it, one in another week navigates there", () => {
+    replace.mockClear();
+    render(<OrderWeekHub data={data} />);
+    const matrix = within(screen.getByTestId("delivery-matrix"));
+    expect(matrix.getByText(/2 deliveries · 3 weeks/)).toBeInTheDocument();
+    expect(matrix.getAllByRole("button")).toHaveLength(3);
+    fireEvent.click(matrix.getByRole("button", { name: /Tuesday, September 22, Upcoming$/ }));
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Tue, Sep 22");
+    fireEvent.click(matrix.getByRole("button", { name: /Monday, October 5, Upcoming, delivery with 1 tiffin/ }));
+    expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
+    expect(replace.mock.calls[0]![0]).toContain("trip=2026-10-05");
+  });
+  it("matrix uses the status dropdown's states: awaiting confirmation past the cutoff, and OptimoRoute's not delivered apart from an admin hold", () => {
+    const dot = (date: string, over: object) => [{ orderId: "o", status: "scheduled", cutoffAt: NOW - 1, deliveryDate: date, truck: true, units: 1, covers: [date], ...over }];
+    const agenda = {
+      "2026-09-21": dot("2026-09-21", {}),
+      "2026-09-22": dot("2026-09-22", { status: "skipped", optimoCompletionStatus: "failed" }),
+      "2026-09-23": dot("2026-09-23", { status: "skipped" }),
+    };
+    render(<OrderWeekHub data={{ ...data, agenda } as unknown as OrderWeek} />);
+    const matrix = within(screen.getByTestId("delivery-matrix"));
+    expect(matrix.getByRole("button", { name: /September 21, Awaiting confirmation/ })).toBeInTheDocument();
+    expect(matrix.getByRole("button", { name: /September 22, Not delivered/ })).toBeInTheDocument();
+    expect(matrix.getByRole("button", { name: /September 23, On hold/ })).toBeInTheDocument();
+  });
   it("strip marks the delivery day; no separate next-delivery banner (the card is the delivery)", () => {
     render(<OrderWeekHub data={data} />);
     expect(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Monday, September 21, eating, .*delivery arrives/ })).toBeInTheDocument();

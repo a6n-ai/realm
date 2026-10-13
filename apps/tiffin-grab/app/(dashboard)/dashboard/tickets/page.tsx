@@ -19,6 +19,8 @@ import {
 } from "@/components/ds";
 import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
+import { SectionDateRange } from "@/components/filters/section-date-range";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 
 const SORT_COLUMNS = [
   "subject",
@@ -48,9 +50,10 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
     <PageShell>
       <MarkSectionRead section="tickets" />
       <PageHeader icon={LifeBuoyIcon} title="Tickets" />
+      <SectionDateRange />
 
       <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>
-        <TicketStats />
+        <TicketStats searchParams={searchParams} />
       </Suspense>
 
       <SectionCard title="All tickets">
@@ -62,12 +65,14 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
   );
 }
 
-async function TicketStats() {
+async function TicketStats({ searchParams }: { searchParams: TicketSearchParams }) {
   await requireStaff();
+  const sp = await withDefaultMonth(await searchParams);
+  const filters = parseComplaintFilters(sp);
 
   const [statusCounts, { overdueCount: overdue }] = await Promise.all([
-    db.select({ status: tickets.status, n: count() }).from(tickets).groupBy(tickets.status),
-    ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 1 } }),
+    db.select({ status: tickets.status, n: count() }).from(tickets).where(epochBoundsWhere(tickets.createdAt, sp)).groupBy(tickets.status),
+    ticketsService.listQueuePage(undefined, filters, { page: { page: 0, size: 1 } }),
   ]);
 
   const countOf = (...statuses: string[]) =>
@@ -91,7 +96,7 @@ async function TicketStats() {
 async function TicketsData({ searchParams }: { searchParams: TicketSearchParams }) {
   await requireStaff();
 
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
   const sort = parseSort(sp, SORT_COLUMNS, {
     column: "lastMessage",
     dir: "desc",
@@ -102,7 +107,7 @@ async function TicketsData({ searchParams }: { searchParams: TicketSearchParams 
   const { page } = parseFilterState([], sp);
 
   const [statusCounts, result, owners, allowReassign] = await Promise.all([
-    db.select({ status: tickets.status, n: count() }).from(tickets).groupBy(tickets.status),
+    db.select({ status: tickets.status, n: count() }).from(tickets).where(epochBoundsWhere(tickets.createdAt, sp)).groupBy(tickets.status),
     ticketsService.listQueuePage(sort, filters, { page, overdue, ownerId: sp.owner, q: sp.q }),
     ticketsService.listQueueOwners(),
     canReassign(),

@@ -56,9 +56,23 @@ export default function CampaignsPage({ searchParams }: { searchParams: SearchPa
         title="Campaigns"
         subtitle="Marketing sends. Every message carries an unsubscribe link and the sender's postal address."
         action={
-          <Button asChild size="sm">
-            <Link href="/dashboard/notifications/campaigns/new">New campaign</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/notifications/campaigns/new?channel=sms" prefetch={false}>
+                New SMS
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/notifications/campaigns/new?channel=whatsapp" prefetch={false}>
+                New WhatsApp
+              </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/dashboard/notifications/campaigns/new" prefetch={false}>
+                New campaign
+              </Link>
+            </Button>
+          </div>
         }
       >
         <Suspense fallback={<CampaignsTableSkeleton />}>

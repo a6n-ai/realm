@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { eq, ilike, or, sql } from "drizzle-orm";
+import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
@@ -7,6 +7,7 @@ import { couponRedemptions, coupons, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState } from "@/components/ds";
+import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
 
 const customer = alias(users, "customer");
@@ -38,7 +39,7 @@ export default function DiscountLogsPage({ searchParams }: { searchParams: Searc
 async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
   const sort: SortState<DiscountLogSortColumn> = parseSort(
     sp,
     ["time", "coupon", "user", "amount", "order", "redeemedBy"],
@@ -47,14 +48,17 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
 
   const { page } = parseFilterState([], sp);
   const q = sp.q?.trim();
-  const where = q
-    ? or(
-        ilike(coupons.code, `%${q}%`),
-        ilike(customer.email, `%${q}%`),
-        ilike(redeemer.email, `%${q}%`),
-        ilike(orders.publicId, `%${q}%`),
-      )
-    : undefined;
+  const where = and(
+    epochBoundsWhere(couponRedemptions.createdAt, sp),
+    q
+      ? or(
+          ilike(coupons.code, `%${q}%`),
+          ilike(customer.email, `%${q}%`),
+          ilike(redeemer.email, `%${q}%`),
+          ilike(orders.publicId, `%${q}%`),
+        )
+      : undefined,
+  );
 
   const [[agg], rows, [{ total }]] = await Promise.all([
     db

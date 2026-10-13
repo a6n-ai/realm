@@ -72,6 +72,7 @@ function inquiriesResolver() {
     createdAt: inquiries.createdAt,
     fullName: inquiries.fullName,
     phone: inquiries.phone,
+    email: inquiries.email,
   });
   const valuesOf = (f: FilterCondition) =>
     f.operator === "in" ? (f.value as string[]) : [f.value as string];
@@ -356,7 +357,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const actorPublicId = (await getSession())?.user?.id ?? null;
     const result = await createOrder(
       { ...orderInput, currentOwner: inq.currentOwner },
-      { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, basePriceOverride: opts?.basePriceOverride },
+      // convert is the staff order path, and staff may start a plan today.
+      { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, allowSameDayStart: true, basePriceOverride: opts?.basePriceOverride },
     );
     const [order] = await db
       .select({ id: orders.id })
