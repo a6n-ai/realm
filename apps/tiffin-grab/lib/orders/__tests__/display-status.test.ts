@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { complimentaryBlocker, isHiddenFromCustomer, orderDisplayStatus } from "../display-status";
+import { canTakeAddonPayment, complimentaryBlocker, isHiddenFromCustomer, orderDisplayStatus } from "../display-status";
 
 describe("orderDisplayStatus", () => {
   it("overlays Active with Payment review while money is unpaid or claimed", () => {
@@ -65,5 +65,37 @@ describe("complimentaryBlocker", () => {
     expect(complimentaryBlocker("active", ["rejected"])).toMatch(/rejected/);
     expect(complimentaryBlocker("pending", [])).toMatch(/active plan/);
     expect(complimentaryBlocker("cancelled", ["paid"])).toMatch(/active plan/);
+  });
+});
+
+describe("canTakeAddonPayment", () => {
+  const wp = { deploymentId: "wc-123" };
+  const own = { deploymentId: "tg-1" };
+
+  it("allows a plan with settled money and nothing in review", () => {
+    expect(canTakeAddonPayment(own, ["paid"])).toBeNull();
+    expect(canTakeAddonPayment(own, ["simulated_paid", "paid"])).toBeNull();
+    expect(canTakeAddonPayment(own, ["paid", "refunded"])).toBeNull();
+  });
+
+  it("allows a WordPress-prepaid plan with no payment rows", () => {
+    expect(canTakeAddonPayment(wp, [])).toBeNull();
+  });
+
+  it("refuses while any payment is open", () => {
+    for (const s of ["awaiting_payment", "pending_verification", "pending"]) {
+      expect(canTakeAddonPayment(own, ["paid", s])).toBe("A payment is still pending on this plan. Confirm it first.");
+    }
+  });
+
+  it("refuses a rejected payment even beside a paid one", () => {
+    expect(canTakeAddonPayment(own, ["rejected"])).toMatch(/rejected/);
+    expect(canTakeAddonPayment(own, ["paid", "rejected"])).toMatch(/rejected/);
+  });
+
+  it("refuses when no payment is confirmed", () => {
+    expect(canTakeAddonPayment(own, [])).toBe("This plan has no confirmed payment yet.");
+    expect(canTakeAddonPayment(own, ["refunded"])).toBe("This plan has no confirmed payment yet.");
+    expect(canTakeAddonPayment(wp, ["refunded"])).toBe("This plan has no confirmed payment yet.");
   });
 });

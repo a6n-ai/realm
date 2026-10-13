@@ -215,25 +215,3 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     },
   };
 }
-
-// Re-price path only (changeMealSize): the order's own frequency/duration may be retired, so the
-// snapshot's active-only target map would silently drop discounts aimed at them. Not used by checkout.
-export async function loadDiscountsForOrderTargets(
-  orgId: string | null | undefined,
-  targets: { frequency: { id: bigint; publicId: string }; duration: { id: bigint; publicId: string } },
-): Promise<CatalogSnapshot["discounts"]> {
-  const nowMs = Date.now();
-  const rows = await db.select().from(discounts).where(and(
-    eq(discounts.active, true), scopedTo(discounts.organizationId, orgId),
-    or(isNull(discounts.startsAt), lte(discounts.startsAt, nowMs)), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)),
-  ));
-  return (rows.flatMap((d) => {
-    let targetPublicId: string | null;
-    if (d.kind !== "delivery" && d.kind !== "duration") return [];
-    if (d.targetId == null) targetPublicId = null;
-    else if (d.kind === "delivery" && d.targetId === targets.frequency.id) targetPublicId = targets.frequency.publicId;
-    else if (d.kind === "duration" && d.targetId === targets.duration.id) targetPublicId = targets.duration.publicId;
-    else return [];
-    return [{ key: d.key, name: d.name, kind: d.kind, targetPublicId, percent: Number(d.percent), minWeeks: d.minWeeks }];
-  })) as NonNullable<CatalogSnapshot["discounts"]>;
-}

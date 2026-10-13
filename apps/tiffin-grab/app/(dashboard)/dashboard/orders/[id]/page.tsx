@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { ActivityIcon, EyeIcon, PackageIcon, ReceiptIcon, TruckIcon, WalletIcon } from "lucide-react";
 import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
-import { findMethod } from "@foundry/payments";
+import { enabledMethods, findMethod } from "@foundry/payments";
+import { mealSizeAddons } from "@/lib/catalog/types";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
@@ -13,12 +14,11 @@ import { earliestNewPlanStart } from "@/lib/services/order-window";
 import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
-import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
+import { canTakeAddonPayment, complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
 import { lapseElapsedPausesSafe } from "@/lib/services/pause-days.service";
 import { isOrderFullyPaused } from "@/lib/services/pause-state";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { listableMealSizes } from "@/lib/catalog/types";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
@@ -37,7 +37,7 @@ import { PaymentsPanel } from "./payments-panel";
 import { OrderOverview } from "./order-summary-panel";
 import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
-import { ChangePlanControl } from "./change-plan-control";
+import { AddAddonsControl } from "./add-addons-control";
 import { StartDateControl } from "./start-date-control";
 import { EatingDaysControl } from "./eating-days-control";
 import { ComplimentaryControl } from "./complimentary-control";
@@ -162,12 +162,6 @@ async function OrderDetail({
   const checkoutMethodLabel = checkoutMethodId
     ? findMethod(paymentCfg, checkoutMethodId)?.label ?? checkoutMethodId
     : null;
-  const currentMealSizePublicId = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.publicId;
-  const mealSizeOptions = listableMealSizes(catalogSnapshot.mealSizes, currentMealSizePublicId).map((m) => ({
-    publicId: m.publicId,
-    name: m.name,
-    planKey: m.planKey,
-  }));
 
 
   const counts = sub.week?.plan.counts ?? endedCounts;
@@ -185,6 +179,19 @@ async function OrderDetail({
   // A WordPress-imported plan waiting to be started: where WordPress left off, and when the
   // balance runs out if it starts on its next due date.
   const migratedPending = order.status === "pending" && order.deploymentId.startsWith("wc-");
+  const addonOptions = mealSizeAddons(catalogSnapshot).map((a) => ({
+    key: a.key,
+    name: a.name,
+    pricePerTiffin: a.pricePerTiffin,
+    maxQty: a.maxQty,
+    existingQty: order.addons.filter((x) => x.key === a.key).reduce((s, x) => s + x.qty, 0),
+  }));
+  const addonMethods = enabledMethods(paymentCfg)
+    .filter((m) => m.id !== "simulated")
+    .map((m) => ({ id: m.id, label: m.label, requireProof: m.requireProof === true }));
+  const customMealSize = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.custom === true;
+  const canAddAddons = order.trialLength == null && !customMealSize && (order.status === "active" || order.status === "paused")
+    && canTakeAddonPayment(order, order.payments.map((p) => p.status)) == null;
   const frequencyKey = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId)?.key ?? null;
   const migration = migratedPending && frequencyKey
     ? {
@@ -267,7 +274,15 @@ async function OrderDetail({
       {order.trialLength != null && <TrialPill className="self-center" />}
       <LookOutControl orderId={order.publicId} flagged={order.lookOutAt != null} />
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
-      {/* A trial can only have its dishes edited (orders.service rejects a plan change). */}
+      {canAddAddons && (
+        <AddAddonsControl
+          orderId={order.publicId}
+          options={addonOptions}
+          methods={addonMethods}
+          defaultMethodId={checkoutMethodId ?? null}
+          currency={settings.currency}
+        />
+      )}
       {canGiveFree && (
         <ComplimentaryControl
           orderId={order.publicId}
@@ -278,7 +293,6 @@ async function OrderDetail({
           missed={missedOptions}
         />
       )}
-      {order.trialLength == null && <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />}
     </>
   );
 

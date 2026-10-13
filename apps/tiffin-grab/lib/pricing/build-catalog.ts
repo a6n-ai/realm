@@ -8,6 +8,29 @@ import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery
 export const MIN_PERSONS = 1;
 export const MAX_PERSONS = 5;
 
+export type ResolvedAddon = { key: string; name: string; category: string; planKey: string | null; tuAmount: number; pricePerTiffin: number; qty: number; maxQty: number };
+
+// Never trust a caller's add-on picks as-is: re-derive eligibility (and the maxQty ceiling)
+// from the catalog and reject anything outside it. Checkout and mid-plan add-ons both go
+// through here.
+export function resolveAddonSelections(
+  catalog: Parameters<typeof mealSizeAddons>[0],
+  selections: { key: string; qty: number }[],
+): ResolvedAddon[] {
+  if (new Set(selections.map((s) => s.key)).size !== selections.length) {
+    throw new ValidationError("Each add-on can only be listed once");
+  }
+  const eligible = new Map(mealSizeAddons(catalog).map((a) => [a.key, a]));
+  return selections.map(({ key, qty }) => {
+    const addon = eligible.get(key);
+    if (!addon) throw new ValidationError(`Add-on not available: ${key}`);
+    if (!Number.isInteger(qty) || qty < 1 || qty > addon.maxQty) {
+      throw new ValidationError(`Invalid quantity for ${addon.name} (1–${addon.maxQty})`);
+    }
+    return { key: addon.key, name: addon.name, category: addon.category, planKey: addon.planKey ?? null, tuAmount: addon.tuAmount, pricePerTiffin: addon.pricePerTiffin, qty, maxQty: addon.maxQty };
+  });
+}
+
 export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: PricingSelections): PricingCatalog {
   if (!Number.isInteger(selections.persons) || selections.persons < MIN_PERSONS || selections.persons > MAX_PERSONS) {
     throw new ValidationError(`Persons must be an integer ${MIN_PERSONS}–${MAX_PERSONS}`);
@@ -27,18 +50,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     throw new ValidationError("Invalid duration");
   }
 
-  // Never trust the client's addonSelections as-is: re-derive eligibility (and
-  // the maxQty ceiling) from the snapshot and reject anything outside it.
-  const eligibleAddons = new Map(mealSizeAddons(snapshot).map((a) => [a.key, a]));
-  const addonSelections = selections.addonSelections ?? [];
-  const addons = addonSelections.map(({ key, qty }) => {
-    const addon = eligibleAddons.get(key);
-    if (!addon) throw new ValidationError(`Add-on not available: ${key}`);
-    if (!Number.isInteger(qty) || qty < 1 || qty > addon.maxQty) {
-      throw new ValidationError(`Invalid quantity for ${addon.name} (1–${addon.maxQty})`);
-    }
-    return { key: addon.key, name: addon.name, category: addon.category, planKey: addon.planKey ?? null, tuAmount: addon.tuAmount, pricePerTiffin: addon.pricePerTiffin, qty };
-  });
+  const addons = resolveAddonSelections(snapshot, selections.addonSelections ?? []);
 
   const duration = snapshot.durations.find((d) => d.weeks === selections.durationWeeks);
   if (!duration) throw new ValidationError("Invalid duration");

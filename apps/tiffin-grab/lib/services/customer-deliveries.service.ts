@@ -3,9 +3,9 @@ import { NotFoundError, Role, ValidationError, weekdayKey, zonedDateIso } from "
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, mealSizes, menuItems, orderActivities, orderAddons, orders, payments, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
+import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
-import { formatTuHuman, isContainerCategory, type TuCategory } from "@/lib/menu/format-tu";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
 import type { ExchangeOverride } from "@/lib/menu/swap-rules";
@@ -198,24 +198,11 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
   const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.deliveryTagId, strategyIds: r.deliveryStrategyIds })));
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
+  const addonsByOrder = await loadSubscriptionAddons(rows.map((r) => r.id));
   const { timezone } = await getAppSettings();
   const today = zonedDateIso(Date.now(), timezone);
   const fullyPaused = new Set<bigint>();
   for (const r of rows) if (r.status === "active" && (await isOrderFullyPaused(db, r.id, today))) fullyPaused.add(r.id);
-  const addonRows = rows.length
-    ? await db.select({ orderId: orderAddons.orderId, name: orderAddons.addonName, qty: orderAddons.qty, category: orderAddons.category, tuAmount: orderAddons.tuAmount }).from(orderAddons)
-      .where(inArray(orderAddons.orderId, rows.map((r) => r.id))).orderBy(asc(orderAddons.id))
-    : [];
-  // Portions read as oz/roti, never raw TU; roti/rice add-ons fold into one total, a sabzi is a row each.
-  const addonCats = addonRows.length
-    ? new Map((await db.select({ key: dishCategories.key, selectable: dishCategories.selectable, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories))
-      .map((c) => [c.key, { selectable: c.selectable, tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]))
-    : new Map<string, TuCategory>();
-  const addonView = (a: (typeof addonRows)[number]): SubscriptionAddon => {
-    const tu = addonCats.get(a.category);
-    const folded = !!tu && !isContainerCategory(tu) && !tu.selectable;
-    return { name: a.name, qty: a.qty, category: a.category, folded, portion: tu ? formatTuHuman(tu, Number(a.tuAmount) * (folded ? a.qty : 1)) : null };
-  };
   return rows
     .filter((r) => !isHiddenFromCustomer(payByOrder.get(r.id) ?? []))
     .map((r) => {
@@ -236,7 +223,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
         mealSizeName: r.mealSizeName,
         mealSizeCustom: r.mealSizeCustom,
         trial: r.trialLength != null,
-        addons: addonRows.filter((a) => a.orderId === r.id).map(addonView),
+        addons: addonsByOrder.get(r.id) ?? [],
         persons: r.persons,
         categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
         tagLabel: r.tagLabel,

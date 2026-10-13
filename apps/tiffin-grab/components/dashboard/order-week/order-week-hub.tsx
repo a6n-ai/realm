@@ -18,7 +18,7 @@ import { actionAvailability, humanDate, type Availability, type PlanContext, typ
 import { deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf, pausedAhead } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
-import { cutoffFmt, dedupeDishes, Journey, MealTiles, mealCategories, moveChips, rowMeta, tiffins } from "@/components/customer/deliveries/trip-parts";
+import { cutoffFmt, dedupeDishes, Journey, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
@@ -286,7 +286,7 @@ function SelectedDelivery({
   const chips = moveChips(row, true);
   const [first, ...rest] = dedupeDishes(row.dish);
   const addr = deliveryAddress(trip.addressOverride, plan.sub);
-  const meals = mealCategories(row, plan);
+  const { meal: meals, addons: addonTiles } = splitMealAddons(mealCategories(row, plan), plan.sub.addons);
   return (
     <Card data-testid="delivery-block">
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
@@ -315,7 +315,17 @@ function SelectedDelivery({
                 <p className="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Meal</p>
                 <Button variant="ghost" size="icon" className="-my-2 size-7" aria-label={`Details for ${humanDate(row.date)}`} onClick={() => onOpen("info")}><Info /></Button>
               </div>
-              {menuOut ? <p className="text-muted-foreground text-sm">Menu not released yet</p> : meals.length > 0 ? <MealTiles cats={meals} /> : (
+              {menuOut ? <p className="text-muted-foreground text-sm">Menu not released yet</p> : meals.length > 0 ? (
+                <>
+                  <MealTiles cats={meals} />
+                  {addonTiles.length > 0 && (
+                    <>
+                      <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Add-ons</p>
+                      <MealTiles cats={addonTiles} />
+                    </>
+                  )}
+                </>
+              ) : (
                 <ul className="space-y-0.5">
                   <li className="font-medium">{first ?? "Default menu"}</li>
                   {rest.map((d) => <li key={d} className="text-muted-foreground text-sm">{d}</li>)}
