@@ -27,7 +27,61 @@
         "apps/puchkaman/components/brutal/shared.tsx"
       ],
       "must": {
-        "export": ["${fileName.toPascalCase()}"]
+        "export": [
+          "${fileName.toPascalCase()}"
+        ]
+      }
+    },
+    {
+      "name": "root-has-no-stray-files",
+      "description": "A top-level entry is a directory unless it is one of the known repo files (workspace/tooling config and the root docs). One-off scripts, command output and scratch files do not belong at the root. Evidence: 18 of 32 tracked root files are config/docs; the other 14 were throwaway fix-*.js / run_drizzle.exp scripts left by a single lint-fix session.",
+      "severity": "error",
+      "paths": [
+        "*",
+        "!package.json",
+        "!pnpm-lock.yaml",
+        "!pnpm-workspace.yaml",
+        "!turbo.json",
+        "!tsconfig.base.json",
+        "!konsistent.json",
+        "!a6n-ai.code-workspace",
+        "!LICENSE",
+        "!AGENTS.md",
+        "!CLAUDE.md",
+        "!EXTRACTION.md",
+        "!PROJECT.md",
+        "!README.md",
+        "!SECURITY.md"
+      ],
+      "must": {
+        "haveType": "directory"
+      }
+    },
+    {
+      "name": "app-root-has-no-stray-files",
+      "description": "A top-level entry of apps/<client> is a directory unless it is tool config (*.config.ts|mjs, vitest.*.ts, package.json, tsconfig.json, components.json), a Next.js root file (proxy, instrumentation) or an agent/product doc. Lint dumps, logs and scratch output do not belong there. Evidence: 12 file names are shared by 3 of 3 apps and 3 more by 2 of 3, all config or docs; the outliers were lint.json, *-lint.txt, eslint-log.txt, xplorers-lint.json and the shell-redirect accidents `10` and `20`.",
+      "severity": "error",
+      "paths": [
+        "apps/*/*",
+        "!apps/*/package.json",
+        "!apps/*/tsconfig.json",
+        "!apps/*/components.json",
+        "!apps/*/*.config.ts",
+        "!apps/*/*.config.mjs",
+        "!apps/*/vitest.*.ts",
+        "!apps/*/proxy.ts",
+        "!apps/*/proxy.test.ts",
+        "!apps/*/instrumentation.ts",
+        "!apps/*/AGENTS.md",
+        "!apps/*/CLAUDE.md",
+        "!apps/*/DESIGN.md",
+        "!apps/*/PRODUCT.md",
+        "!apps/*/README.md",
+        "!apps/*/next-env.d.ts",
+        "!apps/*/tsconfig.tsbuildinfo"
+      ],
+      "must": {
+        "haveType": "directory"
       }
     }
   ]
