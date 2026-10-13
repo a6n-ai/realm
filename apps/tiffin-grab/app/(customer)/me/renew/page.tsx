@@ -8,6 +8,7 @@ import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
 import { myRenewalWindow, mySubscriptionsSummary } from "@/lib/services/customer-deliveries.service";
+import { checkoutHolidayDates } from "@/lib/services/holidays.service";
 import { appToday, earliestPlanStart } from "@/lib/services/start-date";
 import { PageShell } from "@/components/ds";
 import { Wizard } from "@/components/wizard/wizard";
@@ -44,6 +45,8 @@ export default async function RenewPlanPage() {
     mySubscriptionsSummary(userId),
   ]);
   const client = toClientCatalog(catalog);
+  const today = appToday(client.timezone, client.cutoffHour);
+  const holidayDates = await checkoutHolidayDates(today.toISOString().slice(0, 10));
   const mealSizePublicId = lastOrder
     ? catalog.mealSizes.find((m) => m.id === lastOrder.mealSizeId)?.publicId
     : undefined;
@@ -66,7 +69,7 @@ export default async function RenewPlanPage() {
   // the plan starts on after the running plan's last tiffin (or tomorrow when none runs).
   const priorPlan = client.plans.find((p) => p.key === prior.planKey);
   const initial = priorPlan
-    ? { ...prior, startDate: earliestPlanStart(appToday(client.timezone, client.cutoffHour), priorPlan.allowedStartDays, earliestStartDate) }
+    ? { ...prior, startDate: earliestPlanStart(today, priorPlan.allowedStartDays, earliestStartDate, new Set(holidayDates)) }
     : prior;
   const live = subs.filter((s) => LIVE.has(s.status));
   const currentRow =
@@ -105,6 +108,7 @@ export default async function RenewPlanPage() {
           currentPlan={current}
           minStartDate={earliestStartDate}
           lastTiffin={lastTiffin}
+          holidayDates={holidayDates}
           existingStartDates={live.map((s) => s.startDate).filter(Boolean)}
           trial={
             trialSettings.maxDays != null && trialSettings.maxDays >= 1 && trialSettings.weekdays.length > 0

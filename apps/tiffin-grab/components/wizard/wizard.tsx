@@ -38,6 +38,7 @@ export function Wizard({
   lastTiffin = null,
   exitHref,
   trial = null,
+  holidayDates = [],
 }: {
   catalog: ClientCatalogSnapshot;
   closeHref: string;
@@ -50,6 +51,8 @@ export function Wizard({
   /** Last tiffin of the customer's running plan(s): why the start date is not tomorrow. */
   lastTiffin?: string | null;
   exitHref?: string;
+  /** Declared closed days; the start date cannot be one. */
+  holidayDates?: string[];
   /** Open trial offer. Trial sizes then sit on Bundle and skip Schedule. */
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
@@ -194,6 +197,7 @@ export function Wizard({
               sameWeekConflict={sameWeekConflict}
               currentPlan={currentPlan}
               minStartDate={minStartDate}
+              holidayDates={holidayDates}
               lastTiffin={lastTiffin}
               trial={trialSelected && trial ? { ...trial, weekdays: trialSendDays(trial.weekdays, servesWeekends(catalog, selections)) } : null}
             />

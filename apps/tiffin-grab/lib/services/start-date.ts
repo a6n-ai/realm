@@ -47,19 +47,31 @@ export function validateStartDate(startDate: string, allowedStartDays: string[],
 
 /**
  * Earliest start a weekly plan can take: the next weekday after `today`, or `minStartDate`
- * when later (the day after a running plan), moved forward to a day the plan starts on.
+ * when later (the day after a running plan), moved forward to a day the plan starts on
+ * and that is not a closed (holiday) day.
  */
-export function earliestPlanStart(today: Date, allowedStartDays: readonly string[], minStartDate: string | null = null): string {
+export function earliestPlanStart(
+  today: Date,
+  allowedStartDays: readonly string[],
+  minStartDate: string | null = null,
+  closed: ReadonlySet<string> = new Set(),
+): string {
   const tomorrow = nextWeekday(today).toISOString().slice(0, 10);
   const from = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
-  return firstStartOnOrAfter(from, allowedStartDays);
+  return firstStartOnOrAfter(from, allowedStartDays, closed);
 }
 
-/** First day on/after `fromIso` whose weekday is in `allowed` (`fromIso` itself if none within two weeks). */
-export function firstStartOnOrAfter(fromIso: string, allowed: readonly string[]): string {
+/**
+ * First day on/after `fromIso` whose weekday is in `allowed` and is not closed. Looks two
+ * weeks ahead, or a year when days are closed so a run of holidays cannot hand one back;
+ * `fromIso` itself only if nothing qualifies in that span.
+ */
+export function firstStartOnOrAfter(fromIso: string, allowed: readonly string[], closed: ReadonlySet<string> = new Set()): string {
   const d = parseIsoDateUtc(fromIso);
-  for (let i = 0; i < 14; i++, d.setUTCDate(d.getUTCDate() + 1)) {
-    if (allowed.includes(weekdayKey(d))) return d.toISOString().slice(0, 10);
+  const span = closed.size ? 366 : 14;
+  for (let i = 0; i < span; i++, d.setUTCDate(d.getUTCDate() + 1)) {
+    const iso = d.toISOString().slice(0, 10);
+    if (allowed.includes(weekdayKey(d)) && !closed.has(iso)) return iso;
   }
   return fromIso;
 }
