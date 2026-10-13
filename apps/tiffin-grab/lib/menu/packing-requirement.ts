@@ -15,8 +15,8 @@ export type PackingItemLine = {
   /** Stable pack order (category sort, then pick index). */
   sort: number;
   /**
-   * Count categories: cell = packSize × packCount as a plain total ("4 roti" × 2 → "8 rotis").
-   * `countWord` is the display unit ("roti", "rice") — never generic "unit".
+   * Count categories: cell = packSize × packCount as a plain total ("4 roti" × 2 → "Roti — 8").
+   * `countWord` (the category label) keys the line and the kitchen summary's unit column.
    */
   packStyle?: "count-total";
   countWord?: string;
@@ -31,43 +31,18 @@ export function formatPortionUnit(portion: string): string {
   return trimmed;
 }
 
-/** Normalize "12oz" / "4 roti" into kitchen scan form: "12 OZ × 1", "4 roti × 2". */
+/** "12oz" × 1 → "12 OZ"; "8oz" × 2 → "8 OZ × 2". */
 export function formatPackingRequirement(portion: string, quantity: number): string {
   const unit = formatPortionUnit(portion);
   if (!unit || quantity <= 0) return "";
-  return `${unit} × ${quantity}`;
+  return quantity === 1 ? unit : `${unit} × ${quantity}`;
 }
 
-/** Pluralize count unit words for packing cells: 1 roti, 8 rotis, 2 rice. */
-export function pluralizeCountWord(n: number, word: string): string {
-  const base = word.trim().toLowerCase();
-  if (!base) return "";
-  if (n === 1) return base;
-  if (base === "rice" || base.endsWith("s")) return base;
-  if (base === "roti") return "rotis";
-  return `${base}s`;
-}
-
-/** Count packing cell: "8 rotis", "2 rice", "1 roti". */
-export function formatCountTotal(n: number, word: string): string {
-  if (n <= 0) return "";
-  const trimmed = String(Number(n.toFixed(2)));
-  const label = pluralizeCountWord(n, word);
-  return label ? `${trimmed} ${label}` : trimmed;
-}
-
-/**
- * Count concept: pack size × pack count → plain total.
- * "4 roti" × 2 → "8 rotis"; "1 unit" × 2 with countWord "rice" → "2 rice".
- */
-export function formatCountFromPack(portion: string, quantity: number, countWord: string): string {
-  if (quantity <= 0) return "";
-  const word = (countWord || "").trim().toLowerCase();
-  const m = /^(\d+(?:\.\d+)?)\s*(.*)$/.exec(portion.trim());
-  if (!m) return formatCountTotal(quantity, word || portion);
-  const amount = Number(m[1]);
-  if (!Number.isFinite(amount) || amount <= 0) return formatCountTotal(quantity, word || portion);
-  return formatCountTotal(amount * quantity, word || m[2] || portion);
+/** Count concept: pack size × pack count → plain total. "4 roti" × 2 → 8; "1 unit" × 2 → 2. */
+export function countTotalFromPack(portion: string, quantity: number): number {
+  if (quantity <= 0) return 0;
+  const amount = Number(/^(\d+(?:\.\d+)?)/.exec(portion.trim())?.[1] ?? 1);
+  return Number(((amount > 0 ? amount : 1) * quantity).toFixed(2));
 }
 
 /**
@@ -116,20 +91,44 @@ export function rollUpEqualPortions(portions: PortionQty[]): PortionQty[] {
   return portions;
 }
 
-/** Item cell: weight → "… — 12 OZ × 1"; count → packSize × qty as "8 rotis" / "2 rice". */
+/** Item cell, one shape for every dish: count → "Roti — 8" / "Veg Pulao" (one); weight → "Dal — 8 OZ" / "Dal — 8 OZ × 2". */
 export function formatItemCell(
-  line: Pick<PackingItemLine, "name" | "portion" | "quantity" | "packStyle" | "countWord">,
+  line: Pick<PackingItemLine, "name" | "portion" | "quantity" | "packStyle">,
 ): string {
-  if (line.packStyle === "count-total") {
-    return (
-      formatCountFromPack(line.portion, line.quantity, line.countWord ?? line.portion) ||
-      line.name.trim() ||
-      "—"
-    );
+  const total = line.packStyle === "count-total" ? countTotalFromPack(line.portion, line.quantity) : 0;
+  const req =
+    line.packStyle === "count-total"
+      ? (total > 1 ? String(total) : "")
+      : formatPackingRequirement(line.portion, line.quantity);
+  const name = line.name.trim();
+  if (!name) return req || "—";
+  return req ? `${name} — ${req}` : name;
+}
+
+/**
+ * Label card / PDF lines in the packing-sheet shape: repeat containers of one dish@portion
+ * merge into "Dal — 8 OZ × 2"; a count line ("8 roti") reads "Roti — 8", a single one just "Veg Pulao".
+ */
+export function labelLineTexts(
+  lines: { dish: string; portion: string | null; count?: boolean; addon?: boolean; defaulted: boolean }[],
+): { text: string; defaulted: boolean }[] {
+  const merged: { line: (typeof lines)[number]; quantity: number; defaulted: boolean }[] = [];
+  for (const line of lines) {
+    const hit = merged.find((m) => m.line.dish === line.dish && m.line.portion === line.portion && !!m.line.count === !!line.count && !!m.line.addon === !!line.addon);
+    if (hit) {
+      hit.quantity += 1;
+      hit.defaulted &&= line.defaulted;
+    } else merged.push({ line, quantity: 1, defaulted: line.defaulted });
   }
-  const req = formatPackingRequirement(line.portion, line.quantity);
-  if (!line.name.trim()) return req || "—";
-  return req ? `${line.name} — ${req}` : line.name;
+  return merged.map(({ line, quantity, defaulted }) => ({
+    text: formatItemCell({
+      name: line.addon ? `${line.dish} (add-on)` : line.dish,
+      portion: line.portion ?? "",
+      quantity,
+      ...(line.count ? { packStyle: "count-total" as const } : {}),
+    }),
+    defaulted,
+  }));
 }
 
 /** @deprecated Prefer formatItemCell; kept for summary-style portion-only joins. */

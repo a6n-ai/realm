@@ -34,6 +34,7 @@ export function InvitesList({ rows, actionableOrgIds }: { rows: InviteRow[]; act
   const canAct = (r: InviteRow) => actionableOrgIds.includes(r.organizationId);
   return (
     <DataTable
+      pagination="client"
       columns={COLUMNS}
       rows={rows}
       rowKey={(r) => r.id}

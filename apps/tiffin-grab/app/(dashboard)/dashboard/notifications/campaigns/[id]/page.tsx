@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
-import { buildCampaignConfig, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
+import { buildCampaignConfig, campaignFromLine, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
@@ -90,6 +90,7 @@ export default async function CampaignPage({
         body: campaignContent.body,
         html: campaignContent.html,
         text: campaignContent.text,
+        revision: campaignContent.revision,
         providerTemplateId: campaignContent.providerTemplateId,
         attachments: campaignContent.attachments,
       })
@@ -126,6 +127,8 @@ export default async function CampaignPage({
   const counts = (row.counts ?? {}) as Record<string, number>;
 
   const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" });
+
+  const from = campaignFromLine(campaignConfig);
   const footer = campaignConfig
     ? {
         url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),
@@ -177,7 +180,7 @@ export default async function CampaignPage({
             />
           </SectionCard>
           <SectionCard title="Content" subtitle="One row per channel and locale.">
-            <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} />
+            <CampaignContentSection autosaveDraft={row.status === "draft" && !isSystem} campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} from={from} />
           </SectionCard>
         </>
       ) : (
@@ -195,7 +198,7 @@ export default async function CampaignPage({
               <CampaignAnalytics counts={counts} />
             </SectionCard>
             <SectionCard title="Content" subtitle="One row per channel and locale.">
-              <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={isSystem} footer={footer} />
+              <CampaignContentSection autosaveDraft={row.status === "draft" && !isSystem} campaignPublicId={row.publicId} content={previewContent} editable={isSystem} footer={footer} from={from} />
             </SectionCard>
             <SectionCard
               title="Unsubscribed"

@@ -148,11 +148,12 @@ describe("getKitchenPackingSheet", () => {
 
     const items = sheet.rows[0]!.items.join(" | ");
     expect(items).toMatch(/Chilli Chicken|Saag Paneer/);
-    expect(items).toMatch(/OZ ×/);
+    expect(items).toMatch(/— \d+ OZ/);
+    expect(items).not.toMatch(/× 1\b/);
     expect(items).toMatch(/Kali Dal/);
-    // Count: plain totals — maharaja single roti row @ 2 TU → "8 rotis"; rice → "1 rice".
-    expect(items).toMatch(/\b8 rotis\b/);
-    expect(items).toMatch(/\b1 rice\b/);
+    // Count: "Dish — total"; a single one is just the dish — maharaja roti row @ 2 TU → "… — 8".
+    expect(items).toMatch(/Roti[^|]* — 8\b/i);
+    expect(sheet.rows[0]?.items).toContain(`${DISH_PREFIX}Jeera Rice`);
     expect(items).not.toMatch(/unit\s*×/i);
     expect(items).not.toMatch(/roti\s*×/i);
     expect(items).not.toMatch(/portion/);
@@ -218,9 +219,9 @@ describe("getKitchenPackingSheet", () => {
       expect(beforeItems).toMatch(/12\s*OZ/i);
       expect(beforeItems).toMatch(/8\s*OZ/i);
       expect(beforeItems).not.toMatch(/24\s*OZ/i);
-      // Count: eight 0.25-TU roti slots → "8 rotis"; one rice → "1 rice".
-      expect(beforeItems).toMatch(/\b8 rotis\b/);
-      expect(beforeItems).toMatch(/\b1 rice\b/);
+      // Count: eight 0.25-TU roti slots → "… — 8"; one rice → just the dish.
+      expect(beforeItems).toMatch(/Roti[^|]* — 8\b/i);
+      expect(beforeItems).not.toMatch(/Rice[^|]* — \d/i);
       expect(beforeItems).not.toMatch(/unit\s*×/i);
       expect(before.rows[0]?.items.filter((c) => /roti/i.test(c))).toHaveLength(1);
 
@@ -277,8 +278,8 @@ describe("getKitchenPackingSheet", () => {
 
       const sheet = await getKitchenPackingSheet(MONDAY);
       const items = sheet.rows[0]?.items.join(" | ") ?? "";
-      expect(items).toMatch(/\b2 rice\b/);
-      expect(items).toMatch(/\b3 rotis\b/);
+      expect(items).toMatch(/Rice[^|]* — 2\b/i);
+      expect(items).toMatch(/Roti[^|]* — 3\b/i);
       expect(items).not.toMatch(/unit\s*×/i);
       expect(items).not.toMatch(/2 unit/i);
       expect(sheet.summary.find((s) => /rice/i.test(s.dish))).toEqual(

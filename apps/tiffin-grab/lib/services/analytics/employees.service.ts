@@ -1,6 +1,7 @@
-import { isNotNull, sql } from "drizzle-orm";
+import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { coupons, inquiries, tickets, users } from "@/db/schema";
+import { coupons, deliveryZones, inquiries, mealSizes, tickets, users } from "@/db/schema";
+import { epochRangeWhere, type AnalyticsFilters } from "./shared-filters";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 
@@ -16,10 +17,34 @@ export type EmployeeRow = {
   repDailyCoupons: number;
 };
 
+function leadWhere(filters: AnalyticsFilters): SQL | undefined {
+  const parts: (SQL | undefined)[] = [
+    isNotNull(inquiries.currentOwner),
+    epochRangeWhere(inquiries.createdAt, filters),
+  ];
+  if (filters.plans.length) parts.push(inArray(inquiries.planInterest, filters.plans));
+  if (filters.mealSizes.length) {
+    parts.push(
+      sql`${inquiries.mealSizeInterest} in (
+        select ${mealSizes.publicId} from ${mealSizes} where ${inArray(mealSizes.key, filters.mealSizes)}
+      )`,
+    );
+  }
+  if (filters.zones.length) {
+    parts.push(
+      sql`${inquiries.zoneId} in (select ${deliveryZones.id} from ${deliveryZones} where ${inArray(deliveryZones.name, filters.zones)})`,
+    );
+  }
+  const defined = parts.filter((p): p is SQL => p != null);
+  return defined.length ? and(...defined) : undefined;
+}
+
 // Per-rep rollup across leads/tickets/coupons — there's no dedicated staff
 // table, reps are just `users` referenced via currentOwner/ownerUserId on
 // the domain tables, so this merges several grouped queries by user id.
-export async function getEmployeeRollup(): Promise<EmployeeRow[]> {
+export async function getEmployeeRollup(
+  filters: AnalyticsFilters = { plans: [], mealSizes: [], zones: [] },
+): Promise<EmployeeRow[]> {
   const [leadRows, ticketRows, couponRows, staff] = await Promise.all([
     db
       .select({
@@ -28,7 +53,7 @@ export async function getEmployeeRollup(): Promise<EmployeeRow[]> {
         converted: sql<number>`cast(count(*) filter (where ${inquiries.stage} = 'converted') as int)`,
       })
       .from(inquiries)
-      .where(isNotNull(inquiries.currentOwner))
+      .where(leadWhere(filters))
       .groupBy(inquiries.currentOwner),
     db
       .select({
@@ -37,12 +62,17 @@ export async function getEmployeeRollup(): Promise<EmployeeRow[]> {
         avgMs: sql<number | null>`avg(${tickets.closedAt} - ${tickets.createdAt}) filter (where ${tickets.closedAt} is not null)`,
       })
       .from(tickets)
-      .where(isNotNull(tickets.currentOwner))
+      .where(and(isNotNull(tickets.currentOwner), epochRangeWhere(tickets.createdAt, filters)))
       .groupBy(tickets.currentOwner),
     db
       .select({ owner: coupons.ownerUserId, n: intCount })
       .from(coupons)
-      .where(sql`${coupons.kind} = 'rep_daily' and ${coupons.ownerUserId} is not null`)
+      .where(
+        and(
+          sql`${coupons.kind} = 'rep_daily' and ${coupons.ownerUserId} is not null`,
+          epochRangeWhere(coupons.createdAt, filters),
+        ),
+      )
       .groupBy(coupons.ownerUserId),
     db.select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email }).from(users),
   ]);

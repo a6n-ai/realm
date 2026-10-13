@@ -6,7 +6,7 @@ import { eventLabel, TemplateEditor, TemplateEditorSkeleton } from "@relay/engin
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
-import { listTemplates } from "@/lib/services/notification-template.service";
+import { listTemplates, sampleMap } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
 import { notificationTables } from "@/lib/notifications/tables";
 
@@ -70,6 +70,7 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
       html: t.html ?? "",
       text: t.text ?? "",
       enabled: t.enabled,
+      revision: t.revision,
     }));
 
   const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" });
@@ -82,6 +83,6 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
     : undefined;
 
   return (
-    <TemplateEditor event={event} variables={availableVariables(event)} initial={initial} footer={footer} />
+    <TemplateEditor samples={sampleMap(event as AppEvent)} event={event} variables={availableVariables(event)} initial={initial} footer={footer} />
   );
 }

@@ -140,7 +140,7 @@ export function RequestsTable({
               {r.proofThumb ? (
                 <a href={r.proofThumb} target="_blank" rel="noreferrer">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={r.proofThumb} alt="Payment proof" className="size-10 rounded-md border object-cover" />
+                  <img src={r.proofThumb} alt="Payment proof" className="size-7 rounded border object-cover" />
                 </a>
               ) : (
                 <span className="text-muted-foreground">-</span>

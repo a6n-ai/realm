@@ -11,7 +11,7 @@ import { notificationTables } from "@/lib/notifications/tables";
 /** Send a pre-rendered template (html/text from the client editor) to the acting admin's email. */
 export const POST = handler(async (req: Request): Promise<Response> => {
   await requireAdmin();
-  const { subject, html, text, to } = await req.json();
+  const { subject, html, text, to, marketing } = await req.json();
 
   const publicId = (await getSession())?.user?.id;
   if (!publicId) return problem(401, "Unauthorized");
@@ -30,7 +30,8 @@ export const POST = handler(async (req: Request): Promise<Response> => {
   // A test send should show the same footer a real recipient gets — this is
   // exactly where an admin would notice it's missing (see appendUnsubscribeFooter);
   // no config means no footer, same as a real send, rather than faking one.
-  const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" });
+  const campaignConfig =
+    marketing === true ? buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" }) : undefined;
   const stamped = campaignConfig
     ? appendUnsubscribeFooter(
         { html, text },
@@ -42,12 +43,12 @@ export const POST = handler(async (req: Request): Promise<Response> => {
       )
     : { html, text };
 
-  // Goes through the app provider (not a bare SesEmailProvider) — same SES
-  // config/from-address as every other send. Also used by campaigns' "Send
-  // test" (EmailTemplateBuilder), not just event templates, hence the
-  // event/campaign-agnostic {subject, html, text, to} body.
+  // Shared by event templates and campaigns' "Send test" (EmailTemplateBuilder);
+  // `marketing` (campaigns) uses the campaign From address, as a real campaign send does.
+  const from = campaignConfig?.sender.email;
   await getEmailProvider().send({
     to: { email: recipient },
+    from: from ? { email: from, name: campaignConfig!.sender.name } : undefined,
     subject: `[TEST] ${subject}`,
     html: stamped.html,
     text: stamped.text,

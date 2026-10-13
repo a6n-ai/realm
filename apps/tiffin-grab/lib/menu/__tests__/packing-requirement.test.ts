@@ -3,13 +3,12 @@ import {
   addDishPortion,
   countPackNaturalTotal,
   countPackSlotPortions,
-  formatCountFromPack,
-  formatCountTotal,
+  countTotalFromPack,
   formatDishCell,
   formatItemCell,
   formatPackingRequirement,
   formatPortionUnit,
-  pluralizeCountWord,
+  labelLineTexts,
 } from "../packing-requirement";
 
 describe("formatPortionUnit", () => {
@@ -21,34 +20,17 @@ describe("formatPortionUnit", () => {
 });
 
 describe("formatPackingRequirement", () => {
-  it("renders portion × quantity for weight kitchen scanning", () => {
-    expect(formatPackingRequirement("12oz", 1)).toBe("12 OZ × 1");
+  it("drops × 1 and keeps × N for weight", () => {
+    expect(formatPackingRequirement("12oz", 1)).toBe("12 OZ");
     expect(formatPackingRequirement("8oz", 2)).toBe("8 OZ × 2");
   });
 });
 
-describe("formatCountFromPack (size × count → total)", () => {
-  it("multiplies pack size by pack count for roti and rice", () => {
-    expect(formatCountFromPack("4 roti", 2, "roti")).toBe("8 rotis");
-    expect(formatCountFromPack("4 roti", 1, "roti")).toBe("4 rotis");
-    expect(formatCountFromPack("1 unit", 2, "rice")).toBe("2 rice");
-    expect(formatCountFromPack("1 unit", 1, "rice")).toBe("1 rice");
-    expect(formatCountFromPack("8 roti", 1, "roti")).toBe("8 rotis");
-  });
-});
-
-describe("formatCountTotal", () => {
-  it("renders plain totals", () => {
-    expect(formatCountTotal(8, "roti")).toBe("8 rotis");
-    expect(formatCountTotal(2, "rice")).toBe("2 rice");
-  });
-});
-
-describe("pluralizeCountWord", () => {
-  it("pluralizes roti and leaves rice unchanged", () => {
-    expect(pluralizeCountWord(1, "Roti")).toBe("roti");
-    expect(pluralizeCountWord(8, "roti")).toBe("rotis");
-    expect(pluralizeCountWord(2, "rice")).toBe("rice");
+describe("countTotalFromPack (size × count → total)", () => {
+  it("multiplies pack size by pack count", () => {
+    expect(countTotalFromPack("4 roti", 2)).toBe(8);
+    expect(countTotalFromPack("1 unit", 2)).toBe(2);
+    expect(countTotalFromPack("1 unit", 1)).toBe(1);
   });
 });
 
@@ -76,31 +58,15 @@ describe("countPackNaturalTotal", () => {
 });
 
 describe("formatItemCell", () => {
-  it("puts dish name and converted portion in one cell for weight", () => {
-    expect(formatItemCell({ name: "Chicken Curry", portion: "12oz", quantity: 1 })).toBe(
-      "Chicken Curry — 12 OZ × 1",
-    );
+  it("weight: Dish — 8 OZ, × N only when more than one", () => {
+    expect(formatItemCell({ name: "Moong Dal", portion: "8oz", quantity: 1 })).toBe("Moong Dal — 8 OZ");
+    expect(formatItemCell({ name: "Soya Keema", portion: "8oz", quantity: 2 })).toBe("Soya Keema — 8 OZ × 2");
   });
 
-  it("multiplies count pack size × quantity into a plain total", () => {
-    expect(
-      formatItemCell({
-        name: "Roti",
-        portion: "4 roti",
-        quantity: 2,
-        packStyle: "count-total",
-        countWord: "roti",
-      }),
-    ).toBe("8 rotis");
-    expect(
-      formatItemCell({
-        name: "Rice",
-        portion: "1 unit",
-        quantity: 2,
-        packStyle: "count-total",
-        countWord: "rice",
-      }),
-    ).toBe("2 rice");
+  it("count: Dish — total, or just the dish when it is one", () => {
+    expect(formatItemCell({ name: "Roti", portion: "4 roti", quantity: 2, packStyle: "count-total" })).toBe("Roti — 8");
+    expect(formatItemCell({ name: "Veg Pulao", portion: "1 unit", quantity: 1, packStyle: "count-total" })).toBe("Veg Pulao");
+    expect(formatItemCell({ name: "Jeera Rice", portion: "1 unit", quantity: 2, packStyle: "count-total" })).toBe("Jeera Rice — 2");
   });
 });
 
@@ -112,7 +78,7 @@ describe("formatDishCell", () => {
         { portion: "12oz", quantity: 1 },
         { portion: "8oz", quantity: 1 },
       ]),
-    ).toBe("12 OZ × 1; 8 OZ × 1");
+    ).toBe("12 OZ; 8 OZ");
   });
 });
 
@@ -124,5 +90,28 @@ describe("addDishPortion", () => {
     addDishPortion(into, "Curry", "8oz", 1);
     expect(into.get("Curry")?.get("12oz")).toBe(2);
     expect(into.get("Curry")?.get("8oz")).toBe(1);
+  });
+});
+
+describe("labelLineTexts", () => {
+  it("merges repeat containers and formats counts like the packing sheet", () => {
+    expect(
+      labelLineTexts([
+        { dish: "Soya Keema", portion: "8oz", defaulted: true },
+        { dish: "Soya Keema", portion: "8oz", defaulted: false },
+        { dish: "Moong Dal", portion: "12oz", defaulted: true },
+        { dish: "Roti", portion: "8 roti", count: true, defaulted: true },
+        { dish: "Rice", portion: "2 unit", count: true, defaulted: true },
+        { dish: "Veg Pulao", portion: "1 unit", count: true, defaulted: true },
+        { dish: "Moong Dal", portion: "12oz", addon: true, defaulted: false },
+      ]),
+    ).toEqual([
+      { text: "Soya Keema — 8 OZ × 2", defaulted: false },
+      { text: "Moong Dal — 12 OZ", defaulted: true },
+      { text: "Roti — 8", defaulted: true },
+      { text: "Rice — 2", defaulted: true },
+      { text: "Veg Pulao", defaulted: true },
+      { text: "Moong Dal (add-on) — 12 OZ", defaulted: false },
+    ]);
   });
 });

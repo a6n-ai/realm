@@ -2,7 +2,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { zonedDateIso } from "@foundry/commons";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lte, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryZones, orders, plans, tickets, users } from "@/db/schema";
+import { deliveries, deliveryZones, mealSizes, orders, plans, tickets, users } from "@/db/schema";
 import { categoryLabel, subcategoryLabel, SUBCATEGORIES, TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 import {
   COMPLAINT_CATEGORIES,
@@ -60,11 +60,22 @@ async function deliveredTiffins(filters: ComplaintFilters, now = Date.now()): Pr
   const { timezone } = await getAppSettings();
   if (filters.from != null) parts.push(gte(deliveries.deliveryDate, zonedDateIso(filters.from, timezone)));
   if (filters.to != null) parts.push(lte(deliveries.deliveryDate, zonedDateIso(filters.to, timezone)));
+  if (filters.plans.length) parts.push(inArray(plans.key, filters.plans));
+  if (filters.mealSizes.length) parts.push(inArray(mealSizes.key, filters.mealSizes));
+  if (filters.zones.length) parts.push(inArray(deliveryZones.name, filters.zones));
 
-  const [row] = await db
-    .select({ units: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int` })
-    .from(deliveries)
-    .where(and(...parts));
+  const needsOrder = filters.plans.length > 0 || filters.mealSizes.length > 0 || filters.zones.length > 0;
+  const units = sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int`;
+  const [row] = needsOrder
+    ? await db
+        .select({ units })
+        .from(deliveries)
+        .innerJoin(orders, eq(deliveries.orderId, orders.id))
+        .leftJoin(plans, eq(orders.planId, plans.id))
+        .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+        .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
+        .where(and(...parts))
+    : await db.select({ units }).from(deliveries).where(and(...parts));
   return row?.units ?? 0;
 }
 
@@ -82,6 +93,7 @@ export async function getComplaintKpis(filters: ComplaintFilters): Promise<Compl
     .from(tickets)
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id)).where(scope),
     deliveredTiffins(filters),
   ]);
@@ -110,6 +122,7 @@ export async function getComplaintTrend(filters: ComplaintFilters) {
     .from(tickets)
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(where({ filters }))
     .groupBy(day)
@@ -128,6 +141,7 @@ export async function getByCategory(filters: ComplaintFilters) {
     .from(tickets)
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(where({ filters, complaintsOnly: false }))
     .groupBy(tickets.category);
@@ -154,6 +168,7 @@ export async function getBySubcategory(filters: ComplaintFilters, category: stri
     .from(tickets)
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(and(where({ filters, complaintsOnly: false }), eq(tickets.category, category as never)))
     .groupBy(tickets.subcategory);
@@ -183,6 +198,7 @@ export async function getStatusMix(filters: ComplaintFilters) {
     .from(tickets)
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(where({ filters }));
 
@@ -207,6 +223,7 @@ export async function getPriorityMix(filters: ComplaintFilters) {
     .from(tickets)
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(where({ filters }))
     .groupBy(tickets.priority);
@@ -221,6 +238,7 @@ export async function getTopIssues(filters: ComplaintFilters, limit = 8) {
     .from(tickets)
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(where({ filters }))
     .groupBy(tickets.category, tickets.subcategory)
@@ -250,6 +268,7 @@ export async function getRepeatCustomers(filters: ComplaintFilters, limit = 8) {
     .innerJoin(users, eq(tickets.raisedBy, users.id))
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(where({ filters }))
     .groupBy(users.publicId, users.name, users.email)
@@ -266,6 +285,7 @@ export async function getByPlan(filters: ComplaintFilters) {
     .from(tickets)
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(where({ filters }))
     .groupBy(plans.key, plans.name);
@@ -282,6 +302,7 @@ export async function getByZone(filters: ComplaintFilters) {
     .from(tickets)
     .leftJoin(orders, eq(tickets.orderId, orders.id))
     .leftJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
     .where(where({ filters }))
     .groupBy(deliveryZones.name);
@@ -316,6 +337,7 @@ export async function getNeedsAttention(filters: ComplaintFilters, now = Date.no
       .from(tickets)
       .leftJoin(orders, eq(tickets.orderId, orders.id))
       .leftJoin(plans, eq(orders.planId, plans.id))
+      .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
       .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
       .where(scope),
     getRepeatCustomers(filters, 100),

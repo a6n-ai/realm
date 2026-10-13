@@ -1,5 +1,6 @@
 "use server";
 
+import { StaffInviteError } from "@foundry/auth";
 import { revalidatePath } from "next/cache";
 import { ValidationError, type RoleValue } from "@foundry/commons";
 import { auth } from "@/lib/auth";
@@ -53,4 +54,16 @@ export async function inviteUserAction(input: { email: string; name: string; rol
     organizationId,
   });
   revalidatePath(PATH);
+}
+
+// Production Next.js redacts the message of anything a server action throws, so
+// "That email is already in use" reached the dialog as a generic error. Return
+// the user-facing failures as values; everything else (redirects, bugs) rethrows.
+export async function inviteUserFormAction(input: { email: string; name: string; role: string }): Promise<{ error: string } | undefined> {
+  try {
+    await inviteUserAction(input);
+  } catch (e) {
+    if (e instanceof ValidationError || e instanceof StaffInviteError) return { error: e.message };
+    throw e;
+  }
 }

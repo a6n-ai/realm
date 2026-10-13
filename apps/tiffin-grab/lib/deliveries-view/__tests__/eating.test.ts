@@ -37,7 +37,7 @@ describe("one eating day moved off a Fri+Sat+Sun trip", () => {
   it("Fri and Sat read Moved to; Sun still arrives on Friday's truck", () => {
     expect(lines["2026-09-25"]).toBe("Moved to Wed, Sep 23");
     expect(lines["2026-09-26"]).toBe("Moved to Tue, Sep 29");
-    expect(lines["2026-09-27"]).toBe("Arrives Fri, Sep 25 with Fri");
+    expect(lines["2026-09-27"]).toBe("Comes with the Fri, Sep 25 delivery");
   });
   it("Change address sits on the delivery day, even after its own tiffin moved away", () => {
     const fri = rows.filter((r) => r.trip.date === "2026-09-25");
@@ -87,7 +87,7 @@ describe("prod shape: plan eating Mon/Tue/Fri/Sat/Sun", () => {
     const rows = buildEatingDays([trip({}), fri]);
     expect(rows.map((r) => r.date)).toEqual(["2026-09-21", "2026-09-22", "2026-09-25", "2026-09-26", "2026-09-27"]);
     expect(rows.filter((r) => r.own).map((r) => r.date)).toEqual(["2026-09-21", "2026-09-25"]);
-    expect(deliveryLine(rows[4]!)).toBe("Arrives Fri, Sep 25 with Fri");
+    expect(deliveryLine(rows[4]!)).toBe("Comes with the Fri, Sep 25 delivery");
   });
 });
 
@@ -102,15 +102,15 @@ describe("eatingRowsInWeek", () => {
     });
     const rows = eatingRowsInWeek([moved], "2026-09-21", "2026-09-27");
     expect(rows.map((r) => r.date)).toEqual(["2026-09-18", "2026-09-19", "2026-09-20"]);
-    expect(deliveryLine(rows[0]!)).toContain("Arrives Fri, Sep 25");
+    expect(deliveryLine(rows[0]!)).toContain("Comes with the Fri, Sep 25 delivery");
   });
 });
 
 describe("deliveryLine", () => {
-  it("names the truck day and 'with' for carried days", () => {
+  it("names the delivery a carried day comes with", () => {
     const [mon, tue] = buildEatingDays([trip({})]);
     expect(deliveryLine(mon!)).toBe("Arrives Mon, Sep 21");
-    expect(deliveryLine(tue!)).toBe("Arrives Mon, Sep 21 with Mon");
+    expect(deliveryLine(tue!)).toBe("Comes with the Mon, Sep 21 delivery");
     const [d] = buildEatingDays([trip({ status: "delivered" })]);
     expect(deliveryLine(d!)).toBe("Delivered Mon, Sep 21");
   });

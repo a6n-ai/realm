@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { buildCampaignConfig, buildUnsubscribeUrl } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
-import { listTemplates } from "@/lib/services/notification-template.service";
+import { listTemplates, sampleMap } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
 import { notificationTables } from "@/lib/notifications/tables";
 import { TemplateEditor, TemplateEditorSkeleton } from "@relay/engine/ui";
@@ -64,6 +64,7 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
       html: t.html ?? "",
       text: t.text ?? "",
       enabled: t.enabled,
+      revision: t.revision,
     }));
 
   const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" });
@@ -76,7 +77,7 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
     : undefined;
 
   return (
-    <TemplateEditor
+    <TemplateEditor samples={sampleMap(event as AppEvent)}
       event={event}
       variables={availableVariables(event as AppEvent)}
       initial={initial}

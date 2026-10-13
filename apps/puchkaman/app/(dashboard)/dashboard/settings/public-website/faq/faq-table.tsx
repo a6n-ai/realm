@@ -59,6 +59,7 @@ function ToggleActiveButton({ faq }: { faq: Faq }) {
 export function FaqTable({ faqs, onEdit }: { faqs: Faq[]; onEdit: (faq: Faq) => void }) {
   return (
     <DataTable
+      pagination="client"
       columns={COLUMNS}
       rows={faqs}
       rowKey={(f) => f.publicId}

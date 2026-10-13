@@ -27,7 +27,7 @@ import { actionModel } from "@/components/customer/deliveries/action-model";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
 import { PauseSheet } from "@/components/customer/deliveries/actions/pause-sheet";
-import { WeekTimeline } from "@/components/customer/deliveries/week-timeline";
+import { WeekStrip } from "@/components/customer/deliveries/week-strip";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;
@@ -87,7 +87,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
         </span>
       </div>
 
-      <WeekTimeline
+      <WeekStrip
         firstWeek={firstWeek}
         lastWeek={lastWeek}
         week={weekStart}
@@ -261,7 +261,7 @@ function SelectedDelivery({
   const addressOk = model.rows.some((r) => r.key === "address" && r.av.ok);
   const carried = trip.date !== row.date;
   const meta = [
-    carried ? `${trip.status === "delivered" ? "Delivered" : "Arrives"} ${humanDate(trip.date)} with ${weekdayShort(trip.date)}` : null,
+    carried ? `${trip.status === "delivered" ? "Came" : "Comes"} with the ${humanDate(trip.date)} delivery` : null,
     trip.status === "upcoming" && trip.cutoffAt ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : null,
   ].filter(Boolean).join(" · ");
   const chips = moveChips(row, true);

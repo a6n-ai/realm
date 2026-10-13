@@ -26,6 +26,7 @@ import { menuService } from "@/lib/services/menu.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
 import { loadExtraDates } from "@/lib/services/delivery-extras";
+import { isContainerCategory } from "@/lib/menu/format-tu";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
@@ -50,6 +51,8 @@ export type LabelLine = {
   defaulted: boolean;
   /** An add-on row (extra sabzi…); labels mark it, kitchen counts don't split on it. */
   addon?: boolean;
+  /** Count category (roti, rice, weekend dish): portion is a total ("8 roti"), not a container size. */
+  count?: boolean;
 };
 
 /** Words on the Deliveries section. Same words as the order page. */
@@ -336,6 +339,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
             addon: addonPicks.get(category.category)?.has(i + 1) || undefined,
             portion: portionForPick(portions, category.category, i + 1),
             defaulted: pick.isDefaulted,
+            count: (!category.selectable && !isContainerCategory(categoriesByKey.get(category.category))) || undefined,
           });
         });
       }
