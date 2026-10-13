@@ -1,6 +1,6 @@
 import type { OrderPricingSnapshot } from "./types";
 
-const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
+export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export type MidPlanAddon = { name: string; pricePerTiffin: number; qty: number };
 

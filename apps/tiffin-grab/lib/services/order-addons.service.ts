@@ -1,15 +1,15 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";
 import { findMethod } from "@foundry/payments";
 import { db } from "@/db/client";
-import { deliveries, mealSizes, orderActivities, orderAddons, orders, payments, type PaymentProof } from "@/db/schema";
+import { deliveries, mealSizes, orderActivities, orderAddons, orders, payments, users, type PaymentProof } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
-import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
+import { canTakeAddonPayment } from "@/lib/orders/display-status";
 import { resolveAddonSelections, type ResolvedAddon } from "@/lib/pricing/build-catalog";
-import { addAddonsToSnapshot, type MidPlanAddonPricing } from "@/lib/pricing/mid-plan-addons";
+import { addAddonsToSnapshot, round2, type MidPlanAddonPricing } from "@/lib/pricing/mid-plan-addons";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
-import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
+import { publishAnalyticsLive, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { getPaymentConfig } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
@@ -37,13 +37,17 @@ type Priced = {
   pricing: MidPlanAddonPricing;
 };
 
+// What the order column will hold once these add-ons are in: grown from the column, not reset
+// to the receipt's own running total.
+const newOrderTotal = (p: Priced): number => round2(Number(p.order.total) + p.pricing.amountDue);
+
 const toQuote = (p: Priced): AddonQuote => ({
   openTiffins: p.openTiffins,
   lines: p.pricing.lines,
   addonSubtotal: p.pricing.addonSubtotal,
   taxTotal: p.pricing.taxTotal,
   amountDue: p.pricing.amountDue,
-  newTotal: p.pricing.snapshot.total,
+  newTotal: newOrderTotal(p),
 });
 
 // Every rule and every number for a mid-plan add-on, shared by the quote and the save so the
@@ -74,9 +78,10 @@ async function priceAddons(
     throw new ValidationError("Each add-on can only be listed once");
   }
 
-  const open = await reader.select({ id: payments.id }).from(payments)
-    .where(and(eq(payments.orderId, order.id), inArray(payments.status, [...PAYMENT_REVIEW_STATUSES]))).limit(1);
-  if (open.length) throw new ValidationError("A payment is still pending on this plan. Confirm it first.");
+  if (!order.userId) throw new ValidationError("This order has no customer to bill");
+  const paymentRows = await reader.select({ status: payments.status }).from(payments).where(eq(payments.orderId, order.id));
+  const blocker = canTakeAddonPayment(order, paymentRows.map((r) => r.status));
+  if (blocker) throw new ValidationError(blocker);
 
   const cfg = await getPaymentConfig();
   const method = findMethod(cfg, methodId);
@@ -125,13 +130,18 @@ export async function quoteOrderAddons(orderPublicId: string, selections: AddonS
  */
 export async function addOrderAddons(
   orderPublicId: string,
-  input: { selections: AddonSelection[]; methodId: string; proof?: PaymentProof | null; reference?: string | null },
+  input: { selections: AddonSelection[]; methodId: string; expectedAmountDue: number; proof?: PaymentProof | null; reference?: string | null },
   actorId: bigint | null,
 ): Promise<AddonQuote> {
-  const quote = await db.transaction(async (tx) => {
+  const { quote, userId } = await db.transaction(async (tx) => {
     const p = await priceAddons(tx, orderPublicId, input.selections, input.methodId, true);
     const { order, pricing } = p;
-    if (!order.userId) throw new ValidationError("This order has no customer to bill");
+    const userId = order.userId!;
+    // A check only: the amount written below is always the server's. Cutoffs and prices move
+    // between the quote on screen and Save, and the screenshot matches what staff saw.
+    if (pricing.amountDue.toFixed(2) !== input.expectedAmountDue.toFixed(2)) {
+      throw new ValidationError(`The amount changed to ${formatMoney(pricing.amountDue)}. Check with the customer and try again.`);
+    }
     const proof = input.proof ?? null;
     const reference = input.reference?.trim() || null;
     if (pricing.amountDue > 0 && p.method.requireProof && !proof) {
@@ -139,13 +149,13 @@ export async function addOrderAddons(
     }
 
     await tx.update(orders).set({
-      total: pricing.snapshot.total.toFixed(2),
+      total: newOrderTotal(p).toFixed(2),
       pricingSnapshot: pricing.snapshot,
       categoryCounts: countsWithAddons((order.categoryCounts ?? {}) as Record<string, number>, p.addons),
       updatedBy: actorId,
     }).where(eq(orders.id, order.id));
 
-    await tx.insert(orderAddons).values(orderAddonValues(order.id, p.addons, p.openTiffins, order.organizationId));
+    await tx.insert(orderAddons).values(orderAddonValues(order.id, p.addons, p.openTiffins, order.organizationId).map((v) => ({ ...v, createdBy: actorId })));
 
     const summary = p.addons.map((a) => (a.qty > 1 ? `${a.name} ×${a.qty}` : a.name)).join(", ");
     await tx.insert(orderActivities).values({
@@ -172,7 +182,7 @@ export async function addOrderAddons(
         organizationId: order.organizationId,
       }).returning({ id: payments.id });
       await ledgerService.record(tx, {
-        userId: order.userId,
+        userId,
         orderId: order.id,
         paymentId: pay.id,
         direction: "credit",
@@ -188,8 +198,10 @@ export async function addOrderAddons(
       });
     }
 
-    return toQuote(p);
+    return { quote: toQuote(p), userId };
   });
   publishAnalyticsLive();
+  const [customer] = await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, userId)).limit(1);
+  if (customer) publishUserRefresh(customer.publicId);
   return quote;
 }

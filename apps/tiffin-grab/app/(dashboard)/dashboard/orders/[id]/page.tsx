@@ -14,7 +14,7 @@ import { earliestNewPlanStart } from "@/lib/services/order-window";
 import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
-import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
+import { canTakeAddonPayment, complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
@@ -178,7 +178,9 @@ async function OrderDetail({
   const addonMethods = enabledMethods(paymentCfg)
     .filter((m) => m.id !== "simulated")
     .map((m) => ({ id: m.id, label: m.label, requireProof: m.requireProof === true }));
-  const canAddAddons = order.trialLength == null && (order.status === "active" || order.status === "paused");
+  const customMealSize = catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.custom === true;
+  const canAddAddons = order.trialLength == null && !customMealSize && (order.status === "active" || order.status === "paused")
+    && canTakeAddonPayment(order, order.payments.map((p) => p.status)) == null;
   const frequencyKey = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId)?.key ?? null;
   const migration = migratedPending && frequencyKey
     ? {

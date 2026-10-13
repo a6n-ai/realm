@@ -60,6 +60,13 @@ async function anAddon() {
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
+type SaveInput = Omit<Parameters<typeof addOrderAddons>[1], "expectedAmountDue">;
+// Saves the way the dialog does: the amount staff were shown is the amount they confirm.
+async function saveShown(publicId: string, input: SaveInput, actorId: bigint | null = null) {
+  const shown = await quoteOrderAddons(publicId, input.selections, input.methodId);
+  return addOrderAddons(publicId, { ...input, expectedAmountDue: shown.amountDue }, actorId);
+}
+
 describe("order add-ons mid-plan (integration)", () => {
   let seededAddonId: bigint | null = null;
 
@@ -85,7 +92,7 @@ describe("order add-ons mid-plan (integration)", () => {
     const order = await runningOrder();
     const addon = await anAddon();
 
-    const quote = await addOrderAddons(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF, reference: "CA123" }, null);
+    const quote = await saveShown(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF, reference: "CA123" }, order.userId);
 
     expect(quote.openTiffins).toBe(5);
     expect(quote.addonSubtotal).toBe(round2(addon.pricePerTiffin * 5));
@@ -100,7 +107,7 @@ describe("order add-ons mid-plan (integration)", () => {
 
     const rows = await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id));
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ addonKey: addon.key, qty: 1, amount: quote.addonSubtotal.toFixed(2) });
+    expect(rows[0]).toMatchObject({ addonKey: addon.key, qty: 1, amount: quote.addonSubtotal.toFixed(2), createdBy: order.userId });
 
     const pays = await db.select().from(payments).where(eq(payments.orderId, order.id)).orderBy(asc(payments.id));
     const topUp = pays.at(-1)!;
@@ -150,7 +157,7 @@ describe("order add-ons mid-plan (integration)", () => {
   it("caps at max_qty including existing rows", async () => {
     const order = await runningOrder();
     const addon = await anAddon();
-    await addOrderAddons(order.publicId, { selections: [{ key: addon.key, qty: addon.maxQty }], methodId: "etransfer", proof: PROOF }, null);
+    await saveShown(order.publicId, { selections: [{ key: addon.key, qty: addon.maxQty }], methodId: "etransfer", proof: PROOF }, null);
     await expect(quoteOrderAddons(order.publicId, [{ key: addon.key, qty: 1 }], "etransfer")).rejects.toThrow(`at most ${addon.maxQty}`);
   });
 
@@ -165,7 +172,7 @@ describe("order add-ons mid-plan (integration)", () => {
     const order = await runningOrder();
     const addon = await anAddon();
     await methods([{ requireProof: true }]);
-    await expect(addOrderAddons(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer" }, null)).rejects.toThrow("screenshot");
+    await expect(saveShown(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer" })).rejects.toThrow("screenshot");
     expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id))).toHaveLength(0);
     const [after] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect(after.total).toBe(order.total);
@@ -206,14 +213,111 @@ describe("order add-ons mid-plan (integration)", () => {
     await db.delete(payments).where(eq(payments.orderId, order.id));
     await db.update(orders).set({
       total: "0.00",
+      deploymentId: `wc-${order.id}`,
       pricingSnapshot: { lineItems: [{ label: "Prepaid on WordPress", amount: 0 }], adjustments: [], taxLines: [], taxTotal: 0, tiffinCount: 5, perTiffinPrice: 0, subtotal: 0, total: 0, paymentMethodId: "simulated" },
     }).where(eq(orders.id, order.id));
 
-    const quote = await addOrderAddons(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF }, null);
+    const quote = await saveShown(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF }, null);
 
     expect(quote.taxTotal).toBeGreaterThan(0);
     expect(quote.newTotal).toBe(quote.amountDue);
     const [after] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect(Number(after.total)).toBe(quote.amountDue);
+  });
+
+  describe("the plan's own payment must be settled (F1)", () => {
+    const writes = async (orderId: bigint) => ({
+      addons: await db.select().from(orderAddons).where(eq(orderAddons.orderId, orderId)),
+      pays: await db.select().from(payments).where(eq(payments.orderId, orderId)),
+    });
+
+    it("refuses a rejected-only order and writes nothing", async () => {
+      const order = await runningOrder();
+      const addon = await anAddon();
+      await db.update(payments).set({ status: "rejected" }).where(eq(payments.orderId, order.id));
+      const before = await writes(order.id);
+      await expect(saveShown(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF })).rejects.toThrow("payment was rejected");
+      const after = await writes(order.id);
+      expect(after.addons).toHaveLength(0);
+      expect(after.pays).toHaveLength(before.pays.length);
+      expect(after.pays.every((p) => p.status === "rejected")).toBe(true);
+    });
+
+    it("refuses a refunded-only order", async () => {
+      const order = await runningOrder();
+      const addon = await anAddon();
+      await db.update(payments).set({ status: "refunded" }).where(eq(payments.orderId, order.id));
+      await expect(quoteOrderAddons(order.publicId, [{ key: addon.key, qty: 1 }], "etransfer")).rejects.toThrow("no confirmed payment");
+    });
+
+    it("refuses a non-WordPress order with no payment rows", async () => {
+      const order = await runningOrder();
+      const addon = await anAddon();
+      await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, order.id));
+      await db.delete(payments).where(eq(payments.orderId, order.id));
+      await expect(quoteOrderAddons(order.publicId, [{ key: addon.key, qty: 1 }], "etransfer")).rejects.toThrow("no confirmed payment");
+    });
+
+    it("refuses a rejected payment even beside a paid one", async () => {
+      const order = await runningOrder();
+      const addon = await anAddon();
+      const [first] = await db.select().from(payments).where(eq(payments.orderId, order.id));
+      await db.insert(payments).values({ orderId: order.id, status: "rejected", method: "etransfer", amount: "1.00", organizationId: order.organizationId });
+      expect(first.status).toBe("simulated_paid");
+      await expect(quoteOrderAddons(order.publicId, [{ key: addon.key, qty: 1 }], "etransfer")).rejects.toThrow("payment was rejected");
+    });
+  });
+
+  describe("the amount staff saw is the amount recorded (F2)", () => {
+    it("refuses a different expected amount and writes nothing", async () => {
+      const order = await runningOrder();
+      const addon = await anAddon();
+      const shown = await quoteOrderAddons(order.publicId, [{ key: addon.key, qty: 1 }], "etransfer");
+      await expect(addOrderAddons(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF, expectedAmountDue: shown.amountDue + 1 }, null))
+        .rejects.toThrow("The amount changed to");
+      expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id))).toHaveLength(0);
+      const [after] = await db.select().from(orders).where(eq(orders.id, order.id));
+      expect(after.total).toBe(order.total);
+      expect(await db.select().from(payments).where(eq(payments.orderId, order.id))).toHaveLength(1);
+    });
+
+    it("refuses when a delivery passes cutoff between the quote and the save", async () => {
+      const order = await runningOrder();
+      const addon = await anAddon();
+      const shown = await quoteOrderAddons(order.publicId, [{ key: addon.key, qty: 1 }], "etransfer");
+      const [row] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
+      await db.update(deliveries).set({ cutoffAt: 1 }).where(eq(deliveries.id, row.id));
+      await expect(addOrderAddons(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF, expectedAmountDue: shown.amountDue }, null))
+        .rejects.toThrow("The amount changed");
+      expect(await db.select().from(orderAddons).where(eq(orderAddons.orderId, order.id))).toHaveLength(0);
+    });
+
+    it("writes the server's amount, not the client's, when they match", async () => {
+      const order = await runningOrder();
+      const addon = await anAddon();
+      const shown = await quoteOrderAddons(order.publicId, [{ key: addon.key, qty: 1 }], "etransfer");
+      await addOrderAddons(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF, expectedAmountDue: shown.amountDue }, null);
+      const pays = await db.select().from(payments).where(eq(payments.orderId, order.id)).orderBy(asc(payments.id));
+      expect(pays.at(-1)!.amount).toBe(shown.amountDue.toFixed(2));
+    });
+  });
+
+  it("grows the order total from the column, keeping a hand-set difference from the receipt (F3)", async () => {
+    const order = await runningOrder();
+    const addon = await anAddon();
+    const handSet = round2(Number(order.total) + 5);
+    await db.update(orders).set({ total: handSet.toFixed(2) }).where(eq(orders.id, order.id));
+    const quote = await saveShown(order.publicId, { selections: [{ key: addon.key, qty: 1 }], methodId: "etransfer", proof: PROOF });
+    const [after] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect(Number(after.total)).toBe(round2(handSet + quote.amountDue));
+    expect(quote.newTotal).toBe(Number(after.total));
+    expect((after.pricingSnapshot as { total: number }).total).toBe(round2(Number(order.total) + quote.amountDue));
+  });
+
+  it("refuses an order with no customer on the quote too (F4)", async () => {
+    const order = await runningOrder();
+    const addon = await anAddon();
+    await db.update(orders).set({ userId: null }).where(eq(orders.id, order.id));
+    await expect(quoteOrderAddons(order.publicId, [{ key: addon.key, qty: 1 }], "etransfer")).rejects.toThrow("no customer");
   });
 });

@@ -51,9 +51,15 @@ export function AddAddonsControl({
     if (!open || selections.length === 0 || !methodId) return;
     let stale = false;
     const timer = setTimeout(async () => {
-      const res = await quoteOrderAddonsAction(orderId, selections, methodId);
+      let next: { key: string; quote: AddonQuote | null; error: string | null };
+      try {
+        const res = await quoteOrderAddonsAction(orderId, selections, methodId);
+        next = "error" in res ? { key: inputKey, quote: null, error: res.error } : { key: inputKey, quote: res.quote, error: null };
+      } catch {
+        next = { key: inputKey, quote: null, error: "Could not get a price. Try again." };
+      }
       if (stale) return;
-      setResult("error" in res ? { key: inputKey, quote: null, error: res.error } : { key: inputKey, quote: res.quote, error: null });
+      setResult(next);
     }, 250);
     return () => {
       stale = true;
@@ -65,6 +71,7 @@ export function AddAddonsControl({
 
   function step(option: AddonOption, delta: number) {
     const room = option.maxQty - option.existingQty;
+    setFormError(null);
     setQty((q) => ({ ...q, [option.key]: Math.min(room, Math.max(0, (q[option.key] ?? 0) + delta)) }));
   }
 
@@ -80,6 +87,7 @@ export function AddAddonsControl({
 
   function save() {
     if (!quote) return;
+    const shown = quote.amountDue;
     setFormError(null);
     if (method?.requireProof && !file) {
       setFormError("Attach the payment screenshot");
@@ -89,6 +97,7 @@ export function AddAddonsControl({
       const form = new FormData();
       form.set("selections", selectionKey);
       form.set("method", methodId);
+      form.set("expected_amount_due", shown.toFixed(2));
       if (reference.trim()) form.set("reference", reference.trim());
       if (file) {
         const thumb = await makeImageThumbnail(file);
@@ -118,7 +127,7 @@ export function AddAddonsControl({
         </Button>
       }
       title="Add add-ons to this plan"
-      description="They go in every remaining tiffin from the next one the kitchen can still change, and are charged for those tiffins only."
+      description="Charged for the tiffins not yet past cutoff. A tiffin already past cutoff that the kitchen has not packed yet will also get the extras, at no charge."
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={close} disabled={saving}>
@@ -162,7 +171,7 @@ export function AddAddonsControl({
 
         <label className="grid gap-1">
           <span className="font-medium">Paid by</span>
-          <select className="w-full rounded-md border px-3 py-2" value={methodId} onChange={(e) => setMethodId(e.target.value)}>
+          <select className="w-full rounded-md border px-3 py-2" value={methodId} onChange={(e) => { setFormError(null); setMethodId(e.target.value); }}>
             {methods.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.label}
@@ -173,12 +182,12 @@ export function AddAddonsControl({
 
         <label className="grid gap-1">
           <span className="font-medium">Payment screenshot{method?.requireProof ? "" : " (optional)"}</span>
-          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input type="file" accept="image/*" onChange={(e) => { setFormError(null); setFile(e.target.files?.[0] ?? null); }} />
         </label>
 
         <label className="grid gap-1">
           <span className="font-medium">Reference (optional)</span>
-          <input className="w-full rounded-md border px-3 py-2" value={reference} onChange={(e) => setReference(e.target.value)} />
+          <input className="w-full rounded-md border px-3 py-2" value={reference} onChange={(e) => { setFormError(null); setReference(e.target.value); }} />
         </label>
 
         {quote && (

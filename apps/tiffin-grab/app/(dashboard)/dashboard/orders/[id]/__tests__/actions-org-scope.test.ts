@@ -66,6 +66,7 @@ describe("order actions outside the caller's organizations", () => {
       const form = new FormData();
       form.set("selections", JSON.stringify([{ key: "roti", qty: 1 }]));
       form.set("method", "etransfer");
+      form.set("expected_amount_due", "10.00");
       return actions.addOrderAddonsAction(ORDER, form);
     }, svc.addOrderAddons],
   ] as const)("%s checks the order", async (_name, call, service) => {

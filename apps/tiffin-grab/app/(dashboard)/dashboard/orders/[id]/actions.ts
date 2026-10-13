@@ -134,7 +134,7 @@ export async function quoteOrderAddonsAction(
   });
 }
 
-// FormData: selections (JSON), method, reference (optional), proof + proof_thumb (images).
+// FormData: selections (JSON), method, expected_amount_due (the quote on screen), reference (optional), proof + proof_thumb (images).
 export async function addOrderAddonsAction(orderId: string, form: FormData): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
@@ -142,6 +142,9 @@ export async function addOrderAddonsAction(orderId: string, form: FormData): Pro
     const selections = parseAddonSelections(form.get("selections"));
     const method = form.get("method");
     const methodId = typeof method === "string" ? method : "";
+    const shown = form.get("expected_amount_due");
+    const expectedAmountDue = typeof shown === "string" && shown.trim() !== "" ? Number(shown) : NaN;
+    if (!Number.isFinite(expectedAmountDue) || expectedAmountDue < 0) throw new ValidationError("Add-on amount missing, reopen the dialog");
     // Every rule runs before the screenshot is stored, so a refused save leaves no orphan file.
     await quoteOrderAddons(orderId, selections, methodId);
     // The first argument only names the storage folder; the payment row does not exist yet.
@@ -149,7 +152,7 @@ export async function addOrderAddonsAction(orderId: string, form: FormData): Pro
     const ref = form.get("reference");
     await addOrderAddons(
       orderId,
-      { selections, methodId, proof, reference: typeof ref === "string" ? ref : null },
+      { selections, methodId, expectedAmountDue, proof, reference: typeof ref === "string" ? ref : null },
       await currentUserId(),
     );
   });
