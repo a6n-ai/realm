@@ -224,6 +224,9 @@ describe("undoHolidayForOrder", () => {
       paused: (e) => db.update(deliveries).set({ status: "paused" }).where(eq(deliveries.id, e.id)),
       moved: (e) => rescheduleDelivery(e.publicId, "2030-01-18", 1n),
       "re-addressed": (e) => db.update(deliveries).set({ addressLine: "5 King St W", postalCode: "M5H 1A1" }).where(eq(deliveries.id, e.id)),
+      "postal code only": (e) => db.update(deliveries).set({ postalCode: "M5H 1A1" }).where(eq(deliveries.id, e.id)),
+      "drop-off instructions only": (e) => db.update(deliveries).set({ deliveryInstructions: "Leave with the concierge" }).where(eq(deliveries.id, e.id)),
+      "unit only": (e) => db.update(deliveries).set({ addressUnit: "12B" }).where(eq(deliveries.id, e.id)),
     };
     for (const [what, change] of Object.entries(changes)) {
       await reset();
@@ -286,9 +289,52 @@ describe("placeHolidayExtras", () => {
     const place = (from: string) => locked(order.id, (tx, fresh) => placeHolidayExtras(tx, fresh, wed.id, from, 1n));
 
     await expect(place("2020-01-01")).rejects.toThrow("Pick today or a later date");
+    await expect(place("2030-02-31")).rejects.toThrow("Pick a valid date");
+    await expect(place("2030-13-45")).rejects.toThrow("Pick a valid date");
+    await expect(place("not-a-date")).rejects.toThrow("Pick a valid date");
     expect(await place("2030-01-21")).toEqual(["2030-01-21", "2030-01-23"]);
     expect((await extrasOf(order.id, wed.id)).map((r) => [r.deliveryDate, r.status, r.tiffinUnits])).toEqual([["2030-01-21", "scheduled", 1], ["2030-01-23", "scheduled", 1]]);
     await expect(place("2030-01-28")).rejects.toThrow("Nothing to place");
+  });
+});
+
+describe("rows tagged after the fact (skipped, moved with the normal Move) are left alone", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("apply, undo and place change nothing but the tag", async () => {
+    const { order, mon, fri, org } = await orderWithOrg();
+    const hMon = await addHoliday(org, "2030-01-07");
+    const hFri = await addHoliday(org, "2030-01-11");
+    // Mon: tiffins moved with the normal Move, so a make-up row points at it. Fri: still held.
+    await db.update(deliveries).set({ status: "skipped", holidayId: hMon.id }).where(eq(deliveries.id, mon.id));
+    await db.update(deliveries).set({ status: "skipped", holidayId: hFri.id }).where(eq(deliveries.id, fri.id));
+    const [makeup] = await db.insert(deliveries).values({ orderId: order.id, deliveryDate: "2030-01-14", status: "scheduled", cutoffAt: FAR, tiffinUnits: 2, coversDates: ["2030-01-07", "2030-01-08"], makeupForDeliveryId: mon.id }).returning();
+    const totals = async () => {
+      const rows = await rowsOf(order.id);
+      return [rows.length, rows.reduce((n, r) => n + r.tiffinUnits, 0)];
+    };
+    const before = await totals();
+    const place = (id: bigint) => locked(order.id, (tx, fresh) => placeHolidayExtras(tx, fresh, id, "2030-01-21", 1n));
+
+    expect(await apply(order)).toEqual([]);
+    expect(await totals()).toEqual(before);
+
+    await expect(place(mon.id)).rejects.toThrow("Nothing to place");
+    await expect(place(fri.id)).rejects.toThrow("Nothing to place");
+    expect(await totals()).toEqual(before);
+
+    for (const [src, h] of [[mon, hMon], [fri, hFri]] as const) {
+      const res = await undo(order.id, h.id);
+      expect([res.restored, res.left, res.stops.length]).toEqual([[], [src.deliveryDate], 0]);
+      const row = await rowById(src.id);
+      expect([row.status, row.holidayId, row.tiffinUnits]).toEqual(["skipped", null, src.tiffinUnits]);
+      expect(await totals()).toEqual(before);
+    }
+    const kept = await rowById(makeup!.id);
+    expect([kept.status, kept.makeupForDeliveryId, kept.tiffinUnits, kept.deliveryDate]).toEqual(["scheduled", mon.id, 2, "2030-01-14"]);
+    expect(await extrasOf(order.id, mon.id)).toEqual([]);
+    expect(await extrasOf(order.id, fri.id)).toEqual([]);
   });
 });
 

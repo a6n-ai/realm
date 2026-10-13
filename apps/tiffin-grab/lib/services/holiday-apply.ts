@@ -133,11 +133,19 @@ export async function applyHolidaysToOrder(tx: Tx, order: Order, actorId: bigint
   return applied;
 }
 
+/** Every per-delivery address / drop-off override on a delivery row; any of them set means the customer or staff changed this day. */
+const ADDRESS_OVERRIDES = ["addressId", "fullName", "addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions", "deliveryStrategyId", "deliveryTagId", "addressTagId", "zoneId"] as const;
+
+const isRealDate = (iso: string): boolean => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
+};
+
 /** An added day is "as the holiday left it" only while nothing about it changed: any doubt keeps it. */
 async function extrasUntouched(tx: Tx, extras: Delivery[], per: number, now: number): Promise<boolean> {
   if (extras.length === 0) return true;
   const plain = extras.every((e) => e.status === "scheduled" && e.mergedIntoDeliveryId == null && e.cutoffAt > now && e.optimoCompletionStatus == null
-    && e.tiffinUnits === per && e.coversDates?.length === 1 && e.coversDates[0] === e.deliveryDate && e.addressLine == null);
+    && e.tiffinUnits === per && e.coversDates?.length === 1 && e.coversDates[0] === e.deliveryDate && ADDRESS_OVERRIDES.every((col) => e[col] == null) && e.deliveryStrategyIds.length === 0);
   if (!plain) return false;
   const ids = extras.map((e) => e.id);
   const touched = await Promise.all([
@@ -200,7 +208,8 @@ export async function undoHolidayForOrder(tx: Tx, orderId: bigint, holidayId: bi
 export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint, fromDate: string, actorId: bigint | null): Promise<string[]> {
   const cut = await getAppSettings();
   const today = zonedDateIso(Date.now(), cut.timezone);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate) || fromDate < today) throw new ValidationError("Pick today or a later date");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate) || !isRealDate(fromDate)) throw new ValidationError("Pick a valid date");
+  if (fromDate < today) throw new ValidationError("Pick today or a later date");
   if (order.status !== "active" && order.status !== "paused") throw new ValidationError(`Cannot add a delivery to an order that is ${order.status}`);
   const [source] = await tx.select().from(deliveries).where(and(
     eq(deliveries.id, sourceId),
