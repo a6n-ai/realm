@@ -161,6 +161,14 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(screen.getByRole("button", { name: "Release hold to a new day" })).toBeTruthy();
     expect(screen.getAllByRole("combobox", { name: "Delivery status" }).length).toBeGreaterThan(0);
   });
+  it("staff wording for a hold in the eating-days table is On hold, a paused day says Paused", () => {
+    const row = (status: string) => [{ orderId: "o", status, cutoffAt: NOW - 3600e3, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"], deliveryId: "x" }];
+    render(<OrderWeekHub data={{ ...data, agenda: { ...data.agenda, "2026-09-21": row("skipped") } } as unknown as OrderWeek} />);
+    expect(within(screen.getAllByTestId("paged-row")[0]!).getByText("On hold")).toBeInTheDocument();
+    cleanup();
+    render(<OrderWeekHub data={{ ...data, agenda: { ...data.agenda, "2026-09-21": row("paused") } } as unknown as OrderWeek} />);
+    expect(within(screen.getAllByTestId("paged-row")[0]!).getByText("Paused")).toBeInTheDocument();
+  });
   describe("pause", () => {
     const paused = { ...mon, status: "vacation" as const, deliveryId: "d1" };
     const pdot = (date: string) => [date, [{ orderId: "o", status: "paused", cutoffAt: NOW + 30 * 3600e3, deliveryDate: date, truck: true, units: 1, covers: [date], deliveryId: `x-${date}` }]] as const;

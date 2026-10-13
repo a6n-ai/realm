@@ -337,7 +337,7 @@ function agendaLabel(dot: string, moved: boolean): string {
   if (moved) return "Moved";
   switch (dot) {
     case "delivered": return "Delivered";
-    case "hold": return "Not delivered";
+    case "hold": return "On hold";
     case "vacation": return "Paused";
     case "upcoming": return "Upcoming";
     default: return "Upcoming";
