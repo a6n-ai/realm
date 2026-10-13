@@ -6,7 +6,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import {
@@ -51,9 +51,9 @@ import { enqueueNotification, enqueueStaffNotification } from "@/lib/notificatio
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { assertNoPlanOverlap } from "./order-window";
-import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
+import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
-import { appToday, validateStartDate } from "./start-date";
+import { appToday, staffStartBase, validateStartDate } from "./start-date";
 import { assertTrialStart } from "@/lib/trial/schedule";
 import {
   walletService,
@@ -191,6 +191,8 @@ export interface CreateOrderOptions {
   // Staff-only (set by dashboard server actions, never from client input): may
   // order a hidden custom meal size for any customer.
   allowCustomMeal?: boolean;
+  /** Staff only: the plan may start today. Customers start tomorrow at the earliest, before the cutoff. */
+  allowSameDayStart?: boolean;
   // Staff-only: replaces a custom meal's computed per-tiffin base price before
   // the pricing engine runs (discounts still apply).
   basePriceOverride?: number;
@@ -231,8 +233,9 @@ export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string }> {
-  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, basePriceOverride } = opts;
+  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, allowSameDayStart = false, basePriceOverride } = opts;
   const snapshot = await loadCatalogSnapshot(orgId);
+  const startBase = allowSameDayStart ? staffStartBase(snapshot.timezone) : appToday(snapshot.timezone, snapshot.cutoffHour);
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
@@ -250,7 +253,7 @@ export async function createOrder(
   const categoryCounts = categoryCountsFromItems(mealSize.items);
   const mealSlots = Object.keys(categoryCounts);
   if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
-  const trial = mealSize.trial ? await quoteTrial(snapshot, input.selections) : null;
+  const trial = mealSize.trial ? await quoteTrial(snapshot, input.selections, startBase) : null;
   if (!mealSize.trial && input.selections.trialDays != null) {
     throw new ValidationError("Only a trial meal has a day count");
   }
@@ -267,7 +270,7 @@ export async function createOrder(
       trialDays: trial.length,
     };
   } else {
-    validateStartDate(input.selections.startDate, plan.allowedStartDays, appToday(snapshot.timezone));
+    validateStartDate(input.selections.startDate, plan.allowedStartDays, startBase);
   }
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
   if (!frequency) throw new ValidationError("Invalid delivery frequency");
@@ -386,11 +389,7 @@ export async function createOrder(
     }
     let userId = ownerId;
     if (!userId) {
-      const matches = await tx
-        .select({ id: users.id })
-        .from(users)
-        .where(and(or(eq(users.phone, phone), eq(users.email, email)), eq(users.role, "user")))
-        .limit(2);
+      const matches = await matchCustomerAccounts(tx, phone, email);
       // Two rows means the number is one customer's and the address another's.
       // Picking either would bill a stranger and run the overlap guard against
       // their plan, so stop. The message names nobody: guests reach this too.
@@ -399,7 +398,7 @@ export async function createOrder(
           "This phone number is saved on a different account than this email. Use the phone number on that account, or a different one.",
         );
       }
-      userId = matches[0]?.id ?? null;
+      userId = matches[0] ?? null;
     }
     if (!userId) {
       userId = await provisionCustomerByPhone(
@@ -1676,14 +1675,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // from the new date exactly as createOrder built them (materializeDeliveries).
   async changeStartDate(publicId: string, startDate: string): Promise<void> {
     const actorId = await this.currentUserId();
-    const { timezone } = await getAppSettings();
+    const { timezone, cutoffHour } = await getAppSettings();
     await db.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
       const blocker = await this.startChangeBlocker(order.id, order.status, tx);
       if (blocker) throw new ValidationError(blocker);
       if (startDate === order.startDate) return;
-      const today = appToday(timezone);
+      const today = appToday(timezone, cutoffHour);
       if (order.trialLength != null) {
         assertTrialStart(startDate, order.trialWeekdays ?? [], today);
       } else {

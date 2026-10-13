@@ -95,6 +95,8 @@ export interface CatalogSnapshot {
   minTiffinsPerWeek?: number;
   // App-settings timezone: "today" for start dates is this zone's calendar date.
   timezone?: string;
+  // App-settings cutoff hour: after it, tomorrow is no longer a start date.
+  cutoffHour?: number;
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
   waivers?: CatalogWaiver[];
@@ -149,6 +151,8 @@ export interface ClientCatalogSnapshot {
   minTiffinsPerWeek?: number;
   // App-settings timezone: "today" for start dates is this zone's calendar date.
   timezone?: string;
+  // App-settings cutoff hour: after it, tomorrow is no longer a start date.
+  cutoffHour?: number;
   maxTiffinsPerWeek?: number;
   discounts?: CatalogDiscount[];
   waivers?: CatalogWaiver[];
@@ -214,6 +218,7 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     addonsByCategory: snapshot.addonsByCategory,
     minTiffinsPerWeek: snapshot.minTiffinsPerWeek,
     timezone: snapshot.timezone,
+    cutoffHour: snapshot.cutoffHour,
     maxTiffinsPerWeek: snapshot.maxTiffinsPerWeek,
     discounts: snapshot.discounts,
     waivers: snapshot.waivers,

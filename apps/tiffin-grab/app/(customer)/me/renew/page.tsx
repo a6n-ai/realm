@@ -66,7 +66,7 @@ export default async function RenewPlanPage() {
   // the plan starts on after the running plan's last tiffin (or tomorrow when none runs).
   const priorPlan = client.plans.find((p) => p.key === prior.planKey);
   const initial = priorPlan
-    ? { ...prior, startDate: earliestPlanStart(appToday(client.timezone), priorPlan.allowedStartDays, earliestStartDate) }
+    ? { ...prior, startDate: earliestPlanStart(appToday(client.timezone, client.cutoffHour), priorPlan.allowedStartDays, earliestStartDate) }
     : prior;
   const live = subs.filter((s) => LIVE.has(s.status));
   const currentRow =

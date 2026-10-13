@@ -20,6 +20,20 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 // checkout that happens to share their phone/email (checked here).
 export const STAFF_ACCOUNT_MESSAGE = "This phone or email belongs to a staff account — please sign in to the Tiffin Grab dashboard instead.";
 
+/**
+ * Customer accounts a phone and an email point at. One id is the customer; two means
+ * the number is one customer's and the address another's. createOrder and the staff
+ * order form both use this, so the form shows the account the order would land on.
+ */
+export async function matchCustomerAccounts(tx: Tx | typeof db, phone: string, email: string): Promise<bigint[]> {
+  const rows = await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(and(or(eq(users.phone, phone), eq(users.email, email)), eq(users.role, "user")))
+    .limit(2);
+  return rows.map((r) => r.id);
+}
+
 // Find-or-provision a customer (role "user") by phone. Returns internal users.id.
 // Lifted verbatim from createOrder so both paths share one provisioning rule.
 export async function provisionCustomerByPhone(

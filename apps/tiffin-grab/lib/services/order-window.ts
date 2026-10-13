@@ -1,7 +1,7 @@
 import { parseIsoDateUtc, ValidationError } from "@foundry/commons";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orders } from "@/db/schema";
+import { deliveries, mealSizes, orders } from "@/db/schema";
 import type { Tx } from "./deliveries.service";
 
 export type OrderWindow = { id: bigint; startDate: string; durationWeeks: number };
@@ -69,6 +69,38 @@ async function reservedBands(tx: Tx | typeof db, userId: bigint, excludeOrderId?
     ));
   const ends = await reservedEndDatesExclusive(tx, live);
   return live.map((o) => ({ start: parseIsoDateUtc(o.startDate), endExclusive: ends.get(o.id.toString())! }));
+}
+
+export type RunningPlan = {
+  publicId: string;
+  deploymentId: string;
+  status: string;
+  mealSize: string;
+  startDate: string;
+  /** Last day this plan holds: what a new plan must start after. */
+  lastDay: string;
+  tiffinCount: number;
+  organizationId: string | null;
+};
+
+/** The customer's day-reserving plans, earliest first, as the staff order form lists them. */
+export async function runningPlans(tx: Tx | typeof db, userId: bigint): Promise<RunningPlan[]> {
+  const live = await tx
+    .select({
+      id: orders.id, publicId: orders.publicId, deploymentId: orders.deploymentId, status: orders.status,
+      mealSize: mealSizes.name, startDate: orders.startDate, durationWeeks: orders.durationWeeks,
+      tiffinCount: orders.tiffinCount, organizationId: orders.organizationId,
+    })
+    .from(orders)
+    .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
+    .where(and(eq(orders.userId, userId), inArray(orders.status, [...DAY_RESERVING_STATUSES])))
+    .orderBy(orders.startDate);
+  const ends = await reservedEndDatesExclusive(tx, live);
+  return live.map(({ id, durationWeeks: _weeks, ...plan }) => {
+    const lastDay = new Date(ends.get(id.toString())!);
+    lastDay.setUTCDate(lastDay.getUTCDate() - 1);
+    return { ...plan, lastDay: iso(lastDay) };
+  });
 }
 
 /**

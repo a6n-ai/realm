@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
-import { ValidationError, zonedDateIso } from "@foundry/commons";
+import { ValidationError, emailSchema, phoneSchema, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { weekendDaysError } from "@/lib/menu/delivery-days";
 import { runAction, type ActionResult } from "@/app/(customer)/me/action-result";
@@ -16,7 +16,9 @@ import { getDiscountPolicy, getPaymentConfig } from "@/lib/services/app-settings
 import { findMethod } from "@foundry/payments";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
-import { earliestNewPlanStart } from "@/lib/services/order-window";
+import { staffStartBase } from "@/lib/services/start-date";
+import { earliestNewPlanStart, runningPlans, type RunningPlan } from "@/lib/services/order-window";
+import { matchCustomerAccounts } from "@/lib/services/customers.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
@@ -104,35 +106,51 @@ export async function trialFormSettings() {
 export type CustomerOrderContext = {
   /** First day a new plan may start (after their running plans), or null. Same rule createOrder enforces. */
   renewFrom: string | null;
+  /** The plans holding those days, earliest first. */
+  plans: Omit<RunningPlan, "organizationId">[];
+  /** The phone is one customer's and the email another's: createOrder will refuse this order. */
+  conflict: boolean;
   /** Saved addresses with the drop-off picked under each. */
   addresses: (SavedAddress & { dropOff: DropOffValue | null })[];
 };
 
-const NO_CONTEXT: CustomerOrderContext = { renewFrom: null, addresses: [] };
+const NO_CONTEXT: CustomerOrderContext = { renewFrom: null, plans: [], conflict: false, addresses: [] };
 
-// An existing customer's renewal date and address book for the staff order form, or
-// empty for a new customer.
-export async function customerOrderContext(email: string): Promise<CustomerOrderContext> {
+// An existing customer's running plans, renewal date and address book for the staff order
+// form, or empty for a new customer. Matches the account by phone or email, as createOrder does.
+export async function customerOrderContext(email: string, phone = ""): Promise<CustomerOrderContext> {
   await requireStaff();
-  const normalized = email.trim().toLowerCase();
-  if (!normalized.includes("@")) return NO_CONTEXT;
-  const [user] = await db.select({ id: users.id }).from(users)
-    .where(and(eq(users.email, normalized), eq(users.role, "user"))).limit(1);
-  if (!user) return NO_CONTEXT;
+  // Unparseable input matches nobody: the form calls this while staff are still typing.
+  const parsedEmail = emailSchema.safeParse(email.trim());
+  const parsedPhone = phoneSchema().safeParse(phone);
+  if (!parsedEmail.success && !parsedPhone.success) return NO_CONTEXT;
+  const matches = await matchCustomerAccounts(db, parsedPhone.success ? parsedPhone.data : "", parsedEmail.success ? parsedEmail.data : "");
+  if (matches.length > 1) return { ...NO_CONTEXT, conflict: true };
+  const userId = matches[0];
+  if (!userId) return NO_CONTEXT;
   // Only reveal plan dates and addresses to staff who can already see one of this customer's orders.
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   if (visible !== "all") {
     if (visible.length === 0) return NO_CONTEXT;
     const [seen] = await db.select({ id: orders.id }).from(orders)
-      .where(and(eq(orders.userId, user.id), inArray(orders.organizationId, visible))).limit(1);
+      .where(and(eq(orders.userId, userId), inArray(orders.organizationId, visible))).limit(1);
     if (!seen) return NO_CONTEXT;
   }
-  const [renewFrom, saved] = await Promise.all([
-    earliestNewPlanStart(db, user.id),
-    addressService.list({ userId: user.id, orgId: await resolveRequestOrg() }),
+  const [renewFrom, plans, saved] = await Promise.all([
+    earliestNewPlanStart(db, userId),
+    runningPlans(db, userId),
+    addressService.list({ userId, orgId: await resolveRequestOrg() }),
   ]);
   const dropOffs = await dropOffsFor(saved.map((a) => a.publicId));
-  return { renewFrom, addresses: saved.map((a) => ({ ...a, dropOff: dropOffs[a.publicId] ?? null })) };
+  return {
+    renewFrom,
+    // A plan in an organization this staff member cannot open still moves renewFrom, but is not listed.
+    plans: plans
+      .filter((p) => visible === "all" || (p.organizationId != null && visible.includes(p.organizationId)))
+      .map(({ organizationId: _org, ...p }) => p),
+    conflict: false,
+    addresses: saved.map((a) => ({ ...a, dropOff: dropOffs[a.publicId] ?? null })),
+  };
 }
 
 // Address types and drop-off strategies with their fees, as checkout offers them.
@@ -162,7 +180,7 @@ async function quotePrice(
   const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   const weekendErr = trialMeal && !trialMeal.trial ? weekendDaysError(input.selections.eatingDays ?? [], trialMeal.servesWeekends) : null;
   if (weekendErr) throw new ValidationError(weekendErr);
-  const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
+  const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections, staffStartBase(snap.timezone)) : null;
   const catalog = trial ? trial.catalog : buildPricingCatalog(snap, input.selections);
   // Same tax resolution as createOrder (delivery postal code + the method's own taxes), so the
   // total staff see and copy to the customer is the total charged.

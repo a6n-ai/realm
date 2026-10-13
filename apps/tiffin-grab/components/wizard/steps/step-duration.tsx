@@ -47,7 +47,7 @@ export function StepDuration({
   const multiDay = !!trial && trial.maxDays > 1;
   const picks = multiDay ? (selections.eatingDays ?? []).filter((d) => trial.weekdays.includes(d)) : [];
   const allowed = trial ? (picks.length ? picks : trial.weekdays) : (plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"]);
-  const today = appToday(catalog.timezone);
+  const today = appToday(catalog.timezone, catalog.cutoffHour);
   const tomorrow = trial ? earliestTrialIso(today, trial.weekdays) : nextWeekday(today).toISOString().slice(0, 10);
   const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const overlapBound = minStartDate != null && minDate === minStartDate;
