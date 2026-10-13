@@ -68,6 +68,88 @@ test.describe("customer deliveries (trip timeline)", () => {
     await expect(page.getByRole("button", { name: /on hold|release hold/i })).toHaveCount(0);
   });
 
+  test.describe("pause before cutoff", () => {
+    test.describe.configure({ mode: "serial" });
+
+    test("pause the next delivery, it reads Paused, Resume this day puts it back", async ({ page }) => {
+      test.setTimeout(120_000);
+      await gotoDeliveries(page);
+      test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+      const d = new CustomerDeliveriesPage(page);
+      try {
+        await d.pauseFirst(1);
+        await expect(page.getByText(/^Paused \w{3}\.$/)).toBeVisible({ timeout: 15_000 });
+        await expect(d.pausedDays()).toHaveCount(1, { timeout: 15_000 });
+        await expect(page.getByTestId("plan-summary")).toContainText("Active");
+        await d.pausedDays().first().click();
+        await expect(d.deliveryBlock()).toContainText("Paused");
+        await d.action("Resume this day").click();
+        await expect(page.getByText(/\w{3} is back on\./)).toBeVisible({ timeout: 15_000 });
+        await expect(d.pausedDays()).toHaveCount(0, { timeout: 15_000 });
+      } finally {
+        await d.resumeEverything();
+      }
+    });
+
+    test("pause three days, resume the middle one, then Resume all; the plan stays active", async ({ page }) => {
+      test.setTimeout(180_000);
+      await gotoDeliveries(page);
+      test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+      const d = new CustomerDeliveriesPage(page);
+      try {
+        const sheet0 = await d.openPause();
+        test.skip((await d.upcomingRows(sheet0).count()) < 3, "Fewer than three pausable days");
+        await page.keyboard.press("Escape");
+        await expect(sheet0).toBeHidden();
+
+        const labels = await d.pauseFirst(3);
+        await expect(page.getByTestId("plan-summary")).toContainText("Active");
+
+        let sheet = await d.openPause();
+        await expect(d.pausedRows(sheet)).toHaveCount(3);
+        await d.pausedRows(sheet).nth(1).click();
+        await expect(sheet).toBeHidden({ timeout: 20_000 });
+        await expect(page.getByText(/\w{3} is back on\./)).toBeVisible({ timeout: 15_000 });
+
+        sheet = await d.openPause();
+        await expect(d.pausedRows(sheet)).toHaveCount(2);
+        await expect(d.upcomingRows(sheet).filter({ hasText: labels[1]! })).toHaveCount(1);
+        await sheet.getByRole("button", { name: "Resume all" }).click();
+        await expect(sheet).toBeHidden({ timeout: 20_000 });
+        await expect(d.pausedDays()).toHaveCount(0, { timeout: 15_000 });
+        await expect(page.getByTestId("plan-summary")).toContainText("Active");
+      } finally {
+        await d.resumeEverything();
+      }
+    });
+
+    test("a day inside the cutoff is not offered for pausing", async ({ page }) => {
+      test.setTimeout(90_000);
+      await gotoDeliveries(page);
+      test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
+      const d = new CustomerDeliveriesPage(page);
+      const sheet = await d.openPause();
+      const offered = await d.upcomingRows(sheet).evaluateAll((els) => els.map((e) => e.querySelector("span")?.textContent ?? ""));
+      test.skip(offered.length === 0, "Nothing pausable to compare against");
+      const at = (mon: string, day: string) => Date.parse(`${mon} ${day} ${new Date().getUTCFullYear()} UTC`);
+      const [, firstMon, firstDay] = /^\w{3}, (\w{3}) (\d+)/.exec(offered[0]!)!;
+      const eating = await d.tripRows().evaluateAll((els) => els.map((e) => e.getAttribute("aria-label") ?? ""));
+      // The strip's days dated before the first offered one are already inside their cutoff.
+      const inside = eating.flatMap((l) => {
+        const m = /^(\w{3})\w*, (\w{3})\w* (\d+)/.exec(l);
+        return m && at(m[2]!, m[3]!) < at(firstMon!, firstDay!) ? [`${m[1]}, ${m[2]} ${m[3]}`] : [];
+      });
+      test.skip(inside.length === 0, "No delivery day this week is already inside its cutoff");
+      for (const label of inside) await expect(d.upcomingRows(sheet).filter({ hasText: label })).toHaveCount(0);
+    });
+
+    test("a trial plan has no Pause", async ({ page }) => {
+      await gotoDeliveries(page);
+      test.skip((await page.getByText(/^Trial$/).count()) === 0, "Seed customer is not on a trial");
+      await expect(new CustomerDeliveriesPage(page).pauseButton()).toBeHidden();
+    });
+  });
+
   test("move, swap and pick sheets open from the trip actions", async ({ page }) => {
     test.setTimeout(120_000);
     await gotoDeliveries(page);

@@ -238,10 +238,10 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       {trip && model && (model.rows.length > 0 || model.goTo || model.resume.day) && (
         <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
           {model.resume.day && (
-            <Button variant="primary" size="lg" className="min-w-0 flex-1" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
+            <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
           )}
           {model.resume.all && (
-            <Button size="lg" className="min-w-0 flex-1" pending={releasing} onClick={() => resume("all")}>{RESUME_ALL_LABEL}</Button>
+            <Button size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" pending={releasing} onClick={() => resume("all")}>{RESUME_ALL_LABEL}</Button>
           )}
           <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} helpHref={helpHref} hide={addressRow?.av.ok ? ["address"] : []} />
         </div>

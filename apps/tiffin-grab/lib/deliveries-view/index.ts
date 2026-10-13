@@ -231,9 +231,11 @@ export function actionAvailability(trip: Trip, now: number, plan: PlanContext): 
   // A failed drop or a legacy paused day can't be edited in place; its tiffin moves to a new day.
   const notHere = s === "failed" || s === "vacation" || s === "rescheduled";
   const pick = editable ? yes("Open for changes")
+    : s === "vacation" ? no("Paused. Resume this day to choose meals, or move it to another day.")
     : notHere ? no("Not delivered. Move it to another day to choose meals.")
     : no(blocked(`Delivered. ${closed}.`));
   const swap = editable ? yes("Rice ↔ Roti, per eating day")
+    : s === "vacation" ? no("Paused. Resume this day to swap items, or move it to another day.")
     : notHere ? no("Not delivered. Move it to another day to swap items.")
     : no(blocked(`Delivered. ${closed}.`));
   const move = moveAvailability(trip, now, plan, blocked);

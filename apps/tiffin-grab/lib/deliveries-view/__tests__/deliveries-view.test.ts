@@ -120,6 +120,11 @@ describe("actionAvailability copy", () => {
     expect(a.pick.why).toBe("Not delivered. Move it to another day to choose meals.");
     expect(a.swap.why).toBe("Not delivered. Move it to another day to swap items.");
   });
+  it("paused day: says Paused and that it can be resumed, not that it was not delivered", () => {
+    const a = actionAvailability(one({ date: "2026-09-25", status: "paused" }), NOW, plan);
+    expect(a.pick.why).toBe("Paused. Resume this day to choose meals, or move it to another day.");
+    expect(a.swap.why).toBe("Paused. Resume this day to swap items, or move it to another day.");
+  });
   it("held after cutoff: stays put until the day is reconciled", () => {
     const held = { date: "2026-09-22", status: "skipped" as const, locked: true, cutoffAt: NOW - 1 };
     expect(actionAvailability(one(held), NOW, plan).move.why).toBe("On hold. Release it to a new day after midnight, once Tue, Sep 22's deliveries are reconciled.");
