@@ -29,4 +29,9 @@ describe("resolveAddonSelections", () => {
   it.each([0, -1, 1.5, 6])("rejects quantity %s for an add-on capped at 5", (qty) => {
     expect(() => resolveAddonSelections(catalog, [{ key: "rice", qty }])).toThrow("Invalid quantity for Rice (1–5)");
   });
+
+  it("rejects the same add-on listed twice", () => {
+    expect(() => resolveAddonSelections(catalog, [{ key: "rice", qty: 5 }, { key: "rice", qty: 5 }])).toThrow("Each add-on can only be listed once");
+    expect(resolveAddonSelections(catalog, [{ key: "rice", qty: 1 }, { key: "roti", qty: 1 }])).toHaveLength(2);
+  });
 });

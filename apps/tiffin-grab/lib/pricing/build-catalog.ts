@@ -17,6 +17,9 @@ export function resolveAddonSelections(
   catalog: Parameters<typeof mealSizeAddons>[0],
   selections: { key: string; qty: number }[],
 ): ResolvedAddon[] {
+  if (new Set(selections.map((s) => s.key)).size !== selections.length) {
+    throw new ValidationError("Each add-on can only be listed once");
+  }
   const eligible = new Map(mealSizeAddons(catalog).map((a) => [a.key, a]));
   return selections.map(({ key, qty }) => {
     const addon = eligible.get(key);
