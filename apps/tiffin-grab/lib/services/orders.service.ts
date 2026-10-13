@@ -6,7 +6,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import {
@@ -47,6 +47,8 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
+import { lapseElapsedPausesSafe } from "./pause-days.service";
+import { retireLegacyPaused } from "./pause-state";
 import { ledgerService } from "./ledger.service";
 import { assertNoPlanOverlap } from "./order-window";
 import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
@@ -1114,6 +1116,42 @@ export async function updatePaymentReference(
   });
 }
 
+/** Any staff member flags an order the whole team should watch (with why), or clears the flag.
+ * Logged as an order note, like updatePaymentReference. */
+export async function setOrderLookOut(
+  orderPublicId: string,
+  on: boolean,
+  note: string,
+  actorId: bigint | null = null,
+): Promise<void> {
+  const reason = note.trim() || null;
+  if (reason && reason.length > 300) throw new ValidationError("Keep the note under 300 characters");
+  const [order] = await db.select({ id: orders.id, lookOutAt: orders.lookOutAt }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
+  if (!order) throw new NotFoundError("Order not found");
+  if (!on && order.lookOutAt == null) return;
+
+  await db
+    .update(orders)
+    .set(on ? { lookOutAt: Date.now(), lookOutBy: actorId, lookOutNote: reason } : { lookOutAt: null, lookOutBy: null, lookOutNote: null })
+    .where(eq(orders.id, order.id));
+  await db.insert(orderActivities).values({
+    orderId: order.id,
+    type: "note",
+    note: on ? `Marked look out for${reason ? `: ${reason}` : ""}` : "Look out for cleared",
+    createdBy: actorId,
+  });
+}
+
+/** Flagged orders the caller can see, for the Orders tab badge. */
+export async function countLookOutOrders(visible: "all" | string[]): Promise<number> {
+  if (visible !== "all" && visible.length === 0) return 0;
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(orders)
+    .where(and(isNotNull(orders.lookOutAt), visible === "all" ? undefined : inArray(orders.organizationId, visible)));
+  return count;
+}
+
 // Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
   paymentPublicId: string;
@@ -1192,6 +1230,8 @@ export type OrderListRow = {
   ownerId: string | null;
   ownerName: string | null;
   trial: boolean;
+  lookOut: boolean;
+  lookOutNote: string | null;
 };
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
@@ -1296,9 +1336,11 @@ export async function listOrdersPage(
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
   visible: "all" | string[],
+  opts: { lookOutOnly?: boolean } = {},
 ): Promise<Page<OrderListRow>> {
   const where = and(
     conditionToSql(condition, ordersListResolver()),
+    opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 
@@ -1328,6 +1370,8 @@ export async function listOrdersPage(
         ownerId: users.publicId,
         ownerName: users.name,
         trialLength: orders.trialLength,
+        lookOutAt: orders.lookOutAt,
+        lookOutNote: orders.lookOutNote,
       })
       .from(orders)
       .innerJoin(plans, eq(orders.planId, plans.id))
@@ -1371,6 +1415,8 @@ export async function listOrdersPage(
     ownerId: r.ownerId ?? null,
     ownerName: r.ownerName ?? null,
     trial: r.trialLength != null,
+    lookOut: r.lookOutAt != null,
+    lookOutNote: r.lookOutNote,
   }));
   return { items, page: page.page, size: page.size, total: count };
 }
@@ -2048,26 +2094,24 @@ export const resumeOrder = (publicId: string, actorId?: bigint, fromDate?: strin
 export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
   ordersService.reassign(publicId, ownerId);
 
-// Flips a fully-paused order back to "active" once its open (non-indefinite) pause window has
-// elapsed. No-op if there's no open pause, the pause is indefinite, or untilDate hasn't passed yet.
-// Called from myActiveSubscriptions before it reports order status to the customer.
+// Never puts a paused day back on the route (resume() used to, which undid the hold). A paused day
+// past its cutoff becomes a hold. Then the old range-pause leftovers: an elapsed open window is
+// closed, and an order those pauses flipped to "paused" goes back to active (that status means
+// nothing now, so it does not wait for paused days to clear).
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
+  await lapseElapsedPausesSafe(orderId);
   const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
-  const [open] = await db.select({ untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
-    .from(subscriptionPauses)
-    .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)))
-    .limit(1);
-  if (!open || open.isIndefinite || open.untilDate >= today) return;
-  const [ord] = await db.select({ publicId: orders.publicId, status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
-  if (ord?.status === "paused") {
-    await ordersService.resume(ord.publicId);
-    return;
-  }
-  // Partial pause: the order never fully paused (some deliveries stayed scheduled), so status is
-  // still "active" and resume()'s status guard doesn't apply — close the elapsed open row directly
-  // so getPauseUsage().hasOpenPause releases and a new pause becomes legal again. resumedBy stays
-  // null (system auto-close, not an actor); no order-status change means no activity row.
-  await db.update(subscriptionPauses)
-    .set({ resumedAt: new Date() })
-    .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
+  let changed = false;
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    const open = await tx.select({ id: subscriptionPauses.id, untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
+      .from(subscriptionPauses).where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
+    const elapsed = open.filter((r) => !r.isIndefinite && r.untilDate < today);
+    if (elapsed.length > 0) {
+      changed = true;
+      await tx.update(subscriptionPauses).set({ resumedAt: new Date() }).where(inArray(subscriptionPauses.id, elapsed.map((r) => r.id)));
+    }
+    if (await retireLegacyPaused(tx, orderId)) changed = true;
+  });
+  if (changed) publishAnalyticsLive();
 }

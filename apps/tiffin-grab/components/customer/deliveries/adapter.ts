@@ -35,7 +35,7 @@ export type PlanView = {
 };
 
 type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "dropOff" | "optimoCompletionStatus"> &
-  Partial<Pick<CustomerDelivery, "addressLine" | "postalCode">>;
+  Partial<Pick<CustomerDelivery, "addressLine" | "postalCode" | "lapsedPause" | "routePushed">>;
 
 export function toCalendarInputs(a: {
   days: CalendarDay[];
@@ -56,7 +56,9 @@ export function toCalendarInputs(a: {
       addressOverride: r?.addressLine && r.postalCode ? { addressLine: r.addressLine, postalCode: r.postalCode } : null,
       dropOff: r?.dropOff,
       optimoCompletionStatus: r?.optimoCompletionStatus,
+      routePushed: r?.routePushed,
       cutoffAt: r?.cutoffAt,
+      lapsedPause: r?.lapsedPause,
       rescheduled: r ? a.makeupSources.has(r.id.toString()) : false,
       movedTo: r && a.makeupSources instanceof Map ? a.makeupSources.get(r.id.toString()) : undefined,
       mealsByDate,
@@ -78,7 +80,7 @@ export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; c
     servesWeekends: a.counts.servesWeekends,
     startDate: a.startDate,
     active: true,
-    onVacation: a.sub.status === "paused",
+    onVacation: a.sub.status === "paused" || !!a.sub.fullyPaused,
     vacationsLeft: max == null ? null : Math.max(max - a.pause.usage.count, 0),
     frequencyKey: a.sub.frequencyKey ?? null,
   };

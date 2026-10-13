@@ -2,16 +2,16 @@
 
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import type { AddressInput } from "@foundry/address";
 import { NotFoundError } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
 import { setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
-import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
+import { listPauseDays, pauseDays, releasePausedDays } from "@/lib/services/pause-days.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { listValidSwapOptionsForDelivery } from "@/lib/services/swap-options.service";
 import type { SwapOption } from "@/lib/menu/meal-validation";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { runAction, type ActionResult } from "../action-result";
@@ -75,25 +75,35 @@ export async function clearMyDeliveryAddress(deliveryPublicId: string): Promise<
   });
 }
 
-export async function pauseMySubscription(
-  orderPublicId: string,
-  window: { from: string; until: string; indefinite?: boolean },
-): Promise<ActionResult> {
+export type PauseDayChoice = { date: string; paused: boolean };
+
+export async function loadMyPauseDays(orderPublicId: string): Promise<ActionResult<{ days: PauseDayChoice[] }>> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
-    await assertOrderUnlocked(orderPublicId);
-    await pauseOrder(orderPublicId, window);
-    await revalidateDeliverySurfaces(orderPublicId);
+    const [order] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
+    if (!order) throw new NotFoundError("Subscription not found");
+    return { days: await listPauseDays(order.id) };
   });
 }
 
-// `fromDate` (ISO) resumes a vacation partway. Vacation has no entry point today (move-only).
-export async function resumeMySubscription(orderPublicId: string, fromDate?: string): Promise<ActionResult> {
+/** `paused` is what the server changed; `skipped` are picked days whose cutoff had already passed. */
+export async function pauseMyDays(orderPublicId: string, dates: string[]): Promise<ActionResult<{ paused: string[]; skipped: string[] }>> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
     await assertOrderUnlocked(orderPublicId);
-    await resumeOrder(orderPublicId, (await currentUserId()) ?? undefined, fromDate);
+    const result = await pauseDays(orderPublicId, dates, await currentUserId());
     await revalidateDeliverySurfaces(orderPublicId);
+    return result;
+  });
+}
+
+export async function releaseMyDays(orderPublicId: string, dates: string[] | "all"): Promise<ActionResult<{ dates: string[] }>> {
+  return runAction(async () => {
+    await assertCanManageOrder(orderPublicId);
+    await assertOrderUnlocked(orderPublicId);
+    const resumed = await releasePausedDays(orderPublicId, dates, await currentUserId());
+    await revalidateDeliverySurfaces(orderPublicId);
+    return { dates: resumed };
   });
 }
 

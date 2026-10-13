@@ -5,7 +5,10 @@ import { loadOrderWeek, type OrderWeek } from "@/lib/services/order-week.service
 import { OrderWeekHub } from "@/components/dashboard/order-week/order-week-hub";
 import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
+import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { isOrderFullyPaused } from "@/lib/services/pause-state";
 import { plans } from "@/db/schema";
 import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -43,8 +46,10 @@ export async function loadSubscription(
   // While payment is unconfirmed, match the customer: schedule and picks stay hidden.
   const paymentReview = displayStatus === "payment_review";
 
+  const live = order.status === "active" || order.status === "paused";
+  const fullyPaused = live && (await isOrderFullyPaused(db, order.id, zonedDateIso(Date.now(), (await getAppSettings()).timezone)));
   const subscription: Subscription | null =
-    order.status === "active" || order.status === "paused"
+    live
       ? {
           publicId: order.publicId,
           planName: order.planName,
@@ -66,6 +71,7 @@ export async function loadSubscription(
           frequencyKey: order.frequencyKey,
           trial: order.trialLength != null,
           addons,
+          fullyPaused,
         }
       : null;
 

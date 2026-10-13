@@ -98,7 +98,14 @@ export const orders = pgTable("orders", {
   // rule as pricing/totals (AGENTS.md). Nullable during the Task-5 backfill window;
   // a follow-up migration can tighten to NOT NULL once every existing row is backfilled.
   organizationId: text("organization_id").references(() => organization.id),
+  // "Look out for": any staff member flags an order the whole team should watch, with why.
+  // Null lookOutAt means not flagged; by/note are cleared with it.
+  lookOutAt: bigint("look_out_at", { mode: "number" }),
+  lookOutBy: bigint("look_out_by", { mode: "bigint" }).references(() => users.id),
+  lookOutNote: text("look_out_note"),
 }, (t) => [
+  // The Orders "Look out for" tab: only flagged rows, newest flag first.
+  index("orders_look_out_idx").on(t.lookOutAt).where(sql`${t.lookOutAt} is not null`),
   // Customer 360 + lists filter user_id and sort created_at desc.
   index("orders_user_created_idx").on(t.userId, t.createdAt),
   // Reassignment: staff "my queue" views filter by current_owner.

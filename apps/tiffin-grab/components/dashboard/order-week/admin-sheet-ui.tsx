@@ -105,6 +105,9 @@ export const ADMIN_SHEET_UI: SheetUi = {
       <Button disabled={disabled || !!disabledReason || pending} onClick={onClick}>{pending ? "Saving…" : children}</Button>
     </div>
   ),
+  SecondaryButton: ({ pending, onClick, children }) => (
+    <Button variant="outline" size="sm" disabled={pending} onClick={onClick}>{children}</Button>
+  ),
   Notice: ({ tone = "info", children }) => (
     <div
       role={tone === "error" ? "alert" : "status"}

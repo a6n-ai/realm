@@ -38,10 +38,13 @@ export type CalendarDayInput = {
   /** This delivery's own drop-off when re-addressed; absent / no tag = it follows the plan. */
   dropOff?: DropOffValue;
   optimoCompletionStatus?: string | null;
+  routePushed?: boolean;
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
   /** Staff's reason when this is a free tiffin; null for a paid one. */
   complimentaryNote?: string | null;
+  /** A day paused through the day-set pause that went past cutoff and became a hold. It has no route stop. */
+  lapsedPause?: boolean;
 };
 
 export type TiffinMove = { from: string | null; to: string };
@@ -89,8 +92,11 @@ export type Trip = {
   dropOff?: DropOffValue;
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
   optimoCompletionStatus?: string | null;
+  /** The stop reached OptimoRoute; "On the way" is shown only then. */
+  routePushed?: boolean;
   /** Staff's reason when this is a free tiffin; null for a paid one. */
   complimentaryNote?: string | null;
+  lapsedPause?: boolean;
 };
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -134,6 +140,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         addressOverride: d.addressOverride ?? null,
         dropOff: d.dropOff,
         optimoCompletionStatus: d.optimoCompletionStatus ?? null,
+        routePushed: !!d.routePushed,
         units: d.units ?? 1,
         coversDates: covers,
         extraDates: d.extras ?? [],
@@ -153,6 +160,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         movesIn: d.movesIn ?? [],
         movesOut: d.movesOut ?? [],
         complimentaryNote: d.complimentaryNote ?? null,
+        lapsedPause: d.lapsedPause,
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -188,10 +196,13 @@ export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripS
  * already reconciled.
  */
 export function holdAwaitingReconcile(
-  d: { cutoffAt: number; date: string; optimoCompletionStatus?: string | null },
+  d: { cutoffAt: number; date: string; optimoCompletionStatus?: string | null; lapsedPause?: boolean },
   now: number,
   timezone: string,
 ): boolean {
+  // A lapsed pause never had a stop on the route, so there is nothing to reconcile and Move is open.
+  // Every other hold waits until its day is over.
+  if (d.lapsedPause) return false;
   return d.optimoCompletionStatus !== "failed" && now >= d.cutoffAt && d.date >= zonedDateIso(now, timezone);
 }
 
@@ -223,9 +234,11 @@ export function actionAvailability(trip: Trip, now: number, plan: PlanContext): 
   // A failed drop or a legacy paused day can't be edited in place; its tiffin moves to a new day.
   const notHere = s === "failed" || s === "vacation" || s === "rescheduled";
   const pick = editable ? yes("Open for changes")
+    : s === "vacation" ? no("Paused. Resume this day to choose meals, or move it to another day.")
     : notHere ? no("Not delivered. Move it to another day to choose meals.")
     : no(blocked(`Delivered. ${closed}.`));
   const swap = editable ? yes("Rice ↔ Roti, per eating day")
+    : s === "vacation" ? no("Paused. Resume this day to swap items, or move it to another day.")
     : notHere ? no("Not delivered. Move it to another day to swap items.")
     : no(blocked(`Delivered. ${closed}.`));
   const move = moveAvailability(trip, now, plan, blocked);

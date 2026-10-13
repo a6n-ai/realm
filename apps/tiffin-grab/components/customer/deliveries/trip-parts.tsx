@@ -20,7 +20,7 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "cutoff-passed": return { label: "Being prepared", tone: "ok", dot: "delivered" };
     case "rescheduled": return { label: "Moved", tone: "hold", dot: "hold" };
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
-    case "vacation": return { label: "Vacation", tone: "vac", dot: "vacation" };
+    case "vacation": return { label: "Paused", tone: "vac", dot: "vacation" };
     case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
     case "failed": return { label: "Not delivered", tone: "hold", dot: "hold" };
   }
@@ -138,8 +138,9 @@ const STOPS = [
   { label: "Delivered", Icon: House },
 ] as const;
 
-export function Journey({ status, caption }: { status: Trip["status"]; caption?: string | null }) {
-  const at = STAGE[status];
+export function Journey({ status, pushed, caption }: { status: Trip["status"]; pushed?: boolean; caption?: string | null }) {
+  // Delivery day alone proves nothing: the tiffin is on the way only once its stop is on a route.
+  const at = status === "unconfirmed" && !pushed ? 0 : STAGE[status];
   if (at == null) return null;
   const done = at === STOPS.length - 1;
   const tone = done ? "var(--s-delivered,#10b981)" : "var(--s-upcoming,#0ea5e9)";
@@ -218,7 +219,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
             <span className="text-[var(--muted-foreground,#6E6558)]">{trip.complimentaryNote}</span>
           </p>
         )}
-        {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-6"><Journey status={trip.status} caption={JOURNEY_NOTE[trip.status]} /></div> : (
+        {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-6"><Journey status={trip.status} pushed={trip.routePushed} caption={trip.status === "unconfirmed" && !trip.routePushed ? "Being prepared" : JOURNEY_NOTE[trip.status]} /></div> : (
           <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
             {m.dot && <StatusDot decorative status={m.dot} />}
             {eyebrow ?? m.label}
@@ -304,7 +305,7 @@ export const EXPLAIN: Record<Trip["status"], string> = {
   "cutoff-passed": "Being prepared. Can't be changed.",
   rescheduled: "Moved to another day.",
   locked: "Closed for changes.",
-  vacation: "Paused. Move it to another day.",
+  vacation: "Paused. Resume it before cutoff, or move it to another day.",
   "combined-into": "Combined into another delivery.",
   failed: "Not delivered. Move it to another day.",
 };
