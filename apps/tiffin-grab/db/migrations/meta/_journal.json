@@ -176,6 +176,20 @@
       "when": 1791806488920,
       "tag": "0024_keen_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791872867207,
+      "tag": "0025_tiresome_tarot",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791884643321,
+      "tag": "0026_robust_karnak",
+      "breakpoints": true
     }
   ]
 }

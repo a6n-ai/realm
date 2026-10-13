@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { desc, eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -9,25 +9,25 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolveAndPersist: async () => null }));
 
 const { db } = await import("@/db/client");
-const { customerAddresses, deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
+const { customerAddresses, deliveries, ledgerEntries, orderActivities, orders, payments, subscriptionPauses, users } = await import("@/db/schema");
+const { pauseDays } = await import("@/lib/services/pause-days.service");
 const { addressService } = await import("@/lib/services/addresses.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("@/lib/services/orders.service");
 const {
   setMyDeliveryAddress,
   clearMyDeliveryAddress,
-  pauseMySubscription,
-  resumeMySubscription,
+  loadMyPauseDays,
+  pauseMyDays,
+  releaseMyDays,
   rescheduleMyDelivery,
 } = await import("../actions");
-
-const FROM = "2000-01-01";
-const UNTIL = "2100-12-31";
 
 const PHONE_A = "+16475550401";
 const PHONE_B = "+16475550402";
 
 async function reset() {
+  await db.delete(subscriptionPauses);
   await db.delete(deliveries);
   await db.delete(ledgerEntries);
   await db.delete(orderActivities);
@@ -116,28 +116,62 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     await expect(clearMyDeliveryAddress(bDelivery.publicId)).resolves.toEqual({ error: expect.any(String) });
   });
 
-  it("rejects pausing another user's subscription, no state change", async () => {
+  // A real day on B's plan with a far-off cutoff: the ownership check is the only thing that can refuse it.
+  async function realDay(order: { id: bigint }) {
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).orderBy(desc(deliveries.deliveryDate));
+    const row = rows[0]!;
+    await db.update(deliveries).set({ cutoffAt: Date.now() + 1e9 }).where(eq(deliveries.id, row.id));
+    return row;
+  }
+  const ownerOf = async (order: { id: bigint }) => (await db.select({ id: users.id, publicId: users.publicId }).from(orders)
+    .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, order.id)))[0]!;
+  const statusOf = async (id: bigint) => (await db.select().from(deliveries).where(eq(deliveries.id, id)))[0]!.status;
+
+  it("rejects pausing a real day on another user's subscription, no state change", async () => {
     const aOrder = await makeOrder(PHONE_A, "User A");
     const bOrder = await makeOrder(PHONE_B, "User B");
-    const [userA] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
-      .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, aOrder.id));
+    const day = await realDay(bOrder);
 
-    actAs(userA.publicId);
-    await expect(
-      pauseMySubscription(bOrder.publicId, { from: FROM, until: UNTIL }),
-    ).resolves.toEqual({ error: expect.any(String) });
-    const [row] = await db.select().from(orders).where(eq(orders.id, bOrder.id));
-    expect(row.status).toBe("active");
+    actAs((await ownerOf(aOrder)).publicId);
+    await expect(pauseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toEqual({ error: expect.any(String) });
+    expect(await statusOf(day.id)).toBe("scheduled");
+    expect(await db.select().from(subscriptionPauses).where(eq(subscriptionPauses.orderId, bOrder.id))).toHaveLength(0);
+
+    actAs((await ownerOf(bOrder)).publicId);
+    await expect(pauseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toMatchObject({ ok: true, paused: [day.deliveryDate], skipped: [] });
+    expect(await statusOf(day.id)).toBe("paused");
   });
 
-  it("rejects resuming another user's subscription", async () => {
+  it("rejects resuming, and listing, a day the other user really paused", async () => {
     const aOrder = await makeOrder(PHONE_A, "User A");
     const bOrder = await makeOrder(PHONE_B, "User B");
-    const [userA] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
-      .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, aOrder.id));
+    const day = await realDay(bOrder);
+    await pauseDays(bOrder.publicId, [day.deliveryDate], null);
 
-    actAs(userA.publicId);
-    await expect(resumeMySubscription(bOrder.publicId)).resolves.toEqual({ error: expect.any(String) });
+    actAs((await ownerOf(aOrder)).publicId);
+    await expect(releaseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toEqual({ error: expect.any(String) });
+    await expect(releaseMyDays(bOrder.publicId, "all")).resolves.toEqual({ error: expect.any(String) });
+    await expect(loadMyPauseDays(bOrder.publicId)).resolves.toEqual({ error: expect.any(String) });
+    expect(await statusOf(day.id)).toBe("paused");
+
+    actAs((await ownerOf(bOrder)).publicId);
+    await expect(loadMyPauseDays(bOrder.publicId)).resolves.toMatchObject({ days: expect.arrayContaining([{ date: day.deliveryDate, paused: true }]) });
+    await expect(releaseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toMatchObject({ ok: true, dates: [day.deliveryDate] });
+    expect(await statusOf(day.id)).toBe("scheduled");
+  });
+
+  it("staff can pause and resume a customer's days, and the activity names the staff member", async () => {
+    const bOrder = await makeOrder(PHONE_B, "User B");
+    const day = await realDay(bOrder);
+    const [admin] = await db.insert(users).values({ email: `admin${Math.random().toString(36).slice(2)}@test.invalid`, phone: "+16475550499", role: "admin" }).returning();
+
+    session.user = { id: admin.publicId, role: "admin" };
+    await expect(pauseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.not.toHaveProperty("error");
+    expect(await statusOf(day.id)).toBe("paused");
+    await expect(releaseMyDays(bOrder.publicId, "all")).resolves.not.toHaveProperty("error");
+    expect(await statusOf(day.id)).toBe("scheduled");
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, bOrder.id));
+    expect(acts.filter((a) => a.type === "paused" || a.type === "resumed").map((a) => a.createdBy)).toEqual([admin.id, admin.id]);
   });
 
   it("surfaces the cutoff gate when moving a past delivery", async () => {

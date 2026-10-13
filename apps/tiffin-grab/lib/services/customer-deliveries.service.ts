@@ -23,6 +23,8 @@ import { isPaymentReviewStatus } from "@/lib/orders/display-status";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
+import { lapseElapsedPausesSafe } from "./pause-days.service";
+import { isLapsedPause, isOrderFullyPaused, lapsedPauseDates } from "./pause-state";
 import { toDropOffValues } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "./order-window";
@@ -79,7 +81,16 @@ export async function assertOrderUnlocked(orderPublicId: string): Promise<void> 
 }
 
 type Delivery = typeof deliveries.$inferSelect;
-export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean; dropOff?: DropOffValue };
+export type CustomerDelivery = Delivery & {
+  orderPublicId: string;
+  planName: string;
+  isMakeup: boolean;
+  dropOff?: DropOffValue;
+  /** A held day that was paused and never put back: it has no route stop, so Move is open at once. */
+  lapsedPause?: boolean;
+  /** A route_pushed activity exists: the stop reached OptimoRoute. */
+  routePushed?: boolean;
+};
 /** One add-on on a plan: shown under "Add-ons", never part of the meal or its swaps. */
 export type SubscriptionAddon = {
   name: string;
@@ -121,6 +132,8 @@ export type Subscription = {
   frequencyKey?: string;
   /** The plan's place type and strategies, as still offered. */
   dropOff?: DropOffValue;
+  /** Computed on read: paused days remain and nothing is scheduled today or later. orders.status stays active. */
+  fullyPaused?: boolean;
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
@@ -141,9 +154,13 @@ async function paymentStatusesByOrderId(orderIds: bigint[]): Promise<Map<bigint,
 }
 
 export async function myActiveSubscriptions(userId: bigint): Promise<Subscription[]> {
-  // Flip any elapsed pause window back to "active" before reporting status — otherwise a
-  // customer whose pause silently expired keeps seeing "paused" until some other write touches
-  // the order.
+  // A paused day past its cutoff did not go out: make it a hold before anything reads it, so the
+  // timeline and Move see the same row. Each conversion takes the order's lock and runs once.
+  const stranded = await db.selectDistinct({ id: orders.id }).from(orders)
+    .innerJoin(deliveries, eq(deliveries.orderId, orders.id))
+    .where(and(eq(orders.userId, userId), eq(deliveries.status, "paused"), lte(deliveries.cutoffAt, Date.now())));
+  await Promise.all(stranded.map((o) => lapseElapsedPausesSafe(o.id)));
+  // Legacy range pauses: close an elapsed window and return an order that has nothing paused left to active.
   const pausedOrderIds = await db.select({ id: orders.id }).from(orders)
     .where(and(eq(orders.userId, userId), eq(orders.status, "paused")));
   await Promise.all(pausedOrderIds.map((o) => autoResumeIfElapsed(o.id)));
@@ -181,6 +198,10 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
   const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.deliveryTagId, strategyIds: r.deliveryStrategyIds })));
 
   const payByOrder = await paymentStatusesByOrderId(rows.map((r) => r.id));
+  const { timezone } = await getAppSettings();
+  const today = zonedDateIso(Date.now(), timezone);
+  const fullyPaused = new Set<bigint>();
+  for (const r of rows) if (r.status === "active" && (await isOrderFullyPaused(db, r.id, today))) fullyPaused.add(r.id);
   const addonRows = rows.length
     ? await db.select({ orderId: orderAddons.orderId, name: orderAddons.addonName, qty: orderAddons.qty, category: orderAddons.category, tuAmount: orderAddons.tuAmount }).from(orderAddons)
       .where(inArray(orderAddons.orderId, rows.map((r) => r.id))).orderBy(asc(orderAddons.id))
@@ -222,6 +243,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
         tagColor: r.tagColor,
         frequencyKey: r.frequencyKey,
         dropOff: dropOffs[rows.indexOf(r)],
+        fullyPaused: fullyPaused.has(r.id),
       };
     });
 }
@@ -361,7 +383,12 @@ export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
 // affected row cancelled directly, so no separate orders.status check is needed.
 export async function myDeliveries(userId: bigint, from: string, until: string): Promise<CustomerDelivery[]> {
   const rows = await db
-    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name })
+    .select({
+      d: deliveries,
+      orderPublicId: orders.publicId,
+      planName: plans.name,
+      routePushed: sql<boolean>`exists (select 1 from ${orderActivities} where ${orderActivities.deliveryId} = ${deliveries.id} and ${orderActivities.type} = 'route_pushed')`,
+    })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
@@ -375,6 +402,8 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
     )
     .orderBy(asc(deliveries.deliveryDate));
   const dropOffs = await toDropOffValues(rows.map((r) => ({ tagId: r.d.deliveryTagId, strategyIds: r.d.deliveryStrategyIds })));
+  const held = [...new Set(rows.filter((r) => r.d.status === "skipped").map((r) => r.d.orderId))];
+  const lapsed = await lapsedPauseDates(db, held);
   return rows.map((r, i) => ({
     ...r.d,
     orderPublicId: r.orderPublicId,
@@ -382,6 +411,8 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
     isMakeup: r.d.makeupForDeliveryId !== null,
     // The delivery's own drop-off; only meaningful when re-addressed (then no tag = none).
     dropOff: dropOffs[i],
+    lapsedPause: isLapsedPause(r.d, lapsed.get(r.d.orderId)),
+    routePushed: r.routePushed,
   }));
 }
 

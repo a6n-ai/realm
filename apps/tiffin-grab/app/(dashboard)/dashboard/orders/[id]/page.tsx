@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ActivityIcon, PackageIcon, ReceiptIcon, TruckIcon, WalletIcon } from "lucide-react";
+import { ActivityIcon, EyeIcon, PackageIcon, ReceiptIcon, TruckIcon, WalletIcon } from "lucide-react";
 import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
@@ -15,6 +15,8 @@ import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
 import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
+import { lapseElapsedPausesSafe } from "@/lib/services/pause-days.service";
+import { isOrderFullyPaused } from "@/lib/services/pause-state";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
@@ -26,8 +28,9 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import Link from "next/link";
 import { humanDate } from "@/lib/deliveries-view";
+import { formatEpoch } from "@/lib/format/datetime";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PaymentsPanel } from "./payments-panel";
@@ -36,7 +39,9 @@ import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { ChangePlanControl } from "./change-plan-control";
 import { StartDateControl } from "./start-date-control";
+import { EatingDaysControl } from "./eating-days-control";
 import { ComplimentaryControl } from "./complimentary-control";
+import { LookOutControl } from "./look-out-control";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
@@ -87,7 +92,10 @@ async function OrderDetail({
     throw e;
   }
 
-  const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone] = await Promise.all([
+  // A paused day past its cutoff is a hold: convert it (under the order lock) before the page reads any delivery.
+  if (order.status === "active" || order.status === "paused") await lapseElapsedPausesSafe(order.id);
+
+  const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone, lookOutBy] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
     db.select({ planType: plans.planType, allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
@@ -104,9 +112,13 @@ async function OrderDetail({
     order.zoneId != null
       ? db.select({ name: deliveryZones.name }).from(deliveryZones).where(eq(deliveryZones.id, order.zoneId)).limit(1).then((r) => r[0] ?? null)
       : Promise.resolve(null),
+    order.lookOutBy != null
+      ? db.select({ name: users.name }).from(users).where(eq(users.id, order.lookOutBy)).limit(1).then((r) => r[0]?.name ?? null)
+      : Promise.resolve(null),
   ]);
 
   const settingsToday = zonedDateIso(Date.now(), settings.timezone);
+  const fullyPaused = (order.status === "active" || order.status === "paused") && (await isOrderFullyPaused(db, order.id, settingsToday));
   const optimoRows = deliveryRows
     .filter((r) => r.deliveryDate >= settingsToday && r.status !== "cancelled")
     .map((r) => ({
@@ -190,7 +202,7 @@ async function OrderDetail({
 
   const notStarted = startBlocker == null;
   const startDays = order.trialLength != null ? (order.trialWeekdays ?? []) : (planRow?.allowedStartDays ?? []);
-  const startToday = appToday(settings.timezone);
+  const startToday = appToday(settings.timezone, settings.cutoffHour);
   const startAction = (
     <StartDateControl
       blockedReason={startBlocker}
@@ -202,8 +214,24 @@ async function OrderDetail({
     />
   );
 
+  const frequencyRow = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId);
+  const canEditEating = frequencyRow != null && order.trialLength == null
+    && (order.status === "active" || order.status === "paused" || order.status === "pending");
+  const eatingAction = canEditEating ? (
+    <EatingDaysControl
+      orderId={order.publicId}
+      eatingDays={(order.eatingDays as DayOfWeek[] | null) ?? orderDeliveryDays({
+        frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null,
+        includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
+      })}
+      deliveryDays={orderDeliveryDays({ frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false })}
+      servesWeekends={catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.servesWeekends ?? true}
+      bounds={{ min: settings.minTiffinsPerWeek, max: settings.maxTiffinsPerWeek }}
+    />
+  ) : null;
+
   const stats: StatItem[] = [
-    { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" ? "Paused" : order.frequencyName, pixelValue: false },
+    { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" || fullyPaused ? "Paused" : order.frequencyName, pixelValue: false },
     {
       label: "Tiffins left",
       value: counts ? `${counts.remaining} / ${counts.total}` : String(order.tiffinCount),
@@ -223,7 +251,7 @@ async function OrderDetail({
   // Any status but cancelled: a driver can mark a stop delivered that the customer never got.
   const compensated = new Set(deliveryRows.map((r) => r.complimentaryForDeliveryId).filter((id) => id != null).map(String));
   const deliveryState = (r: (typeof deliveryRows)[number]) =>
-    r.status === "paused" ? "vacation"
+    r.status === "paused" ? "paused"
     : r.status === "skipped" ? (r.optimoCompletionStatus === "failed" ? "not delivered" : "on hold")
     : r.optimoCompletionStatus === "success" ? "marked delivered"
     : "not confirmed";
@@ -237,6 +265,7 @@ async function OrderDetail({
   const headerActions = (
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
+      <LookOutControl orderId={order.publicId} flagged={order.lookOutAt != null} />
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
       {/* A trial can only have its dishes edited (orders.service rejects a plan change). */}
       {canGiveFree && (
@@ -265,6 +294,19 @@ async function OrderDetail({
       <div className="-mt-2 flex flex-wrap gap-2 sm:hidden">{headerActions}</div>
 
       <StatGrid items={stats} cols={5} />
+
+      {order.lookOutAt != null && (
+        <div role="status" data-testid="look-out-banner" className="border-warn/40 bg-warn/10 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
+          <EyeIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <div className="min-w-0">
+            <p className="font-medium">Look out for this order</p>
+            <p className="text-muted-foreground text-pretty">
+              {order.lookOutNote ? `${order.lookOutNote} · ` : ""}
+              Marked{lookOutBy ? ` by ${lookOutBy}` : ""} on {formatEpoch(order.lookOutAt, { mode: "date", timeZone: settings.timezone })}
+            </p>
+          </div>
+        </div>
+      )}
 
       {migration && (
         <div role="status" className="border-primary/40 bg-primary/5 rounded-xl border px-4 py-3 text-sm">
@@ -311,6 +353,7 @@ async function OrderDetail({
               currency={settings.currency}
               categoryLabels={categoryLabels}
               startAction={startAction}
+              eatingAction={eatingAction}
             />
           ),
           deliveries: (

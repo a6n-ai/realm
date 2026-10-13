@@ -100,6 +100,8 @@ export function Sheet({ open, onClose, title, children, footer, bottom }: SheetP
     if (v > 0.5 || d.dy > el.offsetHeight * 0.4) {
       el.style.transform = "";
       onClose();
+    } else if (reduced()) {
+      el.style.transform = "";
     } else {
       el.style.transition = `transform 300ms cubic-bezier(.34,1.56,.64,1)`;
       el.style.transform = "";

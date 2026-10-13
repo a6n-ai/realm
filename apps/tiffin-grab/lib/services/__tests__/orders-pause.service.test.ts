@@ -189,13 +189,15 @@ describe("OrdersService.pause/resume — limits + recorded pauses (integration)"
     expect(pauseRow.resumedAt).not.toBeNull();
   });
 
-  it("autoResumeIfElapsed leaves an indefinite pause untouched", async () => {
+  it("autoResumeIfElapsed leaves an indefinite pause window open, but retires the paused order status", async () => {
     const publicId = await makeOrder();
     const orderId = await orderIdOf(publicId);
     await svc.pauseOrder(publicId, { from: "2000-01-01", until: "2000-01-01", indefinite: true });
     await autoResumeIfElapsed(orderId);
     const [o] = await db.select().from(orders).where(eq(orders.id, orderId));
-    expect(o.status).toBe("paused");
+    expect(o.status).toBe("active");
+    const [pauseRow] = await db.select().from(subscriptionPauses).where(eq(subscriptionPauses.orderId, orderId));
+    expect(pauseRow.resumedAt).toBeNull();
   });
 
   it("autoResumeIfElapsed closes an elapsed PARTIAL-pause row without a status flip, so a fresh pause is legal again", async () => {

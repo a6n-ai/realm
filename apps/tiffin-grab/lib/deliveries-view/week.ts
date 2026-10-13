@@ -30,6 +30,15 @@ export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
   return "upcoming";
 }
 
+/** Paused delivery days still before cutoff, from the plan-wide agenda; a moved-away day is not resumable. */
+export function pausedAhead(agenda: Agenda, now: number): number {
+  const seen = new Set<string>();
+  for (const dots of Object.values(agenda)) {
+    for (const d of dots) if (d.truck && !d.moved && d.status === "paused" && d.cutoffAt > now) seen.add(d.deliveryId ?? d.deliveryDate);
+  }
+  return seen.size;
+}
+
 /** Stable colour per plan, by position in the customer's plan list. */
 export const PLAN_COLORS = ["#c2410c", "#2563eb", "#7c3aed", "#0d9488", "#be185d", "#4d7c0f"];
 

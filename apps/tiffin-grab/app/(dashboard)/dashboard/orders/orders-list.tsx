@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PackageIcon } from "lucide-react";
+import { EyeIcon, PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@foundry/commons";
 import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
@@ -43,6 +43,7 @@ export function OrdersList({
   sort,
   canReassign,
   staff,
+  lookOutView = false,
 }: {
   spec: FacetDef[];
   rows: OrderListRow[];
@@ -52,6 +53,8 @@ export function OrdersList({
   sort: SortState<OrderSortColumn>;
   canReassign: boolean;
   staff: { publicId: string; name: string }[];
+  /** The Look out for tab: each row shows why it was flagged. */
+  lookOutView?: boolean;
 }) {
   const tz = useTimezone();
   return (
@@ -67,7 +70,7 @@ export function OrdersList({
       rowClassName={() => "group cursor-pointer"}
       filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={PackageIcon}
-      emptyMessage="No orders yet."
+      emptyMessage={lookOutView ? "No orders are marked look out for." : "No orders yet."}
       emptySearchMessage="No orders match your search."
       renderRow={(o) => (
         <>
@@ -76,6 +79,12 @@ export function OrdersList({
               {o.fullName}
             </Link>
             {o.trial && <TrialPill className="ml-2" />}
+            {o.lookOut && !lookOutView && (
+              <span title={o.lookOutNote ? `Look out for: ${o.lookOutNote}` : "Look out for"} className="text-warn ml-2 inline-flex align-middle">
+                <EyeIcon className="size-4" aria-label="Look out for" />
+              </span>
+            )}
+            {lookOutView && o.lookOutNote && <p className="text-muted-foreground text-xs font-normal text-pretty">{o.lookOutNote}</p>}
           </TableCell>
           <TableCell>{o.deploymentId}</TableCell>
           <TableCell>{o.city}</TableCell>

@@ -15,6 +15,8 @@ export type SheetUi = {
   Shell: ComponentType<{ open: boolean; onClose: () => void; title: string; footer: ReactNode; children: ReactNode }>;
   /** The footer's one action. `disabledReason` disables it and says why. */
   PrimaryButton: ComponentType<{ pending: boolean; disabled?: boolean; disabledReason?: string; onClick: () => void; children: ReactNode }>;
+  /** A quieter action inside the body (Resume this day). */
+  SecondaryButton: ComponentType<{ pending?: boolean; onClick: () => void; children: ReactNode }>;
   Notice: ComponentType<{ tone?: "info" | "error"; children: ReactNode }>;
   Reason: ComponentType<{ children: ReactNode }>;
   Loading: ComponentType;
@@ -31,6 +33,11 @@ export const KIT_UI: SheetUi = {
   Shell: ({ open, onClose, title, footer, children }) => <Sheet open={open} onClose={onClose} title={title} footer={footer}>{children}</Sheet>,
   PrimaryButton: ({ pending, disabled, disabledReason, onClick, children }) => (
     <Button variant="primary" size="lg" className="w-full" pending={pending} disabled={disabled} disabledReason={disabledReason} onClick={onClick}>
+      {children}
+    </Button>
+  ),
+  SecondaryButton: ({ pending, onClick, children }) => (
+    <Button variant="quiet" pending={pending} onClick={onClick}>
       {children}
     </Button>
   ),

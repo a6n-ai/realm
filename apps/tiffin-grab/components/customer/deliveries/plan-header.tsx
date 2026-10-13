@@ -52,6 +52,7 @@ export function PlanHeader({ name, sub, counts, renew, color }: {
           {[
             <span key="diet" className="inline-flex items-center gap-1.5">{dot && <span aria-hidden className="inline-block size-2 rounded-full" style={{ background: dot }} />}{sub.tagLabel || sub.planName}</span>,
             sub.trial ? "Trial" : null,
+            sub.fullyPaused ? "All upcoming days paused" : null,
             ...(sub.addons ?? []).map((a) => `+ ${a.name}${a.qty > 1 ? ` ×${a.qty}` : ""}`),
             `${counts.remaining} of ${counts.total} tiffins left`,
             counts.complimentary ? `incl. ${counts.complimentary} free` : null,

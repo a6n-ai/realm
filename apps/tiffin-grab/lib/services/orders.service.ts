@@ -6,7 +6,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import {
@@ -49,11 +49,13 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
+import { lapseElapsedPausesSafe } from "./pause-days.service";
+import { retireLegacyPaused } from "./pause-state";
 import { ledgerService } from "./ledger.service";
 import { assertNoPlanOverlap } from "./order-window";
-import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
+import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
-import { appToday, validateStartDate } from "./start-date";
+import { appToday, staffStartBase, validateStartDate } from "./start-date";
 import { assertTrialStart } from "@/lib/trial/schedule";
 import {
   walletService,
@@ -66,7 +68,8 @@ import {
   reverseCoinAward,
 } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
-import { eatingDaysError, orderDeliveryDays, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { publishAnalyticsLive, publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
@@ -190,6 +193,8 @@ export interface CreateOrderOptions {
   // Staff-only (set by dashboard server actions, never from client input): may
   // order a hidden custom meal size for any customer.
   allowCustomMeal?: boolean;
+  /** Staff only: the plan may start today. Customers start tomorrow at the earliest, before the cutoff. */
+  allowSameDayStart?: boolean;
   // Staff-only: replaces a custom meal's computed per-tiffin base price before
   // the pricing engine runs (discounts still apply).
   basePriceOverride?: number;
@@ -230,8 +235,9 @@ export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string }> {
-  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, basePriceOverride } = opts;
+  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, allowSameDayStart = false, basePriceOverride } = opts;
   const snapshot = await loadCatalogSnapshot(orgId);
+  const startBase = allowSameDayStart ? staffStartBase(snapshot.timezone) : appToday(snapshot.timezone, snapshot.cutoffHour);
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
@@ -249,7 +255,7 @@ export async function createOrder(
   const categoryCounts = categoryCountsFromItems(mealSize.items);
   const mealSlots = Object.keys(categoryCounts);
   if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
-  const trial = mealSize.trial ? await quoteTrial(snapshot, input.selections) : null;
+  const trial = mealSize.trial ? await quoteTrial(snapshot, input.selections, startBase) : null;
   if (!mealSize.trial && input.selections.trialDays != null) {
     throw new ValidationError("Only a trial meal has a day count");
   }
@@ -266,7 +272,7 @@ export async function createOrder(
       trialDays: trial.length,
     };
   } else {
-    validateStartDate(input.selections.startDate, plan.allowedStartDays, appToday(snapshot.timezone));
+    validateStartDate(input.selections.startDate, plan.allowedStartDays, startBase);
   }
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
   if (!frequency) throw new ValidationError("Invalid delivery frequency");
@@ -385,17 +391,16 @@ export async function createOrder(
     }
     let userId = ownerId;
     if (!userId) {
-      const [existing] = await tx
-        .select({ id: users.id })
-        .from(users)
-        .where(and(or(eq(users.phone, phone), eq(users.email, email)), eq(users.role, "user")))
-        // Phone first: when a number and an address somehow point at different
-        // accounts, the phone is the channel this flow has always keyed on, and
-        // deterministic ordering keeps the choice reproducible rather than
-        // whatever the planner returns first.
-        .orderBy(sql`case when ${users.phone} = ${phone} then 0 else 1 end`)
-        .limit(1);
-      userId = existing?.id ?? null;
+      const matches = await matchCustomerAccounts(tx, phone, email);
+      // Two rows means the number is one customer's and the address another's.
+      // Picking either would bill a stranger and run the overlap guard against
+      // their plan, so stop. The message names nobody: guests reach this too.
+      if (matches.length > 1) {
+        throw new ValidationError(
+          "This phone number is saved on a different account than this email. Use the phone number on that account, or a different one.",
+        );
+      }
+      userId = matches[0] ?? null;
     }
     if (!userId) {
       userId = await provisionCustomerByPhone(
@@ -1113,6 +1118,42 @@ export async function updatePaymentReference(
   });
 }
 
+/** Any staff member flags an order the whole team should watch (with why), or clears the flag.
+ * Logged as an order note, like updatePaymentReference. */
+export async function setOrderLookOut(
+  orderPublicId: string,
+  on: boolean,
+  note: string,
+  actorId: bigint | null = null,
+): Promise<void> {
+  const reason = note.trim() || null;
+  if (reason && reason.length > 300) throw new ValidationError("Keep the note under 300 characters");
+  const [order] = await db.select({ id: orders.id, lookOutAt: orders.lookOutAt }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
+  if (!order) throw new NotFoundError("Order not found");
+  if (!on && order.lookOutAt == null) return;
+
+  await db
+    .update(orders)
+    .set(on ? { lookOutAt: Date.now(), lookOutBy: actorId, lookOutNote: reason } : { lookOutAt: null, lookOutBy: null, lookOutNote: null })
+    .where(eq(orders.id, order.id));
+  await db.insert(orderActivities).values({
+    orderId: order.id,
+    type: "note",
+    note: on ? `Marked look out for${reason ? `: ${reason}` : ""}` : "Look out for cleared",
+    createdBy: actorId,
+  });
+}
+
+/** Flagged orders the caller can see, for the Orders tab badge. */
+export async function countLookOutOrders(visible: "all" | string[]): Promise<number> {
+  if (visible !== "all" && visible.length === 0) return 0;
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(orders)
+    .where(and(isNotNull(orders.lookOutAt), visible === "all" ? undefined : inArray(orders.organizationId, visible)));
+  return count;
+}
+
 // Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
   paymentPublicId: string;
@@ -1191,6 +1232,8 @@ export type OrderListRow = {
   ownerId: string | null;
   ownerName: string | null;
   trial: boolean;
+  lookOut: boolean;
+  lookOutNote: string | null;
 };
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
@@ -1226,6 +1269,22 @@ export async function assertOrderVisible(publicId: string, visible: "all" | stri
     .where(and(eq(orders.publicId, publicId), visible === "all" ? undefined : inArray(orders.organizationId, visible)))
     .limit(1);
   if (!row) throw new NotFoundError("Order not found");
+}
+
+// Actions that take a delivery or payment id resolve the order from that row, never from an
+// order id the client sent alongside it.
+export async function assertDeliveryVisible(deliveryPublicId: string, visible: "all" | string[]): Promise<void> {
+  const [row] = await db.select({ publicId: orders.publicId }).from(deliveries)
+    .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(deliveries.publicId, deliveryPublicId)).limit(1);
+  if (!row) throw new NotFoundError("Order not found");
+  await assertOrderVisible(row.publicId, visible);
+}
+
+export async function assertPaymentVisible(paymentPublicId: string, visible: "all" | string[]): Promise<void> {
+  const [row] = await db.select({ publicId: orders.publicId }).from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId)).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  if (!row) throw new NotFoundError("Order not found");
+  await assertOrderVisible(row.publicId, visible);
 }
 
 function filterValues(f: FilterCondition): string[] {
@@ -1279,9 +1338,11 @@ export async function listOrdersPage(
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
   visible: "all" | string[],
+  opts: { lookOutOnly?: boolean } = {},
 ): Promise<Page<OrderListRow>> {
   const where = and(
     conditionToSql(condition, ordersListResolver()),
+    opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 
@@ -1311,6 +1372,8 @@ export async function listOrdersPage(
         ownerId: users.publicId,
         ownerName: users.name,
         trialLength: orders.trialLength,
+        lookOutAt: orders.lookOutAt,
+        lookOutNote: orders.lookOutNote,
       })
       .from(orders)
       .innerJoin(plans, eq(orders.planId, plans.id))
@@ -1354,6 +1417,8 @@ export async function listOrdersPage(
     ownerId: r.ownerId ?? null,
     ownerName: r.ownerName ?? null,
     trial: r.trialLength != null,
+    lookOut: r.lookOutAt != null,
+    lookOutNote: r.lookOutNote,
   }));
   return { items, page: page.page, size: page.size, total: count };
 }
@@ -1656,14 +1721,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // from the new date exactly as createOrder built them (materializeDeliveries).
   async changeStartDate(publicId: string, startDate: string): Promise<void> {
     const actorId = await this.currentUserId();
-    const { timezone } = await getAppSettings();
+    const { timezone, cutoffHour } = await getAppSettings();
     await db.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
       const blocker = await this.startChangeBlocker(order.id, order.status, tx);
       if (blocker) throw new ValidationError(blocker);
       if (startDate === order.startDate) return;
-      const today = appToday(timezone);
+      const today = appToday(timezone, cutoffHour);
       if (order.trialLength != null) {
         assertTrialStart(startDate, order.trialWeekdays ?? [], today);
       } else {
@@ -1691,6 +1756,127 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         orderId: order.id,
         type: "note",
         note: `Start date moved from ${order.startDate} to ${startDate}`,
+        createdBy: actorId,
+        organizationId: order.organizationId,
+      });
+    });
+    publishAnalyticsLive();
+  }
+
+  // Admin: change which days the customer eats. The delivery days (frequency) and the tiffin
+  // balance stay as they are; only deliveries nobody has touched are laid out again, so the
+  // last delivery date moves. Delivered, held, moved, swapped, re-addressed and routed rows
+  // keep their date and the open tiffins are laid around them; only a moved tiffin left after
+  // the new last day is brought forward to follow it.
+  async changeEatingDays(publicId: string, days: DayOfWeek[]): Promise<void> {
+    const actorId = await this.currentUserId();
+    const { timezone, cutoffHour, minTiffinsPerWeek, maxTiffinsPerWeek } = await getAppSettings();
+    const label = (d: readonly string[]) => d.map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join(", ");
+    await db.transaction(async (tx) => {
+      const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
+      if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+      if (order.status !== "active" && order.status !== "paused" && order.status !== "pending") {
+        throw new ValidationError("Eating days can only change on a plan that is running or waiting to start");
+      }
+      if (order.trialLength != null) throw new ValidationError("A trial's days come from its trial schedule");
+
+      const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
+        .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+      if (!freq) throw new ValidationError("Delivery frequency not found");
+      const frequency = { frequencyKey: freq.key, weekdays: freq.weekdays as DayOfWeek[] | null };
+      const deliveryDays = orderDeliveryDays({ ...frequency, includeSaturday: false, includeSunday: false });
+      const err = eatingDaysError(deliveryDays, days, { min: minTiffinsPerWeek, max: maxTiffinsPerWeek })
+        ?? weekendDaysError(days, await mealSizeServesWeekends(order.mealSizeId, tx));
+      if (err) throw new ValidationError(err);
+      const trips = planWeek(deliveryDays, days)!;
+      const next = trips.flatMap((t) => t.days);
+      const before = (order.eatingDays as DayOfWeek[] | null)
+        ?? orderDeliveryDays({ ...frequency, includeSaturday: order.includeSaturday, includeSunday: order.includeSunday });
+      if (before.join() === next.join()) return;
+
+      const rows = await tx.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+      const ids = rows.map((r) => r.id);
+      const [swaps, extras, moves] = ids.length ? await Promise.all([
+        tx.select({ id: deliveryCategorySwaps.deliveryId }).from(deliveryCategorySwaps).where(inArray(deliveryCategorySwaps.deliveryId, ids)),
+        tx.select({ id: deliveryExtraTiffins.deliveryId }).from(deliveryExtraTiffins).where(inArray(deliveryExtraTiffins.deliveryId, ids)),
+        tx.select({ a: deliveryMoves.fromDeliveryId, b: deliveryMoves.toDeliveryId }).from(deliveryMoves).where(eq(deliveryMoves.orderId, order.id)),
+      ]) : [[], [], []];
+      const linked = (r: (typeof rows)[number]) => [r.mergedIntoDeliveryId, r.makeupForDeliveryId, r.complimentaryForDeliveryId];
+      const edited = new Set([...swaps.map((x) => x.id), ...extras.map((x) => x.id)]);
+      const tied = new Set([...edited, ...moves.flatMap((x) => [x.a, x.b]), ...rows.flatMap(linked)]);
+      const now = Date.now();
+      const open = rows.filter((r) => r.status === "scheduled" && r.cutoffAt > now && !r.routeSyncedAt && !r.optimoCompletionStatus
+        && r.complimentaryNote == null && r.addressLine == null && r.addressId == null
+        && linked(r).every((x) => x == null) && !tied.has(r.id));
+      const units = open.reduce((n, r) => n + r.tiffinUnits, 0);
+      // A tiffin moved to its own later day and not touched since: it can follow the plan's end.
+      const movable = rows.filter((r) => r.makeupForDeliveryId != null && r.status === "scheduled" && r.cutoffAt > now
+        && !r.routeSyncedAt && !r.optimoCompletionStatus && r.complimentaryNote == null && r.addressLine == null && r.addressId == null
+        && r.mergedIntoDeliveryId == null && r.complimentaryForDeliveryId == null && !edited.has(r.id)
+        && (r.coversDates == null || (r.coversDates.length === 1 && r.coversDates[0] === r.deliveryDate))
+        && !rows.some((o) => o.mergedIntoDeliveryId === r.id || o.complimentaryForDeliveryId === r.id));
+      const pulled = new Map<bigint, string>();
+
+      const laid: { deliveryDate: string; tiffinUnits: number; coversDates: string[]; cutoffAt: number }[] = [];
+      if (units > 0) {
+        // Never earlier than the first open delivery: a plan that hasn't started stays put.
+        const start = open.map((r) => r.deliveryDate).sort()[0]!;
+        const openIds = new Set(open.map((r) => r.id));
+        const taken = new Set(rows.filter((r) => !openIds.has(r.id) && r.deliveryDate >= start).map((r) => r.deliveryDate));
+        // Padded so the rows skipped for a kept date never run the candidates short.
+        const candidates = buildBoundedDeliveryRows({ startDate: start, trips, persons: order.persons, targetTiffinCount: units + (taken.size + 1) * 7 * order.persons });
+        let left = units;
+        for (const c of candidates) {
+          if (left <= 0) break;
+          if (taken.has(c.deliveryDate)) continue;
+          const tiffinUnits = Math.min(c.tiffinUnits, left);
+          laid.push({
+            deliveryDate: c.deliveryDate,
+            tiffinUnits,
+            coversDates: c.coversDates.slice(0, Math.ceil(tiffinUnits / order.persons)),
+            cutoffAt: cutoffMsFor(c.deliveryDate, cutoffHour, timezone),
+          });
+          left -= tiffinUnits;
+        }
+        if (left > 0) throw new ValidationError("Couldn't fit the remaining tiffins on these days");
+        await tx.delete(deliveries).where(inArray(deliveries.id, [...openIds]));
+        await tx.insert(deliveries).values(laid.map((r) => ({ ...r, orderId: order.id, status: "scheduled" as const, organizationId: order.organizationId })));
+
+        // A moved tiffin parked after the old last day would be stranded when the plan gets
+        // shorter: bring it up to the first free days after the new end. Never pushed later.
+        const end = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !openIds.has(r.id) && !movable.includes(r)).map((r) => r.deliveryDate)].sort().at(-1)!;
+        const free = candidates.map((c) => c.deliveryDate).filter((d) => d > end && !taken.has(d));
+        const tail = movable.filter((r) => r.deliveryDate > end).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate));
+        for (const [i, r] of tail.entries()) {
+          const to = free[i];
+          if (!to || to >= r.deliveryDate) break;
+          await tx.update(deliveries).set({ deliveryDate: to, coversDates: r.coversDates && [to], cutoffAt: cutoffMsFor(to, cutoffHour, timezone) })
+            .where(eq(deliveries.id, r.id));
+          await tx.update(deliveryMoves).set({ toEatDate: to })
+            .where(and(eq(deliveryMoves.toDeliveryId, r.id), eq(deliveryMoves.toEatDate, r.deliveryDate)));
+          pulled.set(r.id, to);
+        }
+      }
+
+      // The overlap guard reads durationWeeks; keep it covering a plan that now runs longer.
+      const last = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !open.includes(r) && r.status === "scheduled").map((r) => pulled.get(r.id) ?? r.deliveryDate)].sort().at(-1);
+      const spanWeeks = last ? Math.ceil((Math.round((parseIsoDateUtc(last).getTime() - parseIsoDateUtc(order.startDate).getTime()) / 86_400_000) + 1) / 7) : 0;
+      await tx.update(orders).set({
+        eatingDays: next,
+        includeSaturday: next.includes("sat"),
+        includeSunday: next.includes("sun"),
+        durationWeeks: Math.max(order.durationWeeks, spanWeeks),
+        updatedBy: actorId,
+        updatedAt: Date.now(),
+      }).where(eq(orders.id, order.id));
+      await tx.insert(orderActivities).values({
+        orderId: order.id,
+        type: "note",
+        note: `Eating days changed from ${label(before)} to ${label(next)}`
+          + (laid.length ? `. ${units} upcoming tiffin${units === 1 ? "" : "s"} rescheduled` : "")
+          + (pulled.size ? `, ${pulled.size} moved tiffin${pulled.size === 1 ? "" : "s"} brought forward` : "")
+          + (laid.length ? `, last delivery ${last}` : ""),
         createdBy: actorId,
         organizationId: order.organizationId,
       });
@@ -2016,6 +2202,7 @@ export const activateOrder = (publicId: string): Promise<void> => ordersService.
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
 export const startMigratedOrder = (publicId: string, startDate: string): Promise<void> => ordersService.startMigrated(publicId, startDate);
 export const changeOrderStartDate = (publicId: string, startDate: string): Promise<void> => ordersService.changeStartDate(publicId, startDate);
+export const changeOrderEatingDays = (publicId: string, days: DayOfWeek[]): Promise<void> => ordersService.changeEatingDays(publicId, days);
 export const startAllMigratedOrders = (fromDate: string) => ordersService.startAllMigrated(fromDate);
 export async function countMigratedWaiting(): Promise<number> {
   const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(orders)
@@ -2031,28 +2218,26 @@ export const resumeOrder = (publicId: string, actorId?: bigint, fromDate?: strin
 export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
   ordersService.reassign(publicId, ownerId);
 
-// Flips a fully-paused order back to "active" once its open (non-indefinite) pause window has
-// elapsed. No-op if there's no open pause, the pause is indefinite, or untilDate hasn't passed yet.
-// Called from myActiveSubscriptions before it reports order status to the customer.
+// Never puts a paused day back on the route (resume() used to, which undid the hold). A paused day
+// past its cutoff becomes a hold. Then the old range-pause leftovers: an elapsed open window is
+// closed, and an order those pauses flipped to "paused" goes back to active (that status means
+// nothing now, so it does not wait for paused days to clear).
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
+  await lapseElapsedPausesSafe(orderId);
   const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
-  const [open] = await db.select({ untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
-    .from(subscriptionPauses)
-    .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)))
-    .limit(1);
-  if (!open || open.isIndefinite || open.untilDate >= today) return;
-  const [ord] = await db.select({ publicId: orders.publicId, status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
-  if (ord?.status === "paused") {
-    await ordersService.resume(ord.publicId);
-    return;
-  }
-  // Partial pause: the order never fully paused (some deliveries stayed scheduled), so status is
-  // still "active" and resume()'s status guard doesn't apply — close the elapsed open row directly
-  // so getPauseUsage().hasOpenPause releases and a new pause becomes legal again. resumedBy stays
-  // null (system auto-close, not an actor); no order-status change means no activity row.
-  await db.update(subscriptionPauses)
-    .set({ resumedAt: new Date() })
-    .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
+  let changed = false;
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    const open = await tx.select({ id: subscriptionPauses.id, untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
+      .from(subscriptionPauses).where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
+    const elapsed = open.filter((r) => !r.isIndefinite && r.untilDate < today);
+    if (elapsed.length > 0) {
+      changed = true;
+      await tx.update(subscriptionPauses).set({ resumedAt: new Date() }).where(inArray(subscriptionPauses.id, elapsed.map((r) => r.id)));
+    }
+    if (await retireLegacyPaused(tx, orderId)) changed = true;
+  });
+  if (changed) publishAnalyticsLive();
 }
 
 /** The order's strategy picks that still price together: active, one tag, one per connected set. */

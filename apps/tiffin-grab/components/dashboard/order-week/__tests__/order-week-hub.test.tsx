@@ -12,9 +12,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("tab=deliveries"),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const rel = vi.hoisted(() => vi.fn());
 vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
-  applyMyDeliverySwap: vi.fn(), pauseMySubscription: vi.fn(), removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
-  resumeMySubscription: vi.fn(), scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
+  applyMyDeliverySwap: vi.fn(), pauseMyDays: vi.fn(), loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), releaseMyDays: rel, removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
+  scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
   setMyDeliveryAddress: vi.fn(), clearMyDeliveryAddress: vi.fn(),
 }));
 vi.mock("@/app/(dashboard)/dashboard/orders/[id]/actions", () => ({
@@ -92,6 +93,31 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(block).toHaveTextContent("Comes with the Mon, Sep 21 delivery");
     expect(block).toHaveTextContent("2 tiffins (1 Mon + 1 Tue)");
   });
+  it("matrix shows every week of the plan; a box in this week selects it, one in another week navigates there", () => {
+    replace.mockClear();
+    render(<OrderWeekHub data={data} />);
+    const matrix = within(screen.getByTestId("delivery-matrix"));
+    expect(matrix.getByText(/2 deliveries · 3 weeks/)).toBeInTheDocument();
+    expect(matrix.getAllByRole("button")).toHaveLength(3);
+    fireEvent.click(matrix.getByRole("button", { name: /Tuesday, September 22, Upcoming$/ }));
+    expect(screen.getByTestId("delivery-block")).toHaveTextContent("Tue, Sep 22");
+    fireEvent.click(matrix.getByRole("button", { name: /Monday, October 5, Upcoming, delivery with 1 tiffin/ }));
+    expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
+    expect(replace.mock.calls[0]![0]).toContain("trip=2026-10-05");
+  });
+  it("matrix uses the status dropdown's states: awaiting confirmation past the cutoff, and OptimoRoute's not delivered apart from an admin hold", () => {
+    const dot = (date: string, over: object) => [{ orderId: "o", status: "scheduled", cutoffAt: NOW - 1, deliveryDate: date, truck: true, units: 1, covers: [date], ...over }];
+    const agenda = {
+      "2026-09-21": dot("2026-09-21", {}),
+      "2026-09-22": dot("2026-09-22", { status: "skipped", optimoCompletionStatus: "failed" }),
+      "2026-09-23": dot("2026-09-23", { status: "skipped" }),
+    };
+    render(<OrderWeekHub data={{ ...data, agenda } as unknown as OrderWeek} />);
+    const matrix = within(screen.getByTestId("delivery-matrix"));
+    expect(matrix.getByRole("button", { name: /September 21, Awaiting confirmation/ })).toBeInTheDocument();
+    expect(matrix.getByRole("button", { name: /September 22, Not delivered/ })).toBeInTheDocument();
+    expect(matrix.getByRole("button", { name: /September 23, On hold/ })).toBeInTheDocument();
+  });
   it("strip marks the delivery day; no separate next-delivery banner (the card is the delivery)", () => {
     render(<OrderWeekHub data={data} />);
     expect(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Monday, September 21, eating, .*delivery arrives/ })).toBeInTheDocument();
@@ -141,9 +167,74 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(replace.mock.calls[0]![0]).toContain("tab=deliveries");
   });
 
-  it("gives staff the customer's address action, and no vacation (customer is move-only)", () => {
-    render(<OrderWeekHub data={data} />);
-    expect(screen.getByRole("button", { name: "Change address" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /vacation|resume deliveries/i })).toBeNull();
+  it("pause is the same control; on hold appears only for an admin", () => {
+    const held = {
+      ...mon,
+      status: "failed" as const,
+      units: 1,
+      coversDates: ["2026-09-21"],
+      coversLabel: null,
+      eatingDays: [day("2026-09-21", "Dal")],
+    };
+    const heldData = { ...data, trips: [held] } as unknown as OrderWeek;
+    render(<OrderWeekHub data={heldData} />);
+    expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Release hold|On hold/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
+    cleanup();
+    render(<OrderWeekHub data={heldData} canEditDeliveryStatus />);
+    expect(screen.getByRole("button", { name: "Release hold to a new day" })).toBeTruthy();
+    expect(screen.getAllByRole("combobox", { name: "Delivery status" }).length).toBeGreaterThan(0);
+  });
+  it("staff wording for a hold in the eating-days table is On hold, a paused day says Paused", () => {
+    const row = (status: string) => [{ orderId: "o", status, cutoffAt: NOW - 3600e3, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"], deliveryId: "x" }];
+    render(<OrderWeekHub data={{ ...data, agenda: { ...data.agenda, "2026-09-21": row("skipped") } } as unknown as OrderWeek} />);
+    expect(within(screen.getAllByTestId("paged-row")[0]!).getByText("On hold")).toBeInTheDocument();
+    cleanup();
+    render(<OrderWeekHub data={{ ...data, agenda: { ...data.agenda, "2026-09-21": row("paused") } } as unknown as OrderWeek} />);
+    expect(within(screen.getAllByTestId("paged-row")[0]!).getByText("Paused")).toBeInTheDocument();
+  });
+  describe("pause", () => {
+    const paused = { ...mon, status: "vacation" as const, deliveryId: "d1" };
+    const pdot = (date: string) => [date, [{ orderId: "o", status: "paused", cutoffAt: NOW + 30 * 3600e3, deliveryDate: date, truck: true, units: 1, covers: [date], deliveryId: `x-${date}` }]] as const;
+    const withPaused = (n: number, over: object = {}) => ({
+      ...data,
+      trips: [paused],
+      agenda: { ...data.agenda, ...Object.fromEntries([pdot("2026-09-21"), ...(n > 1 ? [pdot("2026-09-23")] : [])]) },
+      plan: { ...data.plan, ...over },
+    }) as unknown as OrderWeek;
+    it("a paused day offers Resume this day beside Move, the same as the customer's card", () => {
+      render(<OrderWeekHub data={withPaused(1)} />);
+      expect(screen.getByRole("button", { name: "Resume this day" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Move to another day" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Resume all" })).toBeNull();
+    });
+    it("two paused days ahead add Resume all, which releases them all", async () => {
+      rel.mockReset();
+      rel.mockResolvedValue({ ok: true, dates: ["2026-09-21", "2026-09-23"] });
+      render(<OrderWeekHub data={withPaused(2)} />);
+      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
+      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
+    });
+    it("Resume this day releases the selected date", async () => {
+      rel.mockReset();
+      rel.mockResolvedValue({ ok: true, dates: ["2026-09-21"] });
+      render(<OrderWeekHub data={withPaused(1)} />);
+      fireEvent.click(screen.getByRole("button", { name: "Resume this day" }));
+      await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", ["2026-09-21"]));
+    });
+    it("a day past cutoff has no Resume (the hold is the after-cutoff tool)", () => {
+      const lapsed = { ...mon, status: "failed" as const, lapsedPause: true };
+      render(<OrderWeekHub data={{ ...data, trips: [lapsed] } as unknown as OrderWeek} />);
+      expect(screen.queryByRole("button", { name: /^Resume/ })).toBeNull();
+    });
+    it("a trial plan has no Pause", () => {
+      render(<OrderWeekHub data={{ ...data, plan: { ...data.plan, sub: { ...data.plan.sub, trial: true } } } as unknown as OrderWeek} />);
+      expect(screen.queryByRole("button", { name: "Pause" })).toBeNull();
+    });
+    it("a fully paused plan reads that way next to its (still active) status", () => {
+      render(<OrderWeekHub data={withPaused(1, { sub: { ...data.plan.sub, fullyPaused: true } })} />);
+      expect(screen.getByText("All upcoming days paused")).toBeInTheDocument();
+    });
   });
 });

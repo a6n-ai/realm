@@ -173,6 +173,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     ),
     minTiffinsPerWeek: settings.minTiffinsPerWeek,
     timezone: settings.timezone,
+    cutoffHour: settings.cutoffHour,
     maxTiffinsPerWeek: settings.maxTiffinsPerWeek,
     // A row whose target is inactive/missing is dropped rather than widened to "all".
     discounts: additiveDiscountRows.flatMap((d) => {

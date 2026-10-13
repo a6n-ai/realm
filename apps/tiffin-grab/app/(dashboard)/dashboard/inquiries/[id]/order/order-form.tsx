@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { CheckIcon, CopyIcon, Loader2Icon, MinusIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { CatalogAddon } from "@/lib/catalog/types";
-import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
+import { nextWeekday, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
 import {
@@ -35,7 +35,7 @@ import {
 import { eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
-import { appToday } from "@/lib/services/start-date";
+import { staffStartBase } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
 import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo } from "./actions";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
@@ -94,6 +94,8 @@ function chargeHint(item: { chargeType: "none" | "fixed" | "percent"; chargeValu
   if (item.chargeType === "none" || item.chargeValue === 0) return "Free";
   return item.chargeType === "fixed" ? `+$${item.chargeValue.toFixed(2)}` : `+${item.chargeValue}%`;
 }
+
+const NO_CUSTOMER: CustomerOrderContext = { renewFrom: null, plans: [], conflict: false, addresses: [] };
 
 type DeliveryOptions = Awaited<ReturnType<typeof orderFormDeliveryOptions>>;
 
@@ -161,7 +163,7 @@ export function OrderForm({
   const [trialSettings, setTrialSettings] = useState<TrialSettings | null>(null);
   const [pickedDays, setPickedDays] = useState<DayOfWeek[]>([]);
   // First free day after the customer's running plans; the new plan renews from there.
-  const [customerCtx, setCustomerCtx] = useState<CustomerOrderContext>({ renewFrom: null, addresses: [] });
+  const [customerCtx, setCustomerCtx] = useState<CustomerOrderContext>(NO_CUSTOMER);
   const renewFrom = customerCtx.renewFrom;
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOptions | null>(null);
   // A picked saved address (its fields and notes come from the address book), or null for a typed one.
@@ -237,8 +239,8 @@ export function OrderForm({
   const trialWeekdays = trialSettings ? trialSendDays(trialSettings.weekdays, selectedSize?.servesWeekends ?? true) : [];
   const trialOpen = isTrial && trialSettings?.maxDays != null && trialSettings.maxDays >= 1 && trialWeekdays.length > 0;
   const baseMinStart = isTrial && trialSettings
-    ? earliestTrialIso(appToday(catalog.timezone), trialWeekdays)
-    : nextWeekday(appToday(catalog.timezone)).toISOString().slice(0, 10);
+    ? earliestTrialIso(staffStartBase(catalog.timezone), trialWeekdays)
+    : nextWeekday(staffStartBase(catalog.timezone)).toISOString().slice(0, 10);
   const renewalBound = renewFrom != null && renewFrom > baseMinStart;
   const minStart = renewalBound ? renewFrom : baseMinStart;
   // The renewal date itself may fall on a non-start day; offer the first one on/after it.
@@ -282,12 +284,12 @@ export function OrderForm({
   useEffect(() => {
     let live = true;
     const t = setTimeout(() => {
-      customerOrderContext(email ?? "")
+      customerOrderContext(email ?? "", contact.phone)
         .then((c) => { if (live) setCustomerCtx(c); })
-        .catch(() => { if (live) setCustomerCtx({ renewFrom: null, addresses: [] }); });
+        .catch(() => { if (live) setCustomerCtx(NO_CUSTOMER); });
     }, 300);
     return () => { live = false; clearTimeout(t); };
-  }, [email]);
+  }, [email, contact.phone]);
 
   // Renewal: an empty or now-overlapping start jumps to the day after the current plan.
   useEffect(() => {
@@ -663,11 +665,37 @@ export function OrderForm({
                         </button>.
                       </p>
                     ) : null}
+                    {startDate === zonedDateIso(Date.now(), catalog.timezone ?? "America/Toronto") ? (
+                      <p className="text-muted-foreground text-xs text-pretty">
+                        Starts today. If today&apos;s run is already on OptimoRoute, push this stop from Dispatch.
+                      </p>
+                    ) : null}
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </fieldset>
+
+          {customerCtx.conflict && (
+            <p className="text-destructive text-xs text-pretty">
+              This phone number and this email belong to two different customers. Correct one of them before creating the order.
+            </p>
+          )}
+          {customerCtx.plans.length > 0 && (
+            <div className="bg-muted/40 grid gap-1.5 rounded-md border p-3 text-xs">
+              <p className="font-medium">This customer&apos;s running plans</p>
+              <ul className="text-muted-foreground grid gap-1">
+                {customerCtx.plans.map((p) => (
+                  <li key={p.publicId}>
+                    <a href={`/dashboard/orders/${p.publicId}`} target="_blank" rel="noreferrer" className="text-primary font-medium underline-offset-2 hover:underline">
+                      {p.deploymentId}
+                    </a>
+                    {" · "}{p.mealSize}{" · "}<span className="capitalize">{p.status}</span>{" · "}{p.startDate} to {p.lastDay}{" · "}{p.tiffinCount} tiffins
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {isTrial && (
             <fieldset className="grid gap-2" disabled={submitting}>

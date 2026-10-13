@@ -154,12 +154,14 @@ describe("rescheduleDelivery: splitting one eating day off a multi-day trip", ()
     expect(moves.map((m) => [m.from, m.to]).sort()).toEqual([["2030-01-11", "2030-01-09"], ["2030-01-12", "2030-01-15"]]);
   });
 
-  it("a moved-in tiffin can't move again, but the day's own tiffin can", async () => {
+  it("after the day's own tiffin leaves, the moved-in one can move again", async () => {
     const { fri, wed } = await makeTripOrder(DEP, PFX);
     await db.update(deliveries).set({ coversDates: ["2030-01-09"], tiffinUnits: 1 }).where(eq(deliveries.id, wed.id));
     await rescheduleDelivery(fri.publicId, "2030-01-09", 1n, "2030-01-11"); // Wed now: own + Fri's
     await rescheduleDelivery(wed.publicId, "2030-01-16", 1n, "2030-01-09"); // Wed's own tiffin leaves
-    await expect(rescheduleDelivery(wed.publicId, "2030-01-18", 1n, "2030-01-09")).rejects.toThrow(/already moved/);
+    await rescheduleDelivery(wed.publicId, "2030-01-18", 1n, "2030-01-09");
+    const moves = await db.select({ from: deliveryMoves.fromEatDate, to: deliveryMoves.toEatDate }).from(deliveryMoves).where(eq(deliveryMoves.fromDeliveryId, fri.id));
+    expect(moves.map((m) => [m.from, m.to])).toEqual([["2030-01-11", "2030-01-18"]]);
   });
 
   it("never lets a delivery exceed 3 tiffins", async () => {
@@ -208,6 +210,8 @@ describe("rescheduleDelivery: splitting one eating day off a multi-day trip", ()
     expect([f.status, f.coversDates]).toEqual(["scheduled", ["2030-01-11"]]);
     const [m] = await db.select().from(deliveries).where(eq(deliveries.id, makeup.id));
     expect([m.status, m.coversDates, m.makeupForDeliveryId]).toEqual(["scheduled", ["2030-01-18"], null]);
-    await expect(rescheduleDelivery(m.publicId, "2030-01-21", 1n)).rejects.toThrow(/already moved/);
+    await rescheduleDelivery(m.publicId, "2030-01-21", 1n);
+    const [again] = await db.select().from(deliveries).where(eq(deliveries.id, makeup.id));
+    expect([again.deliveryDate, again.coversDates]).toEqual(["2030-01-21", ["2030-01-21"]]);
   });
 });

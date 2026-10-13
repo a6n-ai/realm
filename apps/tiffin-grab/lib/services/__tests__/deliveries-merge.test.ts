@@ -1,11 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, orderActivities, orders } = await import("@/db/schema");
+const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orderActivities, orders } = await import("@/db/schema");
 const { rescheduleDelivery } = await import("../deliveries.service");
 const { myAgendaDots } = await import("../customer-deliveries.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
@@ -74,20 +74,76 @@ describe("rescheduleDelivery merge", () => {
     expect(extras.map((e) => e.eatDate)).toEqual(["2030-01-09"]);
   });
 
-  it("only one move per tiffin: the one moved onto Wed can't move again", async () => {
-    const { mon, wed } = await makeTripOrder(DEP, PFX);
+  const movesFrom = async (id: bigint) => (await db.select().from(deliveryMoves).where(eq(deliveryMoves.fromDeliveryId, id)))
+    .map((m) => [m.fromEatDate, m.toEatDate, m.toDeliveryId] as const);
+  const rowOn = async (orderId: bigint, date: string) => (await db.select().from(deliveries)
+    .where(and(eq(deliveries.orderId, orderId), eq(deliveries.deliveryDate, date))))[0];
+
+  it("a tiffin moved onto Wed moves again: one ledger row follows it", async () => {
+    const { order, mon, wed } = await makeTripOrder(DEP, PFX);
     await db.update(deliveries).set({ coversDates: ["2030-01-09"], tiffinUnits: 1 }).where(eq(deliveries.id, wed.id));
     await rescheduleDelivery(mon.publicId, "2030-01-09", 1n);
     await rescheduleDelivery(wed.publicId, "2030-01-14", 1n); // Wed's own tiffin
-    await expect(rescheduleDelivery(wed.publicId, "2030-01-16", 1n)).rejects.toThrow(/already moved/);
+    await rescheduleDelivery(wed.publicId, "2030-01-16", 1n); // Mon's tiffin, moving a second time
+    const landed = await rowOn(order.id, "2030-01-16");
+    expect([landed.status, landed.coversDates, landed.tiffinUnits]).toEqual(["scheduled", ["2030-01-16"], 1]);
+    expect(await movesFrom(mon.id)).toEqual([["2030-01-07", "2030-01-16", landed.id]]);
   });
 
-  it("a make-up row cannot be moved again", async () => {
-    const { mon } = await makeTripOrder(DEP, PFX);
+  it("a make-up moves again by changing date: no second row, and its original still points at it", async () => {
+    const { order, mon } = await makeTripOrder(DEP, PFX);
     await db.update(deliveries).set({ coversDates: ["2030-01-07"], tiffinUnits: 1 }).where(eq(deliveries.id, mon.id));
     await rescheduleDelivery(mon.publicId, "2030-01-14", 1n);
     const [makeup] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, mon.id));
-    await expect(rescheduleDelivery(makeup.publicId, "2030-01-16", 1n)).rejects.toThrow(/make-up/i);
+    await rescheduleDelivery(makeup.publicId, "2030-01-16", 1n);
+    await rescheduleDelivery(makeup.publicId, "2030-01-18", 1n);
+    expect(await rowOn(order.id, "2030-01-14")).toBeUndefined();
+    expect(await rowOn(order.id, "2030-01-16")).toBeUndefined();
+    const [m] = await db.select().from(deliveries).where(eq(deliveries.id, makeup.id));
+    expect([m.deliveryDate, m.coversDates, m.tiffinUnits, m.makeupForDeliveryId]).toEqual(["2030-01-18", ["2030-01-18"], 1, mon.id]);
+    expect(await movesFrom(mon.id)).toEqual([["2030-01-07", "2030-01-18", makeup.id]]);
+  });
+
+  it("a make-up merging onto a scheduled trip disappears, and its original stays settled on that trip", async () => {
+    const { mon, wed } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-07"], tiffinUnits: 1 }).where(eq(deliveries.id, mon.id));
+    await rescheduleDelivery(mon.publicId, "2030-01-14", 1n);
+    const [makeup] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, mon.id));
+    const res = await rescheduleDelivery(makeup.publicId, "2030-01-09", 1n); // Wed already carries Wed+Thu
+    expect(res.merged).toBe(true);
+    expect(await db.select().from(deliveries).where(eq(deliveries.id, makeup.id))).toEqual([]);
+    const [m] = await db.select().from(deliveries).where(eq(deliveries.id, mon.id));
+    expect([m.status, m.mergedIntoDeliveryId]).toEqual(["skipped", wed.id]);
+    const [w] = await db.select().from(deliveries).where(eq(deliveries.id, wed.id));
+    expect(w.tiffinUnits).toBe(3);
+    expect(await movesFrom(mon.id)).toEqual([["2030-01-07", "2030-01-09", wed.id]]);
+  });
+
+  it("a day holding two tiffins can send both at once, or neither", async () => {
+    const { order, mon, wed } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-09"], tiffinUnits: 1 }).where(eq(deliveries.id, wed.id));
+    await rescheduleDelivery(mon.publicId, "2030-01-09", 1n); // Wed now holds its own + Mon's
+    await expect(rescheduleDelivery(wed.publicId, "2030-01-16", 1n, "2030-01-09", 3)).rejects.toBeInstanceOf(ValidationError);
+    expect((await rowOn(order.id, "2030-01-09")).tiffinUnits).toBe(2);
+
+    await rescheduleDelivery(wed.publicId, "2030-01-16", 1n, "2030-01-09", 2);
+    const landed = await rowOn(order.id, "2030-01-16");
+    expect([landed.coversDates, landed.tiffinUnits]).toEqual([["2030-01-16"], 2]);
+    const [w] = await db.select().from(deliveries).where(eq(deliveries.id, wed.id));
+    expect([w.status, w.mergedIntoDeliveryId]).toEqual(["skipped", landed.id]);
+    expect(await movesFrom(mon.id)).toEqual([["2030-01-07", "2030-01-16", landed.id]]);
+  });
+
+  it("moving a tiffin back to its own day undoes the move", async () => {
+    const { order, mon } = await makeTripOrder(DEP, PFX);
+    await db.update(deliveries).set({ coversDates: ["2030-01-07"], tiffinUnits: 1 }).where(eq(deliveries.id, mon.id));
+    await rescheduleDelivery(mon.publicId, "2030-01-14", 1n);
+    const [makeup] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, mon.id));
+    await rescheduleDelivery(makeup.publicId, "2030-01-07", 1n);
+    const [m] = await db.select().from(deliveries).where(eq(deliveries.id, mon.id));
+    expect([m.status, m.coversDates, m.tiffinUnits, m.mergedIntoDeliveryId]).toEqual(["scheduled", ["2030-01-07"], 1, null]);
+    expect(await rowOn(order.id, "2030-01-14")).toBeUndefined();
+    expect(await movesFrom(mon.id)).toEqual([]);
   });
 
   it("onto an open day, only the one tiffin travels, as the picked day's tiffin", async () => {
