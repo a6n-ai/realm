@@ -29,7 +29,9 @@ export function AddAddonsControl({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState<Record<string, number>>({});
-  const defaultMethod = methods.find((m) => m.id === defaultMethodId)?.id ?? methods[0]?.id ?? "";
+  // No guess when the plan's own method is not on offer (a migrated plan, a method since turned
+  // off): the first one in the list would be recorded as how the customer paid.
+  const defaultMethod = methods.find((m) => m.id === defaultMethodId)?.id ?? (methods.length === 1 ? methods[0]!.id : "");
   const [methodId, setMethodId] = useState(defaultMethod);
   const [reference, setReference] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -176,6 +178,11 @@ export function AddAddonsControl({
         <label className="grid gap-1">
           <span className="font-medium">Paid by</span>
           <select className="w-full rounded-md border px-3 py-2" value={methodId} onChange={(e) => { setFormError(null); setMethodId(e.target.value); }}>
+            {!defaultMethod && (
+              <option value="" disabled>
+                Choose how the customer paid
+              </option>
+            )}
             {methods.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.label}
@@ -220,6 +227,7 @@ export function AddAddonsControl({
             </div>
           </dl>
         )}
+        {!methodId && selections.length > 0 && <p className="text-muted-foreground">Choose how the customer paid to see the amount.</p>}
         {error && (
           <p className="text-destructive" role="alert">
             {error}

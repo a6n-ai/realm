@@ -1,5 +1,7 @@
-// Changes a shared payment setting (e-Transfer) through the UI and restores it afterwards:
-// never run this spec in parallel with other specs.
+// Changes a shared payment setting (e-Transfer on, and a payee if none is set) through the UI and
+// puts both back afterwards: never run this spec in parallel with other specs. One thing it cannot
+// undo: opening Settings > Payments for the first time makes the app install its method catalog
+// (Cash on delivery on, e-Transfer off). That is the app's own behaviour, not this spec's.
 import path from "node:path";
 import type { Browser, Locator, Page } from "@playwright/test";
 import { test, expect } from "../fixtures";
@@ -8,8 +10,19 @@ import { OrderDetailPage } from "../pages/order-detail.page";
 
 const adminState = path.join(process.cwd(), "e2e/.auth/admin.json");
 
-/** Flips the e-Transfer switch through Settings > Payments; reports the state it found via onRead before changing anything. */
-async function setEtransfer(browser: Browser, baseURL: string | undefined, on: boolean, onRead?: (was: boolean) => void) {
+const TEST_PAYEE = "pay@test.invalid";
+
+/**
+ * Flips the e-Transfer switch through Settings > Payments; reports the state it found via onRead
+ * before changing anything. Turning it on fills a payee only when there is none; turning it off
+ * with clearPayee removes that payee again.
+ */
+async function setEtransfer(
+  browser: Browser,
+  baseURL: string | undefined,
+  on: boolean,
+  opts: { onRead?: (was: boolean, hadPayee: boolean) => void; clearPayee?: boolean } = {},
+) {
   const ctx = await browser.newContext({ baseURL, storageState: adminState });
   try {
     const page = await ctx.newPage();
@@ -17,13 +30,13 @@ async function setEtransfer(browser: Browser, baseURL: string | undefined, on: b
     const toggle = page.getByRole("switch").first();
     await expect(toggle).toBeVisible({ timeout: 60_000 });
     const was = (await toggle.getAttribute("aria-checked")) === "true";
-    onRead?.(was);
+    const payee = page.getByPlaceholder("pay@yourbrand.ca");
+    const hadPayee = Boolean(await payee.inputValue());
+    opts.onRead?.(was, hadPayee);
     if (was !== on) {
       await toggle.click();
-      if (on) {
-        const payee = page.getByPlaceholder("pay@yourbrand.ca");
-        if (!(await payee.inputValue())) await payee.fill("pay@test.invalid");
-      }
+      if (on && !hadPayee) await payee.fill(TEST_PAYEE);
+      if (!on && opts.clearPayee && (await payee.inputValue()) === TEST_PAYEE) await payee.fill("");
       await page.getByRole("button", { name: /^Save / }).first().click();
       await expect(page.getByRole("button", { name: /^Save / }).first()).toBeEnabled({ timeout: 30_000 });
       await page.reload();
@@ -83,12 +96,16 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
   test.describe.configure({ mode: "serial" });
   // null until the prior state is read; the restore runs whenever it was off, even if setup threw after saving.
   let etransferPrior: boolean | null = null;
+  let payeePrior = true;
 
   // A real payment method must be on for the order page to offer add-ons; restore it afterwards.
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(150_000);
-    await setEtransfer(browser, test.info().project.use.baseURL, true, (was) => {
-      etransferPrior = was;
+    await setEtransfer(browser, test.info().project.use.baseURL, true, {
+      onRead: (was, hadPayee) => {
+        etransferPrior = was;
+        payeePrior = hadPayee;
+      },
     });
   });
 
@@ -96,7 +113,7 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
     test.setTimeout(150_000);
     if (etransferPrior !== false) return;
     try {
-      await setEtransfer(browser, test.info().project.use.baseURL, false);
+      await setEtransfer(browser, test.info().project.use.baseURL, false, { clearPayee: !payeePrior });
     } catch (e) {
       console.error("!!! RESTORE FAILED: e-Transfer is still ENABLED in Settings > Payments. Disable it by hand.", e);
       throw e;
