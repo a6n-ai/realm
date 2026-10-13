@@ -1,4 +1,4 @@
-import { NotFoundError, ValidationError, zonedDateIso } from "@foundry/commons";
+import { NotFoundError, ValidationError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { alias } from "drizzle-orm/pg-core";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, like, not, sql } from "drizzle-orm";
@@ -128,7 +128,7 @@ async function announceRemoved(tx: Tx, orderId: bigint, holiday: Holiday, undone
   const lifted = `Our closure on ${date} has been lifted, but your delivery for that date is not going out.`;
   const outcome = undone.restored.length > 0
     ? `The kitchen is open on ${date} after all, so your delivery goes out that day and nothing is added at the end of your plan.`
-    : extras.length > 0
+    : undone.owed.length === 0 && extras.length > 0
       ? `${lifted} Your extra day on ${extras.map((e) => humanDate(e.date)).join(", ")} stays, so you keep every tiffin.`
       : `${lifted} Our team will place that tiffin on a new day.`;
   await enqueueNotification(tx, {
@@ -222,24 +222,30 @@ export async function renameHoliday(publicId: string, rawName: string, actorId: 
  * Only before the holiday date. Each order is undone in its own locked transaction; an order that
  * fails is reported and the holiday row stays, so removing again finishes the job.
  */
-export async function removeHoliday(publicId: string, actorId: bigint | null, visible: Visible): Promise<{ restored: number; left: number; failed: string[]; removed: boolean }> {
+export async function removeHoliday(publicId: string, actorId: bigint | null, visible: Visible): Promise<{ restored: number; left: number; failed: string[]; removed: boolean; stillOwed: number }> {
   const holiday = await scopedHoliday(publicId, visible);
   if (holiday.date <= (await today())) throw new ValidationError("Only a future holiday can be removed");
+  // A day whose cutoff has passed cannot be put back on the schedule, so removal would strand its tiffin.
+  const { cutoffHour, timezone } = await getAppSettings();
+  if (cutoffMsFor(holiday.date, cutoffHour, timezone) <= Date.now()) {
+    throw new ValidationError(`This holiday can no longer be removed: the cutoff for ${humanDate(holiday.date)} has passed.`);
+  }
 
   const tagged = await db.selectDistinct({ id: deliveries.orderId, code: orders.deploymentId })
     .from(deliveries).innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(deliveries.holidayId, holiday.id));
-  const out = { restored: 0, left: 0, failed: [] as string[], removed: false };
+  const out = { restored: 0, left: 0, failed: [] as string[], removed: false, stillOwed: 0 };
   const stops: OptimoSyncedRow[] = [];
   for (const o of tagged) {
     try {
       const undone = await db.transaction(async (tx) => {
         await tx.execute(sql`select pg_advisory_xact_lock(${o.id})`);
         const res = await undoHolidayForOrder(tx, o.id, holiday.id, actorId);
-        if (res.restored.length + res.left.length > 0) await announceRemoved(tx, o.id, holiday, res);
+        if (res.restored.length + res.left.length + res.owed.length > 0) await announceRemoved(tx, o.id, holiday, res);
         return res;
       });
       out.restored += undone.restored.length;
       out.left += undone.left.length;
+      out.stillOwed += undone.owed.length;
       stops.push(...undone.stops);
     } catch (err) {
       log.error({ err, order: o.code }, "holiday undo failed");
@@ -248,7 +254,8 @@ export async function removeHoliday(publicId: string, actorId: bigint | null, vi
   }
   // The added rows are gone from the database; take their stops off the route too.
   await deleteFromOptimoRouteBestEffort(stops);
-  if (out.failed.length === 0) {
+  // A day still owed keeps its tag, which blocks the delete: staff place it, then remove again.
+  if (out.failed.length === 0 && out.stillOwed === 0) {
     try {
       await db.delete(holidays).where(eq(holidays.id, holiday.id));
       out.removed = true;

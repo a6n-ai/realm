@@ -27,7 +27,8 @@ export type HolidayApplied = {
   needsPlacing: string | null;
 };
 
-export type HolidayUndone = { restored: string[]; left: string[]; stops: OptimoSyncedRow[] };
+/** `owed`: closed days undo could not restore that have no extra day. They stay tagged and in the staff queue. */
+export type HolidayUndone = { restored: string[]; left: string[]; owed: string[]; stops: OptimoSyncedRow[] };
 
 /** Trucks never run on weekends; a trial delivers on its own send days. */
 async function planWeekdays(tx: Tx, order: Order): Promise<Set<string>> {
@@ -159,9 +160,11 @@ async function extrasUntouched(tx: Tx, extras: Delivery[], per: number, now: num
 /**
  * Reverses one holiday for one order. A closed day goes back on the schedule only when its own
  * cutoff is ahead and its added days are exactly as the holiday left them (they are then
- * deleted). Otherwise the added days stay, the customer keeps the same number of tiffins, and the
- * closed row becomes an ordinary held row: settled by its added days when it has them, movable
- * when it has none. A row closed some other way (a hold tagged after the fact) only loses the label.
+ * deleted). A row with extra days that cannot be taken back keeps them and becomes a plain hold
+ * (tag cleared). A row with no extra day that cannot be restored is still owed its tiffin: it stays
+ * paused and tagged, so it stays in the staff queue (`owed`). An emptied carrier (0 tiffins) goes
+ * back on the schedule silently. A row closed some other way (a hold tagged after the fact) only
+ * loses the label.
  */
 export async function undoHolidayForOrder(tx: Tx, orderId: bigint, holidayId: bigint, actorId: bigint | null): Promise<HolidayUndone> {
   const [order] = await tx.select({ persons: orders.persons, organizationId: orders.organizationId }).from(orders).where(eq(orders.id, orderId)).limit(1);
@@ -169,12 +172,16 @@ export async function undoHolidayForOrder(tx: Tx, orderId: bigint, holidayId: bi
   const sources = await tx.select().from(deliveries)
     .where(and(eq(deliveries.orderId, orderId), eq(deliveries.holidayId, holidayId))).orderBy(asc(deliveries.deliveryDate));
   const now = Date.now();
-  const out: HolidayUndone = { restored: [], left: [], stops: [] };
+  const out: HolidayUndone = { restored: [], left: [], owed: [], stops: [] };
 
   for (const source of sources) {
     if (source.status !== "paused") {
       await tx.update(deliveries).set({ holidayId: null }).where(eq(deliveries.id, source.id));
       if (source.status !== "cancelled") out.left.push(source.deliveryDate);
+      continue;
+    }
+    if (source.tiffinUnits === 0) {
+      await tx.update(deliveries).set({ status: "scheduled", holidayId: null }).where(eq(deliveries.id, source.id));
       continue;
     }
     const extras = await tx.select().from(deliveries).where(eq(deliveries.holidayExtraForDeliveryId, source.id));
@@ -188,11 +195,13 @@ export async function undoHolidayForOrder(tx: Tx, orderId: bigint, holidayId: bi
       });
       out.restored.push(source.deliveryDate);
       out.stops.push(...extras.map((e) => ({ publicId: e.publicId, routeSyncedAt: e.routeSyncedAt })));
+    } else if (extras.length === 0) {
+      out.owed.push(source.deliveryDate);
     } else {
       await tx.update(deliveries).set({ status: "skipped", holidayId: null }).where(eq(deliveries.id, source.id));
       await tx.insert(orderActivities).values({
         orderId, deliveryId: source.id, type: "note", createdBy: actorId, organizationId: order?.organizationId ?? null,
-        note: extras.length > 0 ? `Holiday removed: ${source.deliveryDate} keeps its added day (${extras.map((e) => e.deliveryDate).sort().join(", ")})` : `Holiday removed: ${source.deliveryDate} stays on hold`,
+        note: `Holiday removed: ${source.deliveryDate} keeps its added day (${extras.map((e) => e.deliveryDate).sort().join(", ")})`,
       });
       out.left.push(source.deliveryDate);
     }

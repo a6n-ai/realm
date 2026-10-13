@@ -6,7 +6,7 @@ const requirePermission = vi.fn(async (_: unknown) => undefined);
 const createHoliday = vi.fn(async (..._: unknown[]) => ({ created: true as const, publicId: "hol_1", ...run }));
 const reapplyHoliday = vi.fn(async (..._: unknown[]) => ({ ...run, closed: 1 }));
 const renameHoliday = vi.fn(async (..._: unknown[]) => undefined);
-const removeHoliday = vi.fn(async (..._: unknown[]) => ({ restored: 2, left: 0, failed: [] as string[], removed: true }));
+const removeHoliday = vi.fn(async (..._: unknown[]) => ({ restored: 2, left: 0, failed: [] as string[], removed: true, stillOwed: 0 }));
 const placeHolidayDay = vi.fn(async (..._: unknown[]) => ["2030-01-21", "2030-01-23"]);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/guards", () => ({ requirePermission }));
@@ -81,7 +81,7 @@ describe("holiday actions", () => {
   });
 
   it("remove says so when an order could not be undone and the holiday was kept", async () => {
-    removeHoliday.mockResolvedValueOnce({ restored: 1, left: 2, failed: ["SUB-BBB"], removed: false });
+    removeHoliday.mockResolvedValueOnce({ restored: 1, left: 2, failed: ["SUB-BBB"], removed: false, stillOwed: 0 });
     expect(await removeHolidayAction("hol_1")).toMatchObject({
       ok: true,
       removed: false,
@@ -90,10 +90,18 @@ describe("holiday actions", () => {
   });
 
   it("remove says so when nothing failed but a delivery was closed during removal", async () => {
-    removeHoliday.mockResolvedValueOnce({ restored: 2, left: 0, failed: [], removed: false });
+    removeHoliday.mockResolvedValueOnce({ restored: 2, left: 0, failed: [], removed: false, stillOwed: 0 });
     expect(await removeHolidayAction("hol_1")).toMatchObject({
       removed: false,
       message: "Holiday kept for now. Restored 2 deliveries. A delivery was closed for it while removing. Remove again to finish.",
+    });
+  });
+
+  it("remove tells staff how many days still need placing", async () => {
+    removeHoliday.mockResolvedValueOnce({ restored: 0, left: 0, failed: [], removed: false, stillOwed: 2 });
+    expect(await removeHolidayAction("hol_1")).toMatchObject({
+      removed: false,
+      message: "Holiday kept for now. Restored 0 deliveries. 2 days still need placing; place them, then remove again.",
     });
   });
 });

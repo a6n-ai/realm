@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { asc, eq, inArray, isNull, like } from "drizzle-orm";
-import { zonedDateIso } from "@foundry/commons";
+import { cutoffMsFor, zonedDateIso } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
@@ -179,7 +179,7 @@ describe("holidays.service", () => {
     const [h] = await db.select().from(holidays).where(eq(holidays.publicId, res.publicId));
     expect([h!.name, h!.updatedBy]).toEqual([`${PFX} new`, 2n]);
 
-    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: true });
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: true, stillOwed: 0 });
 
     expect(await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).toEqual([]);
     expect((await rowsOf(order.id)).map((r) => [r.deliveryDate, r.status])).toEqual([["2030-01-07", "scheduled"], ["2030-01-09", "scheduled"], ["2030-01-11", "scheduled"]]);
@@ -192,7 +192,7 @@ describe("holidays.service", () => {
     const [extra] = (await rowsOf(order.id)).filter((r) => r.holidayExtraForDeliveryId === wed.id);
     await db.update(deliveries).set({ status: "paused" }).where(eq(deliveries.id, extra!.id));
 
-    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 0, left: 1, failed: [], removed: true });
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 0, left: 1, failed: [], removed: true, stillOwed: 0 });
 
     expect([(await rowById(wed.id)).status, (await rowById(wed.id)).holidayId]).toEqual(["skipped", null]);
     expect((await rowsOf(order.id)).filter((r) => r.holidayExtraForDeliveryId === wed.id).length).toBe(2);
@@ -248,7 +248,7 @@ describe("holidays.service", () => {
     }
     const [h] = await db.select().from(holidays).where(eq(holidays.publicId, res.publicId));
     expect([h!.name, h!.updatedBy]).toEqual([`${PFX} mine`, 1n]);
-    expect(await removeHoliday(res.publicId, 2n, [org])).toEqual({ restored: 1, left: 0, failed: [], removed: true });
+    expect(await removeHoliday(res.publicId, 2n, [org])).toEqual({ restored: 1, left: 0, failed: [], removed: true, stillOwed: 0 });
   });
 
   it("does not close an order that has no organization", async () => {
@@ -352,7 +352,7 @@ describe("holidays.service", () => {
     const res = await declare(a.org, { notify: true });
     hook.failUsers.add(b.order.userId!);
 
-    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [DEP2], removed: false });
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [DEP2], removed: false, stillOwed: 0 });
 
     expect((await rowById(a.wed.id)).status).toBe("scheduled");
     expect([(await rowById(b.wed.id)).status, (await rowById(b.wed.id)).holidayId != null]).toEqual(["paused", true]);
@@ -360,7 +360,7 @@ describe("holidays.service", () => {
     expect((await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).length).toBe(1);
 
     hook.failUsers.clear();
-    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: true });
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: true, stillOwed: 0 });
     expect(await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).toEqual([]);
   });
 
@@ -374,10 +374,10 @@ describe("holidays.service", () => {
       if (event === "holiday_removed") await db.update(deliveries).set({ status: "paused", holidayId: h!.id }).where(eq(deliveries.id, c.wed.id));
     };
 
-    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: false });
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: false, stillOwed: 0 });
     expect((await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).length).toBe(1);
 
-    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: true });
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 1, left: 0, failed: [], removed: true, stillOwed: 0 });
     expect((await rowById(c.wed.id)).status).toBe("scheduled");
   });
 
@@ -406,7 +406,7 @@ describe("holidays.service", () => {
     await db.update(orders).set({ trialLength: 3, trialWeekdays: ["mon", "wed", "fri"] }).where(eq(orders.id, c.order.id));
     const rc = await declare(c.org, { notify: true });
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.id, c.wed.id));
-    expect(await removeHoliday(rc.publicId, 1n, "all")).toMatchObject({ left: 1, removed: true });
+    expect(await removeHoliday(rc.publicId, 1n, "all")).toMatchObject({ stillOwed: 1, removed: false });
     expect(await body(c.order.publicId, rc.publicId)).toBe("Our closure on Wed, Jan 9 has been lifted, but your delivery for that date is not going out. Our team will place that tiffin on a new day.");
   });
 
@@ -428,7 +428,7 @@ describe("holidays.service", () => {
       expect(await units()).toBe(before + 2);
       expect((await rowById(mon.id)).status).toBe("skipped");
 
-      expect(await removeHoliday(retro!.publicId, 1n, "all")).toEqual({ restored: 0, left: 1, failed: [], removed: true });
+      expect(await removeHoliday(retro!.publicId, 1n, "all")).toEqual({ restored: 0, left: 1, failed: [], removed: true, stillOwed: 0 });
       expect((await rowsOf(order.id)).filter((r) => r.holidayExtraForDeliveryId === mon.id).length).toBe(2);
     }
   });
@@ -440,5 +440,52 @@ describe("holidays.service", () => {
     await db.insert(deliveries).values({ orderId: order.id, deliveryDate: "2030-01-14", status: "scheduled", cutoffAt: Date.now() + 1e9, tiffinUnits: 2, coversDates: ["2030-01-07", "2030-01-08"], makeupForDeliveryId: mon.id });
     await expect(placeHolidayDay(mon.publicId, "2030-01-21", 3n, "all")).rejects.toThrow("Nothing to place");
     expect((await listNeedsPlacing("all")).filter((r) => r.holidayPublicId === retro!.publicId)).toEqual([]);
+  });
+  it("removal is refused once the cutoff for the holiday date has passed, and writes nothing", async () => {
+    const { wed, org } = await orderWithOrg();
+    const res = await declare(org, { notify: true });
+    const { cutoffHour, timezone } = await getAppSettings();
+    vi.useFakeTimers({ toFake: ["Date"], now: cutoffMsFor("2030-01-09", cutoffHour, timezone) + 60_000 });
+    try {
+      await expect(removeHoliday(res.publicId, 1n, "all")).rejects.toThrow("This holiday can no longer be removed: the cutoff for Wed, Jan 9 has passed.");
+    } finally {
+      vi.useRealTimers();
+    }
+    expect([(await rowById(wed.id)).status, (await rowById(wed.id)).holidayId != null]).toEqual(["paused", true]);
+    expect((await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).length).toBe(1);
+    expect(await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday_removed:${res.publicId}:%`))).toEqual([]);
+  });
+
+  it("a day undo cannot restore and that has no extra day stays tagged, listed and placeable; the holiday stays", async () => {
+    const { order, wed, org } = await orderWithOrg();
+    await db.update(orders).set({ trialLength: 3, trialWeekdays: ["mon", "wed", "fri"] }).where(eq(orders.id, order.id));
+    const res = await declare(org, { notify: true });
+    // The row's snapshotted cutoff no longer matches the app's: the one way removal can meet an unrestorable row.
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.id, wed.id));
+
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 0, left: 0, failed: [], removed: false, stillOwed: 1 });
+
+    expect([(await rowById(wed.id)).status, (await rowById(wed.id)).holidayId != null]).toEqual(["paused", true]);
+    expect((await db.select().from(holidays).where(eq(holidays.publicId, res.publicId))).length).toBe(1);
+    expect((await listNeedsPlacing("all")).filter((r) => r.holidayPublicId === res.publicId).map((r) => r.deliveryPublicId)).toEqual([wed.publicId]);
+    const [sent] = await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday_removed:${res.publicId}:${order.publicId}%`));
+    expect((sent!.payload as { body: string }).body).toContain("Our team will place that tiffin on a new day");
+
+    expect(await placeHolidayDay(wed.publicId, "2030-01-21", 3n, "all")).toEqual(["2030-01-21", "2030-01-23"]);
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 0, left: 1, failed: [], removed: true, stillOwed: 0 });
+    expect([(await rowById(wed.id)).status, (await rowById(wed.id)).holidayId]).toEqual(["skipped", null]);
+  });
+
+  it("an emptied carrier (0 tiffins) is put back quietly: not restored, nothing said to the customer", async () => {
+    const { order, wed, org } = await orderWithOrg();
+    await db.update(deliveries).set({ tiffinUnits: 0 }).where(eq(deliveries.id, wed.id));
+    const res = await declare(org, { notify: true });
+    expect(res).toMatchObject({ closed: 1, needsPlacing: 0 });
+    expect(await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday:${res.publicId}:${order.publicId}%`))).toEqual([]);
+
+    expect(await removeHoliday(res.publicId, 1n, "all")).toEqual({ restored: 0, left: 0, failed: [], removed: true, stillOwed: 0 });
+
+    expect([(await rowById(wed.id)).status, (await rowById(wed.id)).holidayId]).toEqual(["scheduled", null]);
+    expect(await db.select().from(outbox).where(like(outbox.dedupeKey, `holiday_removed:${res.publicId}:${order.publicId}%`))).toEqual([]);
   });
 });

@@ -59,10 +59,11 @@ export async function renameHolidayAction(publicId: string, name: string): Promi
 export async function removeHolidayAction(publicId: string): Promise<ActionResult<{ removed: boolean }>> {
   return refreshing(await runAction(async () => {
     const visible = await writer();
-    const { restored, left, failed, removed } = await removeHoliday(publicId, await currentUserId(), visible);
+    const { restored, left, failed, removed, stillOwed } = await removeHoliday(publicId, await currentUserId(), visible);
     const kept = left > 0 ? `, left ${left} with their extra day in place (already changed, or past cutoff)` : "";
-    const why = failed.length > 0 ? `Could not undo: ${failed.join(", ")}.` : removed ? "" : "A delivery was closed for it while removing.";
-    const tail = removed ? "" : ` ${why} Remove again to finish.`;
+    const owed = stillOwed > 0 ? `${stillOwed} ${stillOwed === 1 ? "day" : "days"} still need placing; place them, then remove again.` : "";
+    const why = failed.length > 0 ? `Could not undo: ${failed.join(", ")}.${owed ? ` ${owed}` : ""}` : owed || (removed ? "" : "A delivery was closed for it while removing.");
+    const tail = removed ? "" : ` ${why}${stillOwed > 0 && failed.length === 0 ? "" : " Remove again to finish."}`;
     return { removed, message: `${removed ? "Holiday removed." : "Holiday kept for now."} Restored ${plural(restored)}${kept}.${tail}` };
   }));
 }
