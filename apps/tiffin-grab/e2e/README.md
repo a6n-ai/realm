@@ -53,6 +53,7 @@ e2e/
   pages/                     # page objects (AdminShell, LeadSheet, LoginPage, …)
   public/                    # marketing + auth smoke + flows
   admin/                     # CRM routes + create flows
+  admin/holidays.spec.ts     # declare/rename/remove a holiday: banners, the customer's closed day and extra day, cleanup
   customer/                  # /me/* routes + flows
   __tests__/                 # Vitest on route registries
   .auth/                     # storage state (gitignored)
