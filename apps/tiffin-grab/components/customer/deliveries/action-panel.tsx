@@ -61,7 +61,7 @@ export function TripActions({ model, layout, onAction, onGoTo, helpHref, hide = 
   if (model.rows.length === 0) {
     if (!model.goTo) return null;
     return (
-      <div className={cn(FONT, "space-y-3")}>
+      <div className={cn(FONT, "space-y-3", bar && "min-w-0 flex-1")}>
         {model.goTo && <Button variant="primary" size="lg" className="w-full" onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}
       </div>
     );
@@ -85,7 +85,7 @@ export function TripActions({ model, layout, onAction, onGoTo, helpHref, hide = 
   // when there is nothing else to sit beside it.
   const cardRow = !bar && secondary.length > 0;
   return (
-    <div className={cn(FONT, bar ? "space-y-2" : "space-y-3")}>
+    <div className={cn(FONT, bar ? "min-w-0 flex-1 space-y-2" : "space-y-3")}>
       {reason && <div role="status"><Reason>{reason}</Reason></div>}
       <div className={cn("flex gap-2", !bar && !cardRow && "flex-col")}>
         {!primary && model.goTo && <Button variant="primary" size="lg" className={cn("min-w-0 whitespace-nowrap px-3", bar ? "flex-[2]" : cardRow ? "flex-1" : "w-full")} onClick={() => onGoTo(model.goTo!)}>Go to {humanDate(model.goTo)}</Button>}

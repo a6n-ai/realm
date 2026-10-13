@@ -30,6 +30,12 @@ describe("supportHoursView", () => {
     expect(v.week[6].hours).toBe("Closed");
     expect(v.week.find((r) => r.today)?.day).toBe("Wed");
     expect(v.reply).toBe("We usually reply within 2 hours during support hours");
+    expect(v.detail).toBe("Until 6 pm today");
+    expect(v.groups).toEqual([
+      { days: "Mon – Fri", hours: "9 am – 6 pm", open: true },
+      { days: "Sat", hours: "10 am – 2 pm", open: true },
+      { days: "Sun", hours: "Closed", open: false },
+    ]);
   });
 });
 
