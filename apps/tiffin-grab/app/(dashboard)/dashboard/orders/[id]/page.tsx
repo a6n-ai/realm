@@ -15,6 +15,8 @@ import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
 import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/services/deliveries.service";
+import { lapseElapsedPauses } from "@/lib/services/pause-days.service";
+import { isOrderFullyPaused } from "@/lib/services/pause-state";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
@@ -87,6 +89,9 @@ async function OrderDetail({
     throw e;
   }
 
+  // A paused day past its cutoff is a hold: convert it (under the order lock) before the page reads any delivery.
+  if (order.status === "active" || order.status === "paused") await lapseElapsedPauses(order.id);
+
   const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
@@ -107,6 +112,7 @@ async function OrderDetail({
   ]);
 
   const settingsToday = zonedDateIso(Date.now(), settings.timezone);
+  const fullyPaused = (order.status === "active" || order.status === "paused") && (await isOrderFullyPaused(db, order.id, settingsToday));
   const optimoRows = deliveryRows
     .filter((r) => r.deliveryDate >= settingsToday && r.status !== "cancelled")
     .map((r) => ({
@@ -203,7 +209,7 @@ async function OrderDetail({
   );
 
   const stats: StatItem[] = [
-    { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" ? "Paused" : order.frequencyName, pixelValue: false },
+    { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" || fullyPaused ? "Paused" : order.frequencyName, pixelValue: false },
     {
       label: "Tiffins left",
       value: counts ? `${counts.remaining} / ${counts.total}` : String(order.tiffinCount),

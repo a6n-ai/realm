@@ -23,6 +23,7 @@ import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { assertDayOutsideOtherPlans } from "./order-window";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
+import { isLapsedPause, lapsePausedRows, lapsedPauseDates } from "./pause-state";
 
 const log = createLogger("deliveries.service");
 
@@ -821,6 +822,8 @@ export async function rescheduleDelivery(
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
     await assertOrderNotTrial(tx, orderId);
+    // A paused day past its cutoff is a hold by now; convert it before reading the row.
+    await lapsePausedRows(tx, orderId);
 
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertOriginal(row);
@@ -833,8 +836,9 @@ export async function rescheduleDelivery(
       assertMutable(row);
     }
     const { timezone, cutoffHour } = await getAppSettings();
+    const lapsed = (await lapsedPauseDates(tx, [orderId])).get(orderId);
     const awaitingReconcile = row.status === "skipped" && holdAwaitingReconcile(
-      { cutoffAt: row.cutoffAt, date: row.deliveryDate, optimoCompletionStatus: row.optimoCompletionStatus },
+      { cutoffAt: row.cutoffAt, date: row.deliveryDate, optimoCompletionStatus: row.optimoCompletionStatus, lapsedPause: isLapsedPause(row, lapsed) },
       Date.now(),
       timezone,
     );

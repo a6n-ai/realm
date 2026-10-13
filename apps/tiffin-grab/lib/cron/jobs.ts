@@ -29,7 +29,7 @@ export const CRON_JOBS: CronJob[] = [
   {
     key: "complete-plans",
     name: "Close finished plans",
-    description: "Marks a plan Over once every delivery is done and no missed day is waiting for a make-up. Runs right after the completion pull.",
+    description: "First turns any paused day past its cutoff into a hold, then marks a plan Over once every delivery is done and no missed day is waiting for a make-up. Runs right after the completion pull.",
     cron: "0 2 * * *",
     runnable: true,
   },

@@ -3,20 +3,21 @@ import { eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { app, durationPackages, orders, subscriptionPauses } from "@/db/schema";
+import type { Reader } from "./pause-state";
 
 export function spanDays(from: string, until: string): number {
   return differenceInCalendarDays(parseISO(until), parseISO(from)) + 1;
 }
 
-export async function getPauseLimits(orderId: bigint) {
-  const [order] = await db.select({ weeks: orders.durationWeeks }).from(orders).where(eq(orders.id, orderId)).limit(1);
+export async function getPauseLimits(orderId: bigint, exec: Reader = db) {
+  const [order] = await exec.select({ weeks: orders.durationWeeks }).from(orders).where(eq(orders.id, orderId)).limit(1);
   if (!order) throw new ValidationError("Order not found");
-  const [pkg] = await db.select({
+  const [pkg] = await exec.select({
     maxPauses: durationPackages.maxPauses,
     maxPauseDaysTotal: durationPackages.maxPauseDaysTotal,
     maxPauseStretchDays: durationPackages.maxPauseStretchDays,
   }).from(durationPackages).where(eq(durationPackages.weeks, order.weeks)).limit(1);
-  const [defs] = await db.select({
+  const [defs] = await exec.select({
     maxPauses: app.defaultMaxPauses,
     maxPauseDaysTotal: app.defaultMaxPauseDaysTotal,
     maxPauseStretchDays: app.defaultMaxPauseStretchDays,
@@ -35,8 +36,8 @@ function chargedDays(row: { fromDate: string; untilDate: string; deliveryDates: 
   return row.deliveryDates.filter((d) => !released.has(d)).length;
 }
 
-export async function getPauseUsage(orderId: bigint) {
-  const rows = await db.select({
+export async function getPauseUsage(orderId: bigint, exec: Reader = db) {
+  const rows = await exec.select({
     fromDate: subscriptionPauses.fromDate,
     untilDate: subscriptionPauses.untilDate,
     resumedAt: subscriptionPauses.resumedAt,
@@ -48,8 +49,9 @@ export async function getPauseUsage(orderId: bigint) {
 }
 
 /** Day-set pause. Does not use the one-open-pause guard: those rows are closed audit logs. */
-export async function assertDaysPauseAllowed(orderId: bigint, dates: string[]): Promise<void> {
-  const [limits, usage] = await Promise.all([getPauseLimits(orderId), getPauseUsage(orderId)]);
+export async function assertDaysPauseAllowed(orderId: bigint, dates: string[], exec: Reader = db): Promise<void> {
+  const limits = await getPauseLimits(orderId, exec);
+  const usage = await getPauseUsage(orderId, exec);
   if (limits.maxPauses != null && usage.count >= limits.maxPauses) throw new ValidationError("pause limit reached");
   if (limits.maxPauseStretchDays != null && dates.length > limits.maxPauseStretchDays) {
     throw new ValidationError("pause range too long");

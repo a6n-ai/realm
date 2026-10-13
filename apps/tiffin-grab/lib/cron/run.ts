@@ -39,7 +39,10 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
   },
   "complete-plans": async () => {
     const { completeFinishedOrders } = await import("@/lib/services/deliveries.service");
-    return completeFinishedOrders();
+    const { lapseAllElapsedPauses } = await import("@/lib/services/pause-days.service");
+    // First: a paused day past cutoff is a hold, not live debt or a stranded pause, when plans are judged.
+    const lapsed = await lapseAllElapsedPauses();
+    return { lapsed, ...(await completeFinishedOrders()) };
   },
   "optimoroute-sync": async ({ date, mode = "push" }): Promise<Summary> => {
     const { runScheduledSync, syncDates } = await import("@/lib/services/optimoroute/sync");

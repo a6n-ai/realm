@@ -7,11 +7,11 @@ import { NotFoundError } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
 import { setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
-import { pauseDays, releasePausedDays } from "@/lib/services/pause-days.service";
+import { listPauseDays, pauseDays, releasePausedDays } from "@/lib/services/pause-days.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { listValidSwapOptionsForDelivery } from "@/lib/services/swap-options.service";
 import type { SwapOption } from "@/lib/menu/meal-validation";
-import { and, asc, eq, gt, inArray, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { runAction, type ActionResult } from "../action-result";
@@ -82,14 +82,7 @@ export async function loadMyPauseDays(orderPublicId: string): Promise<ActionResu
     await assertCanManageOrder(orderPublicId);
     const [order] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
     if (!order) throw new NotFoundError("Subscription not found");
-    const now = Date.now();
-    const rows = await db.select({ date: deliveries.deliveryDate, status: deliveries.status }).from(deliveries).where(and(
-      eq(deliveries.orderId, order.id),
-      inArray(deliveries.status, ["scheduled", "paused"]),
-      isNull(deliveries.makeupForDeliveryId),
-      gt(deliveries.cutoffAt, now),
-    )).orderBy(asc(deliveries.deliveryDate));
-    return { days: rows.map((r) => ({ date: r.date, paused: r.status === "paused" })) };
+    return { days: await listPauseDays(order.id) };
   });
 }
 

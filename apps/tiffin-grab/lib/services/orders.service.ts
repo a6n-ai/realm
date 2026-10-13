@@ -6,7 +6,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, ne, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import {
@@ -50,6 +50,7 @@ import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
 import { lapseElapsedPauses } from "./pause-days.service";
+import { MOVED_AWAY } from "./pause-state";
 import { ledgerService } from "./ledger.service";
 import { assertNoPlanOverlap } from "./order-window";
 import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
@@ -2025,10 +2026,32 @@ export const resumeOrder = (publicId: string, actorId?: bigint, fromDate?: strin
 export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
   ordersService.reassign(publicId, ownerId);
 
-// A paused day past its cutoff becomes a hold. An elapsed open vacation row is closed.
-// Neither path puts those days back on the schedule — resume() used to, which undid the hold.
+// Never puts a paused day back on the route (resume() used to, which undid the hold). A paused day
+// past its cutoff becomes a hold. Then the old range-pause leftovers: an elapsed open window is
+// closed, and an order those pauses flipped to "paused" goes back to active once nothing is paused
+// ahead. Day-set pauses never touch orders.status, so that last step only ever applies to old data.
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
   await lapseElapsedPauses(orderId);
+  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
+  let changed = false;
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    const open = await tx.select({ id: subscriptionPauses.id, untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
+      .from(subscriptionPauses).where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
+    const elapsed = open.filter((r) => !r.isIndefinite && r.untilDate < today);
+    if (elapsed.length > 0) {
+      changed = true;
+      await tx.update(subscriptionPauses).set({ resumedAt: new Date() }).where(inArray(subscriptionPauses.id, elapsed.map((r) => r.id)));
+    }
+    const [ahead] = await tx.select({ id: deliveries.id }).from(deliveries).where(and(
+      eq(deliveries.orderId, orderId), eq(deliveries.status, "paused"), gt(deliveries.cutoffAt, Date.now()), not(MOVED_AWAY),
+    )).limit(1);
+    if (!ahead) {
+      const flipped = await tx.update(orders).set({ status: "active" }).where(and(eq(orders.id, orderId), eq(orders.status, "paused"))).returning({ id: orders.id });
+      if (flipped.length > 0) changed = true;
+    }
+  });
+  if (changed) publishAnalyticsLive();
 }
 
 /** The order's strategy picks that still price together: active, one tag, one per connected set. */

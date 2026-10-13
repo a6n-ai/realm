@@ -1,10 +1,10 @@
-import { ValidationError, zonedDateIso } from "@foundry/commons";
-import { and, eq, gt, inArray, isNull, lte, ne, sql } from "drizzle-orm";
+import { ValidationError } from "@foundry/commons";
+import { and, asc, eq, gt, inArray, isNull, lte, not, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
+import { deliveries, deliveryMoves, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
 import { assertDaysPauseAllowed } from "./pause-limits.service";
-import { getAppSettings } from "./app-settings.service";
+import { CARRIES_MOVED_IN, MOVED_AWAY, lapsePausedRows } from "./pause-state";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -26,21 +26,6 @@ async function orderByPublicId(publicId: string) {
   return order;
 }
 
-/** paused only when every future original is paused. A plan with nothing left ahead stays active. */
-async function syncOrderPauseStatus(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], orderId: bigint, actorId: bigint | null) {
-  const [order] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
-  if (!order || (order.status !== "active" && order.status !== "paused")) return;
-  const future = await tx.select({ status: deliveries.status }).from(deliveries).where(and(
-    eq(deliveries.orderId, orderId),
-    isNull(deliveries.makeupForDeliveryId),
-    gt(deliveries.cutoffAt, Date.now()),
-    ne(deliveries.status, "cancelled"),
-  ));
-  const next = future.length > 0 && future.every((r) => r.status === "paused") ? "paused" : "active";
-  if (next === order.status) return;
-  await tx.update(orders).set({ status: next, updatedBy: actorId }).where(eq(orders.id, orderId));
-}
-
 /**
  * Pause specific upcoming delivery days. The audit row is closed immediately so another
  * pause is legal while these days are still paused. The one-open unique index stays.
@@ -56,6 +41,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
   let removed: OptimoSyncedRow[] = [];
   const count = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+    await lapsePausedRows(tx, order.id);
     const rows = await tx.select().from(deliveries).where(and(
       eq(deliveries.orderId, order.id),
       inArray(deliveries.deliveryDate, wanted),
@@ -71,7 +57,14 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
       return [row];
     });
     if (eligible.length === 0) throw new ValidationError("Cutoff has passed for those days");
-    await assertDaysPauseAllowed(order.id, eligible.map((r) => r.deliveryDate));
+    // A tiffin moved onto a day cannot move again. If this day lapsed into a hold, that paid tiffin would be stuck.
+    const movedIn = await tx.select({ id: deliveryMoves.toDeliveryId }).from(deliveryMoves)
+      .where(inArray(deliveryMoves.toDeliveryId, eligible.map((r) => r.id)));
+    if (movedIn.length > 0) {
+      const dates = eligible.filter((r) => movedIn.some((m) => m.id === r.id)).map((r) => r.deliveryDate);
+      throw new ValidationError(`${dates.join(", ")} carries a tiffin moved from another day, so it can't be paused.`);
+    }
+    await assertDaysPauseAllowed(order.id, eligible.map((r) => r.deliveryDate), tx);
 
     const updated = await tx.update(deliveries).set({
       status: "paused",
@@ -104,7 +97,6 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
       note: pausedDates.join(", "),
       createdBy: actorId,
     });
-    await syncOrderPauseStatus(tx, order.id, actorId);
     removed = eligible
       .filter((r) => updated.some((u) => u.id === r.id))
       .map((r) => ({ publicId: r.publicId, routeSyncedAt: r.routeSyncedAt }));
@@ -125,16 +117,19 @@ export async function releasePausedDays(orderPublicId: string, dates: string[] |
 
   const count = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+    await lapsePausedRows(tx, order.id);
     const now = Date.now();
+    // A paused day whose tiffin was moved away has nothing left to resume: putting it back would deliver twice.
     const conds = [
       eq(deliveries.orderId, order.id),
       eq(deliveries.status, "paused"),
       gt(deliveries.cutoffAt, now),
+      not(MOVED_AWAY),
     ];
     if (wanted) conds.push(inArray(deliveries.deliveryDate, wanted));
     const updated = await tx.update(deliveries).set({ status: "scheduled" }).where(and(...conds))
       .returning({ id: deliveries.id, deliveryDate: deliveries.deliveryDate });
-    if (updated.length === 0) throw new ValidationError("Cutoff has passed for those days");
+    if (updated.length === 0) throw new ValidationError("There are no paused days to resume for those dates");
     const back = new Set(updated.map((r) => r.deliveryDate));
     const logs = await tx.select({
       id: subscriptionPauses.id,
@@ -152,7 +147,6 @@ export async function releasePausedDays(orderPublicId: string, dates: string[] |
       note: updated.map((r) => r.deliveryDate).sort().join(", "),
       createdBy: actorId,
     });
-    await syncOrderPauseStatus(tx, order.id, actorId);
     return updated.length;
   });
   publishAnalyticsLive();
@@ -160,49 +154,37 @@ export async function releasePausedDays(orderPublicId: string, dates: string[] |
 }
 
 /**
- * A paused day whose cutoff has passed did not go out. It becomes a hold.
- * This does not put the day back on the schedule. Replaces the old auto-resume.
+ * A paused day whose cutoff has passed did not go out. It becomes a hold (never put back on the
+ * schedule). Safe to call from a read: it takes the order's lock in its own transaction and
+ * converts each row once.
  */
-export async function lapseElapsedPauses(orderId: bigint): Promise<void> {
-  const now = Date.now();
-  const today = zonedDateIso(now, (await getAppSettings()).timezone);
-  let changed = false;
-  await db.transaction(async (tx) => {
+export async function lapseElapsedPauses(orderId: bigint): Promise<number> {
+  const n = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
-    const lapsed = await tx.update(deliveries).set({
-      status: "skipped",
-      routeSyncedAt: null,
-      routeDriverSerial: null,
-      routeDriverName: null,
-      routeStopNumber: null,
-    }).where(and(
-      eq(deliveries.orderId, orderId),
-      eq(deliveries.status, "paused"),
-      lte(deliveries.cutoffAt, now),
-    )).returning({ id: deliveries.id, deliveryDate: deliveries.deliveryDate });
-    if (lapsed.length > 0) {
-      changed = true;
-      await tx.insert(orderActivities).values(lapsed.map((r) => ({
-        orderId,
-        deliveryId: r.id,
-        type: "skipped" as const,
-        note: `Pause reached cutoff on ${r.deliveryDate}`,
-      })));
-    }
-    const open = await tx.select({
-      id: subscriptionPauses.id,
-      untilDate: subscriptionPauses.untilDate,
-      isIndefinite: subscriptionPauses.isIndefinite,
-    }).from(subscriptionPauses).where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
-    const elapsed = open.filter((r) => !r.isIndefinite && r.untilDate < today);
-    if (elapsed.length > 0) {
-      changed = true;
-      await tx.update(subscriptionPauses).set({ resumedAt: new Date() }).where(inArray(subscriptionPauses.id, elapsed.map((r) => r.id)));
-    }
-    const [before] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
-    await syncOrderPauseStatus(tx, orderId, null);
-    const [after] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (before && after && before.status !== after.status) changed = true;
+    return lapsePausedRows(tx, orderId);
   });
-  if (changed) publishAnalyticsLive();
+  if (n > 0) publishAnalyticsLive();
+  return n;
+}
+
+/** Every order with a paused day past its cutoff, whatever the order's status. Returns rows converted. */
+export async function lapseAllElapsedPauses(): Promise<number> {
+  const stranded = await db.selectDistinct({ id: deliveries.orderId }).from(deliveries)
+    .where(and(eq(deliveries.status, "paused"), lte(deliveries.cutoffAt, Date.now())));
+  let total = 0;
+  for (const o of stranded) total += await lapseElapsedPauses(o.id);
+  return total;
+}
+
+/** What the pause drawer can offer: upcoming original days that are still pausable or still resumable. */
+export async function listPauseDays(orderId: bigint): Promise<{ date: string; paused: boolean }[]> {
+  const rows = await db.select({ date: deliveries.deliveryDate, status: deliveries.status }).from(deliveries).where(and(
+    eq(deliveries.orderId, orderId),
+    inArray(deliveries.status, ["scheduled", "paused"]),
+    isNull(deliveries.makeupForDeliveryId),
+    gt(deliveries.cutoffAt, Date.now()),
+    not(MOVED_AWAY),
+    not(CARRIES_MOVED_IN),
+  )).orderBy(asc(deliveries.deliveryDate));
+  return rows.map((r) => ({ date: r.date, paused: r.status === "paused" }));
 }

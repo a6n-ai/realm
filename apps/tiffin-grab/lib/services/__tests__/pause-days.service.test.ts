@@ -1,15 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import { nextWeekday, ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
+const deletedStops: string[] = [];
+vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+  return { ...actual, deleteOrder: async (orderNo: string) => { deletedStops.push(orderNo); } };
+});
+
 const { db } = await import("@/db/client");
-const { deliveries, ledgerEntries, orderActivities, orders, payments, subscriptionPauses, users } = await import("@/db/schema");
+const { deliveries, deliveryMoves, durationPackages, ledgerEntries, orderActivities, orders, payments, subscriptionPauses, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
-const { pauseDays, releasePausedDays, lapseElapsedPauses } = await import("../pause-days.service");
+const { pauseDays, releasePausedDays, lapseElapsedPauses, lapseAllElapsedPauses, listPauseDays } = await import("../pause-days.service");
+const { isOrderFullyPaused } = await import("../pause-state");
 const { getPauseUsage } = await import("../pause-limits.service");
+const { rescheduleDelivery } = await import("../deliveries.service");
+const { loadDayDeliveries } = await import("../daily-labels.service");
+const { myActiveSubscriptions, myDeliveries } = await import("../customer-deliveries.service");
+const { runCronJob } = await import("@/lib/cron/run");
+
+const LIMIT_WEEKS = 5018;
 
 async function reset() {
   await db.delete(subscriptionPauses);
@@ -19,6 +32,8 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orders);
   await db.delete(users).where(ne(users.isSystem, true));
+  await db.delete(durationPackages).where(eq(durationPackages.weeks, LIMIT_WEEKS));
+  deletedStops.length = 0;
 }
 
 async function activatedOrder() {
@@ -30,7 +45,7 @@ async function activatedOrder() {
       includeSaturday: false, includeSunday: false, durationWeeks: 1,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
-    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, fullName: "A B", phone: `+1647555${Math.floor(1000 + Math.random() * 9000)}`, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
@@ -92,5 +107,318 @@ describe("pauseDays / releasePausedDays", () => {
     expect(row.status).toBe("skipped");
     expect(row.routeSyncedAt).toBeNull();
     expect((await getPauseUsage(o.id)).daysUsed).toBe(1);
+  });
+});
+
+const D = ["2030-01-07", "2030-01-08", "2030-01-09", "2030-01-10", "2030-01-11"] as const;
+
+const rowOn = async (orderId: bigint, date: string) =>
+  (await rowsFor(orderId)).find((r) => r.deliveryDate === date)!;
+const orderStatus = async (id: bigint) => (await db.select().from(orders).where(eq(orders.id, id)))[0]!.status;
+const expire = (orderId: bigint, date: string) =>
+  db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(and(eq(deliveries.orderId, orderId), eq(deliveries.deliveryDate, date)));
+const skippedNotes = async (orderId: bigint) =>
+  (await db.select().from(orderActivities).where(and(eq(orderActivities.orderId, orderId), eq(orderActivities.type, "skipped"))))
+    .filter((a) => a.note?.startsWith("Pause reached cutoff"));
+async function limited(limits: { maxPauses?: number; maxPauseDaysTotal?: number; maxPauseStretchDays?: number }) {
+  await db.delete(durationPackages).where(eq(durationPackages.weeks, LIMIT_WEEKS));
+  await db.insert(durationPackages).values({
+    weeks: LIMIT_WEEKS,
+    maxPauses: limits.maxPauses ?? 99,
+    maxPauseDaysTotal: limits.maxPauseDaysTotal ?? 99,
+    maxPauseStretchDays: limits.maxPauseStretchDays ?? 99,
+  });
+  const o = await activatedOrder();
+  await db.update(orders).set({ durationWeeks: LIMIT_WEEKS }).where(eq(orders.id, o.id));
+  return o;
+}
+
+describe("D1: pausing days never changes orders.status (C1)", () => {
+  beforeEach(reset);
+
+  it("pausing every remaining day keeps the order active, so a locked delivery still reaches labels and the route", async () => {
+    const o = await activatedOrder();
+    await db.update(payments).set({ status: "paid" }).where(eq(payments.orderId, o.id));
+    await expire(o.id, D[0]);
+    await pauseDays(o.publicId, [D[1], D[2], D[3], D[4]], null);
+    expect(await orderStatus(o.id)).toBe("active");
+    const onTheTruck = await loadDayDeliveries(D[0]);
+    expect(onTheTruck.map((r) => r.delivery.orderId)).toContain(o.id);
+  });
+
+  it("releasing never changes orders.status either", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [...D], null);
+    expect(await orderStatus(o.id)).toBe("active");
+    await releasePausedDays(o.publicId, "all", null);
+    expect(await orderStatus(o.id)).toBe("active");
+  });
+
+  it("fully paused is computed on read: paused days ahead and nothing scheduled today or later", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[1], D[2], D[3], D[4]], null);
+    expect(await isOrderFullyPaused(db, o.id, "2029-12-01")).toBe(false); // Mon is still going out
+    await pauseDays(o.publicId, [D[0]], null);
+    expect(await isOrderFullyPaused(db, o.id, "2029-12-01")).toBe(true);
+    await releasePausedDays(o.publicId, [D[2]], null);
+    expect(await isOrderFullyPaused(db, o.id, "2029-12-01")).toBe(false);
+  });
+});
+
+describe("fully paused on read", () => {
+  beforeEach(reset);
+  it("the customer's plan reports fullyPaused while orders.status stays active", async () => {
+    const o = await activatedOrder();
+    expect((await myActiveSubscriptions(o.userId!))[0]!.fullyPaused).toBe(false);
+    await pauseDays(o.publicId, [...D], null);
+    const [sub] = await myActiveSubscriptions(o.userId!);
+    expect([sub!.status, sub!.fullyPaused]).toEqual(["active", true]);
+  });
+});
+
+describe("C2: a paused day whose tiffin was moved cannot be resumed", () => {
+  beforeEach(reset);
+
+  it("pause, Move to a new day, then Resume is refused and no second delivery appears", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[1]], null);
+    const paused = await rowOn(o.id, D[1]);
+    await rescheduleDelivery(paused.publicId, "2030-01-14", null);
+
+    await expect(releasePausedDays(o.publicId, [D[1]], null)).rejects.toBeInstanceOf(ValidationError);
+    await expect(releasePausedDays(o.publicId, "all", null)).rejects.toBeInstanceOf(ValidationError);
+
+    const rows = await rowsFor(o.id);
+    expect(rows.find((r) => r.deliveryDate === D[1])!.status).not.toBe("scheduled");
+    expect(rows.filter((r) => r.status === "scheduled" && r.deliveryDate >= D[1])).toHaveLength(4); // 09, 10, 11 and the make-up on the 14th
+    expect(await listPauseDays(o.id)).not.toContainEqual({ date: D[1], paused: true });
+    expect(await isOrderFullyPaused(db, o.id, "2029-12-01")).toBe(false);
+  });
+
+  it("a paused day merged into another trip cannot be resumed either, and the other paused days still can", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[1], D[3]], null);
+    await rescheduleDelivery((await rowOn(o.id, D[1])).publicId, D[2], null);
+    expect((await rowOn(o.id, D[2])).tiffinUnits).toBe(2);
+
+    await expect(releasePausedDays(o.publicId, [D[1]], null)).rejects.toBeInstanceOf(ValidationError);
+    await expect(releasePausedDays(o.publicId, "all", null)).resolves.toBe(1);
+    const rows = await rowsFor(o.id);
+    expect(rows.find((r) => r.deliveryDate === D[1])!.status).not.toBe("scheduled");
+    expect(rows.find((r) => r.deliveryDate === D[3])!.status).toBe("scheduled");
+    expect(rows.find((r) => r.deliveryDate === D[2])!.tiffinUnits).toBe(2);
+  });
+});
+
+describe("C3: the cutoff converter runs wherever it can be noticed", () => {
+  beforeEach(reset);
+
+  it("pauseDays converts an elapsed paused day first, once", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    await expire(o.id, D[0]);
+    await pauseDays(o.publicId, [D[2]], null);
+    expect((await rowOn(o.id, D[0])).status).toBe("skipped");
+    expect(await skippedNotes(o.id)).toHaveLength(1);
+    await lapseElapsedPauses(o.id);
+    expect(await skippedNotes(o.id)).toHaveLength(1);
+  });
+
+  it("releasePausedDays converts an elapsed paused day too", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0], D[2]], null);
+    await expire(o.id, D[0]);
+    await releasePausedDays(o.publicId, [D[2]], null);
+    expect((await rowOn(o.id, D[0])).status).toBe("skipped");
+    expect((await rowOn(o.id, D[2])).status).toBe("scheduled");
+    expect(await skippedNotes(o.id)).toHaveLength(1);
+  });
+
+  it("the nightly complete-plans job converts stranded paused days on any order status, before it closes plans", async () => {
+    const active = await activatedOrder();
+    const legacy = await activatedOrder();
+    for (const o of [active, legacy]) {
+      await pauseDays(o.publicId, [D[0]], null);
+      await expire(o.id, D[0]);
+    }
+    await db.update(orders).set({ status: "paused" }).where(eq(orders.id, legacy.id));
+
+    const run = await runCronJob("complete-plans", "manual");
+    expect(run).toMatchObject({ ok: true });
+    for (const o of [active, legacy]) {
+      expect((await rowOn(o.id, D[0])).status).toBe("skipped");
+      expect(await skippedNotes(o.id)).toHaveLength(1);
+    }
+    expect(await orderStatus(active.id)).toBe("active");
+    await runCronJob("complete-plans", "manual");
+    expect(await skippedNotes(active.id)).toHaveLength(1);
+    await expect(lapseAllElapsedPauses()).resolves.toBe(0);
+  });
+
+  it("opening the customer's plans converts an elapsed paused day on an active order", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    await expire(o.id, D[0]);
+    await myActiveSubscriptions(o.userId!);
+    expect((await rowOn(o.id, D[0])).status).toBe("skipped");
+    expect(await skippedNotes(o.id)).toHaveLength(1);
+  });
+});
+
+describe("D4: when a lapsed pause or a hold can be moved", () => {
+  beforeEach(reset);
+
+  it("a lapsed pause (no route stop) is movable immediately", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    await expire(o.id, D[0]);
+    await lapseElapsedPauses(o.id);
+    const lapsed = await rowOn(o.id, D[0]);
+    expect(lapsed.status).toBe("skipped");
+    await expect(rescheduleDelivery(lapsed.publicId, "2030-01-14", null)).resolves.toMatchObject({ merged: false });
+  });
+
+  it("an elapsed pause nobody has converted yet is converted by Move and is movable too", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    await expire(o.id, D[0]);
+    await expect(rescheduleDelivery((await rowOn(o.id, D[0])).publicId, "2030-01-14", null)).resolves.toMatchObject({ merged: false });
+  });
+
+  it("the customer view marks only the lapsed pause, not an ordinary hold", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    await expire(o.id, D[0]);
+    await db.update(deliveries).set({ status: "skipped", cutoffAt: Date.now() - 1000 }).where(and(eq(deliveries.orderId, o.id), eq(deliveries.deliveryDate, D[1])));
+    await myActiveSubscriptions(o.userId!);
+    const rows = await myDeliveries(o.userId!, D[0], D[4]);
+    expect(rows.map((r) => [r.deliveryDate, r.status, r.lapsedPause])).toEqual([
+      [D[0], "skipped", true], [D[1], "skipped", false], [D[2], "scheduled", false], [D[3], "scheduled", false], [D[4], "scheduled", false],
+    ]);
+  });
+
+  it("any other hold keeps waiting until its delivery day is over", async () => {
+    const o = await activatedOrder();
+    await db.update(deliveries).set({ status: "skipped", cutoffAt: Date.now() - 1000 }).where(and(eq(deliveries.orderId, o.id), eq(deliveries.deliveryDate, D[0])));
+    await expect(rescheduleDelivery((await rowOn(o.id, D[0])).publicId, "2030-01-14", null)).rejects.toThrow(/on hold/i);
+  });
+});
+
+describe("I6: a day carrying a moved-in tiffin cannot be paused", () => {
+  beforeEach(reset);
+
+  it("is refused, so the paid tiffin can never lapse into a hold it cannot leave", async () => {
+    const o = await activatedOrder();
+    await rescheduleDelivery((await rowOn(o.id, D[0])).publicId, D[2], null);
+    expect((await db.select().from(deliveryMoves).where(eq(deliveryMoves.orderId, o.id)))).toHaveLength(1);
+    await expect(pauseDays(o.publicId, [D[2]], null)).rejects.toThrow(/moved/i);
+    expect((await rowOn(o.id, D[2])).status).toBe("scheduled");
+    expect(await listPauseDays(o.id)).not.toContainEqual({ date: D[2], paused: false });
+    await expect(pauseDays(o.publicId, [D[3]], null)).resolves.toBe(1);
+  });
+});
+
+describe("pause limits are enforced server-side, under the order lock", () => {
+  beforeEach(reset);
+
+  it("maxPauses: the second pause is refused, and two concurrent requests cannot both pass", async () => {
+    const o = await limited({ maxPauses: 1 });
+    await pauseDays(o.publicId, [D[0]], null);
+    await expect(pauseDays(o.publicId, [D[1]], null)).rejects.toThrow("pause limit reached");
+
+    const racer = await limited({ maxPauses: 1 });
+    const results = await Promise.allSettled([pauseDays(racer.publicId, [D[0]], null), pauseDays(racer.publicId, [D[1]], null)]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect((await getPauseUsage(racer.id)).count).toBe(1);
+  });
+
+  it("maxPauseDaysTotal: refuses past the total, and two concurrent requests cannot both pass", async () => {
+    const o = await limited({ maxPauseDaysTotal: 2 });
+    await pauseDays(o.publicId, [D[0], D[1]], null);
+    await expect(pauseDays(o.publicId, [D[2]], null)).rejects.toThrow("pause days limit exceeded");
+
+    const racer = await limited({ maxPauseDaysTotal: 3 });
+    const results = await Promise.allSettled([pauseDays(racer.publicId, [D[0], D[1]], null), pauseDays(racer.publicId, [D[2], D[3]], null)]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect((await getPauseUsage(racer.id)).daysUsed).toBeLessThanOrEqual(3);
+  });
+
+  it("maxPauseStretchDays: one action cannot pause more days than the stretch", async () => {
+    const o = await limited({ maxPauseStretchDays: 2 });
+    await expect(pauseDays(o.publicId, [D[0], D[1], D[2]], null)).rejects.toThrow("pause range too long");
+    await expect(pauseDays(o.publicId, [D[0], D[1]], null)).resolves.toBe(2);
+    expect((await rowOn(o.id, D[2])).status).toBe("scheduled");
+  });
+
+  it("a day released before cutoff is refunded; the action itself still counts", async () => {
+    const o = await limited({ maxPauseDaysTotal: 2, maxPauses: 3 });
+    await pauseDays(o.publicId, [D[0], D[1]], null);
+    await releasePausedDays(o.publicId, [D[0]], null);
+    expect(await getPauseUsage(o.id)).toMatchObject({ count: 1, daysUsed: 1 });
+    await expect(pauseDays(o.publicId, [D[2]], null)).resolves.toBe(1);
+    await expect(pauseDays(o.publicId, [D[3]], null)).rejects.toThrow("pause");
+  });
+
+  it("a pause that lapsed into a hold still counts as used", async () => {
+    const o = await limited({ maxPauseDaysTotal: 2 });
+    await pauseDays(o.publicId, [D[0], D[1]], null);
+    await expire(o.id, D[0]);
+    await lapseElapsedPauses(o.id);
+    await releasePausedDays(o.publicId, [D[1]], null);
+    expect((await getPauseUsage(o.id)).daysUsed).toBe(1);
+    await expect(pauseDays(o.publicId, [D[2]], null)).resolves.toBe(1);
+    await expect(pauseDays(o.publicId, [D[3]], null)).rejects.toThrow("pause days limit exceeded");
+  });
+
+  it("old range-shaped pause rows (no delivery_dates) are still counted by calendar span", async () => {
+    const o = await limited({ maxPauseDaysTotal: 4 });
+    await db.insert(subscriptionPauses).values({ orderId: o.id, fromDate: "2029-11-01", untilDate: "2029-11-03", isIndefinite: false, resumedAt: new Date() });
+    expect(await getPauseUsage(o.id)).toMatchObject({ count: 1, daysUsed: 3 });
+    await expect(pauseDays(o.publicId, [D[0], D[1]], null)).rejects.toThrow("pause days limit exceeded");
+    await expect(pauseDays(o.publicId, [D[0]], null)).resolves.toBe(1);
+  });
+});
+
+describe("pauseDays and releasePausedDays rules", () => {
+  beforeEach(reset);
+
+  it("refuses a trial", async () => {
+    const o = await activatedOrder();
+    await db.update(orders).set({ trialLength: 3 }).where(eq(orders.id, o.id));
+    await expect(pauseDays(o.publicId, [D[0]], null)).rejects.toThrow(/trial/i);
+    expect((await rowOn(o.id, D[0])).status).toBe("scheduled");
+  });
+
+  it("refuses a make-up row", async () => {
+    const o = await activatedOrder();
+    const [src] = await rowsFor(o.id);
+    await db.insert(deliveries).values({ orderId: o.id, deliveryDate: "2030-01-14", status: "scheduled", cutoffAt: Date.now() + 1e9, makeupForDeliveryId: src!.id });
+    await expect(pauseDays(o.publicId, ["2030-01-14"], null)).rejects.toBeInstanceOf(ValidationError);
+    expect((await rowOn(o.id, "2030-01-14")).status).toBe("scheduled");
+  });
+
+  it("skips past-cutoff days instead of rejecting the whole selection", async () => {
+    const o = await activatedOrder();
+    await expire(o.id, D[0]);
+    await expect(pauseDays(o.publicId, [D[0], D[1]], null)).resolves.toBe(1);
+    expect((await rowOn(o.id, D[0])).status).toBe("scheduled");
+    expect((await rowOn(o.id, D[1])).status).toBe("paused");
+  });
+
+  it("takes the stop off OptimoRoute when pausing, and the released day is ready for the next push", async () => {
+    const o = await activatedOrder();
+    await db.update(payments).set({ status: "paid" }).where(eq(payments.orderId, o.id));
+    const row = await rowOn(o.id, D[1]);
+    await db.update(deliveries).set({ routeSyncedAt: Date.now(), routeDriverName: "Sam", routeStopNumber: 3 }).where(eq(deliveries.id, row.id));
+    await pauseDays(o.publicId, [D[1]], null);
+    expect(deletedStops).toEqual([row.publicId]);
+    const paused = await rowOn(o.id, D[1]);
+    expect([paused.routeSyncedAt, paused.routeDriverName, paused.routeStopNumber]).toEqual([null, null, null]);
+    expect((await loadDayDeliveries(D[1])).some((r) => r.delivery.id === row.id)).toBe(false);
+
+    await releasePausedDays(o.publicId, [D[1]], null);
+    const back = await rowOn(o.id, D[1]);
+    expect([back.status, back.routeSyncedAt]).toEqual(["scheduled", null]);
+    expect((await loadDayDeliveries(D[1])).some((r) => r.delivery.id === row.id)).toBe(true);
   });
 });
