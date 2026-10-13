@@ -1,5 +1,5 @@
 {
-  "id": "eeccc057-8bff-40a0-8834-4872b233c840",
+  "id": "6e641f3c-f3c6-40f5-80a4-164591499a04",
   "prevId": "6311f8b4-ca07-432a-a972-5a745d6b3ff4",
   "version": "7",
   "dialect": "postgresql",
@@ -2824,9 +2824,43 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "look_out_at": {
+          "name": "look_out_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "look_out_by": {
+          "name": "look_out_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "look_out_note": {
+          "name": "look_out_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
+        "orders_look_out_idx": {
+          "name": "orders_look_out_idx",
+          "columns": [
+            {
+              "expression": "look_out_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"orders\".\"look_out_at\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "orders_user_created_idx": {
           "name": "orders_user_created_idx",
           "columns": [
@@ -3163,6 +3197,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "orders_look_out_by_users_id_fk": {
+          "name": "orders_look_out_by_users_id_fk",
+          "tableFrom": "orders",
+          "tableTo": "users",
+          "columnsFrom": [
+            "look_out_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3366,146 +3413,6 @@
       "uniqueConstraints": {
         "payments_public_id_unique": {
           "name": "payments_public_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "public_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.holidays": {
-      "name": "holidays",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "bigint",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "next_id()"
-        },
-        "public_id": {
-          "name": "public_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "app_id": {
-          "name": "app_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "current_app_id()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "date": {
-          "name": "date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notified_at": {
-          "name": "notified_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "holidays_organization_date_unique": {
-          "name": "holidays_organization_date_unique",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "holidays_date_idx": {
-          "name": "holidays_date_idx",
-          "columns": [
-            {
-              "expression": "date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "holidays_organization_id_organization_id_fk": {
-          "name": "holidays_organization_id_organization_id_fk",
-          "tableFrom": "holidays",
-          "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "holidays_public_id_unique": {
-          "name": "holidays_public_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "public_id"
@@ -3748,18 +3655,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "holiday_id": {
-          "name": "holiday_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "holiday_extra_for_delivery_id": {
-          "name": "holiday_extra_for_delivery_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "organization_id": {
           "name": "organization_id",
           "type": "text",
@@ -3939,38 +3834,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "deliveries_holiday_idx": {
-          "name": "deliveries_holiday_idx",
-          "columns": [
-            {
-              "expression": "holiday_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"deliveries\".\"holiday_id\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "deliveries_holiday_extra_for_idx": {
-          "name": "deliveries_holiday_extra_for_idx",
-          "columns": [
-            {
-              "expression": "holiday_extra_for_delivery_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"deliveries\".\"holiday_extra_for_delivery_id\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -4084,32 +3947,6 @@
           "tableTo": "delivery_zones",
           "columnsFrom": [
             "zone_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "deliveries_holiday_id_holidays_id_fk": {
-          "name": "deliveries_holiday_id_holidays_id_fk",
-          "tableFrom": "deliveries",
-          "tableTo": "holidays",
-          "columnsFrom": [
-            "holiday_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "deliveries_holiday_extra_for_delivery_id_deliveries_id_fk": {
-          "name": "deliveries_holiday_extra_for_delivery_id_deliveries_id_fk",
-          "tableFrom": "deliveries",
-          "tableTo": "deliveries",
-          "columnsFrom": [
-            "holiday_extra_for_delivery_id"
           ],
           "columnsTo": [
             "id"
@@ -14901,9 +14738,7 @@
         "customer_invitation",
         "payment_reminder",
         "payment_approved",
-        "order_complimentary",
-        "holiday_declared",
-        "holiday_removed"
+        "order_complimentary"
       ]
     },
     "public.campaign_status": {

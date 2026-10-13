@@ -8,7 +8,7 @@ import { leadSources, leadSubsources, orders, plans } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -28,6 +28,7 @@ import {
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
+import { OrdersViewTabs } from "./orders-view-tabs";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
 import { and } from "@foundry/commons/model/condition";
 import { NewOrderSheet } from "./new-order-sheet";
@@ -60,7 +61,10 @@ export default function OrdersPage({
       <Suspense fallback={<SkeletonStatCards count={4} />}>
         <OrdersStats searchParams={searchParams} />
       </Suspense>
-      <SectionCard title="All orders">
+      <Suspense fallback={<Skeleton className="h-9 w-56" />}>
+        <OrdersViews />
+      </Suspense>
+      <SectionCard title="Orders">
         <Suspense fallback={<OrdersListSkeleton />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
@@ -74,6 +78,12 @@ async function StartMigratedAction() {
   await requireStaff();
   const waiting = await countMigratedWaiting();
   return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
+}
+
+async function OrdersViews() {
+  await requireStaff();
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  return <OrdersViewTabs lookOutCount={await countLookOutOrders(visible)} />;
 }
 
 async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
@@ -103,7 +113,10 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sp = await withListDates(await searchParams);
+  const raw = await searchParams;
+  const lookOutOnly = raw.view === "lookout";
+  // A flagged order stays on the Look out for tab however old it is: no default month there.
+  const sp = lookOutOnly ? raw : await withListDates(raw);
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],
@@ -145,7 +158,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const visible = await resolveSessionVisibleOrgIds(session);
 
   const [result, reassignAllowed] = await Promise.all([
-    listOrdersPage(finalCondition, page, sort, visible),
+    listOrdersPage(finalCondition, page, sort, visible, { lookOutOnly }),
     canReassign(),
   ]);
   const staff = reassignAllowed ? await listAssignableStaff() : [];
@@ -160,6 +173,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       sort={sort}
       canReassign={reassignAllowed}
       staff={staff}
+      lookOutView={lookOutOnly}
     />
   );
 }

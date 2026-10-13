@@ -17,6 +17,7 @@ import {
   changeMealSize,
   rejectPayment,
   updatePaymentReference,
+  setOrderLookOut,
   verifyPayment,
   assertOrderVisible,
   assertDeliveryVisible,
@@ -152,6 +153,19 @@ export async function updatePaymentReferenceAction(orderId: string, paymentPubli
 }
 
 /** Manual "redo the push" for one delivery — the fix when a scheduled push went wrong. */
+export async function setLookOutAction(orderId: string, on: boolean, note: string): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    await setOrderLookOut(orderId, on, note, await currentUserId());
+  });
+  if ("ok" in res) {
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/orders");
+  }
+  return res;
+}
+
 export async function sendPaymentReminderAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();

@@ -8,7 +8,7 @@ const { orders, payments, orderActivities, ledgerEntries, users } = await import
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible } = await import("../orders.service");
+const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, countLookOutOrders } = await import("../orders.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const schema = await import("@/db/schema");
@@ -40,6 +40,25 @@ const baseInput = (mealSizePublicId: string, planKey: string, fullName = "Jane C
 describe("order CRM queries (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
+
+  it("look out for: a flagged order gets its own list and count, and clearing takes it back out", async () => {
+    const snap = await loadCatalogSnapshot();
+    const flagged = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Jane Customer", "+16475550111"));
+    await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+
+    await setOrderLookOut(flagged.publicId, true, "  Call before delivery  ");
+    const only = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { lookOutOnly: true });
+    expect(only.items.map((o) => o.fullName)).toEqual(["Jane Customer"]);
+    expect(only.items[0]).toMatchObject({ lookOut: true, lookOutNote: "Call before delivery" });
+    expect(await countLookOutOrders("all")).toBe(1);
+    expect(await countLookOutOrders([])).toBe(0);
+    expect((await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all")).total).toBe(2);
+
+    await setOrderLookOut(flagged.publicId, false, "");
+    expect(await countLookOutOrders("all")).toBe(0);
+    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.type, "note"));
+    expect(notes.map((n) => n.note).sort()).toEqual(["Look out for cleared", "Marked look out for: Call before delivery"]);
+  });
 
   it("listOrdersPage filters by Condition, search, and paginates with a total", async () => {
     const snap = await loadCatalogSnapshot();

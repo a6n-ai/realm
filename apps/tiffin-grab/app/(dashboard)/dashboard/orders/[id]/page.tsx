@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ActivityIcon, PackageIcon, ReceiptIcon, TruckIcon, WalletIcon } from "lucide-react";
+import { ActivityIcon, EyeIcon, PackageIcon, ReceiptIcon, TruckIcon, WalletIcon } from "lucide-react";
 import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
@@ -28,6 +28,7 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import Link from "next/link";
 import { humanDate } from "@/lib/deliveries-view";
+import { formatEpoch } from "@/lib/format/datetime";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
@@ -40,6 +41,7 @@ import { ChangePlanControl } from "./change-plan-control";
 import { StartDateControl } from "./start-date-control";
 import { EatingDaysControl } from "./eating-days-control";
 import { ComplimentaryControl } from "./complimentary-control";
+import { LookOutControl } from "./look-out-control";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
@@ -93,7 +95,7 @@ async function OrderDetail({
   // A paused day past its cutoff is a hold: convert it (under the order lock) before the page reads any delivery.
   if (order.status === "active" || order.status === "paused") await lapseElapsedPausesSafe(order.id);
 
-  const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone] = await Promise.all([
+  const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone, lookOutBy] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
     db.select({ planType: plans.planType, allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
@@ -109,6 +111,9 @@ async function OrderDetail({
     listDeliveries(order.id),
     order.zoneId != null
       ? db.select({ name: deliveryZones.name }).from(deliveryZones).where(eq(deliveryZones.id, order.zoneId)).limit(1).then((r) => r[0] ?? null)
+      : Promise.resolve(null),
+    order.lookOutBy != null
+      ? db.select({ name: users.name }).from(users).where(eq(users.id, order.lookOutBy)).limit(1).then((r) => r[0]?.name ?? null)
       : Promise.resolve(null),
   ]);
 
@@ -260,6 +265,7 @@ async function OrderDetail({
   const headerActions = (
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
+      <LookOutControl orderId={order.publicId} flagged={order.lookOutAt != null} />
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
       {/* A trial can only have its dishes edited (orders.service rejects a plan change). */}
       {canGiveFree && (
@@ -288,6 +294,19 @@ async function OrderDetail({
       <div className="-mt-2 flex flex-wrap gap-2 sm:hidden">{headerActions}</div>
 
       <StatGrid items={stats} cols={5} />
+
+      {order.lookOutAt != null && (
+        <div role="status" data-testid="look-out-banner" className="border-warn/40 bg-warn/10 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
+          <EyeIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <div className="min-w-0">
+            <p className="font-medium">Look out for this order</p>
+            <p className="text-muted-foreground text-pretty">
+              {order.lookOutNote ? `${order.lookOutNote} · ` : ""}
+              Marked{lookOutBy ? ` by ${lookOutBy}` : ""} on {formatEpoch(order.lookOutAt, { mode: "date", timeZone: settings.timezone })}
+            </p>
+          </div>
+        </div>
+      )}
 
       {migration && (
         <div role="status" className="border-primary/40 bg-primary/5 rounded-xl border px-4 py-3 text-sm">
