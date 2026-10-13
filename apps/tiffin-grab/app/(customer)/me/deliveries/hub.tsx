@@ -36,6 +36,7 @@ import {
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
 import { getClaimPaymentContextForOrder } from "@/lib/services/orders.service";
+import { holidayNamesForUser } from "@/lib/services/holidays.service";
 import { addDays, defaultWeek, mondayOf, parseWeekParam, type Agenda } from "@/lib/deliveries-view/week";
 
 export type HubSearchParams = Promise<{ week?: string; sub?: string; trip?: string; action?: string }>;
@@ -90,7 +91,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const from = addDays(weekStart, -3);
   const until = addDays(weekStart, 6);
 
-  const [locked, rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories] = await Promise.all([
+  const [locked, rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories, holidays] = await Promise.all([
     orderPaymentLocked(sub.publicId),
     myDeliveries(userId, from, until),
     loadCatalogSnapshot(),
@@ -100,11 +101,12 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     makeupSourceIdsForOrder(sub.publicId),
     dishCategoriesService.forPlanType(sub.planType),
     dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
+    holidayNamesForUser(userId, today),
   ]);
   // Payment-review plans hide the calendar and show the claim form instead.
   const claimPayment = locked ? await getClaimPaymentContextForOrder(sub.publicId) : null;
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
-  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first });
+  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: win?.first, holidays });
   const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
   const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
   const plan: PlanView = {

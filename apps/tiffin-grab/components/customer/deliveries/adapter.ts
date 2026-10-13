@@ -69,7 +69,7 @@ export function toCalendarInputs(a: {
   });
 }
 
-export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; cutoffHour: number; timezone: string; pause: PausePanel; startDate?: string }): PlanContext {
+export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; cutoffHour: number; timezone: string; pause: PausePanel; startDate?: string; holidays?: Record<string, string> }): PlanContext {
   const max = a.pause.limits.maxPauses;
   return {
     cutoffHour: a.cutoffHour,
@@ -79,6 +79,7 @@ export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; c
     eatingWeekdays: a.counts.eatingWeekdays,
     servesWeekends: a.counts.servesWeekends,
     startDate: a.startDate,
+    holidays: a.holidays ?? {},
     active: true,
     onVacation: a.sub.status === "paused" || !!a.sub.fullyPaused,
     vacationsLeft: max == null ? null : Math.max(max - a.pause.usage.count, 0),

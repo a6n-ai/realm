@@ -22,6 +22,7 @@ import {
   type Subscription,
 } from "@/lib/services/customer-deliveries.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { holidayNamesForUser } from "@/lib/services/holidays.service";
 
 export type OrderWeek = {
   plan: PlanView;
@@ -58,7 +59,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
   const from = addDays(weekStart, -3);
   const until = addDays(weekStart, 6);
 
-  const [rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories] = await Promise.all([
+  const [rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories, holidays] = await Promise.all([
     myDeliveries(userId, from, until),
     loadCatalogSnapshot(),
     myCalendar(userId, sub.publicId, { from, until }),
@@ -67,9 +68,10 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     makeupSourceIdsForOrder(sub.publicId),
     dishCategoriesService.forPlanType(sub.planType),
     dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
+    holidayNamesForUser(userId, today),
   ]);
   const categoryLabels = Object.fromEntries(categoryRows.map((r) => [r.key, r.label]));
-  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: window.first });
+  const ctx = buildPlanContext({ sub, counts, cutoffHour, timezone, pause, startDate: window.first, holidays });
   const savedAddresses = await addressService.list({ userId, orgId: await resolveRequestOrg() });
   const plan: PlanView = {
     orderId: sub.publicId,

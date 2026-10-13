@@ -59,6 +59,8 @@ export type PlanContext = {
   lastDeliveryDate: string | null;
   deliveryWeekdays: string[];
   eatingWeekdays?: string[] | null;
+  /** Closed dates for this plan's organization (ISO date to holiday name); Move never offers them. */
+  holidays?: Record<string, string>;
   /** This plan's first delivery date; Move never offers dates before it. */
   startDate?: string;
   active?: boolean;
@@ -170,7 +172,8 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         movesOut: d.movesOut ?? [],
         complimentaryNote: d.complimentaryNote ?? null,
         lapsedPause: d.lapsedPause,
-        holidayName: d.holidayName ?? null,
+        // A scheduled day is open for business: a leftover name must not paint it as a holiday.
+        holidayName: d.status === "scheduled" ? null : (d.holidayName ?? null),
         holidayExtras: d.holidayExtras ?? [],
       };
     })
