@@ -26,6 +26,7 @@ import {
   payments,
   plans,
   subscriptionPauses,
+  tickets,
   users,
   type PaymentProof,
 } from "@/db/schema";
@@ -1144,15 +1145,36 @@ export async function setOrderLookOut(
   });
 }
 
+const TICKET_NOTE = "Support ticket: ";
+
 /** A support ticket puts its order on the look-out list. A flag staff already set is left alone. */
 export async function lookOutForTicket(orderId: bigint, subject: string): Promise<void> {
-  const note = `Support ticket: ${subject}`.slice(0, 300);
+  const note = `${TICKET_NOTE}${subject}`.slice(0, 300);
   const [flagged] = await db
     .update(orders)
     .set({ lookOutAt: Date.now(), lookOutBy: null, lookOutNote: note })
     .where(and(eq(orders.id, orderId), isNull(orders.lookOutAt)))
     .returning({ id: orders.id });
   if (flagged) await db.insert(orderActivities).values({ orderId, type: "note", note: `Marked look out for: ${note}` });
+}
+
+/**
+ * A resolved ticket takes its order back off the list, but only a flag a ticket set: one staff
+ * marked or edited carries their name and stays. Another ticket still open on the order keeps it.
+ */
+export async function clearTicketLookOut(orderId: bigint): Promise<void> {
+  const [cleared] = await db
+    .update(orders)
+    .set({ lookOutAt: null, lookOutBy: null, lookOutNote: null })
+    .where(and(
+      eq(orders.id, orderId),
+      isNotNull(orders.lookOutAt),
+      isNull(orders.lookOutBy),
+      sql`starts_with(${orders.lookOutNote}, ${TICKET_NOTE})`,
+      sql`not exists (select 1 from ${tickets} where ${tickets.orderId} = ${orderId} and ${tickets.status} not in ('resolved', 'closed'))`,
+    ))
+    .returning({ id: orders.id });
+  if (cleared) await db.insert(orderActivities).values({ orderId, type: "note", note: "Look out for cleared: support ticket resolved" });
 }
 
 /** Flagged orders the caller can see, for the Orders tab badge. */

@@ -9,7 +9,7 @@ import { complaintWhere, type ComplaintFilters } from "@/lib/services/analytics/
 import { getSession } from "@/lib/auth/session";
 import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/services/reassign";
 import { publishTicketsInbox } from "@/lib/realtime/publish-inbox";
-import { lookOutForTicket } from "./orders.service";
+import { clearTicketLookOut, lookOutForTicket } from "./orders.service";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { createLogger } from "@foundry/commons/logger";
@@ -175,6 +175,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const closing = toStatus === "resolved" || toStatus === "closed";
     await this.update(publicId, { status: toStatus, closedAt: closing ? Date.now() : null });
     await this.message(ticket.id, actor.id, "system", `Status: ${STATUS_TEXT[previous]} → ${STATUS_TEXT[toStatus]}`);
+    if (closing && ticket.orderId != null) await clearTicketLookOut(ticket.orderId).catch((err) => log.error({ err, ticket: publicId }, "look out clear failed"));
     return { previous };
   }
 
