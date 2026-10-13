@@ -115,8 +115,9 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
 
   const raw = await searchParams;
   const lookOutOnly = raw.view === "lookout";
-  // A flagged order stays on the Look out for tab however old it is: no default month there.
-  const sp = lookOutOnly ? raw : await withListDates(raw);
+  // A flagged order stays on the Look out for tab however old it is. The date picker
+  // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
+  const sp = lookOutOnly ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],
