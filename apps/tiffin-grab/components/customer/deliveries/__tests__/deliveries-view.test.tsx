@@ -143,14 +143,14 @@ describe("DeliveriesView (one plan)", () => {
     });
     it("with two paused days ahead, Resume all is offered and releases every one", async () => {
       rel.mockReset();
-      rel.mockResolvedValue({ ok: true, message: "2 days are back on." });
+      rel.mockResolvedValue({ ok: true, dates: ["2026-09-23", "2026-09-25"] });
       view("2026-09-23", [pausedTrip("2026-09-23"), pausedTrip("2026-09-25")], plan, { agenda: agendaOf([pdot("2026-09-23")], [pdot("2026-09-25")]) });
       fireEvent.click(screen.getAllByRole("button", { name: "Resume all" })[0]!);
       await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
     });
     it("Resume this day releases only the selected date", async () => {
       rel.mockReset();
-      rel.mockResolvedValue({ ok: true });
+      rel.mockResolvedValue({ ok: true, dates: ["2026-09-23"] });
       view("2026-09-23", [pausedTrip("2026-09-23"), pausedTrip("2026-09-25")], plan, { agenda: agendaOf([pdot("2026-09-23")], [pdot("2026-09-25")]) });
       fireEvent.click(screen.getAllByRole("button", { name: "Resume this day" })[0]!);
       await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", ["2026-09-23"]));

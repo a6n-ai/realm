@@ -8,5 +8,6 @@ function who(dates: string[]): string {
   return names.length <= 4 && new Set(names).size === names.length ? list(names) : `${dates.length} days`;
 }
 
-export const pausedLine = (dates: string[]) => `Paused ${who(dates)}.`;
+export const pausedLine = (dates: string[], pastCutoff: string[] = []) =>
+  `Paused ${who(dates)}.${pastCutoff.length ? ` ${who(pastCutoff)} ${pastCutoff.length === 1 ? "was" : "were"} already past cutoff.` : ""}`;
 export const backOnLine = (dates: string[]) => (dates.length === 1 ? `${who(dates)} is back on.` : `${who(dates)} are back on.`);

@@ -138,7 +138,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     expect(await db.select().from(subscriptionPauses).where(eq(subscriptionPauses.orderId, bOrder.id))).toHaveLength(0);
 
     actAs((await ownerOf(bOrder)).publicId);
-    await expect(pauseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.not.toHaveProperty("error");
+    await expect(pauseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toMatchObject({ ok: true, paused: [day.deliveryDate], skipped: [] });
     expect(await statusOf(day.id)).toBe("paused");
   });
 
@@ -156,7 +156,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
 
     actAs((await ownerOf(bOrder)).publicId);
     await expect(loadMyPauseDays(bOrder.publicId)).resolves.toMatchObject({ days: expect.arrayContaining([{ date: day.deliveryDate, paused: true }]) });
-    await expect(releaseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.not.toHaveProperty("error");
+    await expect(releaseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toMatchObject({ ok: true, dates: [day.deliveryDate] });
     expect(await statusOf(day.id)).toBe("scheduled");
   });
 

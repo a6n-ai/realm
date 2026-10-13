@@ -86,23 +86,24 @@ export async function loadMyPauseDays(orderPublicId: string): Promise<ActionResu
   });
 }
 
-export async function pauseMyDays(orderPublicId: string, dates: string[]): Promise<ActionResult> {
+/** `paused` is what the server changed; `skipped` are picked days whose cutoff had already passed. */
+export async function pauseMyDays(orderPublicId: string, dates: string[]): Promise<ActionResult<{ paused: string[]; skipped: string[] }>> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
     await assertOrderUnlocked(orderPublicId);
-    const n = await pauseDays(orderPublicId, dates, await currentUserId());
+    const result = await pauseDays(orderPublicId, dates, await currentUserId());
     await revalidateDeliverySurfaces(orderPublicId);
-    return n === 1 ? "Paused 1 delivery." : `Paused ${n} deliveries.`;
+    return result;
   });
 }
 
-export async function releaseMyDays(orderPublicId: string, dates: string[] | "all"): Promise<ActionResult> {
+export async function releaseMyDays(orderPublicId: string, dates: string[] | "all"): Promise<ActionResult<{ dates: string[] }>> {
   return runAction(async () => {
     await assertCanManageOrder(orderPublicId);
     await assertOrderUnlocked(orderPublicId);
-    const n = await releasePausedDays(orderPublicId, dates, await currentUserId());
+    const resumed = await releasePausedDays(orderPublicId, dates, await currentUserId());
     await revalidateDeliverySurfaces(orderPublicId);
-    return n === 1 ? "That day is back on." : `${n} days are back on.`;
+    return { dates: resumed };
   });
 }
 

@@ -31,7 +31,7 @@ async function orderByPublicId(publicId: string) {
  * Pause specific upcoming delivery days. The audit row is closed immediately so another
  * pause is legal while these days are still paused. The one-open unique index stays.
  */
-export async function pauseDays(orderPublicId: string, dates: string[], actorId: bigint | null): Promise<number> {
+export async function pauseDays(orderPublicId: string, dates: string[], actorId: bigint | null): Promise<{ paused: string[]; skipped: string[] }> {
   const wanted = uniqueDates(dates);
   const order = await orderByPublicId(orderPublicId);
   if (order.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
@@ -40,7 +40,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
   }
 
   let removed: OptimoSyncedRow[] = [];
-  const count = await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
     await lapsePausedRows(tx, order.id);
     const rows = await tx.select().from(deliveries).where(and(
@@ -101,22 +101,24 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     removed = eligible
       .filter((r) => updated.some((u) => u.id === r.id))
       .map((r) => ({ publicId: r.publicId, routeSyncedAt: r.routeSyncedAt }));
-    return updated.length;
+    // Past cutoff by the time the server looked: say so rather than let the caller claim them.
+    const skipped = wanted.filter((d) => byDate.get(d)!.cutoffAt <= now && !pausedDates.includes(d));
+    return { paused: pausedDates, skipped };
   });
   await deleteFromOptimoRouteBestEffort(removed);
   publishAnalyticsLive();
-  return count;
+  return result;
 }
 
 /** Put paused days back on the same dates. "all" is every paused day still before cutoff. */
-export async function releasePausedDays(orderPublicId: string, dates: string[] | "all", actorId: bigint | null): Promise<number> {
+export async function releasePausedDays(orderPublicId: string, dates: string[] | "all", actorId: bigint | null): Promise<string[]> {
   const order = await orderByPublicId(orderPublicId);
   if (order.status !== "active" && order.status !== "paused") {
     throw new ValidationError(`Cannot resume an order that is ${order.status}`);
   }
   const wanted = dates === "all" ? null : uniqueDates(dates);
 
-  const count = await db.transaction(async (tx) => {
+  const resumed = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
     await lapsePausedRows(tx, order.id);
     const now = Date.now();
@@ -148,10 +150,10 @@ export async function releasePausedDays(orderPublicId: string, dates: string[] |
       note: updated.map((r) => r.deliveryDate).sort().join(", "),
       createdBy: actorId,
     });
-    return updated.length;
+    return updated.map((r) => r.deliveryDate).sort();
   });
   publishAnalyticsLive();
-  return count;
+  return resumed;
 }
 
 /**

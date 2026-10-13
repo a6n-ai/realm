@@ -57,14 +57,16 @@ export function PauseSheet({ plan, open, onDone, ui }: Omit<ActionSheetProps, "t
     setError(null);
     const res = await pauseMyDays(plan.orderId, picked);
     if ("error" in res) return setError(res.error);
-    onDone(pausedLine(picked));
+    if (res.paused.length === 0) return setError("Nothing was paused. Those days are past their cutoff.");
+    onDone(pausedLine(res.paused, res.skipped));
   });
 
   const release = (dates: string[] | "all") => start(async () => {
     setError(null);
     const res = await releaseMyDays(plan.orderId, dates);
     if ("error" in res) return setError(res.error);
-    onDone(dates === "all" ? res.message ?? "Your paused days are back on." : backOnLine(dates));
+    if (res.dates.length === 0) return setError("Nothing was resumed.");
+    onDone(backOnLine(res.dates));
   });
 
   return (

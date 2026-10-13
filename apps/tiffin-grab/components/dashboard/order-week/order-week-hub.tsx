@@ -266,7 +266,8 @@ function SelectedDelivery({
   const resume = (dates: string[] | "all") => startResume(async () => {
     const res = await releaseMyDays(plan.orderId, dates);
     if ("error" in res) toast.error(res.error);
-    else onDone(dates === "all" ? res.message ?? "The paused days are back on." : backOnLine(dates));
+    else if (res.dates.length === 0) toast.error("Nothing was resumed.");
+    else onDone(backOnLine(res.dates));
   });
   const addressOk = model.rows.some((r) => r.key === "address" && r.av.ok);
   const carried = trip.date !== row.date;

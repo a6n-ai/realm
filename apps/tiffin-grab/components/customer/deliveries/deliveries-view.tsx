@@ -131,7 +131,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const resume = (dates: string[] | "all") => startRelease(async () => {
     const res = await releaseMyDays(plan.orderId, dates);
     if ("error" in res) setToast(res.error);
-    else done(dates === "all" ? res.message ?? "Your paused days are back on." : backOnLine(dates));
+    else if (res.dates.length === 0) setToast("Nothing was resumed.");
+    else done(backOnLine(res.dates));
   });
 
   const dates = Object.keys(agenda).sort();

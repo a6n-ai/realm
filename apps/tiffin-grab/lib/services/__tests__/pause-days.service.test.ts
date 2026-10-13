@@ -79,7 +79,7 @@ describe("pauseDays / releasePausedDays", () => {
   it("pauses one day and a later day while the first is still paused", async () => {
     const o = await activatedOrder();
     await pauseDays(o.publicId, ["2030-01-07"], null);
-    await expect(pauseDays(o.publicId, ["2030-01-09"], null)).resolves.toBe(1);
+    await expect(pauseDays(o.publicId, ["2030-01-09"], null)).resolves.toEqual({ paused: ["2030-01-09"], skipped: [] });
     const rows = await rowsFor(o.id);
     expect(rows.filter((r) => r.status === "paused").map((r) => r.deliveryDate)).toEqual(["2030-01-07", "2030-01-09"]);
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
@@ -215,7 +215,7 @@ describe("C2: a paused day whose tiffin was moved cannot be resumed", () => {
     expect((await rowOn(o.id, D[2])).tiffinUnits).toBe(2);
 
     await expect(releasePausedDays(o.publicId, [D[1]], null)).rejects.toBeInstanceOf(ValidationError);
-    await expect(releasePausedDays(o.publicId, "all", null)).resolves.toBe(1);
+    await expect(releasePausedDays(o.publicId, "all", null)).resolves.toEqual([D[3]]);
     const rows = await rowsFor(o.id);
     expect(rows.find((r) => r.deliveryDate === D[1])!.status).not.toBe("scheduled");
     expect(rows.find((r) => r.deliveryDate === D[3])!.status).toBe("scheduled");
@@ -319,7 +319,7 @@ describe("decisions pinned: partial move and make-up", () => {
     await rescheduleDelivery((await rowOn(o.id, D[3])).publicId, "2030-01-14", null, D[4]);
     const trip = await rowOn(o.id, D[3]);
     expect([trip.status, trip.tiffinUnits]).toEqual(["paused", 1]);
-    await expect(releasePausedDays(o.publicId, [D[3]], null)).resolves.toBe(1);
+    await expect(releasePausedDays(o.publicId, [D[3]], null)).resolves.toEqual([D[3]]);
     expect((await rowOn(o.id, D[3])).status).toBe("scheduled");
     expect(await units()).toBe(before);
   });
@@ -395,7 +395,7 @@ describe("I6: a day carrying a moved-in tiffin cannot be paused", () => {
     await expect(pauseDays(o.publicId, [D[2]], null)).rejects.toThrow(/moved/i);
     expect((await rowOn(o.id, D[2])).status).toBe("scheduled");
     expect(await listPauseDays(o.id)).not.toContainEqual({ date: D[2], paused: false });
-    await expect(pauseDays(o.publicId, [D[3]], null)).resolves.toBe(1);
+    await expect(pauseDays(o.publicId, [D[3]], null)).resolves.toMatchObject({ paused: [D[3]] });
   });
 });
 
@@ -427,7 +427,7 @@ describe("pause limits are enforced server-side, under the order lock", () => {
   it("maxPauseStretchDays: one action cannot pause more days than the stretch", async () => {
     const o = await limited({ maxPauseStretchDays: 2 });
     await expect(pauseDays(o.publicId, [D[0], D[1], D[2]], null)).rejects.toThrow("pause range too long");
-    await expect(pauseDays(o.publicId, [D[0], D[1]], null)).resolves.toBe(2);
+    await expect(pauseDays(o.publicId, [D[0], D[1]], null)).resolves.toMatchObject({ paused: [D[0], D[1]] });
     expect((await rowOn(o.id, D[2])).status).toBe("scheduled");
   });
 
@@ -436,7 +436,7 @@ describe("pause limits are enforced server-side, under the order lock", () => {
     await pauseDays(o.publicId, [D[0], D[1]], null);
     await releasePausedDays(o.publicId, [D[0]], null);
     expect(await getPauseUsage(o.id)).toMatchObject({ count: 1, daysUsed: 1 });
-    await expect(pauseDays(o.publicId, [D[2]], null)).resolves.toBe(1);
+    await expect(pauseDays(o.publicId, [D[2]], null)).resolves.toMatchObject({ paused: [D[2]] });
     await expect(pauseDays(o.publicId, [D[3]], null)).rejects.toThrow("pause");
   });
 
@@ -447,7 +447,7 @@ describe("pause limits are enforced server-side, under the order lock", () => {
     await lapseElapsedPauses(o.id);
     await releasePausedDays(o.publicId, [D[1]], null);
     expect((await getPauseUsage(o.id)).daysUsed).toBe(1);
-    await expect(pauseDays(o.publicId, [D[2]], null)).resolves.toBe(1);
+    await expect(pauseDays(o.publicId, [D[2]], null)).resolves.toMatchObject({ paused: [D[2]] });
     await expect(pauseDays(o.publicId, [D[3]], null)).rejects.toThrow("pause days limit exceeded");
   });
 
@@ -456,7 +456,7 @@ describe("pause limits are enforced server-side, under the order lock", () => {
     await db.insert(subscriptionPauses).values({ orderId: o.id, fromDate: "2029-11-01", untilDate: "2029-11-03", isIndefinite: false, resumedAt: new Date() });
     expect(await getPauseUsage(o.id)).toMatchObject({ count: 1, daysUsed: 3 });
     await expect(pauseDays(o.publicId, [D[0], D[1]], null)).rejects.toThrow("pause days limit exceeded");
-    await expect(pauseDays(o.publicId, [D[0]], null)).resolves.toBe(1);
+    await expect(pauseDays(o.publicId, [D[0]], null)).resolves.toMatchObject({ paused: [D[0]] });
   });
 });
 
@@ -481,9 +481,16 @@ describe("pauseDays and releasePausedDays rules", () => {
   it("skips past-cutoff days instead of rejecting the whole selection", async () => {
     const o = await activatedOrder();
     await expire(o.id, D[0]);
-    await expect(pauseDays(o.publicId, [D[0], D[1]], null)).resolves.toBe(1);
+    await expect(pauseDays(o.publicId, [D[0], D[1]], null)).resolves.toEqual({ paused: [D[1]], skipped: [D[0]] });
     expect((await rowOn(o.id, D[0])).status).toBe("scheduled");
     expect((await rowOn(o.id, D[1])).status).toBe("paused");
+  });
+
+  it("returns exactly the dates it changed: a release names only the days put back", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0], D[1], D[2]], null);
+    await expire(o.id, D[0]);
+    await expect(releasePausedDays(o.publicId, [D[0], D[1]], null)).resolves.toEqual([D[1]]);
   });
 
   it("takes the stop off OptimoRoute when pausing, and the released day is ready for the next push", async () => {

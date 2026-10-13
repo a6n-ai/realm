@@ -40,13 +40,43 @@ describe("PauseSheet", () => {
   });
 
   it("multi-select, then one confirm pauses exactly those dates and says it in one line", async () => {
-    a.pause.mockResolvedValue({ ok: true, message: "Paused 2 deliveries." });
+    a.pause.mockResolvedValue({ ok: true, paused: [WED, THU], skipped: [] });
     const onDone = await open();
     fireEvent.click(await screen.findByRole("button", { name: /Wed, Sep 23/ }));
     fireEvent.click(screen.getByRole("button", { name: /Thu, Sep 24/ }));
     fireEvent.click(screen.getByRole("button", { name: "Pause 2 deliveries" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Paused Wed and Thu."));
     expect(a.pause).toHaveBeenCalledWith("o", [WED, THU]);
+  });
+
+  it("the line says what the server paused, not what was picked", async () => {
+    a.pause.mockResolvedValue({ ok: true, paused: [THU], skipped: [WED] });
+    const onDone = await open();
+    fireEvent.click(await screen.findByRole("button", { name: /Wed, Sep 23/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Thu, Sep 24/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Pause 2 deliveries" }));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Paused Thu. Wed was already past cutoff."));
+  });
+
+  it("a pause that changed nothing is an error, not a success", async () => {
+    a.pause.mockResolvedValue({ ok: true, paused: [], skipped: [WED] });
+    const onDone = await open();
+    fireEvent.click(await screen.findByRole("button", { name: /Wed, Sep 23/ }));
+    fireEvent.click(confirm());
+    expect(await screen.findByText(/Nothing was paused/)).toBeInTheDocument();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("a resume that changed nothing is an error, and a partial one names only the days put back", async () => {
+    a.load.mockResolvedValue(days([WED, true], [THU, true]));
+    a.release.mockResolvedValueOnce({ ok: true, dates: [] });
+    const onDone = await open();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Resume this day" }))[0]!);
+    expect(await screen.findByText("Nothing was resumed.")).toBeInTheDocument();
+    expect(onDone).not.toHaveBeenCalled();
+    a.release.mockResolvedValueOnce({ ok: true, dates: [THU] });
+    fireEvent.click(screen.getAllByRole("button", { name: "Resume all" })[0]!);
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Thu is back on."));
   });
 
   it("empty selection: confirm does nothing and says to choose a day", async () => {
@@ -94,7 +124,7 @@ describe("PauseSheet", () => {
 
   it("Resume this day releases that date only", async () => {
     a.load.mockResolvedValue(days([WED, true], [THU, false]));
-    a.release.mockResolvedValue({ ok: true, message: "That day is back on." });
+    a.release.mockResolvedValue({ ok: true, dates: [WED] });
     const onDone = await open();
     fireEvent.click(await screen.findByRole("button", { name: "Resume this day" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Wed is back on."));
@@ -104,11 +134,11 @@ describe("PauseSheet", () => {
 
   it("Resume all appears with two or more paused days and releases them all", async () => {
     a.load.mockResolvedValue(days([WED, true], [THU, true], [MON, true]));
-    a.release.mockResolvedValue({ ok: true, message: "3 days are back on." });
+    a.release.mockResolvedValue({ ok: true, dates: [WED, THU, MON] });
     const onDone = await open();
     expect(await screen.findAllByRole("button", { name: "Resume this day" })).toHaveLength(3);
     fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith("3 days are back on."));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("Wed, Thu and Mon are back on."));
     expect(a.release).toHaveBeenCalledWith("o", "all");
   });
 

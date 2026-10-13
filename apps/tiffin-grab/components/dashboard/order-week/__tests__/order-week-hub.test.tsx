@@ -186,14 +186,14 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     });
     it("two paused days ahead add Resume all, which releases them all", async () => {
       rel.mockReset();
-      rel.mockResolvedValue({ ok: true, message: "2 days are back on." });
+      rel.mockResolvedValue({ ok: true, dates: ["2026-09-21", "2026-09-23"] });
       render(<OrderWeekHub data={withPaused(2)} />);
       fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
       await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
     });
     it("Resume this day releases the selected date", async () => {
       rel.mockReset();
-      rel.mockResolvedValue({ ok: true });
+      rel.mockResolvedValue({ ok: true, dates: ["2026-09-21"] });
       render(<OrderWeekHub data={withPaused(1)} />);
       fireEvent.click(screen.getByRole("button", { name: "Resume this day" }));
       await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", ["2026-09-21"]));
