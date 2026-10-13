@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ValidationError } from "@foundry/commons";
+import { formatMoney, ValidationError } from "@foundry/commons";
 import { memoryBus } from "@foundry/realtime/server";
 import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
@@ -14,7 +14,6 @@ import {
   startMigratedOrder,
   changeOrderStartDate,
   changeOrderEatingDays,
-  changeMealSize,
   rejectPayment,
   updatePaymentReference,
   setOrderLookOut,
@@ -25,6 +24,8 @@ import {
   resolveSessionVisibleOrgIds,
 } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
+import { addOrderAddons, quoteOrderAddons, type AddonQuote, type AddonSelection } from "@/lib/services/order-addons.service";
+import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
@@ -79,13 +80,6 @@ export async function cancel(orderId: string) {
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 
-export async function changePlan(orderId: string, mealSizePublicId: string) {
-  await requireStaff();
-  await assertOrderVisible(orderId, await visibleOrgs());
-  await changeMealSize(orderId, mealSizePublicId);
-  revalidatePath(`/dashboard/orders/${orderId}`);
-}
-
 export async function verifyPaymentAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();
@@ -109,6 +103,67 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
     if (order.length > 0) {
       memoryBus.publish(`refresh:${order[0].userPublicId}`, { type: "message", channel: `refresh:${order[0].userPublicId}` });
     }
+  }
+  return res;
+}
+
+function parseAddonSelections(raw: FormDataEntryValue | null): AddonSelection[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(typeof raw === "string" ? raw : "");
+  } catch {
+    throw new ValidationError("Pick at least one add-on");
+  }
+  if (!Array.isArray(parsed)) throw new ValidationError("Pick at least one add-on");
+  return parsed.map((s) => {
+    const { key, qty } = (s ?? {}) as { key?: unknown; qty?: unknown };
+    if (typeof key !== "string" || typeof qty !== "number") throw new ValidationError("Pick at least one add-on");
+    return { key, qty };
+  });
+}
+
+// Display only: the save reprices everything server-side.
+export async function quoteOrderAddonsAction(
+  orderId: string,
+  selections: AddonSelection[],
+  methodId: string,
+): Promise<ActionResult<{ quote: AddonQuote }>> {
+  return runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    return { quote: await quoteOrderAddons(orderId, selections, methodId) };
+  });
+}
+
+// FormData: selections (JSON), method, expected_amount_due (the quote on screen), reference (optional), proof + proof_thumb (images).
+export async function addOrderAddonsAction(orderId: string, form: FormData): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requireStaff();
+    await assertOrderVisible(orderId, await visibleOrgs());
+    const selections = parseAddonSelections(form.get("selections"));
+    const method = form.get("method");
+    const methodId = typeof method === "string" ? method : "";
+    const shown = form.get("expected_amount_due");
+    const expectedAmountDue = typeof shown === "string" && shown.trim() !== "" ? Number(shown) : NaN;
+    if (!Number.isFinite(expectedAmountDue) || expectedAmountDue < 0) throw new ValidationError("Add-on amount missing, reopen the dialog");
+    // Every rule runs before the screenshot is stored, so a refused save leaves no orphan file.
+    const fresh = await quoteOrderAddons(orderId, selections, methodId);
+    if (fresh.amountDue.toFixed(2) !== expectedAmountDue.toFixed(2)) {
+      throw new ValidationError(`The amount changed to ${formatMoney(fresh.amountDue)}. Check with the customer and try again.`);
+    }
+    const actorId = await currentUserId();
+    // The first argument only names the storage folder; the payment row does not exist yet.
+    const proof = await uploadPaymentProof(orderId, form.get("proof"), form.get("proof_thumb"));
+    const ref = form.get("reference");
+    await addOrderAddons(
+      orderId,
+      { selections, methodId, expectedAmountDue, proof, reference: typeof ref === "string" ? ref : null },
+      actorId,
+    );
+  });
+  if ("ok" in res) {
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/payments", "layout");
   }
   return res;
 }

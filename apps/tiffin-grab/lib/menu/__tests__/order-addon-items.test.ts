@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addonPickIndexes, countsWithAddons, orderAddonValues } from "../order-addon-items";
+import { addonPickIndexes, buildSubscriptionAddons, countsWithAddons, orderAddonValues } from "../order-addon-items";
 
 describe("countsWithAddons", () => {
   it("adds one row per add-on qty to its category", () => {
@@ -68,5 +68,27 @@ describe("addonPickIndexes", () => {
 
   it("marks nothing without add-ons", () => {
     expect(addonPickIndexes([meal, daal], []).size).toBe(0);
+  });
+});
+
+describe("buildSubscriptionAddons", () => {
+  const cats = new Map([
+    ["roti", { selectable: false, tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "roti" }],
+    ["sabzi", { selectable: true, tuUnitType: "weight", tuUnitSize: 1, tuUnitLabel: "oz" }],
+  ]);
+
+  it("folds a roti add-on into one total and keeps a sabzi as its own row, grouped by order", () => {
+    const out = buildSubscriptionAddons(
+      [
+        { orderId: 1n, name: "Extra Roti", qty: 2, category: "roti", tuAmount: "1.00" },
+        { orderId: 1n, name: "Extra Sabzi", qty: 1, category: "sabzi", tuAmount: "1.00" },
+        { orderId: 2n, name: "Mystery", qty: 1, category: "unknown", tuAmount: "1.00" },
+      ],
+      cats as never,
+    );
+    const mine = out.get(1n)!;
+    expect(mine.map((a) => [a.category, a.folded, a.qty])).toEqual([["roti", true, 2], ["sabzi", false, 1]]);
+    expect(mine[0]!.portion).toBeTruthy();
+    expect(out.get(2n)).toEqual([{ name: "Mystery", qty: 1, category: "unknown", folded: false, portion: null }]);
   });
 });

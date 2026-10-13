@@ -31,3 +31,25 @@ export function deliveredTiffinCount(rows: DeliveryForCounts[], nowMs: number): 
 export function remainingTiffinCount(tiffinCount: number, rows: DeliveryForCounts[], nowMs: number): number {
   return tiffinCount - deliveredTiffinCount(rows, nowMs);
 }
+
+export type DeliveryForOpenCount = {
+  status: "scheduled" | "paused" | "skipped" | "cancelled";
+  cutoffAt: number;
+  tiffinUnits: number;
+  complimentaryNote: string | null;
+  mergedIntoDeliveryId: bigint | null;
+};
+
+// Paid tiffins the kitchen can still change. A scheduled trip past its cutoff is packed (or
+// about to be), so its units are gone; a paused or skipped trip's tiffins come back on a later
+// day and stay in. Deliberately the cutoff, not the OptimoRoute confirmation deliveredTiffinCount
+// waits for: an unconfirmed trip past cutoff can no longer take an add-on either.
+export function openTiffinCount(tiffinCount: number, rows: DeliveryForOpenCount[], nowMs: number): number {
+  let locked = 0;
+  for (const r of rows) {
+    if (r.status !== "scheduled" || r.cutoffAt > nowMs) continue;
+    if (r.complimentaryNote != null || r.mergedIntoDeliveryId != null) continue;
+    locked += r.tiffinUnits;
+  }
+  return Math.max(0, tiffinCount - locked);
+}
