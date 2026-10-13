@@ -50,6 +50,27 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
       { name: "reason", label: "Reason" },
     ],
   },
+  holiday_declared: {
+    entity: "order",
+    fields: [
+      { name: "code", label: "Order code" },
+      { name: "customerName", label: "Customer name" },
+      { name: "holidayName", label: "Holiday name" },
+      { name: "date", label: "Closed date" },
+      { name: "movedTo", label: "Extra delivery day(s)" },
+      { name: "lastDate", label: "New last delivery date" },
+    ],
+  },
+  holiday_removed: {
+    entity: "order",
+    fields: [
+      { name: "code", label: "Order code" },
+      { name: "customerName", label: "Customer name" },
+      { name: "holidayName", label: "Holiday name" },
+      { name: "date", label: "Date that is open again" },
+      { name: "outcome", label: "What changed for the customer" },
+    ],
+  },
   payment_received: {
     entity: "payment",
     fields: [
