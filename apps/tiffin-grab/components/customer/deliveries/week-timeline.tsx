@@ -11,7 +11,7 @@ const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
-const LEGEND: DeliveryStatus[] = ["delivered", "upcoming", "hold", "vacation"];
+const LEGEND: DeliveryStatus[] = ["delivered", "upcoming", "hold", "vacation", "holiday"];
 
 interface Props {
   firstWeek: string;
@@ -67,7 +67,8 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
             const iso = isos[DAYS.indexOf(d)]!;
             const s = dayStatus[d];
             const trip = byDay.get(d);
-            return `${LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}` : ", nothing planned"}${trip ? `, delivery arrives with ${trip.units} ${trip.units === 1 ? "tiffin" : "tiffins"}` : ""}${deliveryDay?.(iso) ? ", delivery day" : ""}`;
+            const holiday = s === "holiday" ? agenda[iso]?.find((x) => x.holiday)?.holiday : null;
+            return `${LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}${holiday ? `: ${holiday}` : ""}` : ", nothing planned"}${trip ? `, delivery arrives with ${trip.units} ${trip.units === 1 ? "tiffin" : "tiffins"}` : ""}${deliveryDay?.(iso) ? ", delivery day" : ""}`;
           },
         }}
         legend={null}

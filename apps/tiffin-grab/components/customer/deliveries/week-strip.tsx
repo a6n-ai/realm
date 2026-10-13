@@ -49,12 +49,13 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agend
           const s = dayStatus[DAYS[i]!];
           const units = arrives.get(DAYS[i]!);
           const selected = iso === selectedDay;
+          const holiday = s === "holiday" ? agenda[iso]?.find((x) => x.holiday)?.holiday : null;
           return (
             <button
               key={iso}
               type="button"
               aria-pressed={selected}
-              aria-label={`${LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}` : ", nothing planned"}${units ? `, delivery arrives with ${units} ${units === 1 ? "tiffin" : "tiffins"}` : ""}`}
+              aria-label={`${LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}${holiday ? `: ${holiday}` : ""}` : ", nothing planned"}${units ? `, delivery arrives with ${units} ${units === 1 ? "tiffin" : "tiffins"}` : ""}`}
               onClick={() => onPickDay(iso)}
               className={cn(
                 FOCUS,

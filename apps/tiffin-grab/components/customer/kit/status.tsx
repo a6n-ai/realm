@@ -17,7 +17,8 @@ export const STATUS_COLOR: Record<DeliveryStatus, string> = {
   vacation: "var(--s-vac,#d98a00)",
   hold: "var(--s-hold,#f43f5e)",
   combined: "var(--muted-foreground,#6E6558)",
-  holiday: "var(--s-holiday,#7c3aed)",
+  // Slate: not one of the plan colours on the week strip (PLAN_COLORS), and the word "Holiday" carries the meaning anyway.
+  holiday: "var(--s-holiday,#475569)",
 };
 
 /** Shape carries meaning alongside colour: combined is a dashed outline. */

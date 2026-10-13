@@ -157,12 +157,12 @@ describe("deliveryLine on a holiday", () => {
   const closed = (o: Partial<Trip> = {}) => buildEatingDays([trip({ status: "holiday", holidayName: "Diwali", ...o })])[0]!;
   it("names where the tiffin went once the extra day is placed", () => {
     const line = deliveryLine(closed({ movedTo: "2026-09-25" }));
-    expect(line).toBe("Kitchen closed. Moved to Fri, Sep 25");
+    expect(line).toBe("Holiday: Diwali. Moved to Fri, Sep 25");
     expect(line).not.toContain("Arrives");
   });
   it("says the tiffin goes to the end of the plan while the extra day is unplaced", () => {
     const line = deliveryLine(closed({ movedTo: null }));
-    expect(line).toBe("Kitchen closed. Your tiffin will be added to the end of your plan");
+    expect(line).toBe("Holiday: Diwali. This tiffin will be added back to the plan.");
     expect(line).not.toContain("Arrives");
   });
 });

@@ -3,7 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin,
 import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
-import { deliveryLine, isDone, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { dayNote, deliveryLine, isDone, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
 
@@ -180,7 +180,7 @@ const JOURNEY_NOTE: Partial<Record<Trip["status"], string>> = { "cutoff-passed":
 
 /** Dated in/out chips for a day: "In from Thu, Oct 8", "Out to Mon, Oct 12". Customer card and admin hub share them. */
 export function moveChips(row: EatingRow, history = false): { kind: "in" | "out"; text: string }[] {
-  if (row.movedTo) return [{ kind: "out", text: `Out to ${humanDate(row.movedTo)}` }];
+  if (row.movedTo) return row.trip.holidayName ? [] : [{ kind: "out", text: `Out to ${humanDate(row.movedTo)}` }];
   if (isDone(row) && !history) return [];
   return [
     ...(row.movedFrom ?? []).map((d) => ({ kind: "in" as const, text: d ? `In from ${humanDate(d)}` : "In from a held day" })),
@@ -194,11 +194,13 @@ export const cutoffFmt = (ms: number, tz: string) => new Intl.DateTimeFormat("en
 export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, onDetails, onEditAddress, meal, addonTiles, children }: { row: EatingRow; tz: string; reason: string | null; plan?: PlanTagInfo; address?: { text: string; changed: boolean } | null; eyebrow?: string | null; menuOut?: boolean; onDetails?: () => void; onEditAddress?: () => void; meal?: MealCategory[]; addonTiles?: MealCategory[]; children?: React.ReactNode }) {
   const { trip } = row;
   const m = rowMeta(row);
-  const facts = row.movedTo ? []
+  // A holiday day says why in its own note, so "Not delivered" never sits beside it.
+  const facts = row.movedTo || trip.holidayName ? []
     : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
     : isDone(row) ? [reason] : [trip.status === "upcoming" ? null : reason];
   // Short in/out pills ("Thu's in", "to Oct 12") instead of sentences.
   const moves = moveChips(row);
+  const note = dayNote(row);
   const arriving = !row.movedTo && GOES_OUT.has(trip.status) && trip.status !== "failed";
   const [first, ...rest] = dedupeDishes(row.dish);
   const tiffinCount = `${tiffins(trip.units)}${trip.units > 1 ? ` (${tiffinBreakdown(trip)})` : ""}`;
@@ -229,6 +231,11 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
             {eyebrow ?? m.label}
           </p>
         )}
+        {note.length > 0 && (
+          <div className="mt-3 space-y-0.5 break-words text-[14px] text-[var(--muted-foreground,#6E6558)]" data-testid="holiday-note">
+            {note.map((l) => <p key={l}>{l}</p>)}
+          </div>
+        )}
         {moves.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2" data-testid="move-pills">
             {moves.map((f) => {
@@ -248,7 +255,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
         )}
       </div>
 
-      {!row.movedTo && (
+      {!row.movedTo && !trip.holidayName && (
         <div>
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">Your meal</h3>
@@ -281,7 +288,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
         </div>
       )}
 
-      {address && !row.movedTo && GOES_OUT.has(trip.status) && (
+      {address && !row.movedTo && !trip.holidayName && GOES_OUT.has(trip.status) && (
         <div>
           {label("Destination", MUTED)}
           <p className="flex items-center gap-2 text-[15px]" data-testid="delivery-address">
@@ -377,7 +384,7 @@ export function MealTiles({ cats }: { cats: MealCategory[] }) {
 export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
   const t = row.trip;
   const cats = plan ? mealCategories(row, plan) : [];
-  const delivery = row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [
+  const delivery = row.trip.holidayName ? deliveryLine(row) : row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [
     deliveryLine(row),
     `${tiffins(t.units)} covering ${t.coversDates.map(weekdayShort).join(" + ")}`,
     ...moveNotes(row),

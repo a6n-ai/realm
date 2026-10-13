@@ -174,6 +174,7 @@
   --s-locked: #3F3A33;
   --s-locked-fg: #3F3A33;
   --s-locked-bg: #E9E4D6;
+  --s-holiday: #475569;
   --dur-press: 150ms;
   --dur-toggle: 250ms;
   --dur-toast: 250ms;
@@ -251,6 +252,7 @@
   --s-locked: #C9CDBF;
   --s-locked-fg: #C9CDBF;
   --s-locked-bg: #2A382F;
+  --s-holiday: #94A3B8;
   --dur-press: 150ms;
   --dur-toggle: 250ms;
   --dur-toast: 250ms;

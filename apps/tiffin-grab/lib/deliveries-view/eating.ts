@@ -138,9 +138,31 @@ export function moveNotes(r: EatingRow, history = false): string[] {
   return moveFacts(r, history).map((f) => f.text);
 }
 
+const dateList = (dates: string[]): string => {
+  const names = dates.map(humanDate);
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : (names[0] ?? "");
+};
+
+/**
+ * Visible lines for a day a holiday closed: the holiday's name, then where its tiffin went.
+ * Keyed on the name, not the trip status, so a hold tagged after the fact is covered too.
+ * A tagged day still holding its tiffin says the kitchen was closed and what to do with it
+ * (`staff`: place it; the customer moves it). Empty for every other day.
+ */
+export function dayNote(r: EatingRow, staff = false): string[] {
+  const t = r.trip;
+  if (!t.holidayName) return [];
+  const where = t.holidayExtras?.length ? `Added at the end of the plan: ${dateList(t.holidayExtras)}`
+    : r.movedTo ? `Moved to ${humanDate(r.movedTo)}`
+    : t.status === "holiday" ? "This tiffin will be added back to the plan."
+    : `The kitchen was closed that day. ${staff ? "Place" : "Move"} this tiffin ${staff ? "on" : "to"} another day.`;
+  return [`Holiday: ${t.holidayName}`, where];
+}
+
 /** "Arrives Mon, Sep 21" / "Comes with the Fri, Sep 25 delivery" / "Delivered Mon, Sep 21" / "Moved to Wed, Sep 23": which truck feeds this eating day. */
 export function deliveryLine(r: EatingRow): string {
   // A closed day has no truck, so it never "arrives"; the extra day may not be placed yet.
+  if (r.trip.holidayName) return dayNote(r).join(". ");
   if (r.trip.status === "holiday") return r.movedTo ? `Kitchen closed. Moved to ${humanDate(r.movedTo)}` : "Kitchen closed. Your tiffin will be added to the end of your plan";
   if (r.movedTo) return `Moved to ${humanDate(r.movedTo)}`;
   const t = r.trip;
