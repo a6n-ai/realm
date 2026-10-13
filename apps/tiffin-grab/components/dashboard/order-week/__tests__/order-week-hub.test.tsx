@@ -13,8 +13,8 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
-  applyMyDeliverySwap: vi.fn(), pauseMySubscription: vi.fn(), removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
-  resumeMySubscription: vi.fn(), scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
+  applyMyDeliverySwap: vi.fn(), pauseMyDays: vi.fn(), loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), releaseMyDays: vi.fn(), removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
+  scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
   setMyDeliveryAddress: vi.fn(), clearMyDeliveryAddress: vi.fn(),
 }));
 vi.mock("@/app/(dashboard)/dashboard/orders/[id]/actions", () => ({
@@ -141,9 +141,23 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(replace.mock.calls[0]![0]).toContain("tab=deliveries");
   });
 
-  it("gives staff the customer's address action, and no vacation (customer is move-only)", () => {
-    render(<OrderWeekHub data={data} />);
-    expect(screen.getByRole("button", { name: "Change address" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /vacation|resume deliveries/i })).toBeNull();
+  it("pause is the same control; on hold appears only for an admin", () => {
+    const held = {
+      ...mon,
+      status: "failed" as const,
+      units: 1,
+      coversDates: ["2026-09-21"],
+      coversLabel: null,
+      eatingDays: [day("2026-09-21", "Dal")],
+    };
+    const heldData = { ...data, trips: [held] } as unknown as OrderWeek;
+    render(<OrderWeekHub data={heldData} />);
+    expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Release hold|On hold/ })).toBeNull();
+    expect(screen.getByText("This delivery isn't going out.")).toBeInTheDocument();
+    cleanup();
+    render(<OrderWeekHub data={heldData} canEditDeliveryStatus />);
+    expect(screen.getByRole("button", { name: "Release hold to a new day" })).toBeTruthy();
+    expect(screen.getAllByRole("combobox", { name: "Delivery status" }).length).toBeGreaterThan(0);
   });
 });

@@ -37,7 +37,7 @@ const plan = mk("o", { size: "Large", remaining: 16, total: 20 });
 const trips = [
   trip({ date: "2026-09-21", status: "delivered", units: 2, coversLabel: "Covers Mon + Tue", coversDates: ["2026-09-21", "2026-09-22"] }),
   trip({}),
-  trip({ date: "2026-09-25", status: "failed" }),
+  trip({ date: "2026-09-25", status: "failed", optimoCompletionStatus: "failed" }),
 ];
 const cut = NOW + 30 * 3600e3;
 const dot = (orderId: string, deliveryDate: string, covers: string[], units = 1, status: "scheduled" | "skipped" = "scheduled") =>
@@ -116,11 +116,16 @@ describe("DeliveriesView (one plan)", () => {
   });
   it("move only: no Hold or Resume anywhere; a failed drop offers Move as its one action", () => {
     view();
-    expect(screen.queryByRole("button", { name: /Hold|Resume/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Hold|Resume|On hold|Release hold/ })).toBeNull();
     cleanup();
     view("2026-09-25");
-    expect(screen.queryByRole("button", { name: /Hold|Resume|Edit meal/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Hold|Resume|Edit meal|On hold|Release hold/ })).toBeNull();
     expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
+  });
+  it("a staff hold is not a customer control", () => {
+    view("2026-09-26", [trip({ date: "2026-09-26", status: "failed" })]);
+    expect(screen.queryByRole("button", { name: /Hold|On hold|Release hold|Move to another day/ })).toBeNull();
+    expect(screen.getByText("This delivery isn't going out.")).toBeInTheDocument();
   });
   it("delivered eating day: no action rows", () => {
     view("2026-09-21");

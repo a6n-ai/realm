@@ -16,13 +16,10 @@ const { createOrder } = await import("@/lib/services/orders.service");
 const {
   setMyDeliveryAddress,
   clearMyDeliveryAddress,
-  pauseMySubscription,
-  resumeMySubscription,
+  pauseMyDays,
+  releaseMyDays,
   rescheduleMyDelivery,
 } = await import("../actions");
-
-const FROM = "2000-01-01";
-const UNTIL = "2100-12-31";
 
 const PHONE_A = "+16475550401";
 const PHONE_B = "+16475550402";
@@ -123,9 +120,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
       .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, aOrder.id));
 
     actAs(userA.publicId);
-    await expect(
-      pauseMySubscription(bOrder.publicId, { from: FROM, until: UNTIL }),
-    ).resolves.toEqual({ error: expect.any(String) });
+    await expect(pauseMyDays(bOrder.publicId, ["2030-01-07"])).resolves.toEqual({ error: expect.any(String) });
     const [row] = await db.select().from(orders).where(eq(orders.id, bOrder.id));
     expect(row.status).toBe("active");
   });
@@ -137,7 +132,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
       .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, aOrder.id));
 
     actAs(userA.publicId);
-    await expect(resumeMySubscription(bOrder.publicId)).resolves.toEqual({ error: expect.any(String) });
+    await expect(releaseMyDays(bOrder.publicId, "all")).resolves.toEqual({ error: expect.any(String) });
   });
 
   it("surfaces the cutoff gate when moving a past delivery", async () => {

@@ -49,6 +49,7 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
+import { lapseElapsedPauses } from "./pause-days.service";
 import { ledgerService } from "./ledger.service";
 import { assertNoPlanOverlap } from "./order-window";
 import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
@@ -2024,28 +2025,10 @@ export const resumeOrder = (publicId: string, actorId?: bigint, fromDate?: strin
 export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
   ordersService.reassign(publicId, ownerId);
 
-// Flips a fully-paused order back to "active" once its open (non-indefinite) pause window has
-// elapsed. No-op if there's no open pause, the pause is indefinite, or untilDate hasn't passed yet.
-// Called from myActiveSubscriptions before it reports order status to the customer.
+// A paused day past its cutoff becomes a hold. An elapsed open vacation row is closed.
+// Neither path puts those days back on the schedule — resume() used to, which undid the hold.
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
-  const today = zonedDateIso(Date.now(), (await getAppSettings()).timezone);
-  const [open] = await db.select({ untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
-    .from(subscriptionPauses)
-    .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)))
-    .limit(1);
-  if (!open || open.isIndefinite || open.untilDate >= today) return;
-  const [ord] = await db.select({ publicId: orders.publicId, status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
-  if (ord?.status === "paused") {
-    await ordersService.resume(ord.publicId);
-    return;
-  }
-  // Partial pause: the order never fully paused (some deliveries stayed scheduled), so status is
-  // still "active" and resume()'s status guard doesn't apply — close the elapsed open row directly
-  // so getPauseUsage().hasOpenPause releases and a new pause becomes legal again. resumedBy stays
-  // null (system auto-close, not an actor); no order-status change means no activity row.
-  await db.update(subscriptionPauses)
-    .set({ resumedAt: new Date() })
-    .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
+  await lapseElapsedPauses(orderId);
 }
 
 /** The order's strategy picks that still price together: active, one tag, one per connected set. */

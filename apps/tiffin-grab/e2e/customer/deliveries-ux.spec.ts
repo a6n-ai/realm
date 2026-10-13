@@ -58,13 +58,14 @@ test.describe("customer deliveries (trip timeline)", () => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 30_000 });
   });
 
-  test("vacation sheet opens", async ({ page }) => {
+  test("pause sheet opens", async ({ page }) => {
     test.setTimeout(90_000);
     await gotoDeliveries(page);
     test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
     const d = new CustomerDeliveriesPage(page);
-    await d.vacationButton().click();
-    await expect(d.sheet(/pause deliveries|resume deliveries/i)).toBeVisible({ timeout: 10_000 });
+    await d.pauseButton().click();
+    await expect(d.sheet(/pause deliveries/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /on hold|release hold/i })).toHaveCount(0);
   });
 
   test("move, swap and pick sheets open from the trip actions", async ({ page }) => {

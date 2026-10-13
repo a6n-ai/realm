@@ -94,7 +94,7 @@ export function leaveReason(
   moved: boolean,
 ): string {
   if (moved) return "Tiffins moved to another day";
-  if (row.status === "paused") return "Vacation — not revived from a route";
+  if (row.status === "paused") return "Paused — not revived from a route";
   if (row.status === "cancelled") return "Cancelled — not revived from a route";
   if (row.status === "scheduled" && row.optimoCompletionStatus === "success") return "Already confirmed delivered";
   if (row.status === "skipped" && row.optimoCompletionStatus === "failed") return "Already marked not delivered";

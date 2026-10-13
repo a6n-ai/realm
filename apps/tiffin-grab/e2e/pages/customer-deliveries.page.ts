@@ -26,8 +26,8 @@ export class CustomerDeliveriesPage {
     return this.page.getByRole("group", { name: "Filter by plan" }).getByRole("button");
   }
 
-  vacationButton() {
-    return this.page.getByRole("button", { name: /going away|vacation/i }).filter({ visible: true }).first();
+  pauseButton() {
+    return this.page.getByRole("button", { name: "Pause", exact: true }).filter({ visible: true }).first();
   }
 
   action(name: string | RegExp) {

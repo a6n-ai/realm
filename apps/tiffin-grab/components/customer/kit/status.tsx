@@ -5,7 +5,7 @@ export type DeliveryStatus = "delivered" | "upcoming" | "vacation" | "hold" | "c
 export const STATUS_LABEL: Record<DeliveryStatus, string> = {
   delivered: "Delivered",
   upcoming: "Upcoming",
-  vacation: "Vacation",
+  vacation: "Paused",
   hold: "Not delivered",
   combined: "Combined",
 };

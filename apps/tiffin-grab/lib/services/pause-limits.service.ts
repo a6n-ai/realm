@@ -29,11 +29,34 @@ export async function getPauseLimits(orderId: bigint) {
   };
 }
 
+function chargedDays(row: { fromDate: string; untilDate: string; deliveryDates: string[] | null; releasedDates: string[] }): number {
+  if (row.deliveryDates == null) return spanDays(row.fromDate, row.untilDate);
+  const released = new Set(row.releasedDates);
+  return row.deliveryDates.filter((d) => !released.has(d)).length;
+}
+
 export async function getPauseUsage(orderId: bigint) {
-  const rows = await db.select({ fromDate: subscriptionPauses.fromDate, untilDate: subscriptionPauses.untilDate, resumedAt: subscriptionPauses.resumedAt })
-    .from(subscriptionPauses).where(eq(subscriptionPauses.orderId, orderId));
-  const daysUsed = rows.reduce((sum, r) => sum + spanDays(r.fromDate, r.untilDate), 0);
+  const rows = await db.select({
+    fromDate: subscriptionPauses.fromDate,
+    untilDate: subscriptionPauses.untilDate,
+    resumedAt: subscriptionPauses.resumedAt,
+    deliveryDates: subscriptionPauses.deliveryDates,
+    releasedDates: subscriptionPauses.releasedDates,
+  }).from(subscriptionPauses).where(eq(subscriptionPauses.orderId, orderId));
+  const daysUsed = rows.reduce((sum, r) => sum + chargedDays(r), 0);
   return { count: rows.length, daysUsed, hasOpenPause: rows.some((r) => r.resumedAt == null) };
+}
+
+/** Day-set pause. Does not use the one-open-pause guard: those rows are closed audit logs. */
+export async function assertDaysPauseAllowed(orderId: bigint, dates: string[]): Promise<void> {
+  const [limits, usage] = await Promise.all([getPauseLimits(orderId), getPauseUsage(orderId)]);
+  if (limits.maxPauses != null && usage.count >= limits.maxPauses) throw new ValidationError("pause limit reached");
+  if (limits.maxPauseStretchDays != null && dates.length > limits.maxPauseStretchDays) {
+    throw new ValidationError("pause range too long");
+  }
+  if (limits.maxPauseDaysTotal != null && usage.daysUsed + dates.length > limits.maxPauseDaysTotal) {
+    throw new ValidationError("pause days limit exceeded");
+  }
 }
 
 export async function assertPauseAllowed(orderId: bigint, from: string, until: string, isIndefinite: boolean): Promise<void> {

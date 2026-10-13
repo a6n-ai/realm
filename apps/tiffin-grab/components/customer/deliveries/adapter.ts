@@ -35,7 +35,7 @@ export type PlanView = {
 };
 
 type RowLike = Pick<CustomerDelivery, "publicId" | "id" | "deliveryDate" | "cutoffAt" | "dropOff" | "optimoCompletionStatus"> &
-  Partial<Pick<CustomerDelivery, "addressLine" | "postalCode">>;
+  Partial<Pick<CustomerDelivery, "addressLine" | "postalCode" | "routeSyncedAt">>;
 
 export function toCalendarInputs(a: {
   days: CalendarDay[];
@@ -57,6 +57,7 @@ export function toCalendarInputs(a: {
       dropOff: r?.dropOff,
       optimoCompletionStatus: r?.optimoCompletionStatus,
       cutoffAt: r?.cutoffAt,
+      routed: r ? r.routeSyncedAt != null : undefined,
       rescheduled: r ? a.makeupSources.has(r.id.toString()) : false,
       movedTo: r && a.makeupSources instanceof Map ? a.makeupSources.get(r.id.toString()) : undefined,
       mealsByDate,

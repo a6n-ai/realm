@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionModel } from "../action-model";
+import { actionModel, STAFF_HOLD_NOTE } from "../action-model";
 import type { Trip } from "@/lib/deliveries-view";
 
 const ctx = { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true };
@@ -23,10 +23,18 @@ describe("actionModel", () => {
     expect([m.rows, m.bar, m.goTo]).toEqual([[], [], "2026-09-29"]);
   });
   it("failed drop: Move is the only action and the primary", () => {
-    const m = actionModel(trip({ status: "failed" }), Date.now(), ctx);
+    const m = actionModel(trip({ status: "failed", optimoCompletionStatus: "failed" }), Date.now(), ctx);
     expect(m.primary).toBe("move");
     expect(m.rows.map((r) => r.key)).toEqual(["move"]);
     expect(m.bar).toEqual(["move"]);
+  });
+  it("staff hold: no customer action; an admin can release it to a new day", () => {
+    const held = trip({ status: "failed" });
+    const customer = actionModel(held, Date.now(), ctx);
+    expect(customer.rows).toEqual([]);
+    expect(customer.closedReason).toBe(STAFF_HOLD_NOTE);
+    const admin = actionModel(held, Date.now(), ctx, { releaseHold: true });
+    expect(admin.rows.map((r) => r.key)).toEqual(["move"]);
   });
   it("delivered: no rows, reason instead", () => {
     const m = actionModel(trip({ status: "delivered" }), Date.now(), ctx);

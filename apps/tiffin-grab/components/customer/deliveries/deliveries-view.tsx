@@ -14,6 +14,8 @@ import type { ClaimPaymentContext } from "@/lib/services/orders.service";
 import { actionModel } from "./action-model";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
+import { PauseSheet } from "./actions/pause-sheet";
+import { releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
 import { renewDays, type PlanView } from "./adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, mealCategories, splitMealAddons, TripInfoSheet } from "./trip-parts";
@@ -67,6 +69,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // Payment unconfirmed: the plan is view-only, so no sheet opens from any entry point (buttons, ?action= links).
   const active = locked ? null : requested;
   const [info, setInfo] = useState<EatingRow | null>(null);
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [releasing, startRelease] = useTransition();
   const [toast, setToast] = useState<string | null>(null);
   const { ctx, sub, today } = plan;
   const tz = ctx.timezone;
@@ -130,7 +134,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const addressRow = model?.rows.find((r) => r.key === "address");
   const tiles = row ? splitMealAddons(mealCategories(row, plan), sub.addons) : { meal: [], addons: [] };
   const helpHref = trip ? `/me/support/new?orderId=${encodeURIComponent(plan.orderId)}&date=${trip.date}` : undefined;
-  const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo));
+  const hasBar = !locked && !!(trip && model && (model.rows.length > 0 || model.goTo || trip.status === "vacation"));
 
   return (
     <div className={`${FONT} ${hasBar ? "pb-14" : "pb-4"} lg:pb-8`}>
@@ -170,6 +174,11 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       <div className={cn("grid grid-cols-[minmax(0,1fr)] gap-9 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] lg:items-start lg:gap-12", navigating && "opacity-60 transition-opacity")} aria-busy={navigating}>
         {/* Schedule picks the day; everything below it is that day's delivery. */}
         <div className="min-w-0">
+          {!plan.sub.trial && (
+            <div className="mb-3 flex justify-end">
+              <Button className="min-h-11" onClick={() => setPauseOpen(true)}>Pause</Button>
+            </div>
+          )}
           <WeekStrip
             firstWeek={firstWeek}
             lastWeek={lastWeek}
@@ -204,7 +213,14 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
               addonTiles={tiles.addons}
               onEditAddress={addressRow?.av.ok ? () => setActive("address") : undefined}
             >
-              <div className="mt-6 hidden lg:block">
+              <div className="mt-6 hidden space-y-3 lg:block">
+                {trip.status === "vacation" && (
+                  <Button variant="primary" size="lg" className="w-full" pending={releasing} onClick={() => startRelease(async () => {
+                    const res = await releaseMyDays(plan.orderId, [trip.date]);
+                    if ("error" in res) setToast(res.error);
+                    else done(res.message ?? "That day is back on.");
+                  })}>Resume this day</Button>
+                )}
                 <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} helpHref={helpHref} hide={addressRow?.av.ok ? ["address"] : []} />
               </div>
             </EatingCard>
@@ -214,8 +230,15 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         </div>
       </div>
 
-      {trip && model && (model.rows.length > 0 || model.goTo) && (
-        <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
+      {trip && model && (model.rows.length > 0 || model.goTo || trip.status === "vacation") && (
+        <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
+          {trip.status === "vacation" && (
+            <Button variant="primary" size="lg" className="min-w-0 flex-1" pending={releasing} onClick={() => startRelease(async () => {
+              const res = await releaseMyDays(plan.orderId, [trip.date]);
+              if ("error" in res) setToast(res.error);
+              else done(res.message ?? "That day is back on.");
+            })}>Resume</Button>
+          )}
           <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} helpHref={helpHref} hide={addressRow?.av.ok ? ["address"] : []} />
         </div>
       )}
@@ -223,6 +246,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       )}
 
       {active && trip && <ActionSheet action={active} trip={trip} day={row?.date} plan={plan} agenda={agenda} open onDone={done} onChanged={changed} />}
+      {pauseOpen && <PauseSheet plan={plan} open onDone={(message) => { setPauseOpen(false); if (message) changed(message); }} />}
       {info && <TripInfoSheet row={info} tz={tz} plan={plan} open onClose={() => setInfo(null)} />}
       <Toast open={toast !== null} onClose={closeToast}>{toast}</Toast>
     </div>

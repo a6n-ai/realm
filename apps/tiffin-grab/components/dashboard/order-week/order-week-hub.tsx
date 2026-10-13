@@ -26,6 +26,7 @@ import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
 import { actionModel } from "@/components/customer/deliveries/action-model";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
+import { PauseSheet } from "@/components/customer/deliveries/actions/pause-sheet";
 import { WeekTimeline } from "@/components/customer/deliveries/week-timeline";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
@@ -39,6 +40,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
   const [nav, startNav] = useTransition();
   const [sel, setSel] = useState<string | null>(null);
   const [dlg, setDlg] = useState<Dlg>(null);
+  const [pauseOpen, setPauseOpen] = useState(false);
   const [wk, setWk] = useState(weekStart);
   if (wk !== weekStart) {
     setWk(weekStart);
@@ -78,6 +80,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
     <div className={cn("space-y-4", nav && "opacity-60 transition-opacity")}>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <OrderStatusBadge status={plan.sub.displayStatus} />
+        {!plan.sub.trial && <Button type="button" variant="outline" onClick={() => setPauseOpen(true)}>Pause</Button>}
         <span className="font-medium">{plan.sub.mealSizeName}</span>
         <span className="text-muted-foreground tabular-nums">
           {plan.counts.remaining} of {plan.counts.total} tiffins left
@@ -177,6 +180,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
       </Card>
 
       {dlg === "info" && row && <InfoDialog row={row} plan={plan} onClose={() => setDlg(null)} />}
+      {pauseOpen && <PauseSheet plan={plan} open ui={ADMIN_SHEET_UI} onDone={(message) => { setPauseOpen(false); done(message); }} />}
       {/* The customer's own sheets, drawn in shadcn: one implementation of every rule. */}
       {dlg === "reschedule" && trip && <MoveSheet open trip={trip} plan={plan} agenda={agenda} day={row?.date} onDone={done} ui={ADMIN_SHEET_UI} />}
       {dlg === "address" && trip && <AddressSheet open trip={trip} plan={plan} onDone={done} ui={ADMIN_SHEET_UI} />}
@@ -251,6 +255,8 @@ function SelectedDelivery({
     isDeliveryDay: isAddressRow(rows, row),
     movedTo: row.movedTo,
     trial: plan.sub.trial,
+    // On hold is the admin correction after cutoff. The same Pause drawer is for everyone.
+    releaseHold: editChoice === "on_hold",
   });
   const addressOk = model.rows.some((r) => r.key === "address" && r.av.ok);
   const carried = trip.date !== row.date;
@@ -321,8 +327,8 @@ function agendaLabel(dot: string, moved: boolean): string {
   if (moved) return "Moved";
   switch (dot) {
     case "delivered": return "Delivered";
-    case "hold": return "On hold";
-    case "vacation": return "Vacation";
+    case "hold": return "Not delivered";
+    case "vacation": return "Paused";
     case "upcoming": return "Upcoming";
     default: return "Upcoming";
   }

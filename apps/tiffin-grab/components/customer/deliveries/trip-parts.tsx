@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin,
 import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, type Trip } from "@/lib/deliveries-view";
+import { STAFF_HOLD_NOTE } from "./action-model";
 import { deliveryLine, isDone, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import type { PlanView } from "./adapter";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
@@ -20,7 +21,7 @@ export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryS
     case "cutoff-passed": return { label: "Being prepared", tone: "ok", dot: "delivered" };
     case "rescheduled": return { label: "Moved", tone: "hold", dot: "hold" };
     case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
-    case "vacation": return { label: "Vacation", tone: "vac", dot: "vacation" };
+    case "vacation": return { label: "Paused", tone: "vac", dot: "vacation" };
     case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
     case "failed": return { label: "Not delivered", tone: "hold", dot: "hold" };
   }
@@ -190,7 +191,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
   const { trip } = row;
   const m = rowMeta(row);
   const facts = row.movedTo ? []
-    : trip.status === "failed" ? [`Not delivered. Move it to another day.`]
+    : trip.status === "failed" ? [reason === STAFF_HOLD_NOTE ? reason : "Not delivered. Move it to another day."]
     : isDone(row) ? [reason] : [trip.status === "upcoming" ? null : reason];
   // Short in/out pills ("Thu's in", "to Oct 12") instead of sentences.
   const moves = moveChips(row);
