@@ -48,6 +48,20 @@ export class CustomerDeliveriesPage {
     return sheet;
   }
 
+  /** The drawer says every pause (or pause day) is used; a pause cannot start. */
+  limitReachedIn(sheet: Locator) {
+    return sheet.getByText(/You've used all your pause/).isVisible();
+  }
+
+  /** Opens the drawer, reads the limit notice, closes it again. */
+  async pauseLimitReached() {
+    const sheet = await this.openPause();
+    const reached = await this.limitReachedIn(sheet);
+    await this.page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+    return reached;
+  }
+
   upcomingRows(sheet: Locator) {
     return sheet.getByRole("region", { name: "Upcoming deliveries" }).getByRole("button");
   }

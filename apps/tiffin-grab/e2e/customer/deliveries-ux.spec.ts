@@ -1,3 +1,13 @@
+// What the pause flows below cannot undo through the UI (no database cleanup is done on purpose):
+//  - every pause action stays in the pause log, so it keeps counting against the plan's maxPauses
+//    even after Resume (Resume only refunds the days). On a plan with a pause limit these tests
+//    skip once the limit is used up instead of failing.
+//  - "paused" and "resumed" activities stay on the order's activity log.
+//  - a pause deletes the day's OptimoRoute stop; Resume does not re-create it unless that date was
+//    already pushed (then the server pushes the one stop back).
+//  Each test resumes whatever it paused in a finally block, so the plan's days end up as found.
+// The server-side cutoff filter of the pause drawer is covered by the listPauseDays service test,
+// not here: the page cannot show a day it was never offered.
 import { test, expect } from "../fixtures";
 import { CustomerDeliveriesPage } from "../pages/customer-deliveries.page";
 
@@ -76,6 +86,8 @@ test.describe("customer deliveries (trip timeline)", () => {
       await gotoDeliveries(page);
       test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
       const d = new CustomerDeliveriesPage(page);
+      let failure: unknown;
+      test.skip(await d.pauseLimitReached(), "Pause limit used up on the seed plan (pauses stay in the log)");
       try {
         await d.pauseFirst(1);
         await expect(page.getByText(/^Paused \w{3}\.$/)).toBeVisible({ timeout: 15_000 });
@@ -86,8 +98,11 @@ test.describe("customer deliveries (trip timeline)", () => {
         await d.action("Resume this day").click();
         await expect(page.getByText(/\w{3} is back on\./)).toBeVisible({ timeout: 15_000 });
         await expect(d.pausedDays()).toHaveCount(0, { timeout: 15_000 });
+      } catch (err) {
+        failure = err;
+        throw err;
       } finally {
-        await d.resumeEverything();
+        await d.resumeEverything().catch((err) => { if (!failure) throw err; });
       }
     });
 
@@ -96,8 +111,10 @@ test.describe("customer deliveries (trip timeline)", () => {
       await gotoDeliveries(page);
       test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
       const d = new CustomerDeliveriesPage(page);
+      let failure: unknown;
       try {
         const sheet0 = await d.openPause();
+        test.skip(await d.limitReachedIn(sheet0), "Pause limit used up on the seed plan (pauses stay in the log)");
         test.skip((await d.upcomingRows(sheet0).count()) < 3, "Fewer than three pausable days");
         await page.keyboard.press("Escape");
         await expect(sheet0).toBeHidden();
@@ -118,29 +135,12 @@ test.describe("customer deliveries (trip timeline)", () => {
         await expect(sheet).toBeHidden({ timeout: 20_000 });
         await expect(d.pausedDays()).toHaveCount(0, { timeout: 15_000 });
         await expect(page.getByTestId("plan-summary")).toContainText("Active");
+      } catch (err) {
+        failure = err;
+        throw err;
       } finally {
-        await d.resumeEverything();
+        await d.resumeEverything().catch((err) => { if (!failure) throw err; });
       }
-    });
-
-    test("a day inside the cutoff is not offered for pausing", async ({ page }) => {
-      test.setTimeout(90_000);
-      await gotoDeliveries(page);
-      test.skip((await hasPlan(page)) === 0, "Seed customer has no active subscription");
-      const d = new CustomerDeliveriesPage(page);
-      const sheet = await d.openPause();
-      const offered = await d.upcomingRows(sheet).evaluateAll((els) => els.map((e) => e.querySelector("span")?.textContent ?? ""));
-      test.skip(offered.length === 0, "Nothing pausable to compare against");
-      const at = (mon: string, day: string) => Date.parse(`${mon} ${day} ${new Date().getUTCFullYear()} UTC`);
-      const [, firstMon, firstDay] = /^\w{3}, (\w{3}) (\d+)/.exec(offered[0]!)!;
-      const eating = await d.tripRows().evaluateAll((els) => els.map((e) => e.getAttribute("aria-label") ?? ""));
-      // The strip's days dated before the first offered one are already inside their cutoff.
-      const inside = eating.flatMap((l) => {
-        const m = /^(\w{3})\w*, (\w{3})\w* (\d+)/.exec(l);
-        return m && at(m[2]!, m[3]!) < at(firstMon!, firstDay!) ? [`${m[1]}, ${m[2]} ${m[3]}`] : [];
-      });
-      test.skip(inside.length === 0, "No delivery day this week is already inside its cutoff");
-      for (const label of inside) await expect(d.upcomingRows(sheet).filter({ hasText: label })).toHaveCount(0);
     });
 
     test("a trial plan has no Pause", async ({ page }) => {

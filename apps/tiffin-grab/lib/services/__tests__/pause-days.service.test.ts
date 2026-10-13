@@ -704,3 +704,16 @@ describe("I3: a resumed day gets its stop back only when its date was already pu
     expect((await rowOn(o.id, D[1])).status).toBe("scheduled");
   });
 });
+
+describe("listPauseDays", () => {
+  beforeEach(reset);
+
+  it("offers only days before their cutoff, so a day inside the cutoff can never be picked", async () => {
+    const o = await activatedOrder();
+    await expire(o.id, D[0]);
+    await pauseDays(o.publicId, [D[1]], null);
+    expect(await listPauseDays(o.id)).toEqual([
+      { date: D[1], paused: true }, { date: D[2], paused: false }, { date: D[3], paused: false }, { date: D[4], paused: false },
+    ]);
+  });
+});
