@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
 import { releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate, type Availability, type PlanContext, type Trip, type TripAction } from "@/lib/deliveries-view";
-import { deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { addDays, dotStatus, mondayOf, pausedAhead } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { cutoffFmt, dedupeDishes, Journey, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
@@ -286,6 +286,7 @@ function SelectedDelivery({
     trip.status === "upcoming" && trip.cutoffAt ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : null,
   ].filter(Boolean).join(" · ");
   const chips = moveChips(row, true);
+  const note = dayNote(row, true);
   const [first, ...rest] = dedupeDishes(row.dish);
   const addr = deliveryAddress(trip.addressOverride, plan.sub);
   const { meal: meals, addons: addonTiles } = splitMealAddons(mealCategories(row, plan), plan.sub.addons);
@@ -305,12 +306,17 @@ function SelectedDelivery({
       </CardHeader>
       <CardContent className="space-y-6">
         {!row.movedTo && <div className="max-w-xl"><Journey status={trip.status} pushed={trip.routePushed} /></div>}
+        {note.length > 0 ? (
+          <div className="text-muted-foreground space-y-0.5 break-words text-sm" data-testid="holiday-note">
+            {note.map((l) => <p key={l}>{l}</p>)}
+          </div>
+        ) : null}
         {chips.length > 0 ? (
           <div className="flex flex-wrap gap-2" data-testid="delivery-pills">
             {chips.map((f) => <MoveBadge key={f.text} fact={f} />)}
           </div>
         ) : null}
-        {!row.movedTo && (
+        {!row.movedTo && !trip.holidayName && (
           <div className="grid gap-6 border-t pt-5 sm:grid-cols-2">
             <section>
               <div className="mb-2 flex items-center justify-between gap-2">

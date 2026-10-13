@@ -248,4 +248,16 @@ describe("OrderWeekHub on a holiday", () => {
     expect(row).not.toHaveTextContent("Upcoming");
     expect(row).not.toHaveTextContent(/With .* delivery|Arrives/);
   });
+
+  it("the selected closed day shows the holiday note for staff, and a held one says to place it", () => {
+    const heldDot = { orderId: "o", status: "skipped", cutoffAt: NOW - 1000, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"], holiday: "Thanksgiving" };
+    const held: Trip = { ...mon, status: "failed", coversDates: ["2026-09-21"], eatingDays: [mon.eatingDays[0]!], holidayName: "Thanksgiving", cutoffAt: NOW - 1000 };
+    render(<OrderWeekHub data={{ ...data, trips: [held], agenda: { "2026-09-21": [heldDot] } } as unknown as OrderWeek} />);
+    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Monday, September 21/ }));
+    const block = screen.getByTestId("delivery-block");
+    expect(within(block).getByTestId("holiday-note")).toHaveTextContent("Holiday: Thanksgiving");
+    expect(within(block).getByTestId("holiday-note")).toHaveTextContent("The kitchen was closed that day. Place this tiffin on another day.");
+    expect(block).toHaveTextContent("Holiday");
+    expect(block).not.toHaveTextContent("Not delivered");
+  });
 });

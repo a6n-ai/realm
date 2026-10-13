@@ -25,7 +25,7 @@ const LABEL: Record<BoxStatus, string> = {
   combined: "Moved",
   holiday: "Holiday",
 };
-const LEGEND: BoxStatus[] = ["delivered", "awaiting", "upcoming", "hold", "not-delivered", "vacation", "combined"];
+const LEGEND: BoxStatus[] = ["delivered", "awaiting", "upcoming", "hold", "not-delivered", "vacation", "holiday", "combined"];
 
 function boxStatus(d: AgendaDot, now: number): BoxStatus {
   const s = dotStatus(d, now);
