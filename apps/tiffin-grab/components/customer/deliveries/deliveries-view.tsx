@@ -97,7 +97,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   // The menu of this week isn't out: pick/swap are disabled, everything else (dates, move, info) still shows.
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
-  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo, trial: plan.sub.trial === true, pausedAhead: pausedAhead(agenda, now) }) : null;
+  const ahead = pausedAhead(agenda, now);
+  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo, trial: plan.sub.trial === true, pausedAhead: ahead }) : null;
 
   const qs = (over: Record<string, string | null>) => {
     const p = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
@@ -189,7 +190,9 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         {/* Schedule picks the day; everything below it is that day's delivery. */}
         <div className="min-w-0">
           {!plan.sub.trial && (
-            <div className="mb-3 flex justify-end">
+            <div className="mb-3 flex justify-end gap-2">
+              {/* Plan-wide, so it sits with Pause and not on one day's actions. */}
+              {!locked && ahead > 1 && <Button className="min-h-11 whitespace-nowrap" pending={releasing} onClick={() => resume("all")}>{RESUME_ALL_LABEL}</Button>}
               <Button className="min-h-11" onClick={() => setPauseOpen(true)}>Pause</Button>
             </div>
           )}
@@ -228,12 +231,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
               onEditAddress={addressRow?.av.ok ? () => setActive("address") : undefined}
             >
               <div className="mt-6 hidden space-y-3 lg:block">
-                {model.resume.day && (
-                  <div className="space-y-2">
-                    <Button variant="primary" size="lg" className="w-full" pending={releasing} onClick={() => resume([trip.date])}>{RESUME_DAY_LABEL}</Button>
-                    {model.resume.all && <Button size="lg" className="w-full" pending={releasing} onClick={() => resume("all")}>{RESUME_ALL_LABEL}</Button>}
-                  </div>
-                )}
+                {model.resume.day && <Button variant="primary" size="lg" className="w-full" pending={releasing} onClick={() => resume([trip.date])}>{RESUME_DAY_LABEL}</Button>}
                 <TripActions model={model} layout="card" onAction={setActive} onGoTo={goTo} helpHref={helpHref} hide={addressRow?.av.ok ? ["address"] : []} />
               </div>
             </EatingCard>
@@ -247,9 +245,6 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
         <div className={`${FONT} fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_92%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden`}>
           {model.resume.day && (
             <Button variant="primary" size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" aria-label={RESUME_DAY_LABEL} pending={releasing} onClick={() => resume([trip.date])}>Resume</Button>
-          )}
-          {model.resume.all && (
-            <Button size="lg" className="min-w-0 flex-1 whitespace-nowrap px-2" pending={releasing} onClick={() => resume("all")}>{RESUME_ALL_LABEL}</Button>
           )}
           <TripActions model={model} layout="bar" onAction={setActive} onGoTo={goTo} helpHref={helpHref} hide={addressRow?.av.ok ? ["address"] : []} />
         </div>

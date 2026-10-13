@@ -145,7 +145,9 @@ describe("DeliveriesView (one plan)", () => {
       rel.mockReset();
       rel.mockResolvedValue({ ok: true, dates: ["2026-09-23", "2026-09-25"] });
       view("2026-09-23", [pausedTrip("2026-09-23"), pausedTrip("2026-09-25")], plan, { agenda: agendaOf([pdot("2026-09-23")], [pdot("2026-09-25")]) });
-      fireEvent.click(screen.getAllByRole("button", { name: "Resume all" })[0]!);
+      // One Resume all, beside Pause; the day's card and bottom bar keep only this day's Resume.
+      expect(screen.getAllByRole("button", { name: "Resume all" })).toHaveLength(1);
+      fireEvent.click(screen.getByRole("button", { name: "Resume all" }));
       await vi.waitFor(() => expect(rel).toHaveBeenCalledWith("o", "all"));
     });
     it("Resume this day releases only the selected date", async () => {
