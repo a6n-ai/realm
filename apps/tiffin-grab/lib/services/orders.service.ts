@@ -1770,7 +1770,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   }
 
   // Admin: move a plan's start before it starts. Its untouched deliveries are rebuilt
-  // from the new date exactly as createOrder built them (materializeDeliveries).
+  // from the new date. An eating-days plan lays out its paid tiffin count rather than
+  // whole weeks: changeEatingDays stretches durationWeeks to the plan's calendar span,
+  // so weeks x days no longer equals what was bought.
   async changeStartDate(publicId: string, startDate: string): Promise<void> {
     const actorId = await this.currentUserId();
     const { timezone, cutoffHour } = await getAppSettings();
@@ -1802,12 +1804,39 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const [had] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
       if (had) {
         await tx.delete(deliveries).where(eq(deliveries.orderId, order.id));
-        await materializeDeliveries(tx, moved!);
+        const bounded = order.trialLength == null && !!order.eatingDays?.length;
+        if (bounded) {
+          const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
+            .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+          if (!freq) throw new ValidationError("Delivery frequency not found");
+          const trips = planWeek(
+            orderDeliveryDays({ frequencyKey: freq.key, weekdays: freq.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false }),
+            order.eatingDays as DayOfWeek[],
+          );
+          if (!trips) throw new ValidationError("An eating day falls before the first delivery day of this frequency");
+          const rows = buildBoundedDeliveryRows({ startDate, trips, persons: order.persons, targetTiffinCount: order.tiffinCount });
+          if (!rows.length) throw new ValidationError("This plan has no tiffins left to schedule");
+          await tx.insert(deliveries).values(rows.map((r) => ({
+            ...r,
+            orderId: order.id,
+            status: "scheduled" as const,
+            cutoffAt: cutoffMsFor(r.deliveryDate, cutoffHour, timezone),
+            organizationId: order.organizationId,
+          })));
+        } else {
+          await materializeDeliveries(tx, moved!);
+        }
         await applyHolidaysToOrder(tx, moved!, actorId);
-        const [first] = await tx.select({ deliveryDate: deliveries.deliveryDate, cutoffAt: deliveries.cutoffAt }).from(deliveries)
-          .where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate)).limit(1);
+        const placed = await tx.select({ deliveryDate: deliveries.deliveryDate, cutoffAt: deliveries.cutoffAt }).from(deliveries)
+          .where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
+        const first = placed[0];
         if (first && first.cutoffAt <= Date.now()) {
           throw new ValidationError(`The cutoff for ${first.deliveryDate} has passed. Pick a later start date`);
+        }
+        if (bounded && placed.length) {
+          // The overlap guard reads durationWeeks: keep it at the span these rows occupy.
+          const spanDays = Math.round((parseIsoDateUtc(placed.at(-1)!.deliveryDate).getTime() - parseIsoDateUtc(startDate).getTime()) / 86_400_000) + 1;
+          await tx.update(orders).set({ durationWeeks: Math.max(1, Math.ceil(spanDays / 7)) }).where(eq(orders.id, order.id));
         }
       }
       await tx.insert(orderActivities).values({

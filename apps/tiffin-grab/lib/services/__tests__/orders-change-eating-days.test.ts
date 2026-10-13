@@ -10,7 +10,7 @@ vi.mock("../weekend-dish", () => ({ mealSizeServesWeekends: async () => weekend.
 
 const { db } = await import("@/db/client");
 const { deliveries, orderActivities, orders } = await import("@/db/schema");
-const { changeOrderEatingDays } = await import("../orders.service");
+const { changeOrderEatingDays, changeOrderStartDate } = await import("../orders.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
 
 const DEPLOYMENT = "test-eating-days";
@@ -30,6 +30,21 @@ beforeEach(async () => {
 afterAll(() => resetTrips(DEPLOYMENT, PREFIX));
 
 describe("changeEatingDays", () => {
+  it("the start date can still move after the eating days changed", async () => {
+    const { order } = await make();
+    // 10 tiffins on 3 days a week run 4 weeks: whole weeks x days (12) is no longer what was bought.
+    await changeOrderEatingDays(order.publicId, ["mon", "wed", "fri"]);
+
+    await changeOrderStartDate(order.publicId, "2030-01-14");
+
+    const rows = await scheduled(order.id);
+    expect(units(rows)).toBe(10);
+    expect(rows[0].deliveryDate).toBe("2030-01-14");
+    expect(rows.at(-1)!.deliveryDate).toBe("2030-02-04");
+    const [after] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect([after.startDate, after.tiffinCount, after.durationWeeks]).toEqual(["2030-01-14", 10, 4]);
+  });
+
   it("adding Saturday puts it on Friday's delivery and ends the plan sooner", async () => {
     const { order } = await make();
     await changeOrderEatingDays(order.publicId, [...MON_FRI, "sat"]);
