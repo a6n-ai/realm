@@ -38,6 +38,7 @@ export type CalendarDayInput = {
   /** This delivery's own drop-off when re-addressed; absent / no tag = it follows the plan. */
   dropOff?: DropOffValue;
   optimoCompletionStatus?: string | null;
+  routePushed?: boolean;
   mealsByDate?: Record<string, MealLike | null | undefined>;
   appliedSwaps?: Record<string, { label: string }[]>;
   /** Staff's reason when this is a free tiffin; null for a paid one. */
@@ -91,6 +92,8 @@ export type Trip = {
   dropOff?: DropOffValue;
   /** Status reported by OptimoRoute for this delivery: "success", "failed", etc. */
   optimoCompletionStatus?: string | null;
+  /** The stop reached OptimoRoute; "On the way" is shown only then. */
+  routePushed?: boolean;
   /** Staff's reason when this is a free tiffin; null for a paid one. */
   complimentaryNote?: string | null;
   lapsedPause?: boolean;
@@ -137,6 +140,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
         addressOverride: d.addressOverride ?? null,
         dropOff: d.dropOff,
         optimoCompletionStatus: d.optimoCompletionStatus ?? null,
+        routePushed: !!d.routePushed,
         units: d.units ?? 1,
         coversDates: covers,
         extraDates: d.extras ?? [],

@@ -302,7 +302,7 @@ function SelectedDelivery({
         )}
       </CardHeader>
       <CardContent className="space-y-6">
-        {!row.movedTo && <div className="max-w-xl"><Journey status={trip.status} /></div>}
+        {!row.movedTo && <div className="max-w-xl"><Journey status={trip.status} pushed={trip.routePushed} /></div>}
         {chips.length > 0 ? (
           <div className="flex flex-wrap gap-2" data-testid="delivery-pills">
             {chips.map((f) => <MoveBadge key={f.text} fact={f} />)}

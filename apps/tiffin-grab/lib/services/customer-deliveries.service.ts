@@ -88,6 +88,8 @@ export type CustomerDelivery = Delivery & {
   dropOff?: DropOffValue;
   /** A held day that was paused and never put back: it has no route stop, so Move is open at once. */
   lapsedPause?: boolean;
+  /** A route_pushed activity exists: the stop reached OptimoRoute. */
+  routePushed?: boolean;
 };
 /** One add-on on a plan: shown under "Add-ons", never part of the meal or its swaps. */
 export type SubscriptionAddon = {
@@ -381,7 +383,12 @@ export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
 // affected row cancelled directly, so no separate orders.status check is needed.
 export async function myDeliveries(userId: bigint, from: string, until: string): Promise<CustomerDelivery[]> {
   const rows = await db
-    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name })
+    .select({
+      d: deliveries,
+      orderPublicId: orders.publicId,
+      planName: plans.name,
+      routePushed: sql<boolean>`exists (select 1 from ${orderActivities} where ${orderActivities.deliveryId} = ${deliveries.id} and ${orderActivities.type} = 'route_pushed')`,
+    })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
@@ -405,6 +412,7 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
     // The delivery's own drop-off; only meaningful when re-addressed (then no tag = none).
     dropOff: dropOffs[i],
     lapsedPause: isLapsedPause(r.d, lapsed.get(r.d.orderId)),
+    routePushed: r.routePushed,
   }));
 }
 
