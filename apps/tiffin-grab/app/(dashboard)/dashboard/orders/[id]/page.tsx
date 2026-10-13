@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { ActivityIcon, PackageIcon, ReceiptIcon, TruckIcon, WalletIcon } from "lucide-react";
 import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
-import { findMethod } from "@foundry/payments";
+import { enabledMethods, findMethod } from "@foundry/payments";
+import { mealSizeAddons } from "@/lib/catalog/types";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
@@ -33,6 +34,7 @@ import { PaymentsPanel } from "./payments-panel";
 import { OrderOverview } from "./order-summary-panel";
 import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
+import { AddAddonsControl } from "./add-addons-control";
 import { StartDateControl } from "./start-date-control";
 import { EatingDaysControl } from "./eating-days-control";
 import { ComplimentaryControl } from "./complimentary-control";
@@ -166,6 +168,17 @@ async function OrderDetail({
   // A WordPress-imported plan waiting to be started: where WordPress left off, and when the
   // balance runs out if it starts on its next due date.
   const migratedPending = order.status === "pending" && order.deploymentId.startsWith("wc-");
+  const addonOptions = mealSizeAddons(catalogSnapshot).map((a) => ({
+    key: a.key,
+    name: a.name,
+    pricePerTiffin: a.pricePerTiffin,
+    maxQty: a.maxQty,
+    existingQty: order.addons.filter((x) => x.key === a.key).reduce((s, x) => s + x.qty, 0),
+  }));
+  const addonMethods = enabledMethods(paymentCfg)
+    .filter((m) => m.id !== "simulated")
+    .map((m) => ({ id: m.id, label: m.label, requireProof: m.requireProof === true }));
+  const canAddAddons = order.trialLength == null && (order.status === "active" || order.status === "paused");
   const frequencyKey = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId)?.key ?? null;
   const migration = migratedPending && frequencyKey
     ? {
@@ -247,6 +260,15 @@ async function OrderDetail({
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} migration={migration} />
+      {canAddAddons && (
+        <AddAddonsControl
+          orderId={order.publicId}
+          options={addonOptions}
+          methods={addonMethods}
+          defaultMethodId={checkoutMethodId ?? null}
+          currency={settings.currency}
+        />
+      )}
       {canGiveFree && (
         <ComplimentaryControl
           orderId={order.publicId}
