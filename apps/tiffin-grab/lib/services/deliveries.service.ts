@@ -468,16 +468,20 @@ export type OptimoSyncedRow = { publicId: string; routeSyncedAt: number | null }
  * Best-effort OptimoRoute cleanup for a row that just left the schedule. Never throws: a stop
  * OptimoRoute already dropped, or an API hiccup, must not block the DB change that already
  * committed — this only stops printing a label for a delivery nobody is making anymore.
+ * Returns the publicIds actually deleted.
  */
-export async function deleteFromOptimoRouteBestEffort(rows: OptimoSyncedRow[]): Promise<void> {
+export async function deleteFromOptimoRouteBestEffort(rows: OptimoSyncedRow[]): Promise<string[]> {
+  const deleted: string[] = [];
   for (const row of rows) {
     if (row.routeSyncedAt == null) continue;
     try {
       await deleteOrder(row.publicId);
+      deleted.push(row.publicId);
     } catch (e) {
       log.error({ err: e, publicId: row.publicId }, "optimoroute delete-on-cancel failed");
     }
   }
+  return deleted;
 }
 
 /**

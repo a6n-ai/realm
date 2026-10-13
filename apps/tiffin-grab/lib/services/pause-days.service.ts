@@ -67,13 +67,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     }
     await assertDaysPauseAllowed(order.id, eligible.map((r) => r.deliveryDate), tx);
 
-    const updated = await tx.update(deliveries).set({
-      status: "paused",
-      routeSyncedAt: null,
-      routeDriverSerial: null,
-      routeDriverName: null,
-      routeStopNumber: null,
-    }).where(and(
+    const updated = await tx.update(deliveries).set({ status: "paused" }).where(and(
       inArray(deliveries.id, eligible.map((r) => r.id)),
       eq(deliveries.status, "scheduled"),
       gt(deliveries.cutoffAt, now),
@@ -105,7 +99,12 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     const skipped = wanted.filter((d) => byDate.get(d)!.cutoffAt <= now && !pausedDates.includes(d));
     return { paused: pausedDates, skipped };
   });
-  await deleteFromOptimoRouteBestEffort(removed);
+  // The route stamp is the evidence a stop still exists, so it goes only once the stop is really gone.
+  const gone = await deleteFromOptimoRouteBestEffort(removed);
+  if (gone.length > 0) {
+    await db.update(deliveries).set({ routeSyncedAt: null, routeDriverSerial: null, routeDriverName: null, routeStopNumber: null })
+      .where(inArray(deliveries.publicId, gone));
+  }
   publishAnalyticsLive();
   return result;
 }

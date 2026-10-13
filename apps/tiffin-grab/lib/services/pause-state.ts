@@ -16,23 +16,20 @@ export const CARRIES_MOVED_IN = sql`exists (select 1 from delivery_moves dm wher
 
 /**
  * A paused row whose cutoff passed did not go out. It becomes a hold (skipped) so Move is the way
- * out, with the same activity a hold gets. The caller holds the order's advisory lock; the update
- * is status-filtered, so running it again changes nothing and logs nothing.
+ * out, with the same activity a hold gets (none for a row whose tiffin already left). Route fields
+ * stay as they are: a stop still on OptimoRoute is what keeps the hold from being movable early,
+ * and only pauseDays clears them, once the stop is really gone. The caller holds the order's
+ * advisory lock; the update is status-filtered, so running it again changes nothing and logs nothing.
  */
 export async function lapsePausedRows(tx: Tx, orderId: bigint): Promise<number> {
-  const lapsed = await tx.update(deliveries).set({
-    status: "skipped",
-    routeSyncedAt: null,
-    routeDriverSerial: null,
-    routeDriverName: null,
-    routeStopNumber: null,
-  }).where(and(
+  const lapsed = await tx.update(deliveries).set({ status: "skipped" }).where(and(
     eq(deliveries.orderId, orderId),
     eq(deliveries.status, "paused"),
     lte(deliveries.cutoffAt, Date.now()),
-  )).returning({ id: deliveries.id, deliveryDate: deliveries.deliveryDate });
-  if (lapsed.length > 0) {
-    await tx.insert(orderActivities).values(lapsed.map((r) => ({
+  )).returning({ id: deliveries.id, deliveryDate: deliveries.deliveryDate, movedAway: sql<boolean>`${MOVED_AWAY}` });
+  const held = lapsed.filter((r) => !r.movedAway);
+  if (held.length > 0) {
+    await tx.insert(orderActivities).values(held.map((r) => ({
       orderId,
       deliveryId: r.id,
       type: "skipped" as const,

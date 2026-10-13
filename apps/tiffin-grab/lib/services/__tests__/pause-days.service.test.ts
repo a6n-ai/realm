@@ -17,9 +17,10 @@ vi.mock("../pause-state", async (importOriginal) => {
 });
 
 const deletedStops: string[] = [];
+let failDelete = false;
 vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
-  return { ...actual, deleteOrder: async (orderNo: string) => { deletedStops.push(orderNo); } };
+  return { ...actual, deleteOrder: async (orderNo: string) => { if (failDelete) throw new Error("optimoroute down"); deletedStops.push(orderNo); } };
 });
 
 const { db } = await import("@/db/client");
@@ -47,6 +48,7 @@ async function reset() {
   await db.delete(durationPackages).where(eq(durationPackages.weeks, LIMIT_WEEKS));
   deletedStops.length = 0;
   failLapse = 0;
+  failDelete = false;
 }
 
 async function activatedOrder() {
@@ -508,5 +510,46 @@ describe("pauseDays and releasePausedDays rules", () => {
     const back = await rowOn(o.id, D[1]);
     expect([back.status, back.routeSyncedAt]).toEqual(["scheduled", null]);
     expect((await loadDayDeliveries(D[1])).some((r) => r.delivery.id === row.id)).toBe(true);
+  });
+});
+
+describe("lapse keeps the route evidence and stays quiet about moved-away rows", () => {
+  beforeEach(reset);
+
+  it("a paused row that still has a route stop when it lapses is not movable until its day ends", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    const row = await rowOn(o.id, D[0]);
+    await db.update(deliveries).set({ routeSyncedAt: Date.now() }).where(eq(deliveries.id, row.id));
+    await expire(o.id, D[0]);
+    await lapseElapsedPauses(o.id);
+    const lapsed = await rowOn(o.id, D[0]);
+    expect([lapsed.status, lapsed.routeSyncedAt == null]).toEqual(["skipped", false]);
+    const [shown] = await myDeliveries(o.userId!, D[0], D[0]);
+    expect(shown!.lapsedPause).toBe(false);
+    await expect(rescheduleDelivery(row.publicId, "2030-01-14", null)).rejects.toThrow(/on hold/i);
+  });
+
+  it("a failed stop delete leaves the route stamp on the paused row", async () => {
+    const o = await activatedOrder();
+    const row = await rowOn(o.id, D[1]);
+    await db.update(deliveries).set({ routeSyncedAt: Date.now() }).where(eq(deliveries.id, row.id));
+    failDelete = true;
+    await pauseDays(o.publicId, [D[1]], null);
+    failDelete = false;
+    expect((await rowOn(o.id, D[1])).routeSyncedAt).not.toBeNull();
+  });
+
+  it("a paused row whose tiffin already left lapses without a misleading hold activity", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[0]], null);
+    const [target] = await db.select().from(deliveries).where(and(eq(deliveries.orderId, o.id), eq(deliveries.deliveryDate, D[2])));
+    await db.update(deliveries).set({ mergedIntoDeliveryId: target!.id }).where(and(eq(deliveries.orderId, o.id), eq(deliveries.deliveryDate, D[0])));
+    await expire(o.id, D[0]);
+    await lapseElapsedPauses(o.id);
+    expect(await skippedNotes(o.id)).toHaveLength(0);
+    expect((await rowOn(o.id, D[0])).status).toBe("skipped");
+    await lapseElapsedPauses(o.id);
+    expect(await skippedNotes(o.id)).toHaveLength(0);
   });
 });
