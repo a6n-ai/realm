@@ -408,6 +408,11 @@ export async function adminSetDeliveryStatus(
       throw new ValidationError("This subscription can no longer be changed");
     }
 
+    // Nothing goes back onto a day the kitchen is closed.
+    if (status === "upcoming" && row.status !== "scheduled") {
+      const closed = await holidayForOrderDate(tx, orderId, row.deliveryDate);
+      if (closed) throw new ValidationError(`Kitchen is closed on ${humanDate(row.deliveryDate)}: ${closed.name}`);
+    }
     // A paused day before cutoff can only be resumed, through the same path as Resume (cutoff, pause-log refund, activity).
     if (row.status === "paused") {
       if (status !== "upcoming") throw new ValidationError("Resume this day first");

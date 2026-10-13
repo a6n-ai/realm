@@ -4,6 +4,7 @@ import { and, asc, eq, gt, inArray, isNotNull, isNull, lte, not, or, sql } from 
 import { db } from "@/db/client";
 import { deliveries, deliveryMoves, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
+import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertDaysPauseAllowed } from "./pause-limits.service";
 import { CARRIES_MOVED_IN, CUSTOMER_PAUSED, MOVED_AWAY, lapsePausedRows, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
 import { publishAnalyticsLive } from "@/lib/realtime/publish-inbox";
@@ -121,12 +122,21 @@ export async function releasePausedDays(orderPublicId: string, dates: string[] |
   }
   const wanted = dates === "all" ? null : uniqueDates(dates);
 
+  let closed: OptimoSyncedRow[] = [];
   const resumed = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
     await lapsePausedRows(tx, order.id);
-    return releasePausedRows(tx, order.id, wanted, actorId);
+    const dates = await releasePausedRows(tx, order.id, wanted, actorId);
+    // A day resumed onto a declared holiday is closed again at once: free this time (the release
+    // refunded the pause day) and with its extra day added.
+    const [fresh] = await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1);
+    const applied = fresh ? await applyHolidaysToOrder(tx, fresh, actorId) : [];
+    closed = applied.map((x) => ({ publicId: x.deliveryPublicId, routeSyncedAt: x.routeSyncedAt }));
+    const closedAgain = new Set(applied.map((x) => x.date));
+    return dates.filter((d) => !closedAgain.has(d));
   });
-  await restoreStopsBestEffort(order.id, resumed, actorId);
+  await removeStopsBestEffort(closed.filter((r) => r.routeSyncedAt != null));
+  if (resumed.length > 0) await restoreStopsBestEffort(order.id, resumed, actorId);
   publishAnalyticsLive();
   return resumed;
 }

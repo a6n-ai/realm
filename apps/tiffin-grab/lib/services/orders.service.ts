@@ -47,6 +47,8 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
+import { applyHolidaysToOrder } from "./holiday-apply";
+import { assertStartNotHoliday } from "./holiday-dates";
 import { lapseElapsedPausesSafe } from "./pause-days.service";
 import { retireLegacyPaused } from "./pause-state";
 import { ledgerService } from "./ledger.service";
@@ -448,6 +450,7 @@ export async function createOrder(
     }
 
     const organizationId = await resolveBrandOrgId(tx);
+    await assertStartNotHoliday(tx, organizationId, input.selections.startDate);
 
     // Reject a new order whose delivery window overlaps a subscription this
     // customer already has running: "active"/"paused" orders reserve real
@@ -659,7 +662,12 @@ export async function createOrder(
     // Start immediately: in-zone orders materialize deliveries now, even when
     // payment is still awaiting. UI tells the customer delivery begins once
     // payment is confirmed; unpaid days can be moved ahead later.
-    if (order.status === "active") await materializeDeliveries(tx, order);
+    if (order.status === "active") {
+      // The order id is not visible to any other transaction yet; the lock is the contract applyHolidaysToOrder expects.
+      await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+      await materializeDeliveries(tx, order);
+      await applyHolidaysToOrder(tx, order, createdBy);
+    }
 
     await recordPayment(tx, {
       orderId: order.id,
@@ -1590,6 +1598,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // comment above): those helpers aren't tx-aware, so a raw in-tx write is
     // the smaller change vs threading a tx through the shared service layer.
     const updated = await db.transaction(async (tx) => {
+      // Advisory lock before the orders row is written (every delivery writer takes it first).
+      await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
       // Waitlisted orders skipped the overlap guard at checkout (they held no days); now they will.
       if (order.userId != null) {
         await assertNoPlanOverlap(tx, { userId: order.userId, startDate: order.startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
@@ -1608,6 +1618,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         createdBy: actorId,
       });
       await materializeDeliveries(tx, row);
+      await applyHolidaysToOrder(tx, row, actorId);
       return row;
     });
 
@@ -1643,11 +1654,16 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       throw new ValidationError("Pick today or a later date");
     }
     await db.transaction(async (tx) => {
+      // Advisory lock before the row lock (deliveries.service takes it first); the id comes from a plain read.
+      const [idRow] = await tx.select({ id: orders.id }).from(orders).where(eq(orders.publicId, publicId)).limit(1);
+      if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
       if (order.status !== "pending" || !order.deploymentId.startsWith("wc-")) {
         throw new ValidationError("Only a pending plan migrated from WordPress can be started here");
       }
+      await assertStartNotHoliday(tx, order.organizationId, startDate);
       const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
         .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
       if (!freq) throw new ValidationError("Delivery frequency not found");
@@ -1667,8 +1683,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         await assertNoPlanOverlap(tx, { userId: order.userId, startDate, durationWeeks: Math.max(order.durationWeeks, Math.ceil(spanDays / 7)), excludeOrderId: order.id });
       }
 
-      await tx.update(orders).set({ status: "active", startDate, updatedBy: actorId, updatedAt: Date.now() })
-        .where(eq(orders.id, order.id));
+      const [started] = await tx.update(orders).set({ status: "active", startDate, updatedBy: actorId, updatedAt: Date.now() })
+        .where(eq(orders.id, order.id)).returning();
       await tx.insert(deliveries).values(rows.map((r) => ({
         orderId: order.id,
         deliveryDate: r.deliveryDate,
@@ -1678,6 +1694,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         coversDates: r.coversDates,
         organizationId: order.organizationId,
       })));
+      await applyHolidaysToOrder(tx, started!, actorId);
       await tx.insert(orderActivities).values({
         orderId: order.id,
         type: "activated",
@@ -1698,12 +1715,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
    */
   async startChangeBlocker(orderId: bigint, status: string, tx: Pick<typeof db, "select"> = db): Promise<string | null> {
     if (status !== "active" && status !== "pending" && status !== "waitlisted") return "Only a plan that hasn't started can move its start date";
-    const rows = await tx.select({ id: deliveries.id, status: deliveries.status, cutoffAt: deliveries.cutoffAt })
+    const all = await tx.select({ id: deliveries.id, status: deliveries.status, cutoffAt: deliveries.cutoffAt, holidayId: deliveries.holidayId })
       .from(deliveries).where(eq(deliveries.orderId, orderId));
     const now = Date.now();
+    // A row a holiday closed was paused by the kitchen, not the customer; the rebuild re-applies holidays.
+    const rows = all.filter((d) => d.holidayId == null);
     if (rows.some((d) => d.cutoffAt <= now)) return "This plan has started: its first delivery is past the cutoff";
     if (rows.some((d) => d.status !== "scheduled")) return "The customer has already skipped or paused a delivery";
-    const ids = rows.map((d) => d.id);
+    const ids = all.map((d) => d.id);
     const touched = await Promise.all([
       tx.select({ id: subscriptionPauses.id }).from(subscriptionPauses).where(eq(subscriptionPauses.orderId, orderId)).limit(1),
       tx.select({ id: mealSelections.id }).from(mealSelections).where(eq(mealSelections.orderId, orderId)).limit(1),
@@ -1721,6 +1740,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const actorId = await this.currentUserId();
     const { timezone, cutoffHour } = await getAppSettings();
     await db.transaction(async (tx) => {
+      // Advisory lock before the row lock (deliveries.service takes it first); the id comes from a plain read.
+      const [idRow] = await tx.select({ id: orders.id }).from(orders).where(eq(orders.publicId, publicId)).limit(1);
+      if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
       const blocker = await this.startChangeBlocker(order.id, order.status, tx);
@@ -1733,6 +1756,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         const [plan] = await tx.select({ allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1);
         validateStartDate(startDate, plan?.allowedStartDays ?? [], today);
       }
+      await assertStartNotHoliday(tx, order.organizationId, startDate);
       // Waitlisted/pending plans hold no days yet; they meet the guard when they activate.
       if (order.userId != null && (order.status === "active" || order.status === "paused")) {
         await assertNoPlanOverlap(tx, { userId: order.userId, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
@@ -1744,6 +1768,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       if (had) {
         await tx.delete(deliveries).where(eq(deliveries.orderId, order.id));
         await materializeDeliveries(tx, moved!);
+        await applyHolidaysToOrder(tx, moved!, actorId);
         const [first] = await tx.select({ deliveryDate: deliveries.deliveryDate, cutoffAt: deliveries.cutoffAt }).from(deliveries)
           .where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate)).limit(1);
         if (first && first.cutoffAt <= Date.now()) {
@@ -1860,14 +1885,16 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       // The overlap guard reads durationWeeks; keep it covering a plan that now runs longer.
       const last = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !open.includes(r) && r.status === "scheduled").map((r) => pulled.get(r.id) ?? r.deliveryDate)].sort().at(-1);
       const spanWeeks = last ? Math.ceil((Math.round((parseIsoDateUtc(last).getTime() - parseIsoDateUtc(order.startDate).getTime()) / 86_400_000) + 1) / 7) : 0;
-      await tx.update(orders).set({
+      const [relaid] = await tx.update(orders).set({
         eatingDays: next,
         includeSaturday: next.includes("sat"),
         includeSunday: next.includes("sun"),
         durationWeeks: Math.max(order.durationWeeks, spanWeeks),
         updatedBy: actorId,
         updatedAt: Date.now(),
-      }).where(eq(orders.id, order.id));
+      }).where(eq(orders.id, order.id)).returning();
+      // The new layout can land a day on a declared holiday; close it like any other schedule write.
+      await applyHolidaysToOrder(tx, relaid!, actorId);
       await tx.insert(orderActivities).values({
         orderId: order.id,
         type: "note",
