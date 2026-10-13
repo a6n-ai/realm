@@ -219,7 +219,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
             <span className="text-[var(--muted-foreground,#6E6558)]">{trip.complimentaryNote}</span>
           </p>
         )}
-        {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-6"><Journey status={trip.status} pushed={trip.routePushed} caption={trip.status === "unconfirmed" && !trip.routePushed ? "Being prepared" : JOURNEY_NOTE[trip.status]} /></div> : (
+        {!row.movedTo && STAGE[trip.status] != null ? <div className="mt-6"><Journey status={trip.status} pushed={trip.routePushed} caption={JOURNEY_NOTE[trip.status]} /></div> : (
           <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground,#6E6558)]">
             {m.dot && <StatusDot decorative status={m.dot} />}
             {eyebrow ?? m.label}

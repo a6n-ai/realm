@@ -109,6 +109,14 @@ describe("actionAvailability copy", () => {
     expect(a.pick.why).toBe("Changes closed. This trip is being prepared.");
     expect(a.move.why).toBe("Changes closed. This trip is being prepared.");
   });
+  it("delivery day, stop pushed to the route: on the way", () => {
+    const a = actionAvailability(one({ date: "2026-09-21", locked: true, routePushed: true }), NOW, plan);
+    expect(a.pick.why).toBe("Changes closed. This trip is on the way.");
+  });
+  it("delivery day, not pushed yet: still being prepared", () => {
+    const a = actionAvailability(one({ date: "2026-09-21", locked: true }), NOW, plan);
+    expect(a.pick.why).toBe("Changes closed. This trip is being prepared.");
+  });
   it("delivered copy", () => {
     const a = actionAvailability(one({ date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }), NOW, plan);
     expect(a.pick.why).toBe("Delivered. Changes closed.");

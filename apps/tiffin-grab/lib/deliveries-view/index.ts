@@ -228,6 +228,7 @@ export function actionAvailability(trip: Trip, now: number, plan: PlanContext): 
   const blocked = (delivered: string): string =>
     s === "combined-into" ? `Combined into ${into}. Go to that trip.`
     : s === "delivered" ? delivered
+    : s === "unconfirmed" && trip.routePushed ? `${closed}. This trip is on the way.`
     : `${closed}. This trip is being prepared.`;
 
   const editable = s === "upcoming";
