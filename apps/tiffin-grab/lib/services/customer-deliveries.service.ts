@@ -307,6 +307,8 @@ export type AgendaDay = {
   optimoCompletionStatus?: string | null;
   /** The delivery row's public id (what OptimoRoute knows the stop as). */
   deliveryId?: string;
+  /** A hold that began as a pause and never had a route stop: still drawn as Paused. */
+  lapsedPause?: boolean;
 };
 
 /** The holiday name of a row, only while the row is closed: a scheduled row is going out whatever tag it kept. Every read uses this one expression. */
@@ -326,6 +328,7 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     .orderBy(asc(deliveries.deliveryDate));
   const out: Record<string, AgendaDay[]> = {};
   const extrasById = await loadExtraDates(db, rows.map((r) => r.d.id));
+  const lapsed = await lapsedPauseDates(db, [...new Set(rows.filter((r) => r.d.status === "skipped").map((r) => r.d.orderId))]);
   // A whole-trip reschedule leaves the old row skipped and inserts a makeup.
   // The old day is no longer a delivery, so it must not keep a status dot.
   const replacedByMakeup = new Set(
@@ -352,7 +355,7 @@ export async function myAgendaDots(userId: bigint, from: string, until: string):
     const covers = coveredDates(d);
     const moved = movedDatesByTarget.get(d.id.toString());
     for (const date of covers) {
-      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date), optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId });
+      (out[date] ??= []).push({ orderId, status: d.status as AgendaDay["status"], cutoffAt: Number(d.cutoffAt), deliveryDate: d.deliveryDate, truck: date === d.deliveryDate, units: d.tiffinUnits, covers, moved: moved?.has(date), optimoCompletionStatus: d.optimoCompletionStatus, deliveryId: d.publicId, lapsedPause: isLapsedPause(d, lapsed.get(d.orderId)) });
     }
     // A doubled day (moved tiffin landed on an eating day) gets a second dot.
     for (const date of extrasById.get(d.id) ?? []) {

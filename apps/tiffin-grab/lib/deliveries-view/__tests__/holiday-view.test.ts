@@ -18,7 +18,7 @@ describe("a holiday in the trip model", () => {
 
   it("a paused customer day is still a pause", () => {
     const [trip] = buildTrips([day({ status: "paused" })], now, plan);
-    expect(trip!.status).toBe("vacation");
+    expect(trip!.status).toBe("paused");
     expect(actionModel(trip!, now, plan, { pausedAhead: 1 }).resume.day).toBe(true);
   });
 
@@ -42,7 +42,7 @@ describe("a holiday in the trip model", () => {
   it("the week dot is a holiday first, and a holiday day is not counted for Resume all", () => {
     const dot: AgendaDot = { orderId: "o", status: "paused", cutoffAt: now + 1000, deliveryDate: "2030-01-09", truck: true, units: 1, covers: ["2030-01-09"], holiday: "Diwali" };
     expect(dotStatus(dot, now)).toBe("holiday");
-    expect(dotStatus({ ...dot, holiday: null }, now)).toBe("vacation");
+    expect(dotStatus({ ...dot, holiday: null }, now)).toBe("paused");
     expect(pausedAhead({ "2030-01-09": [dot] }, now)).toBe(0);
     expect(pausedAhead({ "2030-01-09": [{ ...dot, holiday: null }] }, now)).toBe(1);
   });

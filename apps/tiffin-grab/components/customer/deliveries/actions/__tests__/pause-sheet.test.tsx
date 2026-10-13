@@ -159,6 +159,18 @@ describe("PauseSheet", () => {
     expect(a.release).toHaveBeenCalledWith("o", "all");
   });
 
+  it("a paused day past its cutoff offers Move but never Resume", async () => {
+    a.load.mockResolvedValue({ ok: true, days: [{ date: WED, paused: true, lapsed: true }, { date: THU, paused: true }] });
+    const onMove = vi.fn();
+    render(<PauseSheet plan={plan()} open onDone={vi.fn()} onMove={onMove} />);
+    expect(await screen.findAllByRole("button", { name: "Resume this day" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Resume all" })).toBeNull();
+    const move = screen.getAllByRole("button", { name: "Move" });
+    expect(move).toHaveLength(2);
+    fireEvent.click(move[0]!);
+    expect(onMove).toHaveBeenCalledWith(WED);
+  });
+
   it("a refused pause shows the server's words and the sheet stays open", async () => {
     a.pause.mockResolvedValue({ error: "You can pause at most 2 days at a time." });
     const onDone = await open();

@@ -41,9 +41,9 @@ describe("toCalendarInputs", () => {
 
 describe("plan context", () => {
   const sub = { status: "paused" } as never;
-  it("derives vacation flags and pause budget", () => {
+  it("derives pause flags and pause budget", () => {
     const ctx = buildPlanContext({ sub, counts, cutoffHour: 18, timezone: "America/Toronto", pause: { limits: { maxPauses: 3 }, usage: { count: 3, daysUsed: 0 } } as never });
-    expect(ctx).toMatchObject({ onVacation: true, vacationsLeft: 0, lastDeliveryDate: "2026-10-02", active: true });
+    expect(ctx).toMatchObject({ onPause: true, pausesLeft: 0, lastDeliveryDate: "2026-10-02", active: true });
   });
   it("renew countdown counts days from today to the last tiffin", () => {
     expect(renewDays("2026-10-02", "2026-09-21")).toBe(11);

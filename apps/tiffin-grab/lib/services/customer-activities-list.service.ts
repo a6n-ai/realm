@@ -48,8 +48,8 @@ const ORDER_ACTIONS = {
   skipped: "tiffin_held",
   unskipped: "tiffin_restored",
   pool_scheduled: "tiffin_rescheduled",
-  paused: "vacation_started",
-  resumed: "vacation_ended",
+  paused: "pause_started",
+  resumed: "pause_ended",
   cancelled: "subscription_cancelled",
   payment_claimed: "payment_submitted",
 } as const satisfies Partial<Record<OrderActivityType, CustomerActivityAction>>;

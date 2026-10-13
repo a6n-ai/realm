@@ -17,7 +17,7 @@ import { DeliveryAreaNote, useDeliveryArea } from "@/components/customer/address
 // language. Every rule and server call stays in the shared sheets; this file is look only.
 
 export const STATUS_TONE: Record<string, string> = {
-  delivered: "bg-emerald-500", upcoming: "bg-sky-500", vacation: "bg-amber-500", hold: "bg-rose-500", combined: "bg-muted-foreground", holiday: "bg-slate-600",
+  delivered: "bg-emerald-500", upcoming: "bg-sky-500", paused: "bg-amber-500", hold: "bg-rose-500", combined: "bg-muted-foreground", holiday: "bg-slate-600",
 };
 
 function ChoiceRow({

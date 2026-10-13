@@ -1,11 +1,11 @@
 import { cn } from "./cn";
 
-export type DeliveryStatus = "delivered" | "upcoming" | "vacation" | "hold" | "combined" | "holiday";
+export type DeliveryStatus = "delivered" | "upcoming" | "paused" | "hold" | "combined" | "holiday";
 
 export const STATUS_LABEL: Record<DeliveryStatus, string> = {
   delivered: "Delivered",
   upcoming: "Upcoming",
-  vacation: "Paused",
+  paused: "Paused",
   hold: "Not delivered",
   combined: "Combined",
   holiday: "Holiday",
@@ -14,7 +14,7 @@ export const STATUS_LABEL: Record<DeliveryStatus, string> = {
 export const STATUS_COLOR: Record<DeliveryStatus, string> = {
   delivered: "var(--s-delivered,#10b981)",
   upcoming: "var(--s-upcoming,#0ea5e9)",
-  vacation: "var(--s-vac,#d98a00)",
+  paused: "var(--s-vac,#d98a00)",
   hold: "var(--s-hold,#f43f5e)",
   combined: "var(--muted-foreground,#6E6558)",
   // Slate: not one of the plan colours on the week strip (PLAN_COLORS), and the word "Holiday" carries the meaning anyway.

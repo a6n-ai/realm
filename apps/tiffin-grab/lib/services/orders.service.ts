@@ -2108,7 +2108,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
     // A pause window narrower than the subscription leaves future deliveries scheduled, so
     // the ORDER stays active — but the customer did pause something. The log write used to
-    // sit behind this early return, which meant every partial vacation was invisible.
+    // sit behind this early return, which meant every partial pause was invisible.
     const full = !remaining;
     const note = `${window.from} → ${until}${window.indefinite ? " (indefinite)" : ""}`;
     if (full) await this.update(publicId, { status: "paused" });
@@ -2131,8 +2131,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // UPDATE actually matches a row (i.e. the one that wins the race) proceeds to revert deliveries,
   // close the pause row, and log the "resumed" activity — the loser gets zero rows back and returns
   // as a no-op instead of writing a duplicate activity / redundant delivery revert.
-  // `fromDate` (ISO) resumes a vacation partway: only paused days on/after it come back. Omit for a
-  // full resume. Vacation has no entry point today (move-only deliveries).
+  // `fromDate` (ISO) resumes a pause partway: only paused days on/after it come back. Omit for a
+  // full resume. The range pause has no entry point today (move-only deliveries).
   async resume(publicId: string, actorId?: bigint, fromDate?: string): Promise<void> {
     const order = await this.read(publicId);
     if (order.status !== "paused") throw new ValidationError(`Cannot resume an order that is ${order.status}`);

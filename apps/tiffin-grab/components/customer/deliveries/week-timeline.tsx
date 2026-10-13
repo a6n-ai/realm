@@ -11,7 +11,7 @@ const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
-const LEGEND: DeliveryStatus[] = ["delivered", "upcoming", "hold", "vacation", "holiday"];
+const LEGEND: DeliveryStatus[] = ["delivered", "upcoming", "hold", "paused", "holiday"];
 
 interface Props {
   firstWeek: string;

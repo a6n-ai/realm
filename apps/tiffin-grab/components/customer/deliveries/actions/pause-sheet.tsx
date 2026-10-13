@@ -2,7 +2,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { humanDate } from "@/lib/deliveries-view";
 import { loadMyPauseDays, pauseMyDays, releaseMyDays, type PauseDayChoice } from "@/app/(customer)/me/deliveries/actions";
-import { RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "../action-model";
+import { MOVE_DAY_LABEL, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "../action-model";
 import { pausedLine, resumeLine } from "../pause-copy";
 import { KIT_UI } from "./sheet-ui";
 import type { ActionSheetProps } from "./types";
@@ -11,7 +11,7 @@ const MUTED = "text-[var(--muted-foreground,#6E6558)]";
 const heading = `text-xs font-semibold uppercase tracking-[0.12em] ${MUTED}`;
 
 /** Drawer in the Edit meal family. Days are chosen here, not on the calendar. The server decides which days are pausable and refuses the rest. */
-export function PauseSheet({ plan, open, onDone, ui }: Omit<ActionSheetProps, "trip"> & { trip?: ActionSheetProps["trip"] }) {
+export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetProps, "trip"> & { trip?: ActionSheetProps["trip"]; /** Opens Move for that paused day; the shell closes this drawer. */ onMove?: (date: string) => void }) {
   const { Shell, PrimaryButton, SecondaryButton, OptionCard, Notice, Reason, Loading } = { ...KIT_UI, ...ui };
   const [pending, start] = useTransition();
   const [days, setDays] = useState<PauseDayChoice[] | null>(null);
@@ -38,6 +38,8 @@ export function PauseSheet({ plan, open, onDone, ui }: Omit<ActionSheetProps, "t
 
   const openDays = (days ?? []).filter((d) => !d.paused);
   const paused = (days ?? []).filter((d) => d.paused);
+  // Resume only while the day's cutoff is ahead; a paused day past it can still be moved.
+  const resumable = paused.filter((d) => !d.lapsed);
   const budget = [
     daysLeft != null && `${usage?.daysUsed ?? 0} of ${limits?.maxPauseDaysTotal} pause days used`,
     left != null && `${left} pause${left === 1 ? "" : "s"} left`,
@@ -86,7 +88,7 @@ export function PauseSheet({ plan, open, onDone, ui }: Omit<ActionSheetProps, "t
     >
       <div className="space-y-5 pb-2">
         <p className={`text-[15px] ${MUTED}`}>
-          Pause a delivery before its cutoff. You can put that same day back, or move it to another day.
+          Pause a delivery before its cutoff. You can put that same day back until its cutoff, or move it to another day at any time.
         </p>
         {budget.length > 0 && (
           <ul className="space-y-1">
@@ -120,12 +122,15 @@ export function PauseSheet({ plan, open, onDone, ui }: Omit<ActionSheetProps, "t
           <section className="space-y-2" aria-label="Paused deliveries">
             <div className="flex items-center justify-between gap-3">
               <h3 className={heading}>Paused</h3>
-              {paused.length > 1 && <SecondaryButton pending={pending} onClick={() => release("all")}>{RESUME_ALL_LABEL}</SecondaryButton>}
+              {resumable.length > 1 && <SecondaryButton pending={pending} onClick={() => release("all")}>{RESUME_ALL_LABEL}</SecondaryButton>}
             </div>
             {paused.map((d) => (
               <div key={d.date} className="flex min-h-11 w-full items-center justify-between gap-3 py-1 text-[15px]">
                 <span className="font-semibold">{humanDate(d.date)}</span>
-                <SecondaryButton pending={pending} onClick={() => release([d.date])}>{RESUME_DAY_LABEL}</SecondaryButton>
+                <span className="flex shrink-0 items-center gap-2">
+                  {!d.lapsed && <SecondaryButton pending={pending} onClick={() => release([d.date])}>{RESUME_DAY_LABEL}</SecondaryButton>}
+                  {onMove && <SecondaryButton pending={pending} onClick={() => onMove(d.date)}>{MOVE_DAY_LABEL}</SecondaryButton>}
+                </span>
               </div>
             ))}
           </section>

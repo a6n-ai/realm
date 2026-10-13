@@ -46,7 +46,7 @@ describe("actionModel", () => {
     expect(m.goTo).toBe("2026-09-25");
   });
   it("a paused day: Resume is the one primary and Move sits beside it", () => {
-    const m = actionModel(trip({ status: "vacation" }), Date.now(), ctx);
+    const m = actionModel(trip({ status: "paused" }), Date.now(), ctx);
     expect([m.primary, m.rows.map((r) => r.key), m.resume.day]).toEqual([null, ["move"], true]);
   });
   it("payment locked: view-only, no actions and no bar (not even Edit meal)", () => {
@@ -61,7 +61,7 @@ describe("actionModel", () => {
     expect(m.primary).toBeNull();
   });
   describe("Resume on a paused day", () => {
-    const paused = trip({ status: "vacation" });
+    const paused = trip({ status: "paused" });
     it("a future paused day offers Resume this day beside Move", () => {
       const m = actionModel(paused, Date.now(), ctx, { pausedAhead: 1 });
       expect(m.resume).toEqual({ day: true, all: false });

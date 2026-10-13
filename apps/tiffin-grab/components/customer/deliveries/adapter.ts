@@ -81,8 +81,8 @@ export function buildPlanContext(a: { sub: Subscription; counts: TiffinCounts; c
     startDate: a.startDate,
     holidays: a.holidays ?? {},
     active: true,
-    onVacation: a.sub.status === "paused" || !!a.sub.fullyPaused,
-    vacationsLeft: max == null ? null : Math.max(max - a.pause.usage.count, 0),
+    onPause: a.sub.status === "paused" || !!a.sub.fullyPaused,
+    pausesLeft: max == null ? null : Math.max(max - a.pause.usage.count, 0),
     frequencyKey: a.sub.frequencyKey ?? null,
   };
 }

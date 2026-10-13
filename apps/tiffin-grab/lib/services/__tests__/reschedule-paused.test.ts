@@ -1,4 +1,4 @@
-// Vacation (paused) trips can still be moved: actionAvailability offers Move for them, so the
+// Paused trips can still be moved: actionAvailability offers Move for them, so the
 // service must accept it (rescheduleDelivery's mutableStatuses includes "paused").
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
@@ -56,7 +56,7 @@ async function firstDeliveryOf(order: { id: bigint }) {
   return row;
 }
 
-describe("rescheduleDelivery on a vacation (paused) trip", () => {
+describe("rescheduleDelivery on a paused trip", () => {
   it("moves the paused day to a later plan day, matching actionAvailability's Move offer", async () => {
     const order = await makeOrder(false);
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));

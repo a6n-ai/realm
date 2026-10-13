@@ -716,4 +716,20 @@ describe("listPauseDays", () => {
       { date: D[1], paused: true }, { date: D[2], paused: false }, { date: D[3], paused: false }, { date: D[4], paused: false },
     ]);
   });
+
+  it("keeps a paused day past its cutoff as Move-only, before and after it lapses, until its tiffin is moved", async () => {
+    const o = await activatedOrder();
+    await pauseDays(o.publicId, [D[1]], null);
+    await expire(o.id, D[1]);
+    const past = { date: D[1], paused: true, lapsed: true };
+    expect(await listPauseDays(o.id)).toContainEqual(past);
+    await lapseElapsedPauses(o.id);
+    expect(await listPauseDays(o.id)).toContainEqual(past);
+    // A hold that was never a pause is not a paused day.
+    await expire(o.id, D[0]);
+    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, (await rowOn(o.id, D[0])).id));
+    expect((await listPauseDays(o.id)).map((d) => d.date)).not.toContain(D[0]);
+    await rescheduleDelivery((await rowOn(o.id, D[1])).publicId, "2030-01-14", null);
+    expect((await listPauseDays(o.id)).map((d) => d.date)).not.toContain(D[1]);
+  });
 });

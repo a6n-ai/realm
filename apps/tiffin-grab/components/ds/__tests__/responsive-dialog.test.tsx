@@ -17,11 +17,11 @@ describe("ResponsiveDialog", () => {
 
   it("keeps desktop Dialog when direction is bottom", () => {
     const { getByText } = render(
-      <ResponsiveDialog open title="Vacation" direction="bottom" onOpenChange={() => {}}>
+      <ResponsiveDialog open title="Pause" direction="bottom" onOpenChange={() => {}}>
         <p>dates</p>
       </ResponsiveDialog>,
     );
-    expect(getByText("Vacation")).toBeTruthy();
+    expect(getByText("Pause")).toBeTruthy();
     expect(getByText("dates")).toBeTruthy();
   });
 

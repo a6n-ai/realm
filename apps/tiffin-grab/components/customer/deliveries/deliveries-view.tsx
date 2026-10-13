@@ -119,6 +119,12 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
     goWeek(mon, { trip: date });
   };
   const pickDay = (iso: string) => (mondayOf(iso) === weekStart ? select(iso) : goTo(iso));
+  // From the pause drawer: go to that paused day (any week) and open Move on it.
+  const moveDay = (iso: string) => {
+    setPauseOpen(false);
+    goTo(iso);
+    setActive("move");
+  };
   // A plain replace can serve the previous plan's cached RSC render for the same path — refresh forces this plan's own ctx/counts.
   const switchPlan = (id: string) => startNav(() => (router.replace(`/me?sub=${id}`, { scroll: false }), router.refresh()));
 
@@ -251,8 +257,8 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
       </>
       )}
 
-      {active && trip && <ActionSheet action={active} trip={trip} day={row?.date} plan={plan} agenda={agenda} open onDone={done} onChanged={changed} />}
-      {pauseOpen && <PauseSheet plan={plan} open onDone={(message) => { setPauseOpen(false); if (message) changed(message); }} />}
+      {active && trip && !navigating && <ActionSheet action={active} trip={trip} day={row?.date} plan={plan} agenda={agenda} open onDone={done} onChanged={changed} />}
+      {pauseOpen && <PauseSheet plan={plan} open onMove={moveDay} onDone={(message) => { setPauseOpen(false); if (message) changed(message); }} />}
       {info && <TripInfoSheet row={info} tz={tz} plan={plan} open onClose={() => setInfo(null)} />}
       <Toast open={toast !== null} onClose={closeToast}>{toast}</Toast>
     </div>

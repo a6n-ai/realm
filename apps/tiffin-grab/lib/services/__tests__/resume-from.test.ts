@@ -39,7 +39,7 @@ async function makeOrder() {
   return o;
 }
 
-// A whole week paused, all with future cutoffs (simulating an active vacation).
+// A whole week paused, all with future cutoffs (simulating an active pause).
 async function pausedWeek(o: { id: bigint }) {
   await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
   const dates = ["2030-01-07", "2030-01-08", "2030-01-09", "2030-01-10", "2030-01-11"];

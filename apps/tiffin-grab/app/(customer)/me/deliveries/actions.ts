@@ -7,7 +7,7 @@ import { NotFoundError } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
 import { setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
-import { listPauseDays, pauseDays, releasePausedDaysDetailed, type ReclosedDay } from "@/lib/services/pause-days.service";
+import { listPauseDays, pauseDays, releasePausedDaysDetailed, type PauseDay, type ReclosedDay } from "@/lib/services/pause-days.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { listValidSwapOptionsForDelivery } from "@/lib/services/swap-options.service";
 import type { SwapOption } from "@/lib/menu/meal-validation";
@@ -75,7 +75,7 @@ export async function clearMyDeliveryAddress(deliveryPublicId: string): Promise<
   });
 }
 
-export type PauseDayChoice = { date: string; paused: boolean };
+export type PauseDayChoice = PauseDay;
 
 export async function loadMyPauseDays(orderPublicId: string): Promise<ActionResult<{ days: PauseDayChoice[] }>> {
   return runAction(async () => {

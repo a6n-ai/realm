@@ -1,6 +1,6 @@
 import type { DeliveryStatus } from "@/components/customer/kit";
 
-export type AgendaDot = { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; deliveryDate: string; truck: boolean; units: number; covers: string[]; moved?: boolean; holiday?: string | null; optimoCompletionStatus?: string | null; deliveryId?: string };
+export type AgendaDot = { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; deliveryDate: string; truck: boolean; units: number; covers: string[]; moved?: boolean; holiday?: string | null; optimoCompletionStatus?: string | null; deliveryId?: string; /** A hold that began as a pause: still drawn as Paused. */ lapsedPause?: boolean };
 export type Agenda = Record<string, AgendaDot[]>;
 
 const DAY = 864e5;
@@ -23,8 +23,8 @@ export function defaultWeek(today: string, planFirst: string | null | undefined)
 export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
   if (d.holiday) return "holiday";
   if (d.moved) return "combined";
-  if (d.status === "paused") return "vacation";
-  if (d.status === "skipped") return "hold";
+  if (d.status === "paused") return "paused";
+  if (d.status === "skipped") return d.lapsedPause ? "paused" : "hold";
   if (d.optimoCompletionStatus === "failed") return "hold";
   if (d.optimoCompletionStatus === "success") return "delivered";
   // Not confirmed by OptimoRoute or an admin yet, whatever the cutoff says.

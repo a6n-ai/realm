@@ -2,10 +2,10 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
 import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
 
-export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "vacation" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed" | "holiday";
+export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "paused" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed" | "holiday";
 export type TripAction = "pick" | "swap" | "move" | "address";
 export type Availability = { ok: boolean; why: string | null; sub: string };
-export type LegendKey = "delivered" | "upcoming" | "vacation" | "onHold" | "holiday";
+export type LegendKey = "delivered" | "upcoming" | "paused" | "onHold" | "holiday";
 
 type MealLike = { label: string; picks: { name: string }[]; quantity: number }[];
 
@@ -64,8 +64,8 @@ export type PlanContext = {
   /** This plan's first delivery date; Move never offers dates before it. */
   startDate?: string;
   active?: boolean;
-  onVacation?: boolean;
-  vacationsLeft?: number | null;
+  onPause?: boolean;
+  pausesLeft?: number | null;
   frequencyKey?: string | null;
   /** False: the meal has no weekend dish, so Move can't target Sat/Sun. */
   servesWeekends?: boolean;
@@ -137,7 +137,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       // Nobody holds a day any more: a skipped row that wasn't moved away is a failed drop.
       else if (d.status === "skipped") status = "failed";
       else if (d.status === "cancelled" || (d.status !== "scheduled" && past)) status = "locked";
-      else if (d.status === "paused") status = "vacation";
+      else if (d.status === "paused") status = "paused";
       else if (d.optimoCompletionStatus === "success") status = "delivered";
       else if (d.optimoCompletionStatus === "failed") status = "failed";
       else if (!past) status = "upcoming";
@@ -186,18 +186,21 @@ const LEGEND: Record<TripStatus, LegendKey | null> = {
   "cutoff-passed": "delivered",
   rescheduled: "onHold",
   locked: "onHold",
-  vacation: "vacation",
+  paused: "paused",
   "combined-into": null,
   failed: "onHold",
   holiday: "holiday",
 };
-const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", vacation: "Paused", onHold: "Not delivered", holiday: "Holiday" };
+const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", paused: "Paused", onHold: "Not delivered", holiday: "Holiday" };
+
+/** Paused, then its cutoff passed: stored as a hold (Move only), but the customer still reads it as Paused. */
+export const isPastPause = (t: Pick<Trip, "status" | "lapsedPause">): boolean => t.status === "failed" && !!t.lapsedPause;
 
 /** Replaces day-status.ts: legend bucket per eating day, keyed by ISO date. */
 export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> {
   const out: Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> = {};
   for (const t of trips) {
-    const legend = LEGEND[t.status];
+    const legend = isPastPause(t) ? "paused" : LEGEND[t.status];
     for (const c of t.coversDates) out[c] = { status: t.status, legend, label: legend ? LEGEND_LABEL[legend] : null };
   }
   return out;
@@ -230,7 +233,7 @@ function moveAvailability(trip: Trip, now: number, plan: PlanContext, blocked: (
     return no(`On hold. Release it to a new day after midnight, once ${humanDate(trip.date)}'s deliveries are reconciled.`);
   }
   if (trip.status === "failed") return yes("Pick a new day for this tiffin");
-  if (trip.status === "vacation") return yes("Pick a new delivery day");
+  if (trip.status === "paused") return yes("Pick a new delivery day");
   if (trip.status === "rescheduled") return no("Already moved.");
   return no(blocked("Already delivered."));
 }
@@ -252,13 +255,16 @@ export function actionAvailability(trip: Trip, now: number, plan: PlanContext): 
 
   const editable = s === "upcoming";
   // A failed drop or a legacy paused day can't be edited in place; its tiffin moves to a new day.
-  const notHere = s === "failed" || s === "vacation" || s === "rescheduled";
+  const notHere = s === "failed" || s === "paused" || s === "rescheduled";
+  const pastPause = isPastPause(trip);
   const pick = editable ? yes("Open for changes")
-    : s === "vacation" ? no("Paused. Resume this day to choose meals, or move it to another day.")
+    : s === "paused" ? no("Paused. Resume this day to choose meals, or move it to another day.")
+    : pastPause ? no("Paused. Move it to another day to choose meals.")
     : notHere ? no("Not delivered. Move it to another day to choose meals.")
     : no(blocked(`Delivered. ${closed}.`));
   const swap = editable ? yes("Rice ↔ Roti, per eating day")
-    : s === "vacation" ? no("Paused. Resume this day to swap items, or move it to another day.")
+    : s === "paused" ? no("Paused. Resume this day to swap items, or move it to another day.")
+    : pastPause ? no("Paused. Move it to another day to swap items.")
     : notHere ? no("Not delivered. Move it to another day to swap items.")
     : no(blocked(`Delivered. ${closed}.`));
   const move = moveAvailability(trip, now, plan, blocked);

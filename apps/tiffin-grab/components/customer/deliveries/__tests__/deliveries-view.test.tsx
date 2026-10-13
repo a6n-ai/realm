@@ -125,7 +125,7 @@ describe("DeliveriesView (one plan)", () => {
     expect(screen.getAllByRole("button", { name: /Move to another day/ }).length).toBeGreaterThan(0);
   });
   describe("pause", () => {
-    const pausedTrip = (date: string) => trip({ date, status: "vacation", deliveryId: `d-${date}` });
+    const pausedTrip = (date: string) => trip({ date, status: "paused", deliveryId: `d-${date}` });
     const pdot = (date: string): readonly [string, Agenda[string][number]] => [date, { orderId: "o", status: "paused", cutoffAt: cut, deliveryDate: date, truck: true, units: 1, covers: [date] }];
     it("a plan offers Pause; a trial does not", () => {
       view();

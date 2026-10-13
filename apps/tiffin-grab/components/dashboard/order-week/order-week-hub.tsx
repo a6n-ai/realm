@@ -47,7 +47,8 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
   const [wk, setWk] = useState(weekStart);
   if (wk !== weekStart) {
     setWk(weekStart);
-    setSel(null);
+    // goWeek carries the day to land on in ?trip.
+    setSel(params.get("trip"));
   }
 
   const weekEnd = addDays(weekStart, 6);
@@ -74,6 +75,12 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
     startNav(() => router.replace(`?${sp.toString()}`, { scroll: false }));
   };
   const pickDay = (iso: string) => (mondayOf(iso) === weekStart ? setSel(iso) : goWeek(mondayOf(iso), iso));
+  // From the pause drawer: go to that paused day (any week) and open Move on it.
+  const moveDay = (iso: string) => {
+    setPauseOpen(false);
+    pickDay(iso);
+    setDlg("reschedule");
+  };
   const done = (msg?: string) => {
     if (msg) toast.success(msg);
     setDlg(null);
@@ -192,9 +199,9 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
       </Card>
 
       {dlg === "info" && row && <InfoDialog row={row} plan={plan} onClose={() => setDlg(null)} />}
-      {pauseOpen && <PauseSheet plan={plan} open ui={ADMIN_SHEET_UI} onDone={(message) => { setPauseOpen(false); done(message); }} />}
+      {pauseOpen && <PauseSheet plan={plan} open ui={ADMIN_SHEET_UI} onMove={moveDay} onDone={(message) => { setPauseOpen(false); done(message); }} />}
       {/* The customer's own sheets, drawn in shadcn: one implementation of every rule. */}
-      {dlg === "reschedule" && trip && <MoveSheet open trip={trip} plan={plan} agenda={agenda} day={row?.date} onDone={done} ui={ADMIN_SHEET_UI} />}
+      {dlg === "reschedule" && trip && !nav && <MoveSheet open trip={trip} plan={plan} agenda={agenda} day={row?.date} onDone={done} ui={ADMIN_SHEET_UI} />}
       {dlg === "address" && trip && <AddressSheet open trip={trip} plan={plan} onDone={done} ui={ADMIN_SHEET_UI} />}
       {dlg === "pick" && row && trip && (
         <PickSheet
@@ -229,7 +236,7 @@ function statusChoice(trip: Trip): StatusValue | null {
     case "holiday":
     case "locked":
       return null;
-    case "vacation":
+    case "paused":
       return "paused";
     case "failed":
       return trip.optimoCompletionStatus === "failed" ? "not_delivered" : "on_hold";
@@ -366,7 +373,7 @@ function agendaLabel(dot: string, moved: boolean): string {
   switch (dot) {
     case "delivered": return "Delivered";
     case "hold": return "On hold";
-    case "vacation": return "Paused";
+    case "paused": return "Paused";
     case "holiday": return "Holiday";
     case "upcoming": return "Upcoming";
     default: return "Upcoming";

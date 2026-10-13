@@ -19,13 +19,13 @@ const LABEL: Record<BoxStatus, string> = {
   delivered: "Delivered",
   upcoming: "Upcoming",
   awaiting: "Awaiting confirmation",
-  vacation: "Vacation",
+  paused: "Paused",
   hold: "On hold",
   "not-delivered": "Not delivered",
   combined: "Moved",
   holiday: "Holiday",
 };
-const LEGEND: BoxStatus[] = ["delivered", "awaiting", "upcoming", "hold", "not-delivered", "vacation", "holiday", "combined"];
+const LEGEND: BoxStatus[] = ["delivered", "awaiting", "upcoming", "hold", "not-delivered", "paused", "holiday", "combined"];
 
 function boxStatus(d: AgendaDot, now: number): BoxStatus {
   const s = dotStatus(d, now);

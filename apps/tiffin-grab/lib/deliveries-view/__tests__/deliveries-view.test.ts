@@ -21,7 +21,7 @@ describe("buildTrips status", () => {
     ["today, confirmed by OptimoRoute or an admin", { date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }, "delivered"],
     ["skipped (a failed drop; nobody holds days)", { date: "2026-09-25", status: "skipped" }, "failed"],
     ["skipped, rescheduled", { date: "2026-09-25", status: "skipped", rescheduled: true }, "rescheduled"],
-    ["paused", { date: "2026-09-25", status: "paused" }, "vacation"],
+    ["paused", { date: "2026-09-25", status: "paused" }, "paused"],
     ["skipped past cutoff stays failed, so it can still move", { date: "2026-09-22", status: "skipped", locked: true }, "failed"],
     ["merged source", { date: "2026-09-25", status: "skipped", combinedInto: "2026-09-28" }, "combined-into"],
     ["make-up stays upcoming", { date: "2026-09-25", isMakeup: true }, "upcoming"],
@@ -167,6 +167,7 @@ describe("buildDayStatusMap", () => {
       day({ date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }),
       day({ date: "2026-09-28", status: "skipped" }),
       day({ date: "2026-09-30", status: "paused" }),
+      day({ date: "2026-10-01", status: "skipped", lapsedPause: true }),
       day({ date: "2026-10-02", status: "skipped", combinedInto: "2026-10-05" }),
     ], NOW, plan);
     const m = buildDayStatusMap(trips);
@@ -174,7 +175,9 @@ describe("buildDayStatusMap", () => {
     expect(m["2026-09-21"]!.legend).toBe("delivered");
     expect(m["2026-09-21"]!.label).toBe("Delivered");
     expect(m["2026-09-28"]!.legend).toBe("onHold");
-    expect(m["2026-09-30"]!.legend).toBe("vacation");
+    expect(m["2026-09-30"]!.legend).toBe("paused");
+    // A pause past its cutoff is a hold underneath (Move only) but still reads Paused.
+    expect(m["2026-10-01"]).toEqual({ status: "failed", legend: "paused", label: "Paused" });
     expect(m["2026-10-02"]!.legend).toBeNull();
     expect(m["2026-10-03"]).toBeUndefined();
   });
