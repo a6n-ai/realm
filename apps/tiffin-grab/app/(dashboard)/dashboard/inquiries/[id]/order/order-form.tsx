@@ -37,7 +37,8 @@ import { DEFAULT_EATING_DAYS } from "@/components/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { staffStartBase } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, toggleTrialPick, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
-import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo } from "./actions";
+import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCouponPreview } from "./actions";
+import { discountLine } from "@/components/customer/home/coupons-section";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { plannedSchedule, ScheduleCard } from "@/components/wizard/schedule-card";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
@@ -156,6 +157,14 @@ export function OrderForm({
   const [repInfo, setRepInfo] = useState<RepCouponInfo | null>(null);
   const [discount, setDiscount] = useState(0);
   const [discountOpen, setDiscountOpen] = useState(false);
+  // The customer coupon code on this order; the preview says whether it landed.
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [coupons, setCoupons] = useState<StaffCouponPreview | null>(null);
+  const applyCoupon = (code: string) => {
+    setCouponCode(code.trim().toUpperCase() || null);
+    setCouponInput("");
+  };
   const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const [created, setCreated] = useState<AdminOrderCreated | null>(null);
@@ -384,6 +393,7 @@ export function OrderForm({
       deliveryInstructions: notes.trim() || null,
     },
     paymentMethodId: realPayments ? paymentMethodId : null,
+    couponCode: couponCode ?? undefined,
     repCoupon: repInfo?.available && discount > 0
       ? { code: repInfo.code, requestedAmount: discount }
       : undefined,
@@ -430,6 +440,7 @@ export function OrderForm({
       .then((r) => {
         if (cancelled) return;
         setPreview("error" in r ? null : r.preview);
+        setCoupons("error" in r ? null : r.coupons);
         setPreviewError("error" in r ? r.error : null);
       })
       .catch(() => {
@@ -444,7 +455,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, repInfo, paymentMethodId, contact.fullName, contact.phone, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCode, repInfo, paymentMethodId, contact.fullName, contact.phone, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -915,6 +926,49 @@ export function OrderForm({
               <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
                 <ShieldCheckIcon className="size-4" /> Simulated — no real payment methods enabled.
               </p>
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2" disabled={submitting}>
+            <Label htmlFor="couponCode">Coupon</Label>
+            {coupons?.applied.map((c) => (
+              <div key={c.code} className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+                <span>
+                  <span className="nums font-medium">{c.code}</span>{" "}
+                  <span className="text-muted-foreground">{c.auto ? "Applied automatically" : c.name}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="nums">−${c.amount.toFixed(2)}</span>
+                  {!c.auto && <Button type="button" variant="ghost" size="sm" onClick={() => setCouponCode(null)}>Remove</Button>}
+                </span>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Input
+                id="couponCode"
+                value={couponInput}
+                placeholder="Enter code"
+                onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                // Enter would otherwise submit the order form.
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (couponInput.trim()) applyCoupon(couponInput); } }}
+              />
+              <Button type="button" variant="outline" disabled={!couponInput.trim()} onClick={() => applyCoupon(couponInput)}>Apply</Button>
+            </div>
+            {couponCode && coupons && !coupons.applied.some((c) => c.code.toUpperCase() === couponCode) && (
+              <p role="alert" className="text-destructive flex items-center gap-2 text-sm">
+                <span><span className="nums">{couponCode}</span>: {coupons.error ?? "A better discount is already applied"}</span>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setCouponCode(null)}>Remove</Button>
+              </p>
+            )}
+            {coupons && coupons.available.some((c) => c.code.toUpperCase() !== couponCode) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground text-xs">Available</span>
+                {coupons.available.filter((c) => c.code.toUpperCase() !== couponCode).map((c) => (
+                  <Button key={c.code} type="button" variant="outline" size="sm" title={c.name} onClick={() => applyCoupon(c.code)}>
+                    <span className="nums">{c.code}</span> · {discountLine(c)}
+                  </Button>
+                ))}
+              </div>
             )}
           </fieldset>
 

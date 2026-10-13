@@ -11,7 +11,9 @@ import { db } from "@/db/client";
 import { coupons, orders, users } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { resolveSessionVisibleOrgIds, type CreateOrderInput } from "@/lib/services/orders.service";
-import { couponsService } from "@/lib/services/coupons.service";
+import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
+import { postCatalogSubtotal } from "@/lib/pricing/discounts";
+import type { AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { getDiscountPolicy, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { findMethod } from "@foundry/payments";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
@@ -171,15 +173,30 @@ export async function previewPrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,
-): Promise<ActionResult<{ preview: PricingResult }>> {
-  return runAction(async () => ({ preview: await quotePrice(input, couponCode, requestedAmount) }));
+): Promise<ActionResult<StaffPricePreview>> {
+  return runAction(() => quotePrice(input, couponCode, requestedAmount));
+}
+
+// The customer coupon lane as createOrder will resolve it: what landed on the price, why the
+// entered code did not, and the codes checkout suggests to this customer.
+export type StaffCouponPreview = { applied: AppliedCoupon[]; error?: string; available: AvailableCoupon[] };
+export type StaffPricePreview = { preview: PricingResult; coupons: StaffCouponPreview };
+
+// The account createOrder would bill, when the contact matches exactly one. Usage-capped and
+// first-order coupons are judged against it; no match leaves those gates to createOrder.
+async function previewCustomerId(contact: CreateOrderInput["contact"]): Promise<bigint | null> {
+  const email = emailSchema.safeParse(contact.email.trim());
+  const phone = phoneSchema().safeParse(contact.phone);
+  if (!email.success && !phone.success) return null;
+  const matches = await matchCustomerAccounts(db, phone.success ? phone.data : "", email.success ? email.data : "");
+  return matches.length === 1 ? matches[0]! : null;
 }
 
 async function quotePrice(
   input: CreateOrderInput,
   couponCode?: string,
   requestedAmount?: number,
-): Promise<PricingResult> {
+): Promise<StaffPricePreview> {
   await requireStaff();
   const snap = await loadCatalogSnapshot();
   const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
@@ -191,26 +208,55 @@ async function quotePrice(
   // total staff see and copy to the customer is the total charged.
   const method = input.paymentMethodId ? findMethod(await getPaymentConfig(), input.paymentMethodId) : undefined;
   const { taxes } = await resolveCheckoutTaxes({ postalCode: input.contact.postalCode, methodTaxes: method?.enabled ? method.taxes : [] });
-  const base = priceSubscription(trial ? trial.pricingSelections : input.selections, catalog, [], taxes);
+  const selections = trial ? trial.pricingSelections : input.selections;
+  const base = priceSubscription(selections, catalog, [], taxes);
+  const plan = snap.plans.find((p) => p.key === input.planKey);
+  const lines: PricingLine[] = [];
 
   const code = couponCode?.trim();
-  if (!code || requestedAmount == null || requestedAmount <= 0) return base;
-
-  const actorId = await actingStaffId();
-  if (actorId == null) return base;
-  const plan = snap.plans.find((p) => p.key === input.planKey);
-
-  try {
-    const line: PricingLine = await couponsService.validateRepCoupon(code, {
-      subtotal: base.subtotal,
-      requestedAmount,
-      actorId,
-      planType: plan?.planType,
-    });
-    return priceSubscription(input.selections, catalog, [line], taxes);
-  } catch {
-    return base;
+  const repAmount = requestedAmount ?? 0;
+  const actorId = code && repAmount > 0 ? await actingStaffId() : null;
+  if (code && actorId != null) {
+    try {
+      lines.push(await couponsService.validateRepCoupon(code, {
+        subtotal: base.subtotal,
+        requestedAmount: repAmount,
+        actorId,
+        planType: plan?.planType,
+      }));
+    } catch {
+      // A rep coupon that no longer validates leaves the price undiscounted; createOrder is the gate.
+    }
   }
+
+  // Customer coupons, resolved as createOrder does: against the subtotal after catalog discounts,
+  // and stackable-only once a rep discount is on the order.
+  const postCatalog = postCatalogSubtotal(base.subtotal, priceSubscription(selections, catalog).adjustments);
+  const manualCode = input.couponCode?.trim() || undefined;
+  const best = await couponsService.resolveBestCoupons({
+    subtotal: postCatalog,
+    planType: plan?.planType,
+    userId: await previewCustomerId(input.contact),
+    paymentMethodId: method?.enabled ? method.id : "simulated",
+    manualCode,
+    stackableOnly: lines.length > 0,
+  });
+  let error = best.manualError;
+  if (!error && manualCode && lines.length > 0 && !(await couponsService.findByCode(manualCode)).stackable) {
+    error = "This coupon cannot be combined with another discount";
+  }
+  const applied: AppliedCoupon[] = [];
+  for (const r of best.redemptions) {
+    const amount = Math.min(r.amount, postCatalogSubtotal(postCatalog, lines));
+    if (amount <= 0) continue;
+    lines.push({ label: `${r.coupon.name} (${r.coupon.code})`, amount });
+    applied.push({ code: r.coupon.code, name: r.coupon.name, amount, auto: r.coupon.autoApply });
+  }
+
+  return {
+    preview: lines.length > 0 ? priceSubscription(selections, catalog, lines, taxes) : base,
+    coupons: { applied, error, available: (await couponsService.listAvailable()).filter((c) => !c.autoApply) },
+  };
 }
 
 export async function convertInquiry(

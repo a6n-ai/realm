@@ -6,6 +6,9 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 // Anonymous checkout: no wallet, so the preview and the order differ only by tax.
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
+vi.mock("@/lib/auth/guards", async (orig) => ({ ...(await orig<typeof import("@/lib/auth/guards")>()), requireStaff: async () => undefined }));
+
+const { previewPrice } = await import("@/app/(dashboard)/dashboard/inquiries/[id]/order/actions");
 const { db } = await import("@/db/client");
 const { discounts, coupons, couponRedemptions, deliveries, ledgerEntries, orderActivities, orders, payments, users, walletLedger } =
   await import("@/db/schema");
@@ -144,5 +147,22 @@ describe("coupons apply after catalog discounts", () => {
     expect(Number(order!.total)).toBeCloseTo(preview.pricing.total, 2);
     const [red] = await db.select().from(couponRedemptions);
     expect(Number(red!.amountApplied)).toBeCloseTo(coupon.amount, 2);
+  });
+
+  it("the staff preview applies an entered coupon on top of a frequency discount and matches the order", async () => {
+    await db.insert(discounts).values({ key: "regress_delivery_all", name: "Regress", kind: "delivery", percent: "10" });
+    await invalidateCatalogSnapshot();
+    await db.insert(coupons).values({ code: "STAFF5", kind: "fixed", name: "Staff", valueAmount: "5" });
+    const input = { ...(await inputFor("M5V 2T6")), couponCode: "STAFF5" };
+
+    const r = await previewPrice(input);
+    if ("error" in r) throw new Error(r.error);
+    expect(r.coupons.applied).toEqual([{ code: "STAFF5", name: "Staff", amount: 5, auto: false }]);
+    expect(r.coupons.available.map((c) => c.code)).toEqual(["STAFF5"]);
+    expect(r.preview.adjustments.some((a) => a.discountKey)).toBe(true);
+
+    await createOrder(input, {});
+    const [order] = await db.select().from(orders).where(ne(orders.deploymentId, ""));
+    expect(Number(order!.total)).toBeCloseTo(r.preview.total, 2);
   });
 });
