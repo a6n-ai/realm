@@ -29,7 +29,7 @@ export function ClearSuppressionButton({ publicId, address }: { publicId: string
         open={open}
         onOpenChange={setOpen}
         title="Clear this block?"
-        description={`Mail can be sent to ${address} again. If it bounces or they complain again, it will be blocked again.`}
+        description={`Messages can be sent to ${address} again. If it bounces or they complain again, it will be blocked again.`}
       >
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
