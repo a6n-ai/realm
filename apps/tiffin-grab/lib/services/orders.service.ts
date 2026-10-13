@@ -1720,7 +1720,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // Admin: change which days the customer eats. The delivery days (frequency) and the tiffin
   // balance stay as they are; only deliveries nobody has touched are laid out again, so the
   // last delivery date moves. Delivered, held, moved, swapped, re-addressed and routed rows
-  // keep their date and the open tiffins are laid around them.
+  // keep their date and the open tiffins are laid around them; only a moved tiffin left after
+  // the new last day is brought forward to follow it.
   async changeEatingDays(publicId: string, days: DayOfWeek[]): Promise<void> {
     const actorId = await this.currentUserId();
     const { timezone, cutoffHour, minTiffinsPerWeek, maxTiffinsPerWeek } = await getAppSettings();
@@ -1756,12 +1757,20 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         tx.select({ a: deliveryMoves.fromDeliveryId, b: deliveryMoves.toDeliveryId }).from(deliveryMoves).where(eq(deliveryMoves.orderId, order.id)),
       ]) : [[], [], []];
       const linked = (r: (typeof rows)[number]) => [r.mergedIntoDeliveryId, r.makeupForDeliveryId, r.complimentaryForDeliveryId];
-      const tied = new Set([...swaps.map((x) => x.id), ...extras.map((x) => x.id), ...moves.flatMap((x) => [x.a, x.b]), ...rows.flatMap(linked)]);
+      const edited = new Set([...swaps.map((x) => x.id), ...extras.map((x) => x.id)]);
+      const tied = new Set([...edited, ...moves.flatMap((x) => [x.a, x.b]), ...rows.flatMap(linked)]);
       const now = Date.now();
       const open = rows.filter((r) => r.status === "scheduled" && r.cutoffAt > now && !r.routeSyncedAt && !r.optimoCompletionStatus
         && r.complimentaryNote == null && r.addressLine == null && r.addressId == null
         && linked(r).every((x) => x == null) && !tied.has(r.id));
       const units = open.reduce((n, r) => n + r.tiffinUnits, 0);
+      // A tiffin moved to its own later day and not touched since: it can follow the plan's end.
+      const movable = rows.filter((r) => r.makeupForDeliveryId != null && r.status === "scheduled" && r.cutoffAt > now
+        && !r.routeSyncedAt && !r.optimoCompletionStatus && r.complimentaryNote == null && r.addressLine == null && r.addressId == null
+        && r.mergedIntoDeliveryId == null && r.complimentaryForDeliveryId == null && !edited.has(r.id)
+        && (r.coversDates == null || (r.coversDates.length === 1 && r.coversDates[0] === r.deliveryDate))
+        && !rows.some((o) => o.mergedIntoDeliveryId === r.id || o.complimentaryForDeliveryId === r.id));
+      const pulled = new Map<bigint, string>();
 
       const laid: { deliveryDate: string; tiffinUnits: number; coversDates: string[]; cutoffAt: number }[] = [];
       if (units > 0) {
@@ -1787,10 +1796,25 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         if (left > 0) throw new ValidationError("Couldn't fit the remaining tiffins on these days");
         await tx.delete(deliveries).where(inArray(deliveries.id, [...openIds]));
         await tx.insert(deliveries).values(laid.map((r) => ({ ...r, orderId: order.id, status: "scheduled" as const, organizationId: order.organizationId })));
+
+        // A moved tiffin parked after the old last day would be stranded when the plan gets
+        // shorter: bring it up to the first free days after the new end. Never pushed later.
+        const end = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !openIds.has(r.id) && !movable.includes(r)).map((r) => r.deliveryDate)].sort().at(-1)!;
+        const free = candidates.map((c) => c.deliveryDate).filter((d) => d > end && !taken.has(d));
+        const tail = movable.filter((r) => r.deliveryDate > end).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate));
+        for (const [i, r] of tail.entries()) {
+          const to = free[i];
+          if (!to || to >= r.deliveryDate) break;
+          await tx.update(deliveries).set({ deliveryDate: to, coversDates: r.coversDates && [to], cutoffAt: cutoffMsFor(to, cutoffHour, timezone) })
+            .where(eq(deliveries.id, r.id));
+          await tx.update(deliveryMoves).set({ toEatDate: to })
+            .where(and(eq(deliveryMoves.toDeliveryId, r.id), eq(deliveryMoves.toEatDate, r.deliveryDate)));
+          pulled.set(r.id, to);
+        }
       }
 
       // The overlap guard reads durationWeeks; keep it covering a plan that now runs longer.
-      const last = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !open.includes(r) && r.status === "scheduled").map((r) => r.deliveryDate)].sort().at(-1);
+      const last = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !open.includes(r) && r.status === "scheduled").map((r) => pulled.get(r.id) ?? r.deliveryDate)].sort().at(-1);
       const spanWeeks = last ? Math.ceil((Math.round((parseIsoDateUtc(last).getTime() - parseIsoDateUtc(order.startDate).getTime()) / 86_400_000) + 1) / 7) : 0;
       await tx.update(orders).set({
         eatingDays: next,
@@ -1804,7 +1828,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         orderId: order.id,
         type: "note",
         note: `Eating days changed from ${label(before)} to ${label(next)}`
-          + (laid.length ? `. ${units} upcoming tiffin${units === 1 ? "" : "s"} rescheduled, last delivery ${laid.at(-1)!.deliveryDate}` : ""),
+          + (laid.length ? `. ${units} upcoming tiffin${units === 1 ? "" : "s"} rescheduled` : "")
+          + (pulled.size ? `, ${pulled.size} moved tiffin${pulled.size === 1 ? "" : "s"} brought forward` : "")
+          + (laid.length ? `, last delivery ${last}` : ""),
         createdBy: actorId,
         organizationId: order.organizationId,
       });
