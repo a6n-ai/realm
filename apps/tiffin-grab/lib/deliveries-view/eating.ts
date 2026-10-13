@@ -140,6 +140,8 @@ export function moveNotes(r: EatingRow, history = false): string[] {
 
 /** "Arrives Mon, Sep 21" / "Comes with the Fri, Sep 25 delivery" / "Delivered Mon, Sep 21" / "Moved to Wed, Sep 23": which truck feeds this eating day. */
 export function deliveryLine(r: EatingRow): string {
+  // A closed day has no truck, so it never "arrives"; the extra day may not be placed yet.
+  if (r.trip.status === "holiday") return r.movedTo ? `Kitchen closed. Moved to ${humanDate(r.movedTo)}` : "Kitchen closed. Your tiffin will be added to the end of your plan";
   if (r.movedTo) return `Moved to ${humanDate(r.movedTo)}`;
   const t = r.trip;
   const day = humanDate(t.date);

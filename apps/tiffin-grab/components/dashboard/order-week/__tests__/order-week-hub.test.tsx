@@ -238,3 +238,14 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     });
   });
 });
+
+describe("OrderWeekHub on a holiday", () => {
+  it("labels a closed day Holiday, never Upcoming", () => {
+    const agenda = { "2026-09-21": [{ orderId: "o", status: "paused", cutoffAt: NOW + 1000, deliveryDate: "2026-09-21", truck: false, units: 1, covers: ["2026-09-21"], holiday: "Diwali" }] };
+    render(<OrderWeekHub data={{ ...data, agenda } as unknown as OrderWeek} />);
+    const row = screen.getAllByTestId("paged-row")[0]!;
+    expect(row).toHaveTextContent("Holiday");
+    expect(row).not.toHaveTextContent("Upcoming");
+    expect(row).not.toHaveTextContent(/With .* delivery|Arrives/);
+  });
+});

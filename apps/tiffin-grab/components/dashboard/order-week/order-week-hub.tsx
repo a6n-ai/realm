@@ -160,7 +160,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
               <>
                 <TableCell className="font-medium">{humanDate(x.date)}</TableCell>
                 <TableCell className="text-muted-foreground">
-                  {x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : x.moved ? `Moved to ${humanDate(x.deliveryDate)}` : `With ${humanDate(x.deliveryDate)} delivery`}
+                  {x.holiday ? "Kitchen closed" : x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : x.moved ? `Moved to ${humanDate(x.deliveryDate)}` : `With ${humanDate(x.deliveryDate)} delivery`}
                   {x.truck && trips.find((t) => t.date === x.deliveryDate)?.addressOverride && (
                     <span className="ml-2 inline-flex items-center gap-1 text-xs" title="Sent to a different address than the plan"><MapPin className="size-3" aria-hidden />New address</span>
                   )}
@@ -349,6 +349,7 @@ function agendaLabel(dot: string, moved: boolean): string {
     case "delivered": return "Delivered";
     case "hold": return "On hold";
     case "vacation": return "Paused";
+    case "holiday": return "Holiday";
     case "upcoming": return "Upcoming";
     default: return "Upcoming";
   }
