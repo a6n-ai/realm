@@ -86,4 +86,21 @@ describe("actionModel", () => {
       expect(actionModel(trip(), Date.now(), ctx, { pausedAhead: 2 }).resume).toEqual({ day: false, all: false });
     });
   });
+
+  describe("Pause on one day", () => {
+    const pause = (t: Trip, opts = {}) => actionModel(t, Date.now(), ctx, opts).pause;
+    it("an upcoming original day can be paused", () => expect(pause(trip())).toBe(true));
+    it("not a paused, held or delivered day", () => {
+      expect(pause(trip({ status: "paused" }))).toBe(false);
+      expect(pause(trip({ status: "failed" }))).toBe(false);
+      expect(pause(trip({ status: "delivered" }))).toBe(false);
+    });
+    it("not a trial, a payment-locked plan, a make-up, a moved-away day, or a day carrying a moved-in tiffin", () => {
+      expect(pause(trip(), { trial: true })).toBe(false);
+      expect(pause(trip(), { locked: true })).toBe(false);
+      expect(pause(trip({ isMakeup: true }))).toBe(false);
+      expect(pause(trip(), { movedTo: "2026-09-25" })).toBe(false);
+      expect(pause(trip({ movesIn: [{}] as Trip["movesIn"] }))).toBe(false);
+    });
+  });
 });

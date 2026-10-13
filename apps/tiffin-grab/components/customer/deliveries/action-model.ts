@@ -3,6 +3,7 @@ import { actionAvailability, type Availability, type PlanContext, type Trip, typ
 export const RESUME_DAY_LABEL = "Resume this day";
 export const RESUME_ALL_LABEL = "Resume all";
 export const MOVE_DAY_LABEL = "Move";
+export const PAUSE_DAY_LABEL = "Pause this day";
 
 export const ACTION_LABEL: Record<TripAction, string> = {
   pick: "Edit meal",
@@ -40,12 +41,15 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
   const canResume = trip.status === "paused" && !closed && !opts.locked && !movedAway;
   const primary: TripAction | null = opts.locked || closed || movedAway || canResume ? null
     : moveOnly ? (opts.trial ? null : "move") : trip.status === "upcoming" ? "pick" : null;
+  // Same rules the server applies to one day: still open, an original delivery, nothing moved onto it.
+  const canPause = trip.status === "upcoming" && !opts.locked && !movedAway && !opts.trial && !trip.isMakeup && (trip.movesIn?.length ?? 0) === 0;
   // A paused day (still before cutoff) goes back on the same date; Move stays its own action.
   // A hold, a lapsed pause and a failed drop only move.
   return {
     av,
     primary,
     resume: { day: canResume, all: canResume && (opts.pausedAhead ?? 0) > 1 },
+    pause: canPause,
     rows: keys.map((key) => ({
       key,
       label: ACTION_LABEL[key],

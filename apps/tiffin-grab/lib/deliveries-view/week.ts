@@ -66,3 +66,12 @@ export function weekTimeline(agenda: Agenda, monday: string, now: number): {
   }
   return { trips: [...trips.values()], dayStatus };
 }
+
+/** Paused delivery days past their cutoff whose tiffin has not been moved: Resume can't bring them back, only Move. */
+export function pausedPast(agenda: Agenda, now: number): string[] {
+  const seen = new Set<string>();
+  for (const dots of Object.values(agenda)) {
+    for (const d of dots) if (d.truck && !d.moved && !d.holiday && (d.lapsedPause || (d.status === "paused" && d.cutoffAt <= now))) seen.add(d.deliveryDate);
+  }
+  return [...seen].sort();
+}

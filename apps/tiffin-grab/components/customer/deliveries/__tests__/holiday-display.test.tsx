@@ -47,7 +47,7 @@ describe("a holiday day on the customer deliveries page", () => {
     expect(within(block).getByText("Holiday")).toBeInTheDocument();
     expect(block).not.toHaveTextContent("Your meal");
     expect(screen.queryByTestId("move-pills")).toBeNull();
-    expect(screen.queryAllByRole("button", { name: /Move to another day|Resume|Edit meal/ })).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: /Move to another day|Resume(?! all)|Edit meal/ })).toHaveLength(0);
   });
 
   it("a held day still holding its tiffin says the kitchen was closed, offers Move, and never says Not delivered", () => {
