@@ -2,7 +2,7 @@ import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { sql } from "drizzle-orm";
 import { PackageIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
-import { formatMoney } from "@foundry/commons";
+import { formatMoney, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources, orders, plans } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
@@ -29,6 +29,8 @@ import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { OrdersViewTabs } from "./orders-view-tabs";
+import { MissedList } from "./missed-list";
+import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
 import { and } from "@foundry/commons/model/condition";
 import { NewOrderSheet } from "./new-order-sheet";
@@ -83,7 +85,8 @@ async function StartMigratedAction() {
 async function OrdersViews() {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(await getSession());
-  return <OrdersViewTabs lookOutCount={await countLookOutOrders(visible)} />;
+  const [lookOutCount, missedCount] = await Promise.all([countLookOutOrders(visible), countMissedDeliveries(visible)]);
+  return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} />;
 }
 
 async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
@@ -114,6 +117,13 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
   const raw = await searchParams;
+  if (raw.view === "missed") {
+    const [session, { timezone }] = await Promise.all([getSession(), getAppSettings()]);
+    const rows = await listMissedDeliveries(await resolveSessionVisibleOrgIds(session));
+    // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+    const today = zonedDateIso(Date.now(), timezone);
+    return <MissedList rows={rows} isAdmin={session?.user?.role === "admin"} today={today} />;
+  }
   const lookOutOnly = raw.view === "lookout";
   // A flagged order stays on the Look out for tab however old it is. The date picker
   // writes the current month onto every URL, so the bounds are dropped here, not just left unset.

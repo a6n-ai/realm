@@ -9,13 +9,15 @@ const weekend = vi.hoisted(() => ({ serves: true }));
 vi.mock("../weekend-dish", () => ({ mealSizeServesWeekends: async () => weekend.serves }));
 
 const { db } = await import("@/db/client");
-const { deliveries, orderActivities, orders } = await import("@/db/schema");
+const { deliveries, deliveryFrequencies, orderActivities, orders } = await import("@/db/schema");
 const { changeOrderEatingDays, changeOrderStartDate } = await import("../orders.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
 
 const DEPLOYMENT = "test-eating-days";
 const PREFIX = "eatdays-";
 const MON_FRI: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri"];
+const WP = "wc-test-eating-days";
+const WP_PREFIX = "wpdays-";
 
 // 5-day plan from Mon 2030-01-07 eating Mon-Fri: 10 tiffins = 10 deliveries over 2 weeks.
 const make = () => makeTripOrder(DEPLOYMENT, PREFIX, 1, "5_day", 2, { days: MON_FRI, tiffinCount: 10 });
@@ -25,9 +27,10 @@ const units = (rows: { tiffinUnits: number }[]) => rows.reduce((n, r) => n + r.t
 
 beforeEach(async () => {
   weekend.serves = true;
+  await resetTrips(WP, WP_PREFIX);
   await resetTrips(DEPLOYMENT, PREFIX);
 });
-afterAll(() => resetTrips(DEPLOYMENT, PREFIX));
+afterAll(async () => { await resetTrips(DEPLOYMENT, PREFIX); await resetTrips(WP, WP_PREFIX); });
 
 describe("changeEatingDays", () => {
   it("the start date can still move after the eating days changed", async () => {
@@ -112,5 +115,28 @@ describe("changeEatingDays", () => {
     weekend.serves = false;
     await expect(changeOrderEatingDays(order.publicId, [...MON_FRI, "sat"])).rejects.toThrow(/no weekend dish/);
     expect(await scheduled(order.id)).toHaveLength(10);
+  });
+
+  it("a WordPress plan imported as MWF moves to 5-day delivery on save, even with the same days", async () => {
+    const { order } = await makeTripOrder(WP, WP_PREFIX, 1, "mwf", 2, { days: MON_FRI, tiffinCount: 10 });
+    expect(units(await scheduled(order.id))).toBe(10);
+
+    await changeOrderEatingDays(order.publicId, MON_FRI);
+
+    const rows = await scheduled(order.id);
+    expect(units(rows)).toBe(10);
+    expect(rows.every((r) => r.tiffinUnits === 1 && r.coversDates?.join() === r.deliveryDate)).toBe(true);
+    const [after] = await db.select({ key: deliveryFrequencies.key }).from(orders)
+      .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id)).where(eq(orders.id, order.id));
+    expect(after!.key).toBe("5_day");
+    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.orderId, order.id));
+    expect(notes.some((n) => n.note?.startsWith("Delivery moved to 5 days a week"))).toBe(true);
+  });
+
+  it("a non-WordPress MWF plan keeps its frequency: same days is a no-op", async () => {
+    const { order } = await makeTripOrder(DEPLOYMENT, PREFIX, 1, "mwf", 2, { days: MON_FRI, tiffinCount: 10 });
+    const before = (await scheduled(order.id)).map((r) => r.id);
+    await changeOrderEatingDays(order.publicId, MON_FRI);
+    expect((await scheduled(order.id)).map((r) => r.id)).toEqual(before);
   });
 });

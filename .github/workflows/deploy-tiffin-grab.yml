@@ -52,6 +52,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The base image comes from our GHCR copy: anonymous pulls from Docker Hub and
+      # ECR Public both 429 on shared runner IPs. Refresh the copy from whichever source
+      # answers; when both are throttled, the copy already there builds.
+      - name: Refresh node base image copy
+        continue-on-error: true
+        run: |
+          for src in docker.io/library/node:26-alpine public.ecr.aws/docker/library/node:26-alpine; do
+            docker buildx imagetools create -t ghcr.io/a6n-ai/node:26-alpine "$src" && exit 0
+          done
+          exit 1
+
       # web first: the runner target also builds the shared `build` stage, warming
       # the cache the tools image reuses. Pass APP on both images — the Dockerfile
       # default is tiffin-grab, but tools/web must stay in lockstep with puchkaman.
@@ -64,6 +75,7 @@ jobs:
           build-args: |
             APP=tiffin-grab
             NEXT_DEPLOYMENT_ID=${{ github.sha }}
+            NODE_IMAGE=ghcr.io/a6n-ai/node:26-alpine
           push: true
           tags: |
             ghcr.io/a6n-ai/tiffin-grab-web:${{ github.sha }}
@@ -80,6 +92,7 @@ jobs:
           build-args: |
             APP=tiffin-grab
             NEXT_DEPLOYMENT_ID=${{ github.sha }}
+            NODE_IMAGE=ghcr.io/a6n-ai/node:26-alpine
           push: true
           tags: |
             ghcr.io/a6n-ai/tiffin-grab-tools:${{ github.sha }}

@@ -6,7 +6,7 @@ import { getAppSettings } from "./app-settings.service";
 import { nextDeliveryDateAfter, orderDeliveryDaySet, type OptimoSyncedRow, type Tx } from "./deliveries.service";
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
 import { datesInsideOtherPlans } from "./order-window";
-import { MOVED_AWAY, pauseRows } from "./pause-state";
+import { HOLIDAY_DISMISSED, MOVED_AWAY, pauseRows } from "./pause-state";
 
 type Order = typeof orders.$inferSelect;
 type Delivery = typeof deliveries.$inferSelect;
@@ -227,8 +227,9 @@ export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint,
     isNotNull(deliveries.holidayId),
     inArray(deliveries.status, ["paused", "skipped"]),
     not(MOVED_AWAY),
+    not(HOLIDAY_DISMISSED),
   )).limit(1);
-  if (!source || source.tiffinUnits === 0) throw new ValidationError("Nothing to place: this day already has its extra day, or its tiffin was moved to another day");
+  if (!source || source.tiffinUnits === 0) throw new ValidationError("Nothing to place: this day already has its extra day, its tiffin was moved to another day, or it was dismissed");
   const per = Math.max(1, order.persons);
   if (source.tiffinUnits % per !== 0) throw new ValidationError("This trip's tiffin count does not divide by persons, so it cannot be placed automatically");
 

@@ -85,6 +85,11 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(replace.mock.calls[0]![0]).toContain("week=2026-09-28");
   });
+  it("a free tiffin says so, with staff's note, in the day block and the eating-days table", () => {
+    render(<OrderWeekHub data={{ ...data, trips: [{ ...mon, complimentaryNote: "Missed Oct 5" }] } as OrderWeek} />);
+    expect(screen.getByTestId("complimentary-note")).toHaveTextContent("Free tiffinMissed Oct 5");
+    expect(within(screen.getAllByTestId("paged-row")[0]!).getByText("Free")).toBeInTheDocument();
+  });
   it("a Mon trip feeds Mon and Tue; picking Tue in the strip names the delivery that carries it", () => {
     render(<OrderWeekHub data={data} />);
     fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));

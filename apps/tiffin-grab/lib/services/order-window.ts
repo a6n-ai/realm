@@ -79,6 +79,8 @@ export type RunningPlan = {
   startDate: string;
   /** Last day this plan holds: what a new plan must start after. */
   lastDay: string;
+  /** Its last actual delivery, which can be earlier than lastDay (a short plan still holds whole weeks). */
+  lastDelivery: string | null;
   tiffinCount: number;
   organizationId: string | null;
 };
@@ -96,10 +98,16 @@ export async function runningPlans(tx: Tx | typeof db, userId: bigint): Promise<
     .where(and(eq(orders.userId, userId), inArray(orders.status, [...DAY_RESERVING_STATUSES])))
     .orderBy(orders.startDate);
   const ends = await reservedEndDatesExclusive(tx, live);
+  const lasts = live.length === 0 ? [] : await tx
+    .select({ orderId: deliveries.orderId, last: sql<string>`max(${deliveries.deliveryDate})` })
+    .from(deliveries)
+    .where(and(inArray(deliveries.orderId, live.map((o) => o.id)), eq(deliveries.status, "scheduled")))
+    .groupBy(deliveries.orderId);
+  const lastById = new Map(lasts.map((r) => [r.orderId.toString(), r.last]));
   return live.map(({ id, durationWeeks: _weeks, ...plan }) => {
     const lastDay = new Date(ends.get(id.toString())!);
     lastDay.setUTCDate(lastDay.getUTCDate() - 1);
-    return { ...plan, lastDay: iso(lastDay) };
+    return { ...plan, lastDay: iso(lastDay), lastDelivery: lastById.get(id.toString()) ?? null };
   });
 }
 

@@ -19,6 +19,11 @@ export const HAS_HOLIDAY_EXTRA = sql`exists (select 1 from deliveries hx where h
  */
 export const MOVED_AWAY = sql`(${deliveries.mergedIntoDeliveryId} is not null or exists (select 1 from deliveries mv where mv.makeup_for_delivery_id = ${deliveries.id} or mv.holiday_extra_for_delivery_id = ${deliveries.id}))`;
 
+/** Activity note that marks a holiday-closed day staff wrote off instead of placing. */
+export const HOLIDAY_DISMISSED_NOTE = "Holiday day dismissed:";
+// ponytail: the activity row is the marker, so no migration; a column if dismissals ever need reporting or undo.
+export const HOLIDAY_DISMISSED = sql`exists (select 1 from order_activities da where da.delivery_id = ${deliveries.id} and da.type = 'note' and da.note like ${HOLIDAY_DISMISSED_NOTE + "%"})`;
+
 /**
  * Paused by the customer (or staff on their behalf), as opposed to closed for a holiday. Every
  * pause rule (budget, cutoff lapse, Resume, the pause drawer, "all upcoming days paused") reads

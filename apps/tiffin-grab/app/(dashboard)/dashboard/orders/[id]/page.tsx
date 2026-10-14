@@ -10,7 +10,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
 import { appToday } from "@/lib/services/start-date";
-import { earliestNewPlanStart } from "@/lib/services/order-window";
+import { earliestNewPlanStart, runningPlans } from "@/lib/services/order-window";
 import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
@@ -51,7 +51,7 @@ import { DeliveriesSection, loadSubscription } from "@/components/dashboard/deli
 // change the customer can make on it (move, swap, address, meal picks) through
 // the same server actions, so staff can do it for them. Tabs keep each concern one click away.
 
-type SearchParams = Promise<{ week?: string }>;
+type SearchParams = Promise<{ week?: string; free?: string }>;
 
 export default function OrderDetailPage({
   params,
@@ -78,7 +78,7 @@ async function OrderDetail({
 }) {
   await requireStaff();
   const { id } = await params;
-  const { week } = await searchParams;
+  const { week, free } = await searchParams;
 
   const settingsP = getAppSettings();
   const session = await getSession();
@@ -136,7 +136,7 @@ async function OrderDetail({
   const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
   // Ended plans get no subscription week, so their counts come straight from the delivery rows.
   const ended = order.status === "completed" || order.status === "cancelled";
-  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts] = await Promise.all([
+  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts, customerPlans] = await Promise.all([
     dishCategoriesService.forPlanType(planType),
     loadCatalogSnapshot(order.organizationId),
     // Staff-on-behalf claim form for payments that still need a reference/screenshot.
@@ -156,7 +156,12 @@ async function OrderDetail({
     // Moving the start must not land inside another running plan of this customer.
     order.userId != null ? earliestNewPlanStart(db, order.userId, order.id) : null,
     ended ? orderTiffinCounts(order.publicId) : null,
+    order.userId != null ? runningPlans(db, order.userId) : [],
   ]);
+  // The customer's other running plans: a renewal's days sit on its own order, not this one.
+  // Only plans in organizations this staff member can see: a customer can hold plans in several.
+  const otherPlans = customerPlans.filter((p) => p.publicId !== order.publicId
+    && (visible === "all" || (p.organizationId != null && visible.includes(p.organizationId))));
   const categoryLabels = Object.fromEntries(categoryRows.map((c) => [c.key, c.label]));
   const checkoutMethodId = (order.pricingSnapshot as { paymentMethodId?: string } | null)?.paymentMethodId;
   const checkoutMethodLabel = checkoutMethodId
@@ -222,6 +227,8 @@ async function OrderDetail({
   );
 
   const frequencyRow = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId);
+  // Saving eating days moves a WordPress plan imported as MWF onto the 5-day route (changeEatingDays).
+  const deliveryRow = order.deploymentId.startsWith("wc-") ? catalogSnapshot.frequencies.find((f) => f.key === "5_day") ?? frequencyRow : frequencyRow;
   const canEditEating = frequencyRow != null && order.trialLength == null
     && (order.status === "active" || order.status === "paused" || order.status === "pending");
   const eatingAction = canEditEating ? (
@@ -231,7 +238,8 @@ async function OrderDetail({
         frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null,
         includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
       })}
-      deliveryDays={orderDeliveryDays({ frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false })}
+      deliveryDays={orderDeliveryDays({ frequencyKey: deliveryRow!.key, weekdays: deliveryRow!.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false })}
+      toFiveDay={deliveryRow !== frequencyRow}
       servesWeekends={catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.servesWeekends ?? true}
       bounds={{ min: settings.minTiffinsPerWeek, max: settings.maxTiffinsPerWeek }}
     />
@@ -292,6 +300,7 @@ async function OrderDetail({
           allowedDays={(counts?.deliveryWeekdays ?? []).filter((d) => d !== "sat" && d !== "sun")}
           otherPlanEnd={otherPlanEnd}
           missed={missedOptions}
+          initialForId={free ?? null}
         />
       )}
     </>
@@ -309,6 +318,18 @@ async function OrderDetail({
       <div className="-mt-2 flex flex-wrap gap-2 sm:hidden">{headerActions}</div>
 
       <StatGrid items={stats} cols={5} />
+
+      {otherPlans.length > 0 && (
+        <p data-testid="other-plans" className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {otherPlans.map((p) => (
+            <span key={p.publicId}>
+              {p.startDate > order.startDate ? "Renewal" : "Earlier plan"}{" "}
+              <Link href={`/dashboard/orders/${p.publicId}`} className="text-foreground font-medium hover:underline">{p.deploymentId}</Link>
+              {` · ${humanDate(p.startDate)} – ${humanDate(p.lastDelivery ?? p.lastDay)} · ${p.tiffinCount} tiffins`}
+            </span>
+          ))}
+        </p>
+      )}
 
       {order.lookOutAt != null && (
         <div role="status" data-testid="look-out-banner" className="border-warn/40 bg-warn/10 flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 text-sm">

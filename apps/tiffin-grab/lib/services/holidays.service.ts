@@ -3,7 +3,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { alias } from "drizzle-orm/pg-core";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, like, not, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, holidays, orders, organization, users } from "@/db/schema";
+import { deliveries, holidays, orderActivities, orders, organization, users } from "@/db/schema";
 import { humanDate } from "@/lib/deliveries-view";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { notificationTables } from "@/lib/notifications/tables";
@@ -12,7 +12,7 @@ import { getAppSettings } from "./app-settings.service";
 import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow, type Tx } from "./deliveries.service";
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
 import { removeStopsBestEffort } from "./pause-days.service";
-import { MOVED_AWAY } from "./pause-state";
+import { HOLIDAY_DISMISSED, HOLIDAY_DISMISSED_NOTE, MOVED_AWAY } from "./pause-state";
 
 const log = createLogger("holidays.service");
 const sources = alias(deliveries, "holiday_sources");
@@ -287,6 +287,105 @@ export async function placeHolidayDay(deliveryPublicId: string, fromDate: string
   return dates;
 }
 
+/**
+ * Staff write a closed day off instead of placing it (a trial, a customer who does not want it):
+ * it leaves Needs placing and Place refuses it. The activity note is the marker (HOLIDAY_DISMISSED).
+ */
+export async function dismissHolidayDay(deliveryPublicId: string, actorId: bigint | null, visible: Visible): Promise<void> {
+  if (!sees(visible)) throw new NotFoundError("Delivery not found");
+  const [found] = await db.select({ id: deliveries.id, orderId: deliveries.orderId }).from(deliveries)
+    .innerJoin(holidays, eq(holidays.id, deliveries.holidayId))
+    .where(and(eq(deliveries.publicId, deliveryPublicId), scope(visible))).limit(1);
+  if (!found) throw new NotFoundError("Delivery not found");
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${found.orderId})`);
+    const [row] = await tx.select({ date: deliveries.deliveryDate, organizationId: deliveries.organizationId, holidayName: holidays.name })
+      .from(deliveries).innerJoin(holidays, eq(holidays.id, deliveries.holidayId))
+      .where(and(
+        eq(deliveries.id, found.id), inArray(deliveries.status, ["paused", "skipped"]), gt(deliveries.tiffinUnits, 0),
+        not(MOVED_AWAY), not(HOLIDAY_DISMISSED),
+      )).limit(1);
+    if (!row) throw new ValidationError("Nothing to dismiss: this day was already placed, moved or dismissed");
+    await tx.insert(orderActivities).values({
+      orderId: found.orderId, deliveryId: found.id, type: "note", createdBy: actorId, organizationId: row.organizationId,
+      note: `${HOLIDAY_DISMISSED_NOTE} ${row.date} (${row.holidayName}) not placed`,
+    });
+  });
+}
+
+export type HolidayOutcome =
+  | { kind: "placed"; dates: string[] }
+  | { kind: "moved"; date: string; merged: boolean }
+  | { kind: "needs_placing"; trial: boolean }
+  | { kind: "dismissed" }
+  | { kind: "back_on" }
+  | { kind: "cancelled" };
+
+export type HolidayClosedRow = {
+  deliveryPublicId: string; orderPublicId: string; orderCode: string; customerName: string; tiffins: number; outcome: HolidayOutcome;
+};
+
+export type HolidayDetail = {
+  holiday: Omit<HolidayRow, "closed"> & { notifiedAt: number | null };
+  rows: HolidayClosedRow[];
+  stats: { closed: number; placed: number; needsPlacing: number; dismissed: number; customers: number };
+};
+
+/** Where a closed day's tiffin went, from the links the holiday, Move and Place leave behind. */
+export function holidayOutcome(r: {
+  status: string; tiffinUnits: number; orderStatus: string; trial: boolean; dismissed: boolean;
+  extraDates: string[]; makeupDate: string | null; mergedDate: string | null;
+}): HolidayOutcome {
+  if (r.extraDates.length > 0) return { kind: "placed", dates: [...r.extraDates].sort() };
+  if (r.makeupDate) return { kind: "moved", date: r.makeupDate, merged: false };
+  if (r.mergedDate) return { kind: "moved", date: r.mergedDate, merged: true };
+  if (r.dismissed) return { kind: "dismissed" };
+  if (r.status === "scheduled") return { kind: "back_on" };
+  if (r.status === "cancelled" || r.orderStatus === "cancelled" || r.orderStatus === "completed" || r.tiffinUnits === 0) return { kind: "cancelled" };
+  return { kind: "needs_placing", trial: r.trial };
+}
+
+export async function getHolidayDetail(publicId: string, visible: Visible): Promise<HolidayDetail> {
+  const holiday = await scopedHoliday(publicId, visible);
+  const [[meta], rows] = await Promise.all([
+    db.select({ organizationName: organization.name, declaredBy: users.name }).from(holidays)
+      .innerJoin(organization, eq(organization.id, holidays.organizationId))
+      .leftJoin(users, eq(users.id, holidays.createdBy))
+      .where(eq(holidays.id, holiday.id)).limit(1),
+    db.select({
+      deliveryPublicId: deliveries.publicId, status: deliveries.status, tiffinUnits: deliveries.tiffinUnits,
+      orderPublicId: orders.publicId, orderCode: orders.deploymentId, customerName: orders.fullName,
+      orderStatus: orders.status, trialLength: orders.trialLength,
+      dismissed: sql<boolean>`${HOLIDAY_DISMISSED}`,
+      extraDates: sql<string[]>`coalesce((select array_agg(x.delivery_date::text order by x.delivery_date) from deliveries x where x.holiday_extra_for_delivery_id = ${deliveries.id}), '{}')`,
+      makeupDate: sql<string | null>`(select min(m.delivery_date)::text from deliveries m where m.makeup_for_delivery_id = ${deliveries.id})`,
+      mergedDate: sql<string | null>`(select t.delivery_date::text from deliveries t where t.id = ${deliveries.mergedIntoDeliveryId})`,
+    }).from(deliveries)
+      .innerJoin(orders, eq(orders.id, deliveries.orderId))
+      .where(eq(deliveries.holidayId, holiday.id))
+      .orderBy(asc(orders.fullName), asc(orders.deploymentId)),
+  ]);
+  const closed: HolidayClosedRow[] = rows.map((r) => ({
+    deliveryPublicId: r.deliveryPublicId, orderPublicId: r.orderPublicId, orderCode: r.orderCode, customerName: r.customerName, tiffins: r.tiffinUnits,
+    outcome: holidayOutcome({ ...r, trial: r.trialLength != null }),
+  }));
+  const count = (kind: HolidayOutcome["kind"]) => closed.filter((c) => c.outcome.kind === kind).length;
+  return {
+    holiday: {
+      publicId: holiday.publicId, date: holiday.date, name: holiday.name, organizationId: holiday.organizationId,
+      organizationName: meta?.organizationName ?? "", declaredBy: meta?.declaredBy ?? null, createdAt: holiday.createdAt, notifiedAt: holiday.notifiedAt,
+    },
+    rows: closed,
+    stats: {
+      closed: closed.length,
+      placed: count("placed") + count("moved"),
+      needsPlacing: count("needs_placing"),
+      dismissed: count("dismissed"),
+      customers: new Set(closed.map((c) => c.orderPublicId)).size,
+    },
+  };
+}
+
 export async function listHolidays(visible: Visible): Promise<HolidayRow[]> {
   if (!sees(visible)) return [];
   return db.select({
@@ -310,7 +409,7 @@ export async function listNeedsPlacing(visible: Visible): Promise<NeedsPlacingRo
     .innerJoin(holidays, eq(holidays.id, deliveries.holidayId))
     .innerJoin(orders, eq(orders.id, deliveries.orderId))
     .where(and(
-      inArray(deliveries.status, ["paused", "skipped"]), gt(deliveries.tiffinUnits, 0), not(MOVED_AWAY),
+      inArray(deliveries.status, ["paused", "skipped"]), gt(deliveries.tiffinUnits, 0), not(MOVED_AWAY), not(HOLIDAY_DISMISSED),
       inArray(orders.status, ["active", "paused"]), scope(visible),
     ))
     .orderBy(desc(holidays.date), asc(orders.deploymentId));

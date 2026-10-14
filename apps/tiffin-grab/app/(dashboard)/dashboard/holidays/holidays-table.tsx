@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarOffIcon, CalendarPlusIcon } from "lucide-react";
+import { CalendarOffIcon, CalendarPlusIcon, UsersIcon } from "lucide-react";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, RowActions, TonePill, type Column, type FacetDef } from "@/components/ds";
+import { DataTable, RowActions, TonePill, type Column, type FacetDef, type Tone } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { humanDate } from "@/lib/deliveries-view";
 import { parseSort, sortRows } from "@/lib/list/sort";
-import type { HolidayRow, NeedsPlacingRow } from "@/lib/services/holidays.service";
+import type { HolidayClosedRow, HolidayOutcome, HolidayRow, NeedsPlacingRow } from "@/lib/services/holidays.service";
 import { HolidayRowActions } from "./holiday-row-actions";
-import { PlaceForm } from "./place-form";
+import { PlacingActions } from "./placing-actions";
 
 export type HolidayListRow = HolidayRow & { needsPlacing: number };
 
@@ -25,7 +25,7 @@ const COLUMNS: readonly Column<Key | "actions">[] = [
   { key: "closed", label: "Closed", sortable: true, align: "right", width: "w-20" },
   { key: "needsPlacing", label: "To place", sortable: true, align: "right", width: "w-24" },
   { key: "declaredBy", label: "Declared by", sortable: true, width: "w-28" },
-  { key: "actions", label: "", align: "right", width: "w-28" },
+  { key: "actions", label: "", align: "right", width: "w-36" },
 ];
 const SORT_KEYS = COLUMNS.filter((c) => c.sortable).map((c) => c.key) as Key[];
 
@@ -86,7 +86,7 @@ export function HolidaysTable({ rows, today }: { rows: HolidayListRow[]; today: 
         return (
           <>
             <TableCell className="whitespace-nowrap tabular-nums">{humanDate(r.date)}</TableCell>
-            <TableCell className="font-medium" title={r.name}>{r.name}</TableCell>
+            <TableCell className="font-medium" title={r.name}><Link className="hover:underline" href={`/dashboard/holidays/${r.publicId}`}>{r.name}</Link></TableCell>
             <TableCell className="text-muted-foreground">{r.organizationName}</TableCell>
             <TableCell><TonePill tone={when === "past" ? "neutral" : when === "today" ? "warn" : "brand"}>{WHEN[when]}</TonePill></TableCell>
             <TableCell className="text-right tabular-nums">{r.closed}</TableCell>
@@ -114,7 +114,7 @@ const PLACING_COLUMNS: readonly Column<"closedDay" | "order" | "customer" | "tif
   { key: "customer", label: "Customer" },
   { key: "tiffins", label: "Tiffins", align: "right" },
   { key: "why", label: "Why" },
-  { key: "actions", label: "Place from", align: "right", width: "w-72" },
+  { key: "actions", label: "", align: "right", width: "w-32" },
 ];
 
 const reasonFor = (w: NeedsPlacingRow) =>
@@ -138,9 +138,54 @@ export function NeedsPlacingTable({ rows, today }: { rows: NeedsPlacingRow[]; to
           <TableCell>{w.customerName}</TableCell>
           <TableCell className="text-right tabular-nums">{w.tiffins}</TableCell>
           <TableCell className="text-muted-foreground text-sm">{reasonFor(w)}</TableCell>
-          <TableCell><PlaceForm deliveryPublicId={w.deliveryPublicId} today={today} /></TableCell>
+          <TableCell><PlacingActions deliveryPublicId={w.deliveryPublicId} orderPublicId={w.orderPublicId} label={`${w.customerName} · ${w.orderCode}`} date={w.date} today={today} /></TableCell>
         </>
       )}
+    />
+  );
+}
+
+const CLOSED_COLUMNS: readonly Column<"customer" | "order" | "tiffins" | "outcome">[] = [
+  { key: "customer", label: "Customer" },
+  { key: "order", label: "Order" },
+  { key: "tiffins", label: "Tiffins", align: "right" },
+  { key: "outcome", label: "Where it went" },
+];
+
+export function outcomeLabel(o: HolidayOutcome): { text: string; tone: Tone } {
+  switch (o.kind) {
+    case "placed": return { text: `Placed on ${o.dates.map(humanDate).join(", ")}`, tone: "ok" };
+    case "moved": return { text: `Moved to ${humanDate(o.date)}${o.merged ? " (with that day's delivery)" : ""}`, tone: "ok" };
+    case "needs_placing": return { text: o.trial ? "Trial: needs placing or dismiss" : "Needs placing", tone: "warn" };
+    case "dismissed": return { text: "Dismissed", tone: "neutral" };
+    case "back_on": return { text: "Back on schedule", tone: "brand" };
+    case "cancelled": return { text: "Plan cancelled or over", tone: "faint" };
+  }
+}
+
+/** Every delivery the holiday closed, and where its tiffin went. */
+export function ClosedDaysTable({ rows }: { rows: HolidayClosedRow[] }) {
+  return (
+    <DataTable
+      columns={CLOSED_COLUMNS}
+      rows={rows}
+      rowKey={(r) => r.deliveryPublicId}
+      pagination="client"
+      search={{ keys: ["customerName", "orderCode"], placeholder: "Search customer or order…", shortPlaceholder: "Search…" }}
+      emptyIcon={UsersIcon}
+      emptyMessage="No deliveries were on this day."
+      emptySearchMessage="No deliveries match your search."
+      renderRow={(r) => {
+        const { text, tone } = outcomeLabel(r.outcome);
+        return (
+          <>
+            <TableCell className="font-medium">{r.customerName}</TableCell>
+            <TableCell className="font-mono text-xs"><Link className="hover:underline" href={`/dashboard/orders/${r.orderPublicId}`}>{r.orderCode}</Link></TableCell>
+            <TableCell className="text-right tabular-nums">{r.tiffins}</TableCell>
+            <TableCell><TonePill tone={tone}>{text}</TonePill></TableCell>
+          </>
+        );
+      }}
     />
   );
 }

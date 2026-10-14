@@ -8,9 +8,10 @@ import {
 } from "@foundry/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { cn } from "@foundry/ui/cn";
+import { postalArea } from "@foundry/delivery/fsa";
 import { matchZone, type ZoneLike } from "@/lib/catalog/postal";
 
-type Opt = { prefix: string; zone: ZoneLike };
+type Opt = { prefix: string; zone: ZoneLike; area: string | null };
 
 export function PostalCombobox({
   value,
@@ -31,11 +32,12 @@ export function PostalCombobox({
     () =>
       zones
         .filter((z) => z.active)
-        .flatMap((zone) => zone.postalPrefixes.map((prefix) => ({ prefix, zone }))),
+        .flatMap((zone) => zone.postalPrefixes.map((prefix) => ({ prefix, zone, area: postalArea(prefix)?.name ?? null }))),
     [zones],
   );
 
   const matched = value ? matchZone(value, zones) : null;
+  const typedArea = value ? postalArea(value) : null;
 
   return (
     <div className="grid gap-1.5">
@@ -64,10 +66,10 @@ export function PostalCombobox({
             <CommandList>
               <CommandEmpty>No matching zone — code kept as typed.</CommandEmpty>
               <CommandGroup heading="Delivery zones">
-                {options.map(({ prefix, zone }) => (
+                {options.map(({ prefix, zone, area }) => (
                   <CommandItem
                     key={`${zone.name}-${prefix}`}
-                    value={`${prefix} ${zone.name}`}
+                    value={`${prefix} ${zone.name} ${area ?? ""}`}
                     onSelect={() => {
                       onChange(prefix.toUpperCase());
                       setOpen(false);
@@ -76,8 +78,9 @@ export function PostalCombobox({
                   >
                     <MapPinIcon className="size-3.5 opacity-60" />
                     <span className="font-medium">{prefix}</span>
-                    <span className="text-muted-foreground flex-1 text-sm">
+                    <span className="text-muted-foreground flex-1 truncate text-sm">
                       {zone.name} · {zone.slotWindow}
+                      {area && <span className="opacity-70"> · {area}</span>}
                     </span>
                     <CheckIcon
                       className={cn("size-4", value.toUpperCase().startsWith(prefix.toUpperCase()) ? "opacity-100" : "opacity-0")}
@@ -94,11 +97,13 @@ export function PostalCombobox({
           <span className="text-ok flex items-center gap-1.5 text-sm font-medium">
             <MapPinIcon className="size-3.5" />
             Zone {matched.name} · {matched.slotWindow}
+            {typedArea && <span className="text-muted-foreground font-normal">· {typedArea.name}</span>}
           </span>
         ) : (
           <span className="text-warn flex items-center gap-1.5 text-sm font-medium">
             <MapPinIcon className="size-3.5" />
             Out of delivery area — waitlist
+            {typedArea && <span className="text-muted-foreground font-normal">· {typedArea.name}</span>}
           </span>
         )
       ) : null}
