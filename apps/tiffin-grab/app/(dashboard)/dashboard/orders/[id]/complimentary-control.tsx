@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
@@ -25,6 +25,7 @@ export function ComplimentaryControl({
   allowedDays,
   otherPlanEnd = null,
   missed = [],
+  initialForId = null,
 }: {
   orderId: string;
   /** The plan is over: a grant reopens it. */
@@ -35,13 +36,21 @@ export function ComplimentaryControl({
   otherPlanEnd?: string | null;
   /** This plan's past deliveries without a free tiffin yet, newest first. */
   missed?: MissedOption[];
+  /** Opened from the Missed deliveries list: start open with that day picked. */
+  initialForId?: string | null;
 }) {
   const router = useRouter();
+  const preset = initialForId && missed.some((m) => m.publicId === initialForId) ? initialForId : null;
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // The order header renders this control twice (desktop and mobile layouts): only the visible one opens.
+  useEffect(() => {
+    if (preset && triggerRef.current?.offsetParent) setOpen(true);
+  }, [preset]);
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
   const [notify, setNotify] = useState(true);
-  const [forId, setForId] = useState(NONE);
+  const [forId, setForId] = useState(preset ?? NONE);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -62,9 +71,9 @@ export function ComplimentaryControl({
       open={open}
       onOpenChange={(o) => {
         setOpen(o);
-        if (o) { setDate(""); setNote(""); setNotify(true); setForId(NONE); setError(null); }
+        if (o) { setDate(""); setNote(""); setNotify(true); setForId(preset ?? NONE); setError(null); }
       }}
-      trigger={<Button size="sm" variant="outline">Give free tiffin</Button>}
+      trigger={<Button ref={triggerRef} size="sm" variant="outline">Give free tiffin</Button>}
       title="Give a complimentary tiffin"
       description={ended
         ? "This plan is over. Adding a free tiffin reopens it until that day is delivered."

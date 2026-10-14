@@ -51,7 +51,7 @@ import { DeliveriesSection, loadSubscription } from "@/components/dashboard/deli
 // change the customer can make on it (move, swap, address, meal picks) through
 // the same server actions, so staff can do it for them. Tabs keep each concern one click away.
 
-type SearchParams = Promise<{ week?: string }>;
+type SearchParams = Promise<{ week?: string; free?: string }>;
 
 export default function OrderDetailPage({
   params,
@@ -78,7 +78,7 @@ async function OrderDetail({
 }) {
   await requireStaff();
   const { id } = await params;
-  const { week } = await searchParams;
+  const { week, free } = await searchParams;
 
   const settingsP = getAppSettings();
   const session = await getSession();
@@ -292,6 +292,7 @@ async function OrderDetail({
           allowedDays={(counts?.deliveryWeekdays ?? []).filter((d) => d !== "sat" && d !== "sun")}
           otherPlanEnd={otherPlanEnd}
           missed={missedOptions}
+          initialForId={free ?? null}
         />
       )}
     </>
