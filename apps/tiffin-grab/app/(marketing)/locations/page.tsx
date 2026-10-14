@@ -70,6 +70,9 @@ export default async function LocationsPage() {
               )}
             </div>
           ))}
+          <p className="text-muted-foreground m-0 text-xs sm:col-span-2 lg:col-span-3">
+            Area names from <a href="https://www.geonames.org/" className="underline">GeoNames</a> (CC BY 4.0).
+          </p>
         </div>
       )}
 
