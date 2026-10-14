@@ -10,7 +10,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
-import { createOrder, type CreateOrderInput } from "./orders.service";
+import { assertOnePerson, createOrder, type CreateOrderInput } from "./orders.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
 import { poolForSource } from "./inquiry-user-config.service";
@@ -354,6 +354,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       address: [orderInput.contact.addressLine, orderInput.contact.city, orderInput.contact.postalCode].filter(Boolean).join(", "),
     });
 
+    assertOnePerson(orderInput);
     const actorPublicId = (await getSession())?.user?.id ?? null;
     const result = await createOrder(
       { ...orderInput, currentOwner: inq.currentOwner },

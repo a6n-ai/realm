@@ -6,7 +6,7 @@ import { resolveAndPersist } from "@foundry/places";
 import { getSession } from "@/lib/auth/session";
 import { currentUserId } from "@/lib/services/session-service";
 import { getContactOnFile } from "@/lib/services/contact-on-file";
-import { createOrder, type CreateOrderInput } from "@/lib/services/orders.service";
+import { assertOnePerson, createOrder, type CreateOrderInput } from "@/lib/services/orders.service";
 import { usersService } from "@/lib/services/users.service";
 import { sendAccountSetupEmail } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -102,6 +102,7 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
     return { waitlisted: true };
   }
 
+  assertOnePerson(input);
   const session = await getSession();
   // session.user.id is the acting user's public_id; createOrder resolves it to
   // the internal bigint. A logged-in customer's checkout attaches to their own

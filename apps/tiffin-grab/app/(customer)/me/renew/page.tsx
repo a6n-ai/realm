@@ -56,7 +56,7 @@ export default async function RenewPlanPage() {
       ? {
           planKey: lastOrder.planKey,
           mealSizePublicId,
-          persons: lastOrder.persons,
+          persons: 1,
           eatingDays: lastOrder.eatingDays,
           includeSaturday: lastOrder.includeSaturday,
           includeSunday: lastOrder.includeSunday,

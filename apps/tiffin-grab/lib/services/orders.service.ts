@@ -232,6 +232,15 @@ async function resolveUserId(
 // public_id, and opts.actorId/ownerUserId are user public_ids. createOrder
 // resolves each to the internal bigint id before writing the FK columns, and
 // returns the order's public_id (ord_…) — never a bigint.
+/**
+ * New plans are for one person: one phone, one running plan, one eater. Checkout and the staff
+ * order path call this before createOrder; createOrder itself still builds the few multi-person
+ * plans migrated from WordPress (and their tests).
+ */
+export function assertOnePerson(input: Pick<CreateOrderInput, "selections">): void {
+  if (input.selections.persons !== 1) throw new ValidationError("A plan is for one person. Each person needs their own account.");
+}
+
 export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},

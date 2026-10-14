@@ -658,18 +658,7 @@ export function OrderForm({
           </FormSection>
 
           <FormSection hidden={page === "payment"} title="Schedule" hint={isTrial ? `${multiDayTrial ? "Pick the days the trial arrives" : "A one-day trial arrives on its start date"}${trialFrequencyName ? ` · ${trialFrequencyName}` : ""}.` : "When it starts, how long it runs, and which days they eat."}>
-            <fieldset className={cn("grid gap-4", isTrial ? "sm:grid-cols-2" : "sm:grid-cols-3")} disabled={submitting}>
-              <FormField
-                control={form.control}
-                name="persons"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Persons <span className="text-destructive">*</span></FormLabel>
-                    <FormControl><Input type="number" min={1} max={5} {...field} value={String(field.value ?? "")} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <fieldset className={cn("grid gap-4", isTrial ? "sm:grid-cols-1" : "sm:grid-cols-2")} disabled={submitting}>
               {!isTrial && (
               <FormField
                 control={form.control}
