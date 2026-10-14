@@ -19,6 +19,7 @@ export function EatingDaysControl({
   deliveryDays,
   servesWeekends,
   bounds,
+  toFiveDay = false,
 }: {
   orderId: string;
   eatingDays: DayOfWeek[];
@@ -26,6 +27,8 @@ export function EatingDaysControl({
   deliveryDays: DayOfWeek[];
   servesWeekends: boolean;
   bounds: { min: number; max: number };
+  /** A WordPress plan still on MWF: saving moves it to 5-day delivery, even with the same days. */
+  toFiveDay?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -35,7 +38,7 @@ export function EatingDaysControl({
 
   const invalid = eatingDaysError(deliveryDays, value, bounds);
   const combined = (planWeek(deliveryDays, value) ?? []).filter((t) => t.units > 1);
-  const unchanged = value.join() === eatingDays.join();
+  const unchanged = value.join() === eatingDays.join() && !toFiveDay;
 
   const save = () =>
     start(async () => {
@@ -58,7 +61,9 @@ export function EatingDaysControl({
       }}
       trigger={<Button size="sm" variant="ghost" className="-my-1 h-7 px-2">Edit</Button>}
       title="Change eating days"
-      description="Delivery days and the number of tiffins stay the same. Upcoming deliveries are rescheduled onto the new days, so the last delivery date moves."
+      description={toFiveDay
+        ? "This WordPress plan is on Mon, Wed, Fri delivery. Saving moves it to 5 days a week. The number of tiffins stays the same; upcoming deliveries are rescheduled onto the days below."
+        : "Delivery days and the number of tiffins stay the same. Upcoming deliveries are rescheduled onto the new days, so the last delivery date moves."}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

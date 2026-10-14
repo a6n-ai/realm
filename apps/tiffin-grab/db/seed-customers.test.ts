@@ -41,9 +41,9 @@ describe("parsePreferredDays (via mapRow)", () => {
     expect(r.eatingDays).toEqual(["mon", "tue", "wed", "thu", "fri"]);
   });
 
-  it("keeps the mwf key for the exact MWF phrase", () => {
+  it("an MWF eater still rides the 5-day route", () => {
     const r = mapRow(row({ preferredDays: "Monday - Wednesday - Friday" }));
-    expect(r.frequencyKey).toBe("mwf");
+    expect(r.frequencyKey).toBe("5_day");
     expect(r.eatingDays).toEqual(["mon", "wed", "fri"]);
   });
 

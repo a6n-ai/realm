@@ -222,6 +222,8 @@ async function OrderDetail({
   );
 
   const frequencyRow = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId);
+  // Saving eating days moves a WordPress plan imported as MWF onto the 5-day route (changeEatingDays).
+  const deliveryRow = order.deploymentId.startsWith("wc-") ? catalogSnapshot.frequencies.find((f) => f.key === "5_day") ?? frequencyRow : frequencyRow;
   const canEditEating = frequencyRow != null && order.trialLength == null
     && (order.status === "active" || order.status === "paused" || order.status === "pending");
   const eatingAction = canEditEating ? (
@@ -231,7 +233,8 @@ async function OrderDetail({
         frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null,
         includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
       })}
-      deliveryDays={orderDeliveryDays({ frequencyKey: frequencyRow.key, weekdays: frequencyRow.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false })}
+      deliveryDays={orderDeliveryDays({ frequencyKey: deliveryRow!.key, weekdays: deliveryRow!.weekdays as DayOfWeek[] | null, includeSaturday: false, includeSunday: false })}
+      toFiveDay={deliveryRow !== frequencyRow}
       servesWeekends={catalogSnapshot.mealSizes.find((m) => m.id === order.mealSizeId)?.servesWeekends ?? true}
       bounds={{ min: settings.minTiffinsPerWeek, max: settings.maxTiffinsPerWeek }}
     />

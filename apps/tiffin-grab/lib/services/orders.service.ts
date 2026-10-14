@@ -1871,9 +1871,11 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       }
       if (order.trialLength != null) throw new ValidationError("A trial's days come from its trial schedule");
 
-      const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
-        .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+      // WordPress plans all ride the 5-day route; one imported as MWF moves onto it here.
+      const [freq] = await tx.select({ id: deliveryFrequencies.id, key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
+        .where(order.deploymentId.startsWith("wc-") ? eq(deliveryFrequencies.key, "5_day") : eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
       if (!freq) throw new ValidationError("Delivery frequency not found");
+      const toFiveDay = freq.id !== order.frequencyId;
       const frequency = { frequencyKey: freq.key, weekdays: freq.weekdays as DayOfWeek[] | null };
       const deliveryDays = orderDeliveryDays({ ...frequency, includeSaturday: false, includeSunday: false });
       const err = eatingDaysError(deliveryDays, days, { min: minTiffinsPerWeek, max: maxTiffinsPerWeek })
@@ -1883,7 +1885,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const next = trips.flatMap((t) => t.days);
       const before = (order.eatingDays as DayOfWeek[] | null)
         ?? orderDeliveryDays({ ...frequency, includeSaturday: order.includeSaturday, includeSunday: order.includeSunday });
-      if (before.join() === next.join()) return;
+      if (before.join() === next.join() && !toFiveDay) return;
 
       const rows = await tx.select().from(deliveries).where(eq(deliveries.orderId, order.id));
       const ids = rows.map((r) => r.id);
@@ -1955,6 +1957,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const last = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !open.includes(r) && r.status === "scheduled").map((r) => pulled.get(r.id) ?? r.deliveryDate)].sort().at(-1);
       const spanWeeks = last ? Math.ceil((Math.round((parseIsoDateUtc(last).getTime() - parseIsoDateUtc(order.startDate).getTime()) / 86_400_000) + 1) / 7) : 0;
       const [relaid] = await tx.update(orders).set({
+        frequencyId: freq.id,
         eatingDays: next,
         includeSaturday: next.includes("sat"),
         includeSunday: next.includes("sun"),
@@ -1967,7 +1970,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       await tx.insert(orderActivities).values({
         orderId: order.id,
         type: "note",
-        note: `Eating days changed from ${label(before)} to ${label(next)}`
+        note: (before.join() === next.join() ? `Delivery moved to 5 days a week, eating ${label(next)}` : `Eating days changed from ${label(before)} to ${label(next)}`)
+          + (toFiveDay && before.join() !== next.join() ? ", delivery now 5 days a week" : "")
           + (laid.length ? `. ${units} upcoming tiffin${units === 1 ? "" : "s"} rescheduled` : "")
           + (pulled.size ? `, ${pulled.size} moved tiffin${pulled.size === 1 ? "" : "s"} brought forward` : "")
           + (laid.length ? `, last delivery ${last}` : ""),
