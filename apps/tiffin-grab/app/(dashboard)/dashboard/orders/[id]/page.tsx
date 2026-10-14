@@ -325,7 +325,7 @@ async function OrderDetail({
             <span key={p.publicId}>
               {p.startDate > order.startDate ? "Renewal" : "Earlier plan"}{" "}
               <Link href={`/dashboard/orders/${p.publicId}`} className="text-foreground font-medium hover:underline">{p.deploymentId}</Link>
-              {` · ${humanDate(p.startDate)} – ${humanDate(p.lastDay)} · ${p.tiffinCount} tiffins`}
+              {` · ${humanDate(p.startDate)} – ${humanDate(p.lastDelivery ?? p.lastDay)} · ${p.tiffinCount} tiffins`}
             </span>
           ))}
         </p>
