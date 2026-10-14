@@ -10,7 +10,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds, getClaimPaymentContext, ordersService } from "@/lib/services/orders.service";
 import { appToday } from "@/lib/services/start-date";
-import { earliestNewPlanStart } from "@/lib/services/order-window";
+import { earliestNewPlanStart, runningPlans } from "@/lib/services/order-window";
 import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
@@ -136,7 +136,7 @@ async function OrderDetail({
   const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
   // Ended plans get no subscription week, so their counts come straight from the delivery rows.
   const ended = order.status === "completed" || order.status === "cancelled";
-  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts] = await Promise.all([
+  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts, customerPlans] = await Promise.all([
     dishCategoriesService.forPlanType(planType),
     loadCatalogSnapshot(order.organizationId),
     // Staff-on-behalf claim form for payments that still need a reference/screenshot.
@@ -156,7 +156,10 @@ async function OrderDetail({
     // Moving the start must not land inside another running plan of this customer.
     order.userId != null ? earliestNewPlanStart(db, order.userId, order.id) : null,
     ended ? orderTiffinCounts(order.publicId) : null,
+    order.userId != null ? runningPlans(db, order.userId) : [],
   ]);
+  // The customer's other running plans: a renewal's days sit on its own order, not this one.
+  const otherPlans = customerPlans.filter((p) => p.publicId !== order.publicId);
   const categoryLabels = Object.fromEntries(categoryRows.map((c) => [c.key, c.label]));
   const checkoutMethodId = (order.pricingSnapshot as { paymentMethodId?: string } | null)?.paymentMethodId;
   const checkoutMethodLabel = checkoutMethodId
@@ -313,6 +316,18 @@ async function OrderDetail({
       <div className="-mt-2 flex flex-wrap gap-2 sm:hidden">{headerActions}</div>
 
       <StatGrid items={stats} cols={5} />
+
+      {otherPlans.length > 0 && (
+        <p data-testid="other-plans" className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {otherPlans.map((p) => (
+            <span key={p.publicId}>
+              {p.startDate > order.startDate ? "Renewal" : "Earlier plan"}{" "}
+              <Link href={`/dashboard/orders/${p.publicId}`} className="text-foreground font-medium hover:underline">{p.deploymentId}</Link>
+              {` · ${humanDate(p.startDate)} – ${humanDate(p.lastDay)} · ${p.tiffinCount} tiffins`}
+            </span>
+          ))}
+        </p>
+      )}
 
       {order.lookOutAt != null && (
         <div role="status" data-testid="look-out-banner" className="border-warn/40 bg-warn/10 flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 text-sm">
