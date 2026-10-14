@@ -31,6 +31,8 @@ async function RepAllowanceData() {
     // Who issued each code and who used it. ponytail: newest 100, paginate when staff issue more.
     db
       .select({
+        publicId: coupons.publicId,
+        active: coupons.active,
         code: coupons.code,
         amount: coupons.valueAmount,
         note: coupons.description,
@@ -56,13 +58,14 @@ async function RepAllowanceData() {
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const now = Date.now();
   const codes: IssuedCode[] = issued.map((c) => ({
+    publicId: c.publicId,
     code: c.code,
     amount: Number(c.amount ?? 0),
     note: c.note,
     createdAt: c.createdAt,
     expiresAt: c.expiresAt,
     issuer: c.issuerName ?? c.issuerEmail ?? "Unknown",
-    status: c.orderPublicId ? "used" : c.expiresAt != null && c.expiresAt < now ? "expired" : "unused",
+    status: c.orderPublicId ? "used" : !c.active ? "revoked" : c.expiresAt != null && c.expiresAt < now ? "expired" : "unused",
     customer: c.customerName ?? c.customerEmail,
     orderPublicId: c.orderPublicId,
     applied: c.applied == null ? null : Number(c.applied),

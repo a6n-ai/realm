@@ -112,7 +112,8 @@ export async function setCouponActive(publicId: string, active: boolean) {
     .where(eq(coupons.publicId, publicId))
     .limit(1);
   if (!row) throw new ValidationError("Unknown coupon");
-  if (row.kind === "rep_daily" || row.kind === "rep_code") {
+  // An issued staff code can be revoked (never revived: a fresh one comes from the allowance).
+  if (row.kind === "rep_daily" || (row.kind === "rep_code" && active)) {
     throw new ValidationError("Rep coupons are managed through the rep allowance and cannot be toggled here");
   }
   await couponsService.update(publicId, { active });

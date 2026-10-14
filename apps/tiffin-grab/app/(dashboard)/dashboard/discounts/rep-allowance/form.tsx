@@ -14,18 +14,19 @@ import Link from "next/link";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { NumberField, ToggleRow, numOrNull } from "../controls";
-import { saveDiscountPolicy, setRepCeiling } from "../actions";
+import { saveDiscountPolicy, setCouponActive, setRepCeiling } from "../actions";
 
 type RepOption = { publicId: string; name: string | null; email: string | null; role: string };
 
 export type IssuedCode = {
+  publicId: string;
   code: string;
   amount: number;
   note: string | null;
   createdAt: number;
   expiresAt: number | null;
   issuer: string;
-  status: "unused" | "used" | "expired";
+  status: "unused" | "used" | "expired" | "revoked";
   customer: string | null;
   orderPublicId: string | null;
   applied: number | null;
@@ -131,7 +132,34 @@ export function RepAllowanceFormSkeleton() {
   );
 };
 
-const STATUS_LABEL: Record<IssuedCode["status"], string> = { unused: "Unused", used: "Used", expired: "Expired" };
+const STATUS_LABEL: Record<IssuedCode["status"], string> = { unused: "Unused", used: "Used", expired: "Expired", revoked: "Revoked" };
+
+function RevokeButton({ publicId, code }: { publicId: string; code: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await setCouponActive(publicId, false);
+          toast.success(`${code} revoked`);
+          router.refresh();
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Couldn't revoke the code");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? "Revoking…" : "Revoke"}
+    </Button>
+  );
+}
 
 function IssuedCodesSection({ codes }: { codes: IssuedCode[] }) {
   const tz = useTimezone();
@@ -150,6 +178,7 @@ function IssuedCodesSection({ codes }: { codes: IssuedCode[] }) {
               <TableHead>Status</TableHead>
               <TableHead>Used by</TableHead>
               <TableHead>Order</TableHead>
+              <TableHead className="sr-only">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -175,6 +204,9 @@ function IssuedCodesSection({ codes }: { codes: IssuedCode[] }) {
                   {c.orderPublicId ? (
                     <Link href={`/dashboard/orders/${c.orderPublicId}`} className="text-primary hover:underline">View order</Link>
                   ) : "—"}
+                </TableCell>
+                <TableCell className="text-right">
+                  {c.status === "unused" && <RevokeButton publicId={c.publicId} code={c.code} />}
                 </TableCell>
               </TableRow>
             ))}

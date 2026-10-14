@@ -504,6 +504,11 @@ export async function createOrder(
     // Staff lane last: it stacks on every coupon, and its ceilings are judged against
     // what the customer still pays.
     if (input.repCoupon) {
+      // One staff discount per order: each lane is capped per discount, so a staff code and a
+      // rep discount together would give the customer two ceilings' worth.
+      if (best.redemptions.some((r) => r.coupon.kind === "rep_code")) {
+        throw new ValidationError("Only one staff discount per order: remove the staff code or the rep discount");
+      }
       // Hard gate: a discount amount with no acting staff member is rejected.
       if (createdBy == null) throw new ValidationError("A rep discount requires an acting staff member");
       const line = await couponsService.validateRepCoupon(input.repCoupon.code, {

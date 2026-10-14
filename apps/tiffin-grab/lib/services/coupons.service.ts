@@ -6,7 +6,9 @@ import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, users } from "@/db/schema";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
+import { getDiscountPolicy } from "./app-settings.service";
 import { ledgerService } from "./ledger.service";
+import { repAllowanceFor } from "./rep-allowance";
 import { SessionUpdatableService } from "./session-service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -308,6 +310,16 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   async redeem(tx: Tx, input: RedeemInput): Promise<void> {
     const { coupon, userId, orderId, amountApplied } = input;
 
+    // A rep's day budget is shared with the codes they issued, which this coupon's own count
+    // can't see. Recount under the same user-row lock issueRepCode takes, so a concurrent
+    // issue or apply can't both take the last use.
+    if (coupon.kind === "rep_daily" && coupon.ownerUserId != null && coupon.istDate && coupon.maxRedemptions != null) {
+      await tx.select({ id: users.id }).from(users).where(eq(users.id, coupon.ownerUserId)).for("update");
+      if ((await this.repUsesToday(tx, coupon.ownerUserId, coupon.istDate)) >= coupon.maxRedemptions) {
+        throw new ValidationError("You have reached today's discount limit");
+      }
+    }
+
     // Atomic global-cap guard: bump only while under the cap; no row → cap hit.
     // The UPDATE ... RETURNING also locks the coupon row for the rest of the tx,
     // so concurrent redemptions of the same coupon serialize here — the per-user
@@ -516,6 +528,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   // validatePublicCode (which throws) and resolveBestCoupons (which skips).
   private async publicEligibilityError(coupon: Coupon, ctx: PublicCodeContext): Promise<string | null> {
     if (coupon.kind === "rep_daily") return "This code cannot be used here";
+    if (coupon.kind === "rep_code" && !(await this.issuerStillAllowed(coupon))) return "This code is no longer valid";
     const w = this.windowError(coupon);
     if (w) return w;
     if (coupon.minSubtotal != null && ctx.subtotal < num(coupon.minSubtotal)) {
@@ -545,6 +558,19 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       if (n > 0) return "This coupon is only valid on your first order";
     }
     return null;
+  }
+
+  // A staff code dies with its issuer's allowance: switching a rep off, or turning staff
+  // discounts off, also stops the codes they already handed out.
+  private async issuerStillAllowed(coupon: Coupon): Promise<boolean> {
+    if (coupon.ownerUserId == null) return false;
+    const [owner] = await db
+      .select({ publicId: users.publicId, role: users.role, status: users.status })
+      .from(users)
+      .where(eq(users.id, coupon.ownerUserId))
+      .limit(1);
+    if (!owner || owner.status !== "active" || (owner.role !== "admin" && owner.role !== "member")) return false;
+    return repAllowanceFor(await getDiscountPolicy(), owner.publicId) != null;
   }
 
   private windowError(coupon: Coupon): string | null {

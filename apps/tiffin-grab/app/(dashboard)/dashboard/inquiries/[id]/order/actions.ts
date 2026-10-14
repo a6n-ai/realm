@@ -225,7 +225,7 @@ async function quotePrice(
     paymentMethodId: method?.enabled ? method.id : "simulated",
     manualCode,
   });
-  const error = best.manualError;
+  let error = best.manualError;
   const applied: AppliedCoupon[] = [];
   for (const r of best.redemptions) {
     const amount = Math.min(r.amount, postCatalogSubtotal(postCatalog, lines));
@@ -238,7 +238,10 @@ async function quotePrice(
   const code = couponCode?.trim();
   const repAmount = requestedAmount ?? 0;
   const actorId = code && repAmount > 0 ? await actingStaffId() : null;
-  if (code && actorId != null) {
+  const hasStaffCode = best.redemptions.some((r) => r.coupon.kind === "rep_code");
+  if (code && actorId != null && hasStaffCode) {
+    error = "Only one staff discount per order: remove the staff code or the rep discount";
+  } else if (code && actorId != null) {
     try {
       const line = await couponsService.validateRepCoupon(code, {
         subtotal: postCatalogSubtotal(postCatalog, lines),

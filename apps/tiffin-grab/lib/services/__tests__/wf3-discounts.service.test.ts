@@ -214,6 +214,23 @@ describe("WF3 — stacking", () => {
     expect(reds.map((r) => r.amountApplied).sort()).toEqual(["10.00", "5.00"]);
   });
 
+  it("refuses a staff code and a rep discount on the same order", async () => {
+    const [actor] = await db.insert(users).values({ email: "actor5@x.com", role: "member" }).returning();
+    await setDiscountPolicy({
+      enabledKinds: ["percentage", "fixed", "free_delivery", "first_order", "rep_daily"],
+      repDaily: { enabled: true, defaultCapPct: 50, defaultCapAmount: 20, defaultDailyUses: 3, codeValidityHours: 48, perRep: {} },
+    });
+    await db.insert(coupons).values({ code: "REP-TWO", kind: "rep_daily", name: "Rep daily", capPct: "50", capAmount: "20", maxRedemptions: 3, ownerUserId: actor.id });
+    await db.insert(coupons).values({ code: "TG-TWO222", kind: "rep_code", name: "Staff discount", valueAmount: "20", capPct: "50", maxRedemptions: 1, stackable: true, visible: false, ownerUserId: actor.id });
+
+    await expect(
+      createOrder(
+        await baseInput({ phone: "+16475550555", couponCode: "TG-TWO222", repCoupon: { code: "REP-TWO", requestedAmount: 20 } }),
+        { actorId: actor.publicId },
+      ),
+    ).rejects.toThrow("Only one staff discount per order");
+  });
+
   it("allows one stackable public coupon plus one rep coupon", async () => {
     const [actor] = await db.insert(users).values({ email: "actor4@x.com", role: "member" }).returning();
     await db.insert(coupons).values({ code: "REP-OK2", kind: "rep_daily", name: "Rep daily", capPct: "50", capAmount: "20", maxRedemptions: 1, ownerUserId: actor.id });
