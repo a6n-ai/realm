@@ -1362,7 +1362,8 @@ export function effectiveAddress(
         deliveryStrategyIds: order.deliveryStrategyIds ?? [],
       }
     : {
-        fullName: d.fullName!, addressLine: d.addressLine, addressUnit: d.addressUnit, city: d.city!,
+        // A saved address may carry no recipient name; the plan's name is still who it is for.
+        fullName: d.fullName ?? order.fullName, addressLine: d.addressLine, addressUnit: d.addressUnit, city: d.city!,
         postalCode: d.postalCode!, deliveryInstructions: d.deliveryInstructions, zoneId: d.zoneId,
         // A re-addressed delivery carries its address's own drop-off, or none: the plan's
         // belongs to the plan's address, not this one.
