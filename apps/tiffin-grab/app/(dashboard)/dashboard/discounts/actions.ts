@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -43,8 +43,8 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
 
   // rep_daily coupons are minted by the scheduler with snapshotted ceilings —
   // they are never hand-created or hand-edited from this admin surface.
-  if (data.kind === "rep_daily") {
-    throw new ValidationError("Rep daily coupons are minted automatically and cannot be created here");
+  if (data.kind === "rep_daily" || data.kind === "rep_code") {
+    throw new ValidationError("Rep coupons are issued through the rep allowance and cannot be created here");
   }
 
   // Creation-time gating: a kind disabled in the policy may not be created or edited
@@ -112,8 +112,8 @@ export async function setCouponActive(publicId: string, active: boolean) {
     .where(eq(coupons.publicId, publicId))
     .limit(1);
   if (!row) throw new ValidationError("Unknown coupon");
-  if (row.kind === "rep_daily") {
-    throw new ValidationError("Rep daily coupons are managed automatically and cannot be toggled here");
+  if (row.kind === "rep_daily" || row.kind === "rep_code") {
+    throw new ValidationError("Rep coupons are managed through the rep allowance and cannot be toggled here");
   }
   await couponsService.update(publicId, { active });
   revalidatePath(PATH, "layout");
@@ -126,6 +126,7 @@ const policySchema = z.object({
     defaultCapPct: z.number().min(0).max(100),
     defaultCapAmount: z.number().min(0),
     defaultDailyUses: z.number().int().min(1).max(99),
+    codeValidityHours: z.number().int().min(1).max(720),
     perRep: z.record(
       z.string(),
       z.object({
@@ -173,9 +174,9 @@ export async function setRepCeiling(
   const [rep] = await db
     .select({ id: users.id })
     .from(users)
-    .where(and(eq(users.publicId, repPublicId), eq(users.role, "member"), eq(users.isSystem, false)))
+    .where(and(eq(users.publicId, repPublicId), inArray(users.role, ["admin", "member"]), eq(users.isSystem, false)))
     .limit(1);
-  if (!rep) throw new ValidationError("Unknown sales rep");
+  if (!rep) throw new ValidationError("Unknown staff member");
 
   // Build the next policy from a shallow clone — never mutate the cached object the
   // getter returns, or a concurrent read could observe the unpersisted change.

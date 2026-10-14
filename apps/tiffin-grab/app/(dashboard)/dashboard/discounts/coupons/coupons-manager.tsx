@@ -140,6 +140,8 @@ function couponValue(c: CouponRow): string {
       return "Free delivery";
     case "rep_daily":
       return "Capped";
+    case "rep_code":
+      return money(c.valueAmount);
   }
 }
 

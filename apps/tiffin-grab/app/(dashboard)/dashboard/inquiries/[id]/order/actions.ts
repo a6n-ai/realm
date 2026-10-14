@@ -65,7 +65,7 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
       name: coupons.name,
       capPct: coupons.capPct,
       capAmount: coupons.capAmount,
-      redemptionCount: coupons.redemptionCount,
+      maxRedemptions: coupons.maxRedemptions,
       startsAt: coupons.startsAt,
       expiresAt: coupons.expiresAt,
     })
@@ -81,7 +81,8 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
     .limit(1);
 
   if (!c) return { available: false, reason: "none-today" };
-  if (c.redemptionCount !== 0) return { available: false, reason: "used" };
+  // The day's budget covers codes the rep issued as well as uses of this coupon.
+  if ((await couponsService.repUsesToday(db, actorId, istDate)) >= (c.maxRedemptions ?? 1)) return { available: false, reason: "used" };
   const now = Date.now();
   if ((c.startsAt != null && now < c.startsAt) || (c.expiresAt != null && now > c.expiresAt)) {
     return { available: false, reason: "expired" };
@@ -214,24 +215,7 @@ async function quotePrice(
   const plan = snap.plans.find((p) => p.key === input.planKey);
   const lines: PricingLine[] = [];
 
-  const code = couponCode?.trim();
-  const repAmount = requestedAmount ?? 0;
-  const actorId = code && repAmount > 0 ? await actingStaffId() : null;
-  if (code && actorId != null) {
-    try {
-      lines.push(await couponsService.validateRepCoupon(code, {
-        subtotal: base.subtotal,
-        requestedAmount: repAmount,
-        actorId,
-        planType: plan?.planType,
-      }));
-    } catch {
-      // A rep coupon that no longer validates leaves the price undiscounted; createOrder is the gate.
-    }
-  }
-
-  // Customer coupons, resolved as createOrder does: against the subtotal after catalog discounts,
-  // and stackable-only once a rep discount is on the order.
+  // Customer coupons, resolved as createOrder does: against the subtotal after catalog discounts.
   const postCatalog = postCatalogSubtotal(base.subtotal, priceSubscription(selections, catalog).adjustments);
   const manualCode = input.couponCode?.trim() || undefined;
   const best = await couponsService.resolveBestCoupons({
@@ -240,18 +224,32 @@ async function quotePrice(
     userId: await previewCustomerId(input.contact),
     paymentMethodId: method?.enabled ? method.id : "simulated",
     manualCode,
-    stackableOnly: lines.length > 0,
   });
-  let error = best.manualError;
-  if (!error && manualCode && lines.length > 0 && !(await couponsService.findByCode(manualCode)).stackable) {
-    error = "This coupon cannot be combined with another discount";
-  }
+  const error = best.manualError;
   const applied: AppliedCoupon[] = [];
   for (const r of best.redemptions) {
     const amount = Math.min(r.amount, postCatalogSubtotal(postCatalog, lines));
     if (amount <= 0) continue;
     lines.push({ label: `${r.coupon.name} (${r.coupon.code})`, amount });
     applied.push({ code: r.coupon.code, name: r.coupon.name, amount, auto: r.coupon.autoApply });
+  }
+
+  // The rep discount goes on top of the coupons, judged against what is left, as in createOrder.
+  const code = couponCode?.trim();
+  const repAmount = requestedAmount ?? 0;
+  const actorId = code && repAmount > 0 ? await actingStaffId() : null;
+  if (code && actorId != null) {
+    try {
+      const line = await couponsService.validateRepCoupon(code, {
+        subtotal: postCatalogSubtotal(postCatalog, lines),
+        requestedAmount: repAmount,
+        actorId,
+        planType: plan?.planType,
+      });
+      if (line.amount > 0) lines.push(line);
+    } catch {
+      // A rep coupon that no longer validates leaves the price undiscounted; createOrder is the gate.
+    }
   }
 
   return {

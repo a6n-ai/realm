@@ -1,9 +1,10 @@
 import { tzOffsetMinutes, zonedDateIso } from "@foundry/commons";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getDiscountPolicy } from "./app-settings.service";
 import { couponsService } from "./coupons.service";
+import { repAllowanceFor } from "./rep-allowance";
 
 // Staff operate in IST; the daily rep allowance is anchored to the IST calendar
 // day (UTC+5:30, no DST → a fixed UTC instant year-round).
@@ -27,7 +28,7 @@ export interface MintSummary {
 }
 
 // The mint loop, shared by the protected cron route and the manual tsx trigger.
-// Lists active sales reps (role=member, not the system user, honoring the
+// Lists active staff (admin or member, not the system user, honoring the
 // per-rep `active` override) and mints one idempotent rep_daily coupon each with
 // the effective ceilings (per-rep override ?? default) snapshotted at mint.
 export async function mintRepCoupons(now: number = Date.now()): Promise<MintSummary> {
@@ -41,20 +42,17 @@ export async function mintRepCoupons(now: number = Date.now()): Promise<MintSumm
   const reps = await db
     .select({ id: users.id, publicId: users.publicId })
     .from(users)
-    .where(and(eq(users.role, "member"), eq(users.isSystem, false)));
+    .where(and(inArray(users.role, ["admin", "member"]), eq(users.isSystem, false)));
 
   let minted = 0;
   let skipped = 0;
   for (const rep of reps) {
-    const override = policy.repDaily.perRep[rep.publicId];
-    // Absent override = active by default.
-    if (override && override.active === false) {
+    const allowance = repAllowanceFor(policy, rep.publicId);
+    if (!allowance) {
       skipped += 1;
       continue;
     }
-    const capPct = override?.capPct ?? policy.repDaily.defaultCapPct;
-    const capAmount = override?.capAmount ?? policy.repDaily.defaultCapAmount;
-    const dailyUses = override?.dailyUses ?? policy.repDaily.defaultDailyUses;
+    const { capPct, capAmount, dailyUses } = allowance;
     const inserted = await db.transaction((tx) =>
       couponsService.mintRepDaily(tx, {
         ownerUserId: rep.id,

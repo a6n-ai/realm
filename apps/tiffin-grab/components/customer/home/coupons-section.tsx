@@ -22,7 +22,8 @@ export function discountLine(c: Pick<AvailableCoupon, "kind" | "valuePct" | "val
     case "free_delivery":
       return "Free delivery";
     case "rep_daily":
-      return "Special offer"; // excluded by listAvailable(); kept for exhaustiveness
+    case "rep_code":
+      return "Special offer"; // never listed (rep-owned, hidden); kept for exhaustiveness
   }
 }
 

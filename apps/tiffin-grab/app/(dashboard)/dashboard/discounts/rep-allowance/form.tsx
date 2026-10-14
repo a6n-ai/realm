@@ -9,29 +9,51 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { cn } from "@foundry/ui/cn";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
+import Link from "next/link";
+import { formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import { NumberField, ToggleRow, numOrNull } from "../controls";
 import { saveDiscountPolicy, setRepCeiling } from "../actions";
 
-type RepOption = { publicId: string; name: string | null; email: string | null };
+type RepOption = { publicId: string; name: string | null; email: string | null; role: string };
+
+export type IssuedCode = {
+  code: string;
+  amount: number;
+  note: string | null;
+  createdAt: number;
+  expiresAt: number | null;
+  issuer: string;
+  status: "unused" | "used" | "expired";
+  customer: string | null;
+  orderPublicId: string | null;
+  applied: number | null;
+};
 
 // Single source of truth for the two section headers, consumed by both the real
 // sections and the .Skeleton twin so the loading state can't drift from them.
 const GLOBAL_SECTION = {
-  title: "Rep daily allowance",
+  title: "Staff discount allowance",
   subtitle:
-    "The daily discount each sales rep may grant. The lower of the two ceilings applies to any single rep discount.",
+    "What each staff member may give per day, either applied on an order they create or as a one-off code from the Create coupon button. The lower of the two ceilings applies to any single discount.",
 } as const;
 const PER_REP_SECTION = {
   title: "Per-rep overrides",
   subtitle:
-    "Override the default ceilings for an individual rep, or disable their allowance. Blank fields fall back to the global default.",
+    "Override the default ceilings for an individual staff member, or disable their allowance. Blank fields fall back to the global default.",
+} as const;
+const CODES_SECTION = {
+  title: "Issued codes",
+  subtitle: "One-off codes staff generated, who issued each, and the customer and order that used it.",
 } as const;
 
-export function RepAllowanceForm({ reps, policy }: { reps: RepOption[]; policy: DiscountPolicy }) {
+export function RepAllowanceForm({ reps, policy, codes }: { reps: RepOption[]; policy: DiscountPolicy; codes: IssuedCode[] }) {
   return (
     <div className="grid gap-6">
       <GlobalCeilingsSection policy={policy} />
       <PerRepSection reps={reps} policy={policy} />
+      <IssuedCodesSection codes={codes} />
     </div>
   );
 }
@@ -61,9 +83,15 @@ export function RepAllowanceFormSkeleton() {
             {field()}
             {field()}
           </div>
-          <div className="grid gap-1.5 sm:max-w-[13rem]">
-            {field()}
-            <Skeleton className="h-3 w-full" />
+          <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              {field()}
+              <Skeleton className="h-3 w-full" />
+            </div>
+            <div className="grid gap-1.5">
+              {field()}
+              <Skeleton className="h-3 w-full" />
+            </div>
           </div>
           <Skeleton className="h-9 w-28" />
         </div>
@@ -92,9 +120,70 @@ export function RepAllowanceFormSkeleton() {
           ))}
         </div>
       </SectionCard>
+      <SectionCard title={CODES_SECTION.title} subtitle={CODES_SECTION.subtitle}>
+        <div className="grid gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
+          ))}
+        </div>
+      </SectionCard>
     </div>
   );
 };
+
+const STATUS_LABEL: Record<IssuedCode["status"], string> = { unused: "Unused", used: "Used", expired: "Expired" };
+
+function IssuedCodesSection({ codes }: { codes: IssuedCode[] }) {
+  const tz = useTimezone();
+  return (
+    <SectionCard title={CODES_SECTION.title} subtitle={CODES_SECTION.subtitle}>
+      {codes.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No codes issued yet.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Code</TableHead>
+              <TableHead>Issued by</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Used by</TableHead>
+              <TableHead>Order</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {codes.map((c) => (
+              <TableRow key={c.code}>
+                <TableCell>
+                  <span className="nums font-medium">{c.code}</span>
+                  {c.note && <span className="text-muted-foreground block text-xs">{c.note}</span>}
+                </TableCell>
+                <TableCell>{c.issuer}</TableCell>
+                <TableCell className="nums text-right">
+                  ${(c.applied ?? c.amount).toFixed(2)}
+                  {c.applied != null && c.applied < c.amount && (
+                    <span className="text-muted-foreground block text-xs">of ${c.amount.toFixed(2)}</span>
+                  )}
+                </TableCell>
+                <TableCell>{formatEpoch(c.createdAt, { mode: "datetime", timeZone: tz })}</TableCell>
+                <TableCell>
+                  <Badge variant={c.status === "used" ? "default" : "secondary"}>{STATUS_LABEL[c.status]}</Badge>
+                </TableCell>
+                <TableCell>{c.customer ?? "—"}</TableCell>
+                <TableCell>
+                  {c.orderPublicId ? (
+                    <Link href={`/dashboard/orders/${c.orderPublicId}`} className="text-primary hover:underline">View order</Link>
+                  ) : "—"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </SectionCard>
+  );
+}
 
 function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
   const router = useRouter();
@@ -103,8 +192,10 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
   const [capPct, setCapPct] = React.useState(String(policy.repDaily.defaultCapPct));
   const [capAmount, setCapAmount] = React.useState(String(policy.repDaily.defaultCapAmount));
   const [dailyUses, setDailyUses] = React.useState(String(policy.repDaily.defaultDailyUses));
+  const [validity, setValidity] = React.useState(String(policy.repDaily.codeValidityHours));
 
   const dirty =
+    (numOrNull(validity) ?? policy.repDaily.codeValidityHours) !== policy.repDaily.codeValidityHours ||
     enabled !== policy.repDaily.enabled ||
     Number(capPct) !== policy.repDaily.defaultCapPct ||
     Number(capAmount) !== policy.repDaily.defaultCapAmount ||
@@ -122,6 +213,11 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
       toast.error("Discounts per day must be a whole number of 1 or more");
       return;
     }
+    const hoursN = numOrNull(validity);
+    if (hoursN == null || hoursN < 1 || hoursN > 720 || !Number.isInteger(hoursN)) {
+      toast.error("Code validity must be a whole number of hours from 1 to 720");
+      return;
+    }
     start(async () => {
       try {
         await saveDiscountPolicy({
@@ -132,6 +228,7 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
             defaultCapPct: pctN,
             defaultCapAmount: amtN,
             defaultDailyUses: usesN,
+            codeValidityHours: hoursN,
           },
         });
         toast.success("Rep ceilings saved");
@@ -147,8 +244,8 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
       <div className="grid gap-4">
         <ToggleRow
           id="rep-enabled"
-          label="Enable rep daily coupons"
-          hint="When off, reps cannot grant discounts and no daily coupons are minted."
+          label="Enable staff discounts"
+          hint="When off, staff cannot give discounts or create codes, and no daily coupons are minted."
           checked={enabled}
           onChange={setEnabled}
         />
@@ -171,19 +268,35 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
             onChange={setCapAmount}
           />
         </div>
-        <div className="grid gap-1.5 sm:max-w-[13rem]">
-          <NumberField
-            id="rep-daily-uses"
-            label="Discounts per day"
-            min={1}
-            max={99}
-            step={1}
-            value={dailyUses}
-            onChange={setDailyUses}
-          />
-          <p className="text-muted-foreground text-xs text-pretty">
-            How many discounts each rep can give per day. Sets a daily target so reps don&apos;t discount every order.
-          </p>
+        <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <NumberField
+              id="rep-daily-uses"
+              label="Discounts per day"
+              min={1}
+              max={99}
+              step={1}
+              value={dailyUses}
+              onChange={setDailyUses}
+            />
+            <p className="text-muted-foreground text-xs text-pretty">
+              How many discounts each staff member can give per day, applied discounts and created codes together.
+            </p>
+          </div>
+          <div className="grid gap-1.5">
+            <NumberField
+              id="rep-code-validity"
+              label="Code validity (hours)"
+              min={1}
+              max={720}
+              step={1}
+              value={validity}
+              onChange={setValidity}
+            />
+            <p className="text-muted-foreground text-xs text-pretty">
+              How long a created code can be used before it expires.
+            </p>
+          </div>
         </div>
         <Button onClick={save} disabled={pending || !dirty} className="w-fit">
           Save ceilings
@@ -197,7 +310,7 @@ function PerRepSection({ reps, policy }: { reps: RepOption[]; policy: DiscountPo
   return (
     <SectionCard title={PER_REP_SECTION.title} subtitle={PER_REP_SECTION.subtitle}>
       {reps.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No sales reps (members) yet.</p>
+        <p className="text-muted-foreground text-sm">No staff yet.</p>
       ) : (
         <div className="grid gap-3">
           {reps.map((rep) => (
@@ -250,7 +363,7 @@ function RepRow({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">{rep.name ?? rep.email ?? rep.publicId}</span>
-          <Badge variant="secondary">Member</Badge>
+          <Badge variant="secondary" className="capitalize">{rep.role}</Badge>
         </div>
         <ToggleRow id={`rep-${rep.publicId}`} label="Allowed" checked={active} onChange={setActive} inline />
       </div>

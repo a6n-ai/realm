@@ -204,6 +204,13 @@
       "when": 1791917800803,
       "tag": "0028_last_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791925498156,
+      "tag": "0029_white_avengers",
+      "breakpoints": true
     }
   ]
 }

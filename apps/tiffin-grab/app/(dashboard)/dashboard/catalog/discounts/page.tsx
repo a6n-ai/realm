@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { TicketPercentIcon } from "lucide-react";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, notInArray } from "drizzle-orm";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
@@ -27,7 +27,7 @@ async function AllDiscounts() {
   const [{ freqs, durs, sizes, strategies, dtos }, cRows] = await Promise.all([
     loadDiscountData(),
     db.select({ publicId: coupons.publicId, code: coupons.code, kind: coupons.kind, valuePct: coupons.valuePct, valueAmount: coupons.valueAmount, active: coupons.active, startsAt: coupons.startsAt, expiresAt: coupons.expiresAt })
-      .from(coupons).where(eq(coupons.active, true)).orderBy(desc(coupons.createdAt)).limit(COUPON_LIMIT + 1),
+      .from(coupons).where(and(eq(coupons.active, true), notInArray(coupons.kind, ["rep_daily", "rep_code"]))).orderBy(desc(coupons.createdAt)).limit(COUPON_LIMIT + 1),
   ]);
   const rows = buildRows({
     discounts: dtos,

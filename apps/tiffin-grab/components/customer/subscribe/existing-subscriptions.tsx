@@ -22,6 +22,7 @@ function discountLine(c: AvailableCoupon): string {
     case "free_delivery":
       return "Free delivery";
     case "rep_daily":
+    case "rep_code":
       return "Special offer";
     default: {
       const _exhaustive: never = c.kind;

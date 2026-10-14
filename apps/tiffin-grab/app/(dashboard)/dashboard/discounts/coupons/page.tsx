@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { and, asc, desc, ne } from "drizzle-orm";
+import { and, asc, desc, notInArray } from "drizzle-orm";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
@@ -46,7 +46,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
   const primary = sort.dir === "asc" ? asc(col) : desc(col);
 
   // Project to public_id + display fields only — no bigint ids reach the client.
-  // rep_daily coupons are minted by the scheduler, never hand-managed here.
+  // Rep coupons (daily and staff-issued codes) belong to the rep allowance, never hand-managed here.
   // createdAt desc is the stable tiebreaker under every sort.
   const couponRows = await db
     .select({
@@ -71,7 +71,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
       config: coupons.config,
     })
     .from(coupons)
-    .where(and(ne(coupons.kind, "rep_daily"), epochBoundsWhere(coupons.createdAt, sp)))
+    .where(and(notInArray(coupons.kind, ["rep_daily", "rep_code"]), epochBoundsWhere(coupons.createdAt, sp)))
     .orderBy(primary, desc(coupons.createdAt));
 
   // Hand-made coupons are a small set, so search and paging stay client-side.

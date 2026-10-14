@@ -69,7 +69,7 @@ export async function getEmployeeRollup(
       .from(coupons)
       .where(
         and(
-          sql`${coupons.kind} = 'rep_daily' and ${coupons.ownerUserId} is not null`,
+          sql`${coupons.kind} in ('rep_daily', 'rep_code') and ${coupons.ownerUserId} is not null`,
           epochRangeWhere(coupons.createdAt, filters),
         ),
       )

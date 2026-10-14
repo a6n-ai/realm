@@ -476,58 +476,47 @@ export async function createOrder(
     const adjustments: PricingLine[] = [];
     const redemptions: { coupon: typeof coupons.$inferSelect; amount: number; redeemedBy: bigint | null }[] = [];
 
-    if (input.repCoupon) {
-      // Hard gate: a discount amount with no acting staff member is rejected.
-      if (createdBy == null) throw new ValidationError("A rep discount requires an acting staff member");
-      const line = await couponsService.validateRepCoupon(input.repCoupon.code, {
-        subtotal: postCatalog,
-        requestedAmount: input.repCoupon.requestedAmount,
-        actorId: createdBy,
-        planType: plan.planType,
-        userId,
-      });
-      const coupon = await couponsService.findByCode(input.repCoupon.code);
-      adjustments.push(line);
-      redemptions.push({ coupon, amount: line.amount, redeemedBy: createdBy });
-    }
-
     // Customer lane: the best valid combination of auto-apply coupons plus an
     // optional manual code, re-resolved server-side (never trusting a client
     // amount). Method-gated coupons are filtered via paymentMethodId.
-    //
-    // Rep-aware: when a rep coupon is also applied, an exclusive coupon could never
-    // legally ride alongside it, so we ask for the best STACKABLE-only combo.
     const best = await couponsService.resolveBestCoupons({
       subtotal: postCatalog,
       planType: plan.planType,
       userId,
       paymentMethodId,
       manualCode: input.couponCode,
-      stackableOnly: !!input.repCoupon,
     });
     // A manual code that was explicitly entered but is invalid / expired /
     // ineligible fails the order with the reason — the auto set would otherwise
     // silently drop it. Auto-apply coupons never trigger this.
     if (input.couponCode && best.manualError) throw new ValidationError(best.manualError);
 
-    // Stacking with the rep lane: a customer who *explicitly* typed an exclusive
-    // code alongside a rep discount is always told they cannot combine.
-    if (input.repCoupon && input.couponCode?.trim()) {
-      const manualCoupon = await couponsService.findByCode(input.couponCode.trim());
-      if (!manualCoupon.stackable) {
-        throw new ValidationError("This coupon cannot be combined with another discount");
-      }
-    }
     // Re-distribute every kept line against the running remaining subtotal so the
     // summed redemption amounts can never exceed the order subtotal.
-    const customerSet = best.redemptions;
-    for (const r of customerSet) {
-      const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
-      const remaining = Math.max(0, Math.round((postCatalog - priorDiscount + Number.EPSILON) * 100) / 100);
-      const amount = Math.min(r.amount, remaining);
+    const remainingAfter = () => Math.max(0, Math.round((postCatalog - adjustments.reduce((sum, a) => sum + a.amount, 0) + Number.EPSILON) * 100) / 100);
+    for (const r of best.redemptions) {
+      const amount = Math.min(r.amount, remainingAfter());
       if (amount <= 0) continue;
       adjustments.push({ label: `${r.coupon.name} (${r.coupon.code})`, amount });
       redemptions.push({ coupon: r.coupon, amount, redeemedBy: createdBy });
+    }
+
+    // Staff lane last: it stacks on every coupon, and its ceilings are judged against
+    // what the customer still pays.
+    if (input.repCoupon) {
+      // Hard gate: a discount amount with no acting staff member is rejected.
+      if (createdBy == null) throw new ValidationError("A rep discount requires an acting staff member");
+      const line = await couponsService.validateRepCoupon(input.repCoupon.code, {
+        subtotal: remainingAfter(),
+        requestedAmount: input.repCoupon.requestedAmount,
+        actorId: createdBy,
+        planType: plan.planType,
+        userId,
+      });
+      if (line.amount > 0) {
+        adjustments.push(line);
+        redemptions.push({ coupon: await couponsService.findByCode(input.repCoupon.code), amount: line.amount, redeemedBy: createdBy });
+      }
     }
 
     // Coins are a discount like any other: resolved server-side against the

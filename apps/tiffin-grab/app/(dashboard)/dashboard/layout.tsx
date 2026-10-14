@@ -6,6 +6,8 @@ import { isLocked } from "@/lib/auth/lock";
 import { getAppSettings, getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { couponsService, type RepCouponToday } from "@/lib/services/coupons.service";
+import { repAllowanceFor } from "@/lib/services/rep-allowance";
+import { RepCodeFab } from "@/components/dashboard/rep-code-fab";
 import { usersService } from "@/lib/services/users.service";
 import { newActivity } from "@/lib/services/section-seen.service";
 import { getFeed } from "@/lib/notifications/feed";
@@ -90,15 +92,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const role = session.user.role;
   const email = user.email ?? session.user.email ?? "";
 
-  // Sales reps (role member) get today's daily-coupon card in the sidebar, but
-  // only when the allowance is on and this rep is not disabled. publicId is the
-  // session id; the service resolves it to the internal owner id server-side.
+  // Staff with a rep allowance get today's daily-coupon card in the sidebar and the
+  // floating Create coupon button. publicId is the session id; the service resolves it
+  // to the internal owner id server-side.
+  const hasRepAllowance = repAllowanceFor(await getDiscountPolicy(), session.user.id) != null;
   const loadRepCoupon = async (): Promise<RepCouponToday | null> => {
-    if (role !== "member") return null;
-    const policy = await getDiscountPolicy();
-    const override = policy.repDaily.perRep[session.user.id];
-    const repActive = !(override && override.active === false);
-    if (!policy.repDaily.enabled || !repActive) return null;
+    if (!hasRepAllowance) return null;
     // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
     const istDate = zonedDateIso(Date.now(), "Asia/Kolkata");
     return couponsService.getTodayRepCoupon(session.user.id, istDate);
@@ -145,7 +144,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       bottomNav={<AppBottomNav role={role} />}
     >
       <InboxRealtime tickets payments={role === "admin"} />
+      {hasRepAllowance && <RepCodeFab />}
       {children}
+      {/* Room to scroll the last row out from under the floating button. */}
+      {hasRepAllowance && <div aria-hidden className="h-16" />}
     </CrmShell>
     </QuickAddProvider>
     </TimezoneProvider>

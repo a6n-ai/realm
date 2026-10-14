@@ -76,6 +76,21 @@ type Catalog = {
 
 type EnabledSlot = { key: string; label: string };
 
+const FIELD_LABELS: Record<string, string> = {
+  email: "Email",
+  planKey: "Diet",
+  mealSizeId: "Meal size",
+  frequencyKey: "Delivery days",
+  eatingDays: "Eating days",
+  persons: "Persons",
+  mealSlots: "Meals",
+  durationWeeks: "Duration",
+  startDate: "Start date",
+  addressLine: "Street address",
+  city: "City",
+  postalCode: "Postal code",
+};
+
 /** CRM toggle pill for DropOffPicker and address types (the customer kit pill is public-site styled). */
 function AdminPill({ on, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { on: boolean }) {
   return (
@@ -127,6 +142,7 @@ export function OrderForm({
   page,
   onContinue,
   summary,
+  priceSummary,
 }: {
   /** Split into two steps: "order" = meal + schedule, "payment" = delivery + payment + review. Unset = one page. */
   page?: "order" | "payment";
@@ -134,6 +150,8 @@ export function OrderForm({
   onContinue?: () => void;
   /** Review block on top of the "payment" page, fed the live order and price. */
   summary?: (draft: { order: CreateOrderInput; preview: PricingResult | null }) => React.ReactNode;
+  /** Price block under the delivery address on the "payment" page. */
+  priceSummary?: (draft: { order: CreateOrderInput; preview: PricingResult | null }) => React.ReactNode;
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
   catalog: Catalog;
@@ -554,6 +572,13 @@ export function OrderForm({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create order");
     }
+  }, (errors) => {
+    // Some fields live on another step (email on Contact, plan on Order), where their own message
+    // can't be seen; name the first failing one here so Create never fails silently.
+    const [field, err] = Object.entries(errors)[0] ?? [];
+    if (!field) return;
+    const label = FIELD_LABELS[field] ?? field;
+    setError(`${label}: ${err?.message || "check this field"}${field === "email" && page ? " (go back to Contact to fix it)" : ""}`);
   });
 
   const orderMissing = [
@@ -653,7 +678,7 @@ export function OrderForm({
                   <FormItem>
                     <FormLabel>Duration (weeks) <span className="text-destructive">*</span></FormLabel>
                     <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>{catalog.durations.map((d) => <SelectItem key={d.weeks} value={String(d.weeks)}>{d.weeks}</SelectItem>)}</SelectContent>
                     </Select>
                     <FormMessage />
@@ -883,6 +908,8 @@ export function OrderForm({
             <DropOffPicker catalog={dropOffs} value={dropOff} onChange={setDropOff} disabled={submitting} Pill={AdminPill} />
           </fieldset>
           </FormSection>
+
+          {liveDraft && priceSummary && <section className="grid gap-5">{priceSummary(liveDraft)}</section>}
 
           <FormSection hidden={page === "order"} title="Payment" hint={realPayments ? "How the customer pays. Attach proof if they already paid; otherwise share the payment link after create." : undefined}>
           <fieldset className="space-y-3" disabled={submitting}>
