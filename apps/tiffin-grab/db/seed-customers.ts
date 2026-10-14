@@ -195,8 +195,7 @@ function parsePreferredDays(raw: string | null): { frequencyKey: "5_day" | "mwf"
   }
   const weekdays = WEEK_ORDER.filter((d) => picked.includes(d) && !isWeekend(d));
   const eatingDays = weekdays.length ? weekdays : FIVE;
-  const mwf = eatingDays.join() === "mon,wed,fri";
-  return { frequencyKey: mwf ? "mwf" : "5_day", eatingDays, includeSaturday: false, includeSunday: false };
+  return { frequencyKey: "5_day", eatingDays, includeSaturday: false, includeSunday: false };
 }
 
 // Diet staff confirmed by hand for veg-conflict rows (2026-10-04). Wins over both the

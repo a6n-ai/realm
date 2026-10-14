@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { desc, eq, ne } from "drizzle-orm";
+import { desc, eq, ne, sql } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
@@ -259,6 +259,11 @@ describe("runningPlans: what the staff order form lists", () => {
     const next = new Date(`${plan.lastDay}T00:00:00Z`);
     next.setUTCDate(next.getUTCDate() + 1);
     expect(next.toISOString().slice(0, 10)).toBe(await earliestNewPlanStart(db, user.id));
+    // The last delivery is the real last tiffin day, never past the band the plan holds.
+    const [{ last }] = await db.select({ last: sql<string>`max(${deliveries.deliveryDate})` }).from(deliveries)
+      .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(orders.publicId, publicId));
+    expect(plan.lastDelivery).toBe(last);
+    expect(plan.lastDelivery! <= plan.lastDay).toBe(true);
 
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, publicId));
     expect(await runningPlans(db, user.id)).toHaveLength(0);
