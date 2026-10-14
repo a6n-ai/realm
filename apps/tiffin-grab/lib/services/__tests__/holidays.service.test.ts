@@ -29,7 +29,7 @@ const { deliveries, holidays, orders, organization, users } = await import("@/db
 const { notificationTables } = await import("@/lib/notifications/tables");
 const { getAppSettings } = await import("../app-settings.service");
 const {
-  checkoutHolidayDates, createHoliday, holidayNamesForUser, holidaysOn, listDeclarableOrganizations, listHolidays, listNeedsPlacing, placeHolidayDay,
+  checkoutHolidayDates, createHoliday, dismissHolidayDay, getHolidayDetail, holidayNamesForUser, holidayOutcome, holidaysOn, listDeclarableOrganizations, listHolidays, listNeedsPlacing, placeHolidayDay,
   previewHoliday, reapplyHoliday, removeHoliday, renameHoliday,
 } = await import("../holidays.service");
 const { deleteOrder } = await import("@/lib/services/optimoroute/client");
@@ -441,6 +441,52 @@ describe("holidays.service", () => {
     await expect(placeHolidayDay(mon.publicId, "2030-01-21", 3n, "all")).rejects.toThrow("Nothing to place");
     expect((await listNeedsPlacing("all")).filter((r) => r.holidayPublicId === retro!.publicId)).toEqual([]);
   });
+  it("dismiss takes a waiting day off Needs placing for good, and Place then refuses it", async () => {
+    const { order, mon, org } = await orderWithOrg();
+    const [retro] = await db.insert(holidays).values({ organizationId: org, date: "2030-01-07", name: `${PFX} retro` }).returning();
+    await db.update(deliveries).set({ status: "skipped", holidayId: retro!.id }).where(eq(deliveries.id, mon.id));
+    const waiting = async () => (await listNeedsPlacing("all")).filter((r) => r.holidayPublicId === retro!.publicId);
+    expect(await waiting()).toHaveLength(1);
+
+    await expect(dismissHolidayDay(mon.publicId, 3n, [])).rejects.toThrow("Delivery not found");
+    await dismissHolidayDay(mon.publicId, 3n, "all");
+
+    expect(await waiting()).toEqual([]);
+    await expect(placeHolidayDay(mon.publicId, "2030-01-21", 3n, "all")).rejects.toThrow("Nothing to place");
+    await expect(dismissHolidayDay(mon.publicId, 3n, "all")).rejects.toThrow("Nothing to dismiss");
+    expect((await rowById(mon.id)).status).toBe("skipped");
+    const detail = await getHolidayDetail(retro!.publicId, "all");
+    expect(detail.rows.find((r) => r.orderPublicId === order.publicId)?.outcome).toEqual({ kind: "dismissed" });
+    expect(detail.stats).toMatchObject({ closed: 1, dismissed: 1, needsPlacing: 0 });
+  });
+
+  it("holiday detail says where each closed day's tiffin went", async () => {
+    const { order, mon, org } = await orderWithOrg();
+    const [retro] = await db.insert(holidays).values({ organizationId: org, date: "2030-01-07", name: `${PFX} retro` }).returning();
+    await db.update(deliveries).set({ status: "skipped", holidayId: retro!.id }).where(eq(deliveries.id, mon.id));
+    const outcome = async () => (await getHolidayDetail(retro!.publicId, "all")).rows.find((r) => r.orderPublicId === order.publicId)?.outcome;
+    expect(await outcome()).toEqual({ kind: "needs_placing", trial: false });
+
+    const dates = await placeHolidayDay(mon.publicId, "2030-01-21", 3n, "all");
+    expect(await outcome()).toEqual({ kind: "placed", dates });
+    const detail = await getHolidayDetail(retro!.publicId, "all");
+    expect(detail.holiday).toMatchObject({ name: `${PFX} retro`, date: "2030-01-07", notifiedAt: null });
+    expect(detail.stats).toMatchObject({ closed: 1, placed: 1, needsPlacing: 0, customers: 1 });
+    await expect(getHolidayDetail(retro!.publicId, [])).rejects.toThrow("Holiday not found");
+  });
+
+  it("holidayOutcome reads the links a closed day leaves behind, placement first", () => {
+    const base = { status: "skipped", tiffinUnits: 1, orderStatus: "active", trial: false, dismissed: false, extraDates: [] as string[], makeupDate: null, mergedDate: null };
+    expect(holidayOutcome(base)).toEqual({ kind: "needs_placing", trial: false });
+    expect(holidayOutcome({ ...base, trial: true })).toEqual({ kind: "needs_placing", trial: true });
+    expect(holidayOutcome({ ...base, extraDates: ["2030-01-23", "2030-01-21"] })).toEqual({ kind: "placed", dates: ["2030-01-21", "2030-01-23"] });
+    expect(holidayOutcome({ ...base, makeupDate: "2030-01-14" })).toEqual({ kind: "moved", date: "2030-01-14", merged: false });
+    expect(holidayOutcome({ ...base, mergedDate: "2030-01-15", tiffinUnits: 0 })).toEqual({ kind: "moved", date: "2030-01-15", merged: true });
+    expect(holidayOutcome({ ...base, dismissed: true })).toEqual({ kind: "dismissed" });
+    expect(holidayOutcome({ ...base, status: "scheduled" })).toEqual({ kind: "back_on" });
+    expect(holidayOutcome({ ...base, orderStatus: "cancelled" })).toEqual({ kind: "cancelled" });
+  });
+
   it("removal is refused once the cutoff for the holiday date has passed, and writes nothing", async () => {
     const { wed, org } = await orderWithOrg();
     const res = await declare(org, { notify: true });

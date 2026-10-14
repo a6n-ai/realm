@@ -5,7 +5,7 @@ import { runAction, type ActionResult } from "@/app/(customer)/me/action-result"
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { humanDate } from "@/lib/deliveries-view";
-import { createHoliday, placeHolidayDay, reapplyHoliday, removeHoliday, renameHoliday, type HolidayPreview, type HolidayRun } from "@/lib/services/holidays.service";
+import { createHoliday, dismissHolidayDay, placeHolidayDay, reapplyHoliday, removeHoliday, renameHoliday, type HolidayPreview, type HolidayRun } from "@/lib/services/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { currentUserId } from "@/lib/services/session-service";
 
@@ -27,7 +27,7 @@ function runLine(lead: string, run: HolidayRun): string {
 }
 
 async function refreshing<T extends ActionResult<Record<string, unknown>>>(res: T): Promise<T> {
-  if ("ok" in res) revalidatePath("/dashboard/holidays");
+  if ("ok" in res) revalidatePath("/dashboard/holidays", "layout");
   return res;
 }
 
@@ -73,5 +73,13 @@ export async function placeHolidayDayAction(deliveryPublicId: string, fromDate: 
     const visible = await writer();
     const dates = await placeHolidayDay(deliveryPublicId, fromDate, await currentUserId(), visible);
     return `Placed on ${and(dates.map(humanDate))}.`;
+  }));
+}
+
+export async function dismissHolidayDayAction(deliveryPublicId: string): Promise<ActionResult> {
+  return refreshing(await runAction(async () => {
+    const visible = await writer();
+    await dismissHolidayDay(deliveryPublicId, await currentUserId(), visible);
+    return "Dismissed. It won't be placed.";
   }));
 }

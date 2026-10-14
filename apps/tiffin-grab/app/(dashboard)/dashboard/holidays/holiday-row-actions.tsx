@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { PencilIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, RotateCwIcon, SquareArrowOutUpRightIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
@@ -47,6 +47,7 @@ export function HolidayRowActions({ publicId, name: current, canReapply, canRemo
 
   return (
     <>
+      <RowActionTooltipButton icon={SquareArrowOutUpRightIcon} label="Open" hint="Open: details and what needs doing" onClick={() => router.push(`/dashboard/holidays/${publicId}`)} />
       {canReapply && <RowActionTooltipButton icon={RotateCwIcon} label="Re-apply" hint="Re-apply: close any delivery this holiday missed" disabled={pending} onClick={reapply} />}
       <RowActionTooltipButton icon={PencilIcon} label="Rename" onClick={() => { setName(current); setError(null); setRenameOpen(true); }} />
       {canRemove && <RowActionTooltipButton icon={Trash2Icon} label="Remove" tone="text-destructive" onClick={() => { setError(null); setRemoveOpen(true); }} />}
