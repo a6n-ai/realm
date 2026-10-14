@@ -1,7 +1,7 @@
 // Admin changes a plan's eating days: delivery days and the tiffin balance stay, open
 // deliveries are laid out again around the rows that can't move.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -92,6 +92,21 @@ describe("changeEatingDays", () => {
     const rows = await scheduled(order.id);
     expect(units(rows)).toBe(9);
     expect(rows.some((r) => r.deliveryDate === "2030-01-09")).toBe(false);
+  });
+
+  it("lays tiffins on days a trimmed plan cancelled, not around them", async () => {
+    const { order } = await make();
+    const rows = await scheduled(order.id);
+    const voided = rows.filter((r) => r.deliveryDate === "2030-01-14" || r.deliveryDate === "2030-01-16").map((r) => r.id);
+    await db.update(deliveries).set({ status: "cancelled" }).where(inArray(deliveries.id, voided));
+    await changeOrderEatingDays(order.publicId, ["mon", "wed", "fri"]);
+
+    const after = await scheduled(order.id);
+    expect(after.map((r) => r.deliveryDate)).toEqual([
+      "2030-01-07", "2030-01-09", "2030-01-11", "2030-01-14", "2030-01-16", "2030-01-18", "2030-01-21", "2030-01-23",
+    ]);
+    const all = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+    expect(all.filter((r) => r.status === "cancelled")).toHaveLength(0);
   });
 
   it("brings a moved tiffin left after the new last day forward to follow it", async () => {
