@@ -71,10 +71,12 @@ export function formatWindow(startsAt: number | null, expiresAt: number | null):
 }
 
 export function NumberField({
-  id, label, value, onChange, prefix, suffix, min, max, step, placeholder, className,
+  id, label, value, onChange, prefix, suffix, min, max, step, placeholder, className, hideLabel,
 }: {
   id: string;
   label: string;
+  /** Inside a table row the column header already names the field; keep the label for screen readers. */
+  hideLabel?: boolean;
   value: string;
   onChange: (v: string) => void;
   prefix?: string;
@@ -87,7 +89,7 @@ export function NumberField({
 }) {
   return (
     <div className={cn("grid gap-1.5", className)}>
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>{label}</Label>
       <div className="relative">
         {prefix && (
           <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm">
