@@ -252,8 +252,8 @@ async function OrderDetail({
       value: counts ? `${counts.remaining} / ${counts.total}` : String(order.tiffinCount),
       icon: PackageIcon,
       hint: counts
-        ? `${ended ? (order.status === "completed" ? "Plan over · " : "Cancelled · ") : ""}${counts.delivered} delivered${order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}${order.complimentaryTiffins > 0 ? ` · ${order.complimentaryTiffins} free` : ""}`
-        : "Schedule not started",
+        ? `${ended ? (order.status === "completed" ? "Plan over · " : "Cancelled · ") : ""}${counts.delivered} delivered${order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}${order.complimentaryTiffins > 0 ? ` · ${order.complimentaryTiffins} free` : ""}${order.persons > 1 ? ` · ${order.persons} people, ${order.persons} tiffins a day` : ""}`
+        : order.persons > 1 ? `Schedule not started · ${order.persons} people` : "Schedule not started",
     },
     notStarted
       ? { label: "Starts", value: humanDate(order.startDate), icon: TruckIcon, hint: "Not started · start date can change", pixelValue: false }
