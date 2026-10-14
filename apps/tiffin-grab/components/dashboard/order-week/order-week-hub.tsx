@@ -171,6 +171,9 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
                   {x.truck && trips.find((t) => t.date === x.deliveryDate)?.addressOverride && (
                     <span className="ml-2 inline-flex items-center gap-1 text-xs" title="Sent to a different address than the plan"><MapPin className="size-3" aria-hidden />New address</span>
                   )}
+                  {x.truck && trips.find((t) => t.date === x.deliveryDate)?.complimentaryNote != null && (
+                    <Badge variant="secondary" className="ml-2">Free</Badge>
+                  )}
                 </TableCell>
                 <TableCell className="font-mono text-xs">{x.truck ? x.deliveryId ?? "" : ""}</TableCell>
                 <TableCell className="text-right tabular-nums">{x.truck ? x.units : ""}</TableCell>
@@ -305,6 +308,12 @@ function SelectedDelivery({
           <p className="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">Delivery</p>
           <CardTitle className="text-2xl">{humanDate(row.date)}</CardTitle>
           {meta ? <p className="text-muted-foreground text-sm">{meta}</p> : null}
+          {trip.complimentaryNote != null && (
+            <p className="text-sm" data-testid="complimentary-note">
+              <Badge className="mr-2">Free tiffin</Badge>
+              <span className="text-muted-foreground">{trip.complimentaryNote}</span>
+            </p>
+          )}
         </div>
         {editChoice && trip.deliveryId ? (
           <DeliveryStatusSelect deliveryId={trip.deliveryId} value={editChoice} cutoffPassed={trip.cutoffAt <= now} beforeDay={trip.date > zonedDateIso(now, tz)} release={release} onRelease={() => onOpen("reschedule")} onDone={onDone} />
