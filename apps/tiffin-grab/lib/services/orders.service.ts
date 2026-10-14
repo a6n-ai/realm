@@ -47,7 +47,7 @@ import { round2 } from "@/lib/custom-meal/pricing";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
-import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
+import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertStartNotHoliday } from "./holiday-dates";
 import { lapseElapsedPausesSafe } from "./pause-days.service";
@@ -1911,7 +1911,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         // Never earlier than the first open delivery: a plan that hasn't started stays put.
         const start = open.map((r) => r.deliveryDate).sort()[0]!;
         const openIds = new Set(open.map((r) => r.id));
-        const taken = new Set(rows.filter((r) => !openIds.has(r.id) && r.deliveryDate >= start).map((r) => r.deliveryDate));
+        const dropped = await dropVoidRows(tx, order.id, rows.filter((r) => r.status === "cancelled" && r.deliveryDate >= start).map((r) => r.deliveryDate));
+        const kept = rows.filter((r) => !dropped.has(r.id));
+        const taken = new Set(kept.filter((r) => !openIds.has(r.id) && r.deliveryDate >= start).map((r) => r.deliveryDate));
         // Padded so the rows skipped for a kept date never run the candidates short.
         const candidates = buildBoundedDeliveryRows({ startDate: start, trips, persons: order.persons, targetTiffinCount: units + (taken.size + 1) * 7 * order.persons });
         let left = units;
@@ -1933,7 +1935,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
         // A moved tiffin parked after the old last day would be stranded when the plan gets
         // shorter: bring it up to the first free days after the new end. Never pushed later.
-        const end = [...laid.map((r) => r.deliveryDate), ...rows.filter((r) => !openIds.has(r.id) && !movable.includes(r)).map((r) => r.deliveryDate)].sort().at(-1)!;
+        const end = [...laid.map((r) => r.deliveryDate), ...kept.filter((r) => !openIds.has(r.id) && !movable.includes(r)).map((r) => r.deliveryDate)].sort().at(-1)!;
         const free = candidates.map((c) => c.deliveryDate).filter((d) => d > end && !taken.has(d));
         const tail = movable.filter((r) => r.deliveryDate > end).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate));
         for (const [i, r] of tail.entries()) {

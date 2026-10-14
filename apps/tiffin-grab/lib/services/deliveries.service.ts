@@ -652,6 +652,23 @@ async function reviveIfEmptied(tx: Tx, row: Delivery, cutoffAt: number): Promise
   return revived!;
 }
 
+/**
+ * A cancelled row carries nothing but still owns its date under deliveries_order_date_unique, so
+ * a plan trimmed early could never use those days again. Drop it so the day takes a tiffin; one
+ * another row or a recorded move still points at stays. Returns the ids dropped.
+ */
+export async function dropVoidRows(tx: Tx, orderId: bigint, dates: string[]): Promise<Set<bigint>> {
+  if (!dates.length) return new Set();
+  const gone = await tx.delete(deliveries).where(and(
+    eq(deliveries.orderId, orderId),
+    eq(deliveries.status, "cancelled"),
+    inArray(deliveries.deliveryDate, dates),
+    sql`not exists (select 1 from deliveries c where c.makeup_for_delivery_id = ${deliveries.id} or c.merged_into_delivery_id = ${deliveries.id} or c.holiday_extra_for_delivery_id = ${deliveries.id})`,
+    sql`not exists (select 1 from delivery_moves m where m.from_delivery_id = ${deliveries.id} or m.to_delivery_id = ${deliveries.id})`,
+  )).returning({ id: deliveries.id });
+  return new Set(gone.map((r) => r.id));
+}
+
 /** Every move target routes through moveTrip or moveOneTiffin, so one check here closes the day for all of them. */
 async function assertNotHoliday(tx: Tx, orderId: bigint, date: string): Promise<void> {
   const holiday = await holidayForOrderDate(tx, orderId, date);
@@ -678,6 +695,7 @@ async function moveTrip(
   const own = coveredDates(source);
   const carried = eatingDateIso && own.length === 1 ? [eatingDateIso] : own;
   const relabel = carried.length === 1 && own.length === 1 && carried[0] !== own[0];
+  await dropVoidRows(tx, source.orderId, [targetDate]);
   const [found] = await tx.select().from(deliveries)
     .where(and(eq(deliveries.orderId, source.orderId), eq(deliveries.deliveryDate, targetDate))).limit(1);
   const target = found && (await reviveIfEmptied(tx, found, targetCutoff));
@@ -765,6 +783,7 @@ async function moveOneTiffin(
     return { id: source.id, merged: true };
   }
 
+  await dropVoidRows(tx, source.orderId, [targetDate]);
   const [found] = await tx.select().from(deliveries)
     .where(and(eq(deliveries.orderId, source.orderId), eq(deliveries.deliveryDate, targetDate))).limit(1);
   const target = found && (await reviveIfEmptied(tx, found, targetCutoff));
@@ -1182,6 +1201,7 @@ export async function grantComplimentaryTiffin(
     const cutoffAt = cutoffMsFor(input.date, cutoffHour, timezone);
     if (Date.now() >= cutoffAt) throw new ValidationError("That day's cutoff has passed. Pick a later day.");
     await assertNotHoliday(tx, order.id, input.date);
+    await dropVoidRows(tx, order.id, [input.date]);
     const [taken] = await tx.select({ id: deliveries.id }).from(deliveries)
       .where(and(eq(deliveries.orderId, order.id), eq(deliveries.deliveryDate, input.date))).limit(1);
     if (taken) throw new ValidationError("This plan already has a delivery that day. Pick another day.");
