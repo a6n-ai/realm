@@ -159,7 +159,9 @@ async function OrderDetail({
     order.userId != null ? runningPlans(db, order.userId) : [],
   ]);
   // The customer's other running plans: a renewal's days sit on its own order, not this one.
-  const otherPlans = customerPlans.filter((p) => p.publicId !== order.publicId);
+  // Only plans in organizations this staff member can see: a customer can hold plans in several.
+  const otherPlans = customerPlans.filter((p) => p.publicId !== order.publicId
+    && (visible === "all" || (p.organizationId != null && visible.includes(p.organizationId))));
   const categoryLabels = Object.fromEntries(categoryRows.map((c) => [c.key, c.label]));
   const checkoutMethodId = (order.pricingSnapshot as { paymentMethodId?: string } | null)?.paymentMethodId;
   const checkoutMethodLabel = checkoutMethodId
