@@ -29,7 +29,7 @@ import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { OrdersViewTabs } from "./orders-view-tabs";
 import { getOrdersOverview } from "@/lib/services/orders-stats.service";
 import { OrderTagsLegend } from "./row-tags";
-import { OrdersStatCards, OrdersStatCardsSkeleton, type OrdersStat } from "./stat-cards";
+import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { MissedList } from "./missed-list";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
@@ -60,13 +60,16 @@ export default function OrdersPage({
           </div>
         }
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SectionDateRange />
-        <OrderTagsLegend />
+      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionDateRange />
+          <OrderTagsLegend />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <OrdersStats searchParams={searchParams} />
+        </Suspense>
       </div>
-      <Suspense fallback={<OrdersStatCardsSkeleton count={5} />}>
-        <OrdersStats searchParams={searchParams} />
-      </Suspense>
       <Suspense fallback={<Skeleton className="h-9 w-56" />}>
         <OrdersViews />
       </Suspense>
@@ -114,7 +117,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
 
   const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—");
 
-  const stats: OrdersStat[] = [
+  const stats: StatCardItem[] = [
     {
       label: "New orders",
       value: o.newOrders.count,
@@ -144,7 +147,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
     },
   ];
 
-  return <OrdersStatCards items={stats} />;
+  return <StatCards items={stats} />;
 }
 
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {

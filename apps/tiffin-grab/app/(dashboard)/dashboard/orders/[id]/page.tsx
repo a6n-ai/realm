@@ -47,7 +47,7 @@ import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
 import { DeliveriesSection, loadSubscription } from "@/components/dashboard/deliveries-section";
-import { OrdersStatCards, OrdersStatCardsSkeleton } from "../stat-cards";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { stageCards } from "./stage-cards";
 
 // The full record for ONE order: what it is, what it costs, whether it is paid, and every
@@ -354,7 +354,7 @@ async function OrderDetail({
       {/* Phones: actions get their own row so the name keeps the full width. */}
       <div className="-mt-2 flex flex-wrap gap-2 sm:hidden">{headerActions}</div>
 
-      <OrdersStatCards items={stats} />
+      <StatCards items={stats} />
 
       {otherPlans.length > 0 && (
         <p data-testid="other-plans" className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
@@ -481,7 +481,7 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
           <Skeleton className="h-4 w-64" />
         </div>
       </div>
-      <OrdersStatCardsSkeleton count={5} />
+      <StatCardsSkeleton count={5} />
       <Skeleton className="h-9 w-full max-w-md" />
       <div className="grid gap-4 lg:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (

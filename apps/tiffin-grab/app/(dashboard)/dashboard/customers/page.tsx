@@ -1,6 +1,7 @@
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
-import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon } from "lucide-react";
+import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon, UserXIcon } from "lucide-react";
+import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
@@ -18,8 +19,6 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatGrid,
-  SkeletonStatCards,
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
@@ -49,10 +48,15 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
           </Suspense>
         }
       />
-      <SectionDateRange />
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
-        <CustomersStats searchParams={searchParams} />
-      </Suspense>
+      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex">
+          <SectionDateRange />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <CustomersStats searchParams={searchParams} />
+        </Suspense>
+      </div>
       <SectionCard
         title="All customers"
         action={
@@ -103,14 +107,16 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
       .where(and(eq(users.role, "user"), gte(users.createdAt, weekAgo))),
   ]);
 
-  const stats = [
-    { label: "Total customers", value: s.total, icon: UsersIcon },
-    { label: "With orders", value: s.withOrders, icon: ShoppingBagIcon },
-    { label: "Repeat buyers", value: s.repeat, icon: RepeatIcon, hint: "2+ orders" },
-    { label: "New this week", value: week.n, icon: UserPlusIcon },
+  const pct = (n: number) => (s.total > 0 ? `${Math.round((n / s.total) * 100)}% of customers` : "—");
+  const stats: StatCardItem[] = [
+    { label: "Total customers", value: s.total, icon: UsersIcon, hint: "joined in selected dates" },
+    { label: "With orders", value: s.withOrders, icon: ShoppingBagIcon, hint: pct(s.withOrders) },
+    { label: "No order yet", value: s.total - s.withOrders, icon: UserXIcon, hint: "signed up, never ordered" },
+    { label: "Repeat buyers", value: s.repeat, icon: RepeatIcon, hint: `2+ orders · ${pct(s.repeat)}` },
+    { label: "New this week", value: week.n, icon: UserPlusIcon, hint: "joined in the last 7 days" },
   ];
 
-  return <StatGrid cols={4} items={stats} />;
+  return <StatCards items={stats} />;
 }
 
 export async function CustomersData({ searchParams }: { searchParams: SearchParams }) {

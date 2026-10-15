@@ -1,5 +1,5 @@
 import { ActivityIcon, CalendarCheckIcon, CalendarClockIcon, PackageIcon, PauseIcon, ReceiptIcon, RefreshCwIcon, TruckIcon } from "lucide-react";
-import type { OrdersStat } from "../stat-cards";
+import type { StatCardItem } from "@/components/dashboard/stat-cards";
 
 export type StageInput = {
   /** orderDisplayStatus: payment_review / rejected overlay the order status. */
@@ -40,14 +40,14 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
  * leads with money, a running one with tiffins and the next drop, a finished one with what was
  * delivered and whether the customer came back.
  */
-export function stageCards(i: StageInput): OrdersStat[] {
+export function stageCards(i: StageInput): StatCardItem[] {
   const total = i.counts?.total ?? i.tiffinCount + i.complimentaryTiffins;
   const extras = [
     i.complimentaryTiffins > 0 ? `${i.complimentaryTiffins} free` : null,
     i.persons > 1 ? `${i.persons} people, ${i.persons} tiffins a day` : null,
   ].filter(Boolean);
-  const status = (hint: string): OrdersStat => ({ label: "Status", value: i.statusLabel, icon: ActivityIcon, hint });
-  const balance: OrdersStat = {
+  const status = (hint: string): StatCardItem => ({ label: "Status", value: i.statusLabel, icon: ActivityIcon, hint });
+  const balance: StatCardItem = {
     label: "Balance due",
     value: i.fmt(i.money.due),
     icon: ReceiptIcon,
@@ -56,17 +56,17 @@ export function stageCards(i: StageInput): OrdersStat[] {
       ? `${plural(i.money.toReview, "payment")} to review`
       : `${i.fmt(i.money.paid)} paid of ${i.fmt(i.money.total)}`,
   };
-  const renewed: OrdersStat = i.renewal
+  const renewed: StatCardItem = i.renewal
     ? { label: "Renewed", value: "Yes", icon: RefreshCwIcon, tone: "ok", hint: `${i.renewal.deploymentId} starts ${i.day(i.renewal.startDate)}` }
     : { label: "Renewed", value: "Not yet", icon: RefreshCwIcon, hint: "No next plan booked" };
   // Always "left / total", even before the first drop, so staff read every stage the same way.
-  const left: OrdersStat = {
+  const left: StatCardItem = {
     label: "Tiffins left",
     value: `${i.counts?.remaining ?? total} / ${total}`,
     icon: PackageIcon,
     hint: [`${i.counts?.delivered ?? 0} delivered`, ...extras].join(" · "),
   };
-  const delivered: OrdersStat = {
+  const delivered: StatCardItem = {
     label: "Delivered",
     value: `${i.counts?.delivered ?? 0} / ${total}`,
     icon: PackageIcon,
@@ -89,7 +89,7 @@ export function stageCards(i: StageInput): OrdersStat[] {
   }
 
   if (i.status === "completed") {
-    const last: OrdersStat = { label: "Last tiffin", value: i.lastTiffin ? i.day(i.lastTiffin) : "None", icon: CalendarCheckIcon, hint: `Started ${i.day(i.startDate)}` };
+    const last: StatCardItem = { label: "Last tiffin", value: i.lastTiffin ? i.day(i.lastTiffin) : "None", icon: CalendarCheckIcon, hint: `Started ${i.day(i.startDate)}` };
     return i.unconfirmed.units > 0
       ? [
           status(i.lastTiffin ? `Last tiffin ${i.day(i.lastTiffin)}` : "Plan over"),
@@ -142,7 +142,7 @@ export function stageCards(i: StageInput): OrdersStat[] {
   // Running (active or paused).
   const endsIn = i.lastTiffin ? daysBetween(i.today, i.lastTiffin) : null;
   const ending = endsIn != null && endsIn <= 2;
-  const cards: OrdersStat[] = [
+  const cards: StatCardItem[] = [
     status(i.fullyPaused ? "All upcoming days paused" : i.money.due > 0 ? `${i.fmt(i.money.due)} still due` : i.frequencyName),
     left,
     { label: "Next delivery", value: i.next ? i.day(i.next.date) : "None", icon: TruckIcon, hint: i.next?.driver ?? (i.next ? "No driver yet" : "Nothing scheduled") },

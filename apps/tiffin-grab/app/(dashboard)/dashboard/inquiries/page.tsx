@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { count, eq } from "drizzle-orm";
-import { ClipboardListIcon, PlusIcon, DownloadIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
+import { ClipboardListIcon, PlusIcon, DownloadIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, FileTextIcon, XCircleIcon } from "lucide-react";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
@@ -19,8 +20,6 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatGrid,
-  SkeletonStatCards,
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
@@ -70,10 +69,15 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
         }
       />
 
-      <SectionDateRange />
-      <Suspense fallback={<SkeletonStatCards count={3} className="sm:grid-cols-3" />}>
-        <InquiryStats searchParams={searchParams} />
-      </Suspense>
+      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex">
+          <SectionDateRange />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <InquiryStats searchParams={searchParams} />
+        </Suspense>
+      </div>
 
       <SectionCard title="All inquiries">
         <Suspense fallback={<InquiriesListSkeleton />}>
@@ -195,17 +199,18 @@ async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   const conversionRate = total > 0 ? Math.round((converted / total) * 100) : 0;
 
   return (
-    <StatGrid
-      cols={3}
+    <StatCards
       items={[
         { icon: InboxIcon, label: "Total", value: total, hint: "created in selected dates" },
         { icon: UsersIcon, label: "Open", value: open, hint: "new · contacted · follow-up" },
+        { icon: FileTextIcon, label: "Quoted", value: countOf("quoted"), hint: "waiting on the customer's answer" },
         {
           icon: TrendingUpIcon,
           label: "Converted",
           value: converted,
           hint: `${conversionRate}% conversion`,
         },
+        { icon: XCircleIcon, label: "Lost", value: countOf("lost"), hint: total > 0 ? `${Math.round((countOf("lost") / total) * 100)}% of inquiries` : "—" },
       ]}
     />
   );

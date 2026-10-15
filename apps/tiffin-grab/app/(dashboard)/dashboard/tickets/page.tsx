@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { count } from "drizzle-orm";
-import { LifeBuoyIcon, InboxIcon, AlertCircleIcon, CheckCircleIcon } from "lucide-react";
+import { LifeBuoyIcon, InboxIcon, AlertCircleIcon, CheckCircleIcon, HourglassIcon, TicketIcon } from "lucide-react";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { db } from "@/db/client";
 import { tickets } from "@/db/schema";
 import { Role } from "@foundry/commons";
@@ -18,8 +19,6 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatGrid,
-  SkeletonStatCards,
 } from "@/components/ds";
 import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
@@ -62,11 +61,15 @@ export default function TicketsPage({ searchParams }: { searchParams: TicketSear
           </Suspense>
         }
       />
-      <SectionDateRange />
-
-      <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>
-        <TicketStats searchParams={searchParams} />
-      </Suspense>
+      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex">
+          <SectionDateRange />
+        </div>
+        <Suspense fallback={<StatCardsSkeleton count={5} />}>
+          <TicketStats searchParams={searchParams} />
+        </Suspense>
+      </div>
 
       <SectionCard title="All tickets">
         <Suspense fallback={<TicketsListSkeleton />}>
@@ -101,11 +104,12 @@ async function TicketStats({ searchParams }: { searchParams: TicketSearchParams 
   const resolved = countOf("resolved", "closed");
 
   return (
-    <StatGrid
-      cols={3}
+    <StatCards
       items={[
+        { icon: TicketIcon, label: "Created", value: countOf("open", "in_progress", "waiting_on_customer", "resolved", "closed"), hint: "in selected dates" },
         { icon: InboxIcon, label: "Open", value: open, hint: "open · in-progress · waiting" },
-        { icon: AlertCircleIcon, label: "Overdue", value: overdue, hint: "waiting on staff > 24h" },
+        { icon: HourglassIcon, label: "Waiting on customer", value: countOf("waiting_on_customer"), hint: "staff replied, customer hasn't" },
+        { icon: AlertCircleIcon, label: "Overdue", value: overdue, hint: "waiting on staff > 24h", tone: overdue > 0 ? "bad" : undefined },
         { icon: CheckCircleIcon, label: "Resolved", value: resolved, hint: "resolved · closed" },
       ]}
     />

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { TagIcon } from "lucide-react";
+import { BoxIcon, CalendarDaysIcon, LayoutListIcon, PackageIcon, TagIcon, TruckIcon } from "lucide-react";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
@@ -10,7 +11,7 @@ import { HolidayBanner } from "@/components/dashboard/holiday-banner";
 import { getSession } from "@/lib/auth/session";
 import { holidaysOn } from "@/lib/services/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
-import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
+import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { LabelDatePicker } from "./label-date-picker";
 import { LabelsExportButton } from "./labels-export-button";
 import { LabelsPrintButton } from "./labels-print-button";
@@ -91,13 +92,16 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
         </div>
       </SectionCard>
 
-      <StatGrid
-        cols={4}
+      <StatCards
         items={[
-          { label: "Orders", value: packing.rows.length, hint: "one row per tiffin (eating day)" },
-          { label: "Item slots", value: packing.itemHeaders.length },
-          { label: "Containers", value: containers },
-          { label: "Menu week", value: sheet.menuWeekPublicId ? sheet.weekStart : "not released" },
+          { icon: PackageIcon, label: "Orders", value: packing.rows.length, hint: "one row per tiffin (eating day)" },
+          // Same number Dispatch shows as stops: held, paused and cancelled rows are listed but not going out.
+          { icon: TruckIcon, label: "Stops", value: deliveries.filter((d) => GOING_OUT.has(d.status)).length, hint: `going out · ${deliveries.length} listed` },
+          { icon: LayoutListIcon, label: "Item slots", value: packing.itemHeaders.length, hint: "columns on the packing sheet" },
+          { icon: BoxIcon, label: "Containers", value: containers, hint: "to pack for this day" },
+          sheet.menuWeekPublicId
+            ? { icon: CalendarDaysIcon, label: "Menu week", value: sheet.weekStart, hint: "released" }
+            : { icon: CalendarDaysIcon, label: "Menu week", value: "Not released", tone: "bad", hint: "kitchen counts and labels wait on it" },
         ]}
       />
 
@@ -143,7 +147,7 @@ LabelsData.Skeleton = function LabelsDataSkeleton() {
       <SectionCard title="Day">
         <Skeleton className="h-9 w-64" />
       </SectionCard>
-      <SkeletonStatCards count={4} />
+      <StatCardsSkeleton count={5} />
       <Skeleton className="h-9 w-full max-w-xl" />
       <SectionCard title="Packing sheet">
         <Skeleton className="h-96 w-full" />
