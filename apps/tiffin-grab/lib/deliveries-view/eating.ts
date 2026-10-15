@@ -153,6 +153,8 @@ export function dayNote(r: EatingRow, staff = false): string[] {
   const t = r.trip;
   if (!t.holidayName) return [];
   const where = t.holidayExtras?.length ? `Added at the end of the plan: ${dateList(t.holidayExtras)}`
+    // Moved to an earlier day: that happened before the closure, not because of it.
+    : r.movedTo && r.movedTo < r.date ? `This day's tiffin was already moved to ${humanDate(r.movedTo)}`
     : r.movedTo ? `Moved to ${humanDate(r.movedTo)}`
     : t.status === "holiday" ? "The kitchen is closed that day. The team will place this tiffin on a new day."
     : staff ? "The kitchen was closed that day. Place this tiffin on another day."

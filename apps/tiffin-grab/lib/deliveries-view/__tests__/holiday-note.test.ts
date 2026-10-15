@@ -25,6 +25,11 @@ describe("the selected day's holiday note", () => {
     expect(moveChips(row)).toEqual([]);
   });
 
+  it("a day whose tiffin was moved earlier, before the holiday, doesn't read as moved by it", () => {
+    const row = rowFor({ date: "2026-10-12", status: "skipped", rescheduled: true, movedTo: "2026-10-07", holidayName: "Thanksgiving" });
+    expect(dayNote(row)).toEqual(["Holiday: Thanksgiving", "This day's tiffin was already moved to Wed, Oct 7"]);
+  });
+
   it("a held row emptied one tiffin at a time still reads as the holiday on its old day", () => {
     const row = rowFor({ date: "2026-10-12", status: "skipped", covers: [], units: 0, movesOut: [{ from: "2026-10-12", to: "2026-10-28" }], holidayName: "Thanksgiving" });
     expect([row.date, row.movedTo]).toEqual(["2026-10-12", "2026-10-28"]);
