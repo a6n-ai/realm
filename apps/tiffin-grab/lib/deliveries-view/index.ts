@@ -51,7 +51,8 @@ export type CalendarDayInput = {
   holidayExtras?: string[];
 };
 
-export type TiffinMove = { from: string | null; to: string };
+/** `units`: tiffins the moved day carried (the plan's persons); 1 when absent. */
+export type TiffinMove = { from: string | null; to: string; units?: number };
 
 export type PlanContext = {
   cutoffHour: number;

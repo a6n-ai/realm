@@ -921,7 +921,8 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     return {
       // A cancelled row is void too: moving onto its day drops it (dropVoidRows).
       emptied: row.status === "cancelled" || (row.status !== "scheduled" && (row.mergedIntoDeliveryId != null || replaced.has(row.id))),
-      movesIn: moves.filter((m) => m.toId === row.id).map(({ from, to }) => ({ from, to })),
+      // A moved day carries one tiffin per person.
+      movesIn: moves.filter((m) => m.toId === row.id).map(({ from, to }) => ({ from, to, units: order.persons })),
       movesOut: moves.filter((m) => m.fromId === row.id && m.toId !== row.id).map(({ from, to }) => ({ from, to })),
       units: row.mergedIntoDeliveryId ? 0 : row.tiffinUnits,
       covers,

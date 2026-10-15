@@ -149,6 +149,8 @@ describe("tiffinBreakdown", () => {
   it("names each day the truck carries, moved-in tiffins by the day they left", () => {
     expect(tiffinBreakdown({ units: 2, coversDates: ["2026-09-21", "2026-09-22"] })).toBe("1 Mon + 1 Tue");
     expect(tiffinBreakdown({ units: 1, coversDates: ["2026-10-08"], movesIn: [{ from: "2026-10-07", to: "2026-10-08" }] })).toBe("1 Wed's");
+    // A 2-person plan's moved day carries both tiffins.
+    expect(tiffinBreakdown({ units: 2, coversDates: ["2026-10-15"], movesIn: [{ from: "2026-10-12", to: "2026-10-15", units: 2 }] })).toBe("2 Mon's");
     expect(tiffinBreakdown({ units: 3, coversDates: ["2026-10-12"], movesIn: [{ from: "2026-10-09", to: "2026-10-12" }, { from: null, to: "2026-10-12" }] })).toBe("1 Mon + 1 Fri's + 1 held day's");
   });
 });

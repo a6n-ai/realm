@@ -106,7 +106,7 @@ export function tiffinBreakdown(trip: Pick<Trip, "units" | "coversDates" | "move
   const moved = new Map<string, number>();
   for (const m of trip.movesIn ?? []) {
     const k = m.from ? `${weekdayShort(m.from)}'s` : "held day's";
-    moved.set(k, (moved.get(k) ?? 0) + 1);
+    moved.set(k, (moved.get(k) ?? 0) + (m.units ?? 1));
   }
   const own = trip.units - [...moved.values()].reduce((a, b) => a + b, 0);
   const covers = trip.coversDates.length ? trip.coversDates : [];
