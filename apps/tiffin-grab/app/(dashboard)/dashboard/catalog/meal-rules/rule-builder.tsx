@@ -547,7 +547,7 @@ export function RuleForm({
                   className={cn(
                     "flex size-8 items-center justify-center rounded-lg transition-colors",
                     draft.action === "forbid"
-                      ? "bg-destructive text-destructive-foreground"
+                      ? "bg-destructive text-white"
                       : "bg-muted text-muted-foreground group-hover:text-foreground"
                   )}
                 >

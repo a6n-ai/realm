@@ -66,6 +66,40 @@ describe("order CRM queries (integration)", () => {
     expect(await countEndingOrders("all", { from: last, to: last })).toBe(0);
   });
 
+  it("orders overview: counts new orders, returning customers, running plans and renewals", async () => {
+    const { getOrdersOverview } = await import("../orders-stats.service");
+    const snap = await loadCatalogSnapshot();
+    const a = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    await db.update(orders).set({ status: "active", trialLength: null }).where(eq(orders.publicId, a.publicId));
+    const now = Date.now();
+    const range = { from: now - 864e5, to: now + 864e5 };
+
+    const first = await getOrdersOverview(range, "all");
+    expect(first.newOrders).toMatchObject({ count: 1, returning: 0, prevCount: 0 });
+    expect(first.running.count).toBe(1);
+    expect(await getOrdersOverview(range, [])).toMatchObject({ newOrders: { count: 0 }, running: { count: 0 } });
+
+    // Same customer books again: the second order is returning.
+    const b = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+    const [{ userId }] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, a.publicId));
+    await db.update(orders).set({ userId, startDate: "2099-01-05", status: "pending" }).where(eq(orders.publicId, b.publicId));
+    expect((await getOrdersOverview(range, "all")).newOrders).toMatchObject({ count: 2, returning: 1 });
+
+    // Starting soon: an unpaid plan whose first tiffin is a day out counts; 2099 does not.
+    const soon = new Date(now + 864e5).toISOString().slice(0, 10);
+    await db.update(orders).set({ startDate: "2099-01-05" }).where(eq(orders.publicId, a.publicId));
+    expect((await getOrdersOverview(range, "all")).startingSoon).toMatchObject({ count: 0 });
+    await db.update(orders).set({ startDate: soon }).where(eq(orders.publicId, b.publicId));
+    expect((await getOrdersOverview(range, "all")).startingSoon).toMatchObject({ count: 1, unpaid: 1, waitlisted: 0 });
+
+    // Cancelled counts by the cancel activity's date, not the order's.
+    const [{ id: bId }] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, b.publicId));
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, bId));
+    await db.insert(orderActivities).values({ orderId: bId, type: "cancelled", fromStatus: "pending", toStatus: "cancelled" });
+    expect((await getOrdersOverview(range, "all")).cancelled).toMatchObject({ count: 1, prevCount: 0 });
+    expect((await getOrdersOverview(range, [])).cancelled.count).toBe(0);
+  });
+
   it("payment review: only open orders with a payment awaiting claim or verification", async () => {
     const snap = await loadCatalogSnapshot();
     const o = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));

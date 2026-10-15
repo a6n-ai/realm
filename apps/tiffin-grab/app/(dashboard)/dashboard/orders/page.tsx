@@ -1,10 +1,9 @@
 import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
-import { sql } from "drizzle-orm";
-import { PackageIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
-import { formatMoney, zonedDateIso } from "@foundry/commons";
+import { PackageIcon, ActivityIcon, CalendarClockIcon, RefreshCwIcon, CircleXIcon } from "lucide-react";
+import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
-import { leadSources, leadSubsources, orders, plans } from "@/db/schema";
+import { leadSources, leadSubsources, plans } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -21,15 +20,16 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatGrid,
-  SkeletonStatCards,
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
+import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { OrdersViewTabs } from "./orders-view-tabs";
+import { getOrdersOverview } from "@/lib/services/orders-stats.service";
+import { OrderTagsLegend } from "./row-tags";
+import { OrdersStatCards, OrdersStatCardsSkeleton, type OrdersStat } from "./stat-cards";
 import { MissedList } from "./missed-list";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
@@ -60,8 +60,11 @@ export default function OrdersPage({
           </div>
         }
       />
-      <SectionDateRange />
-      <Suspense fallback={<SkeletonStatCards count={4} />}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionDateRange />
+        <OrderTagsLegend />
+      </div>
+      <Suspense fallback={<OrdersStatCardsSkeleton count={5} />}>
         <OrdersStats searchParams={searchParams} />
       </Suspense>
       <Suspense fallback={<Skeleton className="h-9 w-56" />}>
@@ -106,25 +109,42 @@ async function OrdersViews() {
 async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const sp = await withDefaultMonth(await searchParams);
+  const range = { from: Number(sp.from), to: Number(sp.to) };
+  const o = await getOrdersOverview(range, await resolveSessionVisibleOrgIds(await getSession()));
 
-  const [s] = await db
-    .select({
-      total: sql<number>`count(*)`.mapWith(Number),
-      active: sql<number>`count(*) filter (where ${orders.status} = 'active')`.mapWith(Number),
-      pending: sql<number>`count(*) filter (where ${orders.status} = 'pending')`.mapWith(Number),
-      revenue: sql<number>`coalesce(sum(${orders.total}) filter (where ${orders.status} <> 'cancelled'), 0)`.mapWith(Number),
-    })
-    .from(orders)
-    .where(epochBoundsWhere(orders.createdAt, sp));
+  const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—");
 
-  const stats = [
-    { label: "Total orders", value: s.total, icon: PackageIcon },
-    { label: "Active", value: s.active, icon: ActivityIcon },
-    { label: "Pending", value: s.pending, icon: ClockIcon },
-    { label: "Revenue", value: formatMoney(s.revenue), icon: WalletIcon, hint: "excl. cancelled" },
+  const stats: OrdersStat[] = [
+    {
+      label: "New orders",
+      value: o.newOrders.count,
+      icon: PackageIcon,
+      hint: `${o.newOrders.count - o.newOrders.returning} first-time · ${o.newOrders.returning} returning`,
+      delta: { now: o.newOrders.count, before: o.newOrders.prevCount, good: "up" },
+    },
+    {
+      label: "Starting soon",
+      value: o.startingSoon.count,
+      icon: CalendarClockIcon,
+      hint: `Next 7 days · ${o.startingSoon.unpaid} unpaid · ${o.startingSoon.waitlisted} waitlisted`,
+    },
+    { label: "Running plans", value: o.running.count, icon: ActivityIcon, hint: `${o.running.trials} on trial · right now` },
+    {
+      label: "Renewal rate",
+      value: pct(o.renewals.renewed, o.renewals.ended),
+      icon: RefreshCwIcon,
+      hint: `${o.renewals.renewed} of ${o.renewals.ended} plans that ended booked again`,
+    },
+    {
+      label: "Cancelled",
+      value: o.cancelled.count,
+      icon: CircleXIcon,
+      hint: `${o.cancelled.prevCount} in the previous period`,
+      delta: { now: o.cancelled.count, before: o.cancelled.prevCount, good: "down" },
+    },
   ];
 
-  return <StatGrid cols={4} items={stats} />;
+  return <OrdersStatCards items={stats} />;
 }
 
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
