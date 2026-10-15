@@ -9,6 +9,7 @@ import { Textarea } from "@foundry/ui/textarea";
 import { cn } from "@foundry/ui/cn";
 import { logActivity } from "../actions";
 import type { ActivityType } from "@/lib/services/inquiries.service";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 type Field = "outcome" | "followup" | "amount" | "note";
 
@@ -165,11 +166,11 @@ export function ActivityComposer({
               {fields.includes("followup") ? (
                 <div className="grid gap-1.5">
                   <label className="text-muted-foreground text-sm">{followupLabel}</label>
-                  <Input
-                    type="date"
+                  <DateInput
+                    clearable
                     className="w-full sm:w-48"
                     value={followup}
-                    onChange={(e) => setFollowup(e.target.value)}
+                    onChange={setFollowup}
                   />
                 </div>
               ) : null}

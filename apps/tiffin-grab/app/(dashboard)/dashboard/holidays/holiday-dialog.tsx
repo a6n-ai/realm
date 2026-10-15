@@ -11,6 +11,7 @@ import { Switch } from "@foundry/ui/switch";
 import { ResponsiveDialog } from "@/components/ds";
 import type { HolidayPreview } from "@/lib/services/holidays.service";
 import { createHolidayAction } from "./actions";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 export function HolidayDialog({ today, organizations }: { today: string; organizations: { id: string; name: string }[] }) {
   const router = useRouter();
@@ -76,7 +77,7 @@ export function HolidayDialog({ today, organizations }: { today: string; organiz
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="hol-date">Date</Label>
-            <Input id="hol-date" type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} className="w-48" />
+            <DateInput id="hol-date" min={today} value={date} onChange={setDate} className="w-48" />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="hol-name">Name</Label>

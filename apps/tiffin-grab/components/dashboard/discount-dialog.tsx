@@ -12,6 +12,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { saveItem } from "@/app/(dashboard)/dashboard/catalog/actions";
 import { ALL_TARGETS_LABEL, type DiscountDto, type DiscountKind } from "@/app/(dashboard)/dashboard/catalog/discounts/build-rows";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 export interface DiscountDialogOptions {
   frequencies: { publicId: string; name: string }[];
@@ -170,12 +171,12 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
         )}
         <div className="grid gap-1.5">
           <Label htmlFor="dd-start">Start date (optional)</Label>
-          <Input id="dd-start" type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+          <DateInput id="dd-start" clearable value={startsAt} onChange={setStartsAt} />
           {err("startsAt")}
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="dd-end">End date (optional)</Label>
-          <Input id="dd-end" type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+          <DateInput id="dd-end" clearable value={endsAt} onChange={setEndsAt} />
           {err("endsAt")}
         </div>
         <div className="flex items-center gap-2 sm:col-span-2">

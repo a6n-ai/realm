@@ -11,6 +11,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { WEEK_ORDER, type DayHours, type SupportHours } from "@/lib/support/support-hours";
 import { saveSupportHours } from "./actions";
+import { TimeInput } from "@/components/dashboard/date-fields";
 
 const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const NEW_DAY: DayHours = { open: "09:00", close: "18:00" };
@@ -70,9 +71,9 @@ export function SupportHoursDialog({ value }: { value: SupportHours }) {
                 <Label htmlFor={`support-day-${i}`} className="w-24">{DAY_LABELS[i]}</Label>
                 {d ? (
                   <>
-                    <Input type="time" aria-label={`${DAY_LABELS[i]} opens`} value={d.open} onChange={(e) => setDay(i, { ...d, open: e.target.value })} className="w-32" />
+                    <TimeInput aria-label={`${DAY_LABELS[i]} opens`} value={d.open} onChange={(v) => setDay(i, { ...d, open: v })} className="w-32" />
                     <span className="text-muted-foreground text-sm">to</span>
-                    <Input type="time" aria-label={`${DAY_LABELS[i]} closes`} value={d.close} onChange={(e) => setDay(i, { ...d, close: e.target.value })} className="w-32" />
+                    <TimeInput aria-label={`${DAY_LABELS[i]} closes`} value={d.close} onChange={(v) => setDay(i, { ...d, close: v })} className="w-32" />
                   </>
                 ) : (
                   <span className="text-muted-foreground text-sm">No support</span>

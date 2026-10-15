@@ -37,6 +37,7 @@ import {
   toLocalInput,
 } from "../controls";
 import { saveCoupon, setCouponActive } from "../actions";
+import { DateTimeInput } from "@/components/dashboard/date-fields";
 
 type CouponRow = {
   publicId: string;
@@ -445,20 +446,20 @@ export function CouponsManager({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="grid gap-1.5">
                     <Label htmlFor="cpn-start">Starts at ({BUSINESS_TZ_LABEL})</Label>
-                    <Input
+                    <DateTimeInput
+                      clearable
                       id="cpn-start"
-                      type="datetime-local"
                       value={draft.startsAt}
-                      onChange={(e) => setDraft({ ...draft, startsAt: e.target.value })}
+                      onChange={(v) => setDraft({ ...draft, startsAt: v })}
                     />
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="cpn-end">Expires at ({BUSINESS_TZ_LABEL})</Label>
-                    <Input
+                    <DateTimeInput
+                      clearable
                       id="cpn-end"
-                      type="datetime-local"
                       value={draft.expiresAt}
-                      onChange={(e) => setDraft({ ...draft, expiresAt: e.target.value })}
+                      onChange={(v) => setDraft({ ...draft, expiresAt: v })}
                     />
                   </div>
                 </div>

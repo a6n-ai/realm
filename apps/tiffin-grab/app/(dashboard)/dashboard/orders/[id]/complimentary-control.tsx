@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Switch } from "@foundry/ui/switch";
@@ -11,6 +10,7 @@ import { Textarea } from "@foundry/ui/textarea";
 import { ResponsiveDialog } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { grantComplimentaryAction } from "./actions";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 const dayName = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
 const NONE = "none";
@@ -88,7 +88,7 @@ export function ComplimentaryControl({
       <div className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="comp-date">Delivery date</Label>
-          <Input id="comp-date" type="date" min={minDate} value={date} onChange={(e) => setDate(e.target.value)} className="w-48" />
+          <DateInput id="comp-date" min={minDate} value={date} onChange={setDate} className="w-48" />
           <p className="text-muted-foreground text-xs">
             Earliest {minDate}{allowedDays.length ? ` · delivers on ${allowedDays.map(dayName).join(", ")}` : ""}
           </p>

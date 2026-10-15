@@ -13,6 +13,7 @@ import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { saveItem } from "@/app/(dashboard)/dashboard/catalog/actions";
 import type { DiscountDto } from "@/app/(dashboard)/dashboard/catalog/discounts/build-rows";
 import type { WaiverKind } from "@/lib/catalog/types";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 export const WAIVER_LABELS: Record<WaiverKind, string> = {
   waiver_delivery: "All delivery fees",
@@ -137,12 +138,12 @@ function Body({ onOpenChange, waiver, strategies }: WaiverDialogProps) {
         ) : null}
         <div className="grid gap-1.5">
           <Label htmlFor="wd-start">Start date (optional)</Label>
-          <Input id="wd-start" type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+          <DateInput id="wd-start" clearable value={startsAt} onChange={setStartsAt} />
           {err("startsAt")}
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="wd-end">End date (optional)</Label>
-          <Input id="wd-end" type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+          <DateInput id="wd-end" clearable value={endsAt} onChange={setEndsAt} />
           {err("endsAt")}
         </div>
         <div className="flex items-center gap-2 sm:col-span-2">

@@ -30,6 +30,7 @@ import {
 import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
 import { discountValueLabel, type DiscountDto, type DiscountKind } from "../discounts/build-rows";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 type DishName = { id: string; name: string; planName: string; active: boolean };
 
@@ -466,7 +467,7 @@ function FieldControl({
               ) : null}
             </div>
           ) : f.type === "date" ? (
-            <FormControl><Input type="date" value={(field.value as string) ?? ""} onChange={field.onChange} /></FormControl>
+            <FormControl><DateInput value={(field.value as string) ?? ""} onChange={field.onChange} /></FormControl>
           ) : (
             <div className="flex items-center gap-1.5">
               {unit === "$" ? <span className="text-muted-foreground text-sm">$</span> : null}

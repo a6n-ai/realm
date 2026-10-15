@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { CalendarClockIcon, CircleCheckIcon, GiftIcon, TruckIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, ResponsiveDialog, RowActionTooltipButton, type Column } from "@/components/ds";
 import { humanDate } from "@/lib/deliveries-view";
@@ -15,6 +14,7 @@ import type { MissedDeliveryRow } from "@/lib/services/missed-deliveries.service
 import type { ActionResult } from "@/app/(customer)/me/action-result";
 import { setDeliveryStatusAction } from "./[id]/actions";
 import { moveMissedAction, reconcileMissedAction } from "./missed-actions";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 const COLUMNS: readonly Column<"date" | "customer" | "order" | "tiffins" | "why" | "actions">[] = [
   { key: "date", label: "Day" },
@@ -128,7 +128,7 @@ export function MissedList({ rows, isAdmin, today }: { rows: MissedDeliveryRow[]
           </div>
         }
       >
-        <Input type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} aria-label="Day to move the tiffin to" className="w-48" />
+        <DateInput min={today} value={date} onChange={setDate} aria-label="Day to move the tiffin to" className="w-48" />
       </ResponsiveDialog>
     </div>
   );

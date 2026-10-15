@@ -5,6 +5,7 @@ import { FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import { PostalCombobox } from "./postal-combobox";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 export type InterestCatalog = {
   plans: { key: string; name: string }[];
@@ -281,11 +282,11 @@ export function PlanInterestFields({
 
       <FormItem className="grid gap-1.5 sm:col-span-2">
         <FormLabel>Preferred start</FormLabel>
-        <Input
+        <DateInput
+          clearable
           className="min-h-11"
-          type="date"
           value={values.preferredStart ?? ""}
-          onChange={(e) => onChange({ preferredStart: e.target.value })}
+          onChange={(v) => onChange({ preferredStart: v })}
         />
       </FormItem>
     </div>

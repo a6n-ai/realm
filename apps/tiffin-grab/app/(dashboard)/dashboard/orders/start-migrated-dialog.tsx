@@ -4,9 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
 import { ResponsiveDialog } from "@/components/ds";
 import { startAllMigratedAction } from "./actions";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 /** Switch-over day: start every WordPress plan still waiting, in one go. */
 export function StartMigratedDialog({ waiting }: { waiting: number }) {
@@ -53,7 +53,7 @@ export function StartMigratedDialog({ waiting }: { waiting: number }) {
       }
     >
       <div className="space-y-3">
-        <Input type="date" aria-label="Switch-over date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <DateInput aria-label="Switch-over date" value={fromDate} onChange={setFromDate} />
         {failed.length > 0 && (
           <ul className="text-destructive m-0 max-h-48 list-none space-y-1 overflow-auto p-0 text-sm">
             {failed.map((f) => (

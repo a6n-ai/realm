@@ -5,10 +5,10 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { CalendarPlusIcon, CircleSlashIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
 import { ResponsiveDialog, RowActionTooltipButton } from "@/components/ds";
 import { humanDate } from "@/lib/deliveries-view";
 import { dismissHolidayDayAction, placeHolidayDayAction } from "./actions";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 /**
  * Row actions for a closed day still waiting: Place (staff pick the first day; the service takes
@@ -47,7 +47,7 @@ export function PlacingActions({ deliveryPublicId, orderPublicId, label, date: c
           </div>
         }
       >
-        <Input type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} aria-label="First day to place on" className="w-48" />
+        <DateInput min={today} value={date} onChange={setDate} aria-label="First day to place on" className="w-48" />
       </ResponsiveDialog>
       <ResponsiveDialog
         open={dialog === "dismiss"}

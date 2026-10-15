@@ -4,12 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
 import { ResponsiveDialog } from "@/components/ds";
 import { humanDate } from "@/lib/deliveries-view";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { activate, cancel, startMigrated } from "./actions";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 export type MigrationProjection = {
   frequencyKey: string;
@@ -96,7 +96,7 @@ export function ActivateCancelControls({
           }
         >
           <div className="space-y-2">
-            <Input type="date" aria-label="First delivery date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <DateInput aria-label="First delivery date" value={startDate} onChange={setStartDate} />
             {migration && (
               <p className="text-muted-foreground text-sm">
                 {migration.tiffinCount} tiffins{end ? `, last delivery ${humanDate(end)}` : ""}

@@ -5,7 +5,7 @@
 import path from "node:path";
 import type { Browser, Locator, Page } from "@playwright/test";
 import { test, expect } from "../fixtures";
-import { LeadSheet } from "../pages/admin.shell";
+import { LeadSheet, pickEarliestDate } from "../pages/admin.shell";
 import { OrderDetailPage } from "../pages/order-detail.page";
 
 const adminState = path.join(process.cwd(), "e2e/.auth/admin.json");
@@ -67,8 +67,7 @@ async function openPaidActiveOrder(page: Page) {
   const root = sheet.root;
   await root.getByRole("radio", { name: /^veg$/i }).first().click();
   await root.getByRole("radio").filter({ hasText: /regular|large|thali/i }).first().click();
-  const dateInput = root.locator('input[type="date"]').first();
-  await dateInput.fill((await dateInput.getAttribute("min")) ?? "2099-01-06");
+  await pickEarliestDate(page, root.getByLabel(/^start date/i));
   await root.getByRole("button", { name: /continue to payment/i }).click();
 
   await root.getByRole("combobox", { name: "Street address" }).fill("123 Test St");

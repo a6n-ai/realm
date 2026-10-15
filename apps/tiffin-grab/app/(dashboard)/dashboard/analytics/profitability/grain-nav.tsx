@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { Input } from "@foundry/ui/input";
 import { cn } from "@foundry/ui/cn";
 import { addMonths, type Grain } from "@/lib/analytics/profitability";
+import { MonthInput } from "@/components/dashboard/date-fields";
 
 const GRAINS: { id: Grain; label: string }[] = [
   { id: "daily", label: "Daily" },
@@ -45,13 +45,12 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
             <ChevronLeftIcon className="size-4" />
           </Link>
         </Button>
-        <Input
-          type="month"
+        <MonthInput
           aria-label="Month"
           className="h-8 w-[10.5rem]"
           value={month}
-          onChange={(e) => {
-            if (e.target.value) router.push(href(view, e.target.value));
+          onChange={(v) => {
+            if (v) router.push(href(view, v));
           }}
         />
         <Button variant="ghost" size="icon" className="size-8" asChild>

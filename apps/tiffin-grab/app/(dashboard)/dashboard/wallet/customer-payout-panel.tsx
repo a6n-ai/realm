@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
+import { DateInput } from "@/components/dashboard/date-fields";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { NumberField } from "../discounts/controls";
@@ -199,11 +200,11 @@ export function CustomerPayoutPanel({ cities }: { cities: string[] }) {
 
             <div className="grid gap-1.5">
               <Label>Ordering since (from)</Label>
-              <Input type="date" value={startDateFrom} onChange={(e) => setStartDateFrom(e.target.value)} className="w-40" />
+              <DateInput clearable value={startDateFrom} onChange={setStartDateFrom} className="w-40" />
             </div>
             <div className="grid gap-1.5">
               <Label>Ordering since (to)</Label>
-              <Input type="date" value={startDateTo} onChange={(e) => setStartDateTo(e.target.value)} className="w-40" />
+              <DateInput clearable value={startDateTo} onChange={setStartDateTo} className="w-40" />
             </div>
 
             <div className="grid gap-1.5">

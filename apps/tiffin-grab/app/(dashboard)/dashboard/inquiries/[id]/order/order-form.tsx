@@ -42,6 +42,7 @@ import { discountLine } from "@/components/customer/home/coupons-section";
 import { DayPicker, dayName, ScheduleSection } from "./schedule-section";
 import { plannedSchedule, ScheduleCard } from "@/components/wizard/schedule-card";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
+import { DateInput } from "@/components/dashboard/date-fields";
 
 const APP_NAME = "Tiffin Grab";
 
@@ -699,7 +700,7 @@ export function OrderForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Start date <span className="text-destructive">*</span></FormLabel>
-                    <FormControl><Input type="date" min={minStart} {...field} /></FormControl>
+                    <FormControl><DateInput min={minStart} value={field.value} onChange={field.onChange} className="w-full" /></FormControl>
                     {renewalBound ? (
                       <p className="text-muted-foreground text-xs text-pretty">
                         Renewal: current plan runs through {dayBeforeIso(renewFrom!)}. The new plan starts on or after{" "}

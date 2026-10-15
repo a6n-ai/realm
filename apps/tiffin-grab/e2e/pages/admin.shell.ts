@@ -1,6 +1,12 @@
 import type { Page, Locator } from "@playwright/test";
 import { expect } from "@playwright/test";
 
+/** Desktop DateInput (popover calendar): opens it and picks the earliest selectable day, which is `min`. */
+export async function pickEarliestDate(page: Page, trigger: Locator) {
+  await trigger.click();
+  await page.locator('[data-slot="popover-content"] button[data-day]:not([disabled])').first().click();
+}
+
 /** Admin CRM left sidebar (desktop). */
 export class AdminShell {
   constructor(readonly page: Page) {}
@@ -57,7 +63,7 @@ export class LeadSheet {
   }
 
   /** Step 2 order form — plan, address, payment method. */
-  async fillMinimalOrder(opts?: { startDate?: string }) {
+  async fillMinimalOrder() {
     await expect(this.root.getByRole("radio", { name: /^veg$/i }).first()).toBeVisible({
       timeout: 15_000,
     });
@@ -71,10 +77,7 @@ export class LeadSheet {
       await mealPill.click();
     }
 
-    const dateInput = this.root.locator('input[type="date"]').first();
-    await expect(dateInput).toBeVisible();
-    const min = await dateInput.getAttribute("min");
-    await dateInput.fill(opts?.startDate ?? min ?? "2099-01-06");
+    await pickEarliestDate(this.page, this.root.getByLabel(/^start date/i));
 
     await this.root.getByLabel(/^address/i).fill("123 Test St");
     await this.root.getByLabel(/^city/i).fill("Toronto");

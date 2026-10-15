@@ -3,10 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Button } from "@foundry/ui/button";
+import { DateInput } from "@/components/dashboard/date-fields";
 
-// Native date input rather than a calendar component: this picks one day, and the browser's
-// own control is keyboard- and mobile-friendly for free.
-//
 // Shared by the Labels and Routes pages — basePath decides which page a date change lands
 // on. Defaulting to /dashboard/labels kept the original caller working when Routes started
 // reusing this component, but that default was never meant to apply there too; Routes must
@@ -36,13 +34,11 @@ export function LabelDatePicker({
       <label htmlFor="label-date" className="text-sm font-medium">
         Delivery date
       </label>
-      <input
+      <DateInput
         id="label-date"
-        type="date"
         value={date}
         disabled={pending}
-        onChange={(e) => go(e.target.value)}
-        className="h-9 rounded-lg border bg-transparent px-2 text-sm"
+        onChange={go}
       />
       {date !== today ? (
         <Button variant="ghost" size="sm" disabled={pending} onClick={() => go(today)}>
