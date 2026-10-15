@@ -227,7 +227,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
             lastWeek={lastWeek}
             week={weekStart}
             today={today}
-            selectedDay={row?.date ?? sel}
+            selectedDay={row && sel !== row.trip.date ? row.date : sel}
             agenda={agenda}
             now={now}
             onPickDay={pickDay}

@@ -59,8 +59,8 @@ export function WeekStrip({ firstWeek, lastWeek, week, today, selectedDay, agend
               onClick={() => onPickDay(iso)}
               className={cn(
                 FOCUS,
-                "flex flex-col items-center gap-1 rounded-2xl py-2 [touch-action:manipulation]",
-                selected ? "bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)]" : iso < today && "opacity-45",
+                "flex cursor-pointer flex-col items-center gap-1 rounded-2xl py-2 transition-colors [touch-action:manipulation]",
+                selected ? "bg-[var(--primary-wash,#FBE3D2)] text-[var(--foreground)]" : cn("hover:bg-[var(--muted)]", iso < today && "opacity-45"),
               )}
             >
               <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted-foreground,#6E6558)]">{WD.format(at(iso)).slice(0, 3)}</span>

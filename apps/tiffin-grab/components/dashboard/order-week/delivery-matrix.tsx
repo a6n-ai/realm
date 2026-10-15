@@ -113,8 +113,8 @@ function Week({ monday, current, agenda, today, selectedDay, now, onPickDay }: O
             onClick={() => onPickDay(iso)}
             style={box(status)}
             className={cn(
-              "focus-visible:ring-ring flex h-10 flex-col items-center justify-center rounded-md text-xs font-semibold tabular-nums outline-none focus-visible:ring-2",
-              iso === selectedDay ? "ring-foreground ring-2" : iso === today && "ring-primary ring-1",
+              "focus-visible:ring-ring flex h-10 cursor-pointer flex-col items-center justify-center rounded-md text-xs font-semibold tabular-nums outline-none focus-visible:ring-2",
+              iso === selectedDay ? "ring-foreground ring-2" : cn("hover:ring-foreground/40 hover:ring-2", iso === today && "ring-primary ring-1"),
             )}
           >
             {day}
