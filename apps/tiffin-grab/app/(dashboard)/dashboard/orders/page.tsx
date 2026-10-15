@@ -8,7 +8,8 @@ import { leadSources, leadSubsources, orders, plans } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { countEndingOrders, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds, type EndingWindow } from "@/lib/services/orders.service";
+import { addDays } from "@/lib/deliveries-view/week";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -82,11 +83,24 @@ async function StartMigratedAction() {
   return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
 }
 
+/** Today through two days out, in the app timezone: plans whose last tiffin lands here are up for renewal. */
+async function endingWindow(): Promise<EndingWindow> {
+  const { timezone } = await getAppSettings();
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
+  const today = zonedDateIso(Date.now(), timezone);
+  return { from: today, to: addDays(today, 2) };
+}
+
 async function OrdersViews() {
   await requireStaff();
   const visible = await resolveSessionVisibleOrgIds(await getSession());
-  const [lookOutCount, missedCount] = await Promise.all([countLookOutOrders(visible), countMissedDeliveries(visible)]);
-  return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} />;
+  const [lookOutCount, missedCount, endingCount, paymentReviewCount] = await Promise.all([
+    countLookOutOrders(visible),
+    countMissedDeliveries(visible),
+    endingWindow().then((w) => countEndingOrders(visible, w)),
+    countPaymentReviewOrders(visible),
+  ]);
+  return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} endingCount={endingCount} paymentReviewCount={paymentReviewCount} />;
 }
 
 async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
@@ -125,9 +139,11 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
     return <MissedList rows={rows} isAdmin={session?.user?.role === "admin"} today={today} />;
   }
   const lookOutOnly = raw.view === "lookout";
-  // A flagged order stays on the Look out for tab however old it is. The date picker
+  const ending = raw.view === "ending" ? await endingWindow() : undefined;
+  const paymentReview = raw.view === "payment";
+  // A flagged, ending or unpaid order stays on its tab however old it is. The date picker
   // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
-  const sp = lookOutOnly ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
+  const sp = lookOutOnly || ending || paymentReview ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],
@@ -169,7 +185,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const visible = await resolveSessionVisibleOrgIds(session);
 
   const [result, reassignAllowed] = await Promise.all([
-    listOrdersPage(finalCondition, page, sort, visible, { lookOutOnly }),
+    listOrdersPage(finalCondition, page, sort, visible, { lookOutOnly, ending, paymentReview }),
     canReassign(),
   ]);
   const staff = reassignAllowed ? await listAssignableStaff() : [];
@@ -185,6 +201,8 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       canReassign={reassignAllowed}
       staff={staff}
       lookOutView={lookOutOnly}
+      endingView={ending != null}
+      paymentReviewView={paymentReview}
     />
   );
 }

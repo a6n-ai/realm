@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
+import { ne, sql } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -8,7 +8,7 @@ const { orders, payments, orderActivities, ledgerEntries, users } = await import
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders } = await import("../orders.service");
+const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countEndingOrders, countPaymentReviewOrders } = await import("../orders.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const schema = await import("@/db/schema");
@@ -40,6 +40,49 @@ const baseInput = (mealSizePublicId: string, planKey: string, fullName = "Jane C
 describe("order CRM queries (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
+
+  it("ending soon: lists running plans whose last tiffin falls in the window, with that date", async () => {
+    const snap = await loadCatalogSnapshot();
+    const o = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    await db.update(orders).set({ status: "active" }).where(eq(orders.publicId, o.publicId));
+    const [{ last }] = await db.select({ last: sql<string>`max(${schema.deliveries.deliveryDate})` }).from(schema.deliveries)
+      .innerJoin(orders, eq(orders.id, schema.deliveries.orderId)).where(eq(orders.publicId, o.publicId));
+    expect(last).toBeTruthy();
+
+    const hit = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { ending: { from: last, to: last } });
+    expect(hit.items.map((r) => [r.publicId, r.lastTiffin])).toEqual([[o.publicId, last]]);
+    expect(await countEndingOrders("all", { from: last, to: last })).toBe(1);
+    expect(await countEndingOrders("all", { from: "1999-01-01", to: "1999-01-03" })).toBe(0);
+    expect(hit.items[0].renewed).toBe(false);
+
+    // A later plan for the same customer marks the ending one Renewed.
+    const next = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+    const [first] = await db.select({ userId: orders.userId, startDate: orders.startDate }).from(orders).where(eq(orders.publicId, o.publicId));
+    await db.update(orders).set({ userId: first.userId, startDate: "2099-01-05", status: "pending" }).where(eq(orders.publicId, next.publicId));
+    const renewed = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { ending: { from: last, to: last } });
+    expect(renewed.items[0].renewed).toBe(true);
+
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, o.publicId));
+    expect(await countEndingOrders("all", { from: last, to: last })).toBe(0);
+  });
+
+  it("payment review: only open orders with a payment awaiting claim or verification", async () => {
+    const snap = await loadCatalogSnapshot();
+    const o = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+    const [row] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, o.publicId));
+    await db.update(payments).set({ status: "paid" });
+    expect(await countPaymentReviewOrders("all")).toBe(0);
+
+    await db.update(payments).set({ status: "pending_verification" }).where(eq(payments.orderId, row.id));
+    await db.update(orders).set({ status: "active" }).where(eq(orders.id, row.id));
+    const page = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { paymentReview: true });
+    expect(page.items.map((r) => r.publicId)).toEqual([o.publicId]);
+    expect(await countPaymentReviewOrders("all")).toBe(1);
+
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, row.id));
+    expect(await countPaymentReviewOrders("all")).toBe(0);
+  });
 
   it("look out for: a flagged order gets its own list and count, and clearing takes it back out", async () => {
     const snap = await loadCatalogSnapshot();

@@ -44,6 +44,8 @@ export function OrdersList({
   canReassign,
   staff,
   lookOutView = false,
+  endingView = false,
+  paymentReviewView = false,
 }: {
   spec: FacetDef[];
   rows: OrderListRow[];
@@ -55,6 +57,9 @@ export function OrdersList({
   staff: { publicId: string; name: string }[];
   /** The Look out for tab: each row shows why it was flagged. */
   lookOutView?: boolean;
+  /** The Ending soon tab: each row shows its last tiffin date. */
+  endingView?: boolean;
+  paymentReviewView?: boolean;
 }) {
   const tz = useTimezone();
   return (
@@ -70,7 +75,7 @@ export function OrdersList({
       rowClassName={() => "group cursor-pointer"}
       filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" dateControl="external" />}
       emptyIcon={PackageIcon}
-      emptyMessage={lookOutView ? "No orders are marked look out for." : "No orders yet."}
+      emptyMessage={lookOutView ? "No orders are marked look out for." : endingView ? "No plans end in the next two days." : paymentReviewView ? "No payments are waiting for review." : "No orders yet."}
       emptySearchMessage="No orders match your search."
       renderRow={(o) => (
         <>
@@ -85,6 +90,12 @@ export function OrdersList({
               </span>
             )}
             {lookOutView && o.lookOutNote && <p className="text-muted-foreground text-xs font-normal text-pretty">{o.lookOutNote}</p>}
+            {endingView && o.renewed && (
+              <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-950 uppercase dark:bg-emerald-900/40 dark:text-emerald-100">
+                Renewed
+              </span>
+            )}
+            {endingView && o.lastTiffin && <p className="text-muted-foreground text-xs font-normal tabular-nums">Last tiffin {o.lastTiffin}</p>}
           </TableCell>
           <TableCell>{o.deploymentId}</TableCell>
           <TableCell>{o.city}</TableCell>

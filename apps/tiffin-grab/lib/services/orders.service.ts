@@ -6,7 +6,8 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
 import { db } from "@/db/client";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import {
@@ -1202,6 +1203,43 @@ export async function countLookOutOrders(visible: "all" | string[]): Promise<num
   return count;
 }
 
+/** An order's last tiffin: its latest non-cancelled delivery row (the same rule `reservedEndDatesExclusive` uses). */
+const lastTiffinSql = sql<string | null>`(select max(${deliveries.deliveryDate}) from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.status} <> 'cancelled')`;
+
+/** The customer already has a later plan lined up (pending, active or paused) after this one. */
+const renewedSql = sql<boolean>`exists (select 1 from ${orders} as next_order where next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'active', 'paused') and next_order.start_date > ${orders.startDate})`;
+
+/** ISO dates, both inclusive, in the app timezone. */
+export type EndingWindow = { from: string; to: string };
+
+/** Running plans whose last tiffin falls inside the window: the ones up for renewal. */
+function endingWhere(w: EndingWindow) {
+  return and(inArray(orders.status, ["active", "paused"]), sql`${lastTiffinSql} between ${w.from} and ${w.to}`);
+}
+
+/** Orders the badge reads as Payment review: same rule as `orderDisplayStatus`, over every payment row. */
+function paymentReviewWhere() {
+  return and(
+    inArray(orders.status, ["active", "pending", "paused"]),
+    sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${inArray(payments.status, [...PAYMENT_REVIEW_STATUSES])})`,
+  );
+}
+
+async function countVisibleOrders(where: SQL | undefined, visible: "all" | string[]): Promise<number> {
+  if (visible !== "all" && visible.length === 0) return 0;
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(orders)
+    .where(and(where, visible === "all" ? undefined : inArray(orders.organizationId, visible)));
+  return count;
+}
+
+/** Running plans ending inside the window, for the Ending soon tab badge. */
+export const countEndingOrders = (visible: "all" | string[], window: EndingWindow) => countVisibleOrders(endingWhere(window), visible);
+
+/** Orders waiting on a payment claim or staff verification, for the Payment review tab badge. */
+export const countPaymentReviewOrders = (visible: "all" | string[]) => countVisibleOrders(paymentReviewWhere(), visible);
+
 // Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
   paymentPublicId: string;
@@ -1282,6 +1320,10 @@ export type OrderListRow = {
   trial: boolean;
   lookOut: boolean;
   lookOutNote: string | null;
+  /** Set only on the Ending soon view. */
+  lastTiffin: string | null;
+  /** Ending soon view only: a later plan for the same customer already exists. */
+  renewed: boolean;
 };
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
@@ -1386,11 +1428,13 @@ export async function listOrdersPage(
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
   visible: "all" | string[],
-  opts: { lookOutOnly?: boolean } = {},
+  opts: { lookOutOnly?: boolean; ending?: EndingWindow; paymentReview?: boolean } = {},
 ): Promise<Page<OrderListRow>> {
   const where = and(
     conditionToSql(condition, ordersListResolver()),
     opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
+    opts.ending ? endingWhere(opts.ending) : undefined,
+    opts.paymentReview ? paymentReviewWhere() : undefined,
     visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 
@@ -1422,12 +1466,15 @@ export async function listOrdersPage(
         trialLength: orders.trialLength,
         lookOutAt: orders.lookOutAt,
         lookOutNote: orders.lookOutNote,
+        lastTiffin: opts.ending ? lastTiffinSql : sql<null>`null`,
+        renewed: opts.ending ? renewedSql : sql<boolean>`false`,
       })
       .from(orders)
       .innerJoin(plans, eq(orders.planId, plans.id))
       .leftJoin(users, eq(orders.currentOwner, users.id))
       .where(where)
-      .orderBy(...pageOrder(sort.dir, col, orders.id))
+      // Soonest-ending first, so today's last tiffins top the renewal list.
+      .orderBy(...(opts.ending ? [asc(lastTiffinSql), asc(orders.id)] : pageOrder(sort.dir, col, orders.id)))
       .limit(page.size)
       .offset(page.page * page.size),
     db
@@ -1467,6 +1514,8 @@ export async function listOrdersPage(
     trial: r.trialLength != null,
     lookOut: r.lookOutAt != null,
     lookOutNote: r.lookOutNote,
+    lastTiffin: r.lastTiffin,
+    renewed: r.renewed,
   }));
   return { items, page: page.page, size: page.size, total: count };
 }
