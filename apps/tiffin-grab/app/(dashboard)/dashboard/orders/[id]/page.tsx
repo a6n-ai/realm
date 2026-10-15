@@ -245,9 +245,24 @@ async function OrderDetail({
     />
   ) : null;
 
+  const compensated = new Set(deliveryRows.map((r) => r.complimentaryForDeliveryId).filter((id) => id != null).map(String));
+  // A plan closes on dates alone; a past day OptimoRoute never confirmed is what its "left" count
+  // still holds. Same rule as the Missed deliveries list, so staff settle it there.
+  const unconfirmed = order.status === "completed"
+    ? deliveryRows.filter((r) => r.status === "scheduled" && r.deliveryDate < settingsToday && r.optimoCompletionStatus !== "success"
+      && r.tiffinUnits > 0 && r.mergedIntoDeliveryId == null && !compensated.has(String(r.id)))
+    : [];
+  const unconfirmedUnits = unconfirmed.reduce((n, r) => n + r.tiffinUnits, 0);
+
   const stats: StatItem[] = [
     { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" || fullyPaused ? "Paused" : order.frequencyName, pixelValue: false },
-    {
+    unconfirmedUnits > 0 ? {
+      label: "Not confirmed",
+      value: `${unconfirmedUnits} / ${counts?.total ?? order.tiffinCount}`,
+      icon: PackageIcon,
+      tone: "bad",
+      hint: `Plan over · ${unconfirmed.map((r) => r.deliveryDate).sort().map(humanDate).join(", ")} · settle in Orders → Missed deliveries`,
+    } : {
       label: "Tiffins left",
       value: counts ? `${counts.remaining} / ${counts.total}` : String(order.tiffinCount),
       icon: PackageIcon,
@@ -264,7 +279,6 @@ async function OrderDetail({
 
   // Past deliveries a free tiffin can make up for, newest first, minus ones that already have one.
   // Any status but cancelled: a driver can mark a stop delivered that the customer never got.
-  const compensated = new Set(deliveryRows.map((r) => r.complimentaryForDeliveryId).filter((id) => id != null).map(String));
   const deliveryState = (r: (typeof deliveryRows)[number]) =>
     r.holidayId != null && r.status !== "scheduled" ? "closed for a holiday"
     : r.status === "paused" ? "paused"
