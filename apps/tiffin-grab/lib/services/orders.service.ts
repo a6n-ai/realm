@@ -1948,7 +1948,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
         // A moved tiffin parked after the old last day would be stranded when the plan gets
         // shorter: bring it up to the first free days after the new end. Never pushed later.
-        const end = [...laid.map((r) => r.deliveryDate), ...kept.filter((r) => !openIds.has(r.id) && !movable.includes(r)).map((r) => r.deliveryDate)].sort().at(-1)!;
+        // A cancelled row a move still points at survives dropVoidRows; it's no plan day either.
+        const end = [...laid.map((r) => r.deliveryDate), ...kept.filter((r) => !openIds.has(r.id) && !movable.includes(r) && r.status !== "cancelled").map((r) => r.deliveryDate)].sort().at(-1)!;
         const free = candidates.map((c) => c.deliveryDate).filter((d) => d > end && !taken.has(d));
         const tail = movable.filter((r) => r.deliveryDate > end).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate));
         for (const [i, r] of tail.entries()) {

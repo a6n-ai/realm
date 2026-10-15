@@ -9,7 +9,7 @@ const weekend = vi.hoisted(() => ({ serves: true }));
 vi.mock("../weekend-dish", () => ({ mealSizeServesWeekends: async () => weekend.serves }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryFrequencies, orderActivities, orders } = await import("@/db/schema");
+const { deliveries, deliveryFrequencies, deliveryMoves, orderActivities, orders } = await import("@/db/schema");
 const { changeOrderEatingDays, changeOrderStartDate } = await import("../orders.service");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
 
@@ -123,6 +123,24 @@ describe("changeEatingDays", () => {
     expect(units(await scheduled(order.id))).toBe(10);
     const notes = await db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
     expect(notes.some((n) => n.note?.includes("1 moved tiffin brought forward, last delivery 2030-01-18"))).toBe(true);
+  });
+
+  it("cancelled days past the plan don't stop a moved tiffin coming forward", async () => {
+    const { order, wed } = await make();
+    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, wed.id));
+    // A trimmed plan: its old tail days stay as cancelled rows; a recorded move keeps them from being dropped.
+    const tail = await db.insert(deliveries).values(["2030-01-22", "2030-01-23"].map((d) => ({
+      orderId: order.id, deliveryDate: d, status: "cancelled" as const, cutoffAt: Date.UTC(2030, 0, 20), tiffinUnits: 1, coversDates: [d],
+    }))).returning();
+    const [moved] = await db.insert(deliveries).values({
+      orderId: order.id, deliveryDate: "2030-01-24", status: "scheduled", cutoffAt: Date.UTC(2030, 0, 23),
+      tiffinUnits: 1, coversDates: ["2030-01-24"], makeupForDeliveryId: wed.id,
+    }).returning();
+    await db.insert(deliveryMoves).values(tail.map((r) => ({ orderId: order.id, fromDeliveryId: r.id, toDeliveryId: moved.id, fromEatDate: r.deliveryDate, toEatDate: "2030-01-24" })));
+    await changeOrderEatingDays(order.publicId, [...MON_FRI, "sat"]);
+
+    const [after] = await db.select().from(deliveries).where(eq(deliveries.id, moved.id));
+    expect(after).toMatchObject({ deliveryDate: "2030-01-18", coversDates: ["2030-01-18"] });
   });
 
   it("refuses a weekend day when the meal has no weekend dish", async () => {
