@@ -198,6 +198,21 @@ describe("WF3 — stacking", () => {
   beforeEach(reset);
   afterAll(reset);
 
+  it("redeems several typed codes on one order, and refuses the order if one is invalid", async () => {
+    await db.insert(coupons).values({ code: "TWO10", kind: "fixed", name: "Ten", valueAmount: "10", stackable: true });
+    await db.insert(coupons).values({ code: "TWO5", kind: "fixed", name: "Five", valueAmount: "5", stackable: true });
+
+    const { deploymentId } = await createOrder({ ...(await baseInput({ phone: "+16475550666" })), couponCodes: ["TWO10", "two5"] });
+    const order = await orderByDeployment(deploymentId);
+    const snap = order.pricingSnapshot as PricingSnapshot;
+    expect(Number(order.total)).toBeCloseTo(snap.subtotal - 15 + snap.taxTotal, 2);
+    expect(await db.select().from(couponRedemptions).where(eq(couponRedemptions.orderId, order.id))).toHaveLength(2);
+
+    await expect(
+      createOrder({ ...(await baseInput({ phone: "+16475550777" })), couponCodes: ["TWO10", "NOPE"] }),
+    ).rejects.toThrow("NOPE: Invalid coupon code");
+  });
+
   it("puts the rep discount on top of a non-stackable public coupon", async () => {
     const [actor] = await db.insert(users).values({ email: "actor3@x.com", role: "member" }).returning();
     await db.insert(coupons).values({ code: "REP-S", kind: "rep_daily", name: "Rep daily", capPct: "50", capAmount: "20", maxRedemptions: 1, ownerUserId: actor.id });

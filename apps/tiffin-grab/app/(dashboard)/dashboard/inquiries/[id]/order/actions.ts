@@ -182,7 +182,15 @@ export async function previewPrice(
 
 // The customer coupon lane as createOrder will resolve it: what landed on the price, why the
 // entered code did not, and the codes checkout suggests to this customer.
-export type StaffCouponPreview = { applied: AppliedCoupon[]; error?: string; available: AvailableCoupon[] };
+export type StaffCouponPreview = {
+  applied: AppliedCoupon[];
+  // Not tied to one typed code (the rep discount pairing rule).
+  error?: string;
+  // Per typed code: why it was refused, or why a valid one was left out of the best set.
+  codeErrors: { code: string; error: string }[];
+  notApplied: { code: string; reason: string }[];
+  available: AvailableCoupon[];
+};
 export type StaffPricePreview = { preview: PricingResult; coupons: StaffCouponPreview };
 
 // The account createOrder would bill, when the contact matches exactly one. Usage-capped and
@@ -217,15 +225,15 @@ async function quotePrice(
 
   // Customer coupons, resolved as createOrder does: against the subtotal after catalog discounts.
   const postCatalog = postCatalogSubtotal(base.subtotal, priceSubscription(selections, catalog).adjustments);
-  const manualCode = input.couponCode?.trim() || undefined;
   const best = await couponsService.resolveBestCoupons({
     subtotal: postCatalog,
     planType: plan?.planType,
     userId: await previewCustomerId(input.contact),
     paymentMethodId: method?.enabled ? method.id : "simulated",
-    manualCode,
+    manualCode: input.couponCode,
+    manualCodes: input.couponCodes,
   });
-  let error = best.manualError;
+  let error: string | undefined;
   const applied: AppliedCoupon[] = [];
   for (const r of best.redemptions) {
     const amount = Math.min(r.amount, postCatalogSubtotal(postCatalog, lines));
@@ -257,7 +265,13 @@ async function quotePrice(
 
   return {
     preview: lines.length > 0 ? priceSubscription(selections, catalog, lines, taxes) : base,
-    coupons: { applied, error, available: (await couponsService.listAvailable()).filter((c) => !c.autoApply) },
+    coupons: {
+      applied,
+      error,
+      codeErrors: best.manualErrors,
+      notApplied: best.notApplied,
+      available: (await couponsService.listAvailable()).filter((c) => !c.autoApply),
+    },
   };
 }
 

@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, users } from "@/db/schema";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
@@ -47,16 +47,33 @@ export interface BestCouponsContext {
   userId?: bigint | null;
   paymentMethodId?: string | null;
   manualCode?: string | null;
+  // Several typed codes; merged with manualCode, deduped, at most MAX_MANUAL_CODES.
+  manualCodes?: readonly string[] | null;
 }
 
+export const MAX_MANUAL_CODES = 5;
+
 // The winning set: discount lines (already distributed against the running
-// subtotal) plus the coupon rows + applied amount for in-tx redemption. When a
-// manual code was supplied but rejected, manualError carries the reason so the
-// caller can surface it inline without failing the whole resolution.
+// subtotal) plus the coupon rows + applied amount for in-tx redemption. Typed codes
+// that were rejected carry their reason in manualErrors (manualError is the first),
+// so the caller can surface each inline without failing the whole resolution. A
+// typed code that is valid but lost to a better combination lands in notApplied.
 export interface BestCouponsResult {
   lines: PricingLine[];
   redemptions: { coupon: Coupon; amount: number }[];
   manualError?: string;
+  manualErrors: { code: string; error: string }[];
+  notApplied: { code: string; reason: string }[];
+}
+
+// Typed codes as the resolver reads them: trimmed, uppercased, deduped, capped.
+export function normalizeCodes(...lists: (readonly (string | null | undefined)[] | null | undefined)[]): string[] {
+  const out: string[] = [];
+  for (const list of lists) for (const c of list ?? []) {
+    const code = c?.trim().toUpperCase();
+    if (code && !out.includes(code)) out.push(code);
+  }
+  return out.slice(0, MAX_MANUAL_CODES);
 }
 
 // Customer-safe projection of a coupon for the browse list — no admin-only
@@ -216,25 +233,29 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       candidates.push({ coupon, line: this.resolveDiscount(coupon, pubCtx) });
     }
 
-    // Plus the manual code (need not be autoApply). A failure is reported via
-    // manualError rather than thrown, so the auto set still resolves. A staff code
-    // stays out of the optimizer: it goes on top of whatever set wins.
-    let manualError: string | undefined;
+    // Plus the typed codes (need not be autoApply). A failure is reported per code
+    // rather than thrown, so the rest still resolve. A staff code stays out of the
+    // optimizer: it goes on top of whatever set wins, and only one rides an order.
+    const manualErrors: { code: string; error: string }[] = [];
+    const typed: Coupon[] = [];
     let staffCode: Coupon | null = null;
-    const manualCode = ctx.manualCode?.trim();
-    if (manualCode) {
+    for (const code of normalizeCodes([ctx.manualCode], ctx.manualCodes)) {
       try {
-        const coupon = await this.loadByCode(manualCode);
+        const coupon = await this.loadByCode(code);
         const err = await this.publicEligibilityError(coupon, pubCtx);
         if (err) {
-          manualError = err;
+          manualErrors.push({ code, error: err });
         } else if (coupon.kind === "rep_code") {
-          staffCode = coupon;
-        } else if (!candidates.some((c) => c.coupon.id === coupon.id)) {
-          candidates.push({ coupon, line: this.resolveDiscount(coupon, pubCtx) });
+          if (staffCode) manualErrors.push({ code, error: "Only one staff code per order" });
+          else staffCode = coupon;
+        } else {
+          typed.push(coupon);
+          if (!candidates.some((c) => c.coupon.id === coupon.id)) {
+            candidates.push({ coupon, line: this.resolveDiscount(coupon, pubCtx) });
+          }
         }
       } catch (e) {
-        manualError = e instanceof Error ? e.message : "Invalid coupon code";
+        manualErrors.push({ code, error: e instanceof Error ? e.message : "Invalid coupon code" });
       }
     }
 
@@ -282,7 +303,17 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       }
     }
 
-    return { lines: best.lines, redemptions: best.redemptions, manualError };
+    // A valid typed code the winning set left out: an exclusive one that a better set beat,
+    // or a stackable one that lost to an exclusive. Say which won so the customer can choose.
+    const won = best.redemptions.map((r) => r.coupon.code).filter((c) => c !== staffCode?.code);
+    const notApplied = typed
+      .filter((c) => !best.redemptions.some((r) => r.coupon.id === c.id))
+      .map((c) => ({
+        code: c.code,
+        reason: won.length ? `Can't be combined with ${won.join(", ")}, which saves more` : "Gives no discount on this order",
+      }));
+
+    return { lines: best.lines, redemptions: best.redemptions, manualError: manualErrors[0]?.error, manualErrors, notApplied };
   }
 
   // Staff: validate the actor's OWN rep_daily coupon and clamp to the dual ceiling.
@@ -491,7 +522,9 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
         and(
           eq(coupons.active, true),
           eq(coupons.visible, true),
-          ne(coupons.kind, "rep_daily"),
+          // Staff coupons (a rep's daily lane, one-off issued codes) are never listed or bulk-applied;
+          // an issued code still works when typed.
+          notInArray(coupons.kind, ["rep_daily", "rep_code"]),
         ),
       );
     return rows

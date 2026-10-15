@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -176,12 +176,24 @@ export function OrderForm({
   const [discount, setDiscount] = useState(0);
   const [discountOpen, setDiscountOpen] = useState(false);
   // The customer coupon code on this order; the preview says whether it landed.
-  const [couponCode, setCouponCode] = useState<string | null>(null);
+  // Every code staff entered; the preview says which landed and why the others didn't.
+  const [couponCodes, setCouponCodes] = useState<string[]>([]);
   const [couponInput, setCouponInput] = useState("");
   const [coupons, setCoupons] = useState<StaffCouponPreview | null>(null);
+  const removeCoupon = (code: string) => setCouponCodes((cs) => cs.filter((c) => c !== code.toUpperCase()));
   const applyCoupon = (code: string) => {
-    setCouponCode(code.trim().toUpperCase() || null);
+    const next = code.trim().toUpperCase();
+    if (next) setCouponCodes((cs) => (cs.includes(next) ? cs : [...cs, next]));
     setCouponInput("");
+  };
+  // Apply all: offer every listed code, let the server pick the best combination, then drop
+  // the ones that didn't make it so only real savings stay on the order.
+  const bulkCodes = useRef<string[] | null>(null);
+  const applyAllCoupons = (codes: string[]) => {
+    const fresh = codes.map((c) => c.toUpperCase()).filter((c) => !couponCodes.includes(c));
+    if (fresh.length === 0) return;
+    bulkCodes.current = fresh;
+    setCouponCodes((cs) => [...cs, ...fresh]);
   };
   const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
@@ -411,7 +423,7 @@ export function OrderForm({
       deliveryInstructions: notes.trim() || null,
     },
     paymentMethodId: realPayments ? paymentMethodId : null,
-    couponCode: couponCode ?? undefined,
+    couponCodes,
     repCoupon: repInfo?.available && discount > 0
       ? { code: repInfo.code, requestedAmount: discount }
       : undefined,
@@ -459,6 +471,12 @@ export function OrderForm({
         if (cancelled) return;
         setPreview("error" in r ? null : r.preview);
         setCoupons("error" in r ? null : r.coupons);
+        const bulk = bulkCodes.current;
+        if (bulk && !("error" in r)) {
+          bulkCodes.current = null;
+          const drop = bulk.filter((c) => !r.coupons.applied.some((a) => a.code.toUpperCase() === c));
+          if (drop.length) setCouponCodes((cs) => cs.filter((c) => !drop.includes(c)));
+        }
         setPreviewError("error" in r ? r.error : null);
       })
       .catch(() => {
@@ -473,7 +491,7 @@ export function OrderForm({
     // character typed. contact.fullName/phone are included since buildInput reads
     // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCode, repInfo, paymentMethodId, contact.fullName, contact.phone, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
+  }, [planKey, mealSizeId, frequencyKey, eatingDays, persons, mealSlots, durationWeeks, startDate, JSON.stringify(addonSelections), discount, couponCodes.join(), repInfo, paymentMethodId, contact.fullName, contact.phone, trialPicks.join(), isTrial, addressTagId, dropOff.tagId, dropOff.strategyIds.join(), postalCode?.trim().charAt(0).toUpperCase()]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);
@@ -955,7 +973,7 @@ export function OrderForm({
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="nums">−${c.amount.toFixed(2)}</span>
-                  {!c.auto && <Button type="button" variant="ghost" size="sm" onClick={() => setCouponCode(null)}>Remove</Button>}
+                  {!c.auto && <Button type="button" variant="ghost" size="sm" onClick={() => removeCoupon(c.code)}>Remove</Button>}
                 </span>
               </div>
             ))}
@@ -970,16 +988,29 @@ export function OrderForm({
               />
               <Button type="button" variant="outline" disabled={!couponInput.trim()} onClick={() => applyCoupon(couponInput)}>Apply</Button>
             </div>
-            {couponCode && coupons && !coupons.applied.some((c) => c.code.toUpperCase() === couponCode) && (
-              <p role="alert" className="text-destructive flex items-center gap-2 text-sm">
-                <span><span className="nums">{couponCode}</span>: {coupons.error ?? "A better discount is already applied"}</span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setCouponCode(null)}>Remove</Button>
-              </p>
-            )}
-            {coupons && coupons.available.some((c) => c.code.toUpperCase() !== couponCode) && (
+            {coupons && couponCodes
+              .filter((code) => !coupons.applied.some((c) => c.code.toUpperCase() === code))
+              .map((code) => {
+                const why = coupons.codeErrors.find((e) => e.code === code)?.error
+                  ?? coupons.notApplied.find((n) => n.code.toUpperCase() === code)?.reason
+                  ?? "Not applied";
+                return (
+                  <p key={code} role="alert" className="text-destructive flex items-center gap-2 text-sm">
+                    <span><span className="nums">{code}</span>: {why}</span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removeCoupon(code)}>Remove</Button>
+                  </p>
+                );
+              })}
+            {coupons?.error && <p role="alert" className="text-destructive text-sm">{coupons.error}</p>}
+            {coupons && coupons.available.some((c) => !couponCodes.includes(c.code.toUpperCase())) && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-muted-foreground text-xs">Available</span>
-                {coupons.available.filter((c) => c.code.toUpperCase() !== couponCode).map((c) => (
+                {coupons.available.filter((c) => !couponCodes.includes(c.code.toUpperCase())).length > 1 && (
+                  <Button type="button" variant="secondary" size="sm" onClick={() => applyAllCoupons(coupons.available.map((c) => c.code))}>
+                    Apply all applicable
+                  </Button>
+                )}
+                {coupons.available.filter((c) => !couponCodes.includes(c.code.toUpperCase())).map((c) => (
                   <Button key={c.code} type="button" variant="outline" size="sm" title={c.name} onClick={() => applyCoupon(c.code)}>
                     <span className="nums">{c.code}</span> · {discountLine(c)}
                   </Button>
