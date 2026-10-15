@@ -45,9 +45,11 @@ export async function reservedEndDatesExclusive(
 
     const lastDelivery = lastDeliveryByOrder.get(o.id.toString());
     if (lastDelivery) {
+      // The rows are the plan: one trimmed short (balance corrections) frees its days, and
+      // the next plan may start the day after its last tiffin.
       const fromDelivery = parseIsoDateUtc(lastDelivery);
       fromDelivery.setUTCDate(fromDelivery.getUTCDate() + 1);
-      result.set(o.id.toString(), fromDelivery > naiveEnd ? fromDelivery : naiveEnd);
+      result.set(o.id.toString(), fromDelivery);
     } else {
       result.set(o.id.toString(), naiveEnd);
     }

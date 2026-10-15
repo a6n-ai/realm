@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { desc, eq, ne, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
@@ -238,6 +238,20 @@ describe("plan overlap guard: only running plans reserve days", () => {
     await db.insert(deliveries).values({ ...last, id: undefined, publicId: undefined, deliveryDate: "2099-01-05", status: "cancelled" });
 
     expect(await earliestNewPlanStart(db, o.userId!)).toBe(before);
+  });
+
+  it("a plan trimmed short frees its weeks: the next plan may start the day after its last tiffin", async () => {
+    const { earliestNewPlanStart } = await import("../order-window");
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    const first = await createOrder(input);
+    const [o] = await db.select().from(orders).where(eq(orders.publicId, first.publicId));
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id)).orderBy(asc(deliveries.deliveryDate));
+    await db.update(deliveries).set({ status: "cancelled" }).where(inArray(deliveries.id, rows.slice(1).map((r) => r.id)));
+
+    const next = new Date(`${rows[0].deliveryDate}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    expect(await earliestNewPlanStart(db, o.userId!)).toBe(next.toISOString().slice(0, 10));
   });
 });
 
