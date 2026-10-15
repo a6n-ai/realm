@@ -147,7 +147,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
             lastWeek={lastWeek}
             week={weekStart}
             today={plan.today}
-            selectedDay={row?.date ?? sel}
+            selectedDay={row && sel !== row.trip.date ? row.date : sel}
             agenda={agenda}
             now={now}
             onPickDay={pickDay}
@@ -182,7 +182,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
             <Card><CardContent className="text-muted-foreground py-6 text-sm">Nothing planned on {sel ? humanDate(sel) : "this day"}.</CardContent></Card>
           )}
         </div>
-        <DeliveryMatrix agenda={agenda} firstWeek={firstWeek} lastWeek={lastWeek} week={weekStart} today={plan.today} selectedDay={row?.date ?? sel} now={now} onPickDay={pickDay} />
+        <DeliveryMatrix agenda={agenda} firstWeek={firstWeek} lastWeek={lastWeek} week={weekStart} today={plan.today} selectedDay={row && sel !== row.trip.date ? row.date : sel} now={now} onPickDay={pickDay} />
       </div>
 
       <Card>

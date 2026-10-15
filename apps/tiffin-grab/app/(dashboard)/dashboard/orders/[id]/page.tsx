@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/purity */
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ActivityIcon, EyeIcon, PackageIcon, ReceiptIcon, TruckIcon, WalletIcon } from "lucide-react";
+import { EyeIcon, PackageIcon } from "lucide-react";
 import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { enabledMethods, findMethod } from "@foundry/payments";
@@ -18,12 +18,13 @@ import { canTakeAddonPayment, complimentaryBlocker, orderDisplayStatus } from "@
 import { listDeliveries } from "@/lib/services/deliveries.service";
 import { lapseElapsedPausesSafe } from "@/lib/services/pause-days.service";
 import { isOrderFullyPaused } from "@/lib/services/pause-state";
+import { getPauseLimits, getPauseUsage } from "@/lib/services/pause-limits.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
 import { deliveryZones, plans, users } from "@/db/schema";
-import { ORDER_STATUS_LABEL, PageHeader, PageShell, SectionCard, StatGrid, type StatItem } from "@/components/ds";
+import { ORDER_STATUS_LABEL, PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import Link from "next/link";
@@ -46,6 +47,8 @@ import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
 import { OptimoRoutePanel } from "./optimoroute-panel";
 import { DeliveriesSection, loadSubscription } from "@/components/dashboard/deliveries-section";
+import { OrdersStatCards, OrdersStatCardsSkeleton } from "../stat-cards";
+import { stageCards } from "./stage-cards";
 
 // The full record for ONE order: what it is, what it costs, whether it is paid, and every
 // change the customer can make on it (move, swap, address, meal picks) through
@@ -136,7 +139,8 @@ async function OrderDetail({
   const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
   // Ended plans get no subscription week, so their counts come straight from the delivery rows.
   const ended = order.status === "completed" || order.status === "cancelled";
-  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts, customerPlans] = await Promise.all([
+  const running = order.status === "active" || order.status === "paused";
+  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts, customerPlans, holds] = await Promise.all([
     dishCategoriesService.forPlanType(planType),
     loadCatalogSnapshot(order.organizationId),
     // Staff-on-behalf claim form for payments that still need a reference/screenshot.
@@ -157,6 +161,9 @@ async function OrderDetail({
     order.userId != null ? earliestNewPlanStart(db, order.userId, order.id) : null,
     ended ? orderTiffinCounts(order.publicId) : null,
     order.userId != null ? runningPlans(db, order.userId) : [],
+    running
+      ? Promise.all([getPauseUsage(order.id), getPauseLimits(order.id)]).then(([u, l]) => ({ daysUsed: u.daysUsed, maxDays: l.maxPauseDaysTotal }))
+      : null,
   ]);
   // The customer's other running plans: a renewal's days sit on its own order, not this one.
   // Only plans in organizations this staff member can see: a customer can hold plans in several.
@@ -170,8 +177,10 @@ async function OrderDetail({
 
 
   const counts = sub.week?.plan.counts ?? endedCounts;
+  // Today's drop counts until the driver confirms it; a merged-away or empty row never ships.
   const next = deliveryRows
-    .filter((r) => r.deliveryDate >= settingsToday && r.status === "scheduled")
+    .filter((r) => r.deliveryDate >= settingsToday && r.status === "scheduled" && r.optimoCompletionStatus !== "success"
+      && r.tiffinUnits > 0 && r.mergedIntoDeliveryId == null)
     .sort((x, y) => x.deliveryDate.localeCompare(y.deliveryDate))[0];
   const paid = order.payments
     .filter((p) => p.status === "paid" || p.status === "simulated_paid")
@@ -254,28 +263,42 @@ async function OrderDetail({
     : [];
   const unconfirmedUnits = unconfirmed.reduce((n, r) => n + r.tiffinUnits, 0);
 
-  const stats: StatItem[] = [
-    { label: "Status", value: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus, icon: ActivityIcon, hint: order.status === "paused" || fullyPaused ? "Paused" : order.frequencyName, pixelValue: false },
-    unconfirmedUnits > 0 ? {
-      label: "Not confirmed",
-      value: `${unconfirmedUnits} / ${counts?.total ?? order.tiffinCount}`,
-      icon: PackageIcon,
-      tone: "bad",
-      hint: `Plan over · ${unconfirmed.map((r) => r.deliveryDate).sort().map(humanDate).join(", ")} · settle in Orders → Missed deliveries`,
-    } : {
-      label: "Tiffins left",
-      value: counts ? `${counts.remaining} / ${counts.total}` : String(order.tiffinCount),
-      icon: PackageIcon,
-      hint: counts
-        ? `${ended ? (order.status === "completed" ? "Plan over · " : "Cancelled · ") : ""}${counts.delivered} delivered${order.pooledTiffinCount > 0 ? ` · ${order.pooledTiffinCount} in pool` : ""}${order.complimentaryTiffins > 0 ? ` · ${order.complimentaryTiffins} free` : ""}${order.persons > 1 ? ` · ${order.persons} people, ${order.persons} tiffins a day` : ""}`
-        : order.persons > 1 ? `Schedule not started · ${order.persons} people` : "Schedule not started",
+  // Same rule as lastTiffinSql on the orders list: the last day that was not cancelled.
+  const lastTiffin = deliveryRows.filter((r) => r.status !== "cancelled").map((r) => r.deliveryDate).sort().at(-1) ?? null;
+  const cancelledAt = activities.find((a) => a.type === "cancelled")?.createdAt;
+  const renewal = otherPlans.filter((p) => p.startDate > order.startDate).sort((x, y) => x.startDate.localeCompare(y.startDate))[0];
+  const stats = stageCards({
+    displayStatus,
+    statusLabel: ORDER_STATUS_LABEL[displayStatus] ?? displayStatus,
+    status: order.status,
+    frequencyName: order.frequencyName,
+    fullyPaused,
+    notStarted,
+    today: settingsToday,
+    startDate: order.startDate,
+    createdOn: zonedDateIso(order.createdAt, settings.timezone),
+    meal: `${order.planName} · ${order.mealSizeName}`,
+    zoneName: zone?.name ?? null,
+    tiffinCount: order.tiffinCount,
+    complimentaryTiffins: order.complimentaryTiffins,
+    persons: order.persons,
+    counts,
+    next: next ? { date: next.deliveryDate, driver: next.routeDriverName } : null,
+    lastTiffin,
+    unconfirmed: { units: unconfirmedUnits, dates: unconfirmed.map((r) => r.deliveryDate).sort() },
+    renewal: renewal ? { deploymentId: renewal.deploymentId, startDate: renewal.startDate } : null,
+    holds,
+    money: {
+      paid,
+      total: Number(order.total),
+      due,
+      refunded: order.payments.filter((p) => p.status === "refunded").reduce((n, p) => n + Number(p.amount), 0),
+      toReview,
     },
-    notStarted
-      ? { label: "Starts", value: humanDate(order.startDate), icon: TruckIcon, hint: "Not started · start date can change", pixelValue: false }
-      : { label: "Next delivery", value: next ? humanDate(next.deliveryDate) : "None", icon: TruckIcon, hint: next?.routeDriverName ?? undefined, pixelValue: false },
-    { label: "Paid", value: fmt(paid, settings.currency), icon: WalletIcon, hint: `of ${fmt(Number(order.total), settings.currency)}` },
-    { label: "Balance due", value: fmt(due, settings.currency), icon: ReceiptIcon, tone: due > 0 ? "bad" : "ok", hint: toReview ? `${toReview} payment${toReview === 1 ? "" : "s"} to review` : undefined },
-  ];
+    cancelledOn: cancelledAt != null ? zonedDateIso(Number(cancelledAt), settings.timezone) : null,
+    fmt: (n) => fmt(n, settings.currency),
+    day: humanDate,
+  });
 
   // Past deliveries a free tiffin can make up for, newest first, minus ones that already have one.
   // Any status but cancelled: a driver can mark a stop delivered that the customer never got.
@@ -331,7 +354,7 @@ async function OrderDetail({
       {/* Phones: actions get their own row so the name keeps the full width. */}
       <div className="-mt-2 flex flex-wrap gap-2 sm:hidden">{headerActions}</div>
 
-      <StatGrid items={stats} cols={5} />
+      <OrdersStatCards items={stats} />
 
       {otherPlans.length > 0 && (
         <p data-testid="other-plans" className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
@@ -458,11 +481,7 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
           <Skeleton className="h-4 w-64" />
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-[104px] rounded-xl" />
-        ))}
-      </div>
+      <OrdersStatCardsSkeleton count={5} />
       <Skeleton className="h-9 w-full max-w-md" />
       <div className="grid gap-4 lg:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (

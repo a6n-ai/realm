@@ -1204,10 +1204,10 @@ export async function countLookOutOrders(visible: "all" | string[]): Promise<num
 }
 
 /** An order's last tiffin: its latest non-cancelled delivery row (the same rule `reservedEndDatesExclusive` uses). */
-const lastTiffinSql = sql<string | null>`(select max(${deliveries.deliveryDate}) from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.status} <> 'cancelled')`;
+export const lastTiffinSql = sql<string | null>`(select max(${deliveries.deliveryDate}) from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.status} <> 'cancelled')`;
 
-/** The customer already has a later plan lined up (pending, active or paused) after this one. */
-const renewedSql = sql<boolean>`exists (select 1 from ${orders} as next_order where next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'active', 'paused') and next_order.start_date > ${orders.startDate})`;
+/** The customer already has a later plan (pending, running or finished) starting after this one. */
+export const renewedSql = sql<boolean>`exists (select 1 from ${orders} as next_order where next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'active', 'paused', 'completed') and next_order.start_date > ${orders.startDate})`;
 
 /** ISO dates, both inclusive, in the app timezone. */
 export type EndingWindow = { from: string; to: string };

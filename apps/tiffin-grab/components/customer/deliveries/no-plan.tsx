@@ -49,7 +49,10 @@ function EndedPlanCard({ plan }: { plan: EndedPlan }) {
           {over ? "Your plan is over." : "Your plan was closed."}
         </p>
         <p className="mt-1 text-sm text-[var(--muted-foreground,#6E6558)]">
-          {over
+          {/* A plan closes on dates alone: days the driver never confirmed are still being checked. */}
+          {over && plan.delivered < plan.total
+            ? `${plan.delivered} of ${plan.total} tiffins are confirmed delivered${last ? `, the last one on ${shortDate(last)}` : ""}. We're checking the other ${plan.total - plan.delivered} with our driver.`
+            : over
             ? `Every tiffin on it has been delivered${last ? `, the last one on ${shortDate(last)}` : ""}. Nothing more is scheduled.`
             : `${plan.delivered} tiffin${plan.delivered === 1 ? " was" : "s were"} delivered before it closed. Nothing more is scheduled.`}
         </p>
