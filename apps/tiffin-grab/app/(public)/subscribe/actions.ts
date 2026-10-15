@@ -49,6 +49,9 @@ export interface RepriceResult {
   pricing: PricingResult;
   appliedCoupons: AppliedCoupon[];
   couponError?: string;
+  // Per typed code: why it was refused, or why a valid one was left out of the best set.
+  couponErrors?: { code: string; error: string }[];
+  couponsNotApplied?: { code: string; reason: string }[];
   paymentMethods: CheckoutPaymentMethod[];
   // Signed-out checkout has no wallet to spend from — null tells the UI to hide
   // the coins control entirely rather than show a 0 balance.
@@ -97,7 +100,8 @@ export async function reprice(...args: Parameters<typeof quote>): Promise<Repric
 
 async function quote(
   selections: PricingSelections,
-  couponCode?: string,
+  // One typed code or several; normalized and capped by the resolver.
+  couponCodes?: string | string[],
   planKey?: string,
   paymentMethodId?: string | null,
   coins?: number,
@@ -156,7 +160,7 @@ async function quote(
     planType,
     userId,
     paymentMethodId: methodId,
-    manualCode: couponCode?.trim() || undefined,
+    manualCodes: typeof couponCodes === "string" ? [couponCodes] : couponCodes,
   });
 
   // Coins mirror the coupon lane: resolved against the remaining PRE-TAX
@@ -200,7 +204,17 @@ async function quote(
     amount: r.amount,
     auto: r.coupon.autoApply,
   }));
-  return { pricing, appliedCoupons, couponError: best.manualError, paymentMethods, coinBalance, coinsError, coinCap };
+  return {
+    pricing,
+    appliedCoupons,
+    couponError: best.manualError,
+    couponErrors: best.manualErrors,
+    couponsNotApplied: best.notApplied,
+    paymentMethods,
+    coinBalance,
+    coinsError,
+    coinCap,
+  };
 }
 
 export async function validatePostal(postalCode: string): Promise<{ served: boolean; zone?: { publicId: string; name: string; slotWindow: string | null } }> {

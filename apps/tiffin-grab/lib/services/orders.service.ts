@@ -165,6 +165,8 @@ export interface CreateOrderInput {
   // Customer-entered public coupon code. Re-resolved server-side here — never
   // trust a client-sent discount amount.
   couponCode?: string | null;
+  // Several typed codes; couponCode is kept for older callers and merged in.
+  couponCodes?: string[] | null;
   // Staff-applied rep daily coupon: the code the actor owns plus the amount they
   // requested (clamped to the dual ceiling on the server). A requestedAmount that
   // arrives without a backing valid rep coupon owned by the actor is rejected.
@@ -494,11 +496,13 @@ export async function createOrder(
       userId,
       paymentMethodId,
       manualCode: input.couponCode,
+      manualCodes: input.couponCodes,
     });
-    // A manual code that was explicitly entered but is invalid / expired /
-    // ineligible fails the order with the reason — the auto set would otherwise
-    // silently drop it. Auto-apply coupons never trigger this.
-    if (input.couponCode && best.manualError) throw new ValidationError(best.manualError);
+    // A code that was explicitly entered but is invalid / expired / ineligible
+    // fails the order with the reason — the auto set would otherwise silently drop
+    // it. Auto-apply coupons never trigger this.
+    const typedError = best.manualErrors[0];
+    if (typedError) throw new ValidationError(`${typedError.code}: ${typedError.error}`);
 
     // Re-distribute every kept line against the running remaining subtotal so the
     // summed redemption amounts can never exceed the order subtotal.

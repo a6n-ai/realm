@@ -112,6 +112,25 @@ describe("couponsService.resolveBestCoupons (optimizer)", () => {
     expect(best.redemptions[0].amount).toBe(50);
   });
 
+  it("applies several typed stackable codes together, each reported on its own", async () => {
+    await ins({ code: "MAN-A10", kind: "fixed", name: "A $10", valueAmount: "10", stackable: true });
+    await ins({ code: "MAN-B5", kind: "fixed", name: "B $5", valueAmount: "5", stackable: true });
+
+    const best = await couponsService.resolveBestCoupons({ subtotal: 100, manualCodes: ["man-a10", "MAN-B5", "MAN-A10", "NOPE"] });
+    expect(best.redemptions.map((r) => r.coupon.code).sort()).toEqual(["MAN-A10", "MAN-B5"]);
+    expect(best.manualErrors).toEqual([{ code: "NOPE", error: "Invalid coupon code" }]);
+    expect(best.notApplied).toEqual([]);
+  });
+
+  it("names the winner when a typed code can't combine with a better one", async () => {
+    await ins({ code: "MAN-S5", kind: "fixed", name: "S $5", valueAmount: "5", stackable: true });
+    await ins({ code: "MAN-X40", kind: "fixed", name: "X $40", valueAmount: "40", stackable: false });
+
+    const best = await couponsService.resolveBestCoupons({ subtotal: 100, manualCodes: ["MAN-S5", "MAN-X40"] });
+    expect(best.redemptions.map((r) => r.coupon.code)).toEqual(["MAN-X40"]);
+    expect(best.notApplied).toEqual([{ code: "MAN-S5", reason: "Can't be combined with MAN-X40, which saves more" }]);
+  });
+
   it("reports an invalid manual code without dropping the auto set", async () => {
     await ins({ code: "AUTO-OK", kind: "fixed", name: "Auto $10", valueAmount: "10", autoApply: true, stackable: true });
 

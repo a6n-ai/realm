@@ -61,6 +61,17 @@ describe("staff-issued one-off codes", () => {
     expect(await reason(code)).toBe("Invalid coupon code");
   });
 
+  it("takes one staff code per order, beside other typed codes", async () => {
+    const rep = await staff();
+    const first = await issue(rep.id, 10);
+    const second = await issue(rep.id, 10);
+    await db.insert(coupons).values({ code: "PLUS5", kind: "fixed", name: "Plus", valueAmount: "5", stackable: true });
+
+    const r = await couponsService.resolveBestCoupons({ subtotal: 300, manualCodes: [first.code, "PLUS5", second.code] });
+    expect(r.redemptions.map((x) => x.coupon.code)).toEqual(["PLUS5", first.code]);
+    expect(r.manualErrors).toEqual([{ code: second.code, error: "Only one staff code per order" }]);
+  });
+
   it("refuses the rep's applied discount at redemption once issued codes used up the day", async () => {
     const rep = await staff();
     const [daily] = await db.insert(coupons).values({ code: "REP-DAY2", kind: "rep_daily", name: "Rep daily", capPct: "20", capAmount: "25", maxRedemptions: 2, ownerUserId: rep.id, istDate: DAY }).returning();
@@ -82,6 +93,9 @@ describe("staff-issued one-off codes", () => {
 
     const [row] = await db.select().from(coupons).where(eq(coupons.code, code));
     expect(row).toMatchObject({ kind: "rep_code", valueAmount: "10.00", maxRedemptions: 1, stackable: true, autoApply: false, visible: false, ownerUserId: rep.id });
+    expect((await couponsService.listAvailable()).map((c) => c.code)).not.toContain(code);
+    // Even marked visible, a staff code is never listed (so never offered by Apply all).
+    await db.update(coupons).set({ visible: true }).where(eq(coupons.code, code));
     expect((await couponsService.listAvailable()).map((c) => c.code)).not.toContain(code);
   });
 
