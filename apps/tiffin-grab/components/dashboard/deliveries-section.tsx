@@ -23,6 +23,7 @@ export type SubscriptionData = {
   order: OrderDetail;
   paymentReview: boolean;
   week: OrderWeek | null;
+  readOnly: boolean;
   canEditDeliveryStatus: boolean;
 };
 
@@ -48,8 +49,10 @@ export async function loadSubscription(
 
   const live = order.status === "active" || order.status === "paused";
   const fullyPaused = live && (await isOrderFullyPaused(db, order.id, zonedDateIso(Date.now(), (await getAppSettings()).timezone)));
+  // A finished plan still shows its days, read-only.
+  const finished = order.status === "completed";
   const subscription: Subscription | null =
-    live
+    live || finished
       ? {
           publicId: order.publicId,
           planName: order.planName,
@@ -81,20 +84,20 @@ export async function loadSubscription(
       : null;
 
   const session = await getSession();
-  return { order, paymentReview, week, canEditDeliveryStatus: session?.user?.role === "admin" };
+  return { order, paymentReview, week, readOnly: finished, canEditDeliveryStatus: session?.user?.role === "admin" };
 }
 
 export function DeliveriesSection({ data }: { data: SubscriptionData }) {
   const { order, paymentReview, week } = data;
   return (
-    <SectionCard title="Deliveries" subtitle="Pick a day to edit its meal, move it, or send it to another address.">
+    <SectionCard title="Deliveries" subtitle={data.readOnly ? "This plan is over. Every day is shown as it went; nothing can be changed." : "Pick a day to edit its meal, move it, or send it to another address."}>
       {paymentReview ? (
         <p className="text-muted-foreground text-sm" data-testid="payment-review-deliveries">
           Payment is under review. Confirm it on the Payments tab. The delivery calendar unlocks once it&apos;s verified,
           same as the customer view.
         </p>
       ) : week ? (
-        <OrderWeekHub data={week} canEditDeliveryStatus={data.canEditDeliveryStatus} />
+        <OrderWeekHub data={week} canEditDeliveryStatus={data.canEditDeliveryStatus} readOnly={data.readOnly} />
       ) : (
         <p className="text-muted-foreground text-sm">
           This subscription is {order.status}, so there is no delivery schedule to manage.

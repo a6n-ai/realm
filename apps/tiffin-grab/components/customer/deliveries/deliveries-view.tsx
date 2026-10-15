@@ -99,7 +99,7 @@ export function DeliveriesView({ plan, subs, windows, trips, agenda, weekStart, 
   const weekDays = plan.days.filter((d) => d.date >= weekStart && d.date <= weekEnd);
   const menuOut = weekDays.length > 0 && weekDays.every((d) => d.menuWeekId == null);
   const ahead = pausedAhead(agenda, now);
-  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo, trial: plan.sub.trial === true, pausedAhead: ahead }) : null;
+  const model = trip ? actionModel(trip, now, ctx, { canSwap, menuOut: menuOut && trip.date >= weekStart && trip.date <= weekEnd, locked, isDeliveryDay: row ? isAddressRow(allRows, row) : true, movedTo: row?.movedTo, trial: plan.sub.trial === true }) : null;
 
   const qs = (over: Record<string, string | null>) => {
     const p = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);

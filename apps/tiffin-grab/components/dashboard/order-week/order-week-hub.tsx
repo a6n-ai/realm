@@ -10,13 +10,13 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";
 import { cn } from "@foundry/ui/cn";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
-import { releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
+import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate, type Availability, type PlanContext, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { addDays, dotStatus, mondayOf, pausedAhead } from "@/lib/deliveries-view/week";
+import { addDays, dotStatus, mondayOf, pausedAhead, pausedPast } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { cutoffFmt, dedupeDishes, Journey, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
@@ -25,8 +25,8 @@ import { PagedTable } from "./paged-table";
 import { DeliveryMatrix } from "./delivery-matrix";
 import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
 import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
-import { actionModel, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "@/components/customer/deliveries/action-model";
-import { resumeLine } from "@/components/customer/deliveries/pause-copy";
+import { actionModel, PAUSE_DAY_LABEL, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "@/components/customer/deliveries/action-model";
+import { pausedLine, resumeLine } from "@/components/customer/deliveries/pause-copy";
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
 import { PauseSheet } from "@/components/customer/deliveries/actions/pause-sheet";
@@ -36,13 +36,18 @@ import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
-export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: OrderWeek; canEditDeliveryStatus?: boolean }) {
+// readOnly: a finished plan shows every day as it went, with no way to change one.
+export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = false }: { data: OrderWeek; canEditDeliveryStatus?: boolean; readOnly?: boolean }) {
+  if (readOnly) canEditDeliveryStatus = false;
   const { plan, trips, agenda, weekStart, firstWeek, lastWeek, now } = data;
   const router = useRouter();
   const params = useSearchParams();
   const [nav, startNav] = useTransition();
-  const [sel, setSel] = useState<string | null>(null);
-  const [dlg, setDlg] = useState<Dlg>(null);
+  // ?trip and ?action=move survive the data refresh after a resume, which can remount this view.
+  const [sel, setSel] = useState<string | null>(() => params.get("trip"));
+  const [dlg, setDlg] = useState<Dlg>(() => (params.get("action") === "move" ? "reschedule" : null));
+  const [resumeAsk, setResumeAsk] = useState(false);
+  const [resumingAll, startResumeAll] = useTransition();
   const [pauseOpen, setPauseOpen] = useState(false);
   const [wk, setWk] = useState(weekStart);
   if (wk !== weekStart) {
@@ -84,14 +89,49 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
   const done = (msg?: string) => {
     if (msg) toast.success(msg);
     setDlg(null);
+    // A sheet opened from ?action= must not reopen when the page data refreshes.
+    if (new URLSearchParams(window.location.search).has("action")) {
+      const sp = new URLSearchParams(window.location.search);
+      sp.delete("action");
+      window.history.replaceState(null, "", `?${sp.toString()}`);
+    }
     if (msg) router.refresh();
   };
+  // Plan-wide resume. A paused day past its cutoff can't come back: say so first, so its tiffin isn't forgotten.
+  const ahead = pausedAhead(agenda, now);
+  const missed = pausedPast(agenda, now);
+  const canResumeAll = ahead > 0 || missed.length > 0;
+  const releaseAll = async () => {
+    const res = await releaseMyDays(plan.orderId, "all");
+    const line = "error" in res ? null : resumeLine(res.dates, res.reclosed);
+    if ("error" in res) toast.error(res.error);
+    else if (line) toast.success(line);
+    else toast.error("Nothing was resumed.");
+  };
+  const resumeAll = () => (missed.length > 0 ? setResumeAsk(true) : startResumeAll(async () => { await releaseAll(); router.refresh(); }));
+  const resumeRest = () => startResumeAll(async () => { setResumeAsk(false); await releaseAll(); router.refresh(); });
+  const resumeThenMove = (date: string) => startResumeAll(async () => {
+    setResumeAsk(false);
+    await releaseAll();
+    setSel(date);
+    setDlg("reschedule");
+    const sp = new URLSearchParams(params.toString());
+    sp.set("week", mondayOf(date));
+    sp.set("trip", date);
+    sp.set("action", "move");
+    startNav(() => router.replace(`?${sp.toString()}`, { scroll: false }));
+  });
 
   return (
     <div className={cn("space-y-4", nav && "opacity-60 transition-opacity")}>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <OrderStatusBadge status={plan.sub.displayStatus} />
-        {!plan.sub.trial && <Button type="button" variant="outline" onClick={() => setPauseOpen(true)}>Pause</Button>}
+        {!plan.sub.trial && !readOnly && (
+          <>
+            <Button type="button" variant="outline" onClick={() => setPauseOpen(true)}>Pause multiple days</Button>
+            <Button type="button" variant="outline" disabled={!canResumeAll || resumingAll} title={canResumeAll ? undefined : "No paused days to resume."} onClick={resumeAll}>{RESUME_ALL_LABEL}</Button>
+          </>
+        )}
         {plan.sub.fullyPaused && <Badge variant="outline">All upcoming days paused</Badge>}
         <span className="font-medium">{plan.sub.mealSizeName}</span>
         <span className="text-muted-foreground tabular-nums">
@@ -134,8 +174,8 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
               tz={tz}
               editChoice={editChoice}
               release={av.move}
-              planAgenda={agenda}
-              onDone={done}
+              readOnly={readOnly}
+              onDone={(m) => { setSel(row.date); done(m); }}
               onOpen={setDlg}
             />
           ) : (
@@ -201,6 +241,28 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false }: { data: Or
         </CardContent>
       </Card>
 
+      {resumeAsk && missed[0] && (
+      <Dialog open onOpenChange={(o) => !o && setResumeAsk(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{missed.length === 1 ? "One paused day can't be resumed" : `${missed.length} paused days can't be resumed`}</DialogTitle>
+            <DialogDescription>
+              {missed.map(humanDate).join(", ")} {missed.length === 1 ? "is" : "are"} past cutoff, so {missed.length === 1 ? "it" : "they"} can&apos;t go out on {missed.length === 1 ? "that date" : "those dates"}. Move {missed.length === 1 ? "it" : "each one"} to another day so the customer doesn&apos;t miss {missed.length === 1 ? "that tiffin" : "those tiffins"}.{ahead > 0 ? " The other paused days will be resumed." : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            {ahead > 0 ? (
+              <>
+                <Button variant="outline" onClick={resumeRest}>Only resume the rest</Button>
+                <Button onClick={() => resumeThenMove(missed[0]!)}>Resume the rest, then move {humanDate(missed[0])}</Button>
+              </>
+            ) : (
+              <Button onClick={() => (setResumeAsk(false), moveDay(missed[0]!))}>Move {humanDate(missed[0])}</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      )}
       {dlg === "info" && row && <InfoDialog row={row} plan={plan} onClose={() => setDlg(null)} />}
       {pauseOpen && <PauseSheet plan={plan} open ui={ADMIN_SHEET_UI} onMove={moveDay} onDone={(message) => { setPauseOpen(false); done(message); }} />}
       {/* The customer's own sheets, drawn in shadcn: one implementation of every rule. */}
@@ -258,7 +320,7 @@ function statusChoice(trip: Trip): StatusValue | null {
 }
 
 function SelectedDelivery({
-  row, trip, plan, now, menuOut, weekStart, weekEnd, rows, tz, editChoice, release, planAgenda, onDone, onOpen,
+  row, trip, plan, now, menuOut, weekStart, weekEnd, rows, tz, editChoice, release, readOnly, onDone, onOpen,
 }: {
   row: EatingRow;
   trip: Trip;
@@ -271,7 +333,7 @@ function SelectedDelivery({
   tz: string;
   editChoice: StatusValue | null;
   release: Availability;
-  planAgenda: OrderWeek["agenda"];
+  readOnly: boolean;
   onDone: (message?: string) => void;
   onOpen: (d: Dlg) => void;
 }) {
@@ -281,7 +343,6 @@ function SelectedDelivery({
     isDeliveryDay: isAddressRow(rows, row),
     movedTo: row.movedTo,
     trial: plan.sub.trial,
-    pausedAhead: pausedAhead(planAgenda, now),
   });
   const resume = (dates: string[] | "all") => startResume(async () => {
     const res = await releaseMyDays(plan.orderId, dates);
@@ -290,7 +351,13 @@ function SelectedDelivery({
     else if (line) onDone(line);
     else toast.error("Nothing was resumed.");
   });
-  const addressOk = model.rows.some((r) => r.key === "address" && r.av.ok);
+  const pauseDay = () => startResume(async () => {
+    const res = await pauseMyDays(plan.orderId, [trip.date]);
+    if ("error" in res) toast.error(res.error);
+    else if (res.paused.length === 0) toast.error("Nothing was paused. That day is past its cutoff.");
+    else onDone(pausedLine(res.paused, res.skipped));
+  });
+  const addressOk = !readOnly && model.rows.some((r) => r.key === "address" && r.av.ok);
   const carried = trip.date !== row.date;
   const meta = [
     carried ? `${trip.status === "delivered" ? "Came" : "Comes"} with the ${humanDate(trip.date)} delivery` : null,
@@ -368,10 +435,12 @@ function SelectedDelivery({
             </section>
           </div>
         )}
-        <div className="flex flex-wrap items-start justify-between gap-3 border-t pt-4">
-          {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
-          <Actions model={model} onOpen={onOpen} hide={addressOk ? ["address"] : []} held={editChoice === "on_hold"} resuming={resuming} onResume={() => resume([trip.date])} onResumeAll={() => resume("all")} />
-        </div>
+        {!readOnly && (
+          <div className="flex flex-wrap items-start justify-between gap-3 border-t pt-4">
+            {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
+            <Actions model={model} onOpen={onOpen} hide={addressOk ? ["address"] : []} held={editChoice === "on_hold"} resuming={resuming} onResume={() => resume([trip.date])} onPause={pauseDay} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -496,19 +565,19 @@ function DeliveryStatusSelect({
   );
 }
 
-function Actions({ model, onOpen, hide = [], held = false, resuming = false, onResume, onResumeAll }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void; hide?: TripAction[]; held?: boolean; resuming?: boolean; onResume?: () => void; onResumeAll?: () => void }) {
+function Actions({ model, onOpen, hide = [], held = false, resuming = false, onResume, onPause }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void; hide?: TripAction[]; held?: boolean; resuming?: boolean; onResume?: () => void; onPause?: () => void }) {
   const rows = model.rows.filter((r) => !hide.includes(r.key));
   if (rows.length === 0 && !model.resume.day) return model.closedReason ? <p className="text-muted-foreground text-sm">{model.closedReason}</p> : null;
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         {model.resume.day && <Button size="sm" disabled={resuming} onClick={onResume}>{RESUME_DAY_LABEL}</Button>}
-        {model.resume.all && <Button size="sm" variant="outline" disabled={resuming} onClick={onResumeAll}>{RESUME_ALL_LABEL}</Button>}
         {rows.map((r) => (
           <Button key={r.key} variant={r.key === model.primary ? "default" : "outline"} size="sm" disabled={!r.av.ok} onClick={() => onOpen(OPENS[r.key])}>
             {held && r.key === "move" ? "Release hold to a new day" : r.label}
           </Button>
         ))}
+        {model.pause && <Button size="sm" variant="outline" disabled={resuming} onClick={onPause}>{PAUSE_DAY_LABEL}</Button>}
       </div>
       {rows.filter((r) => !r.av.ok).map((r) => <p key={r.key} className="text-muted-foreground text-xs">{r.label}: {r.av.why}</p>)}
     </div>

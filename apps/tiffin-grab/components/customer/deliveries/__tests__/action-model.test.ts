@@ -63,27 +63,23 @@ describe("actionModel", () => {
   describe("Resume on a paused day", () => {
     const paused = trip({ status: "paused" });
     it("a future paused day offers Resume this day beside Move", () => {
-      const m = actionModel(paused, Date.now(), ctx, { pausedAhead: 1 });
-      expect(m.resume).toEqual({ day: true, all: false });
+      const m = actionModel(paused, Date.now(), ctx);
+      expect(m.resume).toEqual({ day: true });
       expect(m.rows.map((r) => r.key)).toEqual(["move"]);
     });
-    it("Resume all appears only when more than one future day is paused", () => {
-      expect(actionModel(paused, Date.now(), ctx, { pausedAhead: 2 }).resume).toEqual({ day: true, all: true });
-      expect(actionModel(paused, Date.now(), ctx, { pausedAhead: 0 }).resume.all).toBe(false);
-    });
     it("an expired pause (lapsedPause hold): Move only, no Resume", () => {
-      const m = actionModel(trip({ status: "failed", lapsedPause: true }), Date.now(), ctx, { pausedAhead: 3 });
-      expect([m.resume, m.rows.map((r) => r.key), m.primary]).toEqual([{ day: false, all: false }, ["move"], "move"]);
+      const m = actionModel(trip({ status: "failed", lapsedPause: true }), Date.now(), ctx);
+      expect([m.resume, m.rows.map((r) => r.key), m.primary]).toEqual([{ day: false }, ["move"], "move"]);
     });
     it("an ordinary hold: Move only, no Resume", () => {
-      const m = actionModel(trip({ status: "failed" }), Date.now(), ctx, { pausedAhead: 3 });
-      expect([m.resume, m.rows.map((r) => r.key)]).toEqual([{ day: false, all: false }, ["move"]]);
+      const m = actionModel(trip({ status: "failed" }), Date.now(), ctx);
+      expect([m.resume, m.rows.map((r) => r.key)]).toEqual([{ day: false }, ["move"]]);
     });
     it("a payment-locked plan offers no Resume", () => {
-      expect(actionModel(paused, Date.now(), ctx, { pausedAhead: 2, locked: true }).resume).toEqual({ day: false, all: false });
+      expect(actionModel(paused, Date.now(), ctx, { locked: true }).resume).toEqual({ day: false });
     });
     it("an upcoming day has nothing to resume", () => {
-      expect(actionModel(trip(), Date.now(), ctx, { pausedAhead: 2 }).resume).toEqual({ day: false, all: false });
+      expect(actionModel(trip(), Date.now(), ctx).resume).toEqual({ day: false });
     });
   });
 

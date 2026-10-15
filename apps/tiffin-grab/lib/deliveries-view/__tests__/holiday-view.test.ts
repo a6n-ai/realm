@@ -11,15 +11,15 @@ describe("a holiday in the trip model", () => {
   it("a paused holiday row is a holiday, not a customer pause: no Resume, no actions", () => {
     const [trip] = buildTrips([day({ status: "paused", holidayName: "Diwali", movedTo: "2030-01-14", rescheduled: true })], now, plan);
     expect([trip!.status, trip!.holidayName, trip!.movedTo]).toEqual(["holiday", "Diwali", "2030-01-14"]);
-    const model = actionModel(trip!, now, plan, { pausedAhead: 2 });
-    expect(model.resume).toEqual({ day: false, all: false });
+    const model = actionModel(trip!, now, plan);
+    expect(model.resume).toEqual({ day: false });
     expect([model.rows, model.bar, model.primary, model.goTo]).toEqual([[], [], null, "2030-01-14"]);
   });
 
   it("a paused customer day is still a pause", () => {
     const [trip] = buildTrips([day({ status: "paused" })], now, plan);
     expect(trip!.status).toBe("paused");
-    expect(actionModel(trip!, now, plan, { pausedAhead: 1 }).resume.day).toBe(true);
+    expect(actionModel(trip!, now, plan).resume.day).toBe(true);
   });
 
   it("a held row that was moved and tagged after the fact is a holiday", () => {

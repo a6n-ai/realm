@@ -22,7 +22,7 @@ const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet
  * it is no longer a separate customer action — `canSwap` is ignored for listing.
  * `locked`: payment unconfirmed, so the plan is read-only: no actions at all.
  */
-export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean; isDeliveryDay?: boolean; movedTo?: string; trial?: boolean; pausedAhead?: number } = {}) {
+export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean; isDeliveryDay?: boolean; movedTo?: string; trial?: boolean } = {}) {
   const av = actionAvailability(trip, now, ctx);
   // Not delivered (a failed drop, a hold, or a paused day past its cutoff): the only thing to do is move it.
   const moveOnly = trip.status === "failed" || trip.status === "paused";
@@ -48,7 +48,7 @@ export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { c
   return {
     av,
     primary,
-    resume: { day: canResume, all: canResume && (opts.pausedAhead ?? 0) > 1 },
+    resume: { day: canResume },
     pause: canPause,
     rows: keys.map((key) => ({
       key,
