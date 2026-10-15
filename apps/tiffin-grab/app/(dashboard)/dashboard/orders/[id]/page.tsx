@@ -415,9 +415,11 @@ async function OrderDetail({
           deliveries: (
             <>
               <DeliveriesSection data={sub} />
-              <SectionCard title="Routing" subtitle="Push or pull an upcoming delivery in OptimoRoute when the scheduled sync went wrong.">
-                <OptimoRoutePanel orderId={order.publicId} rows={optimoRows} week={sub.week ? { start: sub.week.weekStart, first: sub.week.firstWeek, last: sub.week.lastWeek } : null} />
-              </SectionCard>
+              {!sub.paymentReview && (
+                <SectionCard title="Routing" subtitle="Push or pull an upcoming delivery in OptimoRoute when the scheduled sync went wrong.">
+                  <OptimoRoutePanel orderId={order.publicId} rows={optimoRows} week={sub.week ? { start: sub.week.weekStart, first: sub.week.firstWeek, last: sub.week.lastWeek } : null} />
+                </SectionCard>
+              )}
             </>
           ),
           payments: (

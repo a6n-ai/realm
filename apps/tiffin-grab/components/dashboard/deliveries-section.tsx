@@ -79,26 +79,32 @@ export async function loadSubscription(
       : null;
 
   const week =
-    !paymentReview && subscription && order.userId != null
+    subscription && order.userId != null
       ? await loadOrderWeek(order.userId, subscription, weekParam)
       : null;
 
   const session = await getSession();
-  return { order, paymentReview, week, readOnly: finished, canEditDeliveryStatus: session?.user?.role === "admin" };
+  // Under payment review staff can check the schedule, but nothing changes until the money is verified.
+  return { order, paymentReview, week, readOnly: finished || paymentReview, canEditDeliveryStatus: session?.user?.role === "admin" };
 }
 
 export function DeliveriesSection({ data }: { data: SubscriptionData }) {
   const { order, paymentReview, week } = data;
+  const subtitle = paymentReview
+    ? "Payment is under review. Check the schedule here; changes unlock once the payment is verified."
+    : data.readOnly
+      ? "This plan is over. Every day is shown as it went; nothing can be changed."
+      : "Pick a day to edit its meal, move it, or send it to another address.";
   return (
-    <SectionCard title="Deliveries" subtitle={data.readOnly ? "This plan is over. Every day is shown as it went; nothing can be changed." : "Pick a day to edit its meal, move it, or send it to another address."}>
-      {paymentReview ? (
+    <SectionCard title="Deliveries" subtitle={subtitle}>
+      {paymentReview && (
         <p className="text-muted-foreground text-sm" data-testid="payment-review-deliveries">
-          Payment is under review. Confirm it on the Payments tab. The delivery calendar unlocks once it&apos;s verified,
-          same as the customer view.
+          Read-only until the payment is confirmed on the Payments tab. The customer can&apos;t see this calendar yet either.
         </p>
-      ) : week ? (
+      )}
+      {week ? (
         <OrderWeekHub data={week} canEditDeliveryStatus={data.canEditDeliveryStatus} readOnly={data.readOnly} />
-      ) : (
+      ) : paymentReview ? null : (
         <p className="text-muted-foreground text-sm">
           This subscription is {order.status}, so there is no delivery schedule to manage.
         </p>

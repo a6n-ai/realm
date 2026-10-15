@@ -36,7 +36,7 @@ import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
-// readOnly: a finished plan shows every day as it went, with no way to change one.
+// readOnly: a finished plan, or one under payment review, shows every day with no way to change one.
 export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = false }: { data: OrderWeek; canEditDeliveryStatus?: boolean; readOnly?: boolean }) {
   if (readOnly) canEditDeliveryStatus = false;
   const { plan, trips, agenda, weekStart, firstWeek, lastWeek, now } = data;
