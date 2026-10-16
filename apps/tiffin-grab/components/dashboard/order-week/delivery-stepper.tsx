@@ -16,7 +16,7 @@ export function DeliveryStepper({ trip, now, tz, driver }: { trip: Trip; now: nu
   const delivered = stage === 2;
   const stops = [
     { label: "Scheduled", Icon: CalendarCheck, detail: trip.cutoffAt > now ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : "Changes closed" },
-    { label: "On the way", Icon: Truck, detail: driver ? `Driver ${driver}` : trip.routePushed ? "On a route" : "Not on a route yet" },
+    { label: "On the way", Icon: Truck, detail: driver ? `Driver ${driver}` : delivered ? "Done" : trip.routePushed ? "On a route" : "Not on a route yet" },
     { label: "Delivered", Icon: House, detail: delivered ? humanDate(trip.date) : `Due ${humanDate(trip.date)}` },
   ];
   // One past the last stop marks every stop complete once the tiffin is delivered.

@@ -137,7 +137,8 @@ describe("OrderWeekHub (admin, shadcn)", () => {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
     expect(screen.queryAllByRole("combobox")).toEqual([]);
-    expect(screen.queryByTestId("status-card")).toBeNull();
+    // The status box still says where the day stands, with no buttons in it.
+    expect(within(screen.getByTestId("status-card")).queryAllByRole("button")).toEqual([]);
   });
   it("reschedule shows all eating days in a week picker (week label + arrows); the delivery day is chosen automatically", () => {
     const d2 = { ...data, plan: { ...data.plan, ctx: { ...data.plan.ctx, deliveryWeekdays: ["mon", "tue", "wed", "thu", "fri"] } } } as unknown as OrderWeek;
@@ -169,7 +170,9 @@ describe("OrderWeekHub (admin, shadcn)", () => {
       const card = within(screen.getByTestId("status-card"));
       expect(card.getByText("Upcoming")).toBeInTheDocument();
       expect(card.getByText("Nothing to confirm yet.")).toBeInTheDocument();
-      expect(card.queryAllByRole("button")).toEqual([]);
+      for (const name of ["Mark delivered", "Mark not delivered…", "Put on hold…"]) expect(card.queryByRole("button", { name })).toBeNull();
+      // The day's own actions live in the same box.
+      expect(card.getByRole("button", { name: "Move to another day" })).toBeInTheDocument();
     });
     it("on the day, past the cutoff: Mark delivered saves delivered", async () => {
       sds.mockClear();
@@ -311,7 +314,9 @@ describe("OrderWeekHub on a holiday", () => {
     render(<OrderWeekHub canEditDeliveryStatus data={{ ...data, trips: [held], agenda: { "2026-09-21": [heldDot] } } as unknown as OrderWeek} />);
     pick("2026-09-21");
     const block = screen.getByTestId("delivery-block");
-    expect(within(block).queryByTestId("status-card")).toBeNull();
+    const card = within(within(block).getByTestId("status-card"));
+    expect(card.getByText("Holiday")).toBeInTheDocument();
+    for (const name of ["Mark delivered", "Mark not delivered…", "Put on hold…", "Undo"]) expect(card.queryByRole("button", { name })).toBeNull();
     expect(block).toHaveTextContent("Holiday");
     expect(block).not.toHaveTextContent(/On hold|Not delivered|Upcoming/);
     expect(within(block).getByTestId("holiday-note")).toHaveTextContent("Place this tiffin on another day.");

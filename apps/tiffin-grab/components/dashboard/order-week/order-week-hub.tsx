@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";
 import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
-import { actionAvailability, humanDate, type Availability, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { addDays, mondayOf, pausedAhead, pausedPast } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
@@ -172,7 +172,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
               rows={rows}
               tz={tz}
               editChoice={editChoice}
-              release={av.move}
               readOnly={readOnly}
               routing={routing}
               onDone={(m) => { setSel(row.date); done(m); }}
@@ -262,7 +261,7 @@ function statusChoice(trip: Trip): StatusValue | null {
 }
 
 function SelectedDelivery({
-  row, trip, plan, now, menuOut, weekStart, weekEnd, rows, tz, editChoice, release, readOnly, routing, onDone, onOpen,
+  row, trip, plan, now, menuOut, weekStart, weekEnd, rows, tz, editChoice, readOnly, routing, onDone, onOpen,
 }: {
   routing: OptimoRouteRow[];
   row: EatingRow;
@@ -275,7 +274,6 @@ function SelectedDelivery({
   rows: EatingRow[];
   tz: string;
   editChoice: StatusValue | null;
-  release: Availability;
   readOnly: boolean;
   onDone: (message?: string) => void;
   onOpen: (d: Dlg) => void;
@@ -324,18 +322,26 @@ function SelectedDelivery({
             </p>
           )}
         </div>
-        {!(editChoice && trip.deliveryId) && <Badge variant="outline">{rowMeta(row).label}</Badge>}
       </CardHeader>
       <CardContent className="space-y-6">
         {!row.movedTo && <DeliveryStepper trip={trip} now={now} tz={tz} driver={routing.find((r) => r.publicId === trip.deliveryId)?.routeDriverName} />}
-        {editChoice && trip.deliveryId ? (
-          <DeliveryStatusCard deliveryId={trip.deliveryId} value={editChoice} trip={trip} now={now} beforeDay={trip.date > zonedDateIso(now, tz)} release={release} onRelease={() => onOpen("reschedule")} onDone={onDone} />
-        ) : null}
-        {note.length > 0 ? (
-          <div className="text-muted-foreground space-y-0.5 break-words text-sm" data-testid="holiday-note">
-            {note.map((l) => <p key={l}>{l}</p>)}
-          </div>
-        ) : null}
+        <DeliveryStatusCard
+          deliveryId={trip.deliveryId}
+          value={editChoice && trip.deliveryId ? editChoice : null}
+          fallbackLabel={rowMeta(row).label}
+          detail={note.length > 0 ? (
+            <div className="space-y-0.5 break-words text-sm" data-testid="holiday-note">
+              {note.map((l) => <p key={l}>{l}</p>)}
+            </div>
+          ) : null}
+          trip={trip}
+          now={now}
+          beforeDay={trip.date > zonedDateIso(now, tz)}
+          onDone={onDone}
+        >
+          {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
+          {!readOnly && <Actions model={model} onOpen={onOpen} hide={addressOk ? ["address"] : []} held={editChoice === "on_hold"} quietClosed={editChoice != null} resuming={resuming} onResume={() => resume([trip.date])} onPause={pauseDay} />}
+        </DeliveryStatusCard>
         {chips.length > 0 ? (
           <div className="flex flex-wrap gap-2" data-testid="delivery-pills">
             {chips.map((f) => <MoveBadge key={f.text} fact={f} />)}
@@ -376,12 +382,6 @@ function SelectedDelivery({
             </section>
           </div>
         )}
-        {!readOnly && (
-          <div className="flex flex-wrap items-start justify-between gap-3 border-t pt-4">
-            {/* The customer's own action model, so staff get exactly what the customer gets for this day. */}
-            <Actions model={model} onOpen={onOpen} hide={addressOk ? ["address"] : []} held={editChoice === "on_hold"} resuming={resuming} onResume={() => resume([trip.date])} onPause={pauseDay} />
-          </div>
-        )}
         {trip.deliveryId ? <DeliveryMore orderId={plan.orderId} deliveryId={trip.deliveryId} route={routing.find((r) => r.publicId === trip.deliveryId)} /> : null}
       </CardContent>
     </Card>
@@ -408,9 +408,10 @@ function DeliveryMore({ orderId, deliveryId, route }: { orderId: string; deliver
   );
 }
 
-function Actions({ model, onOpen, hide = [], held = false, resuming = false, onResume, onPause }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void; hide?: TripAction[]; held?: boolean; resuming?: boolean; onResume?: () => void; onPause?: () => void }) {
+// quietClosed: the status card above already says why nothing can change, so don't repeat it.
+function Actions({ model, onOpen, hide = [], held = false, quietClosed = false, resuming = false, onResume, onPause }: { model: ReturnType<typeof actionModel>; onOpen: (d: Dlg) => void; hide?: TripAction[]; held?: boolean; quietClosed?: boolean; resuming?: boolean; onResume?: () => void; onPause?: () => void }) {
   const rows = model.rows.filter((r) => !hide.includes(r.key));
-  if (rows.length === 0 && !model.resume.day) return model.closedReason ? <p className="text-muted-foreground text-sm">{model.closedReason}</p> : null;
+  if (rows.length === 0 && !model.resume.day) return model.closedReason && !quietClosed ? <p className="text-muted-foreground text-sm">{model.closedReason}</p> : null;
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">

@@ -114,14 +114,84 @@ export function DeliveriesSection({ data, routing = [] }: { data: SubscriptionDa
   );
 }
 
+const range = (n: number) => Array.from({ length: n }, (_, i) => i);
+
+/** Mirrors the live tab: status row, framed month calendar, and the selected day's panel. */
 export function DeliveriesSectionSkeleton() {
   return (
-    <SectionCard title="Deliveries">
-      <div className="flex flex-col gap-4">
-        <Skeleton className="h-9 w-80" />
-        <div className="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">
-          <Skeleton className="h-[600px] w-full" />
-          <Skeleton className="h-[600px] w-full" />
+    <SectionCard title="Deliveries" subtitle="Pick a day to edit its meal, move it, or send it to another address.">
+      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading deliveries">
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-5 w-14 rounded-full" />
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-4 w-28" />
+          <div className="ml-auto flex gap-2">
+            <Skeleton className="h-9 w-40" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+        </div>
+        <div className="grid items-stretch gap-4 lg:grid-cols-[3fr_2fr]">
+          <div className="bg-card flex min-h-[600px] flex-col gap-3 rounded-xl border p-3">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="size-8" />
+              <Skeleton className="size-8" />
+              <Skeleton className="h-5 w-32" />
+            </div>
+            <div className="grid grid-cols-7 gap-2 border-b pb-2">
+              {range(7).map((i) => <Skeleton key={i} className="h-4 w-8" />)}
+            </div>
+            <div className="grid flex-1 grid-cols-7 grid-rows-6">
+              {range(42).map((i) => {
+                const row = Math.floor(i / 7);
+                // Weekday chips in the middle weeks, the way a running plan fills the month.
+                const chip = row >= 2 && row <= 4 && i % 7 < 5;
+                return (
+                  <div key={i} className="flex flex-col justify-between gap-1 border-e border-b p-1.5 last:border-e-0 [&:nth-child(7n)]:border-e-0">
+                    {chip ? <Skeleton className="h-5 w-full" /> : <span />}
+                    <Skeleton className="h-3 w-4 self-end" />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="bg-card flex flex-col gap-6 rounded-xl border p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-7 w-36" />
+              </div>
+            </div>
+            <div className="flex items-start">
+              {range(3).map((i) => (
+                <div key={i} className={i < 2 ? "flex flex-1 flex-col gap-2" : "flex flex-col gap-2"}>
+                  <div className="flex items-center">
+                    <Skeleton className="size-8 rounded-full" />
+                    {i < 2 && <Skeleton className="mx-2 h-0.5 flex-1" />}
+                  </div>
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2 rounded-lg border p-3">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-4 w-full" />
+              <div className="flex gap-2 border-t pt-3">
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-8 w-36" />
+                <Skeleton className="h-8 w-28" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 border-t pt-5">
+              <Skeleton className="h-3 w-12" />
+              <div className="grid grid-cols-3 gap-2">
+                {range(4).map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+              </div>
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-4 w-56" />
+            </div>
+          </div>
         </div>
       </div>
     </SectionCard>

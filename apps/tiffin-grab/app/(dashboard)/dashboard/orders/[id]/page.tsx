@@ -45,7 +45,8 @@ import { ComplimentaryControl } from "./complimentary-control";
 import { LookOutControl } from "./look-out-control";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
-import { DeliveriesSection, loadSubscription } from "@/components/dashboard/deliveries-section";
+import { DeliveriesSection, DeliveriesSectionSkeleton, loadSubscription } from "@/components/dashboard/deliveries-section";
+import { TabSkeleton } from "./tab-skeleton";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { stageCards } from "./stage-cards";
 
@@ -477,17 +478,22 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
       </div>
       <StatCardsSkeleton count={5} />
       <Skeleton className="h-9 w-full max-w-md" />
-      <div className="grid gap-4 lg:grid-cols-2">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <SectionCard key={i} title={i === 0 ? "Plan & schedule" : "Customer & delivery"}>
-            <div className="space-y-3">
-              {Array.from({ length: 8 }).map((_, j) => (
-                <Skeleton key={j} className="h-4 w-full" />
-              ))}
-            </div>
-          </SectionCard>
-        ))}
-      </div>
+      <TabSkeleton
+        deliveries={<DeliveriesSectionSkeleton />}
+        overview={
+          <div className="grid gap-4 lg:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <SectionCard key={i} title={i === 0 ? "Plan & schedule" : "Customer & delivery"}>
+                <div className="space-y-3">
+                  {Array.from({ length: 8 }).map((_, j) => (
+                    <Skeleton key={j} className="h-4 w-full" />
+                  ))}
+                </div>
+              </SectionCard>
+            ))}
+          </div>
+        }
+      />
     </>
   );
 };
