@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Truck } from "lucide-react";
 import { EventCalendar } from "@/components/reui/event-calendar/event-calendar";
 import { EventCalendarContent } from "@/components/reui/event-calendar/event-calendar-content";
 import { EventCalendarNav } from "@/components/reui/event-calendar/event-calendar-nav";
@@ -51,11 +52,9 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
       Object.entries(agenda).flatMap(([date, dots]) =>
         dots.map((d, i) => {
           const s = boxStatus(d, now);
-          // Narrow cells: the status alone, plus a count only when one delivery carries several tiffins.
-          const tiffins = d.truck && d.units > 1 ? ` · ${d.units}` : "";
           return {
             id: `${date}-${i}`,
-            title: `${BOX_LABEL[s]}${tiffins}`,
+            title: BOX_LABEL[s],
             start: local(date),
             end: local(addDays(date, 1)),
             allDay: true,
@@ -87,10 +86,27 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
       // Any day is selectable; one with nothing planned opens the panel's empty state.
       onSlotClick={(slot) => onPickDay(isoOf(slot.date))}
       classNames={{ monthCell: "cursor-pointer" }}
+      // The chip is the status; the cell's free space under it says whether a truck comes and with how many tiffins.
+      renderMonthCell={({ day, defaultContent }) => {
+        const units = (agenda[isoOf(day)] ?? []).filter((d) => d.truck).reduce((n, d) => n + d.units, 0);
+        return units > 0 ? (
+          <>
+            {defaultContent}
+            <span className="text-muted-foreground pointer-events-none absolute bottom-1.5 left-2 inline-flex items-center gap-1 text-xs tabular-nums">
+              <Truck className="size-3.5" aria-hidden />
+              {units} {units === 1 ? "tiffin" : "tiffins"}
+            </span>
+          </>
+        ) : defaultContent;
+      }}
       className="min-h-0 flex-1"
     >
       <EventCalendarNav showViewSwitcher={false} />
       <EventCalendarContent />
+      <p className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 px-1 pt-2 text-xs">
+        <span className="inline-flex items-center gap-1"><Truck className="size-3.5" aria-hidden />Delivery day, tiffins on that delivery</span>
+        <span>Days with a chip but no truck are eaten from an earlier delivery.</span>
+      </p>
     </EventCalendar>
   );
 }
