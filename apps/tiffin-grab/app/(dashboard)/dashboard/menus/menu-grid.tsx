@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, CopyPlus, MoreHorizontal, Plus, Star, Trash2 } from "lucide-react";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -74,9 +74,11 @@ export function cellWarning(slot: Slot, needed: number, count: number, verdict?:
  * shows its default dish plus how many more. Read-only; clicking a cell opens it in the panel.
  */
 export function MenuGrid({
-  slots, rows, dishes, categoryCounts, problems, selected, onSelect, sideRows = [],
+  slots, rows, dishes, categoryCounts, problems, selected, onSelect, sideRows = [], sideActions,
 }: {
   sideRows?: SideRow[];
+  /** Controls for the side section header (the standing defaults). */
+  sideActions?: ReactNode;
   slots: Slot[];
   rows: GridRow[];
   dishes: GridDish[];
@@ -142,8 +144,9 @@ export function MenuGrid({
         })}
 
         {sideRows.length > 0 && (
-          <div className="bg-muted/40 text-muted-foreground col-span-full border-b px-2 py-1.5 text-xs font-semibold tracking-wider uppercase">
-            Side dishes
+          <div className="bg-muted/40 col-span-full flex items-center justify-between gap-2 border-b px-2 py-1">
+            <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Side dishes</span>
+            {sideActions}
           </div>
         )}
         {sideRows.map((side) => (

@@ -14,7 +14,7 @@ import { DAYS, DAY_LABELS, type DayOfWeek, type PosterItem } from "@/lib/menu/po
 import type { MealTypeConfig } from "@/lib/menu/meal-types";
 import { findSimilarDishes } from "@/lib/menu/similar-dishes";
 import { CellPanel, cellWarning, MenuGrid, problemsByCell, rowsOf, type CellRef, type Slot } from "./menu-grid";
-import { SidePanel, sideKey, sideLabel, useSides, type DayDish, type SidesInput } from "./side-dishes-card";
+import { SideDefaultsDialog, SidePanel, sideKey, sideLabel, useSides, type DayDish, type SidesInput } from "./side-dishes-card";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@foundry/ui/sheet";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle } from "@/components/reui/stepper";
 import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek } from "./actions";
@@ -431,6 +431,7 @@ export function MenuBuilder({
           selected={cell}
           onSelect={setSelected}
           sideRows={sideRows}
+          sideActions={<SideDefaultsDialog sides={sides} />}
         />
         <div className="lg:sticky lg:top-4">
           {cell && sideSlot ? (

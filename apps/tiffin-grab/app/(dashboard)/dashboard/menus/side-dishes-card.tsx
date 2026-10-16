@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Badge } from "@/components/reui/badge";
+import { Button } from "@foundry/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { DAY_LABELS, type DayOfWeek } from "@/lib/menu/poster";
 import { sanitizeClientError } from "@/lib/format/client-error";
 import type { DaySide, DaySideValue, SideRole, SideSlot } from "@/lib/services/menu-sides.service";
@@ -131,22 +133,50 @@ export function SidePanel({ day, slot, sides, dishesOfDay }: { day: DayOfWeek; s
             ) : null}
           </SelectContent>
         </Select>
-        <span className="text-muted-foreground text-xs">Change a day only when the kitchen makes something else.</span>
-      </label>
-
-      <label className="flex flex-col gap-1.5 border-t pt-3">
-        <span className="text-sm font-medium">Default every day</span>
-        <Select value={standing ?? NONE} disabled={sides.pending} onValueChange={(v) => sides.setDefault(slot, v)}>
-          <SelectTrigger aria-label="Default every day"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NONE}>Same as {slot.categoryLabel.toLowerCase()} main</SelectItem>
-            {sides.categories.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <span className="text-muted-foreground text-xs">Applies to every week, not just this one.</span>
+        <span className="text-muted-foreground text-xs">
+          Change a day only when the kitchen makes something else. Default{standing ? ` packs the day's ${sides.catLabel(standing).toLowerCase()}` : " repeats the main"}; change it under Side dishes, Defaults.
+        </span>
       </label>
 
       {sides.error ? <p className="text-destructive text-sm" role="alert">{sides.error}</p> : null}
     </section>
+  );
+}
+
+/** The standing source per side, for every week: kept apart from the day-by-day choices. */
+export function SideDefaultsDialog({ sides }: { sides: Sides }) {
+  const [open, setOpen] = useState(false);
+  if (sides.slots.length === 0) return null;
+  return (
+    <>
+      <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>Defaults</Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Side dish defaults</DialogTitle>
+            <DialogDescription>What each side packs every day, in every week, unless a day is changed on the menu. Saved as you pick.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            {sides.slots.map((slot) => (
+              <label key={sideKey(slot)} className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium">{sideLabel(slot)}</span>
+                <span className="text-muted-foreground text-xs">{slot.meals.join(" · ")}</span>
+                <Select value={sides.standingOf(slot) ?? NONE} disabled={sides.pending} onValueChange={(v) => sides.setDefault(slot, v)}>
+                  <SelectTrigger aria-label={`${sideLabel(slot)} default`}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Same as {slot.categoryLabel.toLowerCase()} main</SelectItem>
+                    {sides.categories.map((cat) => <SelectItem key={cat.key} value={cat.key}>{cat.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </label>
+            ))}
+            {sides.error ? <p className="text-destructive text-sm" role="alert">{sides.error}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setOpen(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

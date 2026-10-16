@@ -51,14 +51,17 @@ describe("side dishes in the menu maker", () => {
     expect(screen.getByRole("button", { name: /^Tuesday, Sabzi · Side 1: packs No dal on the menu/ })).toBeInTheDocument();
   });
 
-  it("opens the side in the panel with its meals, this day and the standing default", () => {
+  it("opens the side in the panel with its meals and this day only; the standing default is separate", () => {
     render(<MenuBuilder {...props} sides={sides()} />);
     fireEvent.click(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1/ }));
     const panel = within(screen.getByTestId("side-panel"));
     expect(panel.getByText(/5 Item Thali — Large \(8oz\)/)).toBeInTheDocument();
     expect(panel.getByText("Masoor Dal")).toBeInTheDocument();
     expect(panel.getByRole("combobox", { name: "Monday source" })).toBeInTheDocument();
-    expect(panel.getByRole("combobox", { name: "Default every day" })).toBeInTheDocument();
+    expect(panel.queryByRole("combobox", { name: /default/i })).toBeNull();
+    // The every-week default lives behind the Side dishes header's Defaults button.
+    fireEvent.click(screen.getByRole("button", { name: "Defaults" }));
+    expect(within(screen.getByRole("dialog")).getByRole("combobox", { name: "Sabzi · Side 1 default" })).toBeInTheDocument();
   });
 
   it("marks a day's dish override as changed", () => {
