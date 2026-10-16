@@ -13,9 +13,9 @@ const at = (iso: string) => new Date(`${iso}T00:00:00Z`);
 
 // The statuses staff set in the delivery status dropdown, which splits two the strip merges:
 // past the cutoff an unconfirmed day is awaiting confirmation, and a driver-failed drop is not an admin hold.
-type BoxStatus = DeliveryStatus | "awaiting" | "not-delivered";
-const COLOR: Record<BoxStatus, string> = { ...STATUS_COLOR, awaiting: "#8b5cf6", "not-delivered": "#b91c1c" };
-const LABEL: Record<BoxStatus, string> = {
+export type BoxStatus = DeliveryStatus | "awaiting" | "not-delivered";
+export const BOX_COLOR: Record<BoxStatus, string> = { ...STATUS_COLOR, awaiting: "#8b5cf6", "not-delivered": "#b91c1c" };
+export const BOX_LABEL: Record<BoxStatus, string> = {
   delivered: "Delivered",
   upcoming: "Upcoming",
   awaiting: "Awaiting confirmation",
@@ -27,7 +27,7 @@ const LABEL: Record<BoxStatus, string> = {
 };
 const LEGEND: BoxStatus[] = ["delivered", "awaiting", "upcoming", "hold", "not-delivered", "paused", "holiday", "combined"];
 
-function boxStatus(d: AgendaDot, now: number): BoxStatus {
+export function boxStatus(d: AgendaDot, now: number): BoxStatus {
   const s = dotStatus(d, now);
   if (s === "hold") return d.optimoCompletionStatus === "failed" ? "not-delivered" : "hold";
   return s === "upcoming" && d.cutoffAt <= now ? "awaiting" : s;
@@ -74,7 +74,7 @@ export function DeliveryMatrix({ agenda, firstWeek, lastWeek, week, today, selec
           {LEGEND.map((s) => (
             <li key={s} className="flex items-center gap-1.5">
               <span aria-hidden className="size-2.5 rounded-sm" style={box(s)} />
-              {LABEL[s]}
+              {BOX_LABEL[s]}
             </li>
           ))}
           <li className="flex items-center gap-1.5"><Truck aria-hidden className="size-3" />Delivery day</li>
@@ -86,8 +86,8 @@ export function DeliveryMatrix({ agenda, firstWeek, lastWeek, week, today, selec
 
 const box = (s: BoxStatus): React.CSSProperties =>
   s === "combined"
-    ? { border: `1px dashed ${COLOR.combined}` }
-    : { background: `color-mix(in srgb, ${COLOR[s]} ${s === "not-delivered" ? 45 : 22}%, transparent)`, border: `1px solid color-mix(in srgb, ${COLOR[s]} 55%, transparent)` };
+    ? { border: `1px dashed ${BOX_COLOR.combined}` }
+    : { background: `color-mix(in srgb, ${BOX_COLOR[s]} ${s === "not-delivered" ? 45 : 22}%, transparent)`, border: `1px solid color-mix(in srgb, ${BOX_COLOR[s]} 55%, transparent)` };
 
 function Week({ monday, current, agenda, today, selectedDay, now, onPickDay }: Omit<Props, "firstWeek" | "lastWeek" | "week"> & { monday: string; current: boolean }) {
   return (
@@ -102,7 +102,7 @@ function Week({ monday, current, agenda, today, selectedDay, now, onPickDay }: O
         }
         const status = boxStatus(dot, now);
         const truck = dots.find((d) => d.truck);
-        const label = `${LONG.format(at(iso))}, ${LABEL[status]}${truck ? `, delivery with ${truck.units} ${truck.units === 1 ? "tiffin" : "tiffins"}` : ""}`;
+        const label = `${LONG.format(at(iso))}, ${BOX_LABEL[status]}${truck ? `, delivery with ${truck.units} ${truck.units === 1 ? "tiffin" : "tiffins"}` : ""}`;
         return (
           <button
             key={iso}

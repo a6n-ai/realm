@@ -23,6 +23,8 @@ import { OrderStatusBadge } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { PagedTable } from "./paged-table";
 import { DeliveryMatrix } from "./delivery-matrix";
+import { OrderMonthCalendar } from "./order-month-calendar";
+import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
 import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
 import { actionModel, PAUSE_DAY_LABEL, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "@/components/customer/deliveries/action-model";
@@ -49,6 +51,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
   const [resumeAsk, setResumeAsk] = useState(false);
   const [resumingAll, startResumeAll] = useTransition();
   const [pauseOpen, setPauseOpen] = useState(false);
+  const [view, setView] = useState<"week" | "month">("week");
   const [wk, setWk] = useState(weekStart);
   if (wk !== weekStart) {
     setWk(weekStart);
@@ -137,8 +140,18 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
         <span className="text-muted-foreground tabular-nums">
           {plan.counts.remaining} of {plan.counts.total} tiffins left
         </span>
+        <Tabs value={view} onValueChange={(v) => setView(v as "week" | "month")} className="ml-auto">
+          <TabsList>
+            <TabsTrigger value="week">Week</TabsTrigger>
+            <TabsTrigger value="month">Calendar</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
+      {view === "month" ? (
+        <OrderMonthCalendar agenda={agenda} focus={sel ?? weekStart} now={now} onPickDay={(iso) => { setView("week"); pickDay(iso); }} />
+      ) : (
+      <>
       {/* The week on the left, the whole plan beside it. */}
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-4">
@@ -240,6 +253,8 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
           />
         </CardContent>
       </Card>
+      </>
+      )}
 
       {resumeAsk && missed[0] && (
       <Dialog open onOpenChange={(o) => !o && setResumeAsk(false)}>
