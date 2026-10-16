@@ -84,10 +84,9 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
       showDayAddButton={false}
       dayClassName={(day) => (isoOf(day) === selectedDay ? "bg-primary/10 ring-2 ring-inset ring-primary" : undefined)}
       onEventClick={(occ) => onPickDay(occ.event.data!.date)}
-      onSlotClick={(slot) => {
-        const iso = isoOf(slot.date);
-        if (agenda[iso]) onPickDay(iso);
-      }}
+      // Any day is selectable; one with nothing planned opens the panel's empty state.
+      onSlotClick={(slot) => onPickDay(isoOf(slot.date))}
+      classNames={{ monthCell: "cursor-pointer" }}
       className="min-h-0 flex-1"
     >
       <EventCalendarNav showViewSwitcher={false} />
