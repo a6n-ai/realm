@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { CheckCircle2, Copy, Eye, EyeOff } from "lucide-react";
+import { Check, Copy, Eye } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -13,7 +13,9 @@ import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAYS, DAY_LABELS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig } from "@/lib/menu/meal-types";
 import { findSimilarDishes } from "@/lib/menu/similar-dishes";
-import { MenuGrid, type Slot } from "./menu-grid";
+import { CellPanel, cellWarning, MenuGrid, problemsByCell, rowsOf, type CellRef, type Slot } from "./menu-grid";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@foundry/ui/sheet";
+import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle } from "@/components/reui/stepper";
 import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek } from "./actions";
 import { cn } from "@foundry/ui/cn";
 import { sanitizeClientError } from "@/lib/format/client-error";
@@ -82,6 +84,7 @@ export function MenuBuilder({
   const [createdDishes, setCreatedDishes] = useState<Dish[]>([]);
   // The poster is a check, not a workspace — it starts closed so the grid gets the width.
   const [showPreview, setShowPreview] = useState(false);
+  const [selected, setSelected] = useState<CellRef | null>(null);
   const newKeyRef = useRef(0);
 
   const allDishes = useMemo(() => [...dishes, ...createdDishes], [dishes, createdDishes]);
@@ -153,35 +156,6 @@ export function MenuBuilder({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
-
-  const handleDone = () => {
-    run(async () => {
-      if (dirty) {
-        const saved = await save();
-        if (!saved) return;
-      }
-      router.push("/dashboard/menus");
-    });
-  };
-
-  // One line per (plan, day) rather than per missing category — see the banner below.
-  const problemGroups = useMemo(() => {
-    const byKey = new Map<string, { key: string; planName: string; dayLabel: string; categories: string[] }>();
-    for (const p of problems) {
-      if (p.kind !== "missing") continue; // surplus never blocks a release
-      const key = `${p.planName}|${p.day}`;
-      const existing = byKey.get(key);
-      if (existing) existing.categories.push(p.categoryLabel);
-      else
-        byKey.set(key, {
-          key,
-          planName: p.planName,
-          dayLabel: DAY_LABELS[p.day as DayOfWeek] ?? p.day,
-          categories: [p.categoryLabel],
-        });
-    }
-    return [...byKey.values()];
-  }, [problems]);
 
   const gapCount = problems.filter((p) => p.kind === "missing").length;
 
@@ -311,179 +285,162 @@ export function MenuBuilder({
         ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
         : "All changes saved";
 
+  // Where the week stands, said once: the stepper shows the lifecycle, this line what it means now.
+  // One past the last step marks a released week complete.
+  const stage = isReleased ? 4 : isReady ? 2 : 1;
+  const stageLine = isDraft
+    ? `${statusLabel}. A draft is not on the website.`
+    : isReady
+      ? "Reviewed and frozen. Not on the website yet."
+      : amending
+        ? `Amending: ${saving ? "saving…" : dirty ? "unpublished changes" : "no changes yet"}. Changes go live only when you publish.`
+        : "Live on the website.";
+
+  const verdicts = problemsByCell(isReleased ? [] : problems);
+  const firstGap = slots.flatMap((s) => DAYS.map((d) => ({ day: d, slotKey: s.key }))).find((c) => verdicts.get(`${c.day}:${c.slotKey}`)?.missing) ?? null;
+  // The panel's cell: the admin's pick, else the first gap to fix, else Monday's first slot.
+  const cell = selected ?? firstGap ?? (slots[0] ? { day: DAYS[0]!, slotKey: slots[0].key } : null);
+  const cellSlot = cell ? slots.find((s) => s.key === cell.slotKey) ?? null : null;
+  const cellRows = cell && cellSlot ? rowsOf(rows, dishById, cell.day, cellSlot) : [];
+  const cellNeeded = cellSlot ? categoryCounts[cellSlot.key] ?? 0 : 0;
+
   return (
-    <div className="space-y-6">
-      {error ? <p className="text-destructive text-sm">{error}</p> : null}
+    <div className="flex flex-col gap-4">
+      {error ? <p className="text-destructive text-sm" role="alert">{error}</p> : null}
 
-      {(
-        <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-l-2 bg-muted/30 p-4 ${isReleased ? "border-l-ok" : isReady ? "border-l-primary" : "border-l-muted-foreground/30"}`}>
-          <div className="flex items-center gap-2 text-sm">
-            {isDraft && (
-              <>
-                <CheckCircle2 className={cn("size-4", dirty || saving ? "text-muted-foreground" : "text-ok")} />
-                <span className="font-medium">{statusLabel}</span>
-                <span className="text-muted-foreground">— a draft is not on the website.</span>
-              </>
-            )}
-            {isReady && (
-              <>
-                <CheckCircle2 className="size-4 text-primary" />
-                <span className="font-medium text-primary">Ready</span>
-                <span className="text-muted-foreground">— reviewed and frozen, not yet on the website.</span>
-              </>
-            )}
-            {isReleased && (
-              <>
-                <CheckCircle2 className="size-4 text-ok" />
-                <span className="font-medium text-ok">Released</span>
-                <span className="text-muted-foreground">
-                  {amending ? `— amending. ${statusLabel}.` : "— live on the website."}
-                </span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {isDraft && copySources.length > 0 && rows.length === 0 && (
-              // A one-shot action, so DropdownMenu — not Select. A Select models persistent
-              // state; using one here meant resetting it with a controlled value="" , which
-              // left the trigger showing a stale week and stopped onValueChange re-firing.
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="h-9 transition-transform active:scale-[0.96]">
-                    <Copy className="size-3.5" />
-                    Copy from week…
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {copySources.map((src) => (
-                    <DropdownMenuItem key={src.id} onSelect={() => handleCopyWeek(src.id)}>
-                      {src.weekStart}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
-            {isDraft && (
-              <>
-                <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={saving || !dirty} onClick={() => void save()}>
-                  Save
-                </Button>
-                <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={pending || saving || dirty || rows.length === 0}
-                  onClick={() => run(async () => {
-                    const res = await markReady(week.id);
-                    if ("error" in res) { setError(sanitizeClientError(res.error)); return; }
-                    router.refresh();
-                  })}>
-                  Mark ready
-                </Button>
-              </>
-            )}
-
-            {isReady && (
-              <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={pending}
+      <div className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3" data-testid="menu-status">
+        <div className="flex min-w-0 flex-col gap-2">
+          <Stepper value={stage} indicators={{ completed: <Check className="size-3.5" aria-hidden /> }} aria-label={`Menu ${isDraft ? "draft" : isReady ? "ready" : "released"}`}>
+            <StepperNav className="items-center">
+              {(["Draft", "Ready", "Released"] as const).map((label, i) => (
+                <StepperItem key={label} step={i + 1} className="not-last:flex-none">
+                  <StepperIndicator className={cn("size-6", isReleased && "data-[state=completed]:bg-emerald-600 data-[state=completed]:text-white dark:data-[state=completed]:bg-emerald-500")}>
+                    <span className="text-xs">{i + 1}</span>
+                  </StepperIndicator>
+                  <StepperTitle className="ms-2 data-[state=inactive]:text-muted-foreground">{label}</StepperTitle>
+                  {i < 2 && <StepperSeparator className={cn("mx-3 w-8 data-[state=completed]:bg-primary", isReleased && "data-[state=completed]:bg-emerald-600 dark:data-[state=completed]:bg-emerald-500")} />}
+                </StepperItem>
+              ))}
+            </StepperNav>
+          </Stepper>
+          <p className="text-muted-foreground text-sm">{stageLine}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {isDraft && copySources.length > 0 && rows.length === 0 && (
+            // A one-shot action, so DropdownMenu, not Select.
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline"><Copy data-icon="inline-start" />Copy from week…</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {copySources.map((src) => (
+                  <DropdownMenuItem key={src.id} onSelect={() => handleCopyWeek(src.id)}>{src.weekStart}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <Button variant="outline" onClick={() => setShowPreview(true)}><Eye data-icon="inline-start" />Preview</Button>
+          {isDraft && (
+            <>
+              <Button variant="outline" disabled={saving || !dirty} onClick={() => void save()}>Save</Button>
+              <Button variant="outline" disabled={pending || saving || dirty || rows.length === 0}
+                title={dirty ? "Save first" : undefined}
                 onClick={() => run(async () => {
-                  const res = await backToDraft(week.id);
+                  const res = await markReady(week.id);
                   if ("error" in res) { setError(sanitizeClientError(res.error)); return; }
                   router.refresh();
                 })}>
-                Back to draft
+                Mark ready
               </Button>
-            )}
-
-            {(isDraft || isReady) && (
-              <Button variant="default" className="transition-transform active:scale-[0.96]" disabled={pending || saving || rows.length === 0} onClick={handleRelease}>
-                Release menu
-              </Button>
-            )}
-
-            {isReleased && !amending && (
-              <Button variant="outline" className="transition-transform active:scale-[0.96]" onClick={() => setAmending(true)}>
-                Amend
-              </Button>
-            )}
-            {isReleased && amending && (
-              <>
-                <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={saving}
-                  onClick={() => { setRows(toRows(items)); setAmending(false); }}>
-                  Discard changes
-                </Button>
-                <Button variant="default" className="transition-transform active:scale-[0.96]" disabled={pending || saving || !dirty} onClick={handleReviewAmend}>
-                  Review &amp; publish
-                </Button>
-              </>
-            )}
-
-            <Button variant="outline" className="transition-transform active:scale-[0.96]" onClick={() => setShowPreview((v) => !v)}>
-              {showPreview ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              {showPreview ? "Hide preview" : "Preview"}
+            </>
+          )}
+          {isReady && (
+            <Button variant="outline" disabled={pending}
+              onClick={() => run(async () => {
+                const res = await backToDraft(week.id);
+                if ("error" in res) { setError(sanitizeClientError(res.error)); return; }
+                router.refresh();
+              })}>
+              Back to draft
             </Button>
-            <Button variant="outline" className="transition-transform active:scale-[0.96]" disabled={pending || saving} onClick={handleDone}>
-              Done
-            </Button>
-          </div>
+          )}
+          {(isDraft || isReady) && (
+            <Button disabled={pending || saving || rows.length === 0} onClick={handleRelease}>Release menu</Button>
+          )}
+          {isReleased && !amending && <Button variant="outline" onClick={() => setAmending(true)}>Amend</Button>}
+          {isReleased && amending && (
+            <>
+              <Button variant="outline" disabled={saving} onClick={() => { setRows(toRows(items)); setAmending(false); }}>Discard changes</Button>
+              <Button disabled={pending || saving || !dirty} onClick={handleReviewAmend}>Review &amp; publish</Button>
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {gapCount > 0 && !isReleased && (
-        <div className="rounded-xl border border-warn/40 bg-warn/5 p-4 text-sm">
-          <p className="font-medium">
-            Warning — <span className="tabular-nums">{gapCount}</span>{" "}
-            {gapCount === 1 ? "gap" : "gaps"} may leave some subscribers without a meal.
-            You can still release.
-          </p>
-          {/* Grouped, and collapsed by default. One row per missing (plan, day, category) is
-              O(plans x days x categories): a week built across all seven days produced ~84
-              rows and pushed the grid off screen entirely. Grouping to one line per plan+day
-              turns that into ~14, and <details> keeps the banner a summary until asked. */}
-          <details className="group mt-2">
-            <summary className="cursor-pointer text-muted-foreground underline-offset-2 hover:underline">
-              Show what is missing
-            </summary>
-            <ul className="mt-2 space-y-1 text-muted-foreground">
-              {problemGroups.map((g) => (
-                <li key={g.key}>
-                  <span className="font-medium text-foreground">{g.planName}</span> — {g.dayLabel}:{" "}
-                  {g.categories.join(", ")}
-                </li>
-              ))}
-            </ul>
-          </details>
+        <div className="border-warning/40 bg-warning/10 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm" data-testid="menu-gaps">
+          <span>
+            <span className="font-medium tabular-nums">{gapCount}</span> {gapCount === 1 ? "gap" : "gaps"} may leave some subscribers without a meal. They are marked Missing on the grid. You can still release.
+          </span>
+          {firstGap && <Button variant="outline" size="sm" onClick={() => setSelected(firstGap)}>Show first gap</Button>}
         </div>
       )}
 
       {staleConflict && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
-          <span>This menu was changed somewhere else. Reload to see the current version — your unsaved edits here will be lost.</span>
+        <div className="border-destructive/40 bg-destructive/5 flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm">
+          <span>This menu was changed somewhere else. Reload to see the current version; your unsaved edits here will be lost.</span>
           <Button variant="outline" onClick={() => window.location.reload()}>Reload</Button>
         </div>
       )}
 
-      {(
-        <div className={cn("grid gap-6", showPreview && "lg:grid-cols-[minmax(0,1fr)_24rem]")}>
-          <MenuGrid
-            slots={slots}
-            rows={rows}
-            dishes={allDishes}
-            categoryCounts={categoryCounts}
-            problems={isReleased ? [] : problems}
-            editable={editable}
-            onAdd={(day, slot, dishId) => addRow(day, slot.categoryKey, dishId)}
-            onRemove={removeRow}
-            onMove={moveRow}
-            onToggleDefault={toggleDefault}
-            onCopyAcrossDays={(day, slot) => copyAcrossDays(day, slot.categoryKey)}
-            onCreateDish={(storeDay, slot) => { setNewName(""); setNewPlanId(slot.planPublicId); setCreateTarget({ storeDay, slot }); }}
-          />
-
-          {showPreview && (
-            <div className="lg:sticky lg:top-4 lg:self-start">
-              <p className="mb-3 text-xs font-medium text-muted-foreground">Live preview</p>
-              <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={week.weekStart} slots={posterSlots} items={posterItems} accent={mealType.accent} />
-            </div>
+      {/* The week on the left, the selected cell beside it with everything that edits it. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">
+        <MenuGrid
+          slots={slots}
+          rows={rows}
+          dishes={allDishes}
+          categoryCounts={categoryCounts}
+          problems={isReleased ? [] : problems}
+          selected={cell}
+          onSelect={setSelected}
+        />
+        <div className="lg:sticky lg:top-4">
+          {cell && cellSlot ? (
+            <CellPanel
+              day={cell.day}
+              slot={cellSlot}
+              needed={cellNeeded}
+              rows={cellRows}
+              dishes={allDishes}
+              dishById={dishById}
+              warning={cellWarning(cellSlot, cellNeeded, cellRows.length, verdicts.get(`${cell.day}:${cellSlot.key}`))}
+              editable={editable}
+              onAdd={(day, slot, dishId) => addRow(day, slot.categoryKey, dishId)}
+              onRemove={removeRow}
+              onMove={moveRow}
+              onToggleDefault={toggleDefault}
+              onCopyAcrossDays={(day, slot) => copyAcrossDays(day, slot.categoryKey)}
+              onCreateDish={(storeDay, slot) => { setNewName(""); setNewPlanId(slot.planPublicId); setCreateTarget({ storeDay, slot }); }}
+            />
+          ) : (
+            <p className="text-muted-foreground rounded-xl border p-4 text-sm">No slots to fill. Add meal sizes in the Catalog first.</p>
           )}
+          {isReleased && !amending && <p className="text-muted-foreground mt-2 text-xs">Released menus are read-only. Use Amend to change them.</p>}
         </div>
-      )}
+      </div>
+
+      {/* The poster is a check, not a workspace: it opens wide in a sheet instead of squeezing the grid. */}
+      <Sheet open={showPreview} onOpenChange={setShowPreview}>
+        <SheetContent side="right" className="w-full data-[side=right]:sm:max-w-4xl">
+          <SheetHeader>
+            <SheetTitle>Website preview</SheetTitle>
+            <SheetDescription>What customers see for this week{isReleased && !amending ? "" : ", including unsaved changes"}.</SheetDescription>
+          </SheetHeader>
+          <div className="overflow-y-auto px-4 pb-4">
+            <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={week.weekStart} slots={posterSlots} items={posterItems} accent={mealType.accent} />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={!!amendPreview} onOpenChange={(o) => { if (!o) setAmendPreview(null); }}>
         <DialogContent className="sm:max-w-md">
@@ -580,16 +537,37 @@ export function MenuBuilder({
 // does not jump when the grid arrives.
 export function MenuBuilderSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-l-2 bg-muted/30 p-4">
-        <Skeleton className="h-5 w-56" />
+    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading menu">
+      <div className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Skeleton className="size-6 rounded-full" />
+                <Skeleton className="h-4 w-14" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-4 w-56" />
+        </div>
         <div className="flex gap-2">
+          <Skeleton className="h-9 w-24" />
           <Skeleton className="h-9 w-20" />
           <Skeleton className="h-9 w-28" />
-          <Skeleton className="h-9 w-24" />
         </div>
       </div>
-      <Skeleton className="h-[60vh] w-full rounded-2xl" />
+      <div className="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">
+        <div className="grid grid-cols-8 overflow-hidden rounded-xl border">
+          {Array.from({ length: 64 }, (_, i) => <div key={i} className="h-14 border-e border-b p-2"><Skeleton className="h-3 w-3/4" /></div>)}
+        </div>
+        <div className="flex flex-col gap-3 rounded-xl border p-4">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-6 w-28" />
+          <Skeleton className="h-5 w-40" />
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+          <Skeleton className="h-8 w-28" />
+        </div>
+      </div>
     </div>
   );
 }

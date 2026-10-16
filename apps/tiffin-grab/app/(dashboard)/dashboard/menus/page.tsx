@@ -3,11 +3,10 @@ import { zonedDateIso } from "@foundry/commons";
 import { CalendarIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
-import { getAppSettings, getMealTypes } from "@/lib/services/app-settings.service";
-import { isoToDayOfWeek } from "@/lib/menu/poster";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
-import { MenuHistoryCard, MenuHistoryCardSkeleton } from "./menu-history-card";
-import { NewWeekCard } from "./new-week-card";
+import { MenuWeekRow, MenuWeekRowsSkeleton } from "./menu-history-card";
+import { NewWeekButton } from "./new-week-card";
 
 /**
  * Index only: pick a week, or start one. Building a week happens at
@@ -24,16 +23,9 @@ export default function MenusPage() {
       />
       <Suspense
         fallback={
-          <>
-            <SectionCard title="New week">
-              <div className="h-16" />
-            </SectionCard>
-            <div className="space-y-4">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <MenuHistoryCardSkeleton key={i} />
-              ))}
-            </div>
-          </>
+          <SectionCard title="Weeks" subtitle="Open a week to fill it, release it, or change a live menu.">
+            <MenuWeekRowsSkeleton />
+          </SectionCard>
         }
       >
         <MenusData />
@@ -54,8 +46,7 @@ function todayIn(timezone: string): string {
 async function MenusData() {
   await requireAdmin();
 
-  const [mealTypes, appSettings, weeks] = await Promise.all([
-    getMealTypes(),
+  const [appSettings, weeks] = await Promise.all([
     getAppSettings(),
     menuService.listWeekMenus(),
   ]);
@@ -70,27 +61,25 @@ async function MenusData() {
   const futureStarts = weeks.filter((w) => w.weekStart > today).map((w) => w.weekStart).sort();
   const upcomingId = futureStarts.length ? weeks.find((w) => w.weekStart === futureStarts[0])?.publicId : undefined;
 
-  return (
-    <>
-      <SectionCard title="New week" subtitle="Weeks start on Monday. Dates that already have a menu are skipped.">
-        <NewWeekCard takenWeekStarts={weeks.map((w) => w.weekStart)} />
-      </SectionCard>
+  // This week and the next come first; the rest follow newest first, as the service returns them.
+  const pinned = [currentId, upcomingId].filter(Boolean) as string[];
+  const ordered = [...weeks.filter((w) => pinned.includes(w.publicId)).sort((a, b) => a.weekStart.localeCompare(b.weekStart)), ...weeks.filter((w) => !pinned.includes(w.publicId))];
 
+  return (
+    <SectionCard
+      title="Weeks"
+      subtitle="Open a week to fill it, release it, or change a live menu."
+      action={<NewWeekButton takenWeekStarts={weeks.map((w) => w.weekStart)} />}
+    >
       {weeks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No menus yet — pick a Monday above to start one.</p>
+        <p className="text-muted-foreground text-sm">No menus yet. Use New week to start one.</p>
       ) : (
-        <div className="space-y-4">
-          {weeks.map((w) => (
-            <MenuHistoryCard
-              key={w.publicId}
-              week={w}
-              accent={mealTypes.tiffin.accent}
-              highlight={w.publicId === currentId ? "current" : w.publicId === upcomingId ? "upcoming" : null}
-              todayKey={w.publicId === currentId ? isoToDayOfWeek(today) : undefined}
-            />
+        <ul className="divide-y rounded-xl border">
+          {ordered.map((w) => (
+            <MenuWeekRow key={w.publicId} week={w} highlight={w.publicId === currentId ? "current" : w.publicId === upcomingId ? "upcoming" : null} />
           ))}
-        </div>
+        </ul>
       )}
-    </>
+    </SectionCard>
   );
 }

@@ -128,7 +128,17 @@ describe("MenuBuilder rigorous button events & error handling", () => {
     });
   });
 
-  it("keeps draft edits local until Save or Done — no autosave", async () => {
+  it("marks a gap on the grid, counts it, and opens the panel on it", () => {
+    render(<MenuBuilder {...dummyProps} problems={[{ kind: "missing", day: "tue", planName: "Veg Plan", planPublicId: "p1", categoryKey: "sabji", categoryLabel: "Sabji", dishNames: [] }]} />);
+    expect(screen.getByTestId("menu-gaps")).toHaveTextContent("1 gap may leave some subscribers without a meal");
+    expect(screen.getByRole("button", { name: /^Tuesday, Sabji \(Veg Plan\): empty, No dish here for Veg Plan/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("cell-panel")).toHaveTextContent("No dish here for Veg Plan");
+    // Clicking another cell moves the panel there.
+    fireEvent.click(screen.getByRole("button", { name: /^Monday, Sabji/ }));
+    expect(screen.getByTestId("cell-panel")).toHaveTextContent("Shahi Paneer");
+  });
+
+  it("keeps draft edits local until Save — no autosave", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mockSaveWeek.mockResolvedValue({
       items: [],
@@ -145,17 +155,17 @@ describe("MenuBuilder rigorous button events & error handling", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove Shahi Paneer" }));
-    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    // The panel opens on Monday's first slot; its dish menu holds Remove.
+    expect(screen.getByTestId("cell-panel")).toHaveTextContent("Shahi Paneer");
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Options for Shahi Paneer" }), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Remove" }));
+    expect(screen.getByText(/Unsaved changes/)).toBeInTheDocument();
 
     await vi.advanceTimersByTimeAsync(5_000);
     expect(mockSaveWeek).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
-    await waitFor(() => {
-      expect(mockSaveWeek).toHaveBeenCalledTimes(1);
-      expect(mockPush).toHaveBeenCalledWith("/dashboard/menus");
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mockSaveWeek).toHaveBeenCalledTimes(1));
 
     vi.useRealTimers();
   });
