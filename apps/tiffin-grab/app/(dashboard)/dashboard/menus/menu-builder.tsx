@@ -93,7 +93,20 @@ export function MenuBuilder({
   const allDishes = useMemo(() => [...dishes, ...createdDishes], [dishes, createdDishes]);
   const dishById = useMemo(() => new Map(allDishes.map((d) => [d.id, d])), [allDishes]);
   const similarDishes = useMemo(() => findSimilarDishes(newName, allDishes), [newName, allDishes]);
-  const dirty = signature(rows) !== savedSignature;
+  // The day's dishes from the working copy, so a side shows what it will pack before the menu is saved.
+  const dayDishes = useMemo(() => {
+    const out: Partial<Record<DayOfWeek, DayDish[]>> = {};
+    for (const r of rows) {
+      const d = dishById.get(r.dishId);
+      if (!d) continue;
+      const list = (out[r.dayOfWeek] ??= []);
+      if (!list.some((x) => x.publicId === d.id)) list.push({ publicId: d.id, name: d.name, category: r.slot, isDefault: r.isDefault });
+    }
+    return out;
+  }, [rows, dishById]);
+  const sides = useSides(sidesInput, dayDishes);
+  // Unsaved work is the dish grid or a day's side choice: both wait for Save / Review & publish.
+  const dirty = signature(rows) !== savedSignature || sides.dirty;
   const isDraft = week.status === "draft";
   const isReady = week.status === "ready";
   const isReleased = week.status === "released";
@@ -136,6 +149,9 @@ export function MenuBuilder({
       setExpectedUpdatedAt(result.updatedAt);
       setSavedAt(Date.now());
       setStaleConflict(false);
+      // A day's side choices go with the menu they belong to.
+      const sideError = await sides.flush();
+      if (sideError) { setError(sideError); return; }
       if (opts?.amend) {
         setAmending(false);
         setAmendPreview(null);
@@ -148,7 +164,7 @@ export function MenuBuilder({
     } finally {
       setSaving(false);
     }
-  }, [week, expectedUpdatedAt, wireItems]);
+  }, [week, expectedUpdatedAt, wireItems, sides]);
 
   // Drafts stay local until Save or Done. Released-week amend already waits for an
   // explicit confirm — same rule for drafts so a half-built grid is not written by
@@ -290,18 +306,6 @@ export function MenuBuilder({
         ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
         : "All changes saved";
 
-  // The day's dishes from the working copy, so a side shows what it will pack before the menu is saved.
-  const dayDishes = useMemo(() => {
-    const out: Partial<Record<DayOfWeek, DayDish[]>> = {};
-    for (const r of rows) {
-      const d = dishById.get(r.dishId);
-      if (!d) continue;
-      const list = (out[r.dayOfWeek] ??= []);
-      if (!list.some((x) => x.publicId === d.id)) list.push({ publicId: d.id, name: d.name, category: r.slot, isDefault: r.isDefault });
-    }
-    return out;
-  }, [rows, dishById]);
-  const sides = useSides(sidesInput, dayDishes);
   const sideRows = sides.slots.map((slot) => ({
     key: sideKey(slot),
     label: sideLabel(slot),
@@ -399,7 +403,7 @@ export function MenuBuilder({
           {isReleased && !amending && <Button variant="outline" onClick={() => setAmending(true)}>Amend</Button>}
           {isReleased && amending && (
             <>
-              <Button variant="outline" disabled={saving} onClick={() => { setRows(toRows(items)); setAmending(false); }}>Discard changes</Button>
+              <Button variant="outline" disabled={saving} onClick={() => { setRows(toRows(items)); sides.discard(); setAmending(false); }}>Discard changes</Button>
               <Button disabled={pending || saving || !dirty} onClick={handleReviewAmend}>Review &amp; publish</Button>
             </>
           )}
@@ -437,7 +441,7 @@ export function MenuBuilder({
         />
         <div className="lg:sticky lg:top-4">
           {cell && sideSlot ? (
-            <SidePanel day={cell.day} slot={sideSlot} sides={sides} dishesOfDay={dayDishes[cell.day] ?? []} />
+            <SidePanel day={cell.day} slot={sideSlot} sides={sides} dishesOfDay={dayDishes[cell.day] ?? []} editable={editable} />
           ) : cell && cellSlot ? (
             <CellPanel
               day={cell.day}

@@ -64,6 +64,19 @@ describe("side dishes in the menu maker", () => {
     expect(within(screen.getByRole("dialog")).getByRole("combobox", { name: "Sabzi · Side 1 default" })).toBeInTheDocument();
   });
 
+  it("a day's side is a menu edit: locked on a released week until Amend, open on a draft", () => {
+    render(<MenuBuilder {...props} sides={sides()} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1/ }));
+    expect(within(screen.getByTestId("side-panel")).getByRole("combobox", { name: "Monday source" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Amend" }));
+    expect(within(screen.getByTestId("side-panel")).getByRole("combobox", { name: "Monday source" })).toBeEnabled();
+    expect(screen.getByText(/Saved with the menu/)).toBeInTheDocument();
+    cleanup();
+    render(<MenuBuilder {...props} week={{ ...props.week, status: "draft" }} sides={sides()} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1/ }));
+    expect(within(screen.getByTestId("side-panel")).getByRole("combobox", { name: "Monday source" })).toBeEnabled();
+  });
+
   it("marks a day's dish override as changed", () => {
     render(<MenuBuilder {...props} sides={sides([{ day: "mon", category: "sabzi", role: "side_1", source: { kind: "dish", dishPublicId: "d1" } }])} />);
     expect(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1: packs Veg Korma, changed for this day$/ })).toBeInTheDocument();

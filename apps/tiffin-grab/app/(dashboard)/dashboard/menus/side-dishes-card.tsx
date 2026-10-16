@@ -31,15 +31,23 @@ const decode = (s: string): DaySideValue =>
 /**
  * Side dishes for 5 Item / Maharaja / Sabzi Only meals: their side items (meal sizes, Role
  * "Side 1/2") pack a dish from another category on the day's menu, the day's dal by default.
- * One state for the grid rows and the panel; every change saves on its own, outside the menu draft.
+ * One state for the grid rows and the panel. A day's choice is a menu edit: it stays local and is
+ * written with the menu (Save, or Review & publish when amending), and Discard drops it. The standing
+ * default is a setting for every week, so it still saves the moment it is picked.
  */
 export function useSides(input: SidesInput | undefined, dayDishes: Partial<Record<DayOfWeek, DayDish[]>>) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [overrides, setOverrides] = useState(() =>
-    new Map((input?.daySides ?? []).map((d) => [`${d.day}:${d.category}:${d.role}`, encode(d.source)])),
-  );
+  const seed = () => new Map((input?.daySides ?? []).map((d) => [`${d.day}:${d.category}:${d.role}`, encode(d.source)]));
+  const [saved, setSaved] = useState(seed);
+  const [overrides, setOverrides] = useState(seed);
+  const keyOf = (k: string) => {
+    const [day, category, role] = k.split(":") as [DayOfWeek, string, SideRole];
+    return { day, category, role };
+  };
+  const changedKeys = () =>
+    [...new Set([...saved.keys(), ...overrides.keys()])].filter((k) => (saved.get(k) ?? DEFAULT) !== (overrides.get(k) ?? DEFAULT));
   const [defaults, setDefaults] = useState(() => new Map((input?.slots ?? []).map((s) => [`${s.category}:${s.role}`, s.defaultSource])));
   const categories = input?.categories ?? [];
   const catLabel = (key: string) => categories.find((c) => c.key === key)?.label ?? key;
@@ -80,10 +88,22 @@ export function useSides(input: SidesInput | undefined, dayDishes: Partial<Recor
     packs,
     /** A day differs from the standing default. */
     changed: (day: DayOfWeek, slot: SideSlot) => valueOf(day, slot) !== DEFAULT,
+    /** Day choices not yet written: they make the menu dirty like any other edit. */
+    dirty: changedKeys().length > 0,
     setDay: (day: DayOfWeek, slot: SideSlot, v: string) => {
       setOverrides((m) => new Map(m).set(`${day}:${slot.category}:${slot.role}`, v));
-      run(() => setDaySide({ weekId: input!.weekId, day, category: slot.category, role: slot.role, value: decode(v) }));
     },
+    /** Writes the pending day choices; returns an error message, or null when all saved. */
+    flush: async (): Promise<string | null> => {
+      for (const k of changedKeys()) {
+        const { day, category, role } = keyOf(k);
+        const res = await setDaySide({ weekId: input!.weekId, day, category, role, value: decode(overrides.get(k) ?? DEFAULT) });
+        if ("error" in res) return sanitizeClientError(res.error);
+      }
+      setSaved(new Map(overrides));
+      return null;
+    },
+    discard: () => setOverrides(new Map(saved)),
     setDefault: (slot: SideSlot, v: string) => {
       const source = v === NONE ? null : v;
       setDefaults((m) => new Map(m).set(`${slot.category}:${slot.role}`, source));
@@ -95,7 +115,7 @@ export function useSides(input: SidesInput | undefined, dayDishes: Partial<Recor
 export type Sides = ReturnType<typeof useSides>;
 
 /** One side on one day: what it packs, the day's source, and the standing default for every week. */
-export function SidePanel({ day, slot, sides, dishesOfDay }: { day: DayOfWeek; slot: SideSlot; sides: Sides; dishesOfDay: DayDish[] }) {
+export function SidePanel({ day, slot, sides, dishesOfDay, editable }: { day: DayOfWeek; slot: SideSlot; sides: Sides; dishesOfDay: DayDish[]; editable: boolean }) {
   const standing = sides.standingOf(slot);
   return (
     <section aria-label={`${DAY_LABELS[day]} ${sideLabel(slot)}`} data-testid="side-panel" className="bg-card flex flex-col gap-4 rounded-xl border p-4">
@@ -113,7 +133,7 @@ export function SidePanel({ day, slot, sides, dishesOfDay }: { day: DayOfWeek; s
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">This day</span>
-        <Select value={sides.valueOf(day, slot)} disabled={sides.pending} onValueChange={(v) => sides.setDay(day, slot, v)}>
+        <Select value={sides.valueOf(day, slot)} disabled={!editable} onValueChange={(v) => sides.setDay(day, slot, v)}>
           <SelectTrigger aria-label={`${DAY_LABELS[day]} source`}><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value={DEFAULT}>Default{standing ? ` (${sides.catLabel(standing)})` : ""}</SelectItem>
@@ -138,7 +158,9 @@ export function SidePanel({ day, slot, sides, dishesOfDay }: { day: DayOfWeek; s
         </span>
       </label>
 
-      <p className="text-muted-foreground border-t pt-3 text-xs">Side dishes save as you pick, outside Amend and Publish. On a released menu the change is live straight away.</p>
+      <p className="text-muted-foreground border-t pt-3 text-xs">
+        {editable ? "Saved with the menu: Save on a draft, Review & publish when amending." : "Released menus are read-only. Use Amend to change a day."}
+      </p>
       {sides.error ? <p className="text-destructive text-sm" role="alert">{sides.error}</p> : null}
     </section>
   );
