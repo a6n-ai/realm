@@ -180,14 +180,16 @@ export function MenuBuilder({
 
   const removeRow = (key: string) => setRows((prev) => prev.filter((r) => r.key !== key));
 
-  // One default per (day, slot); clicking the current default clears it.
+  // One default per cell: (day, category, plan). The plan comes from the dish, so setting the Veg
+  // default never clears the Non-Veg one. Clicking the current default clears it.
   const toggleDefault = (key: string) =>
     setRows((prev) => {
       const target = prev.find((r) => r.key === key);
       if (!target) return prev;
       const next = !target.isDefault;
+      const planOf = (r: Row) => dishById.get(r.dishId)?.planId;
       return prev.map((r) =>
-        r.dayOfWeek === target.dayOfWeek && r.slot === target.slot
+        r.dayOfWeek === target.dayOfWeek && r.slot === target.slot && planOf(r) === planOf(target)
           ? { ...r, isDefault: r.key === key ? next : false }
           : r,
       );
@@ -495,6 +497,7 @@ export function MenuBuilder({
                 </>
               )}
               <p className="text-muted-foreground">The website updates as soon as you publish.</p>
+              {error ? <p className="text-destructive" role="alert">{error}</p> : null}
             </div>
           )}
           <DialogFooter>

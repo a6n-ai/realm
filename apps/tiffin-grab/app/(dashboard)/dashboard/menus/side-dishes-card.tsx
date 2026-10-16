@@ -138,6 +138,7 @@ export function SidePanel({ day, slot, sides, dishesOfDay }: { day: DayOfWeek; s
         </span>
       </label>
 
+      <p className="text-muted-foreground border-t pt-3 text-xs">Side dishes save as you pick, outside Amend and Publish. On a released menu the change is live straight away.</p>
       {sides.error ? <p className="text-destructive text-sm" role="alert">{sides.error}</p> : null}
     </section>
   );

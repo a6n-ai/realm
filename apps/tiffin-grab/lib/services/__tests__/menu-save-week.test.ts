@@ -110,7 +110,17 @@ describe("menuService.saveWeek", () => {
     expect(rows[0].publicId).toBe(first.items[0].id);
   });
 
-  it("rejects two defaults in the same day and category", async () => {
+  it("keeps one default per plan in the same day and category (Veg and Non-Veg each have their own)", async () => {
+    const [nv] = await db.insert(dishes).values({ planId: await testPlanId("non-veg"), name: "Chicken Curry", category: "sabzi" }).returning();
+    const saved = await menuService.saveWeek({
+      menuWeekId: weekId, expectedUpdatedAt: updatedAt,
+      items: [item(paneer, "sabzi", "mon", true), item(nv.publicId, "sabzi", "mon", true)],
+    });
+    if ("error" in saved) throw new Error(String(saved.error));
+    expect(saved.items.filter((i: { isDefault: boolean }) => i.isDefault)).toHaveLength(2);
+  });
+
+  it("rejects two defaults in the same day, category and plan", async () => {
     await expect(menuService.saveWeek({
       menuWeekId: weekId, expectedUpdatedAt: updatedAt,
       items: [item(paneer, "sabzi", "mon", true), item(bhindi, "sabzi", "mon", true)],

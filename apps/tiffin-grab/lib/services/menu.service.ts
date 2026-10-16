@@ -135,22 +135,25 @@ export const menuService = {
         categoryId: menuItems.categoryId,
         isDefault: menuItems.isDefault,
         weekStatus: menuWeeks.status,
+        planId: dishes.planId,
       })
       .from(menuItems)
       .innerJoin(menuWeeks, eq(menuItems.menuWeekId, menuWeeks.id))
+      .innerJoin(dishes, eq(dishes.id, menuItems.dishId))
       .where(eq(menuItems.publicId, input.itemId))
       .limit(1);
     if (!item) throw new ValidationError("Menu item not found");
     if (item.weekStatus !== "draft") throw new ValidationError("Defaults can only be set on a draft week");
 
     const wasDefault = item.isDefault;
-    // One default per (week, day, slot); toggle off if it was already default.
+    // One default per (week, day, slot, plan), same rule as saveWeek; toggle off if it was already default.
     // Raw bulk update, NOT audited — matches the reorderItems pattern above.
     await db.transaction(async (tx) => {
       await tx.update(menuItems).set({ isDefault: false }).where(and(
         eq(menuItems.menuWeekId, item.menuWeekId),
         eq(menuItems.dayOfWeek, item.dayOfWeek),
         eq(menuItems.categoryId, item.categoryId),
+        inArray(menuItems.dishId, db.select({ id: dishes.id }).from(dishes).where(eq(dishes.planId, item.planId))),
       ));
       if (!wasDefault) {
         await tx.update(menuItems).set({ isDefault: true }).where(eq(menuItems.id, item.id));
@@ -182,7 +185,7 @@ export const menuService = {
     const categoryIdByKey = await requireCategoryIds(input.items.map((i) => i.slot));
     const wantedDishIds = [...new Set(input.items.map((i) => i.dishId))];
     const dishRows = wantedDishIds.length
-      ? await db.select({ id: dishes.id, publicId: dishes.publicId, category: dishes.category })
+      ? await db.select({ id: dishes.id, publicId: dishes.publicId, category: dishes.category, planId: dishes.planId })
           .from(dishes).where(inArray(dishes.publicId, wantedDishIds))
       : [];
     const dishByPublicId = new Map(dishRows.map((d) => [d.publicId, d]));
@@ -201,9 +204,11 @@ export const menuService = {
       const cellKey = `${item.dayOfWeek}:${item.slot}:${item.dishId}`;
       if (seenCell.has(cellKey)) throw new ValidationError("The same dish is listed twice in one day and category");
       seenCell.add(cellKey);
+      // One default per (day, category, plan): the builder slots by (category, plan), and readers
+      // take the default from a plan's own dishes, so Veg and Non-Veg each keep theirs.
       if (item.isDefault) {
-        const groupKey = `${item.dayOfWeek}:${item.slot}`;
-        if (seenDefault.has(groupKey)) throw new ValidationError("Only one dish can be the default for a day and category");
+        const groupKey = `${item.dayOfWeek}:${item.slot}:${dish.planId}`;
+        if (seenDefault.has(groupKey)) throw new ValidationError("Only one dish can be the default for a day, category and plan");
         seenDefault.add(groupKey);
       }
     }
