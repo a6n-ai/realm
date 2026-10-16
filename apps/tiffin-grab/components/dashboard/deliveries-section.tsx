@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import type { OrderDetail } from "@/lib/services/orders.service";
 import { loadOrderWeek, type OrderWeek } from "@/lib/services/order-week.service";
 import { OrderWeekHub } from "@/components/dashboard/order-week/order-week-hub";
+import type { OptimoRouteRow } from "@/app/(dashboard)/dashboard/orders/[id]/optimoroute-panel";
 import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { zonedDateIso } from "@foundry/commons";
@@ -88,7 +89,7 @@ export async function loadSubscription(
   return { order, paymentReview, week, readOnly: finished || paymentReview, canEditDeliveryStatus: session?.user?.role === "admin" };
 }
 
-export function DeliveriesSection({ data }: { data: SubscriptionData }) {
+export function DeliveriesSection({ data, routing = [] }: { data: SubscriptionData; routing?: OptimoRouteRow[] }) {
   const { order, paymentReview, week } = data;
   const subtitle = paymentReview
     ? "Payment is under review. Check the schedule here; changes unlock once the payment is verified."
@@ -103,7 +104,7 @@ export function DeliveriesSection({ data }: { data: SubscriptionData }) {
         </p>
       )}
       {week ? (
-        <OrderWeekHub data={week} canEditDeliveryStatus={data.canEditDeliveryStatus} readOnly={data.readOnly} />
+        <OrderWeekHub data={week} canEditDeliveryStatus={data.canEditDeliveryStatus} readOnly={data.readOnly} routing={routing} />
       ) : paymentReview ? null : (
         <p className="text-muted-foreground text-sm">
           This subscription is {order.status}, so there is no delivery schedule to manage.
@@ -116,10 +117,12 @@ export function DeliveriesSection({ data }: { data: SubscriptionData }) {
 export function DeliveriesSectionSkeleton() {
   return (
     <SectionCard title="Deliveries">
-      <div className="space-y-3">
-        <Skeleton className="h-5 w-64" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-64 w-full" />
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-9 w-80" />
+        <div className="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">
+          <Skeleton className="h-[600px] w-full" />
+          <Skeleton className="h-[600px] w-full" />
+        </div>
       </div>
     </SectionCard>
   );

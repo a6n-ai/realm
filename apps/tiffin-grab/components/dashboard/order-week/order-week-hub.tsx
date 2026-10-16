@@ -2,7 +2,7 @@
 
 import { zonedDateIso } from "@foundry/commons";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, MapPin, Pencil, Truck } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, Info, MapPin, Pencil } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -14,17 +14,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
 import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
-import { actionAvailability, humanDate, type Availability, type PlanContext, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate, type Availability, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import { addDays, dotStatus, mondayOf, pausedAhead, pausedPast } from "@/lib/deliveries-view/week";
+import { addDays, mondayOf, pausedAhead, pausedPast } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { cutoffFmt, dedupeDishes, Journey, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
-import { TableCell } from "@foundry/ui/table";
-import { PagedTable } from "./paged-table";
-import { DeliveryMatrix } from "./delivery-matrix";
 import { OrderMonthCalendar } from "./order-month-calendar";
-import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
+import { RouteControls, type OptimoRouteRow } from "@/app/(dashboard)/dashboard/orders/[id]/optimoroute-panel";
 import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
 import { MoveSheet } from "@/components/customer/deliveries/actions/move-sheet";
 import { actionModel, PAUSE_DAY_LABEL, RESUME_ALL_LABEL, RESUME_DAY_LABEL } from "@/components/customer/deliveries/action-model";
@@ -32,16 +30,15 @@ import { pausedLine, resumeLine } from "@/components/customer/deliveries/pause-c
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
 import { PauseSheet } from "@/components/customer/deliveries/actions/pause-sheet";
-import { WeekStrip } from "@/components/customer/deliveries/week-strip";
 import { deliveryAddress } from "@/lib/deliveries-view/current-address";
 
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
 // readOnly: a finished plan, or one under payment review, shows every day with no way to change one.
-export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = false }: { data: OrderWeek; canEditDeliveryStatus?: boolean; readOnly?: boolean }) {
+export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = false, routing = [] }: { data: OrderWeek; canEditDeliveryStatus?: boolean; readOnly?: boolean; routing?: OptimoRouteRow[] }) {
   if (readOnly) canEditDeliveryStatus = false;
-  const { plan, trips, agenda, weekStart, firstWeek, lastWeek, now } = data;
+  const { plan, trips, agenda, weekStart, now } = data;
   const router = useRouter();
   const params = useSearchParams();
   const [nav, startNav] = useTransition();
@@ -51,7 +48,6 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
   const [resumeAsk, setResumeAsk] = useState(false);
   const [resumingAll, startResumeAll] = useTransition();
   const [pauseOpen, setPauseOpen] = useState(false);
-  const [view, setView] = useState<"week" | "month">("week");
   const [wk, setWk] = useState(weekStart);
   if (wk !== weekStart) {
     setWk(weekStart);
@@ -66,14 +62,11 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
   const editChoice = trip && canEditDeliveryStatus && trip.deliveryId ? statusChoice(trip) : null;
   const av = trip ? actionAvailability(trip, now, plan.ctx) : null;
   const tz = plan.ctx.timezone;
+  // The eating day the panel shows; a carried day names its own date, not the delivery that brings it.
+  const selectedDay = row && sel !== row.trip.date ? row.date : sel ?? row?.date ?? null;
 
   const weekDaysOfPlan = plan.days.filter((x) => x.date >= weekStart && x.date <= weekEnd);
   const menuOut = weekDaysOfPlan.length > 0 && weekDaysOfPlan.every((x) => x.menuWeekId == null);
-  // The selected week only; the header's Previous/Next walks the plan a week at a time.
-  const scheduleRows = Object.entries(agenda)
-    .filter(([date]) => date >= weekStart && date <= weekEnd)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .flatMap(([date, ds]) => ds.map((x) => ({ date, ...x })));
   // Keep ?tab (and anything else) so a week change never drops the admin back on Overview.
   const goWeek = (m: string, tripDate?: string) => {
     const sp = new URLSearchParams(params.toString());
@@ -126,54 +119,34 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
   });
 
   return (
-    <div className={cn("space-y-4", nav && "opacity-60 transition-opacity")}>
+    <div className={cn("flex flex-col gap-4", nav && "opacity-60 transition-opacity")}>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <OrderStatusBadge status={plan.sub.displayStatus} />
-        {!plan.sub.trial && !readOnly && (
-          <>
-            <Button type="button" variant="outline" onClick={() => setPauseOpen(true)}>Pause multiple days</Button>
-            <Button type="button" variant="outline" disabled={!canResumeAll || resumingAll} title={canResumeAll ? undefined : "No paused days to resume."} onClick={resumeAll}>{RESUME_ALL_LABEL}</Button>
-          </>
-        )}
         {plan.sub.fullyPaused && <Badge variant="outline">All upcoming days paused</Badge>}
         <span className="font-medium">{plan.sub.mealSizeName}</span>
         <span className="text-muted-foreground tabular-nums">
           {plan.counts.remaining} of {plan.counts.total} tiffins left
         </span>
-        <Tabs value={view} onValueChange={(v) => setView(v as "week" | "month")} className="ml-auto">
-          <TabsList>
-            <TabsTrigger value="week">Week</TabsTrigger>
-            <TabsTrigger value="month">Calendar</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {!plan.sub.trial && !readOnly && (
+          <div className="ml-auto flex gap-2">
+            <Button type="button" variant="outline" onClick={() => setPauseOpen(true)}>Pause multiple days</Button>
+            <Button type="button" variant="outline" disabled={!canResumeAll || resumingAll} title={canResumeAll ? undefined : "No paused days to resume."} onClick={resumeAll}>{RESUME_ALL_LABEL}</Button>
+          </div>
+        )}
       </div>
 
-      {view === "month" ? (
-        <OrderMonthCalendar agenda={agenda} focus={sel ?? weekStart} now={now} onPickDay={(iso) => { setView("week"); pickDay(iso); }} />
-      ) : (
-      <>
-      {/* The week on the left, the whole plan beside it. */}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="min-w-0 space-y-4">
-          <WeekStrip
-            firstWeek={firstWeek}
-            lastWeek={lastWeek}
-            week={weekStart}
-            today={plan.today}
-            selectedDay={row && sel !== row.trip.date ? row.date : sel}
-            agenda={agenda}
-            now={now}
-            onPickDay={pickDay}
-            onWeek={(m) => goWeek(m)}
-          />
+      {menuOut && (
+        <p data-testid="menu-not-released" className="bg-muted/50 text-muted-foreground rounded-lg border px-3 py-2 text-sm"><span className="text-foreground font-medium">Menu not released yet.</span> Dish picks open once the kitchen releases this week&apos;s menu; days can still be moved or re-addressed.</p>
+      )}
 
-          {menuOut && (
-            <p data-testid="menu-not-released" className="text-muted-foreground text-sm"><span className="text-foreground font-medium">Menu not released yet.</span> Dish picks open once the kitchen releases this week&apos;s menu; days can still be moved or re-addressed.</p>
-          )}
-
-          {/* Same order as the customer's page: delivery (date, journey, moves), then meal and destination, then actions. */}
+      {/* One navigator (the month), one selected day beside it with everything that changes it; aligned edges, equal height. */}
+      <div className="grid items-stretch gap-4 lg:grid-cols-[3fr_2fr]">
+        <div className="bg-card flex min-h-[600px] min-w-0 flex-col rounded-xl border p-3">
+          <OrderMonthCalendar agenda={agenda} focus={selectedDay ?? weekStart} selectedDay={selectedDay} now={now} onPickDay={pickDay} />
+        </div>
+        <div className="flex min-w-0 flex-col [&>*]:flex-1">
           {rows.length === 0 ? (
-            <Card><CardContent className="text-muted-foreground py-6 text-sm">No eating days this week.</CardContent></Card>
+            <Card><CardContent className="text-muted-foreground py-6 text-sm">No eating days this week. Pick a day on the calendar.</CardContent></Card>
           ) : row && trip && av ? (
             <SelectedDelivery
               row={row}
@@ -188,73 +161,15 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
               editChoice={editChoice}
               release={av.move}
               readOnly={readOnly}
+              routing={routing}
               onDone={(m) => { setSel(row.date); done(m); }}
               onOpen={setDlg}
             />
           ) : (
-            <Card><CardContent className="text-muted-foreground py-6 text-sm">Nothing planned on {sel ? humanDate(sel) : "this day"}.</CardContent></Card>
+            <Card><CardContent className="text-muted-foreground py-6 text-sm">Nothing planned on {sel ? humanDate(sel) : "this day"}. Pick a day on the calendar.</CardContent></Card>
           )}
         </div>
-        <DeliveryMatrix agenda={agenda} firstWeek={firstWeek} lastWeek={lastWeek} week={weekStart} today={plan.today} selectedDay={row && sel !== row.trip.date ? row.date : sel} now={now} onPickDay={pickDay} />
       </div>
-
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <CardTitle className="text-base">
-            Eating days <span className="text-muted-foreground font-normal">· {humanDate(weekStart)} – {humanDate(weekEnd)}</span>
-          </CardTitle>
-          <div className="flex gap-1.5">
-            <Button variant="outline" size="sm" disabled={weekStart <= firstWeek} onClick={() => goWeek(addDays(weekStart, -7))}><ChevronLeft data-icon="inline-start" />Previous</Button>
-            <Button variant="outline" size="sm" disabled={weekStart >= lastWeek} onClick={() => goWeek(addDays(weekStart, 7))}>Next<ChevronRight data-icon="inline-end" /></Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <PagedTable
-            columns={[{ key: "day", label: "Eating day" }, { key: "delivery", label: "Delivery" }, { key: "id", label: "Delivery ID" }, { key: "tiffins", label: "Tiffins", className: "text-right" }, { key: "status", label: "Status" }]}
-            rows={scheduleRows}
-            rowKey={(x) => x.date}
-            selected={(x) => x.date === row?.date}
-            onRowClick={(x) => setSel(x.date)}
-            empty="No eating days this week."
-            renderRow={(x) => (
-              <>
-                <TableCell className="font-medium">{humanDate(x.date)}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {x.holiday ? "Kitchen closed" : x.truck ? <span className="inline-flex items-center gap-1.5"><Truck className="size-3.5" aria-hidden />Arrives {humanDate(x.deliveryDate)}</span> : x.moved ? `Moved to ${humanDate(x.deliveryDate)}` : `With ${humanDate(x.deliveryDate)} delivery`}
-                  {x.truck && trips.find((t) => t.date === x.deliveryDate)?.addressOverride && (
-                    <span className="ml-2 inline-flex items-center gap-1 text-xs" title="Sent to a different address than the plan"><MapPin className="size-3" aria-hidden />New address</span>
-                  )}
-                  {x.truck && trips.find((t) => t.date === x.deliveryDate)?.complimentaryNote != null && (
-                    <Badge variant="secondary" className="ml-2">Free</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="font-mono text-xs">{x.truck ? x.deliveryId ?? "" : ""}</TableCell>
-                <TableCell className="text-right tabular-nums">{x.truck ? x.units : ""}</TableCell>
-                <TableCell>
-                  <EatingDayStatus
-                    truck={x.truck}
-                    moved={!!x.moved}
-                    deliveryDate={x.deliveryDate}
-                    dot={dotStatus(x, now)}
-                    trips={trips}
-                    now={now}
-                    tz={tz}
-                    ctx={plan.ctx}
-                    canEdit={canEditDeliveryStatus}
-                    onRelease={() => {
-                      setSel(x.date);
-                      setDlg("reschedule");
-                    }}
-                    onDone={done}
-                  />
-                </TableCell>
-              </>
-            )}
-          />
-        </CardContent>
-      </Card>
-      </>
-      )}
 
       {resumeAsk && missed[0] && (
       <Dialog open onOpenChange={(o) => !o && setResumeAsk(false)}>
@@ -335,8 +250,9 @@ function statusChoice(trip: Trip): StatusValue | null {
 }
 
 function SelectedDelivery({
-  row, trip, plan, now, menuOut, weekStart, weekEnd, rows, tz, editChoice, release, readOnly, onDone, onOpen,
+  row, trip, plan, now, menuOut, weekStart, weekEnd, rows, tz, editChoice, release, readOnly, routing, onDone, onOpen,
 }: {
+  routing: OptimoRouteRow[];
   row: EatingRow;
   trip: Trip;
   plan: OrderWeek["plan"];
@@ -416,7 +332,7 @@ function SelectedDelivery({
           </div>
         ) : null}
         {!row.movedTo && !trip.holidayName && (
-          <div className="grid gap-6 border-t pt-5 sm:grid-cols-2">
+          <div className="grid gap-6 border-t pt-5">
             <section>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Meal</p>
@@ -456,48 +372,30 @@ function SelectedDelivery({
             <Actions model={model} onOpen={onOpen} hide={addressOk ? ["address"] : []} held={editChoice === "on_hold"} resuming={resuming} onResume={() => resume([trip.date])} onPause={pauseDay} />
           </div>
         )}
+        {trip.deliveryId ? <DeliveryMore orderId={plan.orderId} deliveryId={trip.deliveryId} route={routing.find((r) => r.publicId === trip.deliveryId)} /> : null}
       </CardContent>
     </Card>
   );
 }
 
-function agendaLabel(dot: string, moved: boolean): string {
-  if (moved) return "Moved";
-  switch (dot) {
-    case "delivered": return "Delivered";
-    case "hold": return "On hold";
-    case "paused": return "Paused";
-    case "holiday": return "Holiday";
-    case "upcoming": return "Upcoming";
-    default: return "Upcoming";
-  }
-}
-
-function EatingDayStatus({
-  truck, moved, deliveryDate, dot, trips, now, tz, ctx, canEdit, onRelease, onDone,
-}: {
-  tz: string;
-  ctx: PlanContext;
-  onRelease: () => void;
-  truck: boolean;
-  moved: boolean;
-  deliveryDate: string;
-  dot: string;
-  trips: Trip[];
-  now: number;
-  canEdit: boolean;
-  onDone: (message: string) => void;
-}) {
-  const tripRow = truck && !moved ? trips.find((t) => t.date === deliveryDate && t.deliveryId) : undefined;
-  const choice = tripRow ? statusChoice(tripRow) : null;
-  if (canEdit && tripRow?.deliveryId && choice) {
-    return (
-      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        <DeliveryStatusSelect deliveryId={tripRow.deliveryId} value={choice} cutoffPassed={tripRow.cutoffAt <= now} beforeDay={tripRow.date > zonedDateIso(now, tz)} release={actionAvailability(tripRow, now, ctx).move} onRelease={onRelease} onDone={onDone} />
-      </div>
-    );
-  }
-  return <Badge variant="outline">{agendaLabel(dot, moved)}</Badge>;
+// Rare tools, one level down: the delivery's ID and the OptimoRoute fallback for a sync that went wrong.
+function DeliveryMore({ orderId, deliveryId, route }: { orderId: string; deliveryId: string; route?: OptimoRouteRow }) {
+  return (
+    <Collapsible className="border-t pt-3">
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" size="sm" className="group -ml-2">
+          More
+          <ChevronDown data-icon="inline-end" className="transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="flex flex-col gap-3 pt-2">
+        <p className="text-muted-foreground text-sm">
+          Delivery ID <span className="text-foreground font-mono text-xs" data-testid="delivery-id">{deliveryId}</span>
+        </p>
+        {route ? <RouteControls orderId={orderId} row={route} /> : <p className="text-muted-foreground text-sm">Routing: only upcoming deliveries can be pushed to OptimoRoute.</p>}
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 function DeliveryStatusSelect({

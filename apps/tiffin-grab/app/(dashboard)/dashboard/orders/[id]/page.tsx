@@ -45,7 +45,6 @@ import { ComplimentaryControl } from "./complimentary-control";
 import { LookOutControl } from "./look-out-control";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
-import { OptimoRoutePanel } from "./optimoroute-panel";
 import { DeliveriesSection, loadSubscription } from "@/components/dashboard/deliveries-section";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { stageCards } from "./stage-cards";
@@ -437,12 +436,7 @@ async function OrderDetail({
           ),
           deliveries: (
             <>
-              <DeliveriesSection data={sub} />
-              {!sub.paymentReview && (
-                <SectionCard title="Routing" subtitle="Push or pull an upcoming delivery in OptimoRoute when the scheduled sync went wrong.">
-                  <OptimoRoutePanel orderId={order.publicId} rows={optimoRows} week={sub.week ? { start: sub.week.weekStart, first: sub.week.firstWeek, last: sub.week.lastWeek } : null} />
-                </SectionCard>
-              )}
+              <DeliveriesSection data={sub} routing={sub.paymentReview ? [] : optimoRows} />
             </>
           ),
           payments: (

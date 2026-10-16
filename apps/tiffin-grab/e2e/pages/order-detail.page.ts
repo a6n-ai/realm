@@ -39,7 +39,6 @@ export class OrderDetailPage {
     await expect(this.section("Pricing")).toBeVisible();
     await this.openTab("Deliveries");
     await expect(this.section("Deliveries")).toBeVisible();
-    await expect(this.section("Routing")).toBeVisible();
     await expect(this.page.getByRole("tab", { name: /^Meals/ })).toHaveCount(0);
     await this.openTab("Payments");
     await expect(this.section("Payments")).toBeVisible();
@@ -56,7 +55,7 @@ export class OrderDetailPage {
 
   async expectDeliveriesCalendar() {
     await this.openTab("Deliveries");
-    await expect(this.page.getByTestId("week-strip")).toBeVisible();
+    await expect(this.section("Deliveries").getByRole("grid")).toBeVisible();
   }
 
   async expectActivityFilters() {

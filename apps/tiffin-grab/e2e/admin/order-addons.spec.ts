@@ -171,15 +171,15 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
     await detail.openTab("Activity");
     await expect(page.getByText(/Add-ons added for the remaining \d+ tiffins/).first()).toBeVisible();
 
-    // Step through the plan's days until one with a released menu shows its meal block.
+    // Step through the plan's days on the month calendar until one with a released menu shows its meal block.
     await detail.openTab("Deliveries");
     const block = page.getByTestId("delivery-block");
-    const strip = page.getByTestId("week-timeline");
+    const calendar = page.getByRole("grid");
     await expect(block).toBeVisible();
     let checked = 0;
     let found = false;
-    for (let week = 0; week < 4 && !found; week++) {
-      const days = strip.getByRole("button", { name: /, eating, / }).filter({ hasNotText: /delivered/i });
+    for (let month = 0; month < 3 && !found; month++) {
+      const days = calendar.getByRole("button", { name: /^(Upcoming|Awaiting confirmation)/ });
       const n = await days.count();
       for (let i = 0; i < n && !found; i++) {
         await days.nth(i).click();
@@ -192,9 +192,8 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
           found = true;
         }
       }
-      const next = strip.getByRole("button", { name: "Next week" });
-      if (found || (await next.isDisabled())) break;
-      await next.click();
+      if (found) break;
+      await page.getByRole("button", { name: "Next", exact: true }).first().click();
     }
     if (!found) {
       test.info().annotations.push({ type: "skip-reason", description: `no upcoming day with a released menu among ${checked} checked; add-on tiles not asserted` });

@@ -41,13 +41,13 @@ test.describe("OptimoRoute live regression (local only, hits real API)", () => {
     const orderId = href!.match(/ord_[A-Za-z0-9_-]+/)![0];
     await page.goto(`/dashboard/orders/${orderId}?tab=deliveries`);
 
-    // --- Manual per-delivery push (order detail OptimoRoute panel) ---
-    const optimoCard = page
-      .getByRole("heading", { name: "Routing" })
-      .locator("xpath=ancestor::*[contains(@class,'rounded')][1]");
-    await expect(optimoCard).toBeVisible();
-    const firstPushButton = optimoCard.getByRole("button", { name: "Push" }).first();
-    const deliveryDate = (await firstPushButton.locator("xpath=ancestor::tr[1]").getAttribute("data-date"))!;
+    // --- Manual per-delivery push (the selected day's More section) ---
+    await page.getByRole("grid").getByRole("button", { name: /^Upcoming/ }).first().click();
+    await page.getByTestId("delivery-block").getByRole("button", { name: "More" }).click();
+    const routeControls = page.getByTestId("route-controls");
+    await expect(routeControls).toBeVisible();
+    const firstPushButton = routeControls.getByRole("button", { name: "Push" });
+    const deliveryDate = (await routeControls.getAttribute("data-date"))!;
     expect(deliveryDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
     await firstPushButton.click();

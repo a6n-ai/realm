@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries-view";
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { OrderWeekHub } from "../order-week-hub";
+import { BOX_LABEL, boxStatus } from "../order-month-calendar";
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -22,6 +23,21 @@ vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
 vi.mock("@/app/(dashboard)/dashboard/orders/[id]/actions", () => ({
   setDeliveryStatusAction: vi.fn(async () => ({ ok: true, message: "Delivery status updated" })),
 }));
+// The ReUI calendar is exercised in the browser; here a stub with one button per agenda day drives the hub.
+vi.mock("../order-month-calendar", async (orig) => {
+  const real = await orig<typeof import("../order-month-calendar")>();
+  return {
+    ...real,
+    OrderMonthCalendar: ({ agenda, now, selectedDay, onPickDay }: { agenda: Record<string, Parameters<typeof real.boxStatus>[0][]>; now: number; selectedDay: string | null; onPickDay: (iso: string) => void }) => (
+      <div data-testid="month-calendar">
+        {Object.entries(agenda).map(([d, ds]) => (
+          <button key={d} type="button" aria-pressed={d === selectedDay} onClick={() => onPickDay(d)}>{`${d}, ${real.BOX_LABEL[real.boxStatus(ds[0]!, now)]}`}</button>
+        ))}
+      </div>
+    ),
+  };
+});
+const pick = (iso: string) => fireEvent.click(within(screen.getByTestId("month-calendar")).getByRole("button", { name: new RegExp(`^${iso},`) }));
 afterEach(cleanup);
 
 const NOW = Date.parse("2026-09-21T12:00:00Z");
@@ -48,86 +64,55 @@ const data = {
   weekStart: "2026-09-21", firstWeek: "2026-09-21", lastWeek: "2026-10-05", now: NOW,
 } as unknown as OrderWeek;
 
-import { PagedTable } from "../paged-table";
-import { TableCell } from "@foundry/ui/table";
-
-describe("PagedTable (shadcn)", () => {
-  const rows = Array.from({ length: 23 }, (_, i) => ({ id: String(i + 1) }));
-  const table = () => render(<PagedTable columns={[{ key: "id", label: "ID" }]} rows={rows} rowKey={(r) => r.id} renderRow={(r) => <TableCell>{r.id}</TableCell>} empty="none" />);
-  it("paginates: 10 per page, next/prev, page size", () => {
-    table();
-    expect(screen.getAllByTestId("paged-row")).toHaveLength(10);
-    expect(screen.getByText(/1–10 of 23/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText(/11–20 of 23/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "3" }));
-    expect(screen.getAllByTestId("paged-row")).toHaveLength(3);
-    fireEvent.click(screen.getByRole("button", { name: "Prev" }));
-    expect(screen.getByText(/11–20 of 23/)).toBeInTheDocument();
-  });
-  it("shows the empty message", () => {
-    render(<PagedTable columns={[{ key: "id", label: "ID" }]} rows={[]} rowKey={() => "x"} renderRow={() => null} empty="No eating days scheduled." />);
-    expect(screen.getByText("No eating days scheduled.")).toBeInTheDocument();
-  });
-});
-
 describe("OrderWeekHub (admin, shadcn)", () => {
   it("menu not released: notice shows, but days stay listed and movable (customer parity)", () => {
     const out = { ...data, plan: { ...data.plan, days: [{ date: "2026-09-21", menuWeekId: null, meal: null }] } } as unknown as OrderWeek;
     render(<OrderWeekHub data={out} />);
     expect(screen.getByTestId("menu-not-released")).toHaveTextContent("Menu not released yet.");
     expect(screen.getByRole("button", { name: "Move to another day" })).toBeTruthy();
-    expect(screen.getByTestId("week-timeline")).toBeInTheDocument();
+    expect(screen.getByTestId("month-calendar")).toBeInTheDocument();
   });
-  it("the eating-days table lists only the selected week; Next moves the week", () => {
-    replace.mockClear();
-    render(<OrderWeekHub data={data} />);
-    expect(screen.getAllByTestId("paged-row").length).toBe(2);
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(replace.mock.calls[0]![0]).toContain("week=2026-09-28");
-  });
-  it("a free tiffin says so, with staff's note, in the day block and the eating-days table", () => {
+  it("a free tiffin says so, with staff's note, in the day panel", () => {
     render(<OrderWeekHub data={{ ...data, trips: [{ ...mon, complimentaryNote: "Missed Oct 5" }] } as OrderWeek} />);
     expect(screen.getByTestId("complimentary-note")).toHaveTextContent("Free tiffinMissed Oct 5");
-    expect(within(screen.getAllByTestId("paged-row")[0]!).getByText("Free")).toBeInTheDocument();
   });
-  it("a Mon trip feeds Mon and Tue; picking Tue in the strip names the delivery that carries it", () => {
+  it("a Mon trip feeds Mon and Tue; picking Tue on the calendar names the delivery that carries it", () => {
     render(<OrderWeekHub data={data} />);
-    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
+    pick("2026-09-22");
     const block = screen.getByTestId("delivery-block");
     expect(block).toHaveTextContent("Tue, Sep 22");
     expect(block).toHaveTextContent("Comes with the Mon, Sep 21 delivery");
     expect(block).toHaveTextContent("2 tiffins (1 Mon + 1 Tue)");
   });
-  it("matrix shows every week of the plan; a box in this week selects it, one in another week navigates there", () => {
+  it("the calendar is the only navigator: a day in this week selects it, one in another week navigates there and keeps the tab", () => {
     replace.mockClear();
     render(<OrderWeekHub data={data} />);
-    const matrix = within(screen.getByTestId("delivery-matrix"));
-    expect(matrix.getByText(/2 deliveries · 3 weeks/)).toBeInTheDocument();
-    expect(matrix.getAllByRole("button")).toHaveLength(3);
-    fireEvent.click(matrix.getByRole("button", { name: /Tuesday, September 22, Upcoming$/ }));
+    expect(screen.queryByTestId("week-timeline")).toBeNull();
+    pick("2026-09-22");
     expect(screen.getByTestId("delivery-block")).toHaveTextContent("Tue, Sep 22");
-    fireEvent.click(matrix.getByRole("button", { name: /Monday, October 5, Upcoming, delivery with 1 tiffin/ }));
+    expect(within(screen.getByTestId("month-calendar")).getByRole("button", { name: /^2026-09-22,/ })).toHaveAttribute("aria-pressed", "true");
+    expect(replace).not.toHaveBeenCalled();
+    pick("2026-10-05");
     expect(replace.mock.calls[0]![0]).toContain("week=2026-10-05");
     expect(replace.mock.calls[0]![0]).toContain("trip=2026-10-05");
+    expect(replace.mock.calls[0]![0]).toContain("tab=deliveries");
   });
-  it("matrix uses the status dropdown's states: awaiting confirmation past the cutoff, and OptimoRoute's not delivered apart from an admin hold", () => {
-    const dot = (date: string, over: object) => [{ orderId: "o", status: "scheduled", cutoffAt: NOW - 1, deliveryDate: date, truck: true, units: 1, covers: [date], ...over }];
-    const agenda = {
-      "2026-09-21": dot("2026-09-21", {}),
-      "2026-09-22": dot("2026-09-22", { status: "skipped", optimoCompletionStatus: "failed" }),
-      "2026-09-23": dot("2026-09-23", { status: "skipped" }),
-    };
-    render(<OrderWeekHub data={{ ...data, agenda } as unknown as OrderWeek} />);
-    const matrix = within(screen.getByTestId("delivery-matrix"));
-    expect(matrix.getByRole("button", { name: /September 21, Awaiting confirmation/ })).toBeInTheDocument();
-    expect(matrix.getByRole("button", { name: /September 22, Not delivered/ })).toBeInTheDocument();
-    expect(matrix.getByRole("button", { name: /September 23, On hold/ })).toBeInTheDocument();
+  it("calendar chips use the status dropdown's states: awaiting past the cutoff, OptimoRoute's not delivered apart from a hold, Paused, Holiday", () => {
+    const dot = (over: object) => ({ orderId: "o", status: "scheduled", cutoffAt: NOW - 1, deliveryDate: "2026-09-21", truck: true, units: 1, covers: [], ...over }) as Parameters<typeof boxStatus>[0];
+    const label = (over: object) => BOX_LABEL[boxStatus(dot(over), NOW)];
+    expect(label({})).toBe("Awaiting confirmation");
+    expect(label({ cutoffAt: NOW + 1 })).toBe("Upcoming");
+    expect(label({ status: "skipped", optimoCompletionStatus: "failed" })).toBe("Not delivered");
+    expect(label({ status: "skipped" })).toBe("On hold");
+    expect(label({ status: "paused" })).toBe("Paused");
+    expect(label({ status: "paused", holiday: "Diwali" })).toBe("Holiday");
   });
-  it("strip marks the delivery day; no separate next-delivery banner (the card is the delivery)", () => {
-    render(<OrderWeekHub data={data} />);
-    expect(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Monday, September 21, eating, .*delivery arrives/ })).toBeInTheDocument();
-    expect(screen.queryByTestId("next-delivery")).toBeNull();
+  it("More shows the delivery ID and the OptimoRoute push for that day", () => {
+    render(<OrderWeekHub data={data} routing={[{ publicId: "d1", deliveryDate: "2026-09-21", status: "scheduled", routeDriverName: null, routeSyncedAt: null }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByTestId("delivery-id")).toHaveTextContent("d1");
+    expect(within(screen.getByTestId("route-controls")).getByRole("button", { name: "Push" })).toBeEnabled();
+    expect(within(screen.getByTestId("route-controls")).getByRole("button", { name: "Remove" })).toBeDisabled();
   });
   it("offers the customer's three actions (Edit meal, Move, Change address), no Swap or Hold; Move opens an eating-day picker", () => {
     render(<OrderWeekHub data={data} />);
@@ -144,8 +129,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     for (const name of ["Edit meal", "Change address", "Move to another day", "Pause multiple days"]) {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
-    // No delivery status select: the only dropdown left is the table's page size.
-    expect(screen.queryAllByRole("combobox").map((c) => c.getAttribute("aria-label"))).toEqual(["Rows per page"]);
+    expect(screen.queryAllByRole("combobox")).toEqual([]);
   });
   it("reschedule shows all eating days in a week picker (week label + arrows); the delivery day is chosen automatically", () => {
     const d2 = { ...data, plan: { ...data.plan, ctx: { ...data.plan.ctx, deliveryWeekdays: ["mon", "tue", "wed", "thu", "fri"] } } } as unknown as OrderWeek;
@@ -164,7 +148,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
   });
   it("info button explains the trip", () => {
     render(<OrderWeekHub data={data} />);
-    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Tuesday, September 22/ }));
+    pick("2026-09-22");
     fireEvent.click(screen.getByRole("button", { name: "Details for Tue, Sep 22" }));
     expect(screen.getByRole("dialog", { name: /Tue, Sep 22 · meal/ })).toBeInTheDocument();
   });
@@ -172,14 +156,6 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     render(<OrderWeekHub data={data} canEditDeliveryStatus />);
     expect(screen.getAllByRole("combobox", { name: "Delivery status" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("combobox", { name: "Delivery status" })[0]).toHaveTextContent("Upcoming");
-  });
-  it("next week arrow updates ?week via router.replace", () => {
-    replace.mockClear();
-    render(<OrderWeekHub data={data} />);
-    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
-    expect(replace.mock.calls[0]![0]).toContain("week=2026-09-28");
-    // The open admin tab survives a week change.
-    expect(replace.mock.calls[0]![0]).toContain("tab=deliveries");
   });
 
   it("pause is the same control; on hold appears only for an admin", () => {
@@ -200,14 +176,6 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     render(<OrderWeekHub data={heldData} canEditDeliveryStatus />);
     expect(screen.getByRole("button", { name: "Release hold to a new day" })).toBeTruthy();
     expect(screen.getAllByRole("combobox", { name: "Delivery status" }).length).toBeGreaterThan(0);
-  });
-  it("staff wording for a hold in the eating-days table is On hold, a paused day says Paused", () => {
-    const row = (status: string) => [{ orderId: "o", status, cutoffAt: NOW - 3600e3, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"], deliveryId: "x" }];
-    render(<OrderWeekHub data={{ ...data, agenda: { ...data.agenda, "2026-09-21": row("skipped") } } as unknown as OrderWeek} />);
-    expect(within(screen.getAllByTestId("paged-row")[0]!).getByText("On hold")).toBeInTheDocument();
-    cleanup();
-    render(<OrderWeekHub data={{ ...data, agenda: { ...data.agenda, "2026-09-21": row("paused") } } as unknown as OrderWeek} />);
-    expect(within(screen.getAllByTestId("paged-row")[0]!).getByText("Paused")).toBeInTheDocument();
   });
   describe("pause", () => {
     const paused = { ...mon, status: "paused" as const, deliveryId: "d1" };
@@ -279,20 +247,11 @@ describe("OrderWeekHub (admin, shadcn)", () => {
 });
 
 describe("OrderWeekHub on a holiday", () => {
-  it("labels a closed day Holiday, never Upcoming", () => {
-    const agenda = { "2026-09-21": [{ orderId: "o", status: "paused", cutoffAt: NOW + 1000, deliveryDate: "2026-09-21", truck: false, units: 1, covers: ["2026-09-21"], holiday: "Diwali" }] };
-    render(<OrderWeekHub data={{ ...data, agenda } as unknown as OrderWeek} />);
-    const row = screen.getAllByTestId("paged-row")[0]!;
-    expect(row).toHaveTextContent("Holiday");
-    expect(row).not.toHaveTextContent("Upcoming");
-    expect(row).not.toHaveTextContent(/With .* delivery|Arrives/);
-  });
-
   it("the selected closed day shows the holiday note for staff, and a held one says to place it", () => {
     const heldDot = { orderId: "o", status: "skipped", cutoffAt: NOW - 1000, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"], holiday: "Thanksgiving" };
     const held: Trip = { ...mon, status: "failed", coversDates: ["2026-09-21"], eatingDays: [mon.eatingDays[0]!], holidayName: "Thanksgiving", cutoffAt: NOW - 1000 };
     render(<OrderWeekHub data={{ ...data, trips: [held], agenda: { "2026-09-21": [heldDot] } } as unknown as OrderWeek} />);
-    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Monday, September 21/ }));
+    pick("2026-09-21");
     const block = screen.getByTestId("delivery-block");
     expect(within(block).getByTestId("holiday-note")).toHaveTextContent("Holiday: Thanksgiving");
     expect(within(block).getByTestId("holiday-note")).toHaveTextContent("The kitchen was closed that day. Place this tiffin on another day.");
@@ -304,7 +263,7 @@ describe("OrderWeekHub on a holiday", () => {
     const heldDot = { orderId: "o", status: "skipped", cutoffAt: NOW - 1000, deliveryDate: "2026-09-21", truck: true, units: 1, covers: ["2026-09-21"], holiday: "Thanksgiving" };
     const held: Trip = { ...mon, status: "failed", coversDates: ["2026-09-21"], eatingDays: [mon.eatingDays[0]!], holidayName: "Thanksgiving", cutoffAt: NOW - 1000 };
     render(<OrderWeekHub canEditDeliveryStatus data={{ ...data, trips: [held], agenda: { "2026-09-21": [heldDot] } } as unknown as OrderWeek} />);
-    fireEvent.click(within(screen.getByTestId("week-timeline")).getByRole("button", { name: /Monday, September 21/ }));
+    pick("2026-09-21");
     const block = screen.getByTestId("delivery-block");
     expect(within(block).queryByRole("combobox")).toBeNull();
     expect(block).toHaveTextContent("Holiday");

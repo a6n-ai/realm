@@ -140,11 +140,10 @@ export const ADMIN_SHEET_UI: SheetUi = {
     </Tabs>
   ),
   ChoiceRow,
+  // The shared sheet wraps sections in a clipped, divided, rounded list: pad inside it so option
+  // borders and the selected ring are never cut, and let each row's own label name it (no second heading).
   CategorySection: ({ label, children }) => (
-    <section aria-label={label} className="grid gap-3 border-t pt-4 first:border-t-0 first:pt-0">
-      <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{label}</h4>
-      <div className="grid gap-4">{children}</div>
-    </section>
+    <section aria-label={label} className="grid gap-4 p-4">{children}</section>
   ),
   OptionCard: ({ selected, className, children, type = "button", ...rest }) => (
     <button
