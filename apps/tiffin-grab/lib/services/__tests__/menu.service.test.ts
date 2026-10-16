@@ -60,6 +60,7 @@ describe("menuService (integration)", () => {
     await menuService.reorderItems({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", orderedItemIds: [i2!.publicId, i1!.publicId] });
 
     expect(await menuService.getPublishedWeek("2099-01-19")).toBeNull();
+    await menuService.markReady(w.publicId);
     await menuService.release(w.publicId);
     const pub = await menuService.getPublishedWeek("2099-01-19");
     expect(pub!.weekStart).toBe("2099-01-19");
@@ -68,9 +69,18 @@ describe("menuService (integration)", () => {
     expect(mon.map((x) => x.dishName)).toEqual(["Dal", "Paneer"]);
   });
 
+  it("refuses to release a draft: it has to be marked ready first", async () => {
+    const w = await menuService.upsertWeek({ weekStart: "2099-07-06" });
+    await expect(menuService.release(w.publicId)).rejects.toThrow("Mark the menu ready before releasing it");
+    await menuService.markReady(w.publicId);
+    await menuService.release(w.publicId);
+    expect((await menuService.getReleasedWeek("2099-07-06"))?.publicId).toBe(w.publicId);
+  });
+
   it("getReleasedWeek / getReleasedWeeks only return exact released weekStarts", async () => {
     const draft = await menuService.upsertWeek({ weekStart: "2099-05-03" });
     const released = await menuService.upsertWeek({ weekStart: "2099-05-10" });
+    await menuService.markReady(released.publicId);
     await menuService.release(released.publicId);
 
     expect(await menuService.getReleasedWeek("2099-05-03")).toBeNull(); // draft
@@ -92,6 +102,7 @@ describe("menuService (integration)", () => {
     await attachDishToPlans(d.id);
     const w = await menuService.upsertWeek({ weekStart: "2099-06-01" });
     await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d.publicId, position: 0 });
+    await menuService.markReady(w.publicId);
     await menuService.release(w.publicId);
 
     // No organizationId — existing unscoped behavior, untouched.

@@ -92,6 +92,7 @@ describe("ensure current menu week", () => {
       }
 
       if (row!.status !== "released") {
+        if (row!.status === "draft") await menuService.markReady(week.publicId);
         await menuService.release(week.publicId);
       } else {
         await menuService.evictPublishedCache();

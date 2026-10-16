@@ -71,6 +71,7 @@ describe("menuService release gate", () => {
     const problems = await menuService.releaseProblems(week.publicId);
     expect(problems.some((p) => p.categoryLabel.toLowerCase().includes("sabzi"))).toBe(true);
 
+    await menuService.markReady(week.publicId);
     await menuService.release(week.publicId);
     const [stored] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, week.publicId));
     expect(stored.status).toBe("released");

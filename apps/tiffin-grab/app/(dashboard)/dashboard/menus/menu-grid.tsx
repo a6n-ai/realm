@@ -34,6 +34,8 @@ export type GridProblem = {
   dishNames: string[];
 };
 export type CellRef = { day: DayOfWeek; slotKey: string };
+/** A side item row: what it packs each day, and whether a day was changed from its default. */
+export type SideRow = { key: string; label: string; sub: string; cell: (day: DayOfWeek) => { text: string; changed: boolean } };
 
 const CREATE_VALUE = "__create__";
 
@@ -72,8 +74,9 @@ export function cellWarning(slot: Slot, needed: number, count: number, verdict?:
  * shows its default dish plus how many more. Read-only; clicking a cell opens it in the panel.
  */
 export function MenuGrid({
-  slots, rows, dishes, categoryCounts, problems, selected, onSelect,
+  slots, rows, dishes, categoryCounts, problems, selected, onSelect, sideRows = [],
 }: {
+  sideRows?: SideRow[];
   slots: Slot[];
   rows: GridRow[];
   dishes: GridDish[];
@@ -87,7 +90,7 @@ export function MenuGrid({
 
   return (
     <div className="bg-card overflow-x-auto rounded-xl border" data-testid="menu-grid">
-      <div className="grid min-w-[44rem]" style={{ gridTemplateColumns: `minmax(7rem, 9rem) repeat(${DAYS.length}, minmax(0, 1fr))` }}>
+      <div className="grid min-w-[38rem]" style={{ gridTemplateColumns: `minmax(7rem, 9rem) repeat(${DAYS.length}, minmax(0, 1fr))` }}>
         <div className="text-muted-foreground border-e border-b p-2 text-xs font-medium">Category · Plan</div>
         {DAYS.map((day) => (
           <div key={day} className="border-b p-2 text-xs font-semibold">{DAY_LABELS[day].slice(0, 3)}</div>
@@ -137,6 +140,40 @@ export function MenuGrid({
             </div>
           );
         })}
+
+        {sideRows.length > 0 && (
+          <div className="bg-muted/40 text-muted-foreground col-span-full border-b px-2 py-1.5 text-xs font-semibold tracking-wider uppercase">
+            Side dishes
+          </div>
+        )}
+        {sideRows.map((side) => (
+          <div key={side.key} className="contents">
+            <div className="border-e border-b p-2">
+              <p className="text-sm font-medium text-pretty">{side.label}</p>
+              <p className="text-muted-foreground line-clamp-2 text-xs">{side.sub}</p>
+            </div>
+            {DAYS.map((day) => {
+              const { text, changed } = side.cell(day);
+              const isSelected = selected?.day === day && selected.slotKey === side.key;
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  aria-pressed={isSelected}
+                  aria-label={`${DAY_LABELS[day]}, ${side.label}: packs ${text}${changed ? ", changed for this day" : ""}`}
+                  onClick={() => onSelect({ day, slotKey: side.key })}
+                  className={cn(
+                    "flex min-h-14 flex-col items-start gap-1 border-b p-1.5 text-left text-xs transition-colors hover:bg-muted/50",
+                    isSelected && "bg-primary/10 ring-primary ring-2 ring-inset",
+                  )}
+                >
+                  <span className="text-muted-foreground line-clamp-2">{text}</span>
+                  {changed && <span className="text-warning-foreground dark:text-warning font-medium">Changed</span>}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -113,12 +113,22 @@ describe("MenuBuilder rigorous button events & error handling", () => {
     });
   });
 
+  it("a draft can only be marked ready; Release appears once the week is ready", () => {
+    render(<MenuBuilder {...dummyProps} />);
+    expect(screen.getByRole("button", { name: "Mark ready" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Release menu" })).toBeNull();
+    cleanup();
+    render(<MenuBuilder {...dummyProps} week={{ ...baseWeek, status: "ready" }} />);
+    expect(screen.getByRole("button", { name: "Release menu" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Mark ready" })).toBeNull();
+  });
+
   it("handles 'Release menu' button click when release fails with unexpected error", async () => {
     mockReleaseWeek.mockResolvedValueOnce({
       error: "Unable to complete request. Please try again.",
     });
 
-    render(<MenuBuilder {...dummyProps} />);
+    render(<MenuBuilder {...dummyProps} week={{ ...baseWeek, status: "ready" }} />);
 
     const releaseBtn = screen.getByRole("button", { name: "Release menu" });
     fireEvent.click(releaseBtn);

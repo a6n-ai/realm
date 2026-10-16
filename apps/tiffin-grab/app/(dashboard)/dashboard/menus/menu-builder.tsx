@@ -14,6 +14,7 @@ import { DAYS, DAY_LABELS, type DayOfWeek, type PosterItem } from "@/lib/menu/po
 import type { MealTypeConfig } from "@/lib/menu/meal-types";
 import { findSimilarDishes } from "@/lib/menu/similar-dishes";
 import { CellPanel, cellWarning, MenuGrid, problemsByCell, rowsOf, type CellRef, type Slot } from "./menu-grid";
+import { SidePanel, sideKey, sideLabel, useSides, type DayDish, type SidesInput } from "./side-dishes-card";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@foundry/ui/sheet";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle } from "@/components/reui/stepper";
 import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek } from "./actions";
@@ -50,8 +51,10 @@ const toRows = (items: Item[]): Row[] =>
 const signature = (rows: Row[]) => JSON.stringify(rows.map((r) => [r.id, r.dayOfWeek, r.slot, r.dishId, r.isDefault]));
 
 export function MenuBuilder({
-  mealType, slots, plans, categoryCounts, dishes, week, items, copySources, problems,
+  mealType, slots, plans, categoryCounts, dishes, week, items, copySources, problems, sides: sidesInput,
 }: {
+  /** Side items (Side 1/2) of meal sizes; their rows sit under the grid and edit in the same panel. */
+  sides?: SidesInput;
   mealType: MealTypeConfig;
   slots: Slot[];
   plans: Plan[];
@@ -285,13 +288,32 @@ export function MenuBuilder({
         ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
         : "All changes saved";
 
+  // The day's dishes from the working copy, so a side shows what it will pack before the menu is saved.
+  const dayDishes = useMemo(() => {
+    const out: Partial<Record<DayOfWeek, DayDish[]>> = {};
+    for (const r of rows) {
+      const d = dishById.get(r.dishId);
+      if (!d) continue;
+      const list = (out[r.dayOfWeek] ??= []);
+      if (!list.some((x) => x.publicId === d.id)) list.push({ publicId: d.id, name: d.name, category: r.slot, isDefault: r.isDefault });
+    }
+    return out;
+  }, [rows, dishById]);
+  const sides = useSides(sidesInput, dayDishes);
+  const sideRows = sides.slots.map((slot) => ({
+    key: sideKey(slot),
+    label: sideLabel(slot),
+    sub: slot.meals.join(" · "),
+    cell: (day: DayOfWeek) => (dayDishes[day]?.length ? { text: sides.packs(day, slot), changed: sides.changed(day, slot) } : { text: "—", changed: false }),
+  }));
+
   // Where the week stands, said once: the stepper shows the lifecycle, this line what it means now.
   // One past the last step marks a released week complete.
   const stage = isReleased ? 4 : isReady ? 2 : 1;
   const stageLine = isDraft
-    ? `${statusLabel}. A draft is not on the website.`
+    ? `${statusLabel}. A draft is not on the website: mark it ready when it is complete, then release it.`
     : isReady
-      ? "Reviewed and frozen. Not on the website yet."
+      ? "Reviewed and frozen. Release it to put it on the website, or go back to draft to change it."
       : amending
         ? `Amending: ${saving ? "saving…" : dirty ? "unpublished changes" : "no changes yet"}. Changes go live only when you publish.`
         : "Live on the website.";
@@ -301,6 +323,7 @@ export function MenuBuilder({
   // The panel's cell: the admin's pick, else the first gap to fix, else Monday's first slot.
   const cell = selected ?? firstGap ?? (slots[0] ? { day: DAYS[0]!, slotKey: slots[0].key } : null);
   const cellSlot = cell ? slots.find((s) => s.key === cell.slotKey) ?? null : null;
+  const sideSlot = cell ? sides.slots.find((s) => sideKey(s) === cell.slotKey) ?? null : null;
   const cellRows = cell && cellSlot ? rowsOf(rows, dishById, cell.day, cellSlot) : [];
   const cellNeeded = cellSlot ? categoryCounts[cellSlot.key] ?? 0 : 0;
 
@@ -343,9 +366,13 @@ export function MenuBuilder({
           {isDraft && (
             <>
               <Button variant="outline" disabled={saving || !dirty} onClick={() => void save()}>Save</Button>
-              <Button variant="outline" disabled={pending || saving || dirty || rows.length === 0}
-                title={dirty ? "Save first" : undefined}
+              {/* Ready comes before release: it saves what is pending, then freezes the week for review. */}
+              <Button disabled={pending || saving || rows.length === 0}
                 onClick={() => run(async () => {
+                  if (dirty) {
+                    const saved = await save();
+                    if (!saved) return;
+                  }
                   const res = await markReady(week.id);
                   if ("error" in res) { setError(sanitizeClientError(res.error)); return; }
                   router.refresh();
@@ -364,7 +391,7 @@ export function MenuBuilder({
               Back to draft
             </Button>
           )}
-          {(isDraft || isReady) && (
+          {isReady && (
             <Button disabled={pending || saving || rows.length === 0} onClick={handleRelease}>Release menu</Button>
           )}
           {isReleased && !amending && <Button variant="outline" onClick={() => setAmending(true)}>Amend</Button>}
@@ -403,9 +430,12 @@ export function MenuBuilder({
           problems={isReleased ? [] : problems}
           selected={cell}
           onSelect={setSelected}
+          sideRows={sideRows}
         />
         <div className="lg:sticky lg:top-4">
-          {cell && cellSlot ? (
+          {cell && sideSlot ? (
+            <SidePanel day={cell.day} slot={sideSlot} sides={sides} dishesOfDay={dayDishes[cell.day] ?? []} />
+          ) : cell && cellSlot ? (
             <CellPanel
               day={cell.day}
               slot={cellSlot}
@@ -425,7 +455,7 @@ export function MenuBuilder({
           ) : (
             <p className="text-muted-foreground rounded-xl border p-4 text-sm">No slots to fill. Add meal sizes in the Catalog first.</p>
           )}
-          {isReleased && !amending && <p className="text-muted-foreground mt-2 text-xs">Released menus are read-only. Use Amend to change them.</p>}
+          {isReleased && !amending && !sideSlot && <p className="text-muted-foreground mt-2 text-xs">Released menus are read-only. Use Amend to change them.</p>}
         </div>
       </div>
 

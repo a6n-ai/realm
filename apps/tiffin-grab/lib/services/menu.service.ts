@@ -437,6 +437,9 @@ export const menuService = {
     const [week] = await db.select({ status: menuWeeks.status }).from(menuWeeks).where(eq(menuWeeks.publicId, weekPublicId)).limit(1);
     if (!week) throw new ValidationError("Week not found");
     if (week.status === "released") throw new ValidationError("This menu is already released");
+    // Release is the second step: staff mark the week ready (reviewed and frozen) first, so a
+    // half-built draft can never go live in one click.
+    if (week.status !== "ready") throw new ValidationError("Mark the menu ready before releasing it");
 
     // Gaps (missing categories / surplus on a fixed slot) stay as builder warnings via
     // releaseProblems — they do not block going live. Kitchen/ops may ship a partial week

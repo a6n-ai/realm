@@ -133,6 +133,7 @@ describe("menuService.saveWeek", () => {
   });
 
   it("rejects any save on a released week", async () => {
+    await menuService.markReady(weekId);
     await menuService.release(weekId);
     const [w] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, weekId));
     await expect(menuService.saveWeek({
@@ -173,6 +174,7 @@ describe("menuService.copyWeek", () => {
       items: [{ id: null, dayOfWeek: "mon", slot: "sabzi", dishId: paneer, isDefault: false }],
     });
     const target = await draftWeek("2099-08-10");
+    await menuService.markReady(target.id);
     await menuService.release(target.id);
     await expect(menuService.copyWeek({ fromWeekId: source.id, toWeekId: target.id })).rejects.toThrow(/released/i);
   });
