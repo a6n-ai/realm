@@ -107,6 +107,14 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     expect(label({ status: "paused" })).toBe("Paused");
     expect(label({ status: "paused", holiday: "Diwali" })).toBe("Holiday");
   });
+  it("the day's stepper shows its stage and what each stop is waiting on, with the driver once routed", () => {
+    render(<OrderWeekHub data={data} routing={[{ publicId: "d1", deliveryDate: "2026-09-21", status: "scheduled", routeDriverName: "Ravi", routeSyncedAt: 1 }]} />);
+    const journey = screen.getByTestId("journey");
+    expect(journey).toHaveAttribute("aria-label", "Scheduled delivery");
+    expect(journey).toHaveTextContent("Changes until");
+    expect(journey).toHaveTextContent("Driver Ravi");
+    expect(journey).toHaveTextContent("Due Mon, Sep 21");
+  });
   it("More shows the delivery ID and the OptimoRoute push for that day", () => {
     render(<OrderWeekHub data={data} routing={[{ publicId: "d1", deliveryDate: "2026-09-21", status: "scheduled", routeDriverName: null, routeSyncedAt: null }]} />);
     fireEvent.click(screen.getByRole("button", { name: "More" }));

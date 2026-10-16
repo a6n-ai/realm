@@ -18,9 +18,10 @@ import { actionAvailability, humanDate, type Availability, type Trip, type TripA
 import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
 import { addDays, mondayOf, pausedAhead, pausedPast } from "@/lib/deliveries-view/week";
 import type { OrderWeek } from "@/lib/services/order-week.service";
-import { cutoffFmt, dedupeDishes, Journey, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
+import { dedupeDishes, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
 import { OrderMonthCalendar } from "./order-month-calendar";
+import { DeliveryStepper } from "./delivery-stepper";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { RouteControls, type OptimoRouteRow } from "@/app/(dashboard)/dashboard/orders/[id]/optimoroute-panel";
 import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
@@ -292,7 +293,6 @@ function SelectedDelivery({
   const carried = trip.date !== row.date;
   const meta = [
     carried ? `${trip.status === "delivered" ? "Came" : "Comes"} with the ${humanDate(trip.date)} delivery` : null,
-    trip.status === "upcoming" && trip.cutoffAt ? `Changes until ${cutoffFmt(trip.cutoffAt, tz)}` : null,
   ].filter(Boolean).join(" · ");
   const chips = moveChips(row, true);
   const note = dayNote(row, true);
@@ -320,7 +320,7 @@ function SelectedDelivery({
         )}
       </CardHeader>
       <CardContent className="space-y-6">
-        {!row.movedTo && <div className="max-w-xl"><Journey status={trip.status} pushed={trip.routePushed} /></div>}
+        {!row.movedTo && <DeliveryStepper trip={trip} now={now} tz={tz} driver={routing.find((r) => r.publicId === trip.deliveryId)?.routeDriverName} />}
         {note.length > 0 ? (
           <div className="text-muted-foreground space-y-0.5 break-words text-sm" data-testid="holiday-note">
             {note.map((l) => <p key={l}>{l}</p>)}
