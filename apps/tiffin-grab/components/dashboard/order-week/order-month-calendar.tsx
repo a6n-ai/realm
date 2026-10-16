@@ -92,9 +92,10 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
         return units > 0 ? (
           <>
             {defaultContent}
-            <span className="text-muted-foreground pointer-events-none absolute bottom-1.5 left-2 inline-flex items-center gap-1 text-xs tabular-nums">
+            {/* Same row box as the day number (h-5, pb-1.5) so the two sit on one line. */}
+            <span className="text-muted-foreground pointer-events-none absolute bottom-1.5 left-2 inline-flex h-5 items-center gap-1 tabular-nums" aria-label={`Delivery, ${units} ${units === 1 ? "tiffin" : "tiffins"}`}>
               <Truck className="size-3.5" aria-hidden />
-              {units} {units === 1 ? "tiffin" : "tiffins"}
+              {units}
             </span>
           </>
         ) : defaultContent;
@@ -104,7 +105,7 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
       <EventCalendarNav showViewSwitcher={false} />
       <EventCalendarContent />
       <p className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 px-1 pt-2 text-xs">
-        <span className="inline-flex items-center gap-1"><Truck className="size-3.5" aria-hidden />Delivery day, tiffins on that delivery</span>
+        <span className="inline-flex items-center gap-1"><Truck className="size-3.5" aria-hidden />Delivery day, with the number of tiffins it brings</span>
         <span>Days with a chip but no truck are eaten from an earlier delivery.</span>
       </p>
     </EventCalendar>
