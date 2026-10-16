@@ -11,8 +11,6 @@ import { Button } from "@foundry/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";
 import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
 import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
 import { actionAvailability, humanDate, type Availability, type Trip, type TripAction } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, tiffinBreakdown, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
@@ -20,8 +18,9 @@ import { addDays, mondayOf, pausedAhead, pausedPast } from "@/lib/deliveries-vie
 import type { OrderWeek } from "@/lib/services/order-week.service";
 import { dedupeDishes, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds";
-import { OrderMonthCalendar } from "./order-month-calendar";
+import { boxStatus, OrderMonthCalendar } from "./order-month-calendar";
 import { DeliveryStepper } from "./delivery-stepper";
+import { DeliveryStatusCard, type StatusValue } from "./delivery-status-card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { RouteControls, type OptimoRouteRow } from "@/app/(dashboard)/dashboard/orders/[id]/optimoroute-panel";
 import { AddressSheet } from "@/components/customer/deliveries/actions/address-sheet";
@@ -95,6 +94,13 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
     if (msg) router.refresh();
   };
   // Plan-wide resume. A paused day past its cutoff can't come back: say so first, so its tiffin isn't forgotten.
+  // Delivery days whose date has come but nobody has confirmed: the first thing staff should settle.
+  const waiting = Object.entries(agenda)
+    .filter(([date, ds]) => date <= plan.today && ds.some((d) => d.truck && boxStatus(d, now) === "awaiting"))
+    .map(([date]) => date)
+    .sort();
+  // The banner walks the list: the first waiting day other than the one already open.
+  const nextWaiting = waiting.find((d) => d !== selectedDay) ?? null;
   const ahead = pausedAhead(agenda, now);
   const missed = pausedPast(agenda, now);
   const canResumeAll = ahead > 0 || missed.length > 0;
@@ -136,6 +142,12 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
         )}
       </div>
 
+      {canEditDeliveryStatus && waiting.length > 0 && (
+        <div data-testid="needs-action" className="border-primary/30 bg-primary/5 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
+          <span><span className="font-medium">{waiting.length === 1 ? "1 delivery is" : `${waiting.length} deliveries are`} waiting for confirmation.</span> Mark each one delivered or not delivered.</span>
+          {nextWaiting && <Button type="button" variant="outline" size="sm" onClick={() => pickDay(nextWaiting)}>Show {humanDate(nextWaiting)}</Button>}
+        </div>
+      )}
       {menuOut && (
         <p data-testid="menu-not-released" className="bg-muted/50 text-muted-foreground rounded-lg border px-3 py-2 text-sm"><span className="text-foreground font-medium">Menu not released yet.</span> Dish picks open once the kitchen releases this week&apos;s menu; days can still be moved or re-addressed.</p>
       )}
@@ -221,7 +233,6 @@ const OPENS: Record<TripAction, Dlg> = { pick: "pick", move: "reschedule", addre
 
 // "not_delivered" only comes from OptimoRoute (driver marked the drop failed); staff put a day
 // "on_hold", which the server stores the same way (skipped, tiffin back to the pool).
-type StatusValue = "upcoming" | "delivered" | "on_hold" | "not_delivered" | "paused";
 
 function statusChoice(trip: Trip): StatusValue | null {
   // A holiday-closed day is placed or moved, never set to a status: the server refuses Upcoming on it.
@@ -313,14 +324,13 @@ function SelectedDelivery({
             </p>
           )}
         </div>
-        {editChoice && trip.deliveryId ? (
-          <DeliveryStatusSelect deliveryId={trip.deliveryId} value={editChoice} cutoffPassed={trip.cutoffAt <= now} beforeDay={trip.date > zonedDateIso(now, tz)} release={release} onRelease={() => onOpen("reschedule")} onDone={onDone} />
-        ) : (
-          <Badge variant="outline">{rowMeta(row).label}</Badge>
-        )}
+        {!(editChoice && trip.deliveryId) && <Badge variant="outline">{rowMeta(row).label}</Badge>}
       </CardHeader>
       <CardContent className="space-y-6">
         {!row.movedTo && <DeliveryStepper trip={trip} now={now} tz={tz} driver={routing.find((r) => r.publicId === trip.deliveryId)?.routeDriverName} />}
+        {editChoice && trip.deliveryId ? (
+          <DeliveryStatusCard deliveryId={trip.deliveryId} value={editChoice} trip={trip} now={now} beforeDay={trip.date > zonedDateIso(now, tz)} release={release} onRelease={() => onOpen("reschedule")} onDone={onDone} />
+        ) : null}
         {note.length > 0 ? (
           <div className="text-muted-foreground space-y-0.5 break-words text-sm" data-testid="holiday-note">
             {note.map((l) => <p key={l}>{l}</p>)}
@@ -395,86 +405,6 @@ function DeliveryMore({ orderId, deliveryId, route }: { orderId: string; deliver
         {route ? <RouteControls orderId={orderId} row={route} /> : <p className="text-muted-foreground text-sm">Routing: only upcoming deliveries can be pushed to OptimoRoute.</p>}
       </CollapsibleContent>
     </Collapsible>
-  );
-}
-
-function DeliveryStatusSelect({
-  deliveryId, value, cutoffPassed, beforeDay, release, onRelease, onDone,
-}: {
-  deliveryId: string;
-  value: StatusValue;
-  /** Whether a held tiffin can move yet: only after its day is over (midnight). */
-  release?: Availability;
-  onRelease: () => void;
-  cutoffPassed: boolean;
-  /** The delivery date hasn't come yet, so it can't have been delivered. */
-  beforeDay: boolean;
-  onDone: (message: string) => void;
-}) {
-  const [pending, startTransition] = useTransition();
-  const [confirmHold, setConfirmHold] = useState(false);
-  const save = (next: "upcoming" | "delivered" | "not_delivered") =>
-    startTransition(async () => {
-      const res = await setDeliveryStatusAction(deliveryId, next);
-      if ("error" in res) toast.error(res.error);
-      else onDone(res.message ?? "Delivery status updated");
-      setConfirmHold(false);
-    });
-  return (
-    <>
-      <Select
-        value={value}
-        disabled={pending}
-        onValueChange={(next) => {
-          if (next === value || next === "paused" || next === "not_delivered") return;
-          // A hold never goes back to this day: releasing it means picking a new day.
-          if (next === "release") return onRelease();
-          if (next === "on_hold") {
-            setConfirmHold(true);
-            return;
-          }
-          if (next === "upcoming" || next === "delivered") save(next);
-        }}
-      >
-        <SelectTrigger className="h-8 w-[10.5rem]" aria-label="Delivery status">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {value === "on_hold" ? (
-            <>
-              <SelectItem value="on_hold">On hold</SelectItem>
-              <SelectItem value="release" disabled={!release?.ok}>{release?.ok ? "Release hold…" : "Release hold (after midnight)"}</SelectItem>
-            </>
-          ) : (
-            <>
-              <SelectItem value="upcoming">{cutoffPassed ? "Awaiting confirmation" : "Upcoming"}</SelectItem>
-              <SelectItem value="delivered" disabled={beforeDay}>Delivered</SelectItem>
-              <SelectItem value="on_hold">On hold</SelectItem>
-            </>
-          )}
-          {value === "not_delivered" ? <SelectItem value="not_delivered">Not delivered</SelectItem> : null}
-          {value === "paused" ? <SelectItem value="paused">Paused</SelectItem> : null}
-        </SelectContent>
-      </Select>
-      <Dialog open={confirmHold} onOpenChange={(o) => !pending && setConfirmHold(o)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Put this delivery on hold?</DialogTitle>
-            <DialogDescription>This can&apos;t be undone. The tiffin won&apos;t go out this day. Release the hold later to give it a new delivery day.</DialogDescription>
-          </DialogHeader>
-          {cutoffPassed && (
-            <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-md border p-3 text-sm">
-              <p className="font-medium">Cutoff has passed</p>
-              <p>The kitchen may have prepared this tiffin and the label may be printed. Tell the kitchen and driver. The tiffin stays on hold until midnight, once this day&apos;s deliveries are reconciled. Then use Release hold to give it a new day.</p>
-            </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" disabled={pending} onClick={() => setConfirmHold(false)}>Cancel</Button>
-            <Button variant="destructive" disabled={pending} onClick={() => save("not_delivered")}>Put on hold</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }
 

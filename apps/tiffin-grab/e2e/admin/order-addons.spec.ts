@@ -179,7 +179,7 @@ test.describe("admin mid-plan add-ons (desktop)", () => {
     let checked = 0;
     let found = false;
     for (let month = 0; month < 3 && !found; month++) {
-      const days = calendar.getByRole("button", { name: /^(Upcoming|Awaiting confirmation)/ });
+      const days = calendar.getByRole("button", { name: /^(Upcoming|To confirm)/ });
       const n = await days.count();
       for (let i = 0; i < n && !found; i++) {
         await days.nth(i).click();

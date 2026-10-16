@@ -20,9 +20,8 @@ vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
   scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
   setMyDeliveryAddress: vi.fn(), clearMyDeliveryAddress: vi.fn(),
 }));
-vi.mock("@/app/(dashboard)/dashboard/orders/[id]/actions", () => ({
-  setDeliveryStatusAction: vi.fn(async () => ({ ok: true, message: "Delivery status updated" })),
-}));
+const sds = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => ({ ok: true, message: "Delivery status updated" })));
+vi.mock("@/app/(dashboard)/dashboard/orders/[id]/actions", () => ({ setDeliveryStatusAction: sds }));
 // The ReUI calendar is exercised in the browser; here a stub with one button per agenda day drives the hub.
 vi.mock("../order-month-calendar", async (orig) => {
   const real = await orig<typeof import("../order-month-calendar")>();
@@ -138,6 +137,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
     expect(screen.queryAllByRole("combobox")).toEqual([]);
+    expect(screen.queryByTestId("status-card")).toBeNull();
   });
   it("reschedule shows all eating days in a week picker (week label + arrows); the delivery day is chosen automatically", () => {
     const d2 = { ...data, plan: { ...data.plan, ctx: { ...data.plan.ctx, deliveryWeekdays: ["mon", "tue", "wed", "thu", "fri"] } } } as unknown as OrderWeek;
@@ -160,10 +160,48 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Details for Tue, Sep 22" }));
     expect(screen.getByRole("dialog", { name: /Tue, Sep 22 · meal/ })).toBeInTheDocument();
   });
-  it("lets an admin change the delivery status", () => {
-    render(<OrderWeekHub data={data} canEditDeliveryStatus />);
-    expect(screen.getAllByRole("combobox", { name: "Delivery status" }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("combobox", { name: "Delivery status" })[0]).toHaveTextContent("Upcoming");
+  describe("status card", () => {
+    // Same day as NOW, cutoff passed: the driver should have confirmed it by now.
+    const due = { ...mon, cutoffAt: NOW - 1 };
+    const dueData = { ...data, trips: [due], agenda: { ...data.agenda, "2026-09-21": [{ ...data.agenda["2026-09-21"]![0]!, cutoffAt: NOW - 1 }] } } as unknown as OrderWeek;
+    it("before the cutoff it says there is nothing to confirm and offers no status buttons", () => {
+      render(<OrderWeekHub data={data} canEditDeliveryStatus />);
+      const card = within(screen.getByTestId("status-card"));
+      expect(card.getByText("Upcoming")).toBeInTheDocument();
+      expect(card.getByText("Nothing to confirm yet.")).toBeInTheDocument();
+      expect(card.queryAllByRole("button")).toEqual([]);
+    });
+    it("on the day, past the cutoff: Mark delivered saves delivered", async () => {
+      sds.mockClear();
+      render(<OrderWeekHub data={dueData} canEditDeliveryStatus />);
+      const card = within(screen.getByTestId("status-card"));
+      expect(card.getByText("Awaiting confirmation")).toBeInTheDocument();
+      fireEvent.click(card.getByRole("button", { name: "Mark delivered" }));
+      await vi.waitFor(() => expect(sds).toHaveBeenCalledWith("d1", "delivered"));
+    });
+    it("Mark not delivered asks first, then saves not_delivered", async () => {
+      sds.mockClear();
+      render(<OrderWeekHub data={dueData} canEditDeliveryStatus />);
+      fireEvent.click(within(screen.getByTestId("status-card")).getByRole("button", { name: "Mark not delivered…" }));
+      expect(sds).not.toHaveBeenCalled();
+      fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Mark not delivered" }));
+      await vi.waitFor(() => expect(sds).toHaveBeenCalledWith("d1", "not_delivered"));
+    });
+    it("a delivered day offers Undo, which sets it back", async () => {
+      sds.mockClear();
+      render(<OrderWeekHub data={{ ...data, trips: [{ ...mon, status: "delivered" }] } as unknown as OrderWeek} canEditDeliveryStatus />);
+      const card = within(screen.getByTestId("status-card"));
+      expect(card.getByText("Delivered")).toBeInTheDocument();
+      fireEvent.click(card.getByRole("button", { name: "Undo" }));
+      await vi.waitFor(() => expect(sds).toHaveBeenCalledWith("d1", "upcoming"));
+    });
+    it("the banner counts deliveries waiting for confirmation, for staff who can settle them", () => {
+      render(<OrderWeekHub data={dueData} canEditDeliveryStatus />);
+      expect(screen.getByTestId("needs-action")).toHaveTextContent("1 delivery is waiting for confirmation.");
+      cleanup();
+      render(<OrderWeekHub data={dueData} />);
+      expect(screen.queryByTestId("needs-action")).toBeNull();
+    });
   });
 
   it("pause is the same control; on hold appears only for an admin", () => {
@@ -183,7 +221,7 @@ describe("OrderWeekHub (admin, shadcn)", () => {
     cleanup();
     render(<OrderWeekHub data={heldData} canEditDeliveryStatus />);
     expect(screen.getByRole("button", { name: "Release hold to a new day" })).toBeTruthy();
-    expect(screen.getAllByRole("combobox", { name: "Delivery status" }).length).toBeGreaterThan(0);
+    expect(within(screen.getByTestId("status-card")).getByText("On hold")).toBeInTheDocument();
   });
   describe("pause", () => {
     const paused = { ...mon, status: "paused" as const, deliveryId: "d1" };
@@ -273,7 +311,7 @@ describe("OrderWeekHub on a holiday", () => {
     render(<OrderWeekHub canEditDeliveryStatus data={{ ...data, trips: [held], agenda: { "2026-09-21": [heldDot] } } as unknown as OrderWeek} />);
     pick("2026-09-21");
     const block = screen.getByTestId("delivery-block");
-    expect(within(block).queryByRole("combobox")).toBeNull();
+    expect(within(block).queryByTestId("status-card")).toBeNull();
     expect(block).toHaveTextContent("Holiday");
     expect(block).not.toHaveTextContent(/On hold|Not delivered|Upcoming/);
     expect(within(block).getByTestId("holiday-note")).toHaveTextContent("Place this tiffin on another day.");

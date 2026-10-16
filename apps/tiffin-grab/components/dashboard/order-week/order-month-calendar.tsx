@@ -24,6 +24,9 @@ export const BOX_LABEL: Record<BoxStatus, string> = {
   holiday: "Holiday",
 };
 
+// Chips are narrow: the two long labels get a short form there; the panel keeps the full words.
+const CHIP_LABEL: Partial<Record<BoxStatus, string>> = { awaiting: "To confirm", "not-delivered": "Missed" };
+
 export function boxStatus(d: AgendaDot, now: number): BoxStatus {
   const s = dotStatus(d, now);
   if (s === "hold") return d.optimoCompletionStatus === "failed" ? "not-delivered" : "hold";
@@ -54,7 +57,7 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
           const s = boxStatus(d, now);
           return {
             id: `${date}-${i}`,
-            title: BOX_LABEL[s],
+            title: CHIP_LABEL[s] ?? BOX_LABEL[s],
             start: local(date),
             end: local(addDays(date, 1)),
             allDay: true,
