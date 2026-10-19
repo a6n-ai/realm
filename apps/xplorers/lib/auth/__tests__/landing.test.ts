@@ -58,9 +58,11 @@ describe("safeCallback", () => {
   it("keeps same-site paths from callbackUrl or next", () => {
     expect(of("next=/me/book?session=x")).toBe("/me/book?session=x");
     expect(of("callbackUrl=/dashboard")).toBe("/dashboard");
+    expect(of("next=/me")).toBe("/me");
+    expect(of("next=/me/book?session=abc")).toBe("/me/book?session=abc");
   });
   it("drops off-site targets", () => {
-    for (const bad of ["//evil.com", "/\\evil.com", "https://evil.com"]) {
+    for (const bad of ["//evil.com", "/\\evil.com", "https://evil.com", "/\t/evil.com", "/\n/evil.com", "/\r/evil.com", "/ /evil.com"]) {
       expect(of(`next=${encodeURIComponent(bad)}`)).toBeNull();
       expect(of(`callbackUrl=${encodeURIComponent(bad)}`)).toBeNull();
     }

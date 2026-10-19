@@ -3,8 +3,11 @@ import { Role } from "@foundry/commons";
 const ADMIN_HOME = "/dashboard";
 const CUSTOMER_HOME = "/me";
 
+// Browsers strip tab/CR/LF and treat "\\" as "/", so any control char, space or backslash could turn "/x" into "//host".
+const SAME_SITE_PATH = /^\/(?![/\\])[^\x00-\x20\x7f\\]*$/;
+
 function isSameSitePath(candidate: string): boolean {
-  return candidate.startsWith("/") && !candidate.startsWith("//") && !candidate.startsWith("/\\");
+  return SAME_SITE_PATH.test(candidate);
 }
 
 /** The sign-in return target from the URL, only when it is a same-site relative path. */
