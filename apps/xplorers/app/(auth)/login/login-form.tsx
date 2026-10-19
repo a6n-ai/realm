@@ -16,7 +16,7 @@ import { Button } from "@foundry/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { authClient, signIn } from "@/lib/auth/client";
-import { landingPathFor, safeCallback } from "@/lib/auth/landing";
+import { landingPathFor, safeCallback, signupHref } from "@/lib/auth/landing";
 import { LAST_USER_COOKIE } from "@/lib/auth/last-user-cookie";
 import { promptGoogleOneTap } from "@/lib/auth/one-tap";
 import { AUTH_BUTTON, AUTH_INPUT, AuthLogo, appAuthUi } from "@/components/auth/auth-kit";
@@ -99,7 +99,7 @@ export function LoginForm({
         title={head.title}
         tagline={head.tagline}
         primary={{ label: "Sign in", onClick: () => setMode("email-otp") }}
-        secondary={{ label: "Create an account", onClick: () => router.push("/signup") }}
+        secondary={{ label: "Create an account", onClick: () => router.push(signupHref(callbackUrl)) }}
       >
         {mode === "email-otp" ? (
           <EmailCodeSignIn
@@ -169,7 +169,7 @@ export function LoginForm({
               document.cookie = `${LAST_USER_COOKIE}=; Max-Age=0; path=/`;
               setLastUser(null);
             }}
-            getStarted={{ label: "New here? Create an account", onClick: () => router.push("/signup") }}
+            getStarted={{ label: "New here? Create an account", onClick: () => router.push(signupHref(callbackUrl)) }}
           />
         ) : null}
       </AuthWelcome>

@@ -11,6 +11,9 @@ describe("default price table validation", () => {
   it("rejects a missing day type", () => {
     expect(() => normalizePriceTable({ "len:90": { weekday: 68 } })).toThrow(/non-negative/);
   });
+  it("rejects a fully blank row", () => {
+    expect(() => normalizePriceTable({ "len:90": {} })).toThrow(/non-negative/);
+  });
   it("round-trips a valid table", () => {
     const t = { "len:90": { weekday: 68, weekend: 78 }, "len:120": { weekday: 0, weekend: 98.5 } };
     expect(normalizePriceTable(t)).toEqual(t);

@@ -2,8 +2,7 @@
  * One-off, idempotent seed: the Xplorers.Life programmes and price table from docs/xlp.pdf.
  * Skips any class whose title already exists. Private Workshops are not seeded.
  * App timezone/currency/default prices are written only while app.default_prices is null (first run).
- * Sets app timezone/currency/default prices, then materialises sessions
- * (ensureHorizon needs no signed-in user, so the service is called as-is).
+ * Then materialises sessions (ensureHorizon needs no signed-in user, so the service is called as-is).
  *
  * Run (local DB only):
  *   DATABASE_URL=postgres://localhost:5432/xplorers pnpm --filter xplorers exec tsx db/seed-programmes.ts

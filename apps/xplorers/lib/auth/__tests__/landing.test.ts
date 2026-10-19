@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { landingPathFor, safeCallback } from "../landing";
+import { afterSignupPath, landingPathFor, safeCallback, signupHref } from "../landing";
 
 describe("landingPathFor", () => {
   it("sends a customer to their own area", () => {
@@ -66,5 +66,20 @@ describe("safeCallback", () => {
       expect(of(`next=${encodeURIComponent(bad)}`)).toBeNull();
       expect(of(`callbackUrl=${encodeURIComponent(bad)}`)).toBeNull();
     }
+  });
+});
+
+describe("signup hop", () => {
+  it("carries a same-site target into the signup link", () => {
+    expect(signupHref("/whats-on/x?session=1")).toBe("/signup?next=%2Fwhats-on%2Fx%3Fsession%3D1");
+    expect(signupHref(null)).toBe("/signup");
+    expect(signupHref("//evil.test")).toBe("/signup");
+  });
+
+  it("lands a new family on the target, else the welcome page", () => {
+    expect(afterSignupPath("/me/book?session=abc")).toBe("/me/book?session=abc");
+    expect(afterSignupPath(null)).toBe("/me/welcome");
+    expect(afterSignupPath("/dashboard")).toBe("/me/welcome");
+    expect(afterSignupPath("//evil.test")).toBe("/me/welcome");
   });
 });

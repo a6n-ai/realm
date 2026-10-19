@@ -105,6 +105,28 @@ const EMPTY_PRICING: ClassPricing = {
   adults: { free: 0, extraPrice: null },
 };
 
+type Executor = Pick<typeof db, "select" | "insert" | "delete">;
+
+const sameSet = (a: number[] | null, b: number[] | null) => {
+  if (!a || !b) return a === b;
+  const sb = [...b].sort((x, y) => x - y);
+  return a.length === b.length && [...a].sort((x, y) => x - y).every((v, i) => v === sb[i]);
+};
+
+/** Structural compare: jsonb reorders object keys, so JSON.stringify never matches a stored pattern. */
+export function samePattern(a: RepeatPattern | null, b: RepeatPattern | null): boolean {
+  if (!a || !b) return a === b;
+  return (
+    sameSet(a.weekdays, b.weekdays) &&
+    sameSet(a.nthOfMonth, b.nthOfMonth) &&
+    sameSet(a.excludeMonths, b.excludeMonths) &&
+    a.startClock === b.startClock &&
+    a.endClock === b.endClock &&
+    a.startsOn === b.startsOn &&
+    (a.endsOn ?? null) === (b.endsOn ?? null)
+  );
+}
+
 /** Thrown when an edit would cancel bookings and the caller has not confirmed. */
 export class NeedsConfirmError extends ValidationError {}
 
@@ -120,7 +142,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     const write = normalizeClassWrite(input, await getDefaultPrices());
     const before = await this.read(publicId);
     const row = await this.update(publicId, write);
-    if ("pattern" in write && JSON.stringify(write.pattern ?? null) !== JSON.stringify(before.pattern ?? null)) {
+    if ("pattern" in write && !samePattern((write.pattern ?? null) as RepeatPattern | null, before.pattern ?? null)) {
       await this.regenerateFuture(publicId);
     }
     return row;
@@ -306,11 +328,11 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
    * Materialise sessions from today to min(endsOn, today + HORIZON_DAYS). Existing rows (including
    * cancelled ones) win the conflict, so a cancelled day is never recreated.
    */
-  async ensureHorizon(classPublicId?: string): Promise<void> {
+  async ensureHorizon(classPublicId?: string, exec: Executor = db): Promise<void> {
     const zone = await this.timezone();
     const today = dayKey(new Date(), zone);
     const horizon = addDayKey(today, HORIZON_DAYS);
-    const classes = await db
+    const classes = await exec
       .select()
       .from(studioSessions)
       .where(
@@ -324,7 +346,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     // A targeted call (class save, regenerate) always expands: its gaps matter more than the saved write.
     const maxDay = new Map<bigint, string>();
     if (!classPublicId && classes.length > 0) {
-      const maxes = await db
+      const maxes = await exec
         .select({ sessionId: studioSessionOccurrences.sessionId, last: sql<string>`max(${studioSessionOccurrences.occursOn})` })
         .from(studioSessionOccurrences)
         .where(inArray(studioSessionOccurrences.sessionId, classes.map((c) => c.id)))
@@ -345,7 +367,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         capacity: klass.capacity,
       }));
       if (rows.length === 0) continue;
-      await db
+      await exec
         .insert(studioSessionOccurrences)
         .values(rows)
         .onConflictDoNothing({ target: [studioSessionOccurrences.sessionId, studioSessionOccurrences.occursOn] });
@@ -362,27 +384,29 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .where(eq(studioSessions.publicId, classPublicId))
       .limit(1);
     if (!klass) throw new ValidationError("Class not found.");
-    const count = () =>
-      db
+    const count = (x: Executor) =>
+      x
         .select({ n: sql<number>`cast(count(*) as int)` })
         .from(studioSessionOccurrences)
         .where(eq(studioSessionOccurrences.sessionId, klass.id))
         .then(([r]) => r?.n ?? 0);
-    const removed = await db
-      .delete(studioSessionOccurrences)
-      .where(
-        and(
-          eq(studioSessionOccurrences.sessionId, klass.id),
-          gt(studioSessionOccurrences.occursOn, today),
-          eq(studioSessionOccurrences.edited, false),
-          eq(studioSessionOccurrences.status, "scheduled"),
-          notExists(db.select({ one: sql`1` }).from(bookings).where(eq(bookings.occurrenceId, studioSessionOccurrences.id))),
-        ),
-      )
-      .returning({ id: studioSessionOccurrences.id });
-    const before = await count();
-    await this.ensureHorizon(classPublicId);
-    return { removed: removed.length, added: (await count()) - before };
+    return db.transaction(async (tx) => {
+      const removed = await tx
+        .delete(studioSessionOccurrences)
+        .where(
+          and(
+            eq(studioSessionOccurrences.sessionId, klass.id),
+            gt(studioSessionOccurrences.occursOn, today),
+            eq(studioSessionOccurrences.edited, false),
+            eq(studioSessionOccurrences.status, "scheduled"),
+            notExists(tx.select({ one: sql`1` }).from(bookings).where(eq(bookings.occurrenceId, studioSessionOccurrences.id))),
+          ),
+        )
+        .returning({ id: studioSessionOccurrences.id });
+      const before = await count(tx);
+      await this.ensureHorizon(classPublicId, tx);
+      return { removed: removed.length, added: (await count(tx)) - before };
+    });
   }
 
   /** Only untouched days can be removed; anything that ever had a booking must be cancelled so the history stays. */
@@ -395,7 +419,10 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     if (!occurrence) throw new ValidationError("Session not found.");
     const [booked] = await db.select({ id: bookings.id }).from(bookings).where(eq(bookings.occurrenceId, occurrence.id)).limit(1);
     if (booked) throw new ValidationError(`${occurrence.occursOn} has bookings. Cancel the session instead of removing it.`);
-    await db.delete(studioSessionOccurrences).where(eq(studioSessionOccurrences.id, occurrence.id));
+    const [klass] = await db.select({ pattern: studioSessions.pattern }).from(studioSessions).where(eq(studioSessions.id, occurrence.sessionId)).limit(1);
+    // A pattern day is cancelled, not deleted: a missing row would be re-materialised as a bookable session.
+    if (klass?.pattern) await this.lockAndSet(occurrence.id, { status: "cancelled" });
+    else await db.delete(studioSessionOccurrences).where(eq(studioSessionOccurrences.id, occurrence.id));
     return occurrence.occursOn;
   }
 
@@ -530,6 +557,24 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     }
 
     await this.lockAndSet(occ.id, { occursOn, startsAt, endsAt, capacity, prices });
+    if (occursOn !== occ.occursOn && klass.pattern) {
+      // Placeholder on the vacated day so the pattern doesn't re-create it. The moved row already took the new date, so the unique index holds.
+      const actorId = await currentUserId();
+      await db
+        .insert(studioSessionOccurrences)
+        .values({
+          sessionId: klass.id,
+          occursOn: occ.occursOn,
+          startsAt: occ.startsAt,
+          endsAt: occ.endsAt,
+          capacity: occ.capacity,
+          status: "cancelled",
+          edited: true,
+          createdBy: actorId,
+          updatedBy: actorId,
+        })
+        .onConflictDoNothing({ target: [studioSessionOccurrences.sessionId, studioSessionOccurrences.occursOn] });
+    }
     if (toCancel.length > 0) {
       await this.cancelBookingsAndNotify(
         occ.id,

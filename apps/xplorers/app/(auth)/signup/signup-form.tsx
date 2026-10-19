@@ -12,6 +12,7 @@ import { Button } from "@foundry/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { signIn } from "@/lib/auth/client";
+import { afterSignupPath, safeCallback } from "@/lib/auth/landing";
 import { SITE_NAME } from "@/lib/brand";
 import { signUpCustomer } from "./actions";
 import { AUTH_BUTTON, AUTH_INPUT, AuthLogo, appAuthUi } from "@/components/auth/auth-kit";
@@ -27,7 +28,11 @@ type FormValues = z.infer<typeof schema>;
 export function SignupForm({ googleEnabled = false }: { googleEnabled?: boolean }) {
   const router = useRouter();
   // Sent here from /login when a Google address has no account yet.
-  const oauthError = useSearchParams().get("error");
+  const params = useSearchParams();
+  const oauthError = params.get("error");
+  const next = safeCallback(params);
+  const target = afterSignupPath(next);
+  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
   const [error, setError] = useState<string | null>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -43,10 +48,10 @@ export function SignupForm({ googleEnabled = false }: { googleEnabled?: boolean 
     }
     const result = await signIn.email({ email: values.email, password: values.password });
     if (result?.error) {
-      router.push("/login");
+      router.push(loginHref);
       return;
     }
-    router.push("/me/welcome");
+    router.push(target);
     router.refresh();
   }
 
@@ -69,7 +74,7 @@ export function SignupForm({ googleEnabled = false }: { googleEnabled?: boolean 
                   signIn.social({
                     provider: "google",
                     requestSignUp: true,
-                    callbackURL: "/me/welcome",
+                    callbackURL: target,
                     errorCallbackURL: "/signup",
                   })
                 }
@@ -135,7 +140,7 @@ export function SignupForm({ googleEnabled = false }: { googleEnabled?: boolean 
 </div>
                 <p className="text-muted-foreground text-center text-sm">
                   Already have an account?{" "}
-                  <Link href="/login" className="underline underline-offset-4">
+                  <Link href={loginHref} className="underline underline-offset-4">
                     Sign in
                   </Link>
                 </p>

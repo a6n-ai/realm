@@ -39,3 +39,15 @@ export function landingPathFor(role: string | null | undefined, callbackUrl?: st
     path === home || path.startsWith(`${home}/`) || (home === CUSTOMER_HOME && familyCanFinishBooking(path));
   return reachable ? callbackUrl : home;
 }
+
+/** /signup link that keeps the sanitized return target, so a new family lands back on the session they picked. */
+export function signupHref(next: string | null): string {
+  return next && isSameSitePath(next) ? `/signup?next=${encodeURIComponent(next)}` : "/signup";
+}
+
+/** Where a brand-new customer goes after signing up: the target they came for when they may reach it, else the welcome page. */
+export function afterSignupPath(next: string | null): string {
+  if (!next) return "/me/welcome";
+  const target = landingPathFor("user", next);
+  return target === next ? next : "/me/welcome";
+}

@@ -120,3 +120,55 @@ describe("session materialisation", () => {
     expect(inserts).toBe(0);
   });
 });
+
+describe("session identity and tombstones", () => {
+  const ids = (rows: { occursOn: string; publicId: string }[]) => rows.map((r) => `${r.occursOn}:${r.publicId}`);
+
+  it("saving an unchanged class keeps every future occurrence id", async () => {
+    await studioSessionsService.ensureHorizon(classPublicId);
+    const before = ids(await days());
+    const [klass] = await db.select().from(schema.studioSessions).where(eq(schema.studioSessions.id, classId));
+    const p = klass!.pattern!;
+    // same pattern with jsonb-style key order and reversed arrays
+    await studioSessionsService.updateClass(classPublicId, {
+      title: MARK,
+      category: "kids",
+      capacity: 7,
+      pattern: { endsOn: p.endsOn, excludeMonths: p.excludeMonths, endClock: p.endClock, weekdays: [...p.weekdays].reverse(), startsOn: p.startsOn, startClock: p.startClock, nthOfMonth: p.nthOfMonth },
+    });
+    expect(ids(await days())).toEqual(before);
+  });
+
+  it("samePattern compares structurally", async () => {
+    const { samePattern } = await import("../studio-sessions.service");
+    const p = pattern([1, 3]);
+    expect(samePattern({ ...p, weekdays: [3, 1] }, p)).toBe(true);
+    expect(samePattern({ ...p, weekdays: [1] }, p)).toBe(false);
+    expect(samePattern(null, p)).toBe(false);
+  });
+
+  it("a moved pattern day is not recreated", async () => {
+    await studioSessionsService.ensureHorizon(classPublicId);
+    const target = (await days()).find((d) => d.occursOn === addDayKey(today, 10))!;
+    const newDay = addDayKey(today, 200);
+    await studioSessionsService.updateSession(target.publicId, { occursOn: newDay });
+    await studioSessionsService.ensureHorizon(classPublicId);
+    await studioSessionsService.regenerateFuture(classPublicId);
+    const rows = await days();
+    const old = rows.filter((d) => d.occursOn === target.occursOn);
+    expect(old).toHaveLength(1);
+    expect(old[0]!.status).toBe("cancelled");
+    expect(rows.find((d) => d.occursOn === newDay)!.publicId).toBe(target.publicId);
+  });
+
+  it("an unscheduled pattern day is not recreated", async () => {
+    await studioSessionsService.ensureHorizon(classPublicId);
+    const target = (await days()).find((d) => d.occursOn === addDayKey(today, 12))!;
+    await studioSessionsService.unscheduleSession(target.publicId);
+    await studioSessionsService.ensureHorizon(classPublicId);
+    await studioSessionsService.regenerateFuture(classPublicId);
+    const rows = (await days()).filter((d) => d.occursOn === target.occursOn);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.status).toBe("cancelled");
+  });
+});

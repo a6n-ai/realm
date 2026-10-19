@@ -22,7 +22,7 @@ export function PricingForm({ initial }: { initial: PriceTable }) {
 
   const add = () => {
     const next = lengths.length ? lenOf(lengths[lengths.length - 1]!) + 30 : 90;
-    setTable({ ...table, [`len:${next}`]: { weekday: 0, weekend: 0 } });
+    setTable({ ...table, [`len:${next}`]: {} });
   };
   const remove = () => {
     const last = lengths[lengths.length - 1];
@@ -54,6 +54,7 @@ export function PricingForm({ initial }: { initial: PriceTable }) {
           keys={lengths.map((key) => ({ key, label: label(lenOf(key)) }))}
           value={table}
           onChange={setTable}
+          keepBlankRows
         />
       )}
       <div className="flex items-center gap-2">

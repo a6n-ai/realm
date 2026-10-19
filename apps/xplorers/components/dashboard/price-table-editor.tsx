@@ -8,6 +8,8 @@ type Props = {
   value: PriceTable;
   onChange: (t: PriceTable) => void;
   inherited?: PriceTable;
+  /** Keep a row whose cells are all blank (the global table rejects it on save instead of dropping it). */
+  keepBlankRows?: boolean;
 };
 
 const DAYS = [
@@ -15,13 +17,13 @@ const DAYS = [
   ["weekend", "Weekend"],
 ] as const;
 
-export function PriceTableEditor({ keys, value, onChange, inherited }: Props) {
+export function PriceTableEditor({ keys, value, onChange, inherited, keepBlankRows }: Props) {
   const set = (key: string, day: keyof PriceCell, raw: string) => {
     const cell: PriceCell = { ...value[key] };
     if (raw.trim() === "") delete cell[day];
     else cell[day] = Number(raw);
     const next = { ...value };
-    if (cell.weekday === undefined && cell.weekend === undefined) delete next[key];
+    if (!keepBlankRows && cell.weekday === undefined && cell.weekend === undefined) delete next[key];
     else next[key] = cell;
     onChange(next);
   };
