@@ -9,8 +9,9 @@ export const metadata = buildMetadata({
   path: "/contact",
 });
 
-export default async function ContactPage({ searchParams }: { searchParams: Promise<{ class?: string }> }) {
-  const { class: className } = await searchParams;
+export default async function ContactPage({ searchParams }: { searchParams: Promise<{ class?: string | string[] }> }) {
+  const { class: rawClass } = await searchParams;
+  const className = Array.isArray(rawClass) ? rawClass[0] : rawClass;
   const subject = className ? `?subject=${encodeURIComponent(`Enquiry: ${className}`)}` : "";
   return (
     <InteriorPage

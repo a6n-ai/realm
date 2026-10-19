@@ -16,7 +16,7 @@ import { Button } from "@foundry/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { authClient, signIn } from "@/lib/auth/client";
-import { landingPathFor } from "@/lib/auth/landing";
+import { landingPathFor, safeCallback } from "@/lib/auth/landing";
 import { LAST_USER_COOKIE } from "@/lib/auth/last-user-cookie";
 import { promptGoogleOneTap } from "@/lib/auth/one-tap";
 import { AUTH_BUTTON, AUTH_INPUT, AuthLogo, appAuthUi } from "@/components/auth/auth-kit";
@@ -45,7 +45,7 @@ export function LoginForm({
 }) {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl") ?? params.get("next");
+  const callbackUrl = safeCallback(params);
   // Better Auth sends a failed Google sign-in back here as ?error=<code>.
   const oauthError = params.get("error");
   // Who last signed in on this device ("Continue as …"); "Not you?" forgets it.
@@ -195,7 +195,7 @@ function PasswordPanel({ onUseEmailOtp }: { onUseEmailOtp: () => void }) {
       return;
     }
     const role = (result?.data?.user as { role?: string } | undefined)?.role;
-    router.push(landingPathFor(role, params.get("callbackUrl") ?? params.get("next")));
+    router.push(landingPathFor(role, safeCallback(params)));
     router.refresh();
   }
 

@@ -7,6 +7,12 @@ function isSameSitePath(candidate: string): boolean {
   return candidate.startsWith("/") && !candidate.startsWith("//") && !candidate.startsWith("/\\");
 }
 
+/** The sign-in return target from the URL, only when it is a same-site relative path. */
+export function safeCallback(params: { get(name: string): string | null }): string | null {
+  const raw = params.get("callbackUrl") ?? params.get("next");
+  return raw && isSameSitePath(raw) ? raw : null;
+}
+
 function homeFor(role: string | null | undefined): string {
   if (role === Role.ADMIN || role === Role.MEMBER) return ADMIN_HOME;
   return CUSTOMER_HOME;
