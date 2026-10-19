@@ -108,6 +108,31 @@ describe("session edits", () => {
     expect(notes).toHaveLength(1);
   });
 
+  it("a failed booking cancel can be finished by retrying cancel", async () => {
+    await book(1);
+    const spy = vi.spyOn(bookingsService, "cancel").mockRejectedValueOnce(new Error("boom"));
+    await expect(studioSessionsService.cancelSession(occPublicId, { confirm: true })).rejects.toThrow(/1 of 1/);
+    spy.mockRestore();
+    const [mid] = await db.select().from(schema.bookings).where(eq(schema.bookings.occurrenceId, occId));
+    expect(mid!.status).toBe("confirmed");
+    expect(await studioSessionsService.cancelSession(occPublicId, { confirm: true })).toEqual({ cancelledBookings: 1 });
+    const [b] = await db.select().from(schema.bookings).where(eq(schema.bookings.occurrenceId, occId));
+    const [o] = await db.select().from(occ).where(eq(occ.id, occId));
+    expect([b!.status, o!.status]).toEqual(["cancelled", "cancelled"]);
+  });
+
+  it("a failed booking cancel during a move is finished by repeating the edit", async () => {
+    await book(1);
+    const to = addDayKey(day, 1);
+    const spy = vi.spyOn(bookingsService, "cancel").mockRejectedValueOnce(new Error("boom"));
+    await expect(studioSessionsService.updateSession(occPublicId, { occursOn: to, confirm: true })).rejects.toThrow(/1 of 1/);
+    spy.mockRestore();
+    await expect(studioSessionsService.updateSession(occPublicId, { occursOn: to })).rejects.toThrow(/Confirm/);
+    await studioSessionsService.updateSession(occPublicId, { occursOn: to, confirm: true });
+    const [b] = await db.select().from(schema.bookings).where(eq(schema.bookings.occurrenceId, occId));
+    expect(b!.status).toBe("cancelled");
+  });
+
   it("an unbooked session cancels without confirm", async () => {
     expect(await studioSessionsService.cancelSession(occPublicId, { confirm: false })).toEqual({ cancelledBookings: 0 });
   });
