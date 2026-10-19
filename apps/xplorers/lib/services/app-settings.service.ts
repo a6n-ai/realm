@@ -5,6 +5,8 @@ import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
 import { app, type DiscountSettings } from "@/db/schema";
 import { CURRENCIES, isIanaTimeZone } from "@/lib/app-clock";
+import { DEFAULT_PRICE_TABLE } from "@/lib/pricing/defaults";
+import type { PriceTable } from "@/lib/pricing/types";
 import { currentUserId, SessionUpdatableService } from "./session-service";
 
 export type AppClock = { timezone: string; currency: string };
@@ -126,4 +128,34 @@ export async function setMaxWalletBalance(cap: number | null): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (!row) throw new ValidationError("App settings are not initialized.");
   await appSettingsEntity.update(row.publicId, { maxWalletBalance: cap });
+}
+
+export function normalizePriceTable(input: PriceTable): PriceTable {
+  const out: PriceTable = {};
+  for (const [key, cell] of Object.entries(input)) {
+    const m = /^len:(\d+)$/.exec(key);
+    if (!m || Number(m[1]) <= 0) throw new ValidationError(`Invalid price row "${key}".`);
+    const { weekday, weekend } = cell ?? {};
+    for (const v of [weekday, weekend]) {
+      if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+        throw new ValidationError(`Row ${key} needs a non-negative weekday and weekend price.`);
+      }
+    }
+    out[key] = { weekday, weekend };
+  }
+  if (Object.keys(out).length === 0) throw new ValidationError("Add at least one length.");
+  return out;
+}
+
+export async function getDefaultPrices(): Promise<PriceTable> {
+  const [row] = await db.select({ p: app.defaultPrices }).from(app).limit(1);
+  return row?.p ?? DEFAULT_PRICE_TABLE;
+}
+
+export async function setDefaultPrices(table: PriceTable): Promise<void> {
+  const parsed = normalizePriceTable(table);
+  const actorId = await currentUserId();
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (!row) throw new ValidationError("App settings are not initialized.");
+  await appSettingsEntity.update(row.publicId, { defaultPrices: parsed, updatedBy: actorId });
 }

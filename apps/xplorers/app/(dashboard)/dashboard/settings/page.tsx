@@ -5,6 +5,7 @@ import {
   PuzzleIcon,
   SettingsIcon,
   SparklesIcon,
+  TagIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +30,13 @@ export default async function SettingsPage() {
       description: "Timezone and currency used across the app.",
       icon: SettingsIcon,
       href: "/dashboard/settings/general",
+    },
+    {
+      key: "pricing",
+      label: "Pricing",
+      description: "Default per-child prices by class length.",
+      icon: TagIcon,
+      href: "/dashboard/settings/pricing",
     },
     {
       key: "personalization",
