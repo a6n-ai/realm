@@ -1,6 +1,6 @@
 import { SITE_NAME } from "@/lib/brand";
 import { InteriorPage } from "@/components/marketing/interior-page";
-import { ProgrammeSection } from "@/components/marketing/ui";
+import { ClassSection } from "@/components/marketing/class-section";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -14,11 +14,11 @@ export default function KidsPage() {
     <InteriorPage
       kicker="Kids"
       title="Build a machine out of cardboard."
-      body="Science, making, camps and after-school. Take it home. Age 5–12, drop-off from S$68."
+      body="Science, making, camps and after-school. Take it home. Age 5–12, drop-off."
       cta="See kids sessions"
       href="/whats-on"
     >
-      <ProgrammeSection eyebrow="For curious kids" title="Pick a programme." keys={["explore", "scientist", "sensory", "bake", "camps"]} />
+      <ClassSection eyebrow="For curious kids" title="Pick a class." categories={["kids", "school", "drop_in", "other"]} />
     </InteriorPage>
   );
 }

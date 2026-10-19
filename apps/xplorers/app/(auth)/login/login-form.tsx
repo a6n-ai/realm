@@ -45,7 +45,7 @@ export function LoginForm({
 }) {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl");
+  const callbackUrl = params.get("callbackUrl") ?? params.get("next");
   // Better Auth sends a failed Google sign-in back here as ?error=<code>.
   const oauthError = params.get("error");
   // Who last signed in on this device ("Continue as …"); "Not you?" forgets it.
@@ -195,7 +195,7 @@ function PasswordPanel({ onUseEmailOtp }: { onUseEmailOtp: () => void }) {
       return;
     }
     const role = (result?.data?.user as { role?: string } | undefined)?.role;
-    router.push(landingPathFor(role, params.get("callbackUrl")));
+    router.push(landingPathFor(role, params.get("callbackUrl") ?? params.get("next")));
     router.refresh();
   }
 

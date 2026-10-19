@@ -598,6 +598,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         and(
           eq(studioSessions.published, true),
           eq(studioSessions.archived, false),
+          eq(studioSessions.bookingType, "bookable"),
           eq(studioSessionOccurrences.status, "scheduled"),
         ),
       )
@@ -630,6 +631,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .where(eq(studioSessionOccurrences.publicId, occurrencePublicId))
       .limit(1);
     if (!row) throw new ValidationError("Session not found.");
+    if (row.occurrence.status !== "scheduled") throw new ValidationError("This session is not open for booking.");
     const listed = toPublicSession(row.session, row.occurrence, row.confirmed);
     if (!isPubliclyListed(listed, now)) throw new ValidationError("This session is not open for booking.");
     return listed;

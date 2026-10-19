@@ -1,6 +1,6 @@
 import { SITE_NAME } from "@/lib/brand";
 import { InteriorPage } from "@/components/marketing/interior-page";
-import { ProgrammeSection } from "@/components/marketing/ui";
+import { ClassSection } from "@/components/marketing/class-section";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -18,7 +18,7 @@ export default function FamiliesPage() {
       cta="See adult sessions"
       href="/whats-on"
     >
-      <ProgrammeSection eyebrow="For families & grown-ups" title="Make something together." keys={["private", "wood", "bake"]} />
+      <ClassSection eyebrow="For families & grown-ups" title="Make something together." categories={["private", "adults", "birthday"]} />
     </InteriorPage>
   );
 }

@@ -1,18 +1,14 @@
 import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Role } from "@foundry/commons";
 import { Users } from "lucide-react";
 import { SITE_NAME } from "@/lib/brand";
 import { buildMetadata } from "@/lib/seo";
-import { BookControl } from "@/components/marketing/book-control";
 import { SessionList } from "@/components/marketing/session-list";
 import { Button, Eyebrow, Notice, Pill, stagger } from "@/components/marketing/ui";
 import { getSession } from "@/lib/auth/session";
-import { bookingsService } from "@/lib/services/bookings.service";
-import { walletService } from "@/lib/services/wallet.service";
 import { CATEGORY_LABELS } from "@/lib/sessions/format";
-import { loadPublicClasses } from "@/lib/sessions/public";
+import { bookHref, loadPublicClasses } from "@/lib/sessions/public";
 
 type Params = Promise<{ id: string }>;
 
@@ -25,7 +21,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const item = await findClass(id);
   return buildMetadata({
     title: `${item?.title ?? "Class"} · ${SITE_NAME}`,
-    description: item?.description ?? "A class at Xplorers.Life. Pick a date and book a seat.",
+    description: item?.summary || "A class at Xplorers.Life. Pick a date and book a seat.",
     path: `/classes/${id}`,
   });
 }
@@ -35,11 +31,6 @@ export default async function ClassPage({ params }: { params: Params }) {
   const [item, session] = await Promise.all([findClass(id), getSession()]);
   if (!item) notFound();
   const signedIn = Boolean(session?.user);
-  const isFamily = session?.user?.role === Role.USER;
-  const bookedIds = new Set(
-    isFamily && session?.user ? await bookingsService.listConfirmedOccurrencePublicIds(session.user.id) : [],
-  );
-  const coins = isFamily && session?.user ? await walletService.coinsForFamily(session.user.id) : null;
 
   return (
     <article>
@@ -51,13 +42,13 @@ export default async function ClassPage({ params }: { params: Params }) {
           <h1 className="xl-display" style={stagger(1)}>
             {item.title}
           </h1>
-          {item.description ? (
+          {item.summary ? (
             <p className="xl-lede" style={stagger(2)}>
-              {item.description}
+              {item.summary}
             </p>
           ) : null}
           <div className="xl-row" style={stagger(3)}>
-            {[item.audience, item.location, item.price].filter(Boolean).map((t) => (
+            {[item.audience, item.groupSize, item.location, item.priceLine].filter(Boolean).map((t) => (
               <Pill key={t}>{t}</Pill>
             ))}
           </div>
@@ -75,28 +66,36 @@ export default async function ClassPage({ params }: { params: Params }) {
             ))}
           </ul>
         ) : null}
+        {item.included ? (
+          <div className="xl-panel xl-stack">
+            <h2 className="xl-day-label">What&rsquo;s included</h2>
+            <p className="xl-body">{item.included}</p>
+          </div>
+        ) : null}
         <div className="xl-panel">
           <h2 className="xl-day-label">Book a date</h2>
-          {item.sessions.length ? (
+          {item.bookingType === "enquire_only" ? (
+            <div className="xl-stack">
+              <p className="xl-body">Dates and pricing for this one are shared on request.</p>
+              <div className="xl-row">
+                <Button href={`/contact?class=${encodeURIComponent(item.title)}`}>Enquire</Button>
+              </div>
+            </div>
+          ) : item.sessions.length ? (
             <SessionList
               rows={item.sessions}
               hidePhotos
               action={(row) => (
-                <BookControl
-                  publicId={row.publicId}
-                  remaining={row.remaining}
-                  signedIn={signedIn}
-                  isFamily={isFamily}
-                  booked={bookedIds.has(row.publicId)}
-                    coins={coins}
-                />
+                <Button size="xs" variant="secondary" href={bookHref(row.publicId, signedIn)}>
+                  {row.remaining > 0 ? "Book" : "Details"}
+                </Button>
               )}
             />
           ) : (
             <div className="xl-stack">
               <p className="xl-body">No dates are scheduled yet. Tell us you&rsquo;re interested and we&rsquo;ll let you know.</p>
               <div className="xl-row">
-                <Button href="/contact">Ask about this class</Button>
+                <Button href={`/contact?class=${encodeURIComponent(item.title)}`}>Ask about this class</Button>
               </div>
             </div>
           )}

@@ -9,6 +9,13 @@ import type { CalendarEvent, EventCalendarRangeInfo } from "@/components/reui/ev
 import { colorVar, type CalendarSession } from "@/lib/sessions/calendar-events";
 import { dayKey } from "@/lib/sessions/timezone";
 
+/** Serialisable click targets, so server pages can choose one without passing a function. */
+const TARGETS = {
+  admin: (id: string) => `/dashboard/sessions/${id}`,
+  book: (id: string) => `/me/book?session=${id}`,
+  login: (id: string) => `/login?next=${encodeURIComponent(`/me/book?session=${id}`)}`,
+};
+
 export function SessionsCalendar({
   sessions,
   defaultView = "month",
@@ -17,6 +24,7 @@ export function SessionsCalendar({
   from,
   to,
   onSelect,
+  target = "admin",
   canCreate = false,
   toolbar,
 }: {
@@ -29,6 +37,8 @@ export function SessionsCalendar({
   from: string;
   to: string;
   onSelect?: (publicId: string) => void;
+  /** Where a click goes when onSelect is not given: admin detail, the booking page, or login first. */
+  target?: keyof typeof TARGETS;
   /** When the viewer may schedule, clicking a day opens the new-session form on it. */
   canCreate?: boolean;
   toolbar?: ReactNode;
@@ -56,7 +66,7 @@ export function SessionsCalendar({
     const nextFrom = dayKey(range.start, timeZone);
     const nextTo = dayKey(new Date(range.end.getTime() - 1), timeZone);
     const nextView = view === "week" ? "week" : "month";
-    const sameView = (params.get("view") ?? "month") === nextView;
+    const sameView = (params.get("view") ?? defaultView) === nextView;
     if (sameView && nextFrom >= from && nextTo <= to) return;
     const next = new URLSearchParams(params.toString());
     next.set("from", nextFrom);
@@ -76,7 +86,7 @@ export function SessionsCalendar({
       weekStartsOn={1}
       defaultInteractions={{ drag: false, resize: false, selectSlot: false }}
       onRangeChange={onRangeChange}
-      onEventClick={(occ) => (onSelect ?? ((id) => router.push(`/dashboard/sessions/${id}`)))(occ.event.id)}
+      onEventClick={(occ) => (onSelect ?? ((id) => router.push(TARGETS[target](id))))(occ.event.id)}
       onSlotClick={canCreate ? (slot) => router.push(`/dashboard/sessions/new?date=${dayKey(slot.date, timeZone)}`) : undefined}
       showDayAddButton={canCreate}
       className="h-[calc(100dvh-16rem)] min-h-[32rem]"

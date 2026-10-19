@@ -7,6 +7,7 @@ import {
   groupSessionsByDay,
   toPublicSessionCard,
 } from "../format";
+import { DEFAULT_PRICE_TABLE } from "@/lib/pricing/defaults";
 import type { PublicSession } from "@/lib/services/studio-sessions.service";
 
 const zone = "Asia/Singapore";
@@ -74,7 +75,7 @@ describe("session display", () => {
 });
 
 describe("groupPublicClasses", () => {
-  it("lists every published class once, soonest first, with its upcoming dates", () => {
+  it("lists every published class once, in the order given, with its upcoming dates", () => {
     const kite = session({ publicId: "stn_kite", title: "Kite Lab", startsAt: new Date("2026-09-18T08:00:00.000Z"), photos: ["/k.jpg"] });
     const club = session({ publicId: "stn_club", title: "Kids Club", startsAt: new Date("2026-09-16T08:00:00.000Z") });
     const quiet = session({ publicId: "stn_quiet", title: "Quiet Corner", startsAt: new Date("2026-09-20T08:00:00.000Z") });
@@ -84,27 +85,28 @@ describe("groupPublicClasses", () => {
       { ...kite, occurrencePublicId: "occ_k2", startsAt: new Date("2026-09-25T08:00:00.000Z") },
     ];
 
-    const classes = groupPublicClasses([quiet, kite, club], occurrences, zone, "SGD");
+    const classes = groupPublicClasses([quiet, kite, club], occurrences, zone, "SGD", DEFAULT_PRICE_TABLE);
 
-    expect(classes.map((c) => c.publicId)).toEqual(["stn_club", "stn_kite", "stn_quiet"]);
+    expect(classes.map((c) => c.publicId)).toEqual(["stn_quiet", "stn_kite", "stn_club"]);
     expect(classes[1]).toMatchObject({
       title: "Kite Lab",
       photos: ["/k.jpg"],
-      price: expect.stringMatching(/^From SGD\s35\.00$/),
+      priceLine: "From S$35 / child",
       nextDate: "Fri 18 Sept",
     });
     expect(classes[1]?.sessions.map((s) => s.publicId)).toEqual(["occ_k1", "occ_k2"]);
     expect(classes[1]?.sessions[0]?.time).toMatch(/^Fri 18 Sept · /);
-    expect(classes[2]).toMatchObject({ nextDate: null, sessions: [] });
+    expect(classes[0]).toMatchObject({ nextDate: null, sessions: [] });
   });
 });
 
 describe("groupPublicClasses price", () => {
-  it("shows the lowest price as From, or nothing when there is no price table", () => {
+  it("derives the price line, and asks to enquire for enquire-only classes", () => {
     const paid = session({ publicId: "stn_paid", title: "Paid", startsAt: new Date(), prices: { "len:60": { weekday: 25, weekend: 30 } } });
-    const none = session({ publicId: "stn_none", title: "None", startsAt: new Date(), prices: null });
-    const [a, b] = groupPublicClasses([none, paid], [], zone, "SGD");
-    expect(a?.price).toBe("");
-    expect(b?.price).toMatch(/From .*25\.00/);
+    const camp = session({ publicId: "stn_camp", title: "Camp", startsAt: new Date(), bookingType: "enquire_only" });
+    const [camped] = groupPublicClasses([camp], [], zone, "SGD", DEFAULT_PRICE_TABLE);
+    expect(camped?.priceLine).toBe("Enquire for dates & pricing");
+    const [c] = groupPublicClasses([paid], [], zone, "SGD", DEFAULT_PRICE_TABLE);
+    expect(c?.priceLine).toBe("From S$25 / child");
   });
 });
