@@ -1,0 +1,32 @@
+# Default gitleaks rules, minus known false positives. CI scans the whole history,
+# so these must keep matching old commits, not only the current tree.
+# Only generic-api-key is relaxed: high-signal rules (stripe, aws, private keys,
+# database URLs) still run everywhere, test files included.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test fixtures: keys like addonKey/apiKey hold test data, never credentials"
+targetRules = ["generic-api-key"]
+paths = [
+  '''(^|/)__tests__/''',
+  '''\.test\.tsx?$''',
+]
+
+[[allowlists]]
+description = "Short made-up Stripe test-mode keys in test files (real keys are ~100 chars)"
+targetRules = ["stripe-access-token"]
+condition = "AND"
+paths = [
+  '''(^|/)__tests__/''',
+  '''\.test\.tsx?$''',
+]
+regexes = ['''^[rs]k_test_[A-Za-z0-9_]{1,24}$''']
+
+[[allowlists]]
+description = "Docs naming Clover env vars and helpers, not values"
+targetRules = ["generic-api-key"]
+paths = [
+  '''^AGENTS\.md$''',
+  '''(^|/)packages/clover/README\.md$''',
+]
