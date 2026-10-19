@@ -25,8 +25,6 @@ describe("normalizeClassWrite", () => {
     expect(() =>
       normalizeClassWrite({
         title: "Kids Club",
-        startsAt: future,
-        endsAt: new Date("2026-10-01T12:00:00.000Z"),
         capacity: 8,
       }),
     ).toThrow(/category/);
@@ -34,55 +32,17 @@ describe("normalizeClassWrite", () => {
       normalizeClassWrite({
         title: "Kids Club",
         category: "kids",
-        startsAt: future,
-        endsAt: new Date("2026-10-01T12:00:00.000Z"),
         capacity: 0,
       }),
     ).toThrow(/Capacity/);
   });
 
-  it("stores a clock without scheduling dates", () => {
-    const record = normalizeClassWrite(
-      {
-        title: "Kids Club",
-        category: "kids",
-        startsAt: "16:00",
-        endsAt: "17:30",
-        capacity: 8,
-      },
-      "Asia/Singapore",
-    );
+  it("writes the summary and leaves the rest of the class untouched", () => {
+    const record = normalizeClassWrite({ title: "Kids Club", category: "kids", description: " Hi ", capacity: 8 });
     expect(record.published).toBe(false);
-    expect(record.weekdays).toEqual([]);
+    expect(record.summary).toBe("Hi");
     expect(record.photos).toEqual([]);
-    expect(
-      normalizeClassWrite(
-        {
-          title: "Kids Club",
-          category: "kids",
-          startsAt: "16:00",
-          endsAt: "17:30",
-          capacity: 8,
-          priceAmount: "35.5",
-        },
-        "Asia/Singapore",
-      ).priceAmount,
-    ).toBe("35.50");
-  });
-
-  it("rejects a class clock that wraps past midnight", () => {
-    expect(() =>
-      normalizeClassWrite(
-        {
-          title: "Kids Club",
-          category: "kids",
-          startsAt: "23:00",
-          endsAt: "01:00",
-          capacity: 8,
-        },
-        "Asia/Singapore",
-      ),
-    ).toThrow(/after start/);
+    expect(record).not.toHaveProperty("pricing");
   });
 
   it("keeps uploaded photos", () => {
@@ -91,12 +51,9 @@ describe("normalizeClassWrite", () => {
         {
           title: "Kids Club",
           category: "kids",
-          startsAt: new Date("2026-09-22T08:00:00.000Z"),
-          endsAt: new Date("2026-09-22T09:30:00.000Z"),
           capacity: 8,
           photos: ["/api/files/public/classes/kite.png"],
         },
-        "Asia/Singapore",
       ).photos,
     ).toEqual(["/api/files/public/classes/kite.png"]);
   });

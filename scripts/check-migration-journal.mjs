@@ -21,7 +21,10 @@ import { join } from "node:path";
 // __drizzle_migrations rows replaced to match. The base comparison is skipped
 // only while the base journal still starts at the pre-squash `when`, so every
 // later change is checked normally.
-const SQUASHED_FROM = { xplorers: 1774000000000 };
+// Second xplorers squash on 2026-10-19, owner-approved while the app is a pilot:
+// 0000-0010 became one baseline again, and prod's __drizzle_migrations is
+// recreated to match. The base journal now starts at the first baseline's `when`.
+const SQUASHED_FROM = { xplorers: 1791188313266 };
 
 const base = process.argv[2] && !/^0+$/.test(process.argv[2]) ? process.argv[2] : null;
 const now = Date.now();

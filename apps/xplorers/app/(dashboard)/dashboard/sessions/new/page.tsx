@@ -3,7 +3,6 @@ import { CalendarDaysIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { requirePermission } from "@/lib/auth/guards";
-import { formatClassClock } from "@/lib/sessions/format";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { ScheduleSessionForm } from "../schedule-form";
 
@@ -13,9 +12,8 @@ export default async function NewSessionPage({
   searchParams: Promise<{ date?: string; class?: string }>;
 }) {
   await requirePermission({ studioSession: ["create"] } as never);
-  const [{ date, class: classPublicId }, timeZone, options] = await Promise.all([
+  const [{ date, class: classPublicId }, options] = await Promise.all([
     searchParams,
-    studioSessionsService.timezone(),
     studioSessionsService.listClassOptions(),
   ]);
 
@@ -42,7 +40,7 @@ export default async function NewSessionPage({
               publicId: item.publicId,
               title: item.title,
               capacity: item.capacity,
-              timeLabel: formatClassClock(item.startsAt, item.endsAt, timeZone),
+              timeLabel: item.scheduleLine ?? "",
             }))}
           />
         )}

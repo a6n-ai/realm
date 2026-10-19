@@ -21,19 +21,26 @@ function session(over: Partial<PublicSession> & Pick<PublicSession, "startsAt" |
     updatedAt: 0,
     updatedBy: null,
     category: "kids",
-    description: null,
+    summary: "",
     endsAt: new Date(over.startsAt.getTime() + 90 * 60 * 1000),
-    audience: "Age 6+",
+    ageMin: 6,
+    ageMax: null,
+    ageWaiver: false,
+    included: null,
+    scheduleLine: null,
+    groupSize: null,
+    bookingType: "bookable",
+    color: "pink",
+    pricing: { mode: "length", defaultLengthMinutes: 60, options: [], extension: null, adults: { free: 0, extraPrice: null } },
+    prices: { "len:60": { weekday: 35 } },
+    pattern: null,
+    sortOrder: 0,
     capacity: 8,
-    priceDisplay: "$35",
-    priceAmount: "35.00",
     location: "Bench 01",
     attendanceMode: "drop_off",
     published: true,
     archived: false,
     remaining: 4,
-    weekdays: [],
-    repeatsUntil: null,
     photos: over.photos ?? [],
     occurrencePublicId: over.occurrencePublicId ?? over.publicId ?? "occ_test",
     occursOn: over.occursOn ?? "2026-09-16",
@@ -83,7 +90,7 @@ describe("groupPublicClasses", () => {
     expect(classes[1]).toMatchObject({
       title: "Kite Lab",
       photos: ["/k.jpg"],
-      price: "$35",
+      price: expect.stringMatching(/^From SGD\s35\.00$/),
       nextDate: "Fri 18 Sept",
     });
     expect(classes[1]?.sessions.map((s) => s.publicId)).toEqual(["occ_k1", "occ_k2"]);
@@ -93,11 +100,11 @@ describe("groupPublicClasses", () => {
 });
 
 describe("groupPublicClasses price", () => {
-  it("falls back to the amount, or Free, when there is no price text", () => {
-    const paid = session({ publicId: "stn_paid", title: "Paid", startsAt: new Date(), priceDisplay: null, priceAmount: "25.00" });
-    const free = session({ publicId: "stn_free", title: "Free", startsAt: new Date(), priceDisplay: null, priceAmount: "0.00" });
-    const [a, b] = groupPublicClasses([free, paid], [], zone, "SGD");
-    expect(a?.price).toBe("Free");
-    expect(b?.price).toMatch(/25\.00/);
+  it("shows the lowest price as From, or nothing when there is no price table", () => {
+    const paid = session({ publicId: "stn_paid", title: "Paid", startsAt: new Date(), prices: { "len:60": { weekday: 25, weekend: 30 } } });
+    const none = session({ publicId: "stn_none", title: "None", startsAt: new Date(), prices: null });
+    const [a, b] = groupPublicClasses([none, paid], [], zone, "SGD");
+    expect(a?.price).toBe("");
+    expect(b?.price).toMatch(/From .*25\.00/);
   });
 });

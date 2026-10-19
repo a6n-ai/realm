@@ -9,15 +9,9 @@ import { ATTENDANCE_MODES, SESSION_CATEGORIES, type AttendanceMode, type Session
 import type { SortState } from "@/lib/list/sort";
 import { monthGrid } from "@/lib/sessions/calendar";
 import { parsePhotos } from "@/lib/sessions/photos";
-import {
-  assertSameCalendarDay,
-  clockFrom,
-  fromZonedClock,
-  occurrenceEndsAt,
-  occurrenceStartsAt,
-  parseDay,
-} from "@/lib/sessions/schedule";
-import { dayKey } from "@/lib/sessions/timezone";
+import { parseDay } from "@/lib/sessions/schedule";
+import { dayKey, fromZonedLocal } from "@/lib/sessions/timezone";
+import type { ClassPricing } from "@/lib/pricing/types";
 import { getAppClock } from "./app-settings.service";
 import { remainingSeats, isPubliclyListed, RESERVED_BOOKING_STATUSES } from "./booking-policy";
 import { currentUserId, SessionUpdatableService } from "./session-service";
@@ -26,12 +20,14 @@ import { studioSessionsRepository, type StudioSessionRow } from "./studio-sessio
 export { ATTENDANCE_MODES, SESSION_CATEGORIES, type AttendanceMode, type SessionCategory };
 
 export type PublicSession = StudioSessionRow & {
+  startsAt: Date;
+  endsAt: Date;
   remaining: number;
   occurrencePublicId: string;
   occursOn: string;
 };
 
-export type ClassSortColumn = "title" | "category" | "startsAt" | "capacity" | "published" | "createdAt";
+export type ClassSortColumn = "title" | "category" | "capacity" | "published" | "createdAt";
 export type SessionSortColumn = "occursOn" | "title" | "category" | "published";
 
 export type AdminClassRow = StudioSessionRow & { sessionCount: number };
@@ -55,14 +51,12 @@ export type ClassOption = {
   publicId: string;
   title: string;
   capacity: number;
-  startsAt: Date;
-  endsAt: Date;
+  scheduleLine: string | null;
 };
 
 const CLASS_SORT = {
   title: studioSessions.title,
   category: studioSessions.category,
-  startsAt: studioSessions.startsAt,
   capacity: studioSessions.capacity,
   published: studioSessions.published,
   createdAt: studioSessions.createdAt,
@@ -94,13 +88,22 @@ const sessionCountAgg = db
   .groupBy(studioSessionOccurrences.sessionId)
   .as("session_counts");
 
+/** Placeholder until the Task 5 class form sets real pricing. */
+const EMPTY_PRICING: ClassPricing = {
+  mode: "length",
+  defaultLengthMinutes: 60,
+  options: [],
+  extension: null,
+  adults: { free: 0, extraPrice: null },
+};
+
 class StudioSessionsService extends SessionUpdatableService<typeof studioSessions> {
-  async createClass(input: Record<string, unknown>, timeZone?: string): Promise<StudioSessionRow> {
-    return this.create(normalizeClassWrite(input, timeZone));
+  async createClass(input: Record<string, unknown>): Promise<StudioSessionRow> {
+    return this.create({ ...normalizeClassWrite(input), pricing: EMPTY_PRICING });
   }
 
-  async updateClass(publicId: string, input: Record<string, unknown>, timeZone?: string): Promise<StudioSessionRow> {
-    return this.update(publicId, normalizeClassWrite(input, timeZone));
+  async updateClass(publicId: string, input: Record<string, unknown>): Promise<StudioSessionRow> {
+    return this.update(publicId, normalizeClassWrite(input));
   }
 
   async archive(publicId: string): Promise<StudioSessionRow> {
@@ -169,7 +172,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
         .leftJoin(confirmedAgg, eq(confirmedAgg.occurrenceId, studioSessionOccurrences.id))
         .where(where)
-        .orderBy(order[0], asc(studioSessions.startsAt), order[1])
+        .orderBy(order[0], asc(studioSessionOccurrences.startsAt), order[1])
         .limit(page.size)
         .offset(page.page * page.size),
       db
@@ -180,7 +183,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     ]);
 
     return {
-      items: items.map((row) => toAdminOccurrence(row.session, row.occurrence, row.confirmed, timeZone)),
+      items: items.map((row) => toAdminOccurrence(row.session, row.occurrence, row.confirmed)),
       page: page.page,
       size: page.size,
       total: count,
@@ -209,8 +212,8 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
           lte(studioSessionOccurrences.occursOn, end),
         ),
       )
-      .orderBy(asc(studioSessionOccurrences.occursOn), asc(studioSessions.startsAt));
-    return rows.map((row) => toAdminOccurrence(row.session, row.occurrence, row.confirmed, zone));
+      .orderBy(asc(studioSessionOccurrences.occursOn), asc(studioSessionOccurrences.startsAt));
+    return rows.map((row) => toAdminOccurrence(row.session, row.occurrence, row.confirmed));
   }
 
   async listClassOptions(): Promise<ClassOption[]> {
@@ -219,8 +222,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
         publicId: studioSessions.publicId,
         title: studioSessions.title,
         capacity: studioSessions.capacity,
-        startsAt: studioSessions.startsAt,
-        endsAt: studioSessions.endsAt,
+        scheduleLine: studioSessions.scheduleLine,
       })
       .from(studioSessions)
       .where(eq(studioSessions.archived, false))
@@ -242,7 +244,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .where(eq(studioSessionOccurrences.publicId, publicId))
       .limit(1);
     if (!row) throw new ValidationError("Session not found.");
-    return toAdminOccurrence(row.session, row.occurrence, row.confirmed, zone);
+    return toAdminOccurrence(row.session, row.occurrence, row.confirmed);
   }
 
   async scheduleSession(classPublicId: string, occursOn: string): Promise<{ publicId: string; occursOn: string }> {
@@ -256,11 +258,18 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .limit(1);
     if (existing) throw new ValidationError("This class is already scheduled that day.");
     const actorId = await currentUserId();
+    const zone = await this.timezone();
+    // ponytail: Task 6 schedules from the class pattern; until then fall back to a fixed hour.
+    const startsAt = fromZonedLocal(`${day}T${klass.pattern?.startClock ?? "10:00"}`, zone);
+    const endsAt = fromZonedLocal(`${day}T${klass.pattern?.endClock ?? "11:00"}`, zone);
     const [row] = await db
       .insert(studioSessionOccurrences)
       .values({
         sessionId: klass.id,
         occursOn: day,
+        startsAt,
+        endsAt,
+        capacity: klass.capacity,
         createdBy: actorId,
         updatedBy: actorId,
       })
@@ -297,10 +306,16 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .from(studioSessionOccurrences)
       .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
       .leftJoin(confirmedAgg, eq(confirmedAgg.occurrenceId, studioSessionOccurrences.id))
-      .where(and(eq(studioSessions.published, true), eq(studioSessions.archived, false)))
-      .orderBy(asc(studioSessionOccurrences.occursOn), asc(studioSessions.startsAt));
+      .where(
+        and(
+          eq(studioSessions.published, true),
+          eq(studioSessions.archived, false),
+          eq(studioSessionOccurrences.status, "scheduled"),
+        ),
+      )
+      .orderBy(asc(studioSessionOccurrences.occursOn), asc(studioSessionOccurrences.startsAt));
     return rows
-      .map(({ session, occurrence, confirmed }) => toPublicSession(session, occurrence, confirmed, timeZone))
+      .map(({ session, occurrence, confirmed }) => toPublicSession(session, occurrence, confirmed))
       .filter((session) => isPubliclyListed(session, now));
   }
 
@@ -310,7 +325,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .select()
       .from(studioSessions)
       .where(and(eq(studioSessions.published, true), eq(studioSessions.archived, false)))
-      .orderBy(asc(studioSessions.title));
+      .orderBy(asc(studioSessions.sortOrder), asc(studioSessions.title));
   }
 
   async getPublished(occurrencePublicId: string, now = new Date()): Promise<PublicSession> {
@@ -327,7 +342,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .where(eq(studioSessionOccurrences.publicId, occurrencePublicId))
       .limit(1);
     if (!row) throw new ValidationError("Session not found.");
-    const listed = toPublicSession(row.session, row.occurrence, row.confirmed, timeZone);
+    const listed = toPublicSession(row.session, row.occurrence, row.confirmed);
     if (!isPubliclyListed(listed, now)) throw new ValidationError("This session is not open for booking.");
     return listed;
   }
@@ -340,27 +355,28 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
 
 export const studioSessionsService = new StudioSessionsService(studioSessionsRepository);
 
+type OccurrenceFields = { publicId: string; occursOn: string; startsAt: Date; endsAt: Date; capacity: number };
+
 function toPublicSession(
   session: StudioSessionRow,
-  occurrence: { publicId: string; occursOn: string },
+  occurrence: OccurrenceFields,
   confirmed: number | null,
-  timeZone: string,
 ): PublicSession {
   return {
     ...session,
     occurrencePublicId: occurrence.publicId,
     occursOn: occurrence.occursOn,
-    startsAt: occurrenceStartsAt(occurrence.occursOn, session.startsAt, timeZone),
-    endsAt: occurrenceEndsAt(occurrence.occursOn, session.startsAt, session.endsAt, timeZone),
-    remaining: remainingSeats(session.capacity, Number(confirmed ?? 0)),
+    startsAt: occurrence.startsAt,
+    endsAt: occurrence.endsAt,
+    capacity: occurrence.capacity,
+    remaining: remainingSeats(occurrence.capacity, Number(confirmed ?? 0)),
   };
 }
 
 function toAdminOccurrence(
   session: StudioSessionRow,
-  occurrence: { publicId: string; occursOn: string },
+  occurrence: OccurrenceFields,
   confirmed: number | null,
-  timeZone: string,
 ): AdminOccurrence {
   return {
     publicId: occurrence.publicId,
@@ -368,10 +384,10 @@ function toAdminOccurrence(
     title: session.title,
     category: session.category,
     occursOn: occurrence.occursOn,
-    startsAt: occurrenceStartsAt(occurrence.occursOn, session.startsAt, timeZone),
-    endsAt: occurrenceEndsAt(occurrence.occursOn, session.startsAt, session.endsAt, timeZone),
-    capacity: session.capacity,
-    remaining: remainingSeats(session.capacity, Number(confirmed ?? 0)),
+    startsAt: occurrence.startsAt,
+    endsAt: occurrence.endsAt,
+    capacity: occurrence.capacity,
+    remaining: remainingSeats(occurrence.capacity, Number(confirmed ?? 0)),
     published: session.published,
     location: session.location,
     archived: session.archived,
@@ -444,18 +460,7 @@ function resolveSessionFacet(timeZone: string) {
   };
 }
 
-function classClock(value: unknown, timeZone: string): Date {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return fromZonedClock(clockFrom(value, timeZone), timeZone);
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (/^\d{2}:\d{2}/.test(trimmed)) return fromZonedClock(trimmed, timeZone);
-  }
-  return fromZonedClock(clockFrom(toDate(value), timeZone), timeZone);
-}
-
-function normalizeClassWrite(input: Record<string, unknown>, timeZone?: string): Record<string, unknown> {
+function normalizeClassWrite(input: Record<string, unknown>): Record<string, unknown> {
   const title = String(input.title ?? "").trim();
   if (!title) throw new ValidationError("Title is required.");
   if (!isSessionCategory(input.category)) throw new ValidationError("Pick a category.");
@@ -463,47 +468,19 @@ function normalizeClassWrite(input: Record<string, unknown>, timeZone?: string):
   if (!isAttendanceMode(attendanceMode)) throw new ValidationError("Pick stay, drop-off, or either.");
   const capacity = Number(input.capacity);
   if (!Number.isInteger(capacity) || capacity < 1) throw new ValidationError("Capacity must be at least 1.");
-  const zone = timeZone ?? "UTC";
-  const startsAt = classClock(input.startsAt, zone);
-  const endsAt = classClock(input.endsAt, zone);
-  if (endsAt.getTime() <= startsAt.getTime()) throw new ValidationError("End must be after start.");
-  assertSameCalendarDay(startsAt, endsAt, zone);
   return {
     title,
     category: input.category,
-    description: emptyToNull(input.description),
-    startsAt,
-    endsAt,
-    audience: emptyToNull(input.audience),
+    summary: emptyToNull(input.description) ?? "",
     capacity,
-    priceDisplay: emptyToNull(input.priceDisplay),
-    priceAmount: parsePriceAmount(input.priceAmount),
     location: emptyToNull(input.location),
     attendanceMode,
     published: input.published === true || input.published === "on" || input.published === "true",
     photos: parsePhotos(input.photos),
-    weekdays: [],
-    repeatsUntil: null,
   };
 }
 
 export { normalizeClassWrite };
-
-function parsePriceAmount(value: unknown): string {
-  if (value == null || value === "") return "0.00";
-  const n = typeof value === "number" ? value : Number(String(value).trim());
-  if (!Number.isFinite(n) || n < 0) throw new ValidationError("Price must be zero or more.");
-  return (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
-}
-
-function toDate(value: unknown): Date {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value === "string" && value) {
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
-  throw new ValidationError("Start and end times are required.");
-}
 
 function emptyToNull(value: unknown): string | null {
   if (typeof value === "string") {

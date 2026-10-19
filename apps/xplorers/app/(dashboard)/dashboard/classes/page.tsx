@@ -64,7 +64,7 @@ async function ClassesData({ searchParams }: { searchParams: SearchParams }) {
         publicId: row.publicId,
         title: row.title,
         category: row.category,
-        timeLabel: formatClassClock(row.startsAt, row.endsAt, timeZone),
+        timeLabel: row.scheduleLine ?? "",
         capacity: row.capacity,
         published: row.published,
         sessionCount: row.sessionCount,

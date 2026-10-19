@@ -7,7 +7,6 @@ import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { parseSort } from "@/lib/list/sort";
 import { formatSessionTime } from "@/lib/sessions/format";
-import { clockFrom } from "@/lib/sessions/schedule";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { SESSION_FACETS, SESSION_SORT_COLUMNS } from "@/lib/studio/list-spec";
 import { SessionsTable } from "../../sessions/sessions-table";
@@ -57,13 +56,8 @@ export default async function EditClassPage({
           values={{
             title: row.title,
             category: row.category,
-            description: row.description ?? "",
-            startsAt: clockFrom(row.startsAt, timeZone),
-            endsAt: clockFrom(row.endsAt, timeZone),
-            audience: row.audience ?? "",
+            description: row.summary,
             capacity: row.capacity,
-            priceDisplay: row.priceDisplay ?? "",
-            priceAmount: row.priceAmount,
             location: row.location ?? "",
             attendanceMode: row.attendanceMode,
             published: row.published,

@@ -6,7 +6,6 @@ import type { ClassSortColumn, SessionSortColumn } from "@/lib/services/studio-s
 export const CLASS_SORT_COLUMNS = [
   "title",
   "category",
-  "startsAt",
   "capacity",
   "published",
   "createdAt",

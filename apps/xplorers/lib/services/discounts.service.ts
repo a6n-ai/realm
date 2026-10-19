@@ -1,6 +1,5 @@
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
-import { findMethod } from "@foundry/payments";
 import { and, count, desc, eq, getTableColumns } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
@@ -11,14 +10,11 @@ import {
   SESSION_CATEGORIES,
   studioSessionOccurrences,
   studioSessions,
-  users,
   type DiscountScope,
   type SessionCategory,
 } from "@/db/schema";
-import { priceBooking, type BookingQuote, type CouponRule, type DiscountRule } from "@/lib/discounts/quote";
-import { getAppClock, getDiscountSettings, getPaymentConfig } from "./app-settings.service";
-import { paymentsService } from "./payments.service";
-import { walletService } from "./wallet.service";
+import { type BookingQuote, type CouponRule, type DiscountRule } from "@/lib/discounts/quote";
+import { getAppClock } from "./app-settings.service";
 import { SessionUpdatableService } from "./session-service";
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -223,54 +219,22 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
     return { discounts: discountRows.map(toDiscountRule), coupon: toCouponRule(row, userRedemptionCount) };
   }
 
-  /** Preview for the booking control. The booking itself re-quotes inside its transaction. */
+  /** Task 9 re-quotes through the layered pricing engine; until then every preview is a zero quote. */
   async quoteForOccurrence(
     occurrencePublicId: string,
-    seats: number,
-    code: string | null,
-    userPublicId: string | null,
-    useCoins = false,
+    _seats: number,
+    _code: string | null,
+    _userPublicId: string | null,
+    _useCoins = false,
   ): Promise<BookingQuote & { currency: string }> {
     const [row] = await db
-      .select({ id: studioSessions.id, category: studioSessions.category, priceAmount: studioSessions.priceAmount })
+      .select({ id: studioSessionOccurrences.id })
       .from(studioSessionOccurrences)
-      .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
       .where(eq(studioSessionOccurrences.publicId, occurrencePublicId))
       .limit(1);
     if (!row) throw new ValidationError("Session not found.");
-    const [user] = userPublicId
-      ? await db.select({ id: users.id }).from(users).where(eq(users.publicId, userPublicId)).limit(1)
-      : [];
-    const [rails, cfg, { currency }, { maxDiscountPct }] = await Promise.all([
-      paymentsService.enabledRails(),
-      getPaymentConfig(),
-      getAppClock(),
-      getDiscountSettings(),
-    ]);
-    // Same rule as booking: no payment rail or no price means the class is free.
-    const unit = Number(row.priceAmount);
-    if (!rails.length || !Number.isFinite(unit) || unit <= 0) {
-      return { subtotal: 0, adjustments: [], discountTotal: 0, taxTotal: 0, total: 0, codeError: null, currency };
-    }
-    const method = findMethod(cfg, rails[0]!.id) ?? rails[0]!;
-    // Preview only: unlocked balance. The booking re-reads it under the family's lock.
-    const rate = useCoins && user ? await walletService.walletRate() : null;
-    const balance = rate && user ? await walletService.balance(user.id) : 0;
-    const coins = rate && balance > 0 ? { balance, rate } : null;
-    const rules = await db.transaction((tx) => this.loadPricing(tx, { code, userId: user?.id ?? null, lock: false }));
-    const quote = priceBooking({
-      unitPrice: row.priceAmount,
-      seats,
-      session: { id: row.id, category: row.category },
-      method,
-      discounts: rules.discounts,
-      coupon: rules.coupon,
-      codeTyped: Boolean(code?.trim()),
-      maxDiscountPct,
-      now: Date.now(),
-      coins,
-    });
-    return { ...quote, currency };
+    const { currency } = await getAppClock();
+    return { subtotal: 0, adjustments: [], discountTotal: 0, taxTotal: 0, total: 0, codeError: null, currency };
   }
 }
 

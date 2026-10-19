@@ -15,13 +15,8 @@ export type ClassFormValues = {
   title: string;
   category: string;
   description: string;
-  startsAt: string;
-  endsAt: string;
-  audience: string;
-    capacity: number;
-    priceDisplay: string;
-    priceAmount: string;
-    location: string;
+  capacity: number;
+  location: string;
   attendanceMode: string;
   published: boolean;
   photos: string[];
@@ -31,12 +26,7 @@ const empty: ClassFormValues = {
   title: "",
   category: "kids",
   description: "",
-  startsAt: "",
-  endsAt: "",
-  audience: "",
   capacity: 8,
-  priceDisplay: "",
-  priceAmount: "0",
   location: "",
   attendanceMode: "either",
   published: false,
@@ -68,7 +58,7 @@ export function ClassForm({
         </p>
       ) : null}
       <p className="text-muted-foreground text-sm">
-        Times are in {timeZone.replaceAll("_", " ")}. Schedule days from Sessions — this form is the class catalog.
+        Schedule days from Sessions — this form is the class catalog.
       </p>
       <div className="grid gap-2">
         <Label htmlFor="title">Name</Label>
@@ -77,16 +67,6 @@ export function ClassForm({
       <div className="grid gap-2">
         <Label htmlFor="description">Description</Label>
         <Textarea id="description" name="description" rows={4} defaultValue={initial.description} disabled={readOnly} />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="startsAt">Starts</Label>
-          <Input id="startsAt" name="startsAt" type="time" required defaultValue={initial.startsAt} disabled={readOnly} />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="endsAt">Ends</Label>
-          <Input id="endsAt" name="endsAt" type="time" required defaultValue={initial.endsAt} disabled={readOnly} />
-        </div>
       </div>
       <ClassPhotosField value={initial.photos} disabled={readOnly} />
       <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
@@ -125,10 +105,6 @@ export function ClassForm({
       </div>
       <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="audience">Age / audience</Label>
-          <Input id="audience" name="audience" defaultValue={initial.audience} disabled={readOnly} placeholder="Age 6+" />
-        </div>
-        <div className="grid gap-2">
           <Label htmlFor="capacity">Capacity</Label>
           <Input
             id="capacity"
@@ -138,31 +114,6 @@ export function ClassForm({
             required
             defaultValue={initial.capacity}
             disabled={readOnly}
-          />
-        </div>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="priceAmount">Price</Label>
-          <Input
-            id="priceAmount"
-            name="priceAmount"
-            type="number"
-            min={0}
-            step="0.01"
-            defaultValue={initial.priceAmount}
-            disabled={readOnly}
-          />
-          <p className="text-muted-foreground text-xs">Charged per seat in the studio currency. Zero means free.</p>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="priceDisplay">Price display</Label>
-          <Input
-            id="priceDisplay"
-            name="priceDisplay"
-            defaultValue={initial.priceDisplay}
-            disabled={readOnly}
-            placeholder="$35 / hr"
           />
         </div>
       </div>

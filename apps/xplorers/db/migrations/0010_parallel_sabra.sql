@@ -1,1 +1,0 @@
-ALTER TABLE "message_suppression" ADD COLUMN "source" text;

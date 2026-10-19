@@ -85,11 +85,17 @@ function attendanceLabel(mode: AttendanceMode): string | null {
   }
 }
 
+export function audienceLabel(c: { ageMin: number | null; ageMax: number | null }): string | null {
+  if (c.ageMin != null && c.ageMax != null) return `Ages ${c.ageMin}-${c.ageMax}`;
+  if (c.ageMin != null) return `Ages ${c.ageMin}+`;
+  if (c.ageMax != null) return `Up to age ${c.ageMax}`;
+  return null;
+}
+
 export function toPublicSessionCard(session: PublicSession, timeZone: string): PublicSessionCard {
   const specParts = [
-    session.audience,
+    audienceLabel(session),
     attendanceLabel(session.attendanceMode),
-    session.priceDisplay,
     session.location,
   ].filter(Boolean);
   const spec = specParts.length ? specParts.join(" · ") : CATEGORY_LABELS[session.category];
@@ -108,7 +114,7 @@ export function toPublicSessionCard(session: PublicSession, timeZone: string): P
     remaining: session.remaining,
     category: session.category,
     photos: session.photos ?? [],
-    description: session.description,
+    description: session.summary || null,
   };
 }
 
@@ -159,14 +165,13 @@ export type PublicClass = {
 
 type ClassFields = Pick<
   PublicSession,
-  "publicId" | "title" | "category" | "audience" | "description" | "photos" | "priceDisplay" | "priceAmount" | "location"
+  "publicId" | "title" | "category" | "ageMin" | "ageMax" | "summary" | "photos" | "prices" | "location"
 >;
 
 /** Classes with dates come first (soonest first); unscheduled ones follow by title. */
 function priceLabel(c: ClassFields, currency: string): string {
-  if (c.priceDisplay?.trim()) return c.priceDisplay;
-  const amount = Number(c.priceAmount);
-  return Number.isFinite(amount) && amount > 0 ? formatMoney(amount, currency) : "Free";
+  const amounts = Object.values(c.prices ?? {}).flatMap((cell) => [cell.weekday, cell.weekend]).filter((n): n is number => typeof n === "number" && n > 0);
+  return amounts.length ? `From ${formatMoney(Math.min(...amounts), currency)}` : "";
 }
 
 export function groupPublicClasses(
@@ -185,8 +190,8 @@ export function groupPublicClasses(
         publicId: c.publicId,
         title: c.title,
         category: c.category,
-        audience: c.audience,
-        description: c.description,
+        audience: audienceLabel(c),
+        description: c.summary || null,
         photos: c.photos ?? [],
         price: priceLabel(c, currency),
         location: c.location,
