@@ -75,6 +75,13 @@ describe("rowDietLabel", () => {
     expect(rowDietLabel(plans, keys, "sabzi", 3)).toBe("Veg");
   });
 
+  it("names the plan that serves an add-on that day: its fallback on a veg-only day", () => {
+    const addon = new Map([["sabzi", [null, [NONVEG, VEG]]]]);
+    expect(rowDietLabel(addon, keys, "sabzi", 2, [{ planId: NONVEG }, { planId: VEG }])).toBe("Non-Veg");
+    expect(rowDietLabel(addon, keys, "sabzi", 2, [{ planId: VEG }])).toBe("Veg");
+    expect(rowDietLabel(addon, keys, "sabzi", 1, [{ planId: VEG }])).toBeUndefined();
+  });
+
   it("stays silent for a single-diet category and for catalog sizes", () => {
     expect(rowDietLabel(plans, keys, "roti", 1)).toBeUndefined();
     expect(rowDietLabel(null, keys, "sabzi", 1)).toBeUndefined();

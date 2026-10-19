@@ -174,7 +174,6 @@ export const selectionsService = {
     // plans (a non-veg thali can carry a veg-tagged sabzi slot). A dish on a plan
     // nothing in this meal size ever references is still refused.
     const allowedDishIds = await allowedDishIdsForMealSize(order.mealSizeId);
-    if (!allowedDishIds.has(dishId)) throw new ValidationError("Dish does not match your plan");
 
     // `slot` is a dish-category key: only categories marked selectable may receive a subscriber pick,
     // and pickIndex must fall within that category's per-plan count (e.g. sabzi:2 allows picks 1 and 2).
@@ -211,6 +210,9 @@ export const selectionsService = {
     // ponytail: any of the row's plans is accepted; the picker already offers only the first one on the menu.
     const rowPlan = rowPlansAfterSwaps(await rowPlansForOrder(order), daySwaps)?.get(slot)?.[pickIndex - 1];
     if (rowPlan != null && !rowPlan.includes(dishRow.planId)) throw new ValidationError("That dish doesn't match this item's diet");
+    // A row with its own plans (add-on, custom row) was just checked against them; every other
+    // pick must be on a plan this meal size composes with.
+    if (rowPlan == null && !allowedDishIds.has(dishId)) throw new ValidationError("Dish does not match your plan");
 
     // Meal rules against the proposed final meal for this person/day.
     //

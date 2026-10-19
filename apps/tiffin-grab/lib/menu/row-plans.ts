@@ -30,6 +30,8 @@ export function itemsForRow<T extends { planId?: bigint | string }>(
   rowPlans: RowPlans | null,
   category: string,
   pickIndex: number,
+  // What a row with plans gets when none of them is on the day's menu (default: `items`).
+  fallback: T[] = items,
 ): T[] {
   const plans = rowPlans?.get(category)?.[pickIndex - 1];
   if (plans == null) return items;
@@ -39,14 +41,25 @@ export function itemsForRow<T extends { planId?: bigint | string }>(
   }
   // ponytail: a day with no dish of any of the row's plans serves the whole menu rather than an
   // empty box; a released week always carries both diets today.
-  return items;
+  return fallback;
 }
 
-/** "Non-Veg" for a row whose category mixes diets; undefined where one diet covers them all. */
-export function rowDietLabel(rowPlans: RowPlans | null, planKeys: Map<bigint, string>, category: string, pickIndex: number): string | undefined {
+/**
+ * "Non-Veg" for a row whose category mixes diets; undefined where one diet covers them all.
+ * With the day's dishes, it names the plan that actually serves the row (an add-on's fallback
+ * on a day without its own plan), so Edit meal never says "Non-Veg" over veg dishes.
+ */
+export function rowDietLabel(
+  rowPlans: RowPlans | null,
+  planKeys: Map<bigint, string>,
+  category: string,
+  pickIndex: number,
+  dayItems?: { planId?: bigint | string }[],
+): string | undefined {
   const rows = rowPlans?.get(category)?.map((r) => (r?.[0] == null ? null : String(r[0])));
-  const first = rowPlans?.get(category)?.[pickIndex - 1]?.[0];
-  const key = rows && new Set(rows).size > 1 && first != null ? planKeys.get(first) : undefined;
+  const plans = rowPlans?.get(category)?.[pickIndex - 1];
+  const served = plans && dayItems ? (plans.find((p) => dayItems.some((i) => i.planId != null && String(i.planId) === String(p))) ?? plans[0]) : plans?.[0];
+  const key = rows && new Set(rows).size > 1 && served != null ? planKeys.get(served) : undefined;
   return key?.replace(/(^|-)(\w)/g, (_, sep: string, c: string) => sep + c.toUpperCase());
 }
 

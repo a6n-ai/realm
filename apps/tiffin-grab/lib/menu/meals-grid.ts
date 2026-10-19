@@ -185,6 +185,11 @@ export async function buildMealsGrid(
       const slotDishes = slotItems
         .map((i) => dishMap.get(i.dishId))
         .filter((d): d is GridDish => !!d);
+      // A row with its own plans (add-on, custom row) may take a dish outside the meal size's plans,
+      // same as resolveCategoriesForDay; meal rows keep the plan filter above.
+      const daySlotDishes = dayItems.filter((i) => i.slot === slot).map((i) => dishMap.get(i.dishId)).filter((d): d is GridDish => !!d);
+      const rowDishes = (pickIndex: number) =>
+        dayRowPlans?.get(slot)?.[pickIndex - 1] ? itemsForRow(daySlotDishes, dayRowPlans, slot, pickIndex, slotDishes.length ? slotDishes : daySlotDishes) : slotDishes;
 
       for (let p = 1; p <= order.persons; p++) {
         const resolved = weekResolved.get(resolvedMealsWeekKey(day, p))?.find((r) => r.category === slot);
@@ -223,8 +228,8 @@ export async function buildMealsGrid(
           grid.push({
             day, dateIso, slot, personIndex: p, pickIndex, selectable: true, quantity: 1,
             selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
-            dishes: [...sides, ...itemsForRow(slotDishes, dayRowPlans, slot, pickIndex)], locked, lockNote,
-            ...(planKeys && { diet: rowDietLabel(dayRowPlans, planKeys, slot, pickIndex) }),
+            dishes: [...sides, ...rowDishes(pickIndex)], locked, lockNote,
+            ...(planKeys && { diet: rowDietLabel(dayRowPlans, planKeys, slot, pickIndex, daySlotDishes) }),
           });
         }
       }
