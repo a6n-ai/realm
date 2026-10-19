@@ -122,15 +122,15 @@ export async function allowedDishIdsForMealSize(mealSizeId: bigint): Promise<Set
   return out;
 }
 
-/** Per-pick plan of a custom meal size (row-plans.ts); null for catalog sizes. */
-export async function rowPlansForMealSize(mealSizeId: bigint): Promise<RowPlans | null> {
-  const [size] = await db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
-  if (!size?.custom) return null;
-  const items = await db
-    .select({ category: mealSizeItems.category, planId: mealSizeItems.planId, sortOrder: mealSizeItems.sortOrder })
-    .from(mealSizeItems)
-    .where(eq(mealSizeItems.mealSizeId, mealSizeId));
-  return rowPlanIds(items, true);
+/** Per-pick plans of an order (row-plans.ts): custom meal rows and add-on rows; null when neither. */
+export async function rowPlansForOrder(order: { id: bigint; mealSizeId: bigint }): Promise<RowPlans | null> {
+  const [[size], items, addonRows] = await Promise.all([
+    db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, order.mealSizeId)).limit(1),
+    db.select({ category: mealSizeItems.category, planId: mealSizeItems.planId, sortOrder: mealSizeItems.sortOrder })
+      .from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, order.mealSizeId)),
+    addonItemsForOrder(order.id),
+  ]);
+  return rowPlanIds([...items, ...addonRows], size?.custom ?? false);
 }
 
 // The ISO date of `dayOfWeek` within the menu week starting on weekStart.
@@ -208,8 +208,9 @@ export const selectionsService = {
     const max = applySwapsToCounts(baseCounts, daySwaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
     // Row diets after this day's swaps, same as the picker and the label (rowPlansAfterSwaps).
-    const rowPlan = rowPlansAfterSwaps(await rowPlansForMealSize(order.mealSizeId), daySwaps)?.get(slot)?.[pickIndex - 1];
-    if (rowPlan != null && rowPlan !== dishRow.planId) throw new ValidationError("That dish doesn't match this item's diet");
+    // ponytail: any of the row's plans is accepted; the picker already offers only the first one on the menu.
+    const rowPlan = rowPlansAfterSwaps(await rowPlansForOrder(order), daySwaps)?.get(slot)?.[pickIndex - 1];
+    if (rowPlan != null && !rowPlan.includes(dishRow.planId)) throw new ValidationError("That dish doesn't match this item's diet");
 
     // Meal rules against the proposed final meal for this person/day.
     //

@@ -399,6 +399,7 @@ function FieldControl({
                       on ? "border-primary/30 bg-primary/12 text-primary" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
+                    {on && f.ordered && <span className="mr-1.5 text-xs tabular-nums">{arr.indexOf(o.value) + 1}</span>}
                     {o.label}
                   </button>
                 );

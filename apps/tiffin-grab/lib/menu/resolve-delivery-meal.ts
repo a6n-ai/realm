@@ -107,7 +107,9 @@ export function resolveCategoriesForDay(
       const side = options.find((i) => i.isDefault) ?? options[0];
       if (side) return side;
       const row = itemsForRow(slotItems, rowPlans, c.key, pi);
-      return rowPlans
+      // Only a pick with its own plans (a custom row, an add-on) defaults within them; a catalog
+      // meal row keeps the shared default and the exclusive-dish rule.
+      return rowPlans?.get(c.key)?.[pi - 1]
         ? (row.find((i) => i.isDefault) ?? row[0]!)
         : (defaultMenuItem(slotItems, pi, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!);
     };

@@ -272,8 +272,14 @@ class AddonService extends SoftDeleteService<typeof addons> {
     return super.update(id, await this.withPlanId(RESOURCES.addons.schema.partial().parse(patch)));
   }
   private async withPlanId(parsed: Record<string, unknown>) {
-    if (parsed.planId === undefined) return parsed;
-    return { ...parsed, planId: parsed.planId == null ? null : await resolvePlanId(parsed.planId as string) };
+    const out = { ...parsed };
+    if (parsed.planId !== undefined) out.planId = parsed.planId == null ? null : await resolvePlanId(parsed.planId as string);
+    if (Array.isArray(parsed.fallbackPlanIds)) {
+      const ids = await Promise.all((parsed.fallbackPlanIds as string[]).map(resolvePlanId));
+      // Order is the priority; the primary plan and repeats add nothing.
+      out.fallbackPlanIds = ids.filter((id, i) => id !== out.planId && ids.indexOf(id) === i);
+    }
+    return out;
   }
 }
 

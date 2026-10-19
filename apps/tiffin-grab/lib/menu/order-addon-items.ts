@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishCategories, orderAddons, plans } from "@/db/schema";
+import { addons as addonCatalog, dishCategories, orderAddons, plans } from "@/db/schema";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
 import { formatTuHuman, isContainerCategory, type TuCategory } from "./format-tu";
 import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
@@ -21,6 +21,8 @@ export type AddonItemRow = {
   sortOrder: number;
   // Picks follow the add-on's own plan ("Veg Sabzi" → veg), never the order's.
   planId: bigint;
+  // Tried in order on a day with no planId dish in this category (see rowPlanIds).
+  fallbackPlanIds: bigint[];
   maxTuAmount: null;
   addon: true;
 };
@@ -29,14 +31,14 @@ export async function addonItemsByOrder(orderIds: bigint[]): Promise<Map<bigint,
   const out = new Map<bigint, AddonItemRow[]>();
   if (orderIds.length === 0) return out;
   const rows = await db
-    .select({ orderId: orderAddons.orderId, category: orderAddons.category, tuAmount: orderAddons.tuAmount, qty: orderAddons.qty, planId: sql<bigint>`${orderAddons.planId}`.mapWith(BigInt) })
+    .select({ orderId: orderAddons.orderId, category: orderAddons.category, tuAmount: orderAddons.tuAmount, qty: orderAddons.qty, planId: sql<bigint>`${orderAddons.planId}`.mapWith(BigInt), fallbackPlanIds: orderAddons.fallbackPlanIds })
     .from(orderAddons)
     .where(and(inArray(orderAddons.orderId, [...new Set(orderIds)]), isNotNull(orderAddons.planId)))
     .orderBy(orderAddons.id);
   for (const r of rows) {
     const list = out.get(r.orderId) ?? [];
     for (let i = 0; i < r.qty; i++) {
-      list.push({ category: r.category, tuAmount: r.tuAmount, sortOrder: ADDON_SORT_BASE + list.length, planId: r.planId, maxTuAmount: null, addon: true });
+      list.push({ category: r.category, tuAmount: r.tuAmount, sortOrder: ADDON_SORT_BASE + list.length, planId: r.planId, fallbackPlanIds: r.fallbackPlanIds, maxTuAmount: null, addon: true });
     }
     out.set(r.orderId, list);
   }
@@ -110,6 +112,7 @@ export function orderAddonValues(
       addonName: a.name,
       category: a.category,
       planId: sql<bigint>`(select ${plans.id} from ${plans} where ${plans.key} = ${a.planKey})`,
+      fallbackPlanIds: sql<bigint[]>`coalesce((select ${addonCatalog.fallbackPlanIds} from ${addonCatalog} where ${addonCatalog.key} = ${a.key}), '{}'::bigint[])`,
       tuAmount: a.tuAmount.toFixed(2),
       pricePerTiffin: a.pricePerTiffin.toFixed(2),
       qty: a.qty,
