@@ -58,7 +58,7 @@ export function LoginForm({
   );
   // A Google address with no account: sign-up lives on /signup, so continue there.
   useEffect(() => {
-    if (oauthError === "signup_disabled") router.replace("/signup?error=signup_disabled");
+    if (oauthError === "signup_disabled") router.replace(signupHref(callbackUrl, { error: "signup_disabled" }));
   }, [oauthError, router]);
   // Google returns to a fixed URL; /me sends staff on to the console.
   const googleCallback = callbackUrl ?? "/me";
@@ -88,7 +88,7 @@ export function LoginForm({
                 router.refresh();
               },
               // No account for that Google email: sign-up lives on /signup.
-              onRefused: () => router.replace("/signup?error=signup_disabled"),
+              onRefused: () => router.replace(signupHref(callbackUrl, { error: "signup_disabled" })),
             })
           }
         />

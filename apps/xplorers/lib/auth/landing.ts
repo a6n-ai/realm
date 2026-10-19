@@ -41,8 +41,12 @@ export function landingPathFor(role: string | null | undefined, callbackUrl?: st
 }
 
 /** /signup link that keeps the sanitized return target, so a new family lands back on the session they picked. */
-export function signupHref(next: string | null): string {
-  return next && isSameSitePath(next) ? `/signup?next=${encodeURIComponent(next)}` : "/signup";
+export function signupHref(next: string | null, extra?: Record<string, string>): string {
+  const params = new URLSearchParams();
+  if (next && isSameSitePath(next)) params.set("next", next);
+  for (const [key, value] of Object.entries(extra ?? {})) params.set(key, value);
+  const query = params.toString();
+  return query ? `/signup?${query}` : "/signup";
 }
 
 /** Where a brand-new customer goes after signing up: the target they came for when they may reach it, else the welcome page. */

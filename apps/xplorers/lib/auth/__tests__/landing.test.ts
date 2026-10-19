@@ -76,6 +76,13 @@ describe("signup hop", () => {
     expect(signupHref("//evil.test")).toBe("/signup");
   });
 
+  it("flags a refused Google sign-up without dropping the picked session", () => {
+    expect(signupHref(null, { error: "signup_disabled" })).toBe("/signup?error=signup_disabled");
+    expect(signupHref("/me/book?session=x", { error: "signup_disabled" })).toBe(
+      "/signup?next=%2Fme%2Fbook%3Fsession%3Dx&error=signup_disabled",
+    );
+  });
+
   it("lands a new family on the target, else the welcome page", () => {
     expect(afterSignupPath("/me/book?session=abc")).toBe("/me/book?session=abc");
     expect(afterSignupPath(null)).toBe("/me/welcome");
