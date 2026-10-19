@@ -320,9 +320,23 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
           classPublicId ? eq(studioSessions.publicId, classPublicId) : undefined,
         ),
       );
+    // The all-classes sweep runs on every calendar read, so skip classes already filled to their target end.
+    // A targeted call (class save, regenerate) always expands: its gaps matter more than the saved write.
+    const maxDay = new Map<bigint, string>();
+    if (!classPublicId && classes.length > 0) {
+      const maxes = await db
+        .select({ sessionId: studioSessionOccurrences.sessionId, last: sql<string>`max(${studioSessionOccurrences.occursOn})` })
+        .from(studioSessionOccurrences)
+        .where(inArray(studioSessionOccurrences.sessionId, classes.map((c) => c.id)))
+        .groupBy(studioSessionOccurrences.sessionId);
+      for (const m of maxes) maxDay.set(m.sessionId, m.last);
+    }
     for (const klass of classes) {
       const pattern = klass.pattern;
       if (!pattern) continue;
+      const last = maxDay.get(klass.id);
+      const target = pattern.endsOn && pattern.endsOn < horizon ? pattern.endsOn : horizon;
+      if (last && last >= target) continue;
       const rows = expandPattern(pattern, today, horizon).map((day) => ({
         sessionId: klass.id,
         occursOn: day,

@@ -110,4 +110,13 @@ describe("session materialisation", () => {
     expect(result.added).toBeGreaterThan(0);
     expect(pastRow).toBeDefined();
   });
+
+  it("the all-classes sweep skips classes already filled to the horizon", async () => {
+    await studioSessionsService.ensureHorizon();
+    const spy = vi.spyOn(db, "insert");
+    await studioSessionsService.ensureHorizon();
+    const inserts = spy.mock.calls.filter(([t]) => t === occ).length;
+    spy.mockRestore();
+    expect(inserts).toBe(0);
+  });
 });

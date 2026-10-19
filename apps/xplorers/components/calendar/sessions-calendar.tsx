@@ -45,7 +45,7 @@ export function SessionsCalendar({
         title: s.title,
         start: new Date(s.startsAt),
         end: new Date(s.endsAt),
-        color: s.cancelled ? "var(--color-muted-foreground)" : colorVar(s.color),
+        color: s.cancelled ? "#71717a" : colorVar(s.color),
         readOnly: true,
         data: { cancelled: s.cancelled },
       })),

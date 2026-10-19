@@ -7,7 +7,7 @@ import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { parseSort } from "@/lib/list/sort";
 import { monthGrid } from "@/lib/sessions/calendar";
-import { toCalendarSessions } from "@/lib/sessions/calendar-events";
+import { isRealDay, parseRange, toCalendarSessions } from "@/lib/sessions/calendar-events";
 import { formatSessionTime } from "@/lib/sessions/format";
 import { addDayKey, dayKey } from "@/lib/sessions/timezone";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
@@ -85,11 +85,9 @@ async function SessionsData({ searchParams }: { searchParams: SearchParams }) {
 
   if (view === "calendar") {
     const grid = monthGrid(today.slice(0, 7));
-    const day = /^\d{4}-\d{2}-\d{2}$/;
-    const from = sp.from && day.test(sp.from) ? sp.from : grid[0]!.date;
-    const to = sp.to && day.test(sp.to) ? sp.to : grid[grid.length - 1]!.date;
+    const { from, to } = parseRange(sp.from, sp.to, { from: grid[0]!.date, to: grid[grid.length - 1]!.date });
     const calendarView = sp.view === "week" ? "week" : "month";
-    const date = sp.date && day.test(sp.date) ? sp.date : today;
+    const date = isRealDay(sp.date) ? sp.date : today;
     const rows = await studioSessionsService.listRange(from, to, { publicOnly: false });
     const thisMonday = addDayKey(today, -((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7));
     return (

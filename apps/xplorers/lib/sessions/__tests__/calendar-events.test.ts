@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminOccurrence } from "@/lib/services/studio-sessions.service";
-import { colorVar, toCalendarSessions } from "../calendar-events";
+import { colorVar, parseRange, toCalendarSessions } from "../calendar-events";
 
 const row = (over: Partial<AdminOccurrence> = {}): AdminOccurrence => ({
   publicId: "occ1",
@@ -48,5 +48,23 @@ describe("colorVar", () => {
   it("maps class colours to palette hex and falls back to primary", () => {
     expect(colorVar("pink")).toBe("#ec4899");
     expect(colorVar("nope")).toBe("var(--color-primary)");
+  });
+});
+
+describe("parseRange", () => {
+  const fb = { from: "2026-10-26", to: "2026-12-06" };
+  it("accepts a valid range", () => {
+    expect(parseRange("2026-11-01", "2026-11-30", fb)).toEqual({ from: "2026-11-01", to: "2026-11-30" });
+  });
+  it("falls back on invalid or missing dates", () => {
+    expect(parseRange("2026-99-99", "2026-11-30", fb)).toEqual(fb);
+    expect(parseRange("2026-02-30", "2026-03-30", fb)).toEqual(fb);
+    expect(parseRange(undefined, "2026-11-30", fb)).toEqual(fb);
+  });
+  it("falls back when reversed", () => {
+    expect(parseRange("2026-11-30", "2026-11-01", fb)).toEqual(fb);
+  });
+  it("clamps an oversized span to 62 days", () => {
+    expect(parseRange("2026-01-01", "9999-12-31", fb)).toEqual({ from: "2026-01-01", to: "2026-03-04" });
   });
 });
