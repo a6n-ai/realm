@@ -22,7 +22,7 @@ export function assertCanBook(input: {
   seats: number;
 }): void {
   if (!Number.isInteger(input.seats) || input.seats < 1) {
-    throw new ValidationError("Book at least one seat.");
+    throw new ValidationError("Book at least one place.");
   }
   if (!input.published) {
     throw new ValidationError("This session is not open for booking.");
@@ -35,7 +35,7 @@ export function assertCanBook(input: {
   }
   if (input.remaining < input.seats) {
     throw new ValidationError(
-      input.remaining === 0 ? "This session is full." : `Only ${input.remaining} seat${input.remaining === 1 ? "" : "s"} left.`,
+      input.remaining === 0 ? "This session is full." : `Only ${input.remaining} place${input.remaining === 1 ? "" : "s"} left.`,
     );
   }
 }

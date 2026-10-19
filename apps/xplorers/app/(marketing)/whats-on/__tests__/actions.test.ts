@@ -39,8 +39,14 @@ describe("createBookingAction", () => {
     const fd = new FormData();
     fd.set("occurrencePublicId", "occ_1");
     fd.set("code", "GUESS99");
+    fd.set("startsAt", "2026-11-01T14:00:00.000Z");
+    fd.set("lengthMinutes", "90");
+    fd.append("childPublicId", "chd_1");
     await expect(createBookingAction({}, fd)).rejects.toThrow("REDIRECT /me/pay/pay_1");
-    expect(createForUser).toHaveBeenCalledWith("usr_code_guess", "occ_1", 1, { code: null, useCoins: false });
+    expect(createForUser).toHaveBeenCalledWith(
+      "usr_code_guess",
+      expect.objectContaining({ occurrencePublicId: "occ_1", childPublicIds: ["chd_1"], choice: { kind: "length", minutes: 90 }, code: null, useCoins: false }),
+    );
   });
 });
 
@@ -57,6 +63,6 @@ describe("use my coins", () => {
     fd.set("occurrencePublicId", "occ_2");
     fd.set("useCoins", "on");
     await expect(createBookingAction({}, fd)).rejects.toThrow("REDIRECT /me");
-    expect(createForUser).toHaveBeenCalledWith("usr_code_guess", "occ_2", 1, { code: "", useCoins: true });
+    expect(createForUser).toHaveBeenCalledWith("usr_code_guess", expect.objectContaining({ occurrencePublicId: "occ_2", code: "", useCoins: true }));
   });
 });

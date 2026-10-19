@@ -57,15 +57,26 @@ export async function createBookingAction(_prev: BookState, formData: FormData):
     return { error: "Sign in to continue." };
   }
 
-  const raw = formData.get("seats");
-  const seats = raw == null || String(raw).trim() === "" ? 1 : Number(raw);
+  const optionKey = String(formData.get("optionKey") ?? "");
+  const choice = optionKey
+    ? ({ kind: "option", key: optionKey } as const)
+    : ({ kind: "length", minutes: Number(formData.get("lengthMinutes")) } as const);
   // Bookings share the guess bucket, but a spent bucket drops the code rather than blocking the booking.
   const typed = String(formData.get("code") ?? "");
   const code = codeTriesExceeded(auth.user.id, typed) ? null : typed;
   const useCoins = formData.get("useCoins") === "on";
 
   try {
-    const booking = await bookingsService.createForUser(auth.user.id, occurrencePublicId, seats, { code, useCoins });
+    const booking = await bookingsService.createForUser(auth.user.id, {
+      occurrencePublicId,
+      startsAt: String(formData.get("startsAt") ?? ""),
+      choice,
+      extensionSteps: Number(formData.get("extensionSteps") ?? 0),
+      childPublicIds: formData.getAll("childPublicId").map(String),
+      adults: Number(formData.get("adults") ?? 0),
+      code,
+      useCoins,
+    });
     revalidatePath("/whats-on");
     revalidatePath("/");
     revalidatePath("/me");
