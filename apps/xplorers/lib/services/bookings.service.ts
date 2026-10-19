@@ -124,7 +124,7 @@ class BookingsService extends SessionUpdatableService<typeof bookings> {
 
     const price: Quote = quoteBooking({
       pricing: session.pricing,
-      layers: [occurrence.prices, session.prices],
+      layers: [occurrence.prices, session.prices, globalTable],
       globalTable,
       occursOn: occurrence.occursOn,
       windowStart: occurrence.startsAt,

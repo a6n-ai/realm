@@ -149,6 +149,12 @@ describe("createForUser on the new model", () => {
     expect(q.total).toBe(b.pricing!.total);
   });
 
+  it("prices from the global table when the class sets no price of its own", async () => {
+    const occ = await makeOccurrence({ classValues: { prices: null } });
+    const q = await bookingsService.quote(bookReq(occ, [kids[0]![0]!], { choice: { kind: "length", minutes: 120 } }) as never, fams[0]!.publicId);
+    expect(q.perChild).toBeGreaterThan(0);
+  });
+
   it("records a waiver per child and blocks out-of-range children without one", async () => {
     const waiverOcc = await makeOccurrence({ classValues: { ageMin: 9, ageMax: 12, ageWaiver: true } });
     const b = await bookingsService.createForUser(fams[0]!.publicId, bookReq(waiverOcc, [kids[0]![0]!]));

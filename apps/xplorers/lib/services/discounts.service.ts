@@ -8,13 +8,11 @@ import {
   DISCOUNT_SCOPES,
   discounts,
   SESSION_CATEGORIES,
-  studioSessionOccurrences,
   studioSessions,
   type DiscountScope,
   type SessionCategory,
 } from "@/db/schema";
-import { type BookingQuote, type CouponRule, type DiscountRule } from "@/lib/discounts/quote";
-import { getAppClock } from "./app-settings.service";
+import { type CouponRule, type DiscountRule } from "@/lib/discounts/quote";
 import { SessionUpdatableService } from "./session-service";
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -217,24 +215,6 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
       userRedemptionCount = Number(c?.n ?? 0);
     }
     return { discounts: discountRows.map(toDiscountRule), coupon: toCouponRule(row, userRedemptionCount) };
-  }
-
-  /** Task 9 re-quotes through the layered pricing engine; until then every preview is a zero quote. */
-  async quoteForOccurrence(
-    occurrencePublicId: string,
-    _seats: number,
-    _code: string | null,
-    _userPublicId: string | null,
-    _useCoins = false,
-  ): Promise<BookingQuote & { currency: string }> {
-    const [row] = await db
-      .select({ id: studioSessionOccurrences.id })
-      .from(studioSessionOccurrences)
-      .where(eq(studioSessionOccurrences.publicId, occurrencePublicId))
-      .limit(1);
-    if (!row) throw new ValidationError("Session not found.");
-    const { currency } = await getAppClock();
-    return { subtotal: 0, adjustments: [], discountTotal: 0, taxTotal: 0, total: 0, codeError: null, currency };
   }
 }
 

@@ -22,12 +22,10 @@ const { db } = await import("@/db/client");
 const schema = await import("@/db/schema");
 const { bookingsService } = await import("../bookings.service");
 const { couponsService, discountsService } = await import("../discounts.service");
-const { paymentsService } = await import("../payments.service");
 
 const MARK = "disc-it";
 let sessionId: bigint;
 let occ: TestOccurrence;
-let occurrencePublicId: string;
 let userPublicIds: string[];
 let kidIds: string[];
 // Discounts already active in the dev DB would also apply; park them for the test.
@@ -69,7 +67,6 @@ beforeEach(async () => {
     .insert(schema.studioSessionOccurrences)
     .values({ sessionId, occursOn: startsAt.toISOString().slice(0, 10), ...pricedWindow(startsAt) })
     .returning({ publicId: schema.studioSessionOccurrences.publicId });
-  occurrencePublicId = row!.publicId;
   occ = { publicId: row!.publicId, startsAt };
 });
 
@@ -160,19 +157,5 @@ describe("discount and coupon updates", () => {
 
     const c = await couponsService.create({ code: "DISCIT9", name: `${MARK} c`, amountOff: "5", maxRedemptions: "3" });
     expect(await couponsService.update(c.publicId, { active: false })).toMatchObject({ code: "DISCIT9", maxRedemptions: 3, active: false });
-  });
-});
-
-describe("quoteForOccurrence", () => {
-  it("quotes a class as free when no payment method is enabled, like the booking does", async () => {
-    await db.insert(schema.discounts).values({ name: `${MARK} kids`, scope: "category", category: "kids", percentOff: "25.00" });
-    const rails = paymentsService.enabledRails;
-    paymentsService.enabledRails = async () => [];
-    try {
-      const q = await discountsService.quoteForOccurrence(occurrencePublicId, 1, null, userPublicIds[0]!);
-      expect(q).toMatchObject({ subtotal: 0, adjustments: [], total: 0 });
-    } finally {
-      paymentsService.enabledRails = rails;
-    }
   });
 });

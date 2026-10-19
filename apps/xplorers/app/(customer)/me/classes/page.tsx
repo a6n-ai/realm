@@ -5,13 +5,17 @@ import { Button } from "@foundry/ui/button";
 import { getSession } from "@/lib/auth/session";
 import { bookingsService } from "@/lib/services/bookings.service";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
+import { ClassTile } from "@/components/customer/book/class-tile";
+import { loadPublicClasses } from "@/lib/sessions/public";
 import { BookingRow } from "@/components/customer/classes/booking-row";
 
-export default async function MyClassesPage() {
+export default async function MyClassesPage({ searchParams }: { searchParams: Promise<{ booked?: string }> }) {
+  const { booked } = await searchParams;
   const session = await getSession();
-  const [bookings, timeZone] = await Promise.all([
+  const [bookings, timeZone, classes] = await Promise.all([
     session?.user ? bookingsService.listForUser(session.user.id) : Promise.resolve([]),
     studioSessionsService.timezone(),
+    loadPublicClasses().then((all) => all.filter((c) => c.bookingType === "bookable")),
   ]);
 
   const now = Date.now();
@@ -30,19 +34,25 @@ export default async function MyClassesPage() {
         subtitle="Upcoming sessions and your class history."
         actions={
           <Button asChild size="sm">
-            <Link href="/whats-on">Book a class</Link>
+            <Link href="/me/book">Book a class</Link>
           </Button>
         }
       />
+
+      {booked ? (
+        <p role="status" className="bg-secondary text-secondary-foreground rounded-2xl p-4 text-sm font-medium">
+          You&apos;re booked in. See you there!
+        </p>
+      ) : null}
 
       <SectionCard title="Upcoming">
         {upcoming.length === 0 ? (
           <EmptyState
             icon={CalendarDaysIcon}
-            message="No upcoming classes. Pick a day on What's on."
+            message="No upcoming classes. Pick one below to book."
             action={
               <Button asChild>
-                <Link href="/whats-on">See what&apos;s on</Link>
+                <Link href="/me/book">Book a class</Link>
               </Button>
             }
           />
@@ -54,6 +64,16 @@ export default async function MyClassesPage() {
           </ul>
         )}
       </SectionCard>
+
+      {classes.length ? (
+        <SectionCard title="Book a class">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {classes.map((c) => (
+              <ClassTile key={c.publicId} item={c} />
+            ))}
+          </div>
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Past">
         {past.length === 0 ? (
