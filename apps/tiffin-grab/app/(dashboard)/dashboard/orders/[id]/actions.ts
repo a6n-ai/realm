@@ -207,7 +207,7 @@ export async function updatePaymentReferenceAction(orderId: string, paymentPubli
   return res;
 }
 
-/** Manual "redo the push" for one delivery — the fix when a scheduled push went wrong. */
+/** Any staff member marks, re-notes or unmarks an order on the Look out for tab. */
 export async function setLookOutAction(orderId: string, on: boolean, note: string): Promise<ActionResult> {
   const res = await runAction(async () => {
     await requireStaff();

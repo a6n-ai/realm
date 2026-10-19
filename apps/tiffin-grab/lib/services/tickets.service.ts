@@ -175,10 +175,13 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const ticket = await this.read(publicId);
     const previous = ticket.status as TicketStatus;
     if (previous === toStatus) return { previous };
-    const closing = toStatus === "resolved" || toStatus === "closed";
+    const isClosed = (s: TicketStatus) => s === "resolved" || s === "closed";
+    const closing = isClosed(toStatus);
     await this.update(publicId, { status: toStatus, closedAt: closing ? Date.now() : null });
     await this.message(ticket.id, actor.id, "system", `Status: ${STATUS_TEXT[previous]} → ${STATUS_TEXT[toStatus]}`);
     if (closing && ticket.orderId != null) await clearTicketLookOut(ticket.orderId).catch((err) => log.error({ err, ticket: publicId }, "look out clear failed"));
+    // Reopening puts the order back on the list its resolve took it off.
+    if (!closing && isClosed(previous) && ticket.orderId != null) await lookOutForTicket(ticket.orderId, ticket.subject).catch((err) => log.error({ err, ticket: publicId }, "look out flag failed"));
     return { previous };
   }
 
