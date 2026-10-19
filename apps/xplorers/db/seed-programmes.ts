@@ -1,6 +1,7 @@
 /**
  * One-off, idempotent seed: the Xplorers.Life programmes and price table from docs/xlp.pdf.
  * Skips any class whose title already exists. Private Workshops are not seeded.
+ * App timezone/currency/default prices are written only while app.default_prices is null (first run).
  * Sets app timezone/currency/default prices, then materialises sessions
  * (ensureHorizon needs no signed-in user, so the service is called as-is).
  *
@@ -81,7 +82,7 @@ function programmes(today: string): Seed[] {
           { key: "family", label: "Family Upgrade", lengthMinutes: 120, adultsIncluded: 2 },
         ],
         extension: { stepMinutes: 30, price: same(10) },
-        adults: { free: 1, extraPrice: null },
+        adults: { free: 0, extraPrice: null },
       },
       prices: { "opt:standard": same(78), "opt:family": same(88) },
       pattern: pattern({ weekdays: [7], startClock: "09:30", endClock: "12:00" }, today),
@@ -141,10 +142,14 @@ function programmes(today: string): Seed[] {
 }
 
 async function main() {
-  const [settings] = await db.select({ id: app.id }).from(app).limit(1);
+  const [settings] = await db.select({ id: app.id, defaultPrices: app.defaultPrices }).from(app).limit(1);
   if (!settings) throw new Error("no app row — run seed-admin.ts first");
-  await db.update(app).set({ timezone: ZONE, currency: "SGD", defaultPrices: DEFAULT_PRICE_TABLE as PriceTable }).where(eq(app.id, settings.id));
-  console.log(`app settings: ${ZONE}, SGD, default prices`);
+  if (settings.defaultPrices) {
+    console.log("app settings: exists, left unchanged");
+  } else {
+    await db.update(app).set({ timezone: ZONE, currency: "SGD", defaultPrices: DEFAULT_PRICE_TABLE as PriceTable }).where(eq(app.id, settings.id));
+    console.log(`app settings: ${ZONE}, SGD, default prices`);
+  }
 
   const today = dayKey(new Date(), ZONE);
   const created: string[] = [];
