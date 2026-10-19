@@ -844,7 +844,9 @@ async function dropEmptiedCarrier(tx: Tx, row: Delivery, targetId: bigint): Prom
 
 /**
  * Runs when staff approve an e-transfer: trips whose date passed while payment was unconfirmed
- * are moved (whole, coverage kept) to the next plan weekdays after the current tail. Past-dated
+ * are moved to the next plan weekdays after the current tail. Those days were never eaten, so a
+ * single-day trip becomes the target day's tiffin (that day's menu, old swaps left behind); the
+ * kitchen cooks the target day's menu, not the one from weeks ago. Past-dated
  * trips are found by date, so a second run finds nothing. Caller owns the tx and should delete
  * the returned stops from OptimoRoute after commit.
  */
@@ -882,7 +884,9 @@ export async function shiftMissedDeliveries(
     for (let guard = 0; guard < 30 && (await holidayForOrderDate(tx, orderId, target)); guard++) target = nextDeliveryDateAfter(target, weekdays);
 
     await tx.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, row.id));
-    const moved = await moveTrip(tx, row, target, cutoffMsFor(target, cutoffHour, timezone), null, order.persons);
+    // ponytail: a multi-day bundle (Mon+Tue, Fri+Sat+Sun) still keeps its old eating days, since
+    // moveTrip only relabels single-day trips; spread a bundle over new days if one ever shifts.
+    const moved = await moveTrip(tx, row, target, cutoffMsFor(target, cutoffHour, timezone), target, order.persons);
     await tx.insert(orderActivities).values({
       orderId, deliveryId: moved.id, type: "pool_scheduled", createdBy: actorId,
       note: `Missed ${row.deliveryDate} while payment was unconfirmed; moved to ${target}`,
