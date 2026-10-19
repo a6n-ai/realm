@@ -6,9 +6,11 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { toZonedLocal } from "@/lib/sessions/timezone";
 import { formatClassClock, formatSessionDay } from "@/lib/sessions/format";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { paymentsService } from "@/lib/services/payments.service";
+import { SessionEdit } from "../session-edit";
 import { SessionRowActions } from "../session-row-actions";
 import { PaymentReviewButtons } from "../payment-review-buttons";
 import { CancelBookingButton } from "../cancel-booking-button";
@@ -26,7 +28,8 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   if (!row || row.archived) notFound();
   const canWrite = session?.user ? roleCan(session.user.role, { studioSession: ["update"] } as never) : false;
   const canCancel = session?.user ? roleCan(session.user.role, { booking: ["cancel"] }) : false;
-  const [payRows, bookingRows] = await Promise.all([
+  const [pricingInfo, payRows, bookingRows] = await Promise.all([
+    studioSessionsService.readPricing(row.publicId),
     paymentsService.listForOccurrence(row.publicId),
     bookingsService.listForOccurrence(row.publicId),
   ]);
@@ -80,6 +83,21 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           <Link href={`/dashboard/sessions/new?class=${row.classPublicId}`}>Schedule another day</Link>
         </Button>
       </SectionCard>
+      {canWrite ? (
+        <SectionCard title="Edit session">
+          <SessionEdit
+            publicId={row.publicId}
+            occursOn={row.occursOn}
+            startsAtLocal={toZonedLocal(row.startsAt, timeZone)}
+            endsAtLocal={toZonedLocal(row.endsAt, timeZone)}
+            capacity={row.capacity}
+            prices={pricingInfo.prices}
+            inherited={pricingInfo.inherited}
+            pricing={pricingInfo.pricing}
+            cancelled={pricingInfo.cancelled}
+          />
+        </SectionCard>
+      ) : null}
       {bookingRows.length > 0 ? (
         <SectionCard title="Bookings">
           <ul className="divide-border divide-y text-sm">

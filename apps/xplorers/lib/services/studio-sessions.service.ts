@@ -3,6 +3,7 @@ import type { Condition, FilterCondition } from "@foundry/commons/model/conditio
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { and, asc, eq, gt, gte, inArray, isNotNull, lte, notExists, sql } from "drizzle-orm";
+import { pushInAppNotification } from "@/lib/notifications/push";
 import { db } from "@/db/client";
 import { bookings, studioSessionOccurrences, studioSessions } from "@/db/schema";
 import { ATTENDANCE_MODES, CLASS_BOOKING_TYPES, SESSION_CATEGORIES, type AttendanceMode, type SessionCategory } from "@/db/schema/studio";
@@ -12,11 +13,12 @@ import { CLASS_COLORS } from "@/lib/sessions/format";
 import { expandPattern, maxWindowMinutes, type RepeatPattern } from "@/lib/sessions/pattern";
 import { parsePhotos } from "@/lib/sessions/photos";
 import { parseDay } from "@/lib/sessions/schedule";
-import { addDayKey, dayKey, fromZonedLocal } from "@/lib/sessions/timezone";
+import { addDayKey, dayKey, fromZonedLocal, toZonedLocal } from "@/lib/sessions/timezone";
 import { DEFAULT_PRICE_TABLE } from "@/lib/pricing/defaults";
 import { offeredLengths } from "@/lib/pricing/resolve";
 import type { ClassPricing, PriceCell, PriceTable } from "@/lib/pricing/types";
 import { getAppClock, getDefaultPrices } from "./app-settings.service";
+import { bookingsService } from "./bookings.service";
 import { remainingSeats, isPubliclyListed, RESERVED_BOOKING_STATUSES } from "./booking-policy";
 import { currentUserId, SessionUpdatableService } from "./session-service";
 import { studioSessionsRepository, type StudioSessionRow } from "./studio-sessions.repository";
@@ -361,6 +363,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     return { removed: removed.length, added: (await count()) - before };
   }
 
+  /** Only untouched days can be removed; anything that ever had a booking must be cancelled so the history stays. */
   async unscheduleSession(occurrencePublicId: string): Promise<string> {
     const [occurrence] = await db
       .select()
@@ -368,14 +371,172 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .where(eq(studioSessionOccurrences.publicId, occurrencePublicId))
       .limit(1);
     if (!occurrence) throw new ValidationError("Session not found.");
-    const [booked] = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(and(eq(bookings.occurrenceId, occurrence.id), inArray(bookings.status, [...RESERVED_BOOKING_STATUSES])))
-      .limit(1);
-    if (booked) throw new ValidationError(`Keep ${occurrence.occursOn}; that day already has bookings.`);
+    const [booked] = await db.select({ id: bookings.id }).from(bookings).where(eq(bookings.occurrenceId, occurrence.id)).limit(1);
+    if (booked) throw new ValidationError(`${occurrence.occursOn} has bookings. Cancel the session instead of removing it.`);
     await db.delete(studioSessionOccurrences).where(eq(studioSessionOccurrences.id, occurrence.id));
     return occurrence.occursOn;
+  }
+
+  private async loadOccurrence(publicId: string) {
+    const [row] = await db
+      .select({ occ: studioSessionOccurrences, klass: studioSessions })
+      .from(studioSessionOccurrences)
+      .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
+      .where(eq(studioSessionOccurrences.publicId, publicId))
+      .limit(1);
+    if (!row) throw new ValidationError("Session not found.");
+    return row;
+  }
+
+  /** What the session editor needs: this session's own prices, the class layers beneath it, and the class pricing shape. */
+  async readPricing(publicId: string): Promise<{ prices: PriceTable; inherited: PriceTable; pricing: ClassPricing; cancelled: boolean }> {
+    const { occ, klass } = await this.loadOccurrence(publicId);
+    const global = await getDefaultPrices();
+    const inherited: PriceTable = { ...global };
+    for (const [k, v] of Object.entries(klass.prices ?? {})) inherited[k] = { ...global[k], ...v };
+    return { prices: occ.prices ?? {}, inherited, pricing: klass.pricing, cancelled: occ.status === "cancelled" };
+  }
+
+  private reservedBookings(occurrenceId: bigint) {
+    return db
+      .select({ id: bookings.id, publicId: bookings.publicId, userId: bookings.userId, seats: bookings.seats })
+      .from(bookings)
+      .where(and(eq(bookings.occurrenceId, occurrenceId), inArray(bookings.status, [...RESERVED_BOOKING_STATUSES])));
+  }
+
+  /** Cancel every live booking through the staff-cancel path (coins, payment) and tell each parent. */
+  private async cancelBookingsAndNotify(
+    occurrenceId: bigint,
+    notice: { title: string; body: string },
+  ): Promise<number> {
+    const live = await this.reservedBookings(occurrenceId);
+    for (const b of live) {
+      await bookingsService.cancel(b.publicId);
+      await pushInAppNotification({ userId: b.userId, ...notice });
+    }
+    return live.length;
+  }
+
+  async cancelSession(publicId: string, opts: { confirm: boolean }): Promise<{ cancelledBookings: number }> {
+    const { occ, klass } = await this.loadOccurrence(publicId);
+    if (occ.status === "cancelled") throw new ValidationError("This session is already cancelled.");
+    const live = await this.reservedBookings(occ.id);
+    if (live.length > 0 && !opts.confirm) {
+      throw new ValidationError(`${live.length} booking${live.length === 1 ? "" : "s"} will be cancelled. Confirm to continue.`);
+    }
+    const cancelledBookings = await this.cancelBookingsAndNotify(occ.id, {
+      title: "Session cancelled",
+      body: `${klass.title} on ${occ.occursOn} has been cancelled.`,
+    });
+    await db
+      .update(studioSessionOccurrences)
+      .set({ status: "cancelled", edited: true, updatedBy: await currentUserId() })
+      .where(eq(studioSessionOccurrences.id, occ.id));
+    return { cancelledBookings };
+  }
+
+  async updateSession(
+    publicId: string,
+    input: {
+      startsAt?: Date;
+      endsAt?: Date;
+      occursOn?: string;
+      capacity?: number;
+      prices?: PriceTable | null;
+      confirm?: boolean;
+    },
+  ): Promise<void> {
+    const { occ, klass } = await this.loadOccurrence(publicId);
+    if (occ.status === "cancelled") throw new ValidationError("A cancelled session can't be edited.");
+    const zone = await this.timezone();
+    const occursOn = input.occursOn === undefined ? occ.occursOn : parseDay(input.occursOn);
+    const shift = (d: Date) => fromZonedLocal(`${occursOn}T${toZonedLocal(d, zone).slice(11)}`, zone);
+    const startsAt = input.startsAt ?? (occursOn === occ.occursOn ? occ.startsAt : shift(occ.startsAt));
+    const endsAt = input.endsAt ?? (occursOn === occ.occursOn ? occ.endsAt : shift(occ.endsAt));
+    if (endsAt <= startsAt) throw new ValidationError("A session must end after it starts.");
+    const capacity = input.capacity ?? occ.capacity;
+    if (!Number.isInteger(capacity) || capacity < 1) throw new ValidationError("Capacity must be at least 1.");
+
+    const live = await this.reservedBookings(occ.id);
+    const booked = live.reduce((n, b) => n + b.seats, 0);
+    if (capacity < booked) throw new ValidationError(`${booked} children are already booked; capacity can't go below that.`);
+
+    const moved =
+      occursOn !== occ.occursOn || startsAt.getTime() !== occ.startsAt.getTime() || endsAt.getTime() !== occ.endsAt.getTime();
+    if (moved && live.length > 0 && !input.confirm) {
+      throw new ValidationError(`Moving this session cancels ${live.length} booking${live.length === 1 ? "" : "s"}. Confirm to continue.`);
+    }
+    if (occursOn !== occ.occursOn) {
+      const [clash] = await db
+        .select({ id: studioSessionOccurrences.id })
+        .from(studioSessionOccurrences)
+        .where(and(eq(studioSessionOccurrences.sessionId, klass.id), eq(studioSessionOccurrences.occursOn, occursOn)))
+        .limit(1);
+      if (clash) throw new ValidationError("This class is already scheduled that day.");
+    }
+
+    let prices = occ.prices;
+    if (input.prices !== undefined) {
+      const windowMinutes = Math.round((endsAt.getTime() - startsAt.getTime()) / 60_000);
+      const normalized =
+        input.prices === null ? null : normalizePrices(input.prices, klass.pricing, await getDefaultPrices(), windowMinutes);
+      prices = normalized && Object.keys(normalized).length > 0 ? normalized : null;
+    }
+
+    if (moved && live.length > 0) {
+      await this.cancelBookingsAndNotify(occ.id, {
+        title: "Session moved",
+        body: `${klass.title} on ${occ.occursOn} has moved. Please book the new time.`,
+      });
+    }
+    await db
+      .update(studioSessionOccurrences)
+      .set({ occursOn, startsAt, endsAt, capacity, prices, edited: true, updatedBy: await currentUserId() })
+      .where(eq(studioSessionOccurrences.id, occ.id));
+  }
+
+  /** Copy the scheduled days of the week starting `fromMonday` onto `toMonday`, keeping clock times. Days the class already has are skipped. */
+  async copyWeek(fromMonday: string, toMonday: string): Promise<{ copied: number }> {
+    const from = parseDay(fromMonday);
+    const to = parseDay(toMonday);
+    const toMs = (k: string) => Date.parse(`${k}T00:00:00Z`);
+    const offset = Math.round((toMs(to) - toMs(from)) / 86_400_000);
+    if (offset === 0) throw new ValidationError("Pick a different week to copy into.");
+    const zone = await this.timezone();
+    const actorId = await currentUserId();
+    const source = await db
+      .select({ occ: studioSessionOccurrences })
+      .from(studioSessionOccurrences)
+      .innerJoin(studioSessions, eq(studioSessions.id, studioSessionOccurrences.sessionId))
+      .where(
+        and(
+          gte(studioSessionOccurrences.occursOn, from),
+          lte(studioSessionOccurrences.occursOn, addDayKey(from, 6)),
+          eq(studioSessionOccurrences.status, "scheduled"),
+          eq(studioSessions.archived, false),
+        ),
+      );
+    let copied = 0;
+    for (const { occ } of source) {
+      const day = addDayKey(occ.occursOn, offset);
+      const made = await db
+        .insert(studioSessionOccurrences)
+        .values({
+          sessionId: occ.sessionId,
+          occursOn: day,
+          startsAt: fromZonedLocal(`${day}T${toZonedLocal(occ.startsAt, zone).slice(11)}`, zone),
+          endsAt: fromZonedLocal(`${day}T${toZonedLocal(occ.endsAt, zone).slice(11)}`, zone),
+          capacity: occ.capacity,
+          prices: occ.prices,
+          edited: true,
+          createdBy: actorId,
+          updatedBy: actorId,
+        })
+        .onConflictDoNothing({ target: [studioSessionOccurrences.sessionId, studioSessionOccurrences.occursOn] })
+        .returning({ id: studioSessionOccurrences.id });
+      copied += made.length;
+    }
+    return { copied };
   }
 
   async listPublished(now = new Date()): Promise<PublicSession[]> {

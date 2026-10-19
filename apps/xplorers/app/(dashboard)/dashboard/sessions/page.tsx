@@ -8,9 +8,10 @@ import { getSession } from "@/lib/auth/session";
 import { parseSort } from "@/lib/list/sort";
 import { parseMonth } from "@/lib/sessions/calendar";
 import { formatSessionTime } from "@/lib/sessions/format";
-import { dayKey } from "@/lib/sessions/timezone";
+import { addDayKey, dayKey } from "@/lib/sessions/timezone";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { SESSION_FACETS, SESSION_SORT_COLUMNS } from "@/lib/studio/list-spec";
+import { CopyWeekButton } from "./copy-week-button";
 import { SessionsCalendar } from "./sessions-calendar";
 import { SessionsTable, SessionsTableSkeleton } from "./sessions-table";
 
@@ -33,6 +34,8 @@ async function SessionsHeader({ searchParams }: { searchParams: SearchParams }) 
   const sp = await searchParams;
   const view = sp.view === "list" ? "list" : "calendar";
   const month = sp.month;
+  const today = dayKey(new Date(), await studioSessionsService.timezone());
+  const thisMonday = addDayKey(today, -((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7));
   const calendarHref = month ? `/dashboard/sessions?month=${month}` : "/dashboard/sessions";
   const listHref = month ? `/dashboard/sessions?view=list&month=${month}` : "/dashboard/sessions?view=list";
 
@@ -57,6 +60,7 @@ async function SessionsHeader({ searchParams }: { searchParams: SearchParams }) 
               </Link>
             </Button>
           </div>
+          {canCreate ? <CopyWeekButton fromMonday={addDayKey(thisMonday, -7)} toMonday={thisMonday} /> : null}
           {canCreate ? (
             <Button asChild size="sm">
               <Link href="/dashboard/sessions/new">
