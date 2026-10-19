@@ -1,0 +1,18 @@
+# Default gitleaks rules, minus known false positives. CI scans the whole history,
+# so these must keep matching old commits, not only the current tree.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test fixtures: keys like addonKey/apiKey hold test data, never credentials"
+paths = [
+  '''(^|/)__tests__/''',
+  '''\.test\.tsx?$''',
+]
+
+[[allowlists]]
+description = "Docs naming Clover env vars and helpers, not values"
+paths = [
+  '''(^|/)AGENTS\.md$''',
+  '''(^|/)packages/clover/README\.md$''',
+]
