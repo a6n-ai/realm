@@ -11,7 +11,7 @@ export default defineConfig({
     // those test files are silently skipped by `pnpm turbo test`.
     include: ["lib/**/*.test.ts", "db/**/*.test.ts", "app/**/*.test.ts", "__tests__/**/*.test.ts"],
     env: {
-      DATABASE_URL: process.env.DATABASE_URL ?? "postgres://localhost:5432/xplorers",
+      DATABASE_URL: process.env.DATABASE_URL ?? "postgres://localhost:5432/xplorers_test",
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "xplorers-test-secret-xplorers-test-secret",
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://localhost:3002",
     },

@@ -862,7 +862,7 @@ CREATE INDEX "notification_outbox_provider_message_idx" ON "notification_outbox"
 CREATE UNIQUE INDEX "notification_prefs_user_channel_kind_idx" ON "notification_prefs" USING btree ("user_id","channel","kind");--> statement-breakpoint
 CREATE UNIQUE INDEX "notification_template_key_idx" ON "notification_template" USING btree ("event","channel","locale");--> statement-breakpoint
 CREATE INDEX "notifications_user_created_idx" ON "notifications" USING btree ("user_id","created_at");--> statement-breakpoint
-CREATE INDEX "phone_verification_phone_idx" ON "phone_verification" USING btree ("phone","expires_at");
+CREATE INDEX "phone_verification_phone_idx" ON "phone_verification" USING btree ("phone","expires_at");--> statement-breakpoint
 CREATE OR REPLACE FUNCTION current_app_id() RETURNS bigint LANGUAGE sql STABLE AS $fn$ SELECT id FROM app ORDER BY id LIMIT 1 $fn$;--> statement-breakpoint
 DO $do$
 DECLARE t text;
