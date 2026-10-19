@@ -211,6 +211,13 @@
       "when": 1791925498156,
       "tag": "0029_white_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792442199691,
+      "tag": "0030_groovy_mister_sinister",
+      "breakpoints": true
     }
   ]
 }
