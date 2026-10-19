@@ -12,6 +12,8 @@ export interface FieldDef {
   unit?: string;
   help?: string;
   optional?: boolean;
+  // multiselect: the click order is a priority; pills show their rank.
+  ordered?: boolean;
   readOnlyOnEdit?: boolean;
   // Edited in the dialog but kept out of the list table to keep it scannable.
   tableHidden?: boolean;
@@ -160,6 +162,8 @@ const addonsSchema = z.object({
   category: z.string().trim().min(1, "Pick a category"),
   // Plan public_id: the menu the add-on's dish is picked from in edit meal, independent of the order's plan.
   planId: z.string().trim().min(1, "Pick a plan"),
+  // Plan public_ids tried in this order when the day's menu has no planId dish in the category.
+  fallbackPlanIds: z.array(z.string().trim().min(1)).default([]),
   // Same TU unit as meal-size items: one qty = one row of this portion in every tiffin.
   tuAmount: reqNum(z.coerce.number().positive().default(1).transform((n) => n.toFixed(2))),
   pricePerTiffin: reqNum(z.coerce.number().nonnegative()),
@@ -304,6 +308,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "name", label: "Name", type: "text" },
       { key: "category", label: "Category", type: "select", optionsSource: "categories", help: "The dish category this add-on adds a row of in every tiffin." },
       { key: "planId", label: "Dish from plan", type: "select", optionsSource: "plans", help: "The menu this add-on's dish is picked from in edit meal (Veg Sabzi → veg), whatever the order's plan." },
+      { key: "fallbackPlanIds", label: "Then try plans", type: "multiselect", ordered: true, optionsSource: "plans", optional: true, tableHidden: true, help: "Used in this order, only on a day with no dish from the plan above (Non-Veg Sabzi → Veg on a veg-only day). Tap in priority order." },
       { key: "tuAmount", label: "Portion (TU)", type: "number", help: "One row's portion, in the same TU as meal-size items. Each qty adds one such row to every tiffin." },
       { key: "pricePerTiffin", label: "Price / tiffin", type: "number", unit: "$", help: "Charged per tiffin for each qty." },
       { key: "maxQty", label: "Max qty per tiffin", type: "number" },

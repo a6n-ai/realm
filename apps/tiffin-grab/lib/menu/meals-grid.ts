@@ -4,7 +4,7 @@ import type { FileDetail } from "@foundry/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
 import { mondayOfIso, thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
-import { allowedDishIdsForMealSize, rowPlansForMealSize } from "./selections.service";
+import { allowedDishIdsForMealSize, rowPlansForOrder } from "./selections.service";
 import { itemsForRow, rowDietLabel, type RowPlans } from "./row-plans";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey, sideChoicesForWeek } from "./resolve-delivery-meal";
 import type { SwapRow } from "./swap-rules";
@@ -95,7 +95,7 @@ export async function buildMealsGrid(
   if (!planRow) throw new Error(`buildMealsGrid: order ${order.publicId} references a plan that no longer exists (planId=${order.planId})`);
   // Union of every plan this order's meal size's own composition rows target —
   // must agree with resolveDeliveryMeal/setSelection, see selections.service.ts.
-  const [planDishIds, rowPlans] = await Promise.all([allowedDishIdsForMealSize(order.mealSizeId), rowPlansForMealSize(order.mealSizeId)]);
+  const [planDishIds, rowPlans] = await Promise.all([allowedDishIdsForMealSize(order.mealSizeId), rowPlansForOrder(order)]);
   const planKeys = rowPlans ? new Map((await db.select({ id: plans.id, key: plans.key }).from(plans)).map((p) => [p.id, p.key])) : null;
 
   // A brand-new subscriber's first delivery is often next week, not this one — falling back to
@@ -185,6 +185,11 @@ export async function buildMealsGrid(
       const slotDishes = slotItems
         .map((i) => dishMap.get(i.dishId))
         .filter((d): d is GridDish => !!d);
+      // A row with its own plans (add-on, custom row) may take a dish outside the meal size's plans,
+      // same as resolveCategoriesForDay; meal rows keep the plan filter above.
+      const daySlotDishes = dayItems.filter((i) => i.slot === slot).map((i) => dishMap.get(i.dishId)).filter((d): d is GridDish => !!d);
+      const rowDishes = (pickIndex: number) =>
+        dayRowPlans?.get(slot)?.[pickIndex - 1] ? itemsForRow(daySlotDishes, dayRowPlans, slot, pickIndex, slotDishes.length ? slotDishes : daySlotDishes) : slotDishes;
 
       for (let p = 1; p <= order.persons; p++) {
         const resolved = weekResolved.get(resolvedMealsWeekKey(day, p))?.find((r) => r.category === slot);
@@ -223,8 +228,8 @@ export async function buildMealsGrid(
           grid.push({
             day, dateIso, slot, personIndex: p, pickIndex, selectable: true, quantity: 1,
             selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
-            dishes: [...sides, ...itemsForRow(slotDishes, dayRowPlans, slot, pickIndex)], locked, lockNote,
-            ...(planKeys && { diet: rowDietLabel(dayRowPlans, planKeys, slot, pickIndex) }),
+            dishes: [...sides, ...rowDishes(pickIndex)], locked, lockNote,
+            ...(planKeys && { diet: rowDietLabel(dayRowPlans, planKeys, slot, pickIndex, daySlotDishes) }),
           });
         }
       }

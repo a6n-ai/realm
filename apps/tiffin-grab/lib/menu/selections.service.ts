@@ -122,15 +122,15 @@ export async function allowedDishIdsForMealSize(mealSizeId: bigint): Promise<Set
   return out;
 }
 
-/** Per-pick plan of a custom meal size (row-plans.ts); null for catalog sizes. */
-export async function rowPlansForMealSize(mealSizeId: bigint): Promise<RowPlans | null> {
-  const [size] = await db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
-  if (!size?.custom) return null;
-  const items = await db
-    .select({ category: mealSizeItems.category, planId: mealSizeItems.planId, sortOrder: mealSizeItems.sortOrder })
-    .from(mealSizeItems)
-    .where(eq(mealSizeItems.mealSizeId, mealSizeId));
-  return rowPlanIds(items, true);
+/** Per-pick plans of an order (row-plans.ts): custom meal rows and add-on rows; null when neither. */
+export async function rowPlansForOrder(order: { id: bigint; mealSizeId: bigint }): Promise<RowPlans | null> {
+  const [[size], items, addonRows] = await Promise.all([
+    db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, order.mealSizeId)).limit(1),
+    db.select({ category: mealSizeItems.category, planId: mealSizeItems.planId, sortOrder: mealSizeItems.sortOrder })
+      .from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, order.mealSizeId)),
+    addonItemsForOrder(order.id),
+  ]);
+  return rowPlanIds([...items, ...addonRows], size?.custom ?? false);
 }
 
 // The ISO date of `dayOfWeek` within the menu week starting on weekStart.
@@ -174,7 +174,6 @@ export const selectionsService = {
     // plans (a non-veg thali can carry a veg-tagged sabzi slot). A dish on a plan
     // nothing in this meal size ever references is still refused.
     const allowedDishIds = await allowedDishIdsForMealSize(order.mealSizeId);
-    if (!allowedDishIds.has(dishId)) throw new ValidationError("Dish does not match your plan");
 
     // `slot` is a dish-category key: only categories marked selectable may receive a subscriber pick,
     // and pickIndex must fall within that category's per-plan count (e.g. sabzi:2 allows picks 1 and 2).
@@ -208,8 +207,12 @@ export const selectionsService = {
     const max = applySwapsToCounts(baseCounts, daySwaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
     // Row diets after this day's swaps, same as the picker and the label (rowPlansAfterSwaps).
-    const rowPlan = rowPlansAfterSwaps(await rowPlansForMealSize(order.mealSizeId), daySwaps)?.get(slot)?.[pickIndex - 1];
-    if (rowPlan != null && rowPlan !== dishRow.planId) throw new ValidationError("That dish doesn't match this item's diet");
+    // ponytail: any of the row's plans is accepted; the picker already offers only the first one on the menu.
+    const rowPlan = rowPlansAfterSwaps(await rowPlansForOrder(order), daySwaps)?.get(slot)?.[pickIndex - 1];
+    if (rowPlan != null && !rowPlan.includes(dishRow.planId)) throw new ValidationError("That dish doesn't match this item's diet");
+    // A row with its own plans (add-on, custom row) was just checked against them; every other
+    // pick must be on a plan this meal size composes with.
+    if (rowPlan == null && !allowedDishIds.has(dishId)) throw new ValidationError("Dish does not match your plan");
 
     // Meal rules against the proposed final meal for this person/day.
     //

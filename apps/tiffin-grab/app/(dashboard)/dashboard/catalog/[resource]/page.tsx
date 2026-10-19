@@ -310,6 +310,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     const planPublicById = new Map(allPlanRows.map((p) => [p.id, p.publicId]));
     rows.forEach((dto, i) => {
       dto.planId = raw[i].planId == null ? "" : (planPublicById.get(raw[i].planId as bigint) ?? "");
+      if (resource === "addons") dto.fallbackPlanIds = ((raw[i].fallbackPlanIds as bigint[] | null) ?? []).flatMap((id) => planPublicById.get(id) ?? []);
     });
   }
   // Slots carry plan membership in a join table, so the generic column flatten

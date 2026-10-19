@@ -168,6 +168,8 @@ export const orderAddons = pgTable("order_addons", {
   category: text("category").notNull(),
   // addons.plan_id at order time: the menu this row's picks come from.
   planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
+  // addons.fallback_plan_ids at order time: plans tried, in order, when the day has no plan_id dish.
+  fallbackPlanIds: bigint("fallback_plan_ids", { mode: "bigint" }).array().notNull().default(sql`'{}'::bigint[]`),
   tuAmount: numeric("tu_amount", { precision: 6, scale: 2 }).notNull(),
   pricePerTiffin: numeric("price_per_tiffin", { precision: 10, scale: 2 }).notNull(),
   qty: integer("qty").notNull().default(1),

@@ -1,0 +1,2 @@
+ALTER TABLE "addons" ADD COLUMN "fallback_plan_ids" bigint[] DEFAULT '{}'::bigint[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "order_addons" ADD COLUMN "fallback_plan_ids" bigint[] DEFAULT '{}'::bigint[] NOT NULL;

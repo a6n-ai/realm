@@ -8,6 +8,7 @@ import {
   mealSelections,
   mealSizeItems,
   menuItems,
+  orderAddons,
   menuWeeks,
   orders,
   payments,
@@ -159,6 +160,39 @@ describe("dailyLabelSheet (integration)", () => {
     ]);
   });
   afterAll(reset);
+
+  describe("a non-veg sabzi add-on with a veg fallback", () => {
+    const addAddon = async () => {
+      await db.insert(orderAddons).values({
+        orderId: order.id, addonKey: "nonveg_sabzi_12oz", addonName: "12oz Non-Veg Sabzi", category: "sabzi",
+        planId: await testPlanId("non-veg"), fallbackPlanIds: [await testPlanId("veg")],
+        tuAmount: "1.50", pricePerTiffin: "3.85", qty: 1, amount: "3.85",
+      });
+    };
+
+    it("prints the add-on as the day's non-veg sabzi at 12oz; the meal rows keep the default", async () => {
+      await addAddon();
+      const [chicken] = await db.insert(dishes).values({ planId: await testPlanId("non-veg"), name: `${DISH_PREFIX}Chicken`, category: "sabzi" }).returning();
+      await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: chicken.id, isDefault: false });
+
+      const [label] = (await dailyLabelSheet(MONDAY)).labels;
+      expect(label.lines.map((l) => [l.dish, l.portion])).toEqual([
+        [`${DISH_PREFIX}Paneer`, "12oz"],
+        [`${DISH_PREFIX}Paneer`, "8oz"],
+        [`${DISH_PREFIX}Chicken`, "12oz"],
+      ]);
+    });
+
+    it("falls back to the veg sabzi at 12oz on a day without non-veg sabzi", async () => {
+      await addAddon();
+      const [label] = (await dailyLabelSheet(MONDAY)).labels;
+      expect(label.lines.map((l) => [l.dish, l.portion])).toEqual([
+        [`${DISH_PREFIX}Paneer`, "12oz"],
+        [`${DISH_PREFIX}Paneer`, "8oz"],
+        [`${DISH_PREFIX}Paneer`, "12oz"],
+      ]);
+    });
+  });
 
   it("returns one label per person with the day's resolved dishes", async () => {
     const sheet = await dailyLabelSheet(MONDAY);

@@ -94,7 +94,14 @@ export function resolveCategoriesForDay(
   const out: ResolvedCategory[] = [];
   for (const c of cats) {
     const slotItems = dayItems.filter((i) => i.slot === c.key && planDishIds.has(i.dishId));
-    if (slotItems.length === 0) continue; // nothing on this plan for that slot today
+    // A row with its own plans (an add-on, a custom row) takes the day's dish of those plans even
+    // when the meal size never composes with them (a non-veg add-on on a veg size). Meal rows stay
+    // within the meal size's plans, so a veg meal row never gets chicken.
+    const daySlot = dayItems.filter((i) => i.slot === c.key);
+    const rowsOwnPlans = rowPlans?.get(c.key) ?? [];
+    const allRowsPlanned = rowsOwnPlans.length > 0 && rowsOwnPlans.every((r) => r != null);
+    if (slotItems.length === 0 && !(allRowsPlanned && daySlot.length > 0)) continue; // nothing on this plan for that slot today
+    const rowItems = (pi: number) => (rowPlans?.get(c.key)?.[pi - 1] ? itemsForRow(daySlot, rowPlans, c.key, pi, slotItems.length ? slotItems : daySlot) : slotItems);
     // A category absent from the plan's category_counts isn't part of this plan at all — 0, not 1.
     const count = counts[c.key] ?? 0;
     if (count === 0) continue;
@@ -106,8 +113,10 @@ export function resolveCategoriesForDay(
       const options = sideItems(pi);
       const side = options.find((i) => i.isDefault) ?? options[0];
       if (side) return side;
-      const row = itemsForRow(slotItems, rowPlans, c.key, pi);
-      return rowPlans
+      const row = rowItems(pi);
+      // Only a pick with its own plans (a custom row, an add-on) defaults within them; a catalog
+      // meal row keeps the shared default and the exclusive-dish rule.
+      return rowPlans?.get(c.key)?.[pi - 1]
         ? (row.find((i) => i.isDefault) ?? row[0]!)
         : (defaultMenuItem(slotItems, pi, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!);
     };
@@ -151,7 +160,7 @@ export function resolveCategoriesForDay(
       // plan membership) since the pick was made, fall back to the default dish entirely — never a
       // half-stale mix of ids/name.
       const chosenItem = chosen
-        ? (itemsForRow(slotItems, rowPlans, c.key, pi).find((i) => i.dishId === chosen.dishId) ?? sideItems(pi).find((i) => i.dishId === chosen.dishId))
+        ? (rowItems(pi).find((i) => i.dishId === chosen.dishId) ?? sideItems(pi).find((i) => i.dishId === chosen.dishId))
         : undefined;
       const def = rowDefault(pi);
       const resolvedItem = chosenItem ?? def;
@@ -166,7 +175,8 @@ export function resolveCategoriesForDay(
     out,
     (category, pickIndex) => {
       const slot = dayItems.filter((i) => i.slot === category && planDishIds.has(i.dishId));
-      return pickIndex == null ? slot : itemsForRow(slot, rowPlans, category, pickIndex);
+      if (pickIndex == null || !rowPlans?.get(category)?.[pickIndex - 1]) return slot;
+      return itemsForRow(dayItems.filter((i) => i.slot === category), rowPlans, category, pickIndex, slot);
     },
     rules,
   );
