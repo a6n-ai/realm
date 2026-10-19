@@ -83,7 +83,7 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     days,
     categoryLabels,
     categoryPortions: categoryPortionsForMealSize(catalog.mealSizes, sub.mealSizeId),
-    categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId),
+    categoryPortionSlots: categoryPortionSlotsForMealSize(catalog.mealSizes, sub.mealSizeId, sub.addons),
     portionsByDate: await portionsAfterSwaps(sub.publicId, days),
     swapCategories: Object.fromEntries(swapCategories),
     savedAddresses,
