@@ -20,6 +20,8 @@ vi.mock("@/lib/services/payments.service", async (orig) => {
 const { db } = await import("@/db/client");
 const schema = await import("@/db/schema");
 const { bookingsService } = await import("../bookings.service");
+const { getDefaultPrices } = await import("../app-settings.service");
+const { dayTypeOf } = await import("@/lib/pricing/resolve");
 
 const MARK = "bk-new-it";
 let fams: { id: bigint; publicId: string }[];
@@ -149,10 +151,31 @@ describe("createForUser on the new model", () => {
     expect(q.total).toBe(b.pricing!.total);
   });
 
-  it("prices from the global table when the class sets no price of its own", async () => {
-    const occ = await makeOccurrence({ classValues: { prices: null } });
-    const q = await bookingsService.quote(bookReq(occ, [kids[0]![0]!], { choice: { kind: "length", minutes: 120 } }) as never, fams[0]!.publicId);
-    expect(q.perChild).toBeGreaterThan(0);
+  describe("price layers", () => {
+    const ask = async (classPrices: unknown, occPrices?: unknown) => {
+      const occ = await makeOccurrence({
+        classValues: { prices: classPrices as never },
+        occValues: occPrices ? { prices: occPrices as never } : {},
+      });
+      const q = await bookingsService.quote(bookReq(occ, [kids[0]![0]!], { choice: { kind: "length", minutes: 120 } }) as never, fams[0]!.publicId);
+      return { q, occ };
+    };
+
+    it("falls back to the global table when the class sets no price", async () => {
+      const { q, occ } = await ask(null);
+      const day = dayTypeOf(occ.startsAt.toISOString().slice(0, 10));
+      expect(q.perChild).toBe((await getDefaultPrices())["len:120"]![day]);
+    });
+
+    it("the class price beats the global one", async () => {
+      const { q } = await ask(flatPrice(11, "len:120"));
+      expect(q.perChild).toBe(11);
+    });
+
+    it("a date override beats the class price", async () => {
+      const { q } = await ask(flatPrice(11, "len:120"), flatPrice(7, "len:120"));
+      expect(q.perChild).toBe(7);
+    });
   });
 
   it("records a waiver per child and blocks out-of-range children without one", async () => {

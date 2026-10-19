@@ -1,7 +1,9 @@
+import Link from "next/link";
+import { ArrowUpRightIcon } from "lucide-react";
 import { CATEGORY_LABELS, type PublicClass } from "@/lib/sessions/format";
-import { Button, Pill } from "@/components/marketing/ui";
+import "./class-card.css";
 
-/** The admin's class colours map onto the site's programme palette hooks. */
+/** The admin's class colours map onto the programme palette hooks. */
 const COLOR_TONE: Record<string, string> = {
   sky: "explore",
   blue: "scientist",
@@ -12,9 +14,10 @@ const COLOR_TONE: Record<string, string> = {
   yellow: "camps",
 };
 
-export function ClassCard({ item }: { item: PublicClass }) {
+/** One card for the public site, /me and the dashboard; `href` is where Book goes (enquire-only classes always go to contact). */
+export function ClassCard({ item, href }: { item: PublicClass; href?: string }) {
   const enquire = item.bookingType === "enquire_only";
-  const href = enquire ? `/contact?class=${encodeURIComponent(item.title)}` : `/classes/${item.publicId}`;
+  const to = enquire ? `/contact?class=${encodeURIComponent(item.title)}` : (href ?? `/classes/${item.publicId}`);
   const meta = [item.audience, item.groupSize].filter(Boolean).join(" · ");
   return (
     <article className="xl-card" data-programme={COLOR_TONE[item.color] ?? "private"}>
@@ -24,7 +27,7 @@ export function ClassCard({ item }: { item: PublicClass }) {
         <img className="xl-card-photo" src={item.photos[0]} alt={item.title} loading="lazy" />
       ) : null}
       <div className="xl-card-head">
-        <Pill>{CATEGORY_LABELS[item.category]}</Pill>
+        <span className="xl-card-pill">{CATEGORY_LABELS[item.category]}</span>
         {item.nextDate ? <span className="xl-card-next">Next: {item.nextDate}</span> : null}
       </div>
       <div className="xl-card-body">
@@ -39,9 +42,10 @@ export function ClassCard({ item }: { item: PublicClass }) {
         {item.included ? <p className="xl-card-desc">{item.included}</p> : null}
         <div className="xl-card-foot">
           <p className="xl-card-price">{item.priceLine}</p>
-          <Button block icon="arrow-up-right" href={href}>
+          <Link className="xl-card-btn" href={to}>
             {enquire ? "Enquire" : item.sessions.length ? "Book now" : "See details"}
-          </Button>
+            <ArrowUpRightIcon size={17} strokeWidth={2.2} aria-hidden />
+          </Link>
         </div>
       </div>
     </article>

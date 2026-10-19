@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { Role, ValidationError } from "@foundry/commons";
+import { CODE_ERROR_MESSAGE } from "@/lib/discounts/quote";
 import { getSession } from "@/lib/auth/session";
 import { bookingsService, type BookingRequest } from "@/lib/services/bookings.service";
 import { childrenService } from "@/lib/services/children.service";
@@ -17,6 +18,7 @@ async function familyId(): Promise<string | null> {
 
 /** Only the fields the booking needs: nothing else the client sends reaches the service. */
 function pick(req: BookingRequest): BookingRequest {
+  if (!req || typeof req !== "object") throw new ValidationError("Booking request is invalid.");
   return {
     occurrencePublicId: req.occurrencePublicId,
     startsAt: req.startsAt,
@@ -51,7 +53,7 @@ export async function quoteAction(req: BookingRequest): Promise<{ quote: QuoteVi
         adjustments: q.lines.adjustments,
         taxTotal: q.lines.taxTotal,
         total: q.total,
-        codeError: q.lines.codeError,
+        codeError: q.lines.codeError ? CODE_ERROR_MESSAGE[q.lines.codeError] : null,
         currency: q.currency,
       },
     };
@@ -77,7 +79,7 @@ export async function bookAction(req: BookingRequest): Promise<Failure> {
   try {
     const result = await bookingsService.createForUser(user, pick(req));
     target = result.paymentPublicId
-      ? `/me/pay/${result.paymentPublicId}${result.codeError ? `?codeError=${result.codeError}` : ""}`
+      ? `/me/pay/${result.paymentPublicId}${result.codeError ? `?codeError=${encodeURIComponent(result.codeError)}` : ""}`
       : "/me/classes?booked=1";
   } catch (err) {
     return inline(err);

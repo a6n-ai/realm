@@ -6,7 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { bookAction, quoteAction } from "@/app/(customer)/me/book/actions";
-import { CODE_ERROR_MESSAGE } from "@/lib/discounts/quote";
+import { ageOn, checkAge } from "@/lib/children/age";
 import { lengthLabel, money } from "@/lib/pricing/price-line";
 import type { BookingChoice } from "@/lib/pricing/types";
 import type { BookingRequest } from "@/lib/services/bookings.service";
@@ -190,7 +190,9 @@ export function BookingWizard({ session, options, initialChildren, timeZone, cur
             onToggle={(id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))}
             onAdded={(c) => {
               setKids((k) => [...k, c]);
-              setPicked((p) => (p.length < session.remaining ? [...p, c.publicId] : p));
+              setPicked((p) =>
+                p.length < session.remaining && checkAge(session, ageOn(c.dateOfBirth, session.occursOn)) !== "blocked" ? [...p, c.publicId] : p,
+              );
             }}
           />
         </section>
@@ -257,7 +259,7 @@ export function BookingWizard({ session, options, initialChildren, timeZone, cur
                   {quote.taxTotal > 0 ? <Line label="Tax" amount={money(quote.taxTotal, currency)} /> : null}
                 </>
               ) : null}
-              {quote.codeError ? <p className="text-destructive">{CODE_ERROR_MESSAGE[quote.codeError]}</p> : null}
+              {quote.codeError ? <p className="text-destructive">{quote.codeError}</p> : null}
               <div className="flex items-center justify-between border-t pt-2 text-base font-semibold">
                 <span>Total</span>
                 <span>{charges ? money(quote.total, currency) : "Nothing to pay"}</span>

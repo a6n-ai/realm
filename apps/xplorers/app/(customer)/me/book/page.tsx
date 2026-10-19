@@ -4,7 +4,7 @@ import { Button } from "@foundry/ui/button";
 import { SessionsCalendar } from "@/components/calendar/sessions-calendar";
 import { BookHeader } from "@/components/customer/book/book-header";
 import { BookingWizard } from "@/components/customer/book/booking-wizard";
-import { ClassTile } from "@/components/customer/book/class-tile";
+import { ClassCard } from "@/components/marketing/class-card";
 import { offeredLengths, startTimes } from "@/lib/pricing/resolve";
 import { getAppClock, getDefaultPrices } from "@/lib/services/app-settings.service";
 import { childrenService } from "@/lib/services/children.service";
@@ -106,7 +106,7 @@ export default async function BookPage({ searchParams }: { searchParams: Params 
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {classes.map((c) => (
-              <ClassTile key={c.publicId} item={c} />
+              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} />
             ))}
           </div>
         )}

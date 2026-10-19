@@ -5,7 +5,7 @@ import { Button } from "@foundry/ui/button";
 import { getSession } from "@/lib/auth/session";
 import { bookingsService } from "@/lib/services/bookings.service";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
-import { ClassTile } from "@/components/customer/book/class-tile";
+import { ClassCard } from "@/components/marketing/class-card";
 import { loadPublicClasses } from "@/lib/sessions/public";
 import { BookingRow } from "@/components/customer/classes/booking-row";
 
@@ -69,7 +69,7 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
         <SectionCard title="Book a class">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {classes.map((c) => (
-              <ClassTile key={c.publicId} item={c} />
+              <ClassCard key={c.publicId} item={c} href={`/me/book?class=${c.publicId}`} />
             ))}
           </div>
         </SectionCard>

@@ -60,6 +60,11 @@ describe("book actions", () => {
     expect(await bookAction(req)).toEqual({ error: "This session is full." });
   });
 
+  it("a malformed request is an inline error, not a crash", async () => {
+    expect(await bookAction(null as never)).toEqual({ error: "Booking request is invalid." });
+    expect(await quoteAction(undefined as never)).toEqual({ error: "Booking request is invalid." });
+  });
+
   it("signed out or staff cannot quote, book or add children", async () => {
     session.user = null;
     expect(await quoteAction(req)).toEqual({ error: "Sign in to book." });

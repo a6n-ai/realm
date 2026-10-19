@@ -1,4 +1,3 @@
-import type { CodeError } from "@/lib/discounts/quote";
 import type { Adjustment } from "@/db/schema/discounts";
 
 export type ChildView = { publicId: string; name: string; dateOfBirth: string };
@@ -14,7 +13,8 @@ export type QuoteView = {
   taxTotal: number;
   /** What the booking charges; the only amount the review shows as payable. */
   total: number;
-  codeError: CodeError | null;
+  /** Ready-to-show message when the typed code did not apply. */
+  codeError: string | null;
   currency: string;
 };
 
