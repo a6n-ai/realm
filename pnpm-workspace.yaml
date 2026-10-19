@@ -28,6 +28,9 @@ overrides:
   "@relay/ui": "github:a6n-ai/relay#path:packages/ui"
   "@relay/whatsapp": "github:a6n-ai/relay#path:packages/whatsapp"
   "postcss@<8.5.23": ">=8.5.26"
+  # One copy only: sonner keeps toasts in a module-level store, so a second copy
+  # (relay's) toasts into a store the app's <Toaster> never reads.
+  "sonner": "2.0.8"
   "esbuild@<0.25.0": ">=0.25.0"
   "@types/react": "19.2.18"
   "@types/react-dom": "19.2.5"

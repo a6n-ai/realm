@@ -25,6 +25,7 @@ overrides:
   '@relay/ui': github:a6n-ai/relay#path:packages/ui
   '@relay/whatsapp': github:a6n-ai/relay#path:packages/whatsapp
   postcss@<8.5.23: '>=8.5.26'
+  sonner: 2.0.8
   esbuild@<0.25.0: '>=0.25.0'
   '@types/react': 19.2.18
   '@types/react-dom': 19.2.5
@@ -305,8 +306,8 @@ importers:
         specifier: ^0.3.5
         version: 0.3.5
       sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: 2.0.8
+        version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -552,8 +553,8 @@ importers:
         specifier: ^0.3.5
         version: 0.3.5
       sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: 2.0.8
+        version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       sucrase:
         specifier: ^3.35.1
         version: 3.35.1
@@ -736,8 +737,8 @@ importers:
         specifier: ^4.11.0
         version: 4.21.0(supports-color@7.2.0)(typescript@5.9.3)
       sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: 2.0.8
+        version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -7718,12 +7719,6 @@ packages:
   sonic-boom@4.2.1:
     resolution: {integrity: sha512-w6AxtubXa2wTXAUsZMMWERrsIRAdrK0Sc+FUytWvYAhBJLyuI4llrMIC1DtlNSdI99EI86KZum2MMq3EAZlF9Q==}
 
-  sonner@2.0.7:
-    resolution: {integrity: sha512-W6ZN4p58k8aDKA4XPcx2hpIQXBRAgyiWVkYhT7CvK6D3iAu7xjvVyhQHg2/iaKJZ1XVJ4r7XuwGL+WGEK37i9w==}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-      react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-
   sonner@2.0.8:
     resolution: {integrity: sha512-UM/ByIoFra8yzV75n1o0Puu0bw5U/9UNnDacrJNspekBewIfsQ3D6ez1nvlWpt7aTsO6rujQtifBpycwIivqlg==}
     peerDependencies:
@@ -9644,7 +9639,7 @@ snapshots:
       next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
       react-hook-form: 7.79.0(react@19.2.4)
-      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sonner: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
@@ -9661,7 +9656,7 @@ snapshots:
       next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
       react-hook-form: 7.79.0(react@19.2.4)
-      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sonner: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
@@ -9733,7 +9728,7 @@ snapshots:
       lucide-react: 1.21.0(react@19.2.4)
       next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
-      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sonner: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
@@ -9749,7 +9744,7 @@ snapshots:
       lucide-react: 1.21.0(react@19.2.4)
       next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
-      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sonner: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
@@ -9807,7 +9802,7 @@ snapshots:
       lucide-react: 1.21.0(react@19.2.4)
       next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
-      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sonner: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
@@ -9821,7 +9816,7 @@ snapshots:
       lucide-react: 1.21.0(react@19.2.4)
       next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
-      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sonner: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
@@ -9961,7 +9956,7 @@ snapshots:
       lucide-react: 1.21.0(react@19.2.4)
       next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
-      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sonner: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
@@ -9977,7 +9972,7 @@ snapshots:
       lucide-react: 1.21.0(react@19.2.4)
       next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
-      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sonner: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@types/react'
@@ -10095,7 +10090,7 @@ snapshots:
       react-dom: 19.2.4(react@19.2.4)
       react-hook-form: 7.79.0(react@19.2.4)
       react-phone-number-input: 3.4.17(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sonner: 2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       tailwind-merge: 3.6.0
       vaul: 1.1.2(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
     transitivePeerDependencies:
@@ -16630,11 +16625,6 @@ snapshots:
   sonic-boom@4.2.1:
     dependencies:
       atomic-sleep: 1.0.0
-
-  sonner@2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
-    dependencies:
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
 
   sonner@2.0.8(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
