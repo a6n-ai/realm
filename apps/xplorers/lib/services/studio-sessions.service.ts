@@ -8,7 +8,6 @@ import { db } from "@/db/client";
 import { bookings, studioSessionOccurrences, studioSessions } from "@/db/schema";
 import { ATTENDANCE_MODES, CLASS_BOOKING_TYPES, SESSION_CATEGORIES, type AttendanceMode, type SessionCategory } from "@/db/schema/studio";
 import type { SortState } from "@/lib/list/sort";
-import { monthGrid } from "@/lib/sessions/calendar";
 import { CLASS_COLORS } from "@/lib/sessions/format";
 import { expandPattern, maxWindowMinutes, type RepeatPattern } from "@/lib/sessions/pattern";
 import { parsePhotos } from "@/lib/sessions/photos";
@@ -51,6 +50,8 @@ export type AdminOccurrence = {
   published: boolean;
   location: string | null;
   archived: boolean;
+  color: string;
+  status: "scheduled" | "cancelled";
 };
 
 export type ClassOption = {
@@ -209,12 +210,9 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     };
   }
 
-  async listMonth(month: string, timeZone?: string): Promise<AdminOccurrence[]> {
-    const zone = timeZone ?? (await this.timezone());
-    const grid = monthGrid(month);
-    const start = grid[0]?.date;
-    const end = grid[grid.length - 1]?.date;
-    if (!start || !end) return [];
+  /** Days `from`..`to` inclusive (YYYY-MM-DD). Materialises the horizon first so a pattern's days are there to show. */
+  async listRange(from: string, to: string, opts: { publicOnly: boolean }): Promise<AdminOccurrence[]> {
+    await this.ensureHorizon();
     const rows = await db
       .select({
         session: studioSessions,
@@ -227,8 +225,15 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .where(
         and(
           eq(studioSessions.archived, false),
-          gte(studioSessionOccurrences.occursOn, start),
-          lte(studioSessionOccurrences.occursOn, end),
+          gte(studioSessionOccurrences.occursOn, parseDay(from)),
+          lte(studioSessionOccurrences.occursOn, parseDay(to)),
+          opts.publicOnly
+            ? and(
+                eq(studioSessions.published, true),
+                eq(studioSessions.bookingType, "bookable"),
+                eq(studioSessionOccurrences.status, "scheduled"),
+              )
+            : undefined,
         ),
       )
       .orderBy(asc(studioSessionOccurrences.occursOn), asc(studioSessionOccurrences.startsAt));
@@ -624,7 +629,7 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
 
 export const studioSessionsService = new StudioSessionsService(studioSessionsRepository);
 
-type OccurrenceFields = { publicId: string; occursOn: string; startsAt: Date; endsAt: Date; capacity: number };
+type OccurrenceFields = { publicId: string; occursOn: string; startsAt: Date; endsAt: Date; capacity: number; status: "scheduled" | "cancelled" };
 
 function toPublicSession(
   session: StudioSessionRow,
@@ -660,6 +665,8 @@ function toAdminOccurrence(
     published: session.published,
     location: session.location,
     archived: session.archived,
+    color: session.color,
+    status: occurrence.status,
   };
 }
 
