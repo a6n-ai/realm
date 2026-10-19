@@ -56,7 +56,7 @@ export function SessionEdit(props: Props) {
       const res = await updateSessionAction(props.publicId, confirm, {}, fd);
       setConfirmMove(null);
       if (res.error) {
-        if (!confirm && res.error.includes("Confirm to continue")) setConfirmMove(res.error);
+        if (res.needsConfirm && !confirm) setConfirmMove(res.error);
         else toast.error(res.error);
         return;
       }

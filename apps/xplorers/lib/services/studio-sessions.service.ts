@@ -104,6 +104,9 @@ const EMPTY_PRICING: ClassPricing = {
   adults: { free: 0, extraPrice: null },
 };
 
+/** Thrown when an edit would cancel bookings and the caller has not confirmed. */
+export class NeedsConfirmError extends ValidationError {}
+
 class StudioSessionsService extends SessionUpdatableService<typeof studioSessions> {
   async createClass(input: Record<string, unknown>): Promise<StudioSessionRow> {
     const write = normalizeClassWrite(input, await getDefaultPrices());
@@ -404,17 +407,39 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .where(and(eq(bookings.occurrenceId, occurrenceId), inArray(bookings.status, [...RESERVED_BOOKING_STATUSES])));
   }
 
-  /** Cancel every live booking through the staff-cancel path (coins, payment) and tell each parent. */
+  /**
+   * Cancel every live booking through the staff-cancel path (coins, payment) and tell each parent.
+   * Runs after the session itself is flipped, so nothing new can be booked meanwhile. A booking that
+   * was cancelled by someone else in the meantime counts as done; real failures are collected.
+   */
   private async cancelBookingsAndNotify(
     occurrenceId: bigint,
     notice: { title: string; body: string },
   ): Promise<number> {
     const live = await this.reservedBookings(occurrenceId);
+    let done = 0;
+    let failed = 0;
     for (const b of live) {
-      await bookingsService.cancel(b.publicId);
+      try {
+        await bookingsService.cancel(b.publicId);
+      } catch (err) {
+        if (err instanceof ValidationError && /already cancelled/.test(err.message)) continue;
+        failed += 1;
+        continue;
+      }
+      done += 1;
       await pushInAppNotification({ userId: b.userId, ...notice });
     }
-    return live.length;
+    if (failed > 0) throw new ValidationError(`${failed} of ${live.length} bookings could not be cancelled. Retry to finish.`);
+    return done;
+  }
+
+  private async lockAndSet(occurrenceId: bigint, set: Partial<typeof studioSessionOccurrences.$inferInsert>) {
+    const actorId = await currentUserId();
+    await db.transaction(async (tx) => {
+      await tx.select({ id: studioSessionOccurrences.id }).from(studioSessionOccurrences).where(eq(studioSessionOccurrences.id, occurrenceId)).for("update");
+      await tx.update(studioSessionOccurrences).set({ ...set, edited: true, updatedBy: actorId }).where(eq(studioSessionOccurrences.id, occurrenceId));
+    });
   }
 
   async cancelSession(publicId: string, opts: { confirm: boolean }): Promise<{ cancelledBookings: number }> {
@@ -424,14 +449,11 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     if (live.length > 0 && !opts.confirm) {
       throw new ValidationError(`${live.length} booking${live.length === 1 ? "" : "s"} will be cancelled. Confirm to continue.`);
     }
+    await this.lockAndSet(occ.id, { status: "cancelled" });
     const cancelledBookings = await this.cancelBookingsAndNotify(occ.id, {
       title: "Session cancelled",
       body: `${klass.title} on ${occ.occursOn} has been cancelled.`,
     });
-    await db
-      .update(studioSessionOccurrences)
-      .set({ status: "cancelled", edited: true, updatedBy: await currentUserId() })
-      .where(eq(studioSessionOccurrences.id, occ.id));
     return { cancelledBookings };
   }
 
@@ -461,10 +483,10 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
     const booked = live.reduce((n, b) => n + b.seats, 0);
     if (capacity < booked) throw new ValidationError(`${booked} children are already booked; capacity can't go below that.`);
 
-    const moved =
-      occursOn !== occ.occursOn || startsAt.getTime() !== occ.startsAt.getTime() || endsAt.getTime() !== occ.endsAt.getTime();
+    const minute = (d: Date) => Math.floor(d.getTime() / 60_000);
+    const moved = occursOn !== occ.occursOn || minute(startsAt) !== minute(occ.startsAt) || minute(endsAt) !== minute(occ.endsAt);
     if (moved && live.length > 0 && !input.confirm) {
-      throw new ValidationError(`Moving this session cancels ${live.length} booking${live.length === 1 ? "" : "s"}. Confirm to continue.`);
+      throw new NeedsConfirmError(`Moving this session cancels ${live.length} booking${live.length === 1 ? "" : "s"}. Confirm to continue.`);
     }
     if (occursOn !== occ.occursOn) {
       const [clash] = await db
@@ -483,16 +505,13 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       prices = normalized && Object.keys(normalized).length > 0 ? normalized : null;
     }
 
+    await this.lockAndSet(occ.id, { occursOn, startsAt, endsAt, capacity, prices });
     if (moved && live.length > 0) {
       await this.cancelBookingsAndNotify(occ.id, {
         title: "Session moved",
         body: `${klass.title} on ${occ.occursOn} has moved. Please book the new time.`,
       });
     }
-    await db
-      .update(studioSessionOccurrences)
-      .set({ occursOn, startsAt, endsAt, capacity, prices, edited: true, updatedBy: await currentUserId() })
-      .where(eq(studioSessionOccurrences.id, occ.id));
   }
 
   /** Copy the scheduled days of the week starting `fromMonday` onto `toMonday`, keeping clock times. Days the class already has are skipped. */

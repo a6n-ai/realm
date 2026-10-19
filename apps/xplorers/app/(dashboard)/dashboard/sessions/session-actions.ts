@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { ValidationError } from "@foundry/commons";
 import { requirePermission } from "@/lib/auth/guards";
 import { fromZonedLocal } from "@/lib/sessions/timezone";
-import { studioSessionsService } from "@/lib/services/studio-sessions.service";
+import { NeedsConfirmError, studioSessionsService } from "@/lib/services/studio-sessions.service";
 
 const PATH = "/dashboard/sessions";
 
@@ -51,7 +51,16 @@ function touch() {
   revalidatePath("/");
 }
 
-export type SessionEditState = { error?: string; ok?: boolean };
+function parsePrices(raw: string) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new ValidationError("Prices could not be read.");
+  }
+}
+
+export type SessionEditState = { error?: string; ok?: boolean; needsConfirm?: boolean };
 
 export async function updateSessionAction(
   publicId: string,
@@ -70,10 +79,11 @@ export async function updateSessionAction(
       startsAt: start ? fromZonedLocal(start, zone) : undefined,
       endsAt: end ? fromZonedLocal(end, zone) : undefined,
       capacity: Number(formData.get("capacity")),
-      prices: pricesRaw ? JSON.parse(pricesRaw) : null,
+      prices: parsePrices(pricesRaw),
       confirm,
     });
   } catch (err) {
+    if (err instanceof NeedsConfirmError) return { error: err.message, needsConfirm: true };
     if (err instanceof ValidationError) return { error: err.message };
     throw err;
   }
