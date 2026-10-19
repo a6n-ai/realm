@@ -2,15 +2,16 @@ import { ValidationError } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, lte, notExists, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { bookings, studioSessionOccurrences, studioSessions } from "@/db/schema";
 import { ATTENDANCE_MODES, SESSION_CATEGORIES, type AttendanceMode, type SessionCategory } from "@/db/schema/studio";
 import type { SortState } from "@/lib/list/sort";
 import { monthGrid } from "@/lib/sessions/calendar";
+import { expandPattern } from "@/lib/sessions/pattern";
 import { parsePhotos } from "@/lib/sessions/photos";
 import { parseDay } from "@/lib/sessions/schedule";
-import { dayKey, fromZonedLocal } from "@/lib/sessions/timezone";
+import { addDayKey, dayKey, fromZonedLocal } from "@/lib/sessions/timezone";
 import type { ClassPricing } from "@/lib/pricing/types";
 import { getAppClock } from "./app-settings.service";
 import { remainingSeats, isPubliclyListed, RESERVED_BOOKING_STATUSES } from "./booking-policy";
@@ -68,6 +69,8 @@ const SESSION_SORT = {
   category: studioSessions.category,
   published: studioSessions.published,
 } as const;
+
+const HORIZON_DAYS = 92;
 
 const confirmedAgg = db
   .select({
@@ -276,6 +279,75 @@ class StudioSessionsService extends SessionUpdatableService<typeof studioSession
       .returning({ publicId: studioSessionOccurrences.publicId, occursOn: studioSessionOccurrences.occursOn });
     if (!row) throw new ValidationError("Could not schedule the session.");
     return row;
+  }
+
+  /**
+   * Materialise sessions from today to min(endsOn, today + HORIZON_DAYS). Existing rows (including
+   * cancelled ones) win the conflict, so a cancelled day is never recreated.
+   */
+  async ensureHorizon(classPublicId?: string): Promise<void> {
+    const zone = await this.timezone();
+    const today = dayKey(new Date(), zone);
+    const horizon = addDayKey(today, HORIZON_DAYS);
+    const classes = await db
+      .select()
+      .from(studioSessions)
+      .where(
+        and(
+          eq(studioSessions.archived, false),
+          isNotNull(studioSessions.pattern),
+          classPublicId ? eq(studioSessions.publicId, classPublicId) : undefined,
+        ),
+      );
+    for (const klass of classes) {
+      const pattern = klass.pattern;
+      if (!pattern) continue;
+      const rows = expandPattern(pattern, today, horizon).map((day) => ({
+        sessionId: klass.id,
+        occursOn: day,
+        startsAt: fromZonedLocal(`${day}T${pattern.startClock}`, zone),
+        endsAt: fromZonedLocal(`${day}T${pattern.endClock}`, zone),
+        capacity: klass.capacity,
+      }));
+      if (rows.length === 0) continue;
+      await db
+        .insert(studioSessionOccurrences)
+        .values(rows)
+        .onConflictDoNothing({ target: [studioSessionOccurrences.sessionId, studioSessionOccurrences.occursOn] });
+    }
+  }
+
+  /** Drop untouched future sessions (strictly after today; today is left alone) and re-expand the pattern. */
+  async regenerateFuture(classPublicId: string): Promise<{ removed: number; added: number }> {
+    const zone = await this.timezone();
+    const today = dayKey(new Date(), zone);
+    const [klass] = await db
+      .select({ id: studioSessions.id })
+      .from(studioSessions)
+      .where(eq(studioSessions.publicId, classPublicId))
+      .limit(1);
+    if (!klass) throw new ValidationError("Class not found.");
+    const count = () =>
+      db
+        .select({ n: sql<number>`cast(count(*) as int)` })
+        .from(studioSessionOccurrences)
+        .where(eq(studioSessionOccurrences.sessionId, klass.id))
+        .then(([r]) => r?.n ?? 0);
+    const removed = await db
+      .delete(studioSessionOccurrences)
+      .where(
+        and(
+          eq(studioSessionOccurrences.sessionId, klass.id),
+          gt(studioSessionOccurrences.occursOn, today),
+          eq(studioSessionOccurrences.edited, false),
+          eq(studioSessionOccurrences.status, "scheduled"),
+          notExists(db.select({ one: sql`1` }).from(bookings).where(eq(bookings.occurrenceId, studioSessionOccurrences.id))),
+        ),
+      )
+      .returning({ id: studioSessionOccurrences.id });
+    const before = await count();
+    await this.ensureHorizon(classPublicId);
+    return { removed: removed.length, added: (await count()) - before };
   }
 
   async unscheduleSession(occurrencePublicId: string): Promise<string> {
