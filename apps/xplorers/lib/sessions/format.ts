@@ -207,3 +207,7 @@ export function groupPublicClasses(
     .sort((a, b) => a.first - b.first || a.title.localeCompare(b.title))
     .map(({ first: _first, ...c }) => c);
 }
+
+/** Named swatches matching the printed class palette; the class stores the name. */
+export const CLASS_COLORS = ["pink", "sky", "blue", "purple", "orange", "green", "yellow"] as const;
+export type ClassColor = (typeof CLASS_COLORS)[number];

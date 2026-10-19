@@ -5,15 +5,18 @@ import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { and, asc, eq, gt, gte, inArray, isNotNull, lte, notExists, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { bookings, studioSessionOccurrences, studioSessions } from "@/db/schema";
-import { ATTENDANCE_MODES, SESSION_CATEGORIES, type AttendanceMode, type SessionCategory } from "@/db/schema/studio";
+import { ATTENDANCE_MODES, CLASS_BOOKING_TYPES, SESSION_CATEGORIES, type AttendanceMode, type SessionCategory } from "@/db/schema/studio";
 import type { SortState } from "@/lib/list/sort";
 import { monthGrid } from "@/lib/sessions/calendar";
-import { expandPattern } from "@/lib/sessions/pattern";
+import { CLASS_COLORS } from "@/lib/sessions/format";
+import { expandPattern, maxWindowMinutes, type RepeatPattern } from "@/lib/sessions/pattern";
 import { parsePhotos } from "@/lib/sessions/photos";
 import { parseDay } from "@/lib/sessions/schedule";
 import { addDayKey, dayKey, fromZonedLocal } from "@/lib/sessions/timezone";
-import type { ClassPricing } from "@/lib/pricing/types";
-import { getAppClock } from "./app-settings.service";
+import { DEFAULT_PRICE_TABLE } from "@/lib/pricing/defaults";
+import { offeredLengths } from "@/lib/pricing/resolve";
+import type { ClassPricing, PriceCell, PriceTable } from "@/lib/pricing/types";
+import { getAppClock, getDefaultPrices } from "./app-settings.service";
 import { remainingSeats, isPubliclyListed, RESERVED_BOOKING_STATUSES } from "./booking-policy";
 import { currentUserId, SessionUpdatableService } from "./session-service";
 import { studioSessionsRepository, type StudioSessionRow } from "./studio-sessions.repository";
@@ -91,7 +94,6 @@ const sessionCountAgg = db
   .groupBy(studioSessionOccurrences.sessionId)
   .as("session_counts");
 
-/** Placeholder until the Task 5 class form sets real pricing. */
 const EMPTY_PRICING: ClassPricing = {
   mode: "length",
   defaultLengthMinutes: 60,
@@ -102,11 +104,20 @@ const EMPTY_PRICING: ClassPricing = {
 
 class StudioSessionsService extends SessionUpdatableService<typeof studioSessions> {
   async createClass(input: Record<string, unknown>): Promise<StudioSessionRow> {
-    return this.create({ ...normalizeClassWrite(input), pricing: EMPTY_PRICING });
+    const write = normalizeClassWrite(input, await getDefaultPrices());
+    const row = await this.create({ pricing: EMPTY_PRICING, ...write });
+    if (write.pattern) await this.ensureHorizon(row.publicId);
+    return row;
   }
 
   async updateClass(publicId: string, input: Record<string, unknown>): Promise<StudioSessionRow> {
-    return this.update(publicId, normalizeClassWrite(input));
+    const write = normalizeClassWrite(input, await getDefaultPrices());
+    const before = await this.read(publicId);
+    const row = await this.update(publicId, write);
+    if ("pattern" in write && JSON.stringify(write.pattern ?? null) !== JSON.stringify(before.pattern ?? null)) {
+      await this.regenerateFuture(publicId);
+    }
+    return row;
   }
 
   async archive(publicId: string): Promise<StudioSessionRow> {
@@ -532,7 +543,120 @@ function resolveSessionFacet(timeZone: string) {
   };
 }
 
-function normalizeClassWrite(input: Record<string, unknown>): Record<string, unknown> {
+const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+function asObject(value: unknown): Record<string, unknown> | null | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === "string") {
+    if (!value.trim()) return null;
+    try {
+      value = JSON.parse(value);
+    } catch {
+      throw new ValidationError("Could not read the class settings.");
+    }
+  }
+  if (value === null) return null;
+  if (typeof value !== "object" || Array.isArray(value)) throw new ValidationError("Could not read the class settings.");
+  return value as Record<string, unknown>;
+}
+
+function intIn(value: unknown, min: number, max: number, label: string): number {
+  const n = Number(value);
+  if (value === "" || value === null || !Number.isInteger(n) || n < min || n > max) {
+    throw new ValidationError(`${label} must be a whole number from ${min} to ${max}.`);
+  }
+  return n;
+}
+
+function cell(value: unknown, label: string): PriceCell {
+  const raw = (value ?? {}) as Record<string, unknown>;
+  const out: PriceCell = {};
+  for (const day of ["weekday", "weekend"] as const) {
+    if (raw[day] === undefined || raw[day] === null) continue;
+    const n = Number(raw[day]);
+    if (!Number.isFinite(n) || n < 0) throw new ValidationError(`${label} must be zero or more.`);
+    out[day] = n;
+  }
+  return out;
+}
+
+function normalizePattern(raw: Record<string, unknown>): RepeatPattern {
+  const weekdays = [...new Set(((raw.weekdays as unknown[]) ?? []).map((d) => intIn(d, 1, 7, "Weekday")))].sort();
+  if (weekdays.length === 0) throw new ValidationError("Pick at least one weekday for the repeat pattern.");
+  const nth = raw.nthOfMonth as unknown[] | null | undefined;
+  const nthOfMonth = nth && nth.length ? [...new Set(nth.map((d) => intIn(d, 1, 5, "Week of month")))].sort() : null;
+  const startClock = String(raw.startClock ?? "");
+  const endClock = String(raw.endClock ?? "");
+  if (!CLOCK.test(startClock) || !CLOCK.test(endClock)) throw new ValidationError("Set a start and end time.");
+  if (endClock <= startClock) throw new ValidationError("The end time must be after the start time.");
+  const startsOn = String(raw.startsOn ?? "");
+  if (!DAY.test(startsOn)) throw new ValidationError("Set the day the pattern starts.");
+  const endsOn = raw.endsOn ? String(raw.endsOn) : null;
+  if (endsOn && (!DAY.test(endsOn) || endsOn < startsOn)) throw new ValidationError("The end day must be on or after the start day.");
+  const excludeMonths = [...new Set(((raw.excludeMonths as unknown[]) ?? []).map((m) => intIn(m, 1, 12, "Month")))].sort(
+    (a, b) => a - b,
+  );
+  return { weekdays, nthOfMonth, startClock, endClock, startsOn, endsOn, excludeMonths };
+}
+
+function normalizePricing(raw: Record<string, unknown>, window: number): ClassPricing {
+  const mode = raw.mode;
+  if (mode !== "length" && mode !== "options") throw new ValidationError("Pick a pricing mode.");
+  const defaultLengthMinutes = intIn(raw.defaultLengthMinutes, 30, 24 * 60, "Default length");
+  if (defaultLengthMinutes % 30 !== 0) throw new ValidationError("Default length must be a multiple of 30 minutes.");
+  const options = ((raw.options as Record<string, unknown>[]) ?? []).map((o) => {
+    const key = String(o.key ?? "");
+    if (!SLUG.test(key)) throw new ValidationError(`Option key "${key}" must be lowercase letters, numbers and hyphens.`);
+    const label = String(o.label ?? "").trim();
+    if (!label) throw new ValidationError("Every option needs a name.");
+    const lengthMinutes = intIn(o.lengthMinutes, 30, 24 * 60, "Option length");
+    if (lengthMinutes % 30 !== 0) throw new ValidationError("Option length must be a multiple of 30 minutes.");
+    if (lengthMinutes > window) throw new ValidationError(`Option "${label}" is longer than the session window.`);
+    return { key, label, lengthMinutes, adultsIncluded: intIn(o.adultsIncluded ?? 0, 0, 20, "Adults included") };
+  });
+  if (new Set(options.map((o) => o.key)).size !== options.length) throw new ValidationError("Option keys must be unique.");
+  if (mode === "options" && options.length === 0) throw new ValidationError("Add at least one option.");
+  const ext = raw.extension as Record<string, unknown> | null | undefined;
+  let extension: ClassPricing["extension"] = null;
+  if (ext) {
+    const stepMinutes = Number(ext.stepMinutes);
+    if (stepMinutes !== 30 && stepMinutes !== 60) throw new ValidationError("Extension steps are 30 or 60 minutes.");
+    extension = { stepMinutes, price: cell(ext.price, "Extension price") };
+  }
+  const ad = (raw.adults ?? {}) as Record<string, unknown>;
+  const adults = {
+    free: intIn(ad.free ?? 0, 0, 20, "Free adults"),
+    extraPrice: ad.extraPrice ? cell(ad.extraPrice, "Extra adult price") : null,
+  };
+  return { mode, defaultLengthMinutes, options: mode === "options" ? options : [], extension, adults };
+}
+
+function normalizePrices(raw: Record<string, unknown>, pricing: ClassPricing, globalTable: PriceTable, window: number) {
+  const lengths = new Set(offeredLengths(pricing, globalTable, window));
+  const out: PriceTable = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const ok = key.startsWith("len:")
+      ? pricing.mode === "length" && lengths.has(Number(key.slice(4)))
+      : key.startsWith("opt:")
+        ? pricing.options.some((o) => `opt:${o.key}` === key)
+        : key === "ext" && pricing.extension !== null;
+    if (!ok) throw new ValidationError(`Price "${key}" does not match anything this class offers.`);
+    const c = cell(value, key);
+    if (c.weekday !== undefined || c.weekend !== undefined) out[key] = c;
+  }
+  return out;
+}
+
+/**
+ * Pure validation of a class write. `globalPrices` is the studio default table (callers pass the live one).
+ * With no pattern the window is unknown, so lengths are not capped.
+ */
+function normalizeClassWrite(
+  input: Record<string, unknown>,
+  globalPrices: PriceTable = DEFAULT_PRICE_TABLE,
+): Record<string, unknown> {
   const title = String(input.title ?? "").trim();
   if (!title) throw new ValidationError("Title is required.");
   if (!isSessionCategory(input.category)) throw new ValidationError("Pick a category.");
@@ -540,7 +664,8 @@ function normalizeClassWrite(input: Record<string, unknown>): Record<string, unk
   if (!isAttendanceMode(attendanceMode)) throw new ValidationError("Pick stay, drop-off, or either.");
   const capacity = Number(input.capacity);
   if (!Number.isInteger(capacity) || capacity < 1) throw new ValidationError("Capacity must be at least 1.");
-  return {
+
+  const out: Record<string, unknown> = {
     title,
     category: input.category,
     summary: emptyToNull(input.description) ?? "",
@@ -550,6 +675,49 @@ function normalizeClassWrite(input: Record<string, unknown>): Record<string, unk
     published: input.published === true || input.published === "on" || input.published === "true",
     photos: parsePhotos(input.photos),
   };
+
+  if (input.included !== undefined) out.included = emptyToNull(input.included);
+  if (input.scheduleLine !== undefined) out.scheduleLine = emptyToNull(input.scheduleLine);
+  if (input.groupSize !== undefined) out.groupSize = emptyToNull(input.groupSize);
+  if (input.ageWaiver !== undefined) {
+    out.ageWaiver = input.ageWaiver === true || input.ageWaiver === "on" || input.ageWaiver === "true";
+  }
+  if (input.ageMin !== undefined || input.ageMax !== undefined) {
+    const blank = (v: unknown) => v === undefined || v === null || v === "";
+    const ageMin = blank(input.ageMin) ? null : intIn(input.ageMin, 0, 99, "Minimum age");
+    const ageMax = blank(input.ageMax) ? null : intIn(input.ageMax, 0, 99, "Maximum age");
+    if (ageMin !== null && ageMax !== null && ageMin > ageMax) throw new ValidationError("Minimum age cannot be above the maximum age.");
+    out.ageMin = ageMin;
+    out.ageMax = ageMax;
+  }
+  if (input.color !== undefined) {
+    if (!(CLASS_COLORS as readonly unknown[]).includes(input.color)) throw new ValidationError("Pick a colour from the list.");
+    out.color = input.color;
+  }
+  const bookingType = input.bookingType ?? "bookable";
+  if (!(CLASS_BOOKING_TYPES as readonly unknown[]).includes(bookingType)) {
+    throw new ValidationError("Pick a booking type: bookable or enquire only.");
+  }
+  out.bookingType = bookingType;
+
+  const rawPattern = asObject(input.pattern);
+  const pattern = rawPattern ? normalizePattern(rawPattern) : rawPattern;
+  if (pattern !== undefined) out.pattern = pattern;
+  const window = pattern ? maxWindowMinutes(pattern) : Number.POSITIVE_INFINITY;
+
+  if (bookingType === "enquire_only") {
+    out.pricing = EMPTY_PRICING;
+    out.prices = null;
+    return out;
+  }
+  const rawPricing = asObject(input.pricing);
+  if (rawPricing) {
+    const pricing = normalizePricing(rawPricing, window);
+    out.pricing = pricing;
+    const rawPrices = asObject(input.prices);
+    if (rawPrices !== undefined) out.prices = rawPrices ? normalizePrices(rawPrices, pricing, globalPrices, window) : null;
+  }
+  return out;
 }
 
 export { normalizeClassWrite };

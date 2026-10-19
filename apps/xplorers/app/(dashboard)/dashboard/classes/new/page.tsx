@@ -1,12 +1,12 @@
 import { ShapesIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
 import { requirePermission } from "@/lib/auth/guards";
-import { studioSessionsService } from "@/lib/services/studio-sessions.service";
+import { getDefaultPrices } from "@/lib/services/app-settings.service";
 import { ClassForm } from "../class-form";
 
 export default async function NewClassPage() {
   await requirePermission({ studioSession: ["create"] } as never);
-  const timeZone = await studioSessionsService.timezone();
+  const defaultPrices = await getDefaultPrices();
   return (
     <PageShell>
       <PageHeader
@@ -15,7 +15,7 @@ export default async function NewClassPage() {
         subtitle="The offering families will book. Publish when it should appear on What’s on, then schedule days from Sessions."
       />
       <SectionCard title="Class">
-        <ClassForm timeZone={timeZone} />
+        <ClassForm defaultPrices={defaultPrices} />
       </SectionCard>
     </PageShell>
   );

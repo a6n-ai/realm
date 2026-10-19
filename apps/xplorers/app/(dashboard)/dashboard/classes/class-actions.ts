@@ -20,6 +20,17 @@ function formFields(formData: FormData) {
     attendanceMode: String(formData.get("attendanceMode") ?? "either"),
     published: formData.get("published") === "on",
     photos: formData.getAll("photos").map((value) => String(value)),
+    included: String(formData.get("included") ?? ""),
+    scheduleLine: String(formData.get("scheduleLine") ?? ""),
+    groupSize: String(formData.get("groupSize") ?? ""),
+    ageMin: String(formData.get("ageMin") ?? ""),
+    ageMax: String(formData.get("ageMax") ?? ""),
+    ageWaiver: formData.get("ageWaiver") === "on",
+    color: String(formData.get("color") ?? "pink"),
+    bookingType: String(formData.get("bookingType") ?? "bookable"),
+    pricing: String(formData.get("pricing") ?? ""),
+    prices: String(formData.get("prices") ?? ""),
+    pattern: String(formData.get("pattern") ?? "null"),
   };
 }
 

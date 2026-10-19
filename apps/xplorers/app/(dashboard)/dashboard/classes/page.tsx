@@ -6,7 +6,6 @@ import { Button } from "@foundry/ui/button";
 import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { parseSort } from "@/lib/list/sort";
-import { formatClassClock } from "@/lib/sessions/format";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { CLASS_FACETS, CLASS_SORT_COLUMNS } from "@/lib/studio/list-spec";
 import { ClassesTable, ClassesTableSkeleton } from "./classes-table";
@@ -52,10 +51,7 @@ async function ClassesData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const sort = parseSort(sp, CLASS_SORT_COLUMNS, { column: "title", dir: "asc" });
   const { condition, page } = parseFilterState(CLASS_FACETS, sp);
-  const [result, timeZone] = await Promise.all([
-    studioSessionsService.queryClasses(condition, page, sort),
-    studioSessionsService.timezone(),
-  ]);
+  const result = await studioSessionsService.queryClasses(condition, page, sort);
 
   return (
     <ClassesTable

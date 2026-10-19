@@ -45,6 +45,82 @@ describe("normalizeClassWrite", () => {
     expect(record).not.toHaveProperty("pricing");
   });
 
+  const base = { title: "Woodwork", category: "kids", capacity: 8 };
+  const pattern = {
+    weekdays: [6],
+    nthOfMonth: null,
+    startClock: "10:00",
+    endClock: "13:00",
+    startsOn: "2026-11-01",
+    endsOn: null,
+    excludeMonths: [],
+  };
+  const lengthPricing = {
+    mode: "length",
+    defaultLengthMinutes: 90,
+    options: [],
+    extension: null,
+    adults: { free: 1, extraPrice: null },
+  };
+
+  it("rejects a len:240 override when the pattern window is 180 minutes", () => {
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: lengthPricing, prices: { "len:240": { weekday: 10 } } }),
+    ).toThrow(/len:240/);
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: lengthPricing, prices: { "len:180": { weekday: 10 } } }),
+    ).not.toThrow();
+  });
+
+  it("rejects duplicate option keys", () => {
+    const option = { key: "taster", label: "Taster", lengthMinutes: 60, adultsIncluded: 1 };
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: { ...lengthPricing, mode: "options", options: [option, option] } }),
+    ).toThrow(/unique/i);
+  });
+
+  it("accepts Woodwork options (taster 60, regular 120) and keys their prices", () => {
+    const record = normalizeClassWrite({
+      ...base,
+      pattern,
+      pricing: {
+        ...lengthPricing,
+        mode: "options",
+        options: [
+          { key: "taster", label: "Taster", lengthMinutes: 60, adultsIncluded: 1 },
+          { key: "regular", label: "Regular", lengthMinutes: 120, adultsIncluded: 1 },
+        ],
+      },
+      prices: { "opt:taster": { weekday: 40 }, "opt:regular": { weekday: 70 } },
+    });
+    expect((record.pricing as { options: unknown[] }).options).toHaveLength(2);
+  });
+
+  it("rejects an option longer than the window, an unknown opt key and ext without extension", () => {
+    const longOption = { key: "long", label: "Long", lengthMinutes: 240, adultsIncluded: 0 };
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: { ...lengthPricing, mode: "options", options: [longOption] } }),
+    ).toThrow(/window/i);
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: lengthPricing, prices: { "opt:nope": { weekday: 1 } } }),
+    ).toThrow(/opt:nope/);
+    expect(() =>
+      normalizeClassWrite({ ...base, pattern, pricing: lengthPricing, prices: { ext: { weekday: 1 } } }),
+    ).toThrow(/ext/);
+  });
+
+  it("rejects bad lengths, ages and bookingType", () => {
+    expect(() => normalizeClassWrite({ ...base, pricing: { ...lengthPricing, defaultLengthMinutes: 45 } })).toThrow(/30/);
+    expect(() => normalizeClassWrite({ ...base, ageMin: 9, ageMax: 5 })).toThrow(/age/i);
+    expect(() => normalizeClassWrite({ ...base, bookingType: "walkin" })).toThrow(/booking/i);
+  });
+
+  it("skips pricing for enquire-only classes and needs no pattern", () => {
+    const record = normalizeClassWrite({ ...base, bookingType: "enquire_only", prices: { "len:999": { weekday: 1 } } });
+    expect(record.bookingType).toBe("enquire_only");
+    expect(record.prices).toBeNull();
+  });
+
   it("keeps uploaded photos", () => {
     expect(
       normalizeClassWrite(

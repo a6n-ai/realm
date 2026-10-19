@@ -26,3 +26,13 @@ export function expandPattern(p: RepeatPattern, from: string, to: string): strin
   }
   return out;
 }
+
+const clockMinutes = (clock: string) => {
+  const [h, m] = clock.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/** Longest single session the pattern allows, in minutes; 0 when there is no pattern. */
+export function maxWindowMinutes(pattern: RepeatPattern | null): number {
+  return pattern ? clockMinutes(pattern.endClock) - clockMinutes(pattern.startClock) : 0;
+}
