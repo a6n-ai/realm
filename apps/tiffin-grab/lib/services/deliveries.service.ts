@@ -23,6 +23,7 @@ import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { assertDayOutsideOtherPlans } from "./order-window";
 import { holidayForOrderDate } from "./holiday-dates";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
+import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
 import { HAS_HOLIDAY_EXTRA, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
 
@@ -573,6 +574,7 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
       orderId, type: "status_change", fromStatus: "active", toStatus: "completed",
       note: "Plan over: every delivery is done", organizationId: updated[0]!.organizationId,
     });
+    await clearLookOutOnEnd(tx, orderId, "plan over");
     return true;
   });
 }

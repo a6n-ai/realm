@@ -170,7 +170,8 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const sort = parseSort(
     sp,
     ["name", "status", "start", "total", "created"],
-    { column: "created", dir: "desc" },
+    // The Look out for tab leads with the newest flag, however old the order is.
+    lookOutOnly ? { column: "flagged", dir: "desc" } : { column: "created", dir: "desc" },
   );
 
   const planOptions = await db

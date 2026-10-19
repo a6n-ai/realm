@@ -8,6 +8,7 @@ import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
+import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { db } from "@/db/client";
 import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import {
@@ -1145,19 +1146,24 @@ export async function setOrderLookOut(
   const reason = note.trim();
   if (!reason) throw new ValidationError(on ? "Add a note on what to look out for" : "Add a note on why it is being unmarked");
   if (reason.length > 300) throw new ValidationError("Keep the note under 300 characters");
-  const [order] = await db.select({ id: orders.id, lookOutAt: orders.lookOutAt }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
-  if (!order) throw new NotFoundError("Order not found");
-  if (!on && order.lookOutAt == null) return;
+  await db.transaction(async (tx) => {
+    // Row lock: two staff marking at once log one "Marked" and one "note changed", not two "Marked".
+    const [order] = await tx.select({ id: orders.id, lookOutAt: orders.lookOutAt, organizationId: orders.organizationId })
+      .from(orders).where(eq(orders.publicId, orderPublicId)).limit(1).for("update");
+    if (!order) throw new NotFoundError("Order not found");
+    if (!on && order.lookOutAt == null) return;
 
-  await db
-    .update(orders)
-    .set(on ? { lookOutAt: Date.now(), lookOutBy: actorId, lookOutNote: reason } : { lookOutAt: null, lookOutBy: null, lookOutNote: null })
-    .where(eq(orders.id, order.id));
-  await db.insert(orderActivities).values({
-    orderId: order.id,
-    type: "note",
-    note: !on ? `Look out for cleared: ${reason}` : order.lookOutAt == null ? `Marked look out for: ${reason}` : `Look out for note changed: ${reason}`,
-    createdBy: actorId,
+    await tx
+      .update(orders)
+      .set(on ? { lookOutAt: Date.now(), lookOutBy: actorId, lookOutNote: reason } : { lookOutAt: null, lookOutBy: null, lookOutNote: null })
+      .where(eq(orders.id, order.id));
+    await tx.insert(orderActivities).values({
+      orderId: order.id,
+      type: "note",
+      note: !on ? `Look out for cleared: ${reason}` : order.lookOutAt == null ? `Marked look out for: ${reason}` : `Look out for note changed: ${reason}`,
+      createdBy: actorId,
+      organizationId: order.organizationId,
+    });
   });
 }
 
@@ -1326,7 +1332,7 @@ export type OrderListRow = {
   renewed: boolean;
 };
 
-export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
+export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created" | "flagged";
 
 // Server-side unified filters (Condition) + offset pagination + unpaginated
 // total — mirrors inquiriesService.listForPipeline. Status, name, id, and
@@ -1445,6 +1451,7 @@ export async function listOrdersPage(
     start: orders.startDate,
     total: orders.total,
     created: orders.createdAt,
+    flagged: orders.lookOutAt,
   } as const;
   const col = SORT_COL[sort.column] ?? orders.createdAt;
 
@@ -2107,6 +2114,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         toStatus: "cancelled",
         createdBy: actorId,
       });
+      await clearLookOutOnEnd(tx, row.id, "order cancelled");
     });
     publishAnalyticsLive();
     // External API call, deliberately outside the tx — see walletService.award above for the
