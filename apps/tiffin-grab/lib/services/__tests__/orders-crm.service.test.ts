@@ -2,6 +2,8 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne, sql } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const session: { user: { id: string; role: string } | null } = { user: null };
+vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
 const { db } = await import("@/db/client");
 const { orders, payments, orderActivities, ledgerEntries, users } = await import("@/db/schema");
@@ -9,6 +11,8 @@ const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
 const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds, assertDeliveryVisible, assertPaymentVisible, setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrders, countEndingOrders, countPaymentReviewOrders } = await import("../orders.service");
+const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
+const { ticketsService } = await import("../tickets.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const schema = await import("@/db/schema");
@@ -162,6 +166,46 @@ describe("order CRM queries (integration)", () => {
     await lookOutForTicket(id, "Late again");
     await clearTicketLookOut(id);
     expect(await note()).toBe("Call first");
+  });
+
+  it("look out for: the tab leads with the newest flag, and an ended order leaves it", async () => {
+    const snap = await loadCatalogSnapshot();
+    const jane = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Jane Customer", "+16475550111"));
+    const bob = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"));
+    await setOrderLookOut(bob.publicId, true, "Bob first");
+    await setOrderLookOut(jane.publicId, true, "Jane later");
+    // Jane's order is older but flagged later; set the time outright so one millisecond can't tie them.
+    await db.update(orders).set({ lookOutAt: Date.now() + 60_000 }).where(eq(orders.publicId, jane.publicId));
+    const tab = await listOrdersPage(undefined, { page: 0, size: 10 }, { column: "flagged", dir: "desc" }, "all", { lookOutOnly: true });
+    expect(tab.items.map((o) => o.fullName)).toEqual(["Jane Customer", "Bob Buyer"]);
+
+    const [{ id }] = await db.select({ id: orders.id }).from(orders).where(eq(orders.publicId, jane.publicId));
+    await db.transaction((tx) => clearLookOutOnEnd(tx, id, "order cancelled"));
+    await db.transaction((tx) => clearLookOutOnEnd(tx, id, "order cancelled"));
+    expect(await countLookOutOrders("all")).toBe(1);
+    const notes = await db.select({ note: orderActivities.note }).from(orderActivities).where(eq(orderActivities.orderId, id));
+    expect(notes.filter((n) => n.note === "Look out for cleared: order cancelled")).toHaveLength(1);
+  });
+
+  it("look out for: reopening a resolved ticket puts its order back on the list", async () => {
+    const snap = await loadCatalogSnapshot();
+    const order = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    const [{ id, userId }] = await db.select({ id: orders.id, userId: orders.userId }).from(orders).where(eq(orders.publicId, order.publicId));
+    const [staff] = await db.insert(users).values({ email: `s${Math.random().toString(36).slice(2)}@test.invalid`, name: "Staff", role: "admin" }).returning({ publicId: users.publicId });
+    const [ticket] = await db.insert(schema.tickets).values({ publicId: "tkt_lookout_reopen", raisedBy: userId!, subject: "Missing roti", category: "order", orderId: id, createdAt: Date.now(), updatedAt: Date.now() }).returning();
+    await lookOutForTicket(id, ticket.subject);
+    session.user = { id: staff.publicId, role: "admin" };
+    try {
+      await ticketsService.changeStatus(ticket.publicId, "resolved");
+      expect(await countLookOutOrders("all")).toBe(0);
+      await ticketsService.changeStatus(ticket.publicId, "open");
+      const [row] = await db.select({ note: orders.lookOutNote }).from(orders).where(eq(orders.id, id));
+      expect(row.note).toBe("Support ticket: Missing roti");
+    } finally {
+      session.user = null;
+      await db.delete(schema.ticketMessages).where(eq(schema.ticketMessages.ticketId, ticket.id));
+      await db.delete(schema.tickets).where(eq(schema.tickets.id, ticket.id));
+    }
   });
 
   it("listOrdersPage filters by Condition, search, and paginates with a total", async () => {
