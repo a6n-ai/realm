@@ -41,24 +41,16 @@ describe("createOrder: the cutoff hour closes tomorrow as a start date", () => {
     await expect(order("2026-10-14")).resolves.toMatchObject({ publicId: expect.stringMatching(/^ord_/) });
   });
 
-  it("lets staff start a plan today, which a customer never can", async () => {
+  it("gives staff no same-day start: today's cutoff has already passed", async () => {
     const snap = await loadCatalogSnapshot();
-    const order = (opts?: Parameters<typeof createOrder>[1]) => createOrder({
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.UTC(2026, 9, 13, 14) }); // Tue Oct 13, 10 AM in Toronto
+    await expect(createOrder({
       planKey: snap.plans[0].key,
       selections: {
         mealSizeId: snap.mealSizes[0].publicId, frequencyKey: "5_day" as const, persons: 1, mealSlots: ["lunch"],
         includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate: "2026-10-13",
       },
       contact: { email: "today@test.invalid", fullName: "A B", phone: "+16475550112", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
-    }, opts);
-    vi.useFakeTimers({ toFake: ["Date"], now: Date.UTC(2026, 9, 13, 14) }); // Tue Oct 13, 10 AM in Toronto
-
-    await expect(order()).rejects.toThrow(/on or after the next available weekday/);
-    await expect(order({ allowSameDayStart: true })).resolves.toMatchObject({ publicId: expect.stringMatching(/^ord_/) });
-    const days = await db.select({ date: deliveries.deliveryDate }).from(deliveries);
-    expect(days.map((d) => d.date)).toContain("2026-10-13");
-    // Yesterday stays closed even for staff.
-    vi.setSystemTime(Date.UTC(2026, 9, 14, 14));
-    await expect(order({ allowSameDayStart: true })).rejects.toThrow(/on or after the next available weekday/);
+    })).rejects.toThrow(/on or after the next available weekday/);
   });
 });

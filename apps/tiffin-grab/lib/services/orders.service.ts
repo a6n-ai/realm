@@ -59,7 +59,7 @@ import { ledgerService } from "./ledger.service";
 import { assertNoPlanOverlap } from "./order-window";
 import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
-import { appToday, staffStartBase, validateStartDate } from "./start-date";
+import { appToday, validateStartDate } from "./start-date";
 import { assertTrialStart } from "@/lib/trial/schedule";
 import {
   walletService,
@@ -199,8 +199,6 @@ export interface CreateOrderOptions {
   // Staff-only (set by dashboard server actions, never from client input): may
   // order a hidden custom meal size for any customer.
   allowCustomMeal?: boolean;
-  /** Staff only: the plan may start today. Customers start tomorrow at the earliest, before the cutoff. */
-  allowSameDayStart?: boolean;
   // Staff-only: replaces a custom meal's computed per-tiffin base price before
   // the pricing engine runs (discounts still apply).
   basePriceOverride?: number;
@@ -250,9 +248,10 @@ export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string }> {
-  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, allowSameDayStart = false, basePriceOverride } = opts;
+  const { actorId = null, ownerUserId = null, orgId = null, allowCustomMeal = false, basePriceOverride } = opts;
   const snapshot = await loadCatalogSnapshot(orgId);
-  const startBase = allowSameDayStart ? staffStartBase(snapshot.timezone) : appToday(snapshot.timezone, snapshot.cutoffHour);
+  // Staff included: a day past its cutoff has already been routed and cooked without this plan.
+  const startBase = appToday(snapshot.timezone, snapshot.cutoffHour);
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
