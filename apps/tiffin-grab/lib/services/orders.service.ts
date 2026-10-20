@@ -7,6 +7,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { canVerify, enabledMethods, findMethod } from "@foundry/payments";
 import { commitTax } from "@foundry/payments/stripe";
 import { stripeRuntime } from "@/lib/payments/stripe";
+import { cancelUnpaidStripeOrders } from "./stripe-expiry";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { PAYMENT_REVIEW_STATUSES } from "@/lib/orders/display-status";
@@ -440,6 +441,9 @@ export async function createOrder(
       );
     }
     if (!userId) throw new ValidationError("Could not resolve a customer for this order");
+
+    // A new card checkout replaces the customer's older unpaid one (staff-made orders are left alone).
+    if (paymentMethodId === "stripe" && !staffCreated) await cancelUnpaidStripeOrders(eq(orders.userId, userId));
 
     // The plan's main address: a picked saved address (ownership-checked), else the typed
     // contact address saved to the customer's book (first one becomes their default).
@@ -1327,7 +1331,7 @@ export async function countLookOutOrders(visible: "all" | string[]): Promise<num
 export const lastTiffinSql = sql<string | null>`(select max(${deliveries.deliveryDate}) from ${deliveries} where ${deliveries.orderId} = ${orders.id} and ${deliveries.status} <> 'cancelled')`;
 
 /** The customer already has a later plan (pending, running or finished) starting after this one. */
-export const renewedSql = sql<boolean>`exists (select 1 from ${orders} as next_order where next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'active', 'paused', 'completed') and next_order.start_date > ${orders.startDate})`;
+export const renewedSql = sql<boolean>`exists (select 1 from ${orders} as next_order where next_order.user_id = ${orders.userId} and next_order.id <> ${orders.id} and next_order.status in ('pending', 'active', 'paused', 'completed') and next_order.start_date > ${orders.startDate} and not (next_order.status = 'pending' and exists (select 1 from ${payments} as np where np.order_id = next_order.id and np.method = 'stripe' and np.status in ('awaiting_payment', 'rejected'))))`;
 
 /** ISO dates, both inclusive, in the app timezone. */
 export type EndingWindow = { from: string; to: string };
@@ -1814,8 +1818,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // A paid Stripe order the payment could not start (overlap): staff start it once the conflict is gone.
     if (order.status === "pending" && order.userId != null && !order.deploymentId.startsWith("wc-")) {
       const [pay] = await db.select({ status: payments.status }).from(payments)
-        .where(and(eq(payments.orderId, order.id), eq(payments.method, "stripe"))).limit(1);
-      if (pay?.status === "paid") {
+        .where(and(eq(payments.orderId, order.id), eq(payments.method, "stripe"), eq(payments.status, "paid"))).limit(1);
+      if (pay) {
         await db.transaction(async (tx) => {
           const { started, reason } = await startPaidStripeOrder(tx, order, actorId);
           if (!started) throw new ValidationError(reason ?? "Could not start this order");

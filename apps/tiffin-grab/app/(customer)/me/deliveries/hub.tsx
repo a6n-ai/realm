@@ -6,6 +6,8 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { ReviewNudge } from "@/app/(customer)/me/review-nudge";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { zonedDateIso } from "@foundry/commons";
 import { DeliveriesSkeleton } from "@/components/customer/deliveries/deliveries-skeleton";
 import { DeliveriesView } from "@/components/customer/deliveries/deliveries-view";
@@ -55,6 +57,7 @@ export function DeliveriesHub({ searchParams }: { searchParams: SearchParams }) 
 async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }) {
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
+  after(() => expireUnpaidStripeOrders({ userId }));
 
   const { week: weekParam, sub: subParam, trip: tripParam, action: actionParam } = await searchParams;
   const { timezone, cutoffHour, currency } = await getAppSettings();

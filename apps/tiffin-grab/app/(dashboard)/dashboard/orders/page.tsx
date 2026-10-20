@@ -6,6 +6,8 @@ import { db } from "@/db/client";
 import { leadSources, leadSubsources, plans } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { after } from "next/server";
+import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { countEndingOrders, countPaymentReviewOrders, countLookOutOrders, countMigratedWaiting, listOrdersPage, resolveSessionVisibleOrgIds, type EndingWindow } from "@/lib/services/orders.service";
 import { addDays } from "@/lib/deliveries-view/week";
@@ -152,6 +154,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
 
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
+  after(() => expireUnpaidStripeOrders({}));
 
   const raw = await searchParams;
   if (raw.view === "missed") {

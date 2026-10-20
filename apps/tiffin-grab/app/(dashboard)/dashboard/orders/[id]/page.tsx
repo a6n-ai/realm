@@ -6,6 +6,7 @@ import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/common
 import { eq } from "drizzle-orm";
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { after } from "next/server";
+import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
 import { mealSizeAddons } from "@/lib/catalog/types";
 import { requireStaff, roleCan } from "@/lib/auth/guards";
 import { settleStaleOnView } from "@/lib/services/payment-stripe";
@@ -125,6 +126,7 @@ async function OrderDetail({
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
   const unsettledCards = order.payments.filter((p) => p.method === "stripe" && p.status === "awaiting_payment" && p.providerRef);
   if (unsettledCards.length) after(() => settleStaleOnView(unsettledCards));
+  after(() => expireUnpaidStripeOrders({ orderId: order.id }));
   const role = session?.user.role ?? "";
 
   const settingsToday = zonedDateIso(Date.now(), settings.timezone);
@@ -326,7 +328,7 @@ async function OrderDetail({
     <>
       {order.trialLength != null && <TrialPill className="self-center" />}
       {order.lookOutAt == null && <LookOutControl orderId={order.publicId} />}
-      <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} paidPending={order.payments.some((p) => p.method === "stripe" && p.status === "paid")} migration={migration} />
+      <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} paidPending={!order.deploymentId.startsWith("wc-") && order.payments.some((p) => p.method === "stripe" && p.status === "paid")} migration={migration} />
       {canAddAddons && (
         <AddAddonsControl
           orderId={order.publicId}
