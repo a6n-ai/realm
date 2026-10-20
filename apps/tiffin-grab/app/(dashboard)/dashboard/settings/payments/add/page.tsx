@@ -20,7 +20,7 @@ export default async function AddPaymentProviderPage() {
         </p>
       </div>
       <Suspense fallback={<ProviderCatalogSkeleton />}>
-        <ProviderCatalogLoader installedIds={cfg.methods.map((m) => m.id)} />
+        <ProviderCatalogLoader methodIds={cfg.methods.map((m) => m.id)} />
       </Suspense>
     </div>
   );

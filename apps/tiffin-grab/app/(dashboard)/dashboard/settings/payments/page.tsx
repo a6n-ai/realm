@@ -12,7 +12,7 @@ import {
   installedPlugins,
 } from "@/lib/services/app-settings.service";
 
-// Manual providers are added here; online ones (Stripe) appear once their plugin is installed.
+// Every provider is added here; Stripe lists once its plugin is installed (Add installs it).
 const MANUAL_IDS = new Set(["cash", "etransfer"]);
 
 function providerHref(id: string): string {
@@ -35,7 +35,7 @@ export default async function PaymentsSettingsHub() {
   const installed = providers
     .map((p) => ({ provider: p, method: cfg.methods.find((m) => m.id === p.id) }))
     .filter((r) => r.method);
-  const canAdd = installed.filter((r) => MANUAL_IDS.has(r.provider.id)).length < MANUAL_IDS.size;
+  const canAdd = installed.length < PAYMENT_PROVIDERS.length;
   const customizedProvinces = Object.keys(provinceTaxes).length;
 
   return (
