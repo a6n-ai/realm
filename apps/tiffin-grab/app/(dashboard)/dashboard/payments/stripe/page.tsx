@@ -12,6 +12,9 @@ import { StripeTable, StripeTableSkeleton } from "./stripe-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
+// Server clock so expiry badges match on first paint (the table is a client component).
+const serverNow = () => Date.now();
+
 export default function StripePaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <SectionCard title="Stripe payments">
@@ -39,8 +42,7 @@ async function StripeData({ searchParams }: { searchParams: SearchParams }) {
       page={page}
       size={size}
       sort={sort}
-      // Server clock so expiry badges match on first paint (the table is a client component).
-      now={Date.now()}
+      now={serverNow()}
       livemode={rt?.cfg.livemode ?? false}
       canRefund={roleCan(role, { finance: ["refund"] })}
     />
