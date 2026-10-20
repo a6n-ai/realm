@@ -93,6 +93,50 @@ describe("unpaid Stripe orders expire", () => {
     expect((await load(et.publicId)).order.status).toBe("pending");
   });
 
+  it("leaves an order alone while its charge lock is held (mid-charge)", async () => {
+    const { publicId } = await createOrder(await baseInput({ paymentMethodId: "stripe" }));
+    const r = await load(publicId);
+    await expire(r.pay.id);
+    let release!: () => void;
+    const gate = new Promise<void>((res) => (release = res));
+    let locked!: () => void;
+    const held = new Promise<void>((res) => (locked = res));
+    const holder = db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${"stripe-charge:" + r.pay.publicId}, 0))`);
+      locked();
+      await gate;
+    });
+    await held;
+    expect(await expireUnpaidStripeOrders({})).toBe(0);
+    release();
+    await holder;
+    expect((await load(publicId)).order.status).toBe("pending");
+    expect(await expireUnpaidStripeOrders({})).toBe(1);
+  });
+
+  it("leaves an in-flight older order alone when replacing", async () => {
+    const input = await baseInput({ paymentMethodId: "stripe" });
+    const first = await createOrder(input);
+    await db.update(payments).set({ providerRef: "pi_1" }).where(eq(payments.id, (await load(first.publicId)).pay.id));
+    intent("processing");
+    await createOrder(input);
+    expect((await load(first.publicId)).order.status).toBe("pending");
+  });
+
+  it("keeps the older order when the new checkout fails", async () => {
+    const input = await baseInput({ paymentMethodId: "stripe" });
+    const first = await createOrder(input);
+    await expect(createOrder({ ...input, couponCode: "NO-SUCH-COUPON" })).rejects.toThrow();
+    expect((await load(first.publicId)).order.status).toBe("pending");
+  });
+
+  it("does not replace the customer's older order for a staff-created one", async () => {
+    const input = await baseInput({ paymentMethodId: "stripe" });
+    const first = await createOrder(input);
+    await createOrder(input, { staffCreated: true, allowSameDayStart: true });
+    expect((await load(first.publicId)).order.status).toBe("pending");
+  });
+
   it("replaces an older unpaid Stripe order on a new checkout", async () => {
     const input = await baseInput({ paymentMethodId: "stripe" });
     const first = await createOrder(input);

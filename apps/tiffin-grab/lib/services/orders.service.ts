@@ -442,9 +442,6 @@ export async function createOrder(
     }
     if (!userId) throw new ValidationError("Could not resolve a customer for this order");
 
-    // A new card checkout replaces the customer's older unpaid one (staff-made orders are left alone).
-    if (paymentMethodId === "stripe" && !staffCreated) await cancelUnpaidStripeOrders(eq(orders.userId, userId));
-
     // The plan's main address: a picked saved address (ownership-checked), else the typed
     // contact address saved to the customer's book (first one becomes their default).
     const addressScope = { userId, orgId };
@@ -764,6 +761,8 @@ export async function createOrder(
       deploymentId,
       publicId: order.publicId,
       paymentPublicId: recorded.publicId,
+      orderId: order.id,
+      ownerId: userId,
       awardUserId:
         !deferSettlement && status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "simulated_paid" })
           ? userId
@@ -772,6 +771,16 @@ export async function createOrder(
   });
 
   publishAnalyticsLive();
+
+  // A new card checkout replaces the customer's older unpaid one, only once this order is safely committed
+  // (staff-made orders are left alone).
+  if (paymentMethodId === "stripe" && !staffCreated) {
+    try {
+      await cancelUnpaidStripeOrders(and(eq(orders.userId, txResult.ownerId), ne(orders.id, txResult.orderId)), "Replaced by a new card checkout");
+    } catch (e) {
+      log.error({ err: e }, "replacing older unpaid stripe order failed");
+    }
+  }
 
   try {
     if (txResult.awardUserId != null) {

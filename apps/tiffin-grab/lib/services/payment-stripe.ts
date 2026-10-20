@@ -239,10 +239,14 @@ async function loadOwned(paymentPublicId: string, userPublicId: string | null) {
  * ponytail: each charge holds a pooled connection and needs a second for its queries, so ~pool-size
  * concurrent charges would exhaust the pool; upgrade to a row-claim column (claimed_at) if that matters.
  */
+export async function tryChargeLock(tx: Pick<typeof db, "execute">, paymentPublicId: string): Promise<boolean> {
+  const got = await tx.execute(sql`select pg_try_advisory_xact_lock(hashtextextended(${"stripe-charge:" + paymentPublicId}, 0)) as ok`);
+  return !!(got as unknown as { ok: boolean }[])[0]?.ok;
+}
+
 async function withChargeLock<T>(paymentPublicId: string, busy: T, fn: () => Promise<T>): Promise<T> {
   return db.transaction(async (tx) => {
-    const got = await tx.execute(sql`select pg_try_advisory_xact_lock(hashtextextended(${"stripe-charge:" + paymentPublicId}, 0)) as ok`);
-    if (!(got as unknown as { ok: boolean }[])[0]?.ok) return busy;
+    if (!(await tryChargeLock(tx, paymentPublicId))) return busy;
     return fn();
   });
 }
