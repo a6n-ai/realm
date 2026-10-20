@@ -15,6 +15,11 @@ vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>())
 const { db } = await import("@/db/client");
 const { couponRedemptions, coupons, deliveries, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const { settleStripePayment } = await import("../payment-stripe");
+const { plans } = await import("@/db/schema");
+const { getAppSettings } = await import("../app-settings.service");
+const { appToday } = await import("../start-date");
+const { weekdayKey, parseIsoDateUtc } = await import("@foundry/commons");
+const { activateOrder } = await import("../orders.service");
 const { createOrder } = await import("../orders.service");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
@@ -121,7 +126,11 @@ describe("Stripe orders wait pending until paid", () => {
     expect(await settleStripePayment(p.ref, "webhook", "evt_1")).toBe("paid");
     const r = await load(p.publicId);
     expect(r.order.status).toBe("active");
-    expect(r.order.startDate > new Date().toISOString().slice(0, 10)).toBe(true);
+    const { timezone, cutoffHour } = await getAppSettings();
+    const today = appToday(timezone, cutoffHour).toISOString().slice(0, 10);
+    const [plan] = await db.select({ allowed: plans.allowedStartDays }).from(plans).where(eq(plans.id, r.order.planId));
+    expect(r.order.startDate > today).toBe(true);
+    expect(plan!.allowed).toContain(weekdayKey(parseIsoDateUtc(r.order.startDate)));
     expect(r.deliveries).toBeGreaterThan(0);
   });
 
@@ -148,5 +157,19 @@ describe("Stripe orders wait pending until paid", () => {
     expect(await settleStripePayment(p.ref, "webhook", "evt_1")).toBe("paid");
     expect((await load(p.publicId)).order.status).toBe("pending");
     expect(await db.select().from(couponRedemptions).where(eq(couponRedemptions.orderId, p.order.id))).toHaveLength(1);
+  });
+
+  it("lets staff start a paid, overlap-stranded order once the conflict is gone", async () => {
+    const input = await baseInput({ paymentMethodId: "stripe" });
+    const p = await pendingStripe(input);
+    const other = await createOrder({ ...input, couponCode: null, paymentMethodId: "etransfer" });
+    await settleStripePayment(p.ref, "webhook", "evt_1");
+    await expect(activateOrder(p.publicId)).rejects.toThrow(/already have a plan/);
+    expect((await load(p.publicId)).order.status).toBe("pending");
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, other.publicId));
+    await activateOrder(p.publicId);
+    const r = await load(p.publicId);
+    expect(r.order.status).toBe("active");
+    expect(r.deliveries).toBeGreaterThan(0);
   });
 });

@@ -19,6 +19,8 @@ export function paidStartDate(i: {
   } catch {
     // no longer a valid start: fall through to the next one
   }
-  if (i.trialSendDays) return firstStartOnOrAfter(earliestTrialIso(i.todayBase, i.trialSendDays), i.trialSendDays, i.closed);
-  return earliestPlanStart(i.todayBase, i.allowedStartDays, null, i.closed);
+  // Search from the later of "chosen" and the earliest bookable day: never earlier than the customer chose.
+  const later = (earliest: string) => (i.chosen > earliest ? i.chosen : earliest);
+  if (i.trialSendDays) return firstStartOnOrAfter(later(earliestTrialIso(i.todayBase, i.trialSendDays)), i.trialSendDays, i.closed);
+  return firstStartOnOrAfter(later(earliestPlanStart(i.todayBase, i.allowedStartDays)), i.allowedStartDays, i.closed);
 }

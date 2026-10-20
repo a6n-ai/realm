@@ -16,8 +16,8 @@ describe("paidStartDate", () => {
   it("skips a holiday", () => {
     expect(paidStartDate({ ...base, chosen: "2030-01-02", closed: new Set(["2030-01-08"]) })).toBe("2030-01-09");
   });
-  it("moves a chosen date that became a holiday", () => {
-    expect(paidStartDate({ ...base, chosen: "2030-01-09", closed: new Set(["2030-01-09"]) })).toBe("2030-01-08");
+  it("moves a chosen date that became a holiday to the next day, never earlier", () => {
+    expect(paidStartDate({ ...base, chosen: "2030-01-09", closed: new Set(["2030-01-09"]) })).toBe("2030-01-10");
   });
   it("moves a trial to its next send day", () => {
     expect(paidStartDate({ ...base, chosen: "2030-01-02", trialSendDays: ["mon", "wed"] })).toBe("2030-01-09");

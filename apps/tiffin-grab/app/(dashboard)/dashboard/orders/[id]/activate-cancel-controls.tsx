@@ -35,11 +35,13 @@ export function ActivateCancelControls({
   orderId,
   status,
   migrated = false,
+  paidPending = false,
   migration = null,
 }: {
   orderId: string;
   status: string;
   migrated?: boolean;
+  paidPending?: boolean;
   migration?: MigrationProjection | null;
 }) {
   const router = useRouter();
@@ -58,7 +60,7 @@ export function ActivateCancelControls({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {status === "waitlisted" && (
+      {(status === "waitlisted" || (status === "pending" && paidPending)) && (
         <Button size="sm" disabled={pending} onClick={() => run(() => activate(orderId))}>
           Activate
         </Button>

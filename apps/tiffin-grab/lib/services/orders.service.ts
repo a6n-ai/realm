@@ -1810,10 +1810,31 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
   async activate(publicId: string): Promise<void> {
     const order = await this.read(publicId);
+    const actorId = await this.currentUserId();
+    // A paid Stripe order the payment could not start (overlap): staff start it once the conflict is gone.
+    if (order.status === "pending" && order.userId != null && !order.deploymentId.startsWith("wc-")) {
+      const [pay] = await db.select({ status: payments.status }).from(payments)
+        .where(and(eq(payments.orderId, order.id), eq(payments.method, "stripe"))).limit(1);
+      if (pay?.status === "paid") {
+        await db.transaction(async (tx) => {
+          const { started, reason } = await startPaidStripeOrder(tx, order, actorId);
+          if (!started) throw new ValidationError(reason ?? "Could not start this order");
+        });
+        publishAnalyticsLive();
+        const [fresh] = await db.select().from(orders).where(eq(orders.id, order.id)).limit(1);
+        if (fresh && earnsOrderCoins({ total: fresh.total, paymentStatus: "paid" })) {
+          try {
+            await walletService.award(order.userId, "order_activated", { type: "order", id: order.publicId });
+          } catch (e) {
+            log.error({ err: e }, "wallet award on activation failed");
+          }
+        }
+        return;
+      }
+    }
     if (order.status !== "waitlisted") {
       throw new ValidationError(`Cannot activate an order that is ${order.status}`);
     }
-    const actorId = await this.currentUserId();
 
     // Status flip + delivery materialization + activity log in one tx: if
     // materialization throws, the whole activation rolls back — the design
@@ -2205,9 +2226,11 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const actorId = await this.currentUserId();
     let cancelledRows: Awaited<ReturnType<typeof cancelDeliveries>> = [];
     await db.transaction(async (tx) => {
-      const [idRow] = await tx.select({ id: orders.id }).from(orders)
+      const [idRow] = await tx.select({ id: orders.id, userId: orders.userId }).from(orders)
         .where(eq(orders.publicId, publicId)).limit(1);
       if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
+      // Customer lock first, then the order lock: the order verifyPayment and @foundry/wallet take them.
+      if (idRow.userId) await tx.select({ id: users.id }).from(users).where(eq(users.id, idRow.userId)).for("update");
       await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
 
       const [order] = await tx.select().from(orders).where(eq(orders.id, idRow.id)).limit(1);
@@ -2216,7 +2239,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       // Every tiffin on a completed plan is delivered; cancelling would void delivered rows.
       if (order.status === "completed") throw new ValidationError("This plan is over; there is nothing left to cancel");
 
-      // Coins first (customer lock, then order), same order as payment verify takes them.
+      // Coins first (the customer lock is already held), same order as payment verify takes them.
       // Coins the order earned are taken back. If it was never paid, coins held for it go
       // straight back; a paid order's spent coins stay spent (money back is refundOrder).
       if (order.userId) {
