@@ -66,11 +66,14 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const today = zonedDateIso(now, timezone);
   const [allSubs, waitlisted, windows, [userRow]] = await Promise.all([
     myActiveSubscriptions(userId),
-    myWaitlistedSubscriptions(userId),
+    myWaitlistedSubscriptions(userId, now),
     mySubscriptionWindows(userId, today),
     db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1),
   ]);
-  if (allSubs.length === 0) return <NoPlan waitlisted={waitlisted} ended={waitlisted.length ? null : await myEndedPlan(userId)} />;
+  if (allSubs.length === 0) {
+    const cardOk = waitlisted.some((s) => s.pay && !s.pay.expired) ? await stripeMethodAvailable() : true;
+    return <NoPlan waitlisted={waitlisted} ended={waitlisted.length ? null : await myEndedPlan(userId)} cardAvailable={cardOk} />;
+  }
   const subs = [...allSubs].sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? "") || a.publicId.localeCompare(b.publicId));
 
   // The page shows ONE plan; ?sub picks it, else the plan with the soonest upcoming delivery.

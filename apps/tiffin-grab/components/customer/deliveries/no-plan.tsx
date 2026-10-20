@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { Button, Card, Pill } from "@/components/customer/kit";
+import { Button, Card, Notice, Pill } from "@/components/customer/kit";
 import { FONT } from "@/components/customer/kit/cn";
 import type { EndedPlan, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
 
 const shortDate = (iso: string) =>
   new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
-export function NoPlan({ waitlisted, ended }: { waitlisted: WaitlistedSubscription[]; ended: EndedPlan | null }) {
+export function NoPlan({ waitlisted, ended, cardAvailable = true }: { waitlisted: WaitlistedSubscription[]; ended: EndedPlan | null; cardAvailable?: boolean }) {
   return (
     <div className={`${FONT} space-y-4`}>
       <header className="mb-2">
@@ -14,12 +14,26 @@ export function NoPlan({ waitlisted, ended }: { waitlisted: WaitlistedSubscripti
         <h1 className="mt-1 text-[clamp(28px,5vw,40px)] font-bold leading-[1.1] tracking-[-0.03em]">Your <em className="text-[var(--primary)]">trips.</em></h1>
       </header>
       {waitlisted.map((s) => (
-        <Card key={s.publicId} className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <div>
-            <p className="text-[15px] font-semibold">{s.mealSizeName} · {s.planName}</p>
-            <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">{s.daysPerWeek} days a week · deliveries appear once your order is confirmed</p>
+        <Card key={s.publicId} className="space-y-3 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[15px] font-semibold">{s.mealSizeName} · {s.planName}</p>
+              <p className="text-[13px] text-[var(--muted-foreground,#6E6558)]">
+                {s.pay
+                  ? s.pay.expired ? "This payment expired." : "Your plan is reserved. Pay by card to get it started."
+                  : `${s.daysPerWeek} days a week · deliveries appear once your order is confirmed`}
+              </p>
+            </div>
+            <Pill tone="vac">{s.pay ? (s.pay.expired ? "Expired" : "Waiting for payment") : s.status === "pending" ? "Pending" : "Waitlisted"}</Pill>
           </div>
-          <Pill tone="vac">{s.status === "pending" ? "Pending" : "Waitlisted"}</Pill>
+          {s.pay && !s.pay.expired && (cardAvailable ? (
+            <Link href={`/me/pay/${s.pay.publicId}`} className="inline-flex h-11 items-center rounded-full bg-[var(--primary)] px-6 text-sm font-semibold text-[var(--primary-foreground,#fff)]">
+              Pay by card
+            </Link>
+          ) : (
+            <Notice>Card payments are paused right now. Please contact us.</Notice>
+          ))}
+          {s.pay?.expired && <Link href="/subscribe"><Button variant="primary" size="lg">Start a new plan</Button></Link>}
         </Card>
       ))}
       {waitlisted.length === 0 && ended && <EndedPlanCard plan={ended} />}

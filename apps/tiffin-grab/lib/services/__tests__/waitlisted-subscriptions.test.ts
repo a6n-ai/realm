@@ -61,4 +61,16 @@ describe("myWaitlistedSubscriptions (integration)", () => {
       daysPerWeek: expect.any(Number), postalCode: expect.any(String),
     });
   });
+
+  it("attaches the unpaid card payment to a pending order, expired at the boundary", async () => {
+    const o = await makeOrder("+16475550502", "Pay User");
+    await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
+    await db.update(orders).set({ status: "pending" }).where(eq(orders.id, o.id));
+    await db.update(payments).set({ method: "stripe", status: "awaiting_payment", expiresAt: 5000 }).where(eq(payments.orderId, o.id));
+    const { id: userId } = await userIdOf(o);
+    const [pay] = await db.select({ publicId: payments.publicId }).from(payments).where(eq(payments.orderId, o.id));
+
+    expect((await myWaitlistedSubscriptions(userId, 4999))[0]!.pay).toEqual({ publicId: pay!.publicId, expired: false });
+    expect((await myWaitlistedSubscriptions(userId, 5000))[0]!.pay).toEqual({ publicId: pay!.publicId, expired: true });
+  });
 });

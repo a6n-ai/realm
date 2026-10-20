@@ -615,15 +615,17 @@ export type WaitlistedSubscription = {
   publicId: string; planName: string; mealSizeName: string;
   daysPerWeek: number; status: "waitlisted" | "pending";
   fullName: string; addressLine: string; city: string; postalCode: string;
+  /** The unpaid card payment holding a pending order; `expired` once its link has lapsed (expiresAt <= now). */
+  pay: { publicId: string; expired: boolean } | null;
 };
 
 // Waitlisted/pending orders have NO materialized deliveries, so they are absent
 // from myActiveSubscriptions (active/paused only). Surfaced separately so the
 // logged-in customer sees their pending order instead of a blank "no orders".
-export async function myWaitlistedSubscriptions(userId: bigint): Promise<WaitlistedSubscription[]> {
+export async function myWaitlistedSubscriptions(userId: bigint, now = Date.now()): Promise<WaitlistedSubscription[]> {
   const rows = await db
     .select({
-      publicId: orders.publicId, planName: plans.name, mealSizeName: mealSizes.name,
+      id: orders.id, publicId: orders.publicId, planName: plans.name, mealSizeName: mealSizes.name,
       daysPerWeek: deliveryFrequencies.daysPerWeek, status: orders.status,
       fullName: orders.fullName, addressLine: orders.addressLine, city: orders.city, postalCode: orders.postalCode,
     })
@@ -632,7 +634,26 @@ export async function myWaitlistedSubscriptions(userId: bigint): Promise<Waitlis
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["waitlisted", "pending"])));
-  return rows.map((r) => ({ ...r, status: r.status as "waitlisted" | "pending" }));
+  const pays = rows.length
+    ? await db
+        .select({ orderId: payments.orderId, publicId: payments.publicId, expiresAt: payments.expiresAt })
+        .from(payments)
+        .where(and(
+          inArray(payments.orderId, rows.map((r) => r.id)),
+          eq(payments.method, "stripe"),
+          eq(payments.status, "awaiting_payment"),
+          isNull(payments.addonRequest),
+        ))
+        .orderBy(desc(payments.id))
+    : [];
+  return rows.map(({ id, ...r }) => {
+    const p = pays.find((x) => x.orderId === id);
+    return {
+      ...r,
+      status: r.status as "waitlisted" | "pending",
+      pay: p ? { publicId: p.publicId, expired: p.expiresAt != null && p.expiresAt <= now } : null,
+    };
+  });
 }
 
 export type EndedPlan = {

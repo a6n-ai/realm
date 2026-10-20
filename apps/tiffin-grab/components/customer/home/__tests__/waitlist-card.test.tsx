@@ -7,7 +7,7 @@ vi.mock("@/components/motion", () => ({ Lottie: ({ label }: { label?: string }) 
 
 import { WaitlistCard } from "../waitlist-card";
 
-const base = { publicId: "ord_1", planName: "Veg Tiffin", mealSizeName: "Medium", daysPerWeek: 5, fullName: "A", addressLine: "1 St", city: "Toronto", postalCode: "M4B 1B3" };
+const base = { publicId: "ord_1", planName: "Veg Tiffin", mealSizeName: "Medium", daysPerWeek: 5, fullName: "A", addressLine: "1 St", city: "Toronto", postalCode: "M4B 1B3", pay: null };
 
 afterEach(cleanup);
 

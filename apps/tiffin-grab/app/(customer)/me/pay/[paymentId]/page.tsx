@@ -4,8 +4,8 @@ import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { stripeRuntime } from "@/lib/payments/stripe";
-import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { PayForm } from "./pay-form";
+import { payPageLines } from "./lines";
 
 export default async function PayPage({
   params,
@@ -28,7 +28,7 @@ export default async function PayPage({
   if (!row) notFound();
 
   const rt = await stripeRuntime();
-  const snap = row.order.pricingSnapshot as OrderPricingSnapshot;
+  const pl = payPageLines(row.pay, row.order);
   const isReturn = (await searchParams).return === "1";
 
   return (
@@ -38,12 +38,8 @@ export default async function PayPage({
       method={row.pay.method}
       publishableKey={rt?.cfg.publishableKey ?? null}
       amountCents={Math.round(Number(row.pay.amount) * 100)}
-      lines={[
-        ...snap.lineItems.map((l) => ({ label: l.label, amount: l.amount })),
-        ...snap.adjustments.map((a) => ({ label: a.label, amount: -a.amount })),
-        ...snap.taxLines.map((t) => ({ label: `${t.name} ${t.ratePct}%`, amount: t.amount })),
-      ]}
-      total={Number(row.pay.amount)}
+      lines={[...pl.lines, ...pl.taxLines]}
+      total={pl.total}
       isReturn={isReturn}
     />
   );
