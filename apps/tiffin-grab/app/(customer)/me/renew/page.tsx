@@ -12,14 +12,15 @@ import { checkoutHolidayDates } from "@/lib/services/holidays.service";
 import { appToday, earliestPlanStart } from "@/lib/services/start-date";
 import { PageShell } from "@/components/ds";
 import { Wizard } from "@/components/wizard/wizard";
-import { selectionsFromPriorOrder } from "@/components/wizard/selections";
+import { quoteCodes, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/components/wizard/selections";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
 
 const LIVE = new Set(["active", "upcoming", "paused", "waitlisted", "pending"]);
 
-export default async function RenewPlanPage() {
+export default async function RenewPlanPage({ searchParams }: { searchParams: Promise<QuoteParams> }) {
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
+  const params = await searchParams;
 
   const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs] = await Promise.all([
     loadCatalogSnapshot(),
@@ -67,10 +68,13 @@ export default async function RenewPlanPage() {
   );
   // A renewal keeps its length and lands on its start date already picked: the first day
   // the plan starts on after the running plan's last tiffin (or tomorrow when none runs).
-  const priorPlan = client.plans.find((p) => p.key === prior.planKey);
-  const initial = priorPlan
-    ? { ...prior, startDate: earliestPlanStart(today, priorPlan.allowedStartDays, earliestStartDate, new Set(holidayDates)) }
-    : prior;
+  // A staff estimate link wins over the last order: it is what the customer just agreed to.
+  const quoted = selectionsFromQuote(client, params);
+  const base = quoted ?? prior;
+  const basePlan = client.plans.find((p) => p.key === base.planKey);
+  const initial = basePlan
+    ? { ...base, startDate: earliestPlanStart(today, basePlan.allowedStartDays, earliestStartDate, new Set(holidayDates)) }
+    : base;
   const live = subs.filter((s) => LIVE.has(s.status));
   const currentRow =
     live.find((s) => s.status === "active") ??
@@ -105,6 +109,7 @@ export default async function RenewPlanPage() {
           exitHref="/me"
           origin="renew"
           initial={initial}
+          quote={quoted ? { picks: initial, codes: quoteCodes(params) } : null}
           currentPlan={current}
           minStartDate={earliestStartDate}
           lastTiffin={lastTiffin}

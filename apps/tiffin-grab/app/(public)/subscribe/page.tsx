@@ -8,6 +8,7 @@ import { isStaffRole } from "@/lib/auth/landing";
 import { googleSignInEnabled } from "@foundry/auth";
 import { couponsService } from "@/lib/services/coupons.service";
 import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existing-subscriptions";
+import { quoteQuery, type QuoteParams } from "@/components/wizard/selections";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,8 @@ export const viewport: Viewport = {
   ],
 };
 
-export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ error?: string } & QuoteParams> }) {
+  const params = await searchParams;
   const session = await getSession();
   if (session?.user && isStaffRole(session.user.role)) redirect("/dashboard");
 
@@ -28,10 +30,11 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   // on the email step, which signs them in (creating the account if new) and
   // sends them there — so every order has an owner who can pay and upload proof.
   const userId = await currentUserId();
-  if (userId != null) redirect("/me/renew");
+  // A staff estimate link carries the quoted plan; it rides along to the stepper.
+  if (userId != null) redirect(`/me/renew${quoteQuery(params)}`);
 
   const coupons = await couponsService.listAvailable();
-  const { error } = await searchParams;
+  const { error } = params;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-4 sm:py-10">

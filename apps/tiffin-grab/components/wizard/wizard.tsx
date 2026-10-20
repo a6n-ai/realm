@@ -9,10 +9,10 @@ import { PlanSummary } from "./plan-summary";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
-import { BottomBar, Button, Sheet } from "@/components/customer/kit";
+import { BottomBar, Button, Notice, Sheet } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, firstBlockedStep, initialSelections, nextBlockedReason, offeredAddons, pickedAddons, selectionIsTrial, servesWeekends, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
+import { adjacentWizardStep, firstBlockedStep, initialSelections, nextBlockedReason, offeredAddons, pickedAddons, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, WIZARD_ORIGIN_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -39,7 +39,10 @@ export function Wizard({
   exitHref,
   trial = null,
   holidayDates = [],
+  quote = null,
 }: {
+  /** A staff estimate link: the quoted picks (start here instead of a saved cart) and its coupon codes. */
+  quote?: { picks: WizardSelections; codes: string[] } | null;
   catalog: ClientCatalogSnapshot;
   closeHref: string;
   existingStartDates?: string[];
@@ -57,7 +60,8 @@ export function Wizard({
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
   const router = useRouter();
-  const [step, setStepState] = useState(0);
+  // A quote opens on the first step that still needs the customer, normally Start.
+  const [step, setStepState] = useState(() => (quote ? (firstBlockedStep(catalog, reconcileSelections(catalog, quote.picks)) ?? 3) : 0));
   const setStep = (n: number | ((s: number) => number)) =>
     setStepState((s) => {
       const next = typeof n === "function" ? n(s) : n;
@@ -66,7 +70,7 @@ export function Wizard({
     });
   const [selections, setSelections] = useState<WizardSelections>(() => reconcileSelections(catalog, initial));
   const [result, setResult] = useState<PricingResult | null>(null);
-  const prevStep = useRef(0);
+  const prevStep = useRef(step);
   const direction = step >= prevStep.current ? "forward" : "back";
   useEffect(() => {
     if (prevStep.current !== step) window.scrollTo({ top: 0 });
@@ -76,6 +80,8 @@ export function Wizard({
   // "Edit plan" from checkout lands here again: restore what the customer had picked and the step they were on.
   useEffect(() => {
     try {
+      // The quote is the newer intent; a cart saved earlier in this tab must not replace it.
+      if (quote) return;
       if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) !== origin) return;
       const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
       if (!raw) return;
@@ -121,6 +127,7 @@ export function Wizard({
   const deploy = () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     sessionStorage.setItem(WIZARD_ORIGIN_KEY, origin);
+    if (quote?.codes.length) sessionStorage.setItem(QUOTE_CODES_KEY, JSON.stringify(quote.codes));
     router.push("/checkout", { transitionTypes: ["nav-forward"] });
   };
 
@@ -171,6 +178,19 @@ export function Wizard({
       />
 
       <Progress steps={stepLabels} current={progressIndex} />
+
+      {quote && quoteChanged(quote.picks, selections) && (
+        <Notice className="mb-4">
+          <span className="flex-1">You changed the plan from your estimate, so the price will be different. The total updates as you go.</span>
+          <button
+            type="button"
+            className="shrink-0 font-semibold underline underline-offset-2"
+            onClick={() => set({ ...quote.picks, startDate: selections.startDate })}
+          >
+            Use my estimate
+          </button>
+        </Notice>
+      )}
 
       {step >= 1 && step <= 3 && !trialSelected && <BestDeal key={step} vary={step === 1 ? "bundle" : step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}
 
@@ -258,4 +278,11 @@ export function Wizard({
       </BottomBar>
     </div>
   );
+}
+
+// Everything the estimate priced; the start date is not part of a quote.
+function quoteChanged(quoted: WizardSelections, s: WizardSelections): boolean {
+  const key = (x: WizardSelections) =>
+    JSON.stringify([x.planKey, x.mealSizeId, x.frequencyKey, [...(x.eatingDays ?? [])].sort(), x.durationWeeks, x.addonSelections ?? []]);
+  return key(quoted) !== key(s);
 }

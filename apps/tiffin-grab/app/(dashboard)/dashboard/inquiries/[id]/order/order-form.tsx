@@ -579,6 +579,11 @@ export function OrderForm({
     const days = eatingDays.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ");
     const toType = coupons?.applied.filter((c) => !c.auto).map((c) => c.code) ?? [];
     const firstName = contact.fullName.trim().split(/\s+/)[0];
+    // Opens the customer's subscribe stepper on these picks, codes ready at checkout (see selectionsFromQuote).
+    const q = new URLSearchParams({ plan: planKey, meal: mealSizeId, freq: frequencyKey, days: eatingDays.join(","), weeks: String(durationWeeks) });
+    if (addonSelections?.length) q.set("addons", addonSelections.map((a) => `${a.key}:${a.qty}`).join(","));
+    if (toType.length) q.set("codes", toType.join(","));
+    const link = `${window.location.origin}/subscribe?${q}`;
     const copyText = shownPreview
       ? [
           `Hi${firstName ? ` ${firstName}` : ""}! Here is your Tiffin Grab estimate:`,
@@ -596,7 +601,7 @@ export function OrderForm({
             ? ["", `*Coupon code${toType.length > 1 ? "s" : ""} to enter at checkout:*`, ...toType.map((c) => "```" + c + "```")]
             : []),
           "",
-          `Order here: ${window.location.origin}/subscribe`,
+          `Order here: ${link}`,
         ].join("\n")
       : null;
     onEstimate({

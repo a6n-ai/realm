@@ -218,3 +218,55 @@ export function selectionsFromPriorOrder(
     addonSelections: [],
   };
 }
+
+/**
+ * A staff estimate link (`/subscribe?plan=…&meal=…`): the picks a sales rep quoted, carried through
+ * sign-in to the renew stepper. Every value is re-checked against the live catalog, so an edited or
+ * stale link only drops what no longer exists; the customer re-picks it on that step.
+ */
+export const QUOTE_PARAMS = ["plan", "meal", "freq", "days", "weeks", "addons", "codes"] as const;
+export type QuoteParams = Partial<Record<(typeof QUOTE_PARAMS)[number], string>>;
+
+/** Coupon codes from the quote, handed from the stepper to checkout, which tries them on its first price. */
+export const QUOTE_CODES_KEY = "tiffin.quote.codes";
+
+export function selectionsFromQuote(catalog: ClientCatalogSnapshot, q: QuoteParams): WizardSelections | null {
+  if (!q.plan) return null;
+  const days = (q.days ?? "").split(",").filter((d): d is DayOfWeek => (WEEK_DAYS as string[]).includes(d));
+  const addonSelections = (q.addons ?? "").split(",").flatMap((pair) => {
+    const [key, n] = pair.split(":");
+    const qty = Number(n);
+    return key && Number.isInteger(qty) ? [{ key, qty }] : [];
+  });
+  const weeks = Number(q.weeks);
+  return reconcileSelections(catalog, {
+    ...initialSelections,
+    planKey: q.plan,
+    mealSizeId: q.meal ?? "",
+    frequencyKey: q.freq ?? "",
+    eatingDays: days.length ? days : DEFAULT_EATING_DAYS,
+    includeSaturday: days.includes("sat"),
+    includeSunday: days.includes("sun"),
+    durationWeeks: Number.isInteger(weeks) && weeks > 0 ? weeks : 1,
+    addonSelections,
+  });
+}
+
+// Codes are only typed into checkout's coupon field; shape-checked here so a mangled link can't
+// smuggle anything else, and capped like the field itself.
+export function quoteCodes(q: QuoteParams): string[] {
+  const codes = (q.codes ?? "").split(",").map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z0-9-]{2,40}$/.test(c));
+  return [...new Set(codes)].slice(0, 5);
+}
+
+/** The quote params alone, for forwarding through sign-in; "" when the URL carries none. */
+export function quoteQuery(params: QuoteParams | URLSearchParams): string {
+  const get = (k: string) => (params instanceof URLSearchParams ? params.get(k) : params[k as keyof QuoteParams]);
+  const out = new URLSearchParams();
+  for (const k of QUOTE_PARAMS) {
+    const v = get(k);
+    if (v) out.set(k, v);
+  }
+  const s = out.toString();
+  return s ? `?${s}` : "";
+}
