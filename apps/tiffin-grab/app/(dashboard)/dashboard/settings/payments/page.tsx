@@ -9,25 +9,33 @@ import {
   getMaxCoinPctOfSubtotal,
   getMaxCoinRedeemPctOfBalance,
   getProvinceTaxes,
+  installedPlugins,
 } from "@/lib/services/app-settings.service";
 
-// Stripe joins this list once its provider ships; the hub needs no other change.
-const PROVIDER_IDS = new Set(["cash", "etransfer"]);
+// Manual providers are added here; online ones (Stripe) appear once their plugin is installed.
+const MANUAL_IDS = new Set(["cash", "etransfer"]);
+
+function providerHref(id: string): string {
+  return id === "stripe" ? "/dashboard/settings/payments/stripe" : `/dashboard/settings/payments/${id}`;
+}
 
 export default async function PaymentsSettingsHub() {
   await requireAdmin();
-  const [cfg, maxCoinPct, maxRedeemPct, provinceTaxes] = await Promise.all([
+  const [cfg, maxCoinPct, maxRedeemPct, provinceTaxes, plugins] = await Promise.all([
     ensurePaymentCatalog(),
     getMaxCoinPctOfSubtotal(),
     getMaxCoinRedeemPctOfBalance(),
     getProvinceTaxes(),
+    installedPlugins(),
   ]);
 
-  const providers = PAYMENT_PROVIDERS.filter((p) => PROVIDER_IDS.has(p.id));
+  const providers = PAYMENT_PROVIDERS.filter(
+    (p) => MANUAL_IDS.has(p.id) || (p.requiresPlugin != null && plugins.includes(p.requiresPlugin)),
+  );
   const installed = providers
     .map((p) => ({ provider: p, method: cfg.methods.find((m) => m.id === p.id) }))
     .filter((r) => r.method);
-  const canAdd = installed.length < providers.length;
+  const canAdd = installed.filter((r) => MANUAL_IDS.has(r.provider.id)).length < MANUAL_IDS.size;
   const customizedProvinces = Object.keys(provinceTaxes).length;
 
   return (
@@ -53,7 +61,7 @@ export default async function PaymentsSettingsHub() {
             {installed.map(({ provider, method }) => (
               <li key={provider.id}>
                 <Link
-                  href={`/dashboard/settings/payments/${provider.id}`}
+                  href={providerHref(provider.id)}
                   prefetch={false}
                   className="hover:bg-muted/50 flex items-center gap-3 px-3 py-2.5"
                 >

@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { findMethod } from "@foundry/payments";
 import { getIntegrationsConfig, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { PaymentsBackLink } from "../back-link";
 import { StripeSettingsForm, type StripeView } from "./stripe-settings-form";
 
 export default async function StripeSettingsPage() {
@@ -37,5 +38,10 @@ export default async function StripeSettingsPage() {
     surcharge: cfg.surcharge,
     taxCodes,
   };
-  return <StripeSettingsForm view={view} />;
+  return (
+    <div className="space-y-4">
+      <PaymentsBackLink />
+      <StripeSettingsForm view={view} />
+    </div>
+  );
 }
