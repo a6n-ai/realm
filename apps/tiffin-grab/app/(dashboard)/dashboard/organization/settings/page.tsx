@@ -9,7 +9,7 @@ type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
 export default function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <SectionCard title="Clients">
+    <SectionCard title="Clients" subtitle="Your brand and its franchises. Open one to edit its details, address and members.">
       <Suspense fallback={<ClientsListSkeleton />}>
         <ClientsData searchParams={searchParams} />
       </Suspense>

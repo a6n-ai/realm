@@ -1,15 +1,23 @@
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth/session";
 import { requireAdmin } from "@/lib/auth/guards";
+import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { getMemberOrganizations, resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
 import { SectionCard } from "@/components/ds";
-import { InvitesList } from "./invites-list";
+import { InviteUserButton } from "../members/invite-user-button";
+import { InvitesList, InvitesListSkeleton } from "./invites-list";
 import { getInvitationsForOrgs } from "./invites-query";
+
+const ROLES = INVITABLE_ROLES.map((r) => ({ value: r, label: r }));
 
 export default function InvitesPage() {
   return (
-    <SectionCard title="Invitations">
-      <Suspense fallback={null}>
+    <SectionCard
+      title="Invitations"
+      subtitle="Staff invited by email. Expired invites can be resent; pending ones canceled."
+      action={<InviteUserButton roles={ROLES} />}
+    >
+      <Suspense fallback={<InvitesListSkeleton />}>
         <InvitesData />
       </Suspense>
     </SectionCard>

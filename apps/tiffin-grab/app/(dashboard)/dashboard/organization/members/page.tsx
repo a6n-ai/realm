@@ -36,7 +36,8 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 export default function UsersPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <SectionCard
-      title="All users"
+      title="Members"
+      subtitle="Everyone with access to the console. Change a role or status inline, or open a member for details."
       action={
         <InviteUserButton roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r }))} />
       }

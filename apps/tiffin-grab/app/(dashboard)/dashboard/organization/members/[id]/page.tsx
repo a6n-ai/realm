@@ -5,12 +5,12 @@ import { NotFoundError, Role } from "@foundry/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listMembershipsForUser, type MemberRole } from "@/lib/services/organizations.service";
+import { listMembershipsForUser, listOrganizations, type MemberRole } from "@/lib/services/organizations.service";
 import { db } from "@/db/client";
 import { featureFlags, userFeatureFlags } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { SectionCard, UserAvatar } from "@/components/ds";
-import { Badge } from "@foundry/ui/badge";
+import { Badge } from "@/components/reui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
 import {
   RoleSelect,
@@ -21,6 +21,7 @@ import {
 } from "../user-row";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
 import { MemberManagement } from "../../settings/member-management";
+import { StatusBadge } from "../../status-badge";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -51,11 +52,12 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [{ timezone }, defs, overrides, memberships] = await Promise.all([
+  const [{ timezone }, defs, overrides, memberships, allOrgs] = await Promise.all([
     getAppSettings(),
     db.select().from(featureFlags),
     db.select().from(userFeatureFlags).where(eq(userFeatureFlags.userId, user.id)),
     listMembershipsForUser(user.publicId),
+    listOrganizations(),
   ]);
   const ov = new Map(overrides.map((o) => [o.flagId, Boolean(o.enabled)]));
   const flags: FlagState[] = defs.map((f) => ({
@@ -81,8 +83,8 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
               {user.name || user.email || "User"}
             </h1>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="secondary">{user.role}</Badge>
-              <Badge variant={user.status === "active" ? "secondary" : "outline"}>{user.status}</Badge>
+              <Badge variant="secondary" className="capitalize">{user.role}</Badge>
+              <StatusBadge status={user.status} />
             </div>
             {contact && <p className="text-muted-foreground text-sm">{contact}</p>}
           </div>
@@ -105,10 +107,10 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
       <SectionCard title="Contact" subtitle="Edit the email and phone on file.">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-2">
-            <Badge variant={user.emailVerified ? "secondary" : "outline"}>
+            <Badge variant={user.emailVerified ? "success-light" : "warning-light"}>
               Email {user.emailVerified ? "verified" : "unverified"}
             </Badge>
-            <Badge variant={user.phoneVerified ? "secondary" : "outline"}>
+            <Badge variant={user.phoneVerified ? "success-light" : "warning-light"}>
               Phone {user.phoneVerified ? "verified" : "unverified"}
             </Badge>
           </div>
@@ -155,7 +157,10 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
             role: m.role as MemberRole,
           }))}
           fixed={{ userPublicId: user.publicId }}
-          addByOrgId
+          organizations={allOrgs
+            .filter((o) => !memberships.some((m) => m.organizationId === o.id))
+            .map((o) => ({ id: o.id, name: o.name }))}
+          emptyMessage="Not a member of any organization yet."
         />
       </SectionCard>
     </>

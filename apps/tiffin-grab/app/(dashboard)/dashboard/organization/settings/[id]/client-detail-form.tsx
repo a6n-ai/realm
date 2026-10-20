@@ -3,19 +3,35 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { MapPinIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { AddressFields } from "@foundry/ui/address-fields";
 import type { OrgLocation } from "@foundry/commons";
+import { SectionCard, StaticMap } from "@/components/ds";
 import { updateOrganizationAction } from "@/lib/services/organizations-actions";
+
+function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
+    </div>
+  );
+}
 
 export function ClientDetailForm({
   organizationId,
   organization,
   cities,
+  isBrand,
 }: {
   organizationId: string;
   organization: { name: string; clientCode: string; region: string | null } & OrgLocation;
   cities: string[];
+  isBrand: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState(organization.name);
@@ -23,13 +39,16 @@ export function ClientDetailForm({
   const [region, setRegion] = useState(organization.region ?? "");
   const [city, setCity] = useState(organization.city ?? "");
   const [address, setAddress] = useState(organization.address ?? "");
-  const [latitude, setLatitude] = useState(organization.latitude?.toString() ?? "");
-  const [longitude, setLongitude] = useState(organization.longitude?.toString() ?? "");
+  const [pin, setPin] = useState(
+    organization.latitude != null && organization.longitude != null
+      ? { lat: organization.latitude, lng: organization.longitude }
+      : null,
+  );
   const [pending, startTransition] = useTransition();
 
   return (
     <form
-      className="grid grid-cols-2 gap-3"
+      className="flex flex-col gap-6"
       onSubmit={(e) => {
         e.preventDefault();
         startTransition(async () => {
@@ -39,8 +58,8 @@ export function ClientDetailForm({
             region: region || null,
             city: city || null,
             address: address || null,
-            latitude: latitude ? Number(latitude) : null,
-            longitude: longitude ? Number(longitude) : null,
+            latitude: pin?.lat ?? null,
+            longitude: pin?.lng ?? null,
           });
           if (!result.ok) {
             toast.error(result.error);
@@ -51,63 +70,78 @@ export function ClientDetailForm({
         });
       }}
     >
-      <label className="text-sm text-muted-foreground" htmlFor="org-name">
-        Name
-      </label>
-      <Input id="org-name" value={name} onChange={(e) => setName(e.target.value)} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SectionCard title="Details" subtitle="How this client is named and identified.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="org-name" label="Name">
+              <Input id="org-name" value={name} onChange={(e) => setName(e.target.value)} required />
+            </Field>
+            <Field id="org-client-code" label="Client code" hint="Short unique code, used in order numbers.">
+              <Input id="org-client-code" value={clientCode} onChange={(e) => setClientCode(e.target.value)} required className="font-mono" />
+            </Field>
+            <Field id="org-region" label="Region">
+              <Input id="org-region" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Optional" />
+            </Field>
+            <Field id="org-city" label="City">
+              <Input id="org-city" list="org-cities" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Toronto" />
+              <datalist id="org-cities">
+                {cities.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </Field>
+          </div>
+        </SectionCard>
 
-      <label className="text-sm text-muted-foreground" htmlFor="org-client-code">
-        Client code
-      </label>
-      <Input id="org-client-code" value={clientCode} onChange={(e) => setClientCode(e.target.value)} />
+        <SectionCard
+          title="Location"
+          subtitle={
+            isBrand
+              ? "Printed as the postal address in the footer of every campaign email."
+              : "Where this franchise operates from; shown on the map when customers pick a location."
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <AddressFields
+              idPrefix="org"
+              fields={["addressLine"]}
+              values={{ addressLine: address }}
+              onChange={(patch) => {
+                // ponytail: a resolve patch carries city/postalCode/province; keep the picked full
+                // label as the address (the footer needs it whole) and only take the city from it.
+                if ("city" in patch || "postalCode" in patch || "province" in patch) {
+                  if (patch.city && !city) setCity(patch.city);
+                  return;
+                }
+                if (patch.addressLine !== undefined) {
+                  setAddress(patch.addressLine);
+                  setPin(null);
+                }
+              }}
+              onResolve={(p) => setPin({ lat: p.lat, lng: p.lng })}
+              resolveUrl="/api/address/resolve"
+            />
+            {pin ? (
+              <div className="flex flex-col gap-2">
+                <StaticMap center={pin} markers={[{ ...pin, title: name }]} zoom={14} heightPx={200} className="overflow-hidden rounded-lg border" />
+                <p className="text-muted-foreground flex items-center gap-1.5 text-xs tabular-nums">
+                  <MapPinIcon className="size-3.5" />
+                  {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
+                </p>
+              </div>
+            ) : (
+              <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <MapPinIcon className="size-3.5" />
+                {address ? "Pick a suggestion from the search to place this address on the map." : "Search for the address to place it on the map."}
+              </p>
+            )}
+          </div>
+        </SectionCard>
+      </div>
 
-      <label className="text-sm text-muted-foreground" htmlFor="org-region">
-        Region
-      </label>
-      <Input id="org-region" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="—" />
-
-      <label className="text-sm text-muted-foreground" htmlFor="org-city">
-        City
-      </label>
-      <Input id="org-city" list="org-cities" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Toronto" />
-      <datalist id="org-cities">
-        {cities.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
-
-      <label className="text-sm text-muted-foreground" htmlFor="org-address">
-        Address
-      </label>
-      <Input id="org-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" />
-
-      <label className="text-sm text-muted-foreground" htmlFor="org-latitude">
-        Latitude
-      </label>
-      <Input
-        id="org-latitude"
-        type="number"
-        step="any"
-        value={latitude}
-        onChange={(e) => setLatitude(e.target.value)}
-        placeholder="43.6532"
-      />
-
-      <label className="text-sm text-muted-foreground" htmlFor="org-longitude">
-        Longitude
-      </label>
-      <Input
-        id="org-longitude"
-        type="number"
-        step="any"
-        value={longitude}
-        onChange={(e) => setLongitude(e.target.value)}
-        placeholder="-79.3832"
-      />
-
-      <div className="col-span-2">
-        <Button type="submit" size="sm" disabled={pending || !name || !clientCode}>
-          Save
+      <div className="flex justify-end">
+        <Button type="submit" disabled={pending || !name || !clientCode}>
+          {pending ? "Saving…" : "Save changes"}
         </Button>
       </div>
     </form>

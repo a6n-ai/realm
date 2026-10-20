@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Building2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
+import { Badge } from "@/components/reui/badge";
 import { DataTable, RowActions, UserAvatar, type Column } from "@/components/ds";
 import type { SortState } from "@/lib/list/sort";
 import { CreateFranchiseButton } from "./create-franchise-button";
@@ -22,7 +23,7 @@ export type ClientListRow = {
 const COLUMNS: readonly Column<"name" | "clientCode" | "parentName" | "memberCount" | "actions">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "clientCode", label: "Client code", sortable: true },
-  { key: "parentName", label: "Brand" },
+  { key: "parentName", label: "Type" },
   { key: "memberCount", label: "Members", sortable: true, align: "right" },
   { key: "actions", label: "" },
 ];
@@ -61,7 +62,7 @@ export function ClientsList({
       search={{ placeholder: "Search clients…", shortPlaceholder: "Search…", keys: ["name", "clientCode"] }}
       filters={
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-32"><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectTrigger size="sm" className="w-32"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All types</SelectItem>
             <SelectItem value="brand">Brand</SelectItem>
@@ -81,7 +82,16 @@ export function ClientsList({
             </span>
           </TableCell>
           <TableCell className="font-mono text-sm">{r.clientCode}</TableCell>
-          <TableCell className="text-muted-foreground">{r.parentName ?? "—"}</TableCell>
+          <TableCell>
+            {r.isBrand ? (
+              <Badge variant="primary-light">Brand</Badge>
+            ) : (
+              <span className="flex items-center gap-2 text-sm">
+                <Badge variant="secondary">Franchise</Badge>
+                <span className="text-muted-foreground truncate">of {r.parentName ?? "—"}</span>
+              </span>
+            )}
+          </TableCell>
           <TableCell className="text-right tabular-nums">{r.memberCount}</TableCell>
           <TableCell>
             {r.isBrand && (

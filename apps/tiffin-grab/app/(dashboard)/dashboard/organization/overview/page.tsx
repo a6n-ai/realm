@@ -7,14 +7,27 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
 import { getMembersForOrgs } from "../members/members-query";
 import { countPendingInvites } from "../invites/invites-query";
-import { StatCards } from "./stat-cards";
-import { RecentActivity, type ActivityItem } from "./recent-activity";
+import { SectionCard } from "@/components/ds";
+import { StatCards, StatCardsSkeleton } from "./stat-cards";
+import { RecentActivity, RecentActivitySkeleton, type ActivityItem } from "./recent-activity";
+
+const ACTIVITY_TITLE = "Recent activity";
+const ACTIVITY_SUBTITLE = "Invites sent and staff who joined, newest first.";
 
 export default function OrganizationOverviewPage() {
   return (
-    <div className="space-y-6">
-      <Suspense fallback={null}><OverviewData /></Suspense>
-    </div>
+    <Suspense
+      fallback={
+        <>
+          <StatCardsSkeleton />
+          <SectionCard title={ACTIVITY_TITLE} subtitle={ACTIVITY_SUBTITLE}>
+            <RecentActivitySkeleton />
+          </SectionCard>
+        </>
+      }
+    >
+      <OverviewData />
+    </Suspense>
   );
 }
 
@@ -57,7 +70,9 @@ async function OverviewData() {
   return (
     <>
       <StatCards franchiseCount={franchiseCount} staffCount={members.length} pendingInviteCount={pendingInviteCount} />
-      <RecentActivity items={activity} />
+      <SectionCard title={ACTIVITY_TITLE} subtitle={ACTIVITY_SUBTITLE}>
+        <RecentActivity items={activity} />
+      </SectionCard>
     </>
   );
 }
