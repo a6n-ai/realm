@@ -62,6 +62,8 @@ export type PlanContext = {
   eatingWeekdays?: string[] | null;
   /** Closed dates for this plan's organization (ISO date to holiday name); Move never offers them. */
   holidays?: Record<string, string>;
+  /** Delivery days another live plan of this customer already has (date to "renewal" / "earlier plan"); Move never offers them. */
+  otherPlanDays?: Record<string, string>;
   /** This plan's first delivery date; Move never offers dates before it. */
   startDate?: string;
   active?: boolean;

@@ -124,3 +124,14 @@ describe("moveOptions weekend dish", () => {
     expect(at(ctx, "2026-09-26").disabledReason).toBeUndefined();
   });
 });
+
+describe("moveOptions other plan days", () => {
+  it("greys out a day the renewal already delivers on, and the weekend that would ride it", () => {
+    const c = { ...ctx, otherPlanDays: { "2026-09-25": "renewal" } };
+    const o = moveOptions(trip, [], NOW, c, "2026-09-21", 7);
+    const at = (d: string) => o.find((x) => x.date === d)!;
+    expect(at("2026-09-25").disabledReason).toBe("Your renewal already delivers on Fri, Sep 25. Pick another day.");
+    expect(at("2026-09-26").disabledReason).toMatch(/renewal/);
+    expect(at("2026-09-21").disabledReason).not.toMatch(/renewal/);
+  });
+});

@@ -938,8 +938,11 @@ export async function rescheduleDelivery(
     if (row.status === "paused" && row.holidayId != null) {
       throw new ValidationError("The kitchen is closed that day. This tiffin goes on another day.");
     }
-    // A make-up that is still going out can move again; one that was missed cannot spawn its own make-up.
-    if (row.status !== "scheduled") assertOriginal(row);
+    // A make-up that is still going out can move again. A held one moves ITSELF to the new day (below,
+    // `relocate`): it never spawns a make-up of its own, which is what assertOriginal guards against.
+    const heldMakeup = row.status === "skipped" && row.makeupForDeliveryId != null;
+    if (row.status !== "scheduled" && !heldMakeup) assertOriginal(row);
+    if (heldMakeup && row.pooledAt != null) throw new ValidationError("This tiffin is already back in the plan's pool.");
 
     const mutableStatuses = ["scheduled", "skipped", "paused"] as const;
     if (!mutableStatuses.includes(row.status as (typeof mutableStatuses)[number])) {
@@ -984,6 +987,17 @@ export async function rescheduleDelivery(
     if (carriedOn < today) throw new ValidationError("Reschedule date cannot be in the past");
     const newCutoff = cutoffMsFor(carriedOn, cutoffHour, timezone);
     if (Date.now() > newCutoff) throw new ValidationError("That day's cutoff has already passed");
+    // Plans never overlap: a day another live plan of this customer delivers on is not a move target.
+    const [other] = order.userId == null ? [] : await tx.select({ startDate: orders.startDate }).from(deliveries)
+      .innerJoin(orders, eq(orders.id, deliveries.orderId))
+      .where(and(
+        eq(orders.userId, order.userId), ne(orders.id, orderId), inArray(orders.status, ["pending", "active", "paused"]),
+        eq(deliveries.deliveryDate, carriedOn), inArray(deliveries.status, ["scheduled", "paused"]), isNull(deliveries.mergedIntoDeliveryId),
+      )).limit(1);
+    if (other) {
+      const kind = other.startDate < order.startDate ? "earlier plan" : "renewal";
+      throw new ValidationError(`Your ${kind} already delivers on ${humanDate(carriedOn)}. Pick another day.`);
+    }
 
     const [existingMakeup] = await tx.select({ id: deliveries.id }).from(deliveries)
       .where(or(eq(deliveries.makeupForDeliveryId, row.id), eq(deliveries.holidayExtraForDeliveryId, row.id))).limit(1);
@@ -1006,11 +1020,13 @@ export async function rescheduleDelivery(
       .where(and(eq(deliveryMoves.fromDeliveryId, row.id), ne(deliveryMoves.toDeliveryId, row.id))).limit(1);
     // A trip that exists only for a moved tiffin relocates: no skipped row, no make-up of a make-up.
     // One whose own tiffin left earlier stays put, so that day keeps reading "Moved to".
-    const relocate = whole && row.status === "scheduled" && carriedOn !== row.deliveryDate && !departed
-      && (arrival != null || row.makeupForDeliveryId != null);
+    const relocate = whole && carriedOn !== row.deliveryDate && !departed
+      && (heldMakeup || (row.status === "scheduled" && (arrival != null || row.makeupForDeliveryId != null)));
     let moved: { id: bigint; merged: boolean };
     if (whole) {
       if (relocate) {
+        // Back to scheduled first, so the row relocates exactly like a make-up that is still going out.
+        if (heldMakeup) await tx.update(deliveries).set({ status: "scheduled" }).where(eq(deliveries.id, row.id));
         moved = await moveOneTiffin(tx, row, fromEat, eatingDateIso, carriedOn, newCutoff, order.persons);
         oldStop = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
       } else if (carriedOn === row.deliveryDate && row.status === "scheduled") {

@@ -31,6 +31,25 @@ export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
   return "upcoming";
 }
 
+/**
+ * This plan's dots, plus the delivery days another of the customer's live plans already has. Move greys
+ * those out: plans never overlap, so a tiffin moved there would double up with the renewal.
+ * Value: "renewal" when that plan delivers after this one starts, else "earlier plan".
+ */
+export function splitAgenda(all: Agenda, orderId: string, startDate?: string): { agenda: Agenda; otherPlanDays: Record<string, string> } {
+  const agenda: Agenda = {};
+  const otherPlanDays: Record<string, string> = {};
+  for (const [date, ds] of Object.entries(all)) {
+    const mine = ds.filter((d) => d.orderId === orderId);
+    if (mine.length) agenda[date] = mine;
+    for (const d of ds) {
+      if (d.orderId === orderId || !d.truck || d.moved || d.holiday || (d.status !== "scheduled" && d.status !== "paused")) continue;
+      otherPlanDays[d.deliveryDate] = !startDate || d.deliveryDate > startDate ? "renewal" : "earlier plan";
+    }
+  }
+  return { agenda, otherPlanDays };
+}
+
 /** Paused delivery days still before cutoff, from the plan-wide agenda; a moved-away day is not resumable. */
 export function pausedAhead(agenda: Agenda, now: number): number {
   const seen = new Set<string>();
