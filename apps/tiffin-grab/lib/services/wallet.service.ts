@@ -11,9 +11,13 @@ import {
   type WalletTx as PackageWalletTx,
 } from "@foundry/wallet";
 import { and, eq, sql } from "drizzle-orm";
+import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { coinRate, eventPayout, ledgerEntries, orders, users, walletLedger } from "@/db/schema";
-import { getMaxWalletBalance } from "./app-settings.service";
+import { coinRate, eventPayout, ledgerEntries, orderActivities, orders, users, walletLedger } from "@/db/schema";
+import type { OrderPricingSnapshot } from "@/lib/pricing";
+import { earnCoins } from "@/lib/wallet/earn-coins";
+import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
+import { getAppSettings, getCoinEarnPct, getMaxWalletBalance } from "./app-settings.service";
 
 export type BusinessEvent = (typeof walletLedger.eventType.enumValues)[number];
 export type WalletTx = PackageWalletTx<BusinessEvent>;
@@ -129,13 +133,7 @@ export async function recollectLapsedCoins(
   args: { userId: bigint; orderId: bigint; orderRef: string; coins: number },
 ): Promise<{ collected: number; notCollected: number }> {
   await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${args.userId} FOR UPDATE`);
-  const [row] = await tx
-    .select({
-      bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
-    })
-    .from(walletLedger)
-    .where(and(eq(walletLedger.userId, args.userId), unexpired(walletLedger, Date.now())));
-  const collected = Math.max(0, Math.min(row?.bal ?? 0, args.coins));
+  const collected = Math.max(0, Math.min(await balanceInTx(tx, args.userId), args.coins));
   if (collected > 0) {
     await tx.insert(walletLedger).values({
       userId: args.userId,
@@ -153,4 +151,70 @@ export async function recollectLapsedCoins(
 /** Gives back the coins held or spent on an order (a hold is released, a spend is credited back). */
 export function reverseCoinRedemption(tx: Tx, args: { userId: bigint; orderId: bigint }) {
   return reverseRedemption(tx, { ...args, walletLedger, orders, users });
+}
+
+/** Spendable balance read through the caller's tx (lapsed holds don't count). Take the user row lock first. */
+async function balanceInTx(tx: Tx, userId: bigint): Promise<number> {
+  const [row] = await tx
+    .select({
+      bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
+    })
+    .from(walletLedger)
+    .where(and(eq(walletLedger.userId, userId), unexpired(walletLedger, Date.now())));
+  return row?.bal ?? 0;
+}
+
+type AwardableOrder = Pick<typeof orders.$inferSelect, "id" | "publicId" | "deploymentId" | "userId" | "total" | "pricingSnapshot">;
+
+/**
+ * Credits a paid order's earn-back coins inside the caller's transaction, so
+ * coins commit or roll back with the payment. Never throws for a business
+ * reason: a cap or a missing coin value skips the award and leaves a note on
+ * the order instead of blocking the payment. Same key as the old award, so
+ * cancel/refund clawback (reverseCoinAward) is unchanged.
+ */
+export async function awardOrderCoins(
+  tx: Tx,
+  order: AwardableOrder,
+  paymentStatus: string | null,
+): Promise<{ coins: number; skipped?: "unpaid" | "off" | "no_rate" | "cap" | "already" }> {
+  if (order.userId == null || !earnsOrderCoins({ total: order.total, paymentStatus })) return { coins: 0, skipped: "unpaid" };
+  const pct = await getCoinEarnPct();
+  if (pct <= 0) return { coins: 0, skipped: "off" };
+
+  const note = (text: string) => tx.insert(orderActivities).values({ orderId: order.id, type: "note", note: text });
+  const { currency } = await getAppSettings();
+  let rate: number;
+  try {
+    rate = await baseWalletService.activeRate(currency);
+  } catch (e) {
+    if (!(e instanceof ValidationError)) throw e;
+    await note(`No coins earned: no coin value set for ${currency}`);
+    return { coins: 0, skipped: "no_rate" };
+  }
+  const snap = order.pricingSnapshot as OrderPricingSnapshot;
+  const coins = earnCoins({ total: Number(order.total), taxTotal: snap.taxTotal ?? 0, pct, valuePerCoin: rate });
+  if (coins <= 0) return { coins: 0, skipped: "off" };
+
+  await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${order.userId} FOR UPDATE`);
+  const cap = await getMaxWalletBalance();
+  if (cap !== null && (await balanceInTx(tx, order.userId)) + coins > cap) {
+    await note(`No coins earned: wallet cap reached (${coins} coins skipped)`);
+    return { coins: 0, skipped: "cap" };
+  }
+  const res = await tx
+    .insert(walletLedger)
+    .values({
+      userId: order.userId,
+      direction: "credit",
+      eventType: "order_activated",
+      sourceType: "order",
+      sourceId: order.publicId,
+      orderId: order.id,
+      coins,
+      memo: `Earned ${pct}% on order ${order.deploymentId}`,
+    })
+    .onConflictDoNothing({ target: [walletLedger.sourceType, walletLedger.sourceId, walletLedger.eventType] })
+    .returning({ id: walletLedger.id });
+  return res.length > 0 ? { coins } : { coins: 0, skipped: "already" };
 }

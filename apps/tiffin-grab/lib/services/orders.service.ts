@@ -1,5 +1,4 @@
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
-import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
 import { createLogger } from "@foundry/commons/logger";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
@@ -69,6 +68,7 @@ import {
   recollectLapsedCoins,
   reverseCoinRedemption,
   reverseCoinAward,
+  awardOrderCoins,
 } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import { eatingDaysError, orderDeliveryDays, planWeek, weekendDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
@@ -733,26 +733,13 @@ export async function createOrder(
       createdBy,
     });
 
-    // Coins also defer on real methods — awarded in verifyPayment.
-    return {
-      deploymentId,
-      publicId: order.publicId,
-      awardUserId:
-        !deferSettlement && status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "simulated_paid" })
-          ? userId
-          : null,
-    };
+    // Real methods earn coins in verifyPayment; waitlisted orders in activate.
+    if (!deferSettlement && status === "active") await awardOrderCoins(tx, order, "simulated_paid");
+
+    return { deploymentId, publicId: order.publicId };
   });
 
   publishAnalyticsLive();
-
-  try {
-    if (txResult.awardUserId != null) {
-      await walletService.award(txResult.awardUserId, "order_activated", { type: "order", id: txResult.publicId });
-    }
-  } catch (e) {
-    log.error({ err: e }, "wallet award on activation failed");
-  }
 
   return { deploymentId: txResult.deploymentId, publicId: txResult.publicId };
 }
@@ -779,7 +766,7 @@ export function paymentTemplateVars(
 }
 
 // Staff settles a real-method payment: credits the ledger, redeems any deferred
-// coupons from the pricing snapshot, awards activation coins, and marks paid.
+// coupons from the pricing snapshot, awards earn-back coins, and marks paid.
 // Accepts awaiting_payment (e.g. cash confirmed without a customer claim) and
 // pending_verification (after a claim). Idempotent against already-paid rows.
 export async function verifyPayment(
@@ -787,7 +774,7 @@ export async function verifyPayment(
   opts: { actorId?: string | null } = {},
 ): Promise<void> {
   let missedStops: OptimoSyncedRow[] = [];
-  const award = await db.transaction(async (tx) => {
+  const userPublicId = await db.transaction(async (tx) => {
     // Locked so a second, concurrent verify waits, then sees "paid" and stops.
     const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).for("update").limit(1);
     if (!pay) throw new NotFoundError("Payment not found");
@@ -908,28 +895,17 @@ export async function verifyPayment(
       dedupeKey: `payment_approved:${pay.publicId}`,
     });
 
-    // Award coins only when the order is (still) active — waitlisted stays deferred
-    // until activateOrder, which has its own award path.
-    return order.status === "active" && earnsOrderCoins({ total: order.total, paymentStatus: "paid" }) ? { 
-      userId: order.userId, 
-      orderPublicId: order.publicId,
-      userPublicId: user.publicId,
-    } : null;
+    // Waitlisted orders earn in activate instead, once they go active.
+    if (order.status === "active") await awardOrderCoins(tx, order, "paid");
+
+    return user?.publicId ?? null;
   });
 
   publishAnalyticsLive();
   await deleteFromOptimoRouteBestEffort(missedStops);
 
-  if (award) {
-    try {
-      await walletService.award(award.userId, "order_activated", { type: "order", id: award.orderPublicId });
-    } catch (e) {
-      log.error({ err: e }, "wallet award on payment verify failed");
-    }
-
-    // Trigger page refresh for the user
-    publishUserRefresh(award.userPublicId);
-  }
+  // Refreshes the customer's wallet/bills views.
+  if (userPublicId) publishUserRefresh(userPublicId);
 }
 
 // Minimal refund trigger: tiffin-grab has no refund-processing flow yet (no
@@ -1697,7 +1673,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // update()/transition() path for the same reason createOrder does (see its
     // comment above): those helpers aren't tx-aware, so a raw in-tx write is
     // the smaller change vs threading a tx through the shared service layer.
-    const updated = await db.transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       // Advisory lock before the orders row is written (every delivery writer takes it first).
       await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
       // Waitlisted orders skipped the overlap guard at checkout (they held no days); now they will.
@@ -1719,27 +1695,16 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       });
       await materializeDeliveries(tx, row);
       await applyHolidaysToOrder(tx, row, actorId);
-      return row;
+      // An unverified real-method payment earns later, in verifyPayment.
+      const [pay] = await tx
+        .select({ status: payments.status })
+        .from(payments)
+        .where(eq(payments.orderId, row.id))
+        .limit(1);
+      await awardOrderCoins(tx, row, pay?.status ?? null);
     });
 
     publishAnalyticsLive();
-
-    if (updated.userId != null) {
-      // Real-method orders defer coins until payment verify — don't award here if
-      // the payment is still unpaid/unverified.
-      const [pay] = await db
-        .select({ status: payments.status })
-        .from(payments)
-        .where(eq(payments.orderId, updated.id))
-        .limit(1);
-      if (earnsOrderCoins({ total: updated.total, paymentStatus: pay?.status ?? null })) {
-        try {
-          await walletService.award(updated.userId, "order_activated", { type: "order", id: updated.publicId });
-        } catch (e) {
-          log.error({ err: e }, "wallet award on activation failed");
-        }
-      }
-    }
   }
 
   // A plan migrated from WordPress (db/seed-customers.ts) waits as `pending` with its
